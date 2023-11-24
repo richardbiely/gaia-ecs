@@ -5621,6 +5621,10 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD constexpr bool operator!=(const darr& other) const {
+				return !operator==(other);
+			}
+
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
 				return mem::data_view_policy<T::Layout, T>::template get<Item>(
@@ -6282,6 +6286,10 @@ namespace gaia {
 					if (!(operator[](i) == other[i]))
 						return false;
 				return true;
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const {
+				return !operator==(other);
 			}
 
 			template <size_t Item>
@@ -9647,6 +9655,10 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD constexpr bool operator!=(const sarr& other) const {
+				return !operator==(other);
+			}
+
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
 				return mem::data_view_policy<T::Layout, T>::template get<Item>(
@@ -10216,6 +10228,10 @@ namespace gaia {
 					if (!(operator[](i) == other[i]))
 						return false;
 				return true;
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext& other) const {
+				return !operator==(other);
 			}
 
 			template <size_t Item>
@@ -14077,6 +14093,12 @@ namespace gaia {
 		template <typename T>
 		struct uni {
 			static_assert(core::is_raw_v<T>);
+			static_assert(
+					std::is_trivial_v<T> ||
+							// For non-trivial T the comparison operator must be implemented because
+							// defragmentation needs it to figure out is entities can be moved around.
+							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+					"Non-trivial Uni component must implement operator==");
 
 			//! Component kind
 			static constexpr EntityKind Kind = EntityKind::EK_Uni;
@@ -14146,29 +14168,12 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_type_t<T>::Type;
+			using U = typename component_type_t<T>::TypeOriginal;
 
 			// Make sure we only use this for "raw" types
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
-		}
-
-		template <typename T>
-		constexpr void verify_comp([[maybe_unused]] EntityKind kind) {
-			verify_comp<T>();
-
-#if GAIA_ASSERT_ENABLED
-			using U = typename component_type_t<T>::Type;
-			if (!std::is_trivial_v<U>) {
-				if (kind != EntityKind::EK_Uni)
-					return;
-
-				constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
-				constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
-				GAIA_ASSERT((hasGlobalCmp || hasMemberCmp) && "Non-trivial Uni component must implement operator==");
-			}
-#endif
 		}
 
 		//----------------------------------------------------------------------
@@ -14834,11 +14839,11 @@ namespace gaia {
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
-			ChunkDataVersionOffset firstByte_Versions[EntityKind::EK_Count]{};
+			ChunkDataVersionOffset firstByte_Versions{};
 			//! Byte at which the first etity id is located
-			ChunkDataOffset firstByte_CompEntities[EntityKind::EK_Count]{};
+			ChunkDataOffset firstByte_CompEntities{};
 			//! Byte at which the first component id is located
-			ChunkDataOffset firstByte_Records[EntityKind::EK_Count]{};
+			ChunkDataOffset firstByte_Records{};
 			//! Byte at which the first entity is located
 			ChunkDataOffset firstByte_EntityData{};
 		};
@@ -14856,11 +14861,11 @@ namespace gaia {
 
 		struct ChunkRecords {
 			//! Pointer to where component versions are stored
-			ComponentVersion* pVersions[EntityKind::EK_Count]{};
+			ComponentVersion* pVersions{};
 			//! Pointer to where (component) entities are stored
-			Entity* pCompEntities[EntityKind::EK_Count]{};
+			Entity* pCompEntities{};
 			//! Pointer to the array of component records
-			ComponentRecord* pRecords[EntityKind::EK_Count]{};
+			ComponentRecord* pRecords{};
 			//! Pointer to the array of entities
 			Entity* pEntities{};
 		};
@@ -14911,18 +14916,23 @@ namespace gaia {
 			//! Empty space for future use
 			uint32_t unused : 7;
 
+			//! Number of generic entities/components
+			uint8_t genEntities;
 			//! Number of components on the archetype
-			uint8_t componentCount[EntityKind::EK_Count]{};
+			uint8_t componentCount{};
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
-			ChunkHeader(const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
-					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
-					lifespanCountdown(0), dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0),
-					hasAnyCustomGenDtor(0), hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
+			ChunkHeader(
+					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
+					uint32_t& version):
+					cc(&compCache),
+					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
+					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
+					hasAnyCustomUniDtor(0), sizeType(st), unused(0), genEntities(genEntitiesCnt), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}
@@ -15763,16 +15773,12 @@ namespace gaia {
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) ComponentVersions[EntityKind::EK_Gen]
-			//!			2) ComponentVersions[EntityKind::EK_Uni]
-			//!     3) EntityIds[EntityKind::EK_Gen]
-			//!			4) EntityIds[EntityKind::EK_Uni]
-			//!     5) ComponentIds[EntityKind::EK_Gen]
-			//!			6) ComponentIds[EntityKind::EK_Uni]
-			//!			7) ComponentRecords[EntityKind::EK_Gen]
-			//!			8) ComponentRecords[EntityKind::EK_Uni]
-			//!			9) Entities
-			//!			10) Components
+			//!			1) ComponentVersions
+			//!     2) EntityIds
+			//!     3) ComponentIds
+			//!			4) ComponentRecords
+			//!			5) Entities (identifiers)
+			//!			6) Entities (data)
 			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
@@ -15782,8 +15788,10 @@ namespace gaia {
 			// Hidden default constructor. Only use to calculate the relative offset of m_data
 			Chunk() = default;
 
-			Chunk(const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
-					m_header(cc, chunkIndex, capacity, st, worldVersion) {
+			Chunk(
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
+					uint32_t& worldVersion):
+					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -15797,52 +15805,36 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps, const ChunkDataOffsets& headerOffsets,
-					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
-				m_header.componentCount[EntityKind::EK_Gen] = (uint8_t)comps[EntityKind::EK_Gen].size();
-				m_header.componentCount[EntityKind::EK_Uni] = (uint8_t)comps[EntityKind::EK_Uni].size();
+					const EntityArray& ents, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
+					const ComponentOffsetArray& compOffs) {
+				m_header.componentCount = (uint8_t)ents.size();
 
 				// Cache pointers to versions
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					m_records.pVersions[i] = (ComponentVersion*)&data(headerOffsets.firstByte_Versions[i]);
+				if (!ents.empty()) {
+					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 				}
 
 				// Cache entity ids
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (ents[i].empty())
-						continue;
-
-					auto* dst = m_records.pCompEntities[i] = (Entity*)&data(headerOffsets.firstByte_CompEntities[i]);
-					const auto& ids = ents[i];
+				if (!ents.empty()) {
+					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
-					for (; j < ids.size(); ++j)
-						dst[j] = ids[j];
+					for (; j < ents.size(); ++j)
+						dst[j] = ents[j];
 					for (; j < MAX_COMPONENTS; ++j)
 						dst[j] = IdentifierIdBad;
 				}
 
 				// Cache component records
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
-					const auto& offs = compOffs[i];
-					const auto& eids = ents[i];
-					const auto& cids = comps[i];
-					GAIA_EACH_(cids, j) {
-						dst[j].entity = eids[j];
-						dst[j].comp = cids[j];
-						const auto off = offs[j];
-						dst[j].pData = &data(off);
-						dst[j].pDesc = &m_header.cc->get(cids[j].id());
+				if (!ents.empty()) {
+					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
+					GAIA_EACH_(comps, j) {
+						dst[j].entity = ents[j];
+						dst[j].comp = comps[j];
+						dst[j].pData = &data(compOffs[j]);
+						dst[j].pDesc = &m_header.cc->get(comps[j].id());
 					}
 				}
 
@@ -15850,33 +15842,30 @@ namespace gaia {
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
+					auto recs = comp_rec_view();
 					for (const auto& rec: recs) {
-						m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
-					}
-				}
-				{
-					auto recs = comp_rec_view(EntityKind::EK_Uni);
-					for (const auto& rec: recs) {
-						m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
-					}
+						if (rec.entity.kind() == EntityKind::EK_Gen) {
+							m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
+							m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
+						} else {
+							m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
+							m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
 
-					// Also construct unique components if possible
-					if (has_custom_uni_ctor())
-						call_ctors(EntityKind::EK_Uni, 0, 1);
+							// We construct unique components right away if possible
+							call_ctor(0, *rec.pDesc);
+						}
+					}
 				}
 			}
 
 			GAIA_MSVC_WARNING_POP()
 
-			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(EntityKind kind) const {
-				return {(const ComponentVersion*)m_records.pVersions[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
+				return {(const ComponentVersion*)m_records.pVersions, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut(EntityKind kind) {
-				return {m_records.pVersions[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
+				return {m_records.pVersions, m_header.componentCount};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
@@ -15907,10 +15896,10 @@ namespace gaia {
 					const auto compIdx = comp_idx(comp);
 
 					if constexpr (kind == EntityKind::EK_Gen) {
-						return {comp_ptr(kind, compIdx, from), to - from};
+						return {comp_ptr(compIdx, from), to - from};
 					} else {
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr(kind, compIdx), 1};
+						return {comp_ptr(compIdx), 1};
 					}
 				}
 			}
@@ -15943,13 +15932,13 @@ namespace gaia {
 
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted)
-						update_world_version(kind, compIdx);
+						update_world_version(compIdx);
 
 					if constexpr (kind == EntityKind::EK_Gen) {
-						return {comp_ptr_mut(kind, compIdx, from), to - from};
+						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr_mut(kind, compIdx), 1};
+						return {comp_ptr_mut(compIdx), 1};
 					}
 				}
 			}
@@ -16025,24 +16014,26 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t dataBytes,
+					uint32_t& worldVersion,
+					// data offsets
 					const ChunkDataOffsets& offsets,
 					// component entities
-					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
+					const EntityArray& ents,
 					// component
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
+					const ComponentArray& comps,
 					// component offsets
-					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
+					const ComponentOffsetArray& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
+				new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
 				pChunk->init(ents, comps, offsets, compOffs);
@@ -16061,10 +16052,8 @@ namespace gaia {
 				pChunk->die();
 
 				// Call destructors for components that need it
-				if (pChunk->has_custom_gen_dtor())
-					pChunk->call_dtors(EntityKind::EK_Gen, 0, pChunk->size());
-				if (pChunk->has_custom_uni_dtor())
-					pChunk->call_dtors(EntityKind::EK_Uni, 0, 1);
+				if (pChunk->has_custom_gen_dtor() || pChunk->has_custom_uni_dtor())
+					pChunk->call_all_dtors();
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
@@ -16108,8 +16097,7 @@ namespace gaia {
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
 				update_version(m_header.worldVersion);
-				update_world_version(EntityKind::EK_Gen);
-				update_world_version(EntityKind::EK_Uni);
+				update_world_version();
 			}
 
 			/*!
@@ -16226,31 +16214,31 @@ namespace gaia {
 				return {(const Entity*)m_records.pEntities, size()};
 			}
 
-			GAIA_NODISCARD EntitySpan ents_id_view(EntityKind kind) const {
-				return {(const Entity*)m_records.pCompEntities[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD EntitySpan ents_id_view() const {
+				return {(const Entity*)m_records.pCompEntities, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view(EntityKind kind) const {
-				return {m_records.pRecords[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view() const {
+				return {m_records.pRecords, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD uint8_t* comp_ptr_mut(EntityKind kind, uint32_t compIdx) {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx) {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
-			GAIA_NODISCARD uint8_t* comp_ptr_mut(EntityKind kind, uint32_t compIdx, uint32_t offset) {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx, uint32_t offset) {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
-			GAIA_NODISCARD const uint8_t* comp_ptr(EntityKind kind, uint32_t compIdx) const {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx) const {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
-			GAIA_NODISCARD const uint8_t* comp_ptr(EntityKind kind, uint32_t compIdx, uint32_t offset) const {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx, uint32_t offset) const {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
@@ -16264,8 +16252,7 @@ namespace gaia {
 				entity_view_mut()[index] = entity;
 
 				update_version(m_header.worldVersion);
-				update_world_version(EntityKind::EK_Gen);
-				update_world_version(EntityKind::EK_Uni);
+				update_world_version();
 
 				return index;
 			}
@@ -16274,7 +16261,7 @@ namespace gaia {
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
 			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::copy_entity_data);
+				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
 				auto& oldEntityContainer = entities[oldEntity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -16284,16 +16271,16 @@ namespace gaia {
 
 				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
 
-				auto oldRecs = pOldChunk->comp_rec_view(EntityKind::EK_Gen);
+				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_EACH(oldRecs) {
+				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(EntityKind::EK_Gen, i, oldEntityContainer.row);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(EntityKind::EK_Gen, i, newEntityContainer.row);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldEntityContainer.row);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i, newEntityContainer.row);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -16302,36 +16289,35 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
 			void move_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::move_entity_data);
+				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
 				auto& ec = entities[entity.id()];
 				auto* pOldChunk = ec.pChunk;
-				auto oldRecs = pOldChunk->comp_rec_view(EntityKind::EK_Gen);
+				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_EACH(oldRecs) {
+				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(EntityKind::EK_Gen, i, ec.row);
-					auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, row);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, ec.row);
+					auto* pDst = (void*)comp_ptr_mut(i, row);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
 
-			static void
-			move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow, EntityKind kind) {
-				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
+			static void move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow) {
+				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
 				GAIA_ASSERT(oldRow < pOldChunk->size());
 				GAIA_ASSERT(newRow < pNewChunk->size());
 
-				auto oldIds = pOldChunk->ents_id_view(kind);
-				auto newIds = pNewChunk->ents_id_view(kind);
-				auto recsNew = pNewChunk->comp_rec_view(kind);
+				auto oldIds = pOldChunk->ents_id_view();
+				auto newIds = pNewChunk->ents_id_view();
+				auto recsNew = pNewChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
@@ -16339,7 +16325,7 @@ namespace gaia {
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < oldIds.size() && j < newIds.size()) {
+					while (i < pOldChunk->m_header.genEntities && j < pNewChunk->m_header.genEntities) {
 						const auto oldId = oldIds[i];
 						const auto newId = newIds[j];
 
@@ -16347,8 +16333,8 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(kind, i, oldRow);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
@@ -16361,7 +16347,7 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 								rec.pDesc->func_ctor(pDst, 1);
 							}
 
@@ -16370,14 +16356,11 @@ namespace gaia {
 					}
 
 					// Initialize the rest of the components if they are generic.
-					// Unique components are constructed automatically when the chunk is created.
-					if (kind == EntityKind::EK_Gen) {
-						for (; j < newIds.size(); ++j) {
-							const auto& rec = recsNew[j];
-							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
-								rec.pDesc->func_ctor(pDst, 1);
-							}
+					for (; j < pNewChunk->m_header.genEntities; ++j) {
+						const auto& rec = recsNew[j];
+						if (rec.pDesc->func_ctor != nullptr) {
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
+							rec.pDesc->func_ctor(pDst, 1);
 						}
 					}
 				}
@@ -16387,13 +16370,10 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
 			void move_foreign_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
+				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
 				auto& ec = entities[entity.id()];
-				move_foreign_entity_data(
-						ec.pChunk, ec.row, this, row,
-						// We ignore unique components here because they are not influenced by entities moving around.
-						EntityKind::EK_Gen);
+				move_foreign_entity_data(ec.pChunk, ec.row, this, row);
 			}
 
 			/*!
@@ -16403,7 +16383,7 @@ namespace gaia {
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
 			void remove_entity_inter(uint32_t index, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::remove_entity_inter);
+				GAIA_PROF_SCOPE(Chunk::remove_entity_inter);
 
 				const auto left = index;
 				const auto right = (uint32_t)m_header.count - 1;
@@ -16428,14 +16408,14 @@ namespace gaia {
 					ev[left] = entityRight;
 
 					// Move component data from rightEntity to leftEntity
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
-					GAIA_EACH(recs) {
+					auto recs = comp_rec_view();
+					GAIA_FOR2(0, m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, right);
-						auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
+						auto* pSrc = (void*)comp_ptr_mut(i, right);
+						auto* pDst = (void*)comp_ptr_mut(i, left);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
@@ -16444,13 +16424,13 @@ namespace gaia {
 					ecRight.row = left;
 				} else {
 					// This is the last entity in chunk so simply destroy its data
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
-					GAIA_EACH(recs) {
+					auto recs = comp_rec_view();
+					GAIA_FOR2(0, m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
+						auto* pSrc = (void*)comp_ptr_mut(i, left);
 						rec.pDesc->dtor(pSrc);
 					}
 				}
@@ -16471,7 +16451,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
 					return;
 
-				GAIA_PROF_SCOPE(chunk::remove_entity);
+				GAIA_PROF_SCOPE(Chunk::remove_entity);
 
 				if (enabled(index)) {
 					// Entity was previously enabled. Swap with the last entity
@@ -16508,7 +16488,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_header.count <= 1 || left == right)
 					return;
 
-				GAIA_PROF_SCOPE(chunk::swap_chunk_entities);
+				GAIA_PROF_SCOPE(Chunk::swap_chunk_entities);
 
 				// Update entity data
 				auto ev = entity_view_mut();
@@ -16524,14 +16504,14 @@ namespace gaia {
 				ev[right] = entityLeft;
 
 				// Swap component data
-				auto recs = comp_rec_view(EntityKind::EK_Gen);
-				GAIA_EACH(recs) {
+				auto recs = comp_rec_view();
+				GAIA_FOR2(0, m_header.genEntities) {
 					const auto& rec = recs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
-					auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, right);
+					auto* pSrc = (void*)comp_ptr_mut(i, left);
+					auto* pDst = (void*)comp_ptr_mut(i, right);
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
@@ -16627,58 +16607,47 @@ namespace gaia {
 				return m_header.hasAnyCustomUniDtor;
 			}
 
-			void call_ctor(EntityKind kind, uint32_t entIdx, const ComponentCacheItem& desc) {
-				GAIA_PROF_SCOPE(chunk::call_ctor);
-
-				// Make sure only generic components are used with this function.
-				// Unique components are automatically constructed with chunks.
-				GAIA_ASSERT(kind == EntityKind::EK_Gen);
+			void call_ctor(uint32_t entIdx, const ComponentCacheItem& desc) {
+				GAIA_PROF_SCOPE(Chunk::call_ctor);
 
 				if (desc.func_ctor == nullptr)
 					return;
 
 				const auto compIdx = comp_idx(desc.entity);
-				auto* pSrc = (void*)comp_ptr_mut(kind, compIdx, entIdx);
+				auto* pSrc = (void*)comp_ptr_mut(compIdx, entIdx);
 				desc.func_ctor(pSrc, 1);
 			}
 
-			void call_ctors(EntityKind kind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(chunk::call_ctors);
+			void call_gen_ctors(uint32_t entIdx, uint32_t entCnt) {
+				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
 
-				GAIA_ASSERT(
-						kind == EntityKind::EK_Gen && has_custom_gen_ctor() || kind == EntityKind::EK_Uni && has_custom_uni_ctor());
+				auto recs = comp_rec_view();
+				GAIA_FOR2(0, m_header.genEntities) {
+					const auto& rec = recs[i];
 
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(kind == EntityKind::EK_Gen || (entIdx == 0 && entCnt == 1));
-
-				auto recs = comp_rec_view(kind);
-				GAIA_EACH(recs) {
-					const auto* pDesc = recs[i].pDesc;
+					const auto* pDesc = rec.pDesc;
 					if (pDesc->func_ctor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(kind, i, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(i, entIdx);
 					pDesc->func_ctor(pSrc, entCnt);
 				}
 			}
 
-			void call_dtors(EntityKind kind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(chunk::call_dtors);
+			void call_all_dtors() {
+				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
-				GAIA_ASSERT(
-						kind == EntityKind::EK_Gen && has_custom_gen_dtor() || kind == EntityKind::EK_Uni && has_custom_uni_dtor());
-
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(kind == EntityKind::EK_Gen || (entIdx == 0 && entCnt == 1));
-
-				auto recs = comp_rec_view(kind);
+				auto recs = comp_rec_view();
 				GAIA_EACH(recs) {
-					const auto* pDesc = recs[i].pDesc;
+					const auto& rec = recs[i];
+
+					const auto* pDesc = rec.pDesc;
 					if (pDesc->func_dtor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(kind, i, entIdx);
-					pDesc->func_dtor(pSrc, entCnt);
+					auto* pSrc = (void*)comp_ptr_mut(i, 0);
+					const auto cnt = (rec.entity.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
+					pDesc->func_dtor(pSrc, cnt);
 				}
 			};
 
@@ -16687,14 +16656,13 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Checks if a component with \param compId and type \param kind is present in the chunk.
-			\param compId Component id
-			\param kind Component type
+			Checks if a component/entity \param entity is present in the chunk.
+			\param entity Entity
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				auto compIds = ents_id_view(entity.kind());
-				return core::has(compIds, entity);
+				auto ents = ents_id_view();
+				return core::has(ents, entity);
 			}
 
 			/*!
@@ -16861,7 +16829,7 @@ namespace gaia {
 			 \return Component index if the component was found. -1 otherwise.
 			 */
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
-				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pCompEntities[entity.kind()], entity);
+				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -16981,20 +16949,20 @@ namespace gaia {
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool changed(EntityKind kind, uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view(kind);
+			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
+				auto versions = comp_version_view();
 				return version_changed(versions[compIdx], version);
 			}
 
-			//! Update version of a component at the index \param compIdx of a given \param kind
-			GAIA_FORCEINLINE void update_world_version(EntityKind kind, uint32_t compIdx) {
-				auto versions = comp_version_view_mut(kind);
+			//! Update the version of a component at the index \param compIdx
+			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
+				auto versions = comp_version_view_mut();
 				versions[compIdx] = m_header.worldVersion;
 			}
 
-			//! Update version of all components of a given \param kind
-			GAIA_FORCEINLINE void update_world_version(EntityKind kind) {
-				auto versions = comp_version_view_mut(kind);
+			//! Update the version of all components
+			GAIA_FORCEINLINE void update_world_version() {
+				auto versions = comp_version_view_mut();
 				for (auto& v: versions)
 					v = m_header.worldVersion;
 			}
@@ -17014,7 +16982,8 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
-		inline const ComponentCache& comp_cache(const World& world);
+		const ComponentCache& comp_cache(const World& world);
+		const char* entity_name(const World& world, Entity entity);
 
 		class ArchetypeBase {
 		protected:
@@ -17027,21 +16996,17 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline bool cmp_comps(EntitySpan* comps, EntitySpan* compsOther) {
+		GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 			// Size has to match
 			GAIA_FOR(EntityKind::EK_Count) {
-				if (comps[i].size() != compsOther[i].size())
+				if (comps.size() != compsOther.size())
 					return false;
 			}
 
 			// Elements have to match
-			GAIA_FOR(EntityKind::EK_Count) {
-				const auto& c0 = comps[i];
-				const auto& c1 = compsOther[i];
-				GAIA_EACH_(c0, j) {
-					if (c0[j] != c1[j])
-						return false;
-				}
+			GAIA_EACH(comps) {
+				if (comps[i] != compsOther[i])
+					return false;
 			}
 
 			return true;
@@ -17051,30 +17016,27 @@ namespace gaia {
 			friend class Archetype;
 
 			//! List of component indices
-			EntitySpan m_comps[EntityKind::EK_Count];
+			EntitySpan m_comps;
 
 		public:
-			ArchetypeLookupChecker(EntitySpan compsGen, EntitySpan compsUni) {
-				m_comps[EntityKind::EK_Gen] = compsGen;
-				m_comps[EntityKind::EK_Uni] = compsUni;
-			}
+			ArchetypeLookupChecker(EntitySpan comps): m_comps(comps) {}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				return ecs::cmp_comps((EntitySpan*)&m_comps[0], (EntitySpan*)&other.m_comps[0]);
+				return ecs::cmp_comps(m_comps, other.m_comps);
 			}
 		};
 
 		class Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
-			using GenComponentHash = core::direct_hash_key<uint64_t>;
-			using UniComponentHash = core::direct_hash_key<uint64_t>;
 
 			struct Properties {
-				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
+				//! The number of data entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
 				//! How many bytes of data is needed for a fully utilized chunk
 				ChunkDataOffset chunkDataBytes;
+				//! The number of generic entities/components
+				uint8_t genEntities;
 			};
 
 		private:
@@ -17094,20 +17056,16 @@ namespace gaia {
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entity ids
-			cnt::sarray<Chunk::EntityArray, EntityKind::EK_Count> m_ents;
+			Chunk::EntityArray m_ents;
 			//! List of component ids
-			cnt::sarray<Chunk::ComponentArray, EntityKind::EK_Count> m_comps;
+			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
-			cnt::sarray<Chunk::ComponentOffsetArray, EntityKind::EK_Count> m_compOffs;
+			Chunk::ComponentOffsetArray m_compOffs;
 
-			//! Hash of generic components
-			GenComponentHash m_hashGen = {0};
-			//! Hash of unique components
-			UniComponentHash m_hashUni = {0};
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
 			//! Hash of components within this archetype - used for matching
-			ComponentMatcherHash m_matcherHash[EntityKind::EK_Count]{};
+			ComponentMatcherHash m_matcherHash{};
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
@@ -17133,13 +17091,11 @@ namespace gaia {
 				// With 64 components per archetype (32 generic + 32 unique) this gives us some headroom.
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
-					GAIA_FOR(EntityKind::EK_Count) {
-						const auto cnt = comps((EntityKind)i).size();
-						if (cnt == 0)
-							continue;
 
+					const auto cnt = comps().size();
+					if (cnt != 0) {
 						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions[i] = (ChunkDataVersionOffset)offset;
+						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
 						offset += sizeof(ComponentVersion) * cnt;
 					}
 				}
@@ -17147,12 +17103,10 @@ namespace gaia {
 				// Entity ids
 				{
 					offset += mem::padding<alignof(Entity)>(offset);
-					GAIA_FOR(EntityKind::EK_Count) {
-						const auto cnt = comps((EntityKind)i).size();
-						if (cnt == 0)
-							continue;
 
-						m_dataOffsets.firstByte_CompEntities[i] = (ChunkDataOffset)offset;
+					const auto cnt = comps().size();
+					if (cnt != 0) {
+						m_dataOffsets.firstByte_CompEntities = (ChunkDataOffset)offset;
 
 						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
 						offset += sizeof(Entity) * Chunk::MAX_COMPONENTS;
@@ -17162,12 +17116,11 @@ namespace gaia {
 				// Component records
 				{
 					offset += mem::padding<alignof(ComponentRecord)>(offset);
-					GAIA_FOR(EntityKind::EK_Count) {
-						const auto cnt = comps((EntityKind)i).size();
-						if (cnt == 0)
-							continue;
 
-						m_dataOffsets.firstByte_Records[i] = (ChunkDataOffset)offset;
+					const auto cnt = comps().size();
+					if (cnt != 0) {
+
+						m_dataOffsets.firstByte_Records = (ChunkDataOffset)offset;
 
 						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
 						offset += sizeof(ComponentRecord) * cnt;
@@ -17210,15 +17163,16 @@ namespace gaia {
 			};
 
 			static void reg_components(
-					Archetype& arch, EntitySpan ents, ComponentSpan comps, EntityKind kind, uint32_t& currOff, uint32_t count) {
-				auto& ids = arch.m_ents[kind];
-				auto& ofs = arch.m_compOffs[kind];
+					Archetype& arch, EntitySpan ents, ComponentSpan comps, uint8_t from, uint8_t to, uint32_t& currOff,
+					uint32_t count) {
+				auto& ids = arch.m_ents;
+				auto& ofs = arch.m_compOffs;
 
 				// Set component ids
-				GAIA_EACH(ents) ids[i] = ents[i];
+				GAIA_FOR2(from, to) ids[i] = ents[i];
 
 				// Calulate offsets and assign them indices according to our mappings
-				GAIA_EACH(comps) {
+				GAIA_FOR2(from, to) {
 					const auto comp = comps[i];
 					const auto compIdx = i;
 
@@ -17248,54 +17202,28 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				const auto& compsGen = entities(EntityKind::EK_Gen);
-				const auto& compsUni = entities(EntityKind::EK_Uni);
-				EntitySpan s[EntityKind::EK_Count] = {{compsGen.data(), compsGen.size()}, {compsUni.data(), compsUni.size()}};
-				return ecs::cmp_comps(s, (EntitySpan*)&other.m_comps[0]);
+				const auto& ents = entities();
+				return ecs::cmp_comps({ents.data(), ents.size()}, other.m_comps);
 			}
 
-			GAIA_NODISCARD static LookupHash calc_lookup_hash(GenComponentHash hashGen, UniComponentHash hashUni) noexcept {
-				return {core::hash_combine(hashGen.hash, hashUni.hash)};
-			}
-
-			GAIA_NODISCARD static Archetype* create(
-					const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion,
-					// generic entities and unique entities
-					EntitySpan entsGen, EntitySpan entsUni) {
+			GAIA_NODISCARD static Archetype*
+			create(const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ents) {
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
-				newArch->m_ents[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
-				newArch->m_ents[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-				newArch->m_comps[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
-				newArch->m_comps[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-				newArch->m_compOffs[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
-				newArch->m_compOffs[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-
-				auto compsGen =
-						std::span(newArch->m_comps[EntityKind::EK_Gen].data(), newArch->m_comps[EntityKind::EK_Gen].size());
-				auto compsUni =
-						std::span(newArch->m_comps[EntityKind::EK_Uni].data(), newArch->m_comps[EntityKind::EK_Uni].size());
+				newArch->m_ents.resize((uint32_t)ents.size());
+				newArch->m_comps.resize((uint32_t)ents.size());
+				newArch->m_compOffs.resize((uint32_t)ents.size());
 
 				// Prepare m_comps array
-				{
-					GAIA_EACH(entsGen) {
-						const auto* pDesc = cc.find(entsGen[i]);
-						if (pDesc == nullptr)
-							compsGen[i] = Component(IdentifierIdBad, 0, 0, 0);
-						else
-							compsGen[i] = pDesc->comp;
-					}
-				}
-				{
-					GAIA_EACH(entsUni) {
-						const auto* pDesc = cc.find(entsUni[i]);
-						if (pDesc == nullptr)
-							compsUni[i] = Component(IdentifierIdBad, 0, 0, 0);
-						else
-							compsUni[i] = pDesc->comp;
-					}
+				auto comps = std::span(newArch->m_comps.data(), newArch->m_comps.size());
+				GAIA_EACH(ents) {
+					const auto* pDesc = cc.find(ents[i]);
+					if (pDesc == nullptr)
+						comps[i] = Component(IdentifierIdBad, 0, 0, 0);
+					else
+						comps[i] = pDesc->comp;
 				}
 
 				// Calculate offsets
@@ -17309,15 +17237,23 @@ namespace gaia {
 						ChunkDataAreaOffset);
 				const auto& offs = newArch->m_dataOffsets;
 
+				// Find the index of the last generic component in both arrays
+				uint32_t entsGeneric = (uint32_t)ents.size();
+				if (!ents.empty()) {
+					for (int i = (int)ents.size() - 1; i >= 0; --i) {
+						if (ents[(uint32_t)i].kind() != EntityKind::EK_Uni)
+							break;
+						--entsGeneric;
+					}
+				}
+
 				// Calculate the number of entities per chunks precisely so we can
 				// fit as many of them into chunk as possible.
 
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
-				for (auto comp: newArch->m_comps[EntityKind::EK_Gen])
-					genCompsSize += comp.size();
-				for (auto comp: newArch->m_comps[EntityKind::EK_Uni])
-					uniCompsSize += comp.size();
+				GAIA_FOR(entsGeneric) genCompsSize += newArch->m_comps[i].size();
+				GAIA_FOR2(entsGeneric, ents.size()) uniCompsSize += newArch->m_comps[i].size();
 
 				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
 				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
@@ -17336,9 +17272,11 @@ namespace gaia {
 				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
 				// for entity count is not right (most likely because of padding or usage of SoA components).
 				if (!est_max_entities_per_archetype(
-								cc, currOff, maxGenItemsInArchetype, compsGen, maxGenItemsInArchetype, maxDataOffsetTarget))
+								cc, currOff, maxGenItemsInArchetype, comps.subspan(0, entsGeneric), maxGenItemsInArchetype,
+								maxDataOffsetTarget))
 					goto recalculate;
-				if (!est_max_entities_per_archetype(cc, currOff, maxGenItemsInArchetype, compsUni, 1, maxDataOffsetTarget))
+				if (!est_max_entities_per_archetype(
+								cc, currOff, maxGenItemsInArchetype, comps.subspan(entsGeneric), 1, maxDataOffsetTarget))
 					goto recalculate;
 
 				// Limit the number of entities to a certain number so we can make use of smaller
@@ -17365,28 +17303,23 @@ namespace gaia {
 
 				// Update the offsets according to the recalculated maxGenItemsInArchetype
 				currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenItemsInArchetype;
-				reg_components(*newArch, entsGen, compsGen, EntityKind::EK_Gen, currOff, maxGenItemsInArchetype);
-				reg_components(*newArch, entsUni, compsUni, EntityKind::EK_Uni, currOff, 1);
+				reg_components(*newArch, ents, comps, (uint8_t)0, (uint8_t)entsGeneric, currOff, maxGenItemsInArchetype);
+				reg_components(*newArch, ents, comps, (uint8_t)entsGeneric, (uint8_t)ents.size(), currOff, 1);
 
 				GAIA_ASSERT(Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
-
-				newArch->m_matcherHash[EntityKind::EK_Gen] = ecs::matcher_hash(entsGen);
-				newArch->m_matcherHash[EntityKind::EK_Uni] = ecs::matcher_hash(entsUni);
+				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
+				newArch->m_matcherHash = ecs::matcher_hash(ents);
 
 				return newArch;
 			}
 
 			/*!
 			Sets hashes for each component type and lookup.
-			\param genHash Generic components hash
-			\param uniHash Unique components hash
 			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void set_hashes(GenComponentHash genHash, UniComponentHash uniHash, LookupHash hashLookup) {
-				m_hashGen = genHash;
-				m_hashUni = uniHash;
+			void set_hashes(LookupHash hashLookup) {
 				m_hashLookup = hashLookup;
 			}
 
@@ -17486,19 +17419,19 @@ namespace gaia {
 
 				auto* pDstChunk = m_chunks[front];
 
-				const bool hasChunkComps = !m_comps[EntityKind::EK_Uni].empty();
+				const bool hasUniEnts = !m_ents.empty() && m_ents.back().kind() == EntityKind::EK_Uni;
 
 				// Find the first semi-empty chunk in the back
 				while (front < back && m_chunks[--back]->is_semi()) {
 					auto* pSrcChunk = m_chunks[back];
 
 					// Make sure chunk components have matching values
-					if (hasChunkComps) {
-						auto rec = pSrcChunk->comp_rec_view(EntityKind::EK_Uni);
+					if (hasUniEnts) {
+						auto rec = pSrcChunk->comp_rec_view();
 						bool res = true;
-						GAIA_EACH(rec) {
-							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(EntityKind::EK_Uni, i, 0);
-							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(EntityKind::EK_Uni, i, 0);
+						GAIA_FOR2(m_properties.genEntities, m_ents.size()) {
+							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
+							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
 							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
 								res = false;
 								break;
@@ -17580,8 +17513,8 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_ents,
-						m_comps, m_compOffs);
+						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
+						m_dataOffsets, m_ents, m_comps, m_compOffs);
 
 				m_chunks.push_back(pChunk);
 				return pChunk;
@@ -17595,57 +17528,46 @@ namespace gaia {
 				return m_chunks;
 			}
 
-			GAIA_NODISCARD GenComponentHash generic_hash() const {
-				return m_hashGen;
-			}
-
-			GAIA_NODISCARD UniComponentHash chunk_hash() const {
-				return m_hashUni;
-			}
-
 			GAIA_NODISCARD LookupHash lookup_hash() const {
 				return m_hashLookup;
 			}
 
-			GAIA_NODISCARD ComponentMatcherHash matcher_hash(EntityKind kind) const {
-				return m_matcherHash[kind];
+			GAIA_NODISCARD ComponentMatcherHash matcher_hash() const {
+				return m_matcherHash;
 			}
 
-			GAIA_NODISCARD const Chunk::EntityArray& entities(EntityKind kind) const {
-				return m_ents[kind];
+			GAIA_NODISCARD const Chunk::EntityArray& entities() const {
+				return m_ents;
 			}
 
-			GAIA_NODISCARD const Chunk::ComponentArray& comps(EntityKind kind) const {
-				return m_comps[kind];
+			GAIA_NODISCARD const Chunk::ComponentArray& comps() const {
+				return m_comps;
 			}
 
-			GAIA_NODISCARD const Chunk::ComponentOffsetArray& comp_offs(EntityKind kind) const {
-				return m_compOffs[kind];
+			GAIA_NODISCARD const Chunk::ComponentOffsetArray& comp_offs() const {
+				return m_compOffs;
 			}
 
 			/*!
-			Checks if a component with \param comp and type \param kind is present in the archetype.
-			\param comp Component id
-			\param kind Component type
+			Checks if an entity is a part of the archetype.
+			\param entity Entity
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				const auto kind = entity.kind();
-				const auto& c = entities(kind);
+				const auto& c = entities();
 				return core::has_if(c, [&](Entity e) {
 					return e == entity;
 				});
 			}
 
 			/*!
-			Checks if a component of type \tparam T is present in the archetype.
+			Checks if a component \tparam T a part of the archetype.
 			\return True if found. False otherwise.
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				constexpr auto kind = entity_kind_v<T>;
-				const auto entity = m_cc.get<T>().entity;
-				return has(kind, entity);
+				const auto* pItem = m_cc.find<T>();
+				return pItem != nullptr && has(pItem->entity);
 			}
 
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
@@ -17715,9 +17637,10 @@ namespace gaia {
 				return dying();
 			}
 
-			static void diag_basic_info(const ComponentCache& cc, const Archetype& archetype) {
-				const auto& genComps = archetype.comps(EntityKind::EK_Gen);
-				const auto& uniComps = archetype.comps(EntityKind::EK_Uni);
+			static void diag_basic_info(const World& world, const Archetype& archetype) {
+				const auto& cc = comp_cache(world);
+				const auto& ents = archetype.entities();
+				const auto& comps = archetype.comps();
 
 				// Caclulate the number of entites in archetype
 				uint32_t entCnt = 0;
@@ -17730,37 +17653,39 @@ namespace gaia {
 				// Calculate the number of components
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
-				for (auto comp: genComps)
-					genCompsSize += comp.size();
-				for (auto comp: uniComps)
-					uniCompsSize += comp.size();
+				{
+					const auto& p = archetype.props();
+					GAIA_FOR(p.genEntities) genCompsSize += comps[i].size();
+					GAIA_FOR2(p.genEntities, comps.size()) uniCompsSize += comps[i].size();
+				}
 
 				GAIA_LOG_N(
 						"Archetype ID:%u, "
 						"hashLookup:%016" PRIx64 ", "
-						"mask:%016" PRIx64 "/%016" PRIx64 ", "
+						"mask:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash, archetype.matcher_hash(EntityKind::EK_Gen).hash,
-						archetype.matcher_hash(EntityKind::EK_Uni).hash, (uint32_t)archetype.chunks().size(),
+						archetype.id(), archetype.lookup_hash().hash, archetype.matcher_hash().hash,
+						(uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
-				auto logComponentInfo = [](const ComponentCacheItem& desc) {
-					GAIA_LOG_N(
-							"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s", desc.hashLookup.hash,
-							desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str());
+				auto logComponentInfo = [&](Entity entity) {
+					if (entity.entity()) {
+						GAIA_LOG_N("    ent %s [%s]", entity_name(world, entity), EntityKindString[entity.kind()]);
+					} else {
+						const auto& desc = cc.get(entity);
+						GAIA_LOG_N(
+								"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
+								desc.hashLookup.hash, desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
+								EntityKindString[entity.kind()]);
+					}
 				};
 
-				if (!genComps.empty()) {
-					GAIA_LOG_N("  Generic components - count:%u", (uint32_t)genComps.size());
-					for (const auto comp: genComps)
-						logComponentInfo(cc.get(comp.id()));
-					if (!uniComps.empty()) {
-						GAIA_LOG_N("  Unique components - count:%u", (uint32_t)uniComps.size());
-						for (const auto comp: uniComps)
-							logComponentInfo(cc.get(comp.id()));
-					}
+				if (!ents.empty()) {
+					GAIA_LOG_N("  Components - count:%u", (uint32_t)ents.size());
+					for (const auto ent: ents)
+						logComponentInfo(ent);
 				}
 			}
 
@@ -17788,8 +17713,7 @@ namespace gaia {
 			\param archetype Archetype to run diagnostics on
 			*/
 			static void diag(const World& world, const Archetype& archetype) {
-				const auto& cc = comp_cache(world);
-				diag_basic_info(cc, archetype);
+				diag_basic_info(world, archetype);
 				diag_graph_info(world, archetype);
 				diag_chunk_info(archetype);
 			}
@@ -18245,7 +18169,7 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
 				uint8_t rulesAllCount;
-			} data[EntityKind::EK_Count]{};
+			} data{};
 			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -18259,44 +18183,36 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				GAIA_FOR(EntityKind::EK_Count) {
-					const auto& left = data[i];
-					const auto& right = other.data[i];
+				const auto& left = data;
+				const auto& right = other.data;
 
-					// Check array sizes first
-					if (left.comps.size() != right.comps.size())
+				// Check array sizes first
+				if (left.comps.size() != right.comps.size())
+					return false;
+				if (left.rules.size() != right.rules.size())
+					return false;
+				if (left.withChanged.size() != right.withChanged.size())
+					return false;
+				if (left.readWriteMask != right.readWriteMask)
+					return false;
+
+				// Matches hashes need to be the same
+				GAIA_FOR_(QueryListType::LT_Count, j) {
+					if (left.hash[j] != right.hash[j])
 						return false;
-					if (left.rules.size() != right.rules.size())
-						return false;
-					if (left.withChanged.size() != right.withChanged.size())
-						return false;
-					if (left.readWriteMask != right.readWriteMask)
-						return false;
-
-					// Matches hashes need to be the same
-					GAIA_FOR_(QueryListType::LT_Count, j) {
-						if (left.hash[j] != right.hash[j])
-							return false;
-					}
-
-					// Components need to be the same
-					GAIA_EACH_(left.comps, j) {
-						if (left.comps[j] != right.comps[j])
-							return false;
-					}
-
-					// Rules need to be the same
-					GAIA_EACH_(left.rules, j) {
-						if (left.rules[j] != right.rules[j])
-							return false;
-					}
-
-					// Filters need to be the same
-					GAIA_EACH_(left.withChanged, j) {
-						if (left.withChanged[j] != right.withChanged[j])
-							return false;
-					}
 				}
+
+				// Components need to be the same
+				if (left.comps != right.comps)
+					return false;
+
+				// Rules need to be the same
+				if (left.rules != right.rules)
+					return false;
+
+				// Filters need to be the same
+				if (left.withChanged != right.withChanged)
+					return false;
 
 				return true;
 			}
@@ -18308,26 +18224,24 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			GAIA_FOR(EntityKind::EK_Count) {
-				auto& data = ctx.data[i];
-				// Make sure the read-write mask remains correct after sorting
-				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-					core::swap(data.comps[left], data.comps[right]);
-					core::swap(data.rules[left], data.rules[right]);
+			auto& data = ctx.data;
+			// Make sure the read-write mask remains correct after sorting
+			core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+				core::swap(data.comps[left], data.comps[right]);
+				core::swap(data.rules[left], data.rules[right]);
 
-					{
-						// Swap the bits in the read-write mask
-						const uint32_t b0 = (data.readWriteMask >> left) & 1U;
-						const uint32_t b1 = (data.readWriteMask >> right) & 1U;
-						// XOR the two bits
-						const uint32_t bxor = b0 ^ b1;
-						// Put the XOR bits back to their original positions
-						const uint32_t mask = (bxor << left) | (bxor << right);
-						// XOR mask with the original one effectivelly swapping the bits
-						data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
-					}
-				});
-			}
+				{
+					// Swap the bits in the read-write mask
+					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
+					const uint32_t b1 = (data.readWriteMask >> right) & 1U;
+					// XOR the two bits
+					const uint32_t bxor = b0 ^ b1;
+					// Put the XOR bits back to their original positions
+					const uint32_t mask = (bxor << left) | (bxor << right);
+					// XOR mask with the original one effectivelly swapping the bits
+					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
+				}
+			});
 		}
 
 		inline void matcher_hashes(QueryCtx& ctx) {
@@ -18337,9 +18251,8 @@ namespace gaia {
 			sort(ctx);
 
 			// Calculate the matcher hash
-			for (auto& data: ctx.data) {
-				GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
-			}
+			auto& data = ctx.data;
+			GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
@@ -18349,45 +18262,43 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			GAIA_FOR(EntityKind::EK_Count) {
-				auto& data = ctx.data[i];
+			auto& data = ctx.data;
 
-				// Components
-				{
-					QueryLookupHash::Type hash = 0;
+			// Components
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& comps = data.comps;
-					for (const auto comp: comps)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
+				const auto& comps = data.comps;
+				for (const auto comp: comps)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
 
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
 
-				// Rules
-				{
-					QueryLookupHash::Type hash = 0;
+			// Rules
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& rules = data.rules;
-					for (auto listType: rules)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
+				const auto& rules = data.rules;
+				for (auto listType: rules)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
 
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
 
-				// Filters
-				{
-					QueryLookupHash::Type hash = 0;
+			// Filters
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& withChanged = data.withChanged;
-					for (auto comp: withChanged)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
+				const auto& withChanged = data.withChanged;
+				for (auto comp: withChanged)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
 
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
@@ -18417,15 +18328,14 @@ namespace gaia {
 			uint32_t m_worldVersion{};
 
 			template <typename T>
-			bool
-			has_inter([[maybe_unused]] QueryListType listType, [[maybe_unused]] EntityKind kind, bool isReadWrite) const {
+			bool has_inter([[maybe_unused]] QueryListType listType, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Entities are read-only.
 					GAIA_ASSERT(!isReadWrite);
 					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
-					const auto& data = m_lookupCtx.data[kind];
+					const auto& data = m_lookupCtx.data;
 					const auto& comps = data.comps;
 
 					const auto comp = m_lookupCtx.cc->get<T>().entity;
@@ -18447,18 +18357,16 @@ namespace gaia {
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 				constexpr bool isReadWrite = core::is_mut_v<T>;
 
-				return has_inter<FT>(listType, kind, isReadWrite);
+				return has_inter<FT>(listType, isReadWrite);
 			}
 
 			//! Tries to match query component ids with those in \param comps given the rule \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool
-			match_inter(EntityKind kind, const Chunk::EntityArray& comps, QueryListType listType, Func func) const {
-				const auto& data = m_lookupCtx.data[kind];
+			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& comps, QueryListType listType, Func func) const {
+				const auto& data = m_lookupCtx.data;
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
@@ -18484,18 +18392,18 @@ namespace gaia {
 
 			//! Tries to match all query component ids with those in \param comps.
 			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(EntityKind kind, const Chunk::EntityArray& comps, QueryListType listType) const {
-				return match_inter(kind, comps, listType, [](Entity comp, Entity compQuery) {
+			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& comps, QueryListType listType) const {
+				return match_inter(comps, listType, [](Entity comp, Entity compQuery) {
 					return comp == compQuery;
 				});
 			}
 
 			//! Tries to match all query component ids with those in \param comps.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(EntityKind kind, const Chunk::EntityArray& comps) const {
+			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& comps) const {
 				uint32_t matches = 0;
-				const auto& data = m_lookupCtx.data[kind];
-				return match_inter(kind, comps, QueryListType::LT_All, [&](Entity comp, Entity compQuery) {
+				const auto& data = m_lookupCtx.data;
+				return match_inter(comps, QueryListType::LT_All, [&](Entity comp, Entity compQuery) {
 					return comp == compQuery && (++matches == data.rulesAllCount);
 				});
 			}
@@ -18503,12 +18411,12 @@ namespace gaia {
 			//! Tries to match component with component type \param kind from the archetype \param archetype with
 			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
-			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, EntityKind kind) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype) const {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
-				const auto& matcherHash = archetype.matcher_hash(kind);
-				const auto& comps = archetype.entities(kind);
-				const auto& compData = data(kind);
+				const auto& matcherHash = archetype.matcher_hash();
+				const auto& comps = archetype.entities();
+				const auto& compData = data();
 
 				const auto withNoneTest = matcherHash.hash & compData.hash[QueryListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & compData.hash[QueryListType::LT_Any].hash;
@@ -18524,13 +18432,13 @@ namespace gaia {
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					if (match_one(kind, comps, QueryListType::LT_None))
+					if (match_one(comps, QueryListType::LT_None))
 						return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					if (match_one(kind, comps, QueryListType::LT_Any))
+					if (match_one(comps, QueryListType::LT_Any))
 						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
@@ -18544,7 +18452,7 @@ namespace gaia {
 							// We skip archetypes with less components than the query requires
 							compData.rulesAllCount <= comps.size() &&
 							// Match everything with LT_ALL
-							match_all(kind, comps))
+							match_all(comps))
 						return MatchArchetypeQueryRet::Ok;
 
 					// No match found. We're done
@@ -18592,56 +18500,28 @@ namespace gaia {
 
 				GAIA_PROF_SCOPE(queryinfo::match);
 
-				// Match against generic types
-				{
-					auto& data = m_lookupCtx.data[EntityKind::EK_Gen];
-					GAIA_EACH(data.comps) {
-						const auto comp = data.comps[i];
+				auto& data = m_lookupCtx.data;
+				GAIA_EACH(data.comps) {
+					const auto comp = data.comps[i];
 
-						// Check if any archetype is associated with the component id
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
-						if (it == componentToArchetypeMap.end())
+					// Check if any archetype is associated with the component id
+					const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
+					if (it == componentToArchetypeMap.end())
+						continue;
+
+					const auto& archetypes = it->second;
+					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
+					GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
+						auto* pArchetype = archetypes[j];
+
+						// Early exit if query doesn't match
+						const auto ret = match(*pArchetype);
+						if (ret == MatchArchetypeQueryRet::Fail)
 							continue;
 
-						const auto& archetypes = it->second;
-						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
-						GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
-							auto* pArchetype = archetypes[j];
-
-							// Early exit if generic query doesn't match
-							const auto ret = match(*pArchetype, EntityKind::EK_Gen);
-							if (ret == MatchArchetypeQueryRet::Fail)
-								continue;
-
-							(void)s_tmpArchetypeMatches.emplace(pArchetype);
-						}
-						data.lastMatchedArchetypeIdx[i] = archetypes.size();
+						(void)s_tmpArchetypeMatches.emplace(pArchetype);
 					}
-				}
-
-				// Match against unique types
-				{
-					auto& data = m_lookupCtx.data[EntityKind::EK_Uni];
-					GAIA_EACH(data.comps) {
-						const auto comp = data.comps[i];
-
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
-						if (it == componentToArchetypeMap.end())
-							continue;
-
-						GAIA_FOR2_(data.lastMatchedArchetypeIdx[i], it->second.size(), j) {
-							auto* pArchetype = it->second[j];
-							// Early exit if unique query doesn't match
-							const auto ret = match(*pArchetype, EntityKind::EK_Uni);
-							if (ret == MatchArchetypeQueryRet::Fail) {
-								s_tmpArchetypeMatches.erase(pArchetype);
-								continue;
-							}
-
-							(void)s_tmpArchetypeMatches.emplace(pArchetype);
-						}
-						data.lastMatchedArchetypeIdx[i] = (uint32_t)it->second.size();
-					}
+					data.lastMatchedArchetypeIdx[i] = archetypes.size();
 				}
 
 				for (auto* pArchetype: s_tmpArchetypeMatches)
@@ -18653,21 +18533,20 @@ namespace gaia {
 				return m_lookupCtx.queryId;
 			}
 
-			GAIA_NODISCARD const QueryCtx::Data& data(EntityKind kind) const {
-				return m_lookupCtx.data[kind];
+			GAIA_NODISCARD const QueryCtx::Data& data() const {
+				return m_lookupCtx.data;
 			}
 
-			GAIA_NODISCARD const QueryComponentArray& comps(EntityKind kind) const {
-				return m_lookupCtx.data[kind].comps;
+			GAIA_NODISCARD const QueryComponentArray& comps() const {
+				return m_lookupCtx.data.comps;
 			}
 
-			GAIA_NODISCARD const QueryChangeArray& filters(EntityKind kind) const {
-				return m_lookupCtx.data[kind].withChanged;
+			GAIA_NODISCARD const QueryChangeArray& filters() const {
+				return m_lookupCtx.data.withChanged;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_lookupCtx.data[EntityKind::EK_Gen].withChanged.empty() ||
-							 !m_lookupCtx.data[EntityKind::EK_Uni].withChanged.empty();
+				return !m_lookupCtx.data.withChanged.empty();
 			}
 
 			template <typename... T>
@@ -18697,11 +18576,9 @@ namespace gaia {
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
-				for (auto& ctxData: m_lookupCtx.data) {
-					for (auto& lastMatchedArchetypeIdx: ctxData.lastMatchedArchetypeIdx) {
-						if (lastMatchedArchetypeIdx > 0)
-							--lastMatchedArchetypeIdx;
-					}
+				for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
+					if (lastMatchedArchetypeIdx > 0)
+						--lastMatchedArchetypeIdx;
 				}
 			}
 
@@ -18849,7 +18726,7 @@ namespace gaia {
 					bool isReadWrite;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[comp.kind()];
+						auto& data = ctx.data;
 						auto& comps = data.comps;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
@@ -18884,7 +18761,7 @@ namespace gaia {
 					Entity comp;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[comp.kind()];
+						auto& data = ctx.data;
 						auto& comps = data.comps;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
@@ -19079,24 +18956,14 @@ namespace gaia {
 
 					const auto queryVersion = queryInfo.world_version();
 
-					// See if any generic component has changed
-					{
-						const auto& filtered = queryInfo.filters(EntityKind::EK_Gen);
-						for (const auto comp: filtered) {
-							const auto compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(EntityKind::EK_Gen, queryVersion, compIdx))
-								return true;
-						}
-					}
-
-					// See if any unique component has changed
-					{
-						const auto& filtered = queryInfo.filters(EntityKind::EK_Uni);
-						for (const auto comp: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(EntityKind::EK_Uni, queryVersion, compIdx))
-								return true;
-						}
+					// See if any component has changed
+					const auto& filtered = queryInfo.filters();
+					for (const auto comp: filtered) {
+						// TODO: Components are sorted. Therefore, we don't need to search from 0
+						//       all the time. We can search from the last found index.
+						const auto compIdx = chunk.comp_idx(comp);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
 					}
 
 					// Skip unchanged chunks.
@@ -19646,28 +19513,18 @@ namespace gaia {
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
 
-				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ents[EntityKind::EK_Count];
-				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[EntityKind::EK_Count];
-				GAIA_FOR(EntityKind::EK_Count) {
-					auto recs = pChunk->comp_rec_view((EntityKind)i);
-					{
-						auto& dst = ents[i];
-						dst.resize((uint32_t)recs.size());
-						GAIA_EACH_(recs, j) dst[j] = recs[j].entity;
-					}
-					{
-						auto& dst = comps[i];
-						dst.resize((uint32_t)recs.size());
-						GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
-					}
+				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ents;
+				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps;
+				{
+					auto recs = pChunk->comp_rec_view();
+					ents.resize((uint32_t)recs.size());
+					comps.resize((uint32_t)recs.size());
+					GAIA_EACH_(recs, j) ents[j] = recs[j].entity;
+					GAIA_EACH_(recs, j) comps[j] = recs[j].comp;
 				}
 
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({ents[0].data(), ents[0].size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({ents[1].data(), ents[1].size()}).hash};
-				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
-
-				auto* pArchetype =
-						find_archetype(hashLookup, {ents[0].data(), ents[0].size()}, {ents[1].data(), ents[1].size()});
+				const auto hashLookup = calc_lookup_hash({ents.data(), ents.size()}).hash;
+				auto* pArchetype = find_archetype({hashLookup}, {ents.data(), ents.size()});
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->remove_chunk(pChunk, m_archetypesToRemove);
@@ -19720,10 +19577,8 @@ namespace gaia {
 						m_defragLastArchetypeID = it->second->id();
 				}
 
-				const auto& compsGen = pArchetype->entities(EntityKind::EK_Gen);
-				const auto& compsUni = pArchetype->entities(EntityKind::EK_Uni);
-				auto tmpArchetype =
-						ArchetypeLookupChecker({compsGen.data(), compsGen.size()}, {compsUni.data(), compsUni.size()});
+				const auto& ents = pArchetype->entities();
+				auto tmpArchetype = ArchetypeLookupChecker({ents.data(), ents.size()});
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
 				m_archetypesById.erase(pArchetype->id());
@@ -19805,12 +19660,10 @@ namespace gaia {
 
 			//! Searches for archetype with a given set of components
 			//! \param hashLookup Archetype lookup hash
-			//! \param compsGen Span of generic component ids
-			//! \param compsUni Span of unique component ids
+			//! \param ents Archetype entities/components
 			//! \return Pointer to archetype or nullptr.
-			GAIA_NODISCARD Archetype*
-			find_archetype(Archetype::LookupHash hashLookup, EntitySpan compsGen, EntitySpan compsUni) {
-				auto tmpArchetype = ArchetypeLookupChecker(compsGen, compsUni);
+			GAIA_NODISCARD Archetype* find_archetype(Archetype::LookupHash hashLookup, EntitySpan ents) {
+				auto tmpArchetype = ArchetypeLookupChecker(ents);
 				ArchetypeLookupKey key(hashLookup, &tmpArchetype);
 
 				// Search for the archetype in the map
@@ -19823,24 +19676,18 @@ namespace gaia {
 			}
 
 			//! Creates a new archetype from a given set of components
-			//! \param compsGen Span of generic components
-			//! \param compsUni Span of unique components
+			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
-			GAIA_NODISCARD Archetype* create_archetype(EntitySpan compsGen, EntitySpan compsUni) {
-				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, compsGen, compsUni);
+			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
+				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, entities);
 
-				auto registerComponentToArchetypePair = [&](Entity entity) {
+				for (auto entity: entities) {
 					const auto it = m_componentToArchetypeMap.find(EntityLookupKey(entity));
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(entity, ArchetypeList{pArchetype});
 					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
-				};
-
-				for (auto comp: compsGen)
-					registerComponentToArchetypePair(comp);
-				for (auto comp: compsUni)
-					registerComponentToArchetypePair(comp);
+				}
 
 				return pArchetype;
 			}
@@ -19850,10 +19697,7 @@ namespace gaia {
 			void reg_archetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) ||
-						(pArchetype->generic_hash().hash != 0 || pArchetype->chunk_hash().hash != 0));
-				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || pArchetype->lookup_hash().hash != 0);
+						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
@@ -19865,41 +19709,41 @@ namespace gaia {
 
 #if GAIA_DEBUG
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
-				const auto kind = entity.kind();
-				const auto& comps = archetype.entities(kind);
+				const auto& ents = archetype.entities();
 
 				// Make sure not to add too many comps
-				if GAIA_UNLIKELY (comps.size() + 1 >= Chunk::MAX_COMPONENTS) {
+				if GAIA_UNLIKELY (ents.size() + 1 >= Chunk::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					GAIA_EACH(comps) GAIA_LOG_W("> [%u] %s", (uint32_t)i, entity_name(world, comps[i]));
+					GAIA_EACH(ents)
+					GAIA_LOG_W(
+							"> [%u] %s [%s]", (uint32_t)i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
 					GAIA_LOG_W("Trying to add:");
-					GAIA_LOG_W("> %s", entity_name(world, addEntity));
+					GAIA_LOG_W("> %s [%s]", entity_name(world, addEntity), EntityKindString[(uint32_t)entity.kind()]);
 				}
 
 				// Don't add the same entity twice
-				for (auto comp: comps) {
-					if (comp == addEntity) {
+				for (auto ent: ents) {
+					if (ent == addEntity) {
 						GAIA_ASSERT2(false, "Trying to add a duplicate entity");
 						GAIA_LOG_W(
-								"Trying to add a duplicate of entity %s (%s) to entity [%u.%u]", entity_name(world, comp),
-								EntityKindString[kind], entity.id(), entity.gen());
+								"Trying to add a duplicate entity %s [%s] to entity [%u.%u]", entity_name(world, ent),
+								EntityKindString[(uint32_t)entity.kind()], entity.id(), entity.gen());
 					}
 				}
 			}
 
 			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity delEntity) {
-				const auto kind = delEntity.kind();
-				const auto& comps = archetype.entities(kind);
+				const auto& ents = archetype.entities();
 
 				if GAIA_UNLIKELY (!archetype.has(delEntity)) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(comps) GAIA_LOG_W("> [%u] %s", i, entity_name(world, comps[i]));
+					GAIA_EACH(ents) GAIA_LOG_W("> [%u] %s", i, entity_name(world, ents[i]));
 					GAIA_LOG_W("Trying to remove:");
-					GAIA_LOG_W("> %s (%s)", entity_name(world, delEntity), EntityKindString[kind]);
+					GAIA_LOG_W("> %s [%s]", entity_name(world, delEntity), EntityKindString[(uint32_t)entity.kind()]);
 				}
 			}
 #endif
@@ -19910,8 +19754,6 @@ namespace gaia {
 			//! \param entity Enity we want to add.
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
-				const auto kind = entity.kind();
-
 				// TODO: Add specialization for m_pCompArchetype and m_pEntityArchetype to make this faster
 				//       E.g. when adding a new entity we only have to sort from position 2 because the first 2
 				//			 indices are taken by the core component. Also hash calculation can be sped up this way.
@@ -19920,29 +19762,16 @@ namespace gaia {
 				// // Compared to an ordinary lookup this path is stripped as much as possible.
 				// if (pArchetypeLeft == m_pRootArchetype) {
 				// 	Archetype* pArchetypeRight = nullptr;
-				//
-				// 	if (kind == EntityKind::EK_Gen) {
-				// 		const auto hashGen = descToAdd.hashLookup;
-				// 		const auto hashLookup = Archetype::calc_lookup_hash(hashGen, {0});
-				// 		pArchetypeRight = find_archetype(hashLookup, ComponentSpan(&descToAdd.comp, 1), {});
-				// 		if (pArchetypeRight == nullptr) {
-				// 			pArchetypeRight = create_archetype(ComponentSpan(&descToAdd.comp, 1), {});
-				// 			pArchetypeRight->set_hashes({hashGen}, {0}, hashLookup);
-				// 			pArchetypeRight->build_graph_edges_left(pArchetypeLeft, kind, descToAdd.entity);
-				// 			reg_archetype(pArchetypeRight);
-				// 		}
-				// 	} else {
-				// 		const auto hashUni = descToAdd.hashLookup;
-				// 		const auto hashLookup = Archetype::calc_lookup_hash({0}, hashUni);
-				// 		pArchetypeRight = find_archetype(hashLookup, {}, ComponentSpan(&descToAdd.comp, 1));
-				// 		if (pArchetypeRight == nullptr) {
-				// 			pArchetypeRight = create_archetype({}, ComponentSpan(&descToAdd.comp, 1));
-				// 			pArchetypeRight->set_hashes({0}, {hashUni}, hashLookup);
-				// 			pArchetypeRight->build_graph_edges_left(pArchetypeLeft, kind, descToAdd.entity);
-				// 			reg_archetype(pArchetypeRight);
-				// 		}
+
+				// 	const auto hashLookup = calc_lookup_hash(EntitySpan{&entity, 1}).hash;
+				// 	pArchetypeRight = find_archetype({hashLookup}, EntitySpan{&entity, 1});
+				// 	if (pArchetypeRight == nullptr) {
+				// 		pArchetypeRight = create_archetype(EntitySpan{&entity, 1});
+				// 		pArchetypeRight->set_hashes({hashLookup});
+				// 		pArchetypeRight->build_graph_edges_left(pArchetypeLeft, entity);
+				// 		reg_archetype(pArchetypeRight);
 				// 	}
-				//
+
 				// 	return pArchetypeRight;
 				// }
 
@@ -19953,46 +19782,25 @@ namespace gaia {
 						return m_archetypesById[archetypeId];
 				}
 
-				const uint32_t a = kind;
-				const uint32_t b = (kind + 1) & 1;
-				const cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS>* comps[2];
-
-				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> compsNew;
-				comps[a] = &compsNew;
-				comps[b] = &pArchetypeLeft->entities((EntityKind)b);
-
 				// Prepare a joint array of components of old + the newly added component
+				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
 				{
-					const auto& compsOld = pArchetypeLeft->entities((EntityKind)a);
-					const auto componentDescSize = compsOld.size();
-					compsNew.resize(componentDescSize + 1);
-
-					GAIA_FOR_(componentDescSize, j) {
-						// NOTE: GCC 13 with optimizations enabled has a bug causing stringop-overflow warning to trigger
-						//       on the following assignment:
-						//       compsNew[j] = compsOld[j];
-						//       Therefore, we split the assignment into two parts.
-						auto comp = compsOld[j];
-						compsNew[j] = comp;
-					}
-					compsNew[componentDescSize] = entity;
+					const auto& entsOld = pArchetypeLeft->entities();
+					entsNew.resize(entsOld.size() + 1);
+					GAIA_EACH(entsOld) entsNew[i] = entsOld[i];
+					entsNew[entsOld.size()] = entity;
 				}
 
 				// Make sure to sort the components so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most Chunk::MAX_COMPONENTS items.
-				sort(compsNew, SortComponentCond{});
+				sort(entsNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
-				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
-
-				auto* pArchetypeRight =
-						find_archetype(hashLookup, {comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
+				const auto hashLookup = calc_lookup_hash({entsNew.data(), entsNew.size()}).hash;
+				auto* pArchetypeRight = find_archetype({hashLookup}, {entsNew.data(), entsNew.size()});
 				if (pArchetypeRight == nullptr) {
-					pArchetypeRight =
-							create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
-					pArchetypeRight->set_hashes(hashGen, hashUni, hashLookup);
+					pArchetypeRight = create_archetype({entsNew.data(), entsNew.size()});
+					pArchetypeRight->set_hashes({hashLookup});
 					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetypeRight);
 				}
@@ -20006,8 +19814,6 @@ namespace gaia {
 			//! \param entity Component we want to remove.
 			//! \return Pointer to archetype.
 			GAIA_NODISCARD Archetype* foc_archetype_del_comp(Archetype* pArchetypeRight, Entity entity) {
-				const auto kind = entity.kind();
-
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->find_edge_left(entity);
@@ -20015,36 +19821,27 @@ namespace gaia {
 						return m_archetypesById[archetypeId];
 				}
 
-				const uint32_t a = kind;
-				const uint32_t b = (kind + 1) & 1;
-				const cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS>* comps[2];
-
-				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> compsNew;
-				comps[a] = &compsNew;
-				comps[b] = &pArchetypeRight->entities((EntityKind)b);
+				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
+				const auto& entsOld = pArchetypeRight->entities();
 
 				// Find the intersection
-				for (const auto comp: pArchetypeRight->entities((EntityKind)a)) {
-					if (comp == entity)
+				for (const auto e: entsOld) {
+					if (e == entity)
 						continue;
 
-					compsNew.push_back(comp);
+					entsNew.push_back(e);
 				}
 
 				// Return if there's no change
-				if (compsNew.size() == pArchetypeRight->comps((EntityKind)a).size())
+				if (entsNew.size() == entsOld.size())
 					return nullptr;
 
 				// Calculate the hashes
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
-				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
-
-				auto* pArchetype =
-						find_archetype(hashLookup, {comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
+				const auto hashLookup = calc_lookup_hash({entsNew.data(), entsNew.size()}).hash;
+				auto* pArchetype = find_archetype({hashLookup}, {entsNew.data(), entsNew.size()});
 				if (pArchetype == nullptr) {
-					pArchetype = create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
-					pArchetype->set_hashes(hashGen, hashLookup, hashLookup);
+					pArchetype = create_archetype({entsNew.data(), entsNew.size()});
+					pArchetype->set_hashes({hashLookup});
 					pArchetype->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetype);
 				}
@@ -20271,7 +20068,7 @@ namespace gaia {
 
 				template <typename... T>
 				CompMoveHelper& add() {
-					(verify_comp<T>(entity_kind_v<T>), ...);
+					(verify_comp<T>(), ...);
 					(add(m_world.add<T>().entity), ...);
 					return *this;
 				}
@@ -20353,8 +20150,8 @@ namespace gaia {
 			void init() {
 				// Register the root archetype
 				{
-					m_pRootArchetype = create_archetype({}, {});
-					m_pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
+					m_pRootArchetype = create_archetype({});
+					m_pRootArchetype->set_hashes({calc_lookup_hash({})});
 					reg_archetype(m_pRootArchetype);
 				}
 
@@ -20414,7 +20211,7 @@ namespace gaia {
 
 				// Call constructors for the generic components on the newly added entity if necessary
 				if (pChunk->has_custom_gen_ctor())
-					pChunk->call_ctors(EntityKind::EK_Gen, pChunk->size() - 1, 1);
+					pChunk->call_gen_ctors(pChunk->size() - 1, 1);
 
 #if GAIA_ASSERT_ENABLED
 				const auto& ec = m_entities[entity.id()];
@@ -20719,9 +20516,8 @@ namespace gaia {
 			void add(Entity entity) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 
-				verify_comp<T>(kind);
+				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
 				const auto& desc = add<FT>();
@@ -20740,7 +20536,7 @@ namespace gaia {
 				using FT = typename CT::TypeFull;
 				constexpr auto kind = CT::Kind;
 
-				verify_comp<T>(kind);
+				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
 				const auto& desc = add<FT>();
@@ -21108,7 +20904,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -21156,7 +20952,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -21171,7 +20967,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -21194,7 +20990,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -21278,12 +21074,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(Entity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT);
 
@@ -21298,12 +21092,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(TempEntity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
@@ -21318,12 +21110,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(Entity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
@@ -21339,12 +21129,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
@@ -21360,11 +21148,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(Entity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT);
 
@@ -21381,11 +21168,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(TempEntity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
@@ -21401,11 +21187,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void del(Entity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(REMOVE_COMPONENT);
 

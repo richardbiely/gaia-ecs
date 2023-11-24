@@ -17,11 +17,11 @@ namespace gaia {
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
-			ChunkDataVersionOffset firstByte_Versions[EntityKind::EK_Count]{};
+			ChunkDataVersionOffset firstByte_Versions{};
 			//! Byte at which the first etity id is located
-			ChunkDataOffset firstByte_CompEntities[EntityKind::EK_Count]{};
+			ChunkDataOffset firstByte_CompEntities{};
 			//! Byte at which the first component id is located
-			ChunkDataOffset firstByte_Records[EntityKind::EK_Count]{};
+			ChunkDataOffset firstByte_Records{};
 			//! Byte at which the first entity is located
 			ChunkDataOffset firstByte_EntityData{};
 		};
@@ -39,11 +39,11 @@ namespace gaia {
 
 		struct ChunkRecords {
 			//! Pointer to where component versions are stored
-			ComponentVersion* pVersions[EntityKind::EK_Count]{};
+			ComponentVersion* pVersions{};
 			//! Pointer to where (component) entities are stored
-			Entity* pCompEntities[EntityKind::EK_Count]{};
+			Entity* pCompEntities{};
 			//! Pointer to the array of component records
-			ComponentRecord* pRecords[EntityKind::EK_Count]{};
+			ComponentRecord* pRecords{};
 			//! Pointer to the array of entities
 			Entity* pEntities{};
 		};
@@ -94,18 +94,23 @@ namespace gaia {
 			//! Empty space for future use
 			uint32_t unused : 7;
 
+			//! Number of generic entities/components
+			uint8_t genEntities;
 			//! Number of components on the archetype
-			uint8_t componentCount[EntityKind::EK_Count]{};
+			uint8_t componentCount{};
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
-			ChunkHeader(const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
-					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
-					lifespanCountdown(0), dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0),
-					hasAnyCustomGenDtor(0), hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
+			ChunkHeader(
+					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
+					uint32_t& version):
+					cc(&compCache),
+					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
+					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
+					hasAnyCustomUniDtor(0), sizeType(st), unused(0), genEntities(genEntitiesCnt), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

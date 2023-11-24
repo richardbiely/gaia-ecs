@@ -47,7 +47,7 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
 				uint8_t rulesAllCount;
-			} data[EntityKind::EK_Count]{};
+			} data{};
 			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -61,44 +61,36 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				GAIA_FOR(EntityKind::EK_Count) {
-					const auto& left = data[i];
-					const auto& right = other.data[i];
+				const auto& left = data;
+				const auto& right = other.data;
 
-					// Check array sizes first
-					if (left.comps.size() != right.comps.size())
+				// Check array sizes first
+				if (left.comps.size() != right.comps.size())
+					return false;
+				if (left.rules.size() != right.rules.size())
+					return false;
+				if (left.withChanged.size() != right.withChanged.size())
+					return false;
+				if (left.readWriteMask != right.readWriteMask)
+					return false;
+
+				// Matches hashes need to be the same
+				GAIA_FOR_(QueryListType::LT_Count, j) {
+					if (left.hash[j] != right.hash[j])
 						return false;
-					if (left.rules.size() != right.rules.size())
-						return false;
-					if (left.withChanged.size() != right.withChanged.size())
-						return false;
-					if (left.readWriteMask != right.readWriteMask)
-						return false;
-
-					// Matches hashes need to be the same
-					GAIA_FOR_(QueryListType::LT_Count, j) {
-						if (left.hash[j] != right.hash[j])
-							return false;
-					}
-
-					// Components need to be the same
-					GAIA_EACH_(left.comps, j) {
-						if (left.comps[j] != right.comps[j])
-							return false;
-					}
-
-					// Rules need to be the same
-					GAIA_EACH_(left.rules, j) {
-						if (left.rules[j] != right.rules[j])
-							return false;
-					}
-
-					// Filters need to be the same
-					GAIA_EACH_(left.withChanged, j) {
-						if (left.withChanged[j] != right.withChanged[j])
-							return false;
-					}
 				}
+
+				// Components need to be the same
+				if (left.comps != right.comps)
+					return false;
+
+				// Rules need to be the same
+				if (left.rules != right.rules)
+					return false;
+
+				// Filters need to be the same
+				if (left.withChanged != right.withChanged)
+					return false;
 
 				return true;
 			}
@@ -110,26 +102,24 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			GAIA_FOR(EntityKind::EK_Count) {
-				auto& data = ctx.data[i];
-				// Make sure the read-write mask remains correct after sorting
-				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-					core::swap(data.comps[left], data.comps[right]);
-					core::swap(data.rules[left], data.rules[right]);
+			auto& data = ctx.data;
+			// Make sure the read-write mask remains correct after sorting
+			core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+				core::swap(data.comps[left], data.comps[right]);
+				core::swap(data.rules[left], data.rules[right]);
 
-					{
-						// Swap the bits in the read-write mask
-						const uint32_t b0 = (data.readWriteMask >> left) & 1U;
-						const uint32_t b1 = (data.readWriteMask >> right) & 1U;
-						// XOR the two bits
-						const uint32_t bxor = b0 ^ b1;
-						// Put the XOR bits back to their original positions
-						const uint32_t mask = (bxor << left) | (bxor << right);
-						// XOR mask with the original one effectivelly swapping the bits
-						data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
-					}
-				});
-			}
+				{
+					// Swap the bits in the read-write mask
+					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
+					const uint32_t b1 = (data.readWriteMask >> right) & 1U;
+					// XOR the two bits
+					const uint32_t bxor = b0 ^ b1;
+					// Put the XOR bits back to their original positions
+					const uint32_t mask = (bxor << left) | (bxor << right);
+					// XOR mask with the original one effectivelly swapping the bits
+					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
+				}
+			});
 		}
 
 		inline void matcher_hashes(QueryCtx& ctx) {
@@ -139,9 +129,8 @@ namespace gaia {
 			sort(ctx);
 
 			// Calculate the matcher hash
-			for (auto& data: ctx.data) {
-				GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
-			}
+			auto& data = ctx.data;
+			GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
@@ -151,45 +140,43 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			GAIA_FOR(EntityKind::EK_Count) {
-				auto& data = ctx.data[i];
+			auto& data = ctx.data;
 
-				// Components
-				{
-					QueryLookupHash::Type hash = 0;
+			// Components
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& comps = data.comps;
-					for (const auto comp: comps)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
+				const auto& comps = data.comps;
+				for (const auto comp: comps)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
 
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
 
-				// Rules
-				{
-					QueryLookupHash::Type hash = 0;
+			// Rules
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& rules = data.rules;
-					for (auto listType: rules)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
+				const auto& rules = data.rules;
+				for (auto listType: rules)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
 
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
 
-				// Filters
-				{
-					QueryLookupHash::Type hash = 0;
+			// Filters
+			{
+				QueryLookupHash::Type hash = 0;
 
-					const auto& withChanged = data.withChanged;
-					for (auto comp: withChanged)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
+				const auto& withChanged = data.withChanged;
+				for (auto comp: withChanged)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
 
-					hashLookup = core::hash_combine(hashLookup, hash);
-				}
+				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};

@@ -118,7 +118,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -166,7 +166,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -181,7 +181,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -204,7 +204,7 @@ namespace gaia {
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, object);
 				}
 			};
@@ -288,12 +288,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(Entity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT);
 
@@ -308,12 +306,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(TempEntity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
@@ -328,12 +324,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(Entity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
@@ -349,12 +343,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = entity_kind_v<T>;
-				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
@@ -370,11 +362,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(Entity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT);
 
@@ -391,11 +382,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(TempEntity entity, T&& value) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
@@ -411,11 +401,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void del(Entity entity) {
+				verify_comp<T>();
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
-
-				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
 
 				m_ctx.save(REMOVE_COMPONENT);
 

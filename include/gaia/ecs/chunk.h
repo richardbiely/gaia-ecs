@@ -41,16 +41,12 @@ namespace gaia {
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) ComponentVersions[EntityKind::EK_Gen]
-			//!			2) ComponentVersions[EntityKind::EK_Uni]
-			//!     3) EntityIds[EntityKind::EK_Gen]
-			//!			4) EntityIds[EntityKind::EK_Uni]
-			//!     5) ComponentIds[EntityKind::EK_Gen]
-			//!			6) ComponentIds[EntityKind::EK_Uni]
-			//!			7) ComponentRecords[EntityKind::EK_Gen]
-			//!			8) ComponentRecords[EntityKind::EK_Uni]
-			//!			9) Entities
-			//!			10) Components
+			//!			1) ComponentVersions
+			//!     2) EntityIds
+			//!     3) ComponentIds
+			//!			4) ComponentRecords
+			//!			5) Entities (identifiers)
+			//!			6) Entities (data)
 			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
@@ -60,8 +56,10 @@ namespace gaia {
 			// Hidden default constructor. Only use to calculate the relative offset of m_data
 			Chunk() = default;
 
-			Chunk(const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
-					m_header(cc, chunkIndex, capacity, st, worldVersion) {
+			Chunk(
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
+					uint32_t& worldVersion):
+					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -75,52 +73,36 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps, const ChunkDataOffsets& headerOffsets,
-					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
-				m_header.componentCount[EntityKind::EK_Gen] = (uint8_t)comps[EntityKind::EK_Gen].size();
-				m_header.componentCount[EntityKind::EK_Uni] = (uint8_t)comps[EntityKind::EK_Uni].size();
+					const EntityArray& ents, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
+					const ComponentOffsetArray& compOffs) {
+				m_header.componentCount = (uint8_t)ents.size();
 
 				// Cache pointers to versions
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					m_records.pVersions[i] = (ComponentVersion*)&data(headerOffsets.firstByte_Versions[i]);
+				if (!ents.empty()) {
+					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 				}
 
 				// Cache entity ids
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (ents[i].empty())
-						continue;
-
-					auto* dst = m_records.pCompEntities[i] = (Entity*)&data(headerOffsets.firstByte_CompEntities[i]);
-					const auto& ids = ents[i];
+				if (!ents.empty()) {
+					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
-					for (; j < ids.size(); ++j)
-						dst[j] = ids[j];
+					for (; j < ents.size(); ++j)
+						dst[j] = ents[j];
 					for (; j < MAX_COMPONENTS; ++j)
 						dst[j] = IdentifierIdBad;
 				}
 
 				// Cache component records
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
-					const auto& offs = compOffs[i];
-					const auto& eids = ents[i];
-					const auto& cids = comps[i];
-					GAIA_EACH_(cids, j) {
-						dst[j].entity = eids[j];
-						dst[j].comp = cids[j];
-						const auto off = offs[j];
-						dst[j].pData = &data(off);
-						dst[j].pDesc = &m_header.cc->get(cids[j].id());
+				if (!ents.empty()) {
+					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
+					GAIA_EACH_(comps, j) {
+						dst[j].entity = ents[j];
+						dst[j].comp = comps[j];
+						dst[j].pData = &data(compOffs[j]);
+						dst[j].pDesc = &m_header.cc->get(comps[j].id());
 					}
 				}
 
@@ -128,33 +110,30 @@ namespace gaia {
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
+					auto recs = comp_rec_view();
 					for (const auto& rec: recs) {
-						m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
-					}
-				}
-				{
-					auto recs = comp_rec_view(EntityKind::EK_Uni);
-					for (const auto& rec: recs) {
-						m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
-					}
+						if (rec.entity.kind() == EntityKind::EK_Gen) {
+							m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
+							m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
+						} else {
+							m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
+							m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
 
-					// Also construct unique components if possible
-					if (has_custom_uni_ctor())
-						call_ctors(EntityKind::EK_Uni, 0, 1);
+							// We construct unique components right away if possible
+							call_ctor(0, *rec.pDesc);
+						}
+					}
 				}
 			}
 
 			GAIA_MSVC_WARNING_POP()
 
-			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(EntityKind kind) const {
-				return {(const ComponentVersion*)m_records.pVersions[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
+				return {(const ComponentVersion*)m_records.pVersions, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut(EntityKind kind) {
-				return {m_records.pVersions[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
+				return {m_records.pVersions, m_header.componentCount};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
@@ -185,10 +164,10 @@ namespace gaia {
 					const auto compIdx = comp_idx(comp);
 
 					if constexpr (kind == EntityKind::EK_Gen) {
-						return {comp_ptr(kind, compIdx, from), to - from};
+						return {comp_ptr(compIdx, from), to - from};
 					} else {
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr(kind, compIdx), 1};
+						return {comp_ptr(compIdx), 1};
 					}
 				}
 			}
@@ -221,13 +200,13 @@ namespace gaia {
 
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted)
-						update_world_version(kind, compIdx);
+						update_world_version(compIdx);
 
 					if constexpr (kind == EntityKind::EK_Gen) {
-						return {comp_ptr_mut(kind, compIdx, from), to - from};
+						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
-						return {comp_ptr_mut(kind, compIdx), 1};
+						return {comp_ptr_mut(compIdx), 1};
 					}
 				}
 			}
@@ -303,24 +282,26 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t dataBytes,
+					uint32_t& worldVersion,
+					// data offsets
 					const ChunkDataOffsets& offsets,
 					// component entities
-					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
+					const EntityArray& ents,
 					// component
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
+					const ComponentArray& comps,
 					// component offsets
-					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
+					const ComponentOffsetArray& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
+				new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
 				pChunk->init(ents, comps, offsets, compOffs);
@@ -339,10 +320,8 @@ namespace gaia {
 				pChunk->die();
 
 				// Call destructors for components that need it
-				if (pChunk->has_custom_gen_dtor())
-					pChunk->call_dtors(EntityKind::EK_Gen, 0, pChunk->size());
-				if (pChunk->has_custom_uni_dtor())
-					pChunk->call_dtors(EntityKind::EK_Uni, 0, 1);
+				if (pChunk->has_custom_gen_dtor() || pChunk->has_custom_uni_dtor())
+					pChunk->call_all_dtors();
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
@@ -386,8 +365,7 @@ namespace gaia {
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
 				update_version(m_header.worldVersion);
-				update_world_version(EntityKind::EK_Gen);
-				update_world_version(EntityKind::EK_Uni);
+				update_world_version();
 			}
 
 			/*!
@@ -504,31 +482,31 @@ namespace gaia {
 				return {(const Entity*)m_records.pEntities, size()};
 			}
 
-			GAIA_NODISCARD EntitySpan ents_id_view(EntityKind kind) const {
-				return {(const Entity*)m_records.pCompEntities[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD EntitySpan ents_id_view() const {
+				return {(const Entity*)m_records.pCompEntities, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view(EntityKind kind) const {
-				return {m_records.pRecords[kind], m_header.componentCount[kind]};
+			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view() const {
+				return {m_records.pRecords, m_header.componentCount};
 			}
 
-			GAIA_NODISCARD uint8_t* comp_ptr_mut(EntityKind kind, uint32_t compIdx) {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx) {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
-			GAIA_NODISCARD uint8_t* comp_ptr_mut(EntityKind kind, uint32_t compIdx, uint32_t offset) {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx, uint32_t offset) {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
-			GAIA_NODISCARD const uint8_t* comp_ptr(EntityKind kind, uint32_t compIdx) const {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx) const {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
-			GAIA_NODISCARD const uint8_t* comp_ptr(EntityKind kind, uint32_t compIdx, uint32_t offset) const {
-				const auto& rec = m_records.pRecords[kind][compIdx];
+			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx, uint32_t offset) const {
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
@@ -542,8 +520,7 @@ namespace gaia {
 				entity_view_mut()[index] = entity;
 
 				update_version(m_header.worldVersion);
-				update_world_version(EntityKind::EK_Gen);
-				update_world_version(EntityKind::EK_Uni);
+				update_world_version();
 
 				return index;
 			}
@@ -552,7 +529,7 @@ namespace gaia {
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
 			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::copy_entity_data);
+				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
 				auto& oldEntityContainer = entities[oldEntity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -562,16 +539,16 @@ namespace gaia {
 
 				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
 
-				auto oldRecs = pOldChunk->comp_rec_view(EntityKind::EK_Gen);
+				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_EACH(oldRecs) {
+				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(EntityKind::EK_Gen, i, oldEntityContainer.row);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(EntityKind::EK_Gen, i, newEntityContainer.row);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldEntityContainer.row);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i, newEntityContainer.row);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -580,36 +557,35 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
 			void move_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::move_entity_data);
+				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
 				auto& ec = entities[entity.id()];
 				auto* pOldChunk = ec.pChunk;
-				auto oldRecs = pOldChunk->comp_rec_view(EntityKind::EK_Gen);
+				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_EACH(oldRecs) {
+				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(EntityKind::EK_Gen, i, ec.row);
-					auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, row);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, ec.row);
+					auto* pDst = (void*)comp_ptr_mut(i, row);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
 
-			static void
-			move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow, EntityKind kind) {
-				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
+			static void move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow) {
+				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
 				GAIA_ASSERT(oldRow < pOldChunk->size());
 				GAIA_ASSERT(newRow < pNewChunk->size());
 
-				auto oldIds = pOldChunk->ents_id_view(kind);
-				auto newIds = pNewChunk->ents_id_view(kind);
-				auto recsNew = pNewChunk->comp_rec_view(kind);
+				auto oldIds = pOldChunk->ents_id_view();
+				auto newIds = pNewChunk->ents_id_view();
+				auto recsNew = pNewChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
@@ -617,7 +593,7 @@ namespace gaia {
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < oldIds.size() && j < newIds.size()) {
+					while (i < pOldChunk->m_header.genEntities && j < pNewChunk->m_header.genEntities) {
 						const auto oldId = oldIds[i];
 						const auto newId = newIds[j];
 
@@ -625,8 +601,8 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(kind, i, oldRow);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
@@ -639,7 +615,7 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 								rec.pDesc->func_ctor(pDst, 1);
 							}
 
@@ -648,14 +624,11 @@ namespace gaia {
 					}
 
 					// Initialize the rest of the components if they are generic.
-					// Unique components are constructed automatically when the chunk is created.
-					if (kind == EntityKind::EK_Gen) {
-						for (; j < newIds.size(); ++j) {
-							const auto& rec = recsNew[j];
-							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(kind, j, newRow);
-								rec.pDesc->func_ctor(pDst, 1);
-							}
+					for (; j < pNewChunk->m_header.genEntities; ++j) {
+						const auto& rec = recsNew[j];
+						if (rec.pDesc->func_ctor != nullptr) {
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
+							rec.pDesc->func_ctor(pDst, 1);
 						}
 					}
 				}
@@ -665,13 +638,10 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
 			void move_foreign_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
+				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
 				auto& ec = entities[entity.id()];
-				move_foreign_entity_data(
-						ec.pChunk, ec.row, this, row,
-						// We ignore unique components here because they are not influenced by entities moving around.
-						EntityKind::EK_Gen);
+				move_foreign_entity_data(ec.pChunk, ec.row, this, row);
 			}
 
 			/*!
@@ -681,7 +651,7 @@ namespace gaia {
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
 			void remove_entity_inter(uint32_t index, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(chunk::remove_entity_inter);
+				GAIA_PROF_SCOPE(Chunk::remove_entity_inter);
 
 				const auto left = index;
 				const auto right = (uint32_t)m_header.count - 1;
@@ -706,14 +676,14 @@ namespace gaia {
 					ev[left] = entityRight;
 
 					// Move component data from rightEntity to leftEntity
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
-					GAIA_EACH(recs) {
+					auto recs = comp_rec_view();
+					GAIA_FOR2(0, m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, right);
-						auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
+						auto* pSrc = (void*)comp_ptr_mut(i, right);
+						auto* pDst = (void*)comp_ptr_mut(i, left);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
@@ -722,13 +692,13 @@ namespace gaia {
 					ecRight.row = left;
 				} else {
 					// This is the last entity in chunk so simply destroy its data
-					auto recs = comp_rec_view(EntityKind::EK_Gen);
-					GAIA_EACH(recs) {
+					auto recs = comp_rec_view();
+					GAIA_FOR2(0, m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
+						auto* pSrc = (void*)comp_ptr_mut(i, left);
 						rec.pDesc->dtor(pSrc);
 					}
 				}
@@ -749,7 +719,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
 					return;
 
-				GAIA_PROF_SCOPE(chunk::remove_entity);
+				GAIA_PROF_SCOPE(Chunk::remove_entity);
 
 				if (enabled(index)) {
 					// Entity was previously enabled. Swap with the last entity
@@ -786,7 +756,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_header.count <= 1 || left == right)
 					return;
 
-				GAIA_PROF_SCOPE(chunk::swap_chunk_entities);
+				GAIA_PROF_SCOPE(Chunk::swap_chunk_entities);
 
 				// Update entity data
 				auto ev = entity_view_mut();
@@ -802,14 +772,14 @@ namespace gaia {
 				ev[right] = entityLeft;
 
 				// Swap component data
-				auto recs = comp_rec_view(EntityKind::EK_Gen);
-				GAIA_EACH(recs) {
+				auto recs = comp_rec_view();
+				GAIA_FOR2(0, m_header.genEntities) {
 					const auto& rec = recs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, left);
-					auto* pDst = (void*)comp_ptr_mut(EntityKind::EK_Gen, i, right);
+					auto* pSrc = (void*)comp_ptr_mut(i, left);
+					auto* pDst = (void*)comp_ptr_mut(i, right);
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
@@ -905,58 +875,47 @@ namespace gaia {
 				return m_header.hasAnyCustomUniDtor;
 			}
 
-			void call_ctor(EntityKind kind, uint32_t entIdx, const ComponentCacheItem& desc) {
-				GAIA_PROF_SCOPE(chunk::call_ctor);
-
-				// Make sure only generic components are used with this function.
-				// Unique components are automatically constructed with chunks.
-				GAIA_ASSERT(kind == EntityKind::EK_Gen);
+			void call_ctor(uint32_t entIdx, const ComponentCacheItem& desc) {
+				GAIA_PROF_SCOPE(Chunk::call_ctor);
 
 				if (desc.func_ctor == nullptr)
 					return;
 
 				const auto compIdx = comp_idx(desc.entity);
-				auto* pSrc = (void*)comp_ptr_mut(kind, compIdx, entIdx);
+				auto* pSrc = (void*)comp_ptr_mut(compIdx, entIdx);
 				desc.func_ctor(pSrc, 1);
 			}
 
-			void call_ctors(EntityKind kind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(chunk::call_ctors);
+			void call_gen_ctors(uint32_t entIdx, uint32_t entCnt) {
+				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
 
-				GAIA_ASSERT(
-						kind == EntityKind::EK_Gen && has_custom_gen_ctor() || kind == EntityKind::EK_Uni && has_custom_uni_ctor());
+				auto recs = comp_rec_view();
+				GAIA_FOR2(0, m_header.genEntities) {
+					const auto& rec = recs[i];
 
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(kind == EntityKind::EK_Gen || (entIdx == 0 && entCnt == 1));
-
-				auto recs = comp_rec_view(kind);
-				GAIA_EACH(recs) {
-					const auto* pDesc = recs[i].pDesc;
+					const auto* pDesc = rec.pDesc;
 					if (pDesc->func_ctor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(kind, i, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(i, entIdx);
 					pDesc->func_ctor(pSrc, entCnt);
 				}
 			}
 
-			void call_dtors(EntityKind kind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(chunk::call_dtors);
+			void call_all_dtors() {
+				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
-				GAIA_ASSERT(
-						kind == EntityKind::EK_Gen && has_custom_gen_dtor() || kind == EntityKind::EK_Uni && has_custom_uni_dtor());
-
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(kind == EntityKind::EK_Gen || (entIdx == 0 && entCnt == 1));
-
-				auto recs = comp_rec_view(kind);
+				auto recs = comp_rec_view();
 				GAIA_EACH(recs) {
-					const auto* pDesc = recs[i].pDesc;
+					const auto& rec = recs[i];
+
+					const auto* pDesc = rec.pDesc;
 					if (pDesc->func_dtor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(kind, i, entIdx);
-					pDesc->func_dtor(pSrc, entCnt);
+					auto* pSrc = (void*)comp_ptr_mut(i, 0);
+					const auto cnt = (rec.entity.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
+					pDesc->func_dtor(pSrc, cnt);
 				}
 			};
 
@@ -965,14 +924,13 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Checks if a component with \param compId and type \param kind is present in the chunk.
-			\param compId Component id
-			\param kind Component type
+			Checks if a component/entity \param entity is present in the chunk.
+			\param entity Entity
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				auto compIds = ents_id_view(entity.kind());
-				return core::has(compIds, entity);
+				auto ents = ents_id_view();
+				return core::has(ents, entity);
 			}
 
 			/*!
@@ -1139,7 +1097,7 @@ namespace gaia {
 			 \return Component index if the component was found. -1 otherwise.
 			 */
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
-				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pCompEntities[entity.kind()], entity);
+				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -1259,20 +1217,20 @@ namespace gaia {
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool changed(EntityKind kind, uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view(kind);
+			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
+				auto versions = comp_version_view();
 				return version_changed(versions[compIdx], version);
 			}
 
-			//! Update version of a component at the index \param compIdx of a given \param kind
-			GAIA_FORCEINLINE void update_world_version(EntityKind kind, uint32_t compIdx) {
-				auto versions = comp_version_view_mut(kind);
+			//! Update the version of a component at the index \param compIdx
+			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
+				auto versions = comp_version_view_mut();
 				versions[compIdx] = m_header.worldVersion;
 			}
 
-			//! Update version of all components of a given \param kind
-			GAIA_FORCEINLINE void update_world_version(EntityKind kind) {
-				auto versions = comp_version_view_mut(kind);
+			//! Update the version of all components
+			GAIA_FORCEINLINE void update_world_version() {
+				auto versions = comp_version_view_mut();
 				for (auto& v: versions)
 					v = m_header.worldVersion;
 			}

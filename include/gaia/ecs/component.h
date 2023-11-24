@@ -47,6 +47,12 @@ namespace gaia {
 		template <typename T>
 		struct uni {
 			static_assert(core::is_raw_v<T>);
+			static_assert(
+					std::is_trivial_v<T> ||
+							// For non-trivial T the comparison operator must be implemented because
+							// defragmentation needs it to figure out is entities can be moved around.
+							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+					"Non-trivial Uni component must implement operator==");
 
 			//! Component kind
 			static constexpr EntityKind Kind = EntityKind::EK_Uni;
@@ -116,29 +122,12 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_type_t<T>::Type;
+			using U = typename component_type_t<T>::TypeOriginal;
 
 			// Make sure we only use this for "raw" types
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
-		}
-
-		template <typename T>
-		constexpr void verify_comp([[maybe_unused]] EntityKind kind) {
-			verify_comp<T>();
-
-#if GAIA_ASSERT_ENABLED
-			using U = typename component_type_t<T>::Type;
-			if (!std::is_trivial_v<U>) {
-				if (kind != EntityKind::EK_Uni)
-					return;
-
-				constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
-				constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
-				GAIA_ASSERT((hasGlobalCmp || hasMemberCmp) && "Non-trivial Uni component must implement operator==");
-			}
-#endif
 		}
 
 		//----------------------------------------------------------------------

@@ -37,15 +37,14 @@ namespace gaia {
 			uint32_t m_worldVersion{};
 
 			template <typename T>
-			bool
-			has_inter([[maybe_unused]] QueryListType listType, [[maybe_unused]] EntityKind kind, bool isReadWrite) const {
+			bool has_inter([[maybe_unused]] QueryListType listType, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Entities are read-only.
 					GAIA_ASSERT(!isReadWrite);
 					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
-					const auto& data = m_lookupCtx.data[kind];
+					const auto& data = m_lookupCtx.data;
 					const auto& comps = data.comps;
 
 					const auto comp = m_lookupCtx.cc->get<T>().entity;
@@ -67,18 +66,16 @@ namespace gaia {
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 				constexpr bool isReadWrite = core::is_mut_v<T>;
 
-				return has_inter<FT>(listType, kind, isReadWrite);
+				return has_inter<FT>(listType, isReadWrite);
 			}
 
 			//! Tries to match query component ids with those in \param comps given the rule \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool
-			match_inter(EntityKind kind, const Chunk::EntityArray& comps, QueryListType listType, Func func) const {
-				const auto& data = m_lookupCtx.data[kind];
+			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& comps, QueryListType listType, Func func) const {
+				const auto& data = m_lookupCtx.data;
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
@@ -104,18 +101,18 @@ namespace gaia {
 
 			//! Tries to match all query component ids with those in \param comps.
 			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(EntityKind kind, const Chunk::EntityArray& comps, QueryListType listType) const {
-				return match_inter(kind, comps, listType, [](Entity comp, Entity compQuery) {
+			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& comps, QueryListType listType) const {
+				return match_inter(comps, listType, [](Entity comp, Entity compQuery) {
 					return comp == compQuery;
 				});
 			}
 
 			//! Tries to match all query component ids with those in \param comps.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(EntityKind kind, const Chunk::EntityArray& comps) const {
+			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& comps) const {
 				uint32_t matches = 0;
-				const auto& data = m_lookupCtx.data[kind];
-				return match_inter(kind, comps, QueryListType::LT_All, [&](Entity comp, Entity compQuery) {
+				const auto& data = m_lookupCtx.data;
+				return match_inter(comps, QueryListType::LT_All, [&](Entity comp, Entity compQuery) {
 					return comp == compQuery && (++matches == data.rulesAllCount);
 				});
 			}
@@ -123,12 +120,12 @@ namespace gaia {
 			//! Tries to match component with component type \param kind from the archetype \param archetype with
 			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
-			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, EntityKind kind) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype) const {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
-				const auto& matcherHash = archetype.matcher_hash(kind);
-				const auto& comps = archetype.entities(kind);
-				const auto& compData = data(kind);
+				const auto& matcherHash = archetype.matcher_hash();
+				const auto& comps = archetype.entities();
+				const auto& compData = data();
 
 				const auto withNoneTest = matcherHash.hash & compData.hash[QueryListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & compData.hash[QueryListType::LT_Any].hash;
@@ -144,13 +141,13 @@ namespace gaia {
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					if (match_one(kind, comps, QueryListType::LT_None))
+					if (match_one(comps, QueryListType::LT_None))
 						return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					if (match_one(kind, comps, QueryListType::LT_Any))
+					if (match_one(comps, QueryListType::LT_Any))
 						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
@@ -164,7 +161,7 @@ namespace gaia {
 							// We skip archetypes with less components than the query requires
 							compData.rulesAllCount <= comps.size() &&
 							// Match everything with LT_ALL
-							match_all(kind, comps))
+							match_all(comps))
 						return MatchArchetypeQueryRet::Ok;
 
 					// No match found. We're done
@@ -212,56 +209,28 @@ namespace gaia {
 
 				GAIA_PROF_SCOPE(queryinfo::match);
 
-				// Match against generic types
-				{
-					auto& data = m_lookupCtx.data[EntityKind::EK_Gen];
-					GAIA_EACH(data.comps) {
-						const auto comp = data.comps[i];
+				auto& data = m_lookupCtx.data;
+				GAIA_EACH(data.comps) {
+					const auto comp = data.comps[i];
 
-						// Check if any archetype is associated with the component id
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
-						if (it == componentToArchetypeMap.end())
+					// Check if any archetype is associated with the component id
+					const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
+					if (it == componentToArchetypeMap.end())
+						continue;
+
+					const auto& archetypes = it->second;
+					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
+					GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
+						auto* pArchetype = archetypes[j];
+
+						// Early exit if query doesn't match
+						const auto ret = match(*pArchetype);
+						if (ret == MatchArchetypeQueryRet::Fail)
 							continue;
 
-						const auto& archetypes = it->second;
-						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
-						GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
-							auto* pArchetype = archetypes[j];
-
-							// Early exit if generic query doesn't match
-							const auto ret = match(*pArchetype, EntityKind::EK_Gen);
-							if (ret == MatchArchetypeQueryRet::Fail)
-								continue;
-
-							(void)s_tmpArchetypeMatches.emplace(pArchetype);
-						}
-						data.lastMatchedArchetypeIdx[i] = archetypes.size();
+						(void)s_tmpArchetypeMatches.emplace(pArchetype);
 					}
-				}
-
-				// Match against unique types
-				{
-					auto& data = m_lookupCtx.data[EntityKind::EK_Uni];
-					GAIA_EACH(data.comps) {
-						const auto comp = data.comps[i];
-
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
-						if (it == componentToArchetypeMap.end())
-							continue;
-
-						GAIA_FOR2_(data.lastMatchedArchetypeIdx[i], it->second.size(), j) {
-							auto* pArchetype = it->second[j];
-							// Early exit if unique query doesn't match
-							const auto ret = match(*pArchetype, EntityKind::EK_Uni);
-							if (ret == MatchArchetypeQueryRet::Fail) {
-								s_tmpArchetypeMatches.erase(pArchetype);
-								continue;
-							}
-
-							(void)s_tmpArchetypeMatches.emplace(pArchetype);
-						}
-						data.lastMatchedArchetypeIdx[i] = (uint32_t)it->second.size();
-					}
+					data.lastMatchedArchetypeIdx[i] = archetypes.size();
 				}
 
 				for (auto* pArchetype: s_tmpArchetypeMatches)
@@ -273,21 +242,20 @@ namespace gaia {
 				return m_lookupCtx.queryId;
 			}
 
-			GAIA_NODISCARD const QueryCtx::Data& data(EntityKind kind) const {
-				return m_lookupCtx.data[kind];
+			GAIA_NODISCARD const QueryCtx::Data& data() const {
+				return m_lookupCtx.data;
 			}
 
-			GAIA_NODISCARD const QueryComponentArray& comps(EntityKind kind) const {
-				return m_lookupCtx.data[kind].comps;
+			GAIA_NODISCARD const QueryComponentArray& comps() const {
+				return m_lookupCtx.data.comps;
 			}
 
-			GAIA_NODISCARD const QueryChangeArray& filters(EntityKind kind) const {
-				return m_lookupCtx.data[kind].withChanged;
+			GAIA_NODISCARD const QueryChangeArray& filters() const {
+				return m_lookupCtx.data.withChanged;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_lookupCtx.data[EntityKind::EK_Gen].withChanged.empty() ||
-							 !m_lookupCtx.data[EntityKind::EK_Uni].withChanged.empty();
+				return !m_lookupCtx.data.withChanged.empty();
 			}
 
 			template <typename... T>
@@ -317,11 +285,9 @@ namespace gaia {
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
-				for (auto& ctxData: m_lookupCtx.data) {
-					for (auto& lastMatchedArchetypeIdx: ctxData.lastMatchedArchetypeIdx) {
-						if (lastMatchedArchetypeIdx > 0)
-							--lastMatchedArchetypeIdx;
-					}
+				for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
+					if (lastMatchedArchetypeIdx > 0)
+						--lastMatchedArchetypeIdx;
 				}
 			}
 

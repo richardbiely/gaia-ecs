@@ -65,7 +65,7 @@ namespace gaia {
 					bool isReadWrite;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[comp.kind()];
+						auto& data = ctx.data;
 						auto& comps = data.comps;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
@@ -100,7 +100,7 @@ namespace gaia {
 					Entity comp;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[comp.kind()];
+						auto& data = ctx.data;
 						auto& comps = data.comps;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
@@ -295,24 +295,14 @@ namespace gaia {
 
 					const auto queryVersion = queryInfo.world_version();
 
-					// See if any generic component has changed
-					{
-						const auto& filtered = queryInfo.filters(EntityKind::EK_Gen);
-						for (const auto comp: filtered) {
-							const auto compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(EntityKind::EK_Gen, queryVersion, compIdx))
-								return true;
-						}
-					}
-
-					// See if any unique component has changed
-					{
-						const auto& filtered = queryInfo.filters(EntityKind::EK_Uni);
-						for (const auto comp: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(EntityKind::EK_Uni, queryVersion, compIdx))
-								return true;
-						}
+					// See if any component has changed
+					const auto& filtered = queryInfo.filters();
+					for (const auto comp: filtered) {
+						// TODO: Components are sorted. Therefore, we don't need to search from 0
+						//       all the time. We can search from the last found index.
+						const auto compIdx = chunk.comp_idx(comp);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
 					}
 
 					// Skip unchanged chunks.
