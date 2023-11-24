@@ -659,31 +659,31 @@ namespace gaia {
 				return has(kind, entity);
 			}
 
-			void build_graph_edges(Archetype* pArchetypeRight, EntityKind kind, Entity entity) {
+			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
 
-				m_graph.add_edge_right(kind, entity, pArchetypeRight->id());
-				pArchetypeRight->build_graph_edges_left(this, kind, entity);
+				m_graph.add_edge_right(entity, pArchetypeRight->id());
+				pArchetypeRight->build_graph_edges_left(this, entity);
 			}
 
-			void build_graph_edges_left(Archetype* pArchetypeLeft, EntityKind kind, Entity entity) {
+			void build_graph_edges_left(Archetype* pArchetypeLeft, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeLeft != this);
 
-				m_graph.add_edge_left(kind, entity, pArchetypeLeft->id());
+				m_graph.add_edge_left(entity, pArchetypeLeft->id());
 			}
 
-			//! Checks if the graph edge for component type \param kind contains the component \param entity.
+			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(EntityKind kind, Entity entity) const {
-				return m_graph.find_edge_right(kind, entity);
+			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
+				return m_graph.find_edge_right(entity);
 			}
 
-			//! Checks if the graph edge for component type \param kind contains the component \param entity.
+			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(EntityKind kind, Entity entity) const {
-				return m_graph.find_edge_left(kind, entity);
+			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
+				return m_graph.find_edge_left(entity);
 			}
 
 			//! Checks is there are no chunk in the archetype

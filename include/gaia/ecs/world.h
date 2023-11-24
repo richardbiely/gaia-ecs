@@ -410,7 +410,7 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const auto archetypeId = pArchetypeLeft->find_edge_right(kind, entity);
+					const auto archetypeId = pArchetypeLeft->find_edge_right(entity);
 					if (archetypeId != ArchetypeIdBad)
 						return m_archetypesById[archetypeId];
 				}
@@ -455,7 +455,7 @@ namespace gaia {
 					pArchetypeRight =
 							create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 					pArchetypeRight->set_hashes(hashGen, hashUni, hashLookup);
-					pArchetypeLeft->build_graph_edges(pArchetypeRight, kind, entity);
+					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetypeRight);
 				}
 
@@ -472,7 +472,7 @@ namespace gaia {
 
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->find_edge_left(kind, entity);
+					const auto archetypeId = pArchetypeRight->find_edge_left(entity);
 					if (archetypeId != ArchetypeIdBad)
 						return m_archetypesById[archetypeId];
 				}
@@ -507,7 +507,7 @@ namespace gaia {
 				if (pArchetype == nullptr) {
 					pArchetype = create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 					pArchetype->set_hashes(hashGen, hashLookup, hashLookup);
-					pArchetype->build_graph_edges(pArchetypeRight, kind, entity);
+					pArchetype->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetype);
 				}
 
