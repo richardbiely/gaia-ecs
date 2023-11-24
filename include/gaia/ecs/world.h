@@ -574,7 +574,7 @@ namespace gaia {
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
-				ec.gen = entity.gen();
+				GAIA_ASSERT(ec.gen == entity.gen());
 				ec.dis = 0;
 			}
 
@@ -822,7 +822,7 @@ namespace gaia {
 
 				// Register the core component
 				{
-					auto comp = add(*m_pRootArchetype, EntityKind::EK_Gen);
+					auto comp = add(*m_pRootArchetype, GAIA_ID(Core).kind(), GAIA_ID(Core).entity());
 					const auto& desc = comp_cache_mut().add<Core>(GAIA_ID(Core));
 					GAIA_ASSERT(desc.entity == GAIA_ID(Core));
 					(void)comp;
@@ -832,7 +832,7 @@ namespace gaia {
 
 				// Register the entity archetype (entity + EntityDesc component)
 				{
-					auto comp = add(*m_pRootArchetype, EntityKind::EK_Gen);
+					auto comp = add(*m_pRootArchetype, GAIA_ID(EntityDesc).kind(), GAIA_ID(EntityDesc).entity());
 					const auto& desc = comp_cache_mut().add<EntityDesc>(comp);
 					GAIA_ASSERT(desc.entity == GAIA_ID(EntityDesc));
 					add_inter(comp, desc.entity);
@@ -842,7 +842,7 @@ namespace gaia {
 
 				// Register the component archetype (entity + EntityDesc + Component)
 				{
-					auto comp = add();
+					auto comp = add(*m_pEntityArchetype, GAIA_ID(Component).kind(), GAIA_ID(Component).entity());
 					const auto& desc = comp_cache_mut().add<Component>(comp);
 					GAIA_ASSERT(desc.entity == GAIA_ID(Component));
 					add_inter(comp, desc.entity);
@@ -867,8 +867,8 @@ namespace gaia {
 			//! \param archetype Archetype the entity should inherit
 			//! \param kind Component kind
 			//! \return New entity
-			GAIA_NODISCARD Entity add(Archetype& archetype, EntityKind kind) {
-				EntityContainerCtx ctx{kind};
+			GAIA_NODISCARD Entity add(Archetype& archetype, EntityKind kind, bool isEntity) {
+				EntityContainerCtx ctx{kind, isEntity};
 				const auto entity = m_entities.alloc(&ctx);
 
 				auto* pChunk = archetype.foc_free_chunk();
@@ -1000,7 +1000,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_pEntityArchetype, EntityKind::EK_Gen);
+				return add(*m_pEntityArchetype, EntityKind::EK_Gen, true);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -1013,7 +1013,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.kind());
+				const auto newEntity = add(archetype, entity.kind(), entity.entity());
 
 				Chunk::copy_entity_data(
 						entity, newEntity,
@@ -1056,10 +1056,10 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				if (ec.pChunk != nullptr) {
 					auto entityExpected = ec.pChunk->entity_view()[ec.row];
-					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (EntityKind)ec.kind));
+					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind));
 				}
 #endif
-				return Entity(id, ec.gen, (EntityKind)ec.kind);
+				return Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
 			}
 
 			//! Enables or disables an entire entity.
@@ -1146,7 +1146,7 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto entity = add(*m_pCompArchetype, kind);
+				const auto entity = add(*m_pCompArchetype, kind, false);
 				const auto& desc = comp_cache_mut().add<FT>(entity);
 
 				// Following lines do the following but a bit faster:
@@ -1277,7 +1277,7 @@ namespace gaia {
 			void sset(Entity entity, U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				
+
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_entities[entity.id()];

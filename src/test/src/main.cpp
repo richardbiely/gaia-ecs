@@ -1,5 +1,3 @@
-#include "gaia/core/hashing_string.h"
-#include "gaia/ecs/world.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1505,6 +1503,7 @@ TEST_CASE("Entity - IdentifierBad") {
 	auto e = w.add();
 	REQUIRE(e != ecs::IdentifierBad);
 	REQUIRE_FALSE(e == ecs::IdentifierBad);
+	REQUIRE(e.entity());
 }
 
 TEST_CASE("Add - no components") {
@@ -3912,7 +3911,10 @@ TEST_CASE("Component cache") {
 	auto& cc = w.comp_cache_mut();
 	{
 		cc.clear();
-		const auto comp = w.add<Position>().comp;
+		const auto& desc = w.add<Position>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<const Position>().comp);
 		REQUIRE(comp == w.add<Position&>().comp);
 		REQUIRE(comp == w.add<const Position&>().comp);
@@ -3921,7 +3923,10 @@ TEST_CASE("Component cache") {
 	}
 	{
 		cc.clear();
-		const auto comp = w.add<const Position>().comp;
+		const auto& desc = w.add<const Position>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<Position>().comp);
 		REQUIRE(comp == w.add<Position&>().comp);
 		REQUIRE(comp == w.add<const Position&>().comp);
@@ -3930,7 +3935,10 @@ TEST_CASE("Component cache") {
 	}
 	{
 		cc.clear();
-		const auto comp = w.add<Position&>().comp;
+		const auto& desc = w.add<Position&>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<Position>().comp);
 		REQUIRE(comp == w.add<const Position>().comp);
 		REQUIRE(comp == w.add<const Position&>().comp);
@@ -3939,7 +3947,10 @@ TEST_CASE("Component cache") {
 	}
 	{
 		cc.clear();
-		const auto comp = w.add<const Position&>().comp;
+		const auto& desc = w.add<const Position&>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<Position>().comp);
 		REQUIRE(comp == w.add<const Position>().comp);
 		REQUIRE(comp == w.add<Position&>().comp);
@@ -3948,7 +3959,10 @@ TEST_CASE("Component cache") {
 	}
 	{
 		cc.clear();
-		const auto comp = w.add<Position*>().comp;
+		const auto& desc = w.add<Position*>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<Position>().comp);
 		REQUIRE(comp == w.add<const Position>().comp);
 		REQUIRE(comp == w.add<Position&>().comp);
@@ -3957,7 +3971,10 @@ TEST_CASE("Component cache") {
 	}
 	{
 		cc.clear();
-		const auto comp = w.add<const Position*>().comp;
+		const auto& desc = w.add<const Position*>();
+		auto ent = desc.entity;
+		REQUIRE_FALSE(ent.entity());
+		auto comp = desc.comp;
 		REQUIRE(comp == w.add<Position>().comp);
 		REQUIRE(comp == w.add<const Position>().comp);
 		REQUIRE(comp == w.add<Position&>().comp);

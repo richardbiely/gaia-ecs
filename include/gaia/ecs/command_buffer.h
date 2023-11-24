@@ -69,7 +69,7 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (Archetype*)archetypePtr;
 					[[maybe_unused]] const auto res =
-							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen));
+							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen, true));
 					GAIA_ASSERT(res.second);
 				}
 			};

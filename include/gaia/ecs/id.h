@@ -117,12 +117,21 @@ namespace gaia {
 			struct InternalData {
 				//! Index in the entity array
 				EntityId id;
+
+				///////////////////////////////////////////////////////////////////
+				// Bits in this section need to be 1:1 with Entity internal data
+				///////////////////////////////////////////////////////////////////
+
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 30;
+				IdentifierData gen : 29;
+				//! 0-component, 1-entity
+				IdentifierData ent : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
 				IdentifierData unused : 1;
+
+				///////////////////////////////////////////////////////////////////
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -134,16 +143,16 @@ namespace gaia {
 			constexpr Entity() noexcept: val(IdentifierBad){};
 			constexpr Entity(Identifier value) noexcept: val(value) {}
 
-			// Special constructor for list
+			// Special constructor for cnt::ilist
 			Entity(EntityId id, IdentifierData gen) noexcept {
+				val = 0;
 				data.id = id;
 				data.gen = gen;
-				data.kind = 0;
-				data.unused = 0;
 			}
-			Entity(EntityId id, IdentifierData gen, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
+				data.ent = isEntity;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -154,6 +163,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto gen() const noexcept {
 				return (uint32_t)data.gen;
+			}
+
+			GAIA_NODISCARD constexpr bool entity() const noexcept {
+				return data.ent != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -223,9 +236,9 @@ namespace gaia {
 
 		struct Core {};
 
-		inline Entity GAIA_ID(Core) = Entity(0, 0, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
 
 		inline constexpr uint32_t CoreComponents = 3;
 		inline constexpr uint32_t FirstUserArchetypeId = 3;

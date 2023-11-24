@@ -6817,8 +6817,8 @@ namespace gaia {
 					GAIA_CLANG_WARNING_PUSH()
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back(TListItem(itemCnt, 0U));
-					return TListItem::create(itemCnt, 0U, ctx);
+					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
+					return TListItem::create(m_items.back());
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
 				}
@@ -6830,7 +6830,8 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				return TListItem::create(index, m_items[index].gen, ctx);
+				j = TListItem::create(index, j.gen, ctx);
+				return TListItem::create(j);
 			}
 
 			//! Allocates a new item in the list
@@ -13911,12 +13912,21 @@ namespace gaia {
 			struct InternalData {
 				//! Index in the entity array
 				EntityId id;
+
+				///////////////////////////////////////////////////////////////////
+				// Bits in this section need to be 1:1 with Entity internal data
+				///////////////////////////////////////////////////////////////////
+
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 30;
+				IdentifierData gen : 29;
+				//! 0-component, 1-entity
+				IdentifierData ent : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
 				IdentifierData unused : 1;
+
+				///////////////////////////////////////////////////////////////////
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -13928,16 +13938,16 @@ namespace gaia {
 			constexpr Entity() noexcept: val(IdentifierBad){};
 			constexpr Entity(Identifier value) noexcept: val(value) {}
 
-			// Special constructor for list
+			// Special constructor for cnt::ilist
 			Entity(EntityId id, IdentifierData gen) noexcept {
+				val = 0;
 				data.id = id;
 				data.gen = gen;
-				data.kind = 0;
-				data.unused = 0;
 			}
-			Entity(EntityId id, IdentifierData gen, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
+				data.ent = isEntity;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -13948,6 +13958,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto gen() const noexcept {
 				return (uint32_t)data.gen;
+			}
+
+			GAIA_NODISCARD constexpr bool entity() const noexcept {
+				return data.ent != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -14017,9 +14031,9 @@ namespace gaia {
 
 		struct Core {};
 
-		inline Entity GAIA_ID(Core) = Entity(0, 0, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
 
 		inline constexpr uint32_t CoreComponents = 3;
 		inline constexpr uint32_t FirstUserArchetypeId = 3;
@@ -15706,6 +15720,7 @@ namespace gaia {
 
 		struct EntityContainerCtx {
 			EntityKind kind;
+			bool isEntity;
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -15718,7 +15733,9 @@ namespace gaia {
 			///////////////////////////////////////////////////////////////////
 
 			//! Generation ID of the record
-			uint32_t gen : 30;
+			uint32_t gen : 29;
+			//! 0-component, 1-entity
+			uint32_t ent : 1;
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
@@ -15734,12 +15751,22 @@ namespace gaia {
 			Chunk* pChunk;
 
 			EntityContainer() = default;
-			EntityContainer(uint32_t index, uint32_t generation):
-					idx(index), gen(generation), dis(0), row(0), pArchetype(nullptr), pChunk(nullptr) {}
+			// EntityContainer(uint32_t index, uint32_t generation):
+			// 		idx(index), gen(generation), dis(0), row(0), pArchetype(nullptr), pChunk(nullptr) {}
 
-			static Entity create(uint32_t index, uint32_t generation, void* pCtx) {
+			static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (EntityContainerCtx*)pCtx;
-				return Entity(index, generation, ctx->kind);
+
+				EntityContainer ec{};
+				ec.idx = index;
+				ec.gen = generation;
+				ec.kind = (uint32_t)ctx->kind;
+				ec.ent = (uint32_t)ctx->isEntity;
+				return ec;
+			}
+
+			static Entity create(const EntityContainer& ec) {
+				return Entity(ec.idx, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
 			}
 		};
 	} // namespace ecs
@@ -20115,7 +20142,7 @@ namespace gaia {
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
-				ec.gen = entity.gen();
+				GAIA_ASSERT(ec.gen == entity.gen());
 				ec.dis = 0;
 			}
 
@@ -20363,7 +20390,7 @@ namespace gaia {
 
 				// Register the core component
 				{
-					auto comp = add(*m_pRootArchetype, EntityKind::EK_Gen);
+					auto comp = add(*m_pRootArchetype, GAIA_ID(Core).kind(), GAIA_ID(Core).entity());
 					const auto& desc = comp_cache_mut().add<Core>(GAIA_ID(Core));
 					GAIA_ASSERT(desc.entity == GAIA_ID(Core));
 					(void)comp;
@@ -20373,7 +20400,7 @@ namespace gaia {
 
 				// Register the entity archetype (entity + EntityDesc component)
 				{
-					auto comp = add(*m_pRootArchetype, EntityKind::EK_Gen);
+					auto comp = add(*m_pRootArchetype, GAIA_ID(EntityDesc).kind(), GAIA_ID(EntityDesc).entity());
 					const auto& desc = comp_cache_mut().add<EntityDesc>(comp);
 					GAIA_ASSERT(desc.entity == GAIA_ID(EntityDesc));
 					add_inter(comp, desc.entity);
@@ -20383,7 +20410,7 @@ namespace gaia {
 
 				// Register the component archetype (entity + EntityDesc + Component)
 				{
-					auto comp = add();
+					auto comp = add(*m_pEntityArchetype, GAIA_ID(Component).kind(), GAIA_ID(Component).entity());
 					const auto& desc = comp_cache_mut().add<Component>(comp);
 					GAIA_ASSERT(desc.entity == GAIA_ID(Component));
 					add_inter(comp, desc.entity);
@@ -20408,8 +20435,8 @@ namespace gaia {
 			//! \param archetype Archetype the entity should inherit
 			//! \param kind Component kind
 			//! \return New entity
-			GAIA_NODISCARD Entity add(Archetype& archetype, EntityKind kind) {
-				EntityContainerCtx ctx{kind};
+			GAIA_NODISCARD Entity add(Archetype& archetype, EntityKind kind, bool isEntity) {
+				EntityContainerCtx ctx{kind, isEntity};
 				const auto entity = m_entities.alloc(&ctx);
 
 				auto* pChunk = archetype.foc_free_chunk();
@@ -20541,7 +20568,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_pEntityArchetype, EntityKind::EK_Gen);
+				return add(*m_pEntityArchetype, EntityKind::EK_Gen, true);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -20554,7 +20581,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.kind());
+				const auto newEntity = add(archetype, entity.kind(), entity.entity());
 
 				Chunk::copy_entity_data(
 						entity, newEntity,
@@ -20597,10 +20624,10 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				if (ec.pChunk != nullptr) {
 					auto entityExpected = ec.pChunk->entity_view()[ec.row];
-					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (EntityKind)ec.kind));
+					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind));
 				}
 #endif
-				return Entity(id, ec.gen, (EntityKind)ec.kind);
+				return Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
 			}
 
 			//! Enables or disables an entire entity.
@@ -20687,7 +20714,7 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto entity = add(*m_pCompArchetype, kind);
+				const auto entity = add(*m_pCompArchetype, kind, false);
 				const auto& desc = comp_cache_mut().add<FT>(entity);
 
 				// Following lines do the following but a bit faster:
@@ -20818,7 +20845,7 @@ namespace gaia {
 			void sset(Entity entity, U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				
+
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_entities[entity.id()];
@@ -21062,7 +21089,7 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (Archetype*)archetypePtr;
 					[[maybe_unused]] const auto res =
-							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen));
+							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen, true));
 					GAIA_ASSERT(res.second);
 				}
 			};

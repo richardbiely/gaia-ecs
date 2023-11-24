@@ -114,8 +114,8 @@ namespace gaia {
 					GAIA_CLANG_WARNING_PUSH()
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back(TListItem(itemCnt, 0U));
-					return TListItem::create(itemCnt, 0U, ctx);
+					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
+					return TListItem::create(m_items.back());
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
 				}
@@ -127,7 +127,8 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				return TListItem::create(index, m_items[index].gen, ctx);
+				j = TListItem::create(index, j.gen, ctx);
+				return TListItem::create(j);
 			}
 
 			//! Allocates a new item in the list
