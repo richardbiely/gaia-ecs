@@ -427,9 +427,8 @@ namespace gaia {
 					entsNew.push_back(e);
 				}
 
-				// Return if there's no change
-				if (entsNew.size() == entsOld.size())
-					return nullptr;
+				// Verify there was a change
+				GAIA_ASSERT(entsNew.size() != entsOld.size());
 
 				// Calculate the hashes
 				const auto hashLookup = calc_lookup_hash({entsNew.data(), entsNew.size()}).hash;
@@ -960,6 +959,7 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
 				const auto& ec = m_entities[entity.id()];
 				auto* pChunk = ec.pChunk;

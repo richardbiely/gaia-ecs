@@ -3377,7 +3377,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == N + ecs::CoreComponents);
+		REQUIRE(w.size() == N + ecs::GAIA_ID(LastCoreComponent).id() + 1);
 	}
 
 	SECTION("Entity creation from another entity") {
@@ -3393,7 +3393,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == ecs::CoreComponents + 1 + N); // core + mainEntity + N others
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
 	SECTION("Entity creation from another entity with a component") {
@@ -3434,11 +3434,11 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add(); // core + 0 (no new entity created yet)
-		REQUIRE(w.size() == ecs::CoreComponents);
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1);
 		cb.add<Position>(tmp);
 		cb.commit();
 
-		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
+		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 	}
 
@@ -3494,13 +3494,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
+		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3514,7 +3514,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
@@ -3522,7 +3522,7 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(ecs::CoreComponents + 2); // core + 2 new components + new entity
+		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3542,12 +3542,12 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
+		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3561,13 +3561,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(ecs::CoreComponents + 2); // core + 2 new components + new entity
+		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 

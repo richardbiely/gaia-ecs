@@ -395,10 +395,6 @@ namespace gaia {
 
 				remove(m_chunks);
 
-				// No deleting for the root archetype
-				if (m_archetypeId < FirstUserArchetypeId)
-					return;
-
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
 				//       any states realted to its lifetime.

@@ -14050,9 +14050,7 @@ namespace gaia {
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
-
-		inline constexpr uint32_t CoreComponents = 3;
-		inline constexpr uint32_t FirstUserArchetypeId = 3;
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Component);
 	} // namespace ecs
 } // namespace gaia
 
@@ -17352,10 +17350,6 @@ namespace gaia {
 
 				remove(m_chunks);
 
-				// No deleting for the root archetype
-				if (m_archetypeId < FirstUserArchetypeId)
-					return;
-
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
 				//       any states realted to its lifetime.
@@ -19832,9 +19826,8 @@ namespace gaia {
 					entsNew.push_back(e);
 				}
 
-				// Return if there's no change
-				if (entsNew.size() == entsOld.size())
-					return nullptr;
+				// Verify there was a change
+				GAIA_ASSERT(entsNew.size() != entsOld.size());
 
 				// Calculate the hashes
 				const auto hashLookup = calc_lookup_hash({entsNew.data(), entsNew.size()}).hash;
@@ -20365,6 +20358,7 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
 				const auto& ec = m_entities[entity.id()];
 				auto* pChunk = ec.pChunk;

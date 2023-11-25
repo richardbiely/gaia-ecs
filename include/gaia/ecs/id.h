@@ -239,8 +239,6 @@ namespace gaia {
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
-
-		inline constexpr uint32_t CoreComponents = 3;
-		inline constexpr uint32_t FirstUserArchetypeId = 3;
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Component);
 	} // namespace ecs
 } // namespace gaia
