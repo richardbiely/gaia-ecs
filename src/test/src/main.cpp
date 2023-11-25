@@ -1556,6 +1556,19 @@ TEST_CASE("Add - 1 component") {
 
 	GAIA_FOR(N) create(i);
 	GAIA_FOR(N) verify(i);
+
+	{
+		const auto& p = w.add<Int3>();
+		auto e = w.add();
+		w.add(e, p.entity, Int3{1, 2, 3});
+
+		REQUIRE(w.has(e, p.entity));
+		REQUIRE(w.has<Int3>(e));
+		auto val0 = w.get<Int3>(e);
+		REQUIRE(val0.x == 1);
+		REQUIRE(val0.y == 2);
+		REQUIRE(val0.z == 3);
+	}
 }
 
 namespace dummy {

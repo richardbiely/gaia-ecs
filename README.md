@@ -99,6 +99,8 @@ Chunk memory is preallocated in blocks organized into pages via the internal chu
 
 The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph.
 
+In this project, components are entities with Component component attached to them. Treating components as entities allows for great design simplification and big features.
+
 # Usage
 ## Minimum requirements
 
@@ -118,6 +120,21 @@ ecs::World w;
 ecs::Entity e = w.add();
 ... // do something with the created entity
 w.del(e);
+```
+
+It is also possible to attach entities to entities. This effectively means you are able to create your own components/tags at runtime.
+
+```cpp
+ecs::Entity player0 = w.add();
+ecs::Entity player1 = w.add();
+ecs::Entity player2 = w.add();
+ecs::Entity teamA = w.add();
+ecs::Entity teamB = w.add();
+// Add player0 and player1 to teamA
+w.add(player0, teamA);
+w.add(player1, teamA);
+// Add player2 to teamB
+w.add(player2, teamB);
 ```
 
 ### Name entity
@@ -187,7 +204,24 @@ w.add<Velocity>(e, {0, 0, 1});
 w.del<Velocity>(e);
 ```
 
-When adding or removing multiple components at once it is more efficient doing it via chaining. This way only one archetype movement is performed in total rather than one per added/removed component.
+Because internally components are just entities with the Component component attached to them, what the code above does can be rewritten also as following:
+
+```cpp
+// Create Position and Velocity entities
+ecs::Entity position = w.add<Position>().entity;
+ecs::Entity velocity = w.add<Velocity>().entity;
+
+// Create an entity with Position and Velocity.
+ecs::Entity e = w.add();
+w.add(e, position, Position{0, 100, 0});
+w.add(e, velocity, Position{0, 0, 1});
+
+// Remove Velocity from the entity.
+w.del(e, velocity);
+```
+
+
+With that said, when adding or removing multiple components at once it is more efficient doing it via chaining. This way only one archetype movement is performed in total rather than one per added/removed component.
 
 ```cpp
 ecs::World w;
@@ -275,6 +309,8 @@ Whether or not a certain component is associated with an entity can be checked i
 ```cpp
 // Check if entity e has Velocity (via world).
 const bool hasVelocity = w.has<Velocity>(e);
+// Check if entity wheel is attached to the car
+const bool hasWheel = w.has(car, wheel);
 ...
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).

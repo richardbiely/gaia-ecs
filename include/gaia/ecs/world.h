@@ -1120,6 +1120,28 @@ namespace gaia {
 				add_inter(entity, desc.entity);
 			}
 
+			//! Attaches \param object to \param entity. Also sets its value.
+			//! \param object Object
+			//! \param entity Entity
+			//! \param value Value to set for the object
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			template <typename T>
+			void add(Entity entity, Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
+
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(object));
+
+				add_inter(entity, object);
+
+				const auto& ec = m_entities[entity.id()];
+				// Make sure the idx is 0 for unique entities
+				const auto idx = ec.row * (1U - (uint32_t)object.kind());
+				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
+			}
+
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -1130,7 +1152,7 @@ namespace gaia {
 			void add(Entity entity, U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
+				constexpr auto kind = (uint32_t)CT::Kind;
 
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
@@ -1139,12 +1161,9 @@ namespace gaia {
 				add_inter(entity, desc.entity);
 
 				const auto& ec = m_entities[entity.id()];
-
-				if constexpr (kind == EntityKind::EK_Gen) {
-					ec.pChunk->template set<FT>(ec.row, GAIA_FWD(value));
-				} else {
-					ec.pChunk->template set<FT>(GAIA_FWD(value));
-				}
+				// Make sure the idx is 0 for unique entities
+				const auto idx = ec.row * (1U - (uint32_t)kind);
+				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
 			}
 
 			//! Removes a component \tparam T from \param entity.

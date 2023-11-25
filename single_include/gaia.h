@@ -13997,7 +13997,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
-				return id() < other.id();
+				return value() < other.value();
 			}
 		};
 
@@ -16683,50 +16683,16 @@ namespace gaia {
 
 			/*!
 			Sets the value of the unique component \tparam T on \param index in the chunk.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
-			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			U& set(uint32_t index) {
-				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Set providing an index can only be used with generic components");
-
-				// Update the world version
-				update_version(m_header.worldVersion);
-
-				GAIA_ASSERT(index < m_header.capacity);
-				return view_mut<T>()[index];
-			}
-
-			/*!
-			Sets the value of the unique component \tparam T on \param index in the chunk.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\param index Index of entity in the chunk
-			\param value Value to set for the component
-			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			U& set() {
-				// Update the world version
-				update_version(m_header.worldVersion);
-
-				GAIA_ASSERT(0 < m_header.capacity);
-				return view_mut<T>()[0];
-			}
-
-			/*!
-			Sets the value of a generic component \tparam T on \param index in the chunk.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\param index Index of entity in the chunk
-			\param value New component value
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(uint32_t index, U&& value) {
-				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Set providing an index can only be used with generic components");
+				GAIA_ASSERT2(
+						entity_kind_v<T> == EntityKind::EK_Gen || index == 0,
+						"Set providing an index can only be used with generic components");
 
 				// Update the world version
 				update_version(m_header.worldVersion);
@@ -16736,57 +16702,63 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of a unique component \tparam T in the chunk.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\param value New component value
+			Sets the value of a generic entity \param object at the position \param index in the chunk.
+			\param index Index of entity in the chunk
+			\param object Component/entity
+			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
+			otherwise.
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			void set(U&& value) {
-				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
-						"Set not providing an index can only be used with non-generic components");
+			template <typename T>
+			void set(uint32_t index, [[maybe_unused]] Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
+
+				GAIA_ASSERT2(
+						object.kind() == EntityKind::EK_Gen || index == 0,
+						"Set providing an index can only be used with generic components");
 
 				// Update the world version
 				update_version(m_header.worldVersion);
 
-				GAIA_ASSERT(0 < m_header.capacity);
-				view_mut<T>()[0] = GAIA_FWD(value);
+				GAIA_ASSERT(index < m_header.capacity);
+				view_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
-			Sets the value of a generic component \tparam T on \param index in the chunk.
-			\warning World version is not updated so Query filters will not be able to catch this change.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			Sets the value of the unique component \tparam T on \param index in the chunk.
 			\tparam T Component
 			\param index Index of entity in the chunk
-			\param value New component value
+			\param value Value to set for the component
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(uint32_t index, U&& value) {
-				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen,
-						"SetSilent providing an index can only be used with generic components");
+				GAIA_ASSERT2(
+						entity_kind_v<T> == EntityKind::EK_Gen || index == 0,
+						"Set providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
-				sview_mut<T>()[index] = GAIA_FWD(value);
+				view_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
-			Sets the value of a unique component \tparam T in the chunk.
+			Sets the value of a generic entity \param object at the position \param index in the chunk.
+			\param index Index of entity in the chunk
+			\param object Component/entity
+			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
+			otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\param value Newcomponent value
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			void sset(U&& value) {
-				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
-						"SetSilent not providing an index can only be used with non-generic components");
+			template <typename T>
+			void sset(uint32_t index, [[maybe_unused]] Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
 
-				GAIA_ASSERT(0 < m_header.capacity);
-				sview_mut<T>()[0] = GAIA_FWD(value);
+				GAIA_ASSERT2(
+						object.kind() == EntityKind::EK_Gen || index == 0,
+						"Set providing an index can only be used with generic components");
+
+				GAIA_ASSERT(index < m_header.capacity);
+				view_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -18076,35 +18048,21 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			U& set() {
+			ComponentSetter& set(U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 
 				verify_comp<T>();
 
-				if constexpr (kind == EntityKind::EK_Gen)
-					return m_pChunk->template set<FT>(m_idx);
-				else
-					return m_pChunk->template set<FT>();
+				m_pChunk->template set<FT>(m_idx, GAIA_FWD(value));
+				return *this;
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& set(U&& data) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
+			template <typename T>
+			ComponentSetter& set(Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
 
-				verify_comp<T>();
-
-				if constexpr (kind == EntityKind::EK_Gen)
-					m_pChunk->template set<FT>(m_idx, GAIA_FWD(data));
-				else
-					m_pChunk->template set<FT>(GAIA_FWD(data));
+				m_pChunk->template set<T>(m_idx, object, GAIA_FWD(value));
 				return *this;
 			}
 
@@ -18113,17 +18071,21 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& sset(U&& data) {
+			ComponentSetter& sset(U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 
 				verify_comp<T>();
 
-				if constexpr (kind == EntityKind::EK_Gen)
-					m_pChunk->template sset<FT>(m_idx, GAIA_FWD(data));
-				else
-					m_pChunk->template sset<FT>(GAIA_FWD(data));
+				m_pChunk->template sset<FT>(m_idx, GAIA_FWD(value));
+				return *this;
+			}
+
+			template <typename T>
+			ComponentSetter& sset(Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
+
+				m_pChunk->template sset<T>(m_idx, object, GAIA_FWD(value));
 				return *this;
 			}
 		};
@@ -20529,6 +20491,28 @@ namespace gaia {
 				add_inter(entity, desc.entity);
 			}
 
+			//! Attaches \param object to \param entity. Also sets its value.
+			//! \param object Object
+			//! \param entity Entity
+			//! \param value Value to set for the object
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			template <typename T>
+			void add(Entity entity, Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
+
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(object));
+
+				add_inter(entity, object);
+
+				const auto& ec = m_entities[entity.id()];
+				// Make sure the idx is 0 for unique entities
+				const auto idx = ec.row * (1U - (uint32_t)object.kind());
+				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
+			}
+
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -20539,7 +20523,7 @@ namespace gaia {
 			void add(Entity entity, U&& value) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
+				constexpr auto kind = (uint32_t)CT::Kind;
 
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
@@ -20548,12 +20532,9 @@ namespace gaia {
 				add_inter(entity, desc.entity);
 
 				const auto& ec = m_entities[entity.id()];
-
-				if constexpr (kind == EntityKind::EK_Gen) {
-					ec.pChunk->template set<FT>(ec.row, GAIA_FWD(value));
-				} else {
-					ec.pChunk->template set<FT>(GAIA_FWD(value));
-				}
+				// Make sure the idx is 0 for unique entities
+				const auto idx = ec.row * (1U - (uint32_t)kind);
+				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
 			}
 
 			//! Removes a component \tparam T from \param entity.
