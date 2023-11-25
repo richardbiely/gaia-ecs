@@ -1690,71 +1690,56 @@ TEST_CASE("Add - many components, bulk") {
 	GAIA_FOR(N) create(i);
 }
 
-// TEST_CASE("AddAndDel_entity - no components") {
-// 	ecs::World w;
+TEST_CASE("AddAndDel_entity - no components") {
+	const uint32_t N = 1'500;
 
-// 	auto verify = [](ecs::Entity e, uint32_t id, uint32_t genExpected) {
-// 		const bool ok = e.id() == id && e.gen() == genExpected;
-// 		REQUIRE(ok);
-// 	};
-// 	auto create = [&](uint32_t id) {
-// 		auto e = w.add();
-// 		verify(e, id, 0);
-// 		return e;
-// 	};
-// 	auto remove = [&](ecs::Entity e) {
-// 		w.del(e);
-// 		verify(w.get(e.id()), e.id(), 1);
-// 		const bool isEntityValid = w.valid(e);
-// 		REQUIRE_FALSE(isEntityValid);
-// 	};
+	ecs::World w;
+	cnt::darr<ecs::Entity> arr;
+	arr.reserve(N);
 
-// 	// 1,500 picked so we create enough entites that they overflow
-// 	// into another chunk
-// 	const uint32_t N = 1'500;
-// 	cnt::darr<ecs::Entity> arr;
-// 	arr.reserve(N);
+	auto create = [&]() {
+		auto e = w.add();
+		arr.push_back(e);
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.del(e);
+		const bool isEntityValid = w.valid(e);
+		REQUIRE_FALSE(isEntityValid);
+	};
 
-// 	// Create entities
-// 	GAIA_FOR(N) arr.push_back(create(i));
-// 	// Verify ids are still valid
-// 	GAIA_FOR(N) verify(w.get(i), i, 0);
-// 	// Remove entities
-// 	GAIA_FOR(N) remove(arr[i]);
-// }
+	// Create entities
+	GAIA_FOR(N) create();
+	// Remove entities
+	GAIA_FOR(N) remove(arr[i]);
+}
 
-// TEST_CASE("AddAndDel_entity - 1 component") {
-// 	ecs::World w;
+TEST_CASE("AddAndDel_entity - 1 component") {
+	const uint32_t N = 1'500;
 
-// 	auto create = [&](uint32_t id) {
-// 		auto e = w.add();
-// 		w.add<Int3>(e, {id, id, id});
-// 		const bool ok = e.id() == id && e.gen() == 0;
-// 		REQUIRE(ok);
-// 		auto pos = w.get<Int3>(e);
-// 		REQUIRE(pos.x == id);
-// 		REQUIRE(pos.y == id);
-// 		REQUIRE(pos.z == id);
-// 		return e;
-// 	};
-// 	auto remove = [&](ecs::Entity e) {
-// 		w.del(e);
-// 		auto de = w.get(e.id());
-// 		const bool ok = de.gen() == e.gen() + 1;
-// 		REQUIRE(ok);
-// 		const bool isEntityValid = w.valid(e);
-// 		REQUIRE_FALSE(isEntityValid);
-// 	};
+	ecs::World w;
+	cnt::darr<ecs::Entity> arr;
+	arr.reserve(N);
 
-// 	// 1,500 picked so we create enough entites that they overflow
-// 	// into another chunk
-// 	const uint32_t N = 1'500;
-// 	cnt::darr<ecs::Entity> arr;
-// 	arr.reserve(N);
+	auto create = [&](uint32_t id) {
+		auto e = w.add();
+		arr.push_back(e);
 
-// 	GAIA_FOR(N) arr.push_back(create(i));
-// 	GAIA_FOR(N) remove(arr[i]);
-// }
+		w.add<Int3>(e, {id, id, id});
+		auto pos = w.get<Int3>(e);
+		REQUIRE(pos.x == id);
+		REQUIRE(pos.y == id);
+		REQUIRE(pos.z == id);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.del(e);
+		const bool isEntityValid = w.valid(e);
+		REQUIRE_FALSE(isEntityValid);
+	};
+
+	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) remove(arr[i]);
+}
 
 void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
 	const auto* res = cc.find(entity);
