@@ -322,6 +322,21 @@ q.each([&](ecs::Iterator iter) {
 });
 ```
 
+Providing entities is supported as well.
+
+```cpp
+auto p = w.add<Position>().entity;
+auto v = w.add<Velocity>().entity;
+
+// Check if entities hidden behind the iterator have Velocity (via iterator).
+ecs::Query q = w.query().any(p).any(v); 
+q.each([&](ecs::Iterator iter) {
+  const bool hasPosition = iter.has(p);
+  const bool hasVelocity = iter.has(v);
+  ...
+});
+```
+
 ## Data processing
 ### Query
 For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate or return them in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.

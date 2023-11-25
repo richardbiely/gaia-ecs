@@ -216,30 +216,39 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
-				template <typename T>
-				void add_inter(QueryListType listType) {
-					constexpr auto isReadWrite = core::is_mut_v<T>;
-
-					// Make sure the component is always registered
-					const auto& desc = comp_cache_add<T>(*m_world);
-
-					Command_AddComponent cmd{desc.entity, listType, isReadWrite};
+				void add_inter(QueryListType listType, Entity entity, bool isReadWrite) {
+					Command_AddComponent cmd{entity, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
 					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
-				void changed_inter() {
-					static_assert(core::is_raw_v<T>, "Use changed() with raw types only");
-
-					constexpr auto kind = entity_kind_v<T>;
+				void add_inter(QueryListType listType) {
+					constexpr auto isReadWrite = core::is_mut_v<T>;
+					// LT_NONE should be used with raw types only
+					GAIA_ASSERT(listType != QueryListType::LT_None || !isReadWrite);
 
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_world);
+					add_inter(listType, desc.entity, isReadWrite);
+				}
 
-					Command_Filter cmd{desc.entity};
+				//--------------------------------------------------------------------------------
+
+				void changed_inter(Entity entity) {
+					Command_Filter cmd{entity};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
+				}
+
+				template <typename T>
+				void changed_inter() {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& desc = comp_cache_add<T>(*m_world);
+					changed_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -530,6 +539,14 @@ namespace gaia {
 					return m_storage.m_queryId;
 				}
 
+				QueryImpl& all(Entity entity, bool isReadWrite = false) {
+					// Adding new rules invalidates the query
+					invalidate();
+					// Add commands to the command buffer
+					add_inter(QueryListType::LT_All, entity, isReadWrite);
+					return *this;
+				}
+
 				template <typename... T>
 				QueryImpl& all() {
 					// Adding new rules invalidates the query
@@ -539,12 +556,28 @@ namespace gaia {
 					return *this;
 				}
 
+				QueryImpl& any(Entity entity, bool isReadWrite = false) {
+					// Adding new rules invalidates the query
+					invalidate();
+					// Add commands to the command buffer
+					add_inter(QueryListType::LT_Any, entity, isReadWrite);
+					return *this;
+				}
+
 				template <typename... T>
 				QueryImpl& any() {
 					// Adding new rules invalidates the query
 					invalidate();
 					// Add commands to the command buffer
 					(add_inter<T>(QueryListType::LT_Any), ...);
+					return *this;
+				}
+
+				QueryImpl& none(Entity entity) {
+					// Adding new rules invalidates the query
+					invalidate();
+					// Add commands to the command buffer
+					add_inter(QueryListType::LT_None, entity, false);
 					return *this;
 				}
 

@@ -77,6 +77,13 @@ namespace gaia {
 					return m_chunk.enabled(entityIdx);
 				}
 
+				//! Checks if entity \param entity is present in the chunk.
+				//! \param entity Entity
+				//! \return True if the component is present. False otherwise.
+				GAIA_NODISCARD bool has(Entity entity) const {
+					return m_chunk.has(entity);
+				}
+
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.

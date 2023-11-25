@@ -2144,6 +2144,8 @@ TEST_CASE("Query - QueryResult complex") {
 
 template <typename TQuery>
 void Test_Query_Equality() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
 	SECTION("2 components") {
 		ecs::World w;
 
@@ -2156,37 +2158,80 @@ void Test_Query_Equality() {
 		const uint32_t N = 100;
 		GAIA_FOR(N) create();
 
-		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+		auto p = w.add<Position>().entity;
+		auto r = w.add<Rotation>().entity;
+
 		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
 		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
+		auto qq3 = w.query<UseCachedQuery>().all(p).all(r);
+		auto qq4 = w.query<UseCachedQuery>().all(r).all(p);
 		REQUIRE(qq1.count() == qq2.count());
+		REQUIRE(qq1.count() == qq3.count());
+		REQUIRE(qq1.count() == qq4.count());
 
-		cnt::darr<ecs::Entity> ents1, ents2;
+		cnt::darr<ecs::Entity> ents1, ents2, ents3, ents4;
 		qq1.arr(ents1);
 		qq2.arr(ents2);
+		qq3.arr(ents3);
+		qq4.arr(ents4);
 		REQUIRE(ents1.size() == ents2.size());
+		REQUIRE(ents1.size() == ents3.size());
+		REQUIRE(ents1.size() == ents4.size());
 
 		uint32_t i = 0;
 		for (auto e: ents1) {
 			REQUIRE(e == ents2[i]);
 			++i;
 		}
+		i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents3[i]);
+			++i;
+		}
+		i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents4[i]);
+			++i;
+		}
 	}
 	SECTION("4 components") {
 		ecs::World w;
 
-		ecs::Query qq1 = w.query().all<Position, Rotation, Acceleration, Something>();
-		ecs::Query qq2 = w.query().all<Rotation, Something, Position, Acceleration>();
-		REQUIRE(qq1.count() == qq2.count());
+		auto p = w.add<Position>().entity;
+		auto r = w.add<Rotation>().entity;
+		auto a = w.add<Acceleration>().entity;
+		auto s = w.add<Something>().entity;
 
-		cnt::darr<ecs::Entity> ents1, ents2;
+		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation, Acceleration, Something>();
+		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Something, Position, Acceleration>();
+		auto qq3 = w.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
+		auto qq4 = w.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
+		REQUIRE(qq1.count() == qq2.count());
+		REQUIRE(qq1.count() == qq3.count());
+		REQUIRE(qq1.count() == qq4.count());
+
+		cnt::darr<ecs::Entity> ents1, ents2, ents3, ents4;
 		qq1.arr(ents1);
 		qq2.arr(ents2);
+		qq3.arr(ents3);
+		qq4.arr(ents4);
 		REQUIRE(ents1.size() == ents2.size());
+		REQUIRE(ents1.size() == ents3.size());
+		REQUIRE(ents1.size() == ents4.size());
 
 		uint32_t i = 0;
 		for (auto e: ents1) {
 			REQUIRE(e == ents2[i]);
+			++i;
+		}
+		i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents3[i]);
+			++i;
+		}
+		i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents4[i]);
 			++i;
 		}
 	}
