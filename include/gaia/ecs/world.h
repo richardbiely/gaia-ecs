@@ -927,9 +927,10 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Creates a new empty entity
+			//! \param kind Entity kind
 			//! \return New entity
-			GAIA_NODISCARD Entity add() {
-				return add(*m_pEntityArchetype, EntityKind::EK_Gen, true);
+			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
+				return add(*m_pEntityArchetype, kind, true);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -1228,6 +1229,21 @@ namespace gaia {
 
 				const auto& ec = m_entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.get<T>();
+			}
+
+			//! Tells if \param entity contains the entity \param object.
+			//! \param entity Entity
+			//! \param object Tested entity
+			//! \return True if the component is present on entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(object));
+
+				const auto& ec = m_entities[entity.id()];
+				return ComponentGetter{ec.pChunk, ec.row}.has(object);
 			}
 
 			//! Tells if \param entity contains the component \tparam T.

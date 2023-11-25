@@ -1,3 +1,4 @@
+#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -2318,8 +2319,31 @@ TEST_CASE("Add - generic") {
 
 	{
 		auto e = w.add();
+		auto f = w.add();
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+	}
+
+	{
+		auto e = w.add();
+		auto f = w.add(ecs::EntityKind::EK_Uni);
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+	}
+
+	{
+		auto e = w.add();
 		w.add<Position>(e);
 		w.add<Acceleration>(e);
+
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+
+		auto f = w.add();
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
 
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
@@ -2343,6 +2367,25 @@ TEST_CASE("Add - generic") {
 		REQUIRE(p.z == 3.f);
 
 		auto a = w.get<Acceleration>(e);
+		REQUIRE(a.x == 4.f);
+		REQUIRE(a.y == 5.f);
+		REQUIRE(a.z == 6.f);
+
+		auto f = w.add(ecs::EntityKind::EK_Uni);
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+
+		p = w.get<Position>(e);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
+
+		a = w.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
