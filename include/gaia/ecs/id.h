@@ -186,7 +186,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
-				return id() < other.id();
+				return value() < other.value();
 			}
 		};
 

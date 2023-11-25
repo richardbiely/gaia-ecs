@@ -2315,24 +2315,19 @@ TEST_CASE("Enable") {
 }
 
 TEST_CASE("Add - generic") {
-	ecs::World w;
-
 	{
+		ecs::World w;
 		auto e = w.add();
+
 		auto f = w.add();
 		w.add(e, f);
 		REQUIRE(w.has(e, f));
 	}
 
 	{
+		ecs::World w;
 		auto e = w.add();
-		auto f = w.add(ecs::EntityKind::EK_Uni);
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
-	}
 
-	{
-		auto e = w.add();
 		w.add<Position>(e);
 		w.add<Acceleration>(e);
 
@@ -2352,7 +2347,9 @@ TEST_CASE("Add - generic") {
 	}
 
 	{
+		ecs::World w;
 		auto e = w.add();
+
 		w.add<Position>(e, {1, 2, 3});
 		w.add<Acceleration>(e, {4, 5, 6});
 
@@ -2371,7 +2368,7 @@ TEST_CASE("Add - generic") {
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
 
-		auto f = w.add(ecs::EntityKind::EK_Uni);
+		auto f = w.add();
 		w.add(e, f);
 		REQUIRE(w.has(e, f));
 
@@ -2433,6 +2430,16 @@ TEST_CASE("Add - unique") {
 	{
 		ecs::World w;
 		auto e = w.add();
+
+		auto f = w.add(ecs::EntityKind::EK_Uni);
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+	}
+
+	{
+		ecs::World w;
+		auto e = w.add();
+
 		w.add<ecs::uni<Position>>(e);
 		w.add<ecs::uni<Acceleration>>(e);
 
@@ -2468,6 +2475,130 @@ TEST_CASE("Add - unique") {
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
+		}
+	}
+
+	{
+		ecs::World w;
+		auto e = w.add();
+
+		// Add Position unique component
+		w.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		{
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
+		}
+		// Add Acceleration unique component.
+		// This moves "e" to a new archetype.
+		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
+		{
+			auto a = w.get<ecs::uni<Acceleration>>(e);
+			REQUIRE(a.x == 4.f);
+			REQUIRE(a.y == 5.f);
+			REQUIRE(a.z == 6.f);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
+		}
+
+		// Add a generic entity. Archetype changes.
+		auto f = w.add();
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
+		{
+			auto a = w.get<ecs::uni<Acceleration>>(e);
+			REQUIRE_FALSE(a.x == 4.f);
+			REQUIRE_FALSE(a.y == 5.f);
+			REQUIRE_FALSE(a.z == 6.f);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
+		}
+	}
+
+	{
+		ecs::World w;
+		auto e = w.add();
+
+		// Add Position unique component
+		w.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		{
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
+		}
+		// Add Acceleration unique component.
+		// This moves "e" to a new archetype.
+		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
+		{
+			auto a = w.get<ecs::uni<Acceleration>>(e);
+			REQUIRE(a.x == 4.f);
+			REQUIRE(a.y == 5.f);
+			REQUIRE(a.z == 6.f);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto p = w.get<ecs::uni<Position>>(e);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
+		}
+
+		// Add a unique entity. Archetype changes.
+		auto f = w.add(ecs::EntityKind::EK_Uni);
+		w.add(e, f);
+		REQUIRE(w.has(e, f));
+
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto a = w.get<ecs::uni<Acceleration>>(e);
+			REQUIRE_FALSE(a.x == 4.f);
+			REQUIRE_FALSE(a.y == 5.f);
+			REQUIRE_FALSE(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
