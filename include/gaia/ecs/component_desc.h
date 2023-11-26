@@ -62,7 +62,7 @@ namespace gaia {
 				static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						uint32_t i = 0;
-						using TTuple = decltype(meta::struct_to_tuple(U{}));
+						using TTuple = decltype(meta::struct_to_tuple(std::declval<U>()));
 						// is_soa_layout_v is always false for empty types so we know there is at least one element in the tuple
 						constexpr auto TTupleSize = std::tuple_size_v<TTuple>;
 						static_assert(TTupleSize > 0);

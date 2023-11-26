@@ -267,15 +267,15 @@ namespace gaia {
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
-			using TTuple = decltype(meta::struct_to_tuple(ValueType{}));
+			using TTuple = decltype(meta::struct_to_tuple(std::declval<ValueType>()));
 			using TargetCastType = uint8_t*;
 
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
 			constexpr static size_t ArrayAlignment = data_layout_properties<TDataLayout, ValueType>::ArrayAlignment;
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
-			static_assert(Alignment > 0, "SoA data can't be zero-aligned");
-			static_assert(sizeof(ValueType) > 0, "SoA data can't be zero-size");
+			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
+			static_assert(sizeof(ValueType) > 0U, "SoA data can't be zero-size");
 
 			template <size_t Item>
 			using value_type = typename std::tuple_element<Item, TTuple>::type;

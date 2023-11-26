@@ -367,11 +367,11 @@ More complex queries can be created by combining All, Any and None in any way yo
 
 ```cpp
 ecs::Query q = w.query();
-// Take into account everything with Position and Velocity...
-q.all<Position, Velocity>();
-// ... at least Something or SomethingElse...
+// Take into account everything with Position and Velocity (mutable access for both)...
+q.all<Position&, Velocity&>();
+// ... at least Something or SomethingElse (immutable access for both)...
 q.any<Something, SomethingElse>();
-// ... and no Player component...
+// ... and no Player component... (no access done for none())
 q.none<Player>();
 ```
 
@@ -379,13 +379,13 @@ All Query operations can be chained and it is also possible to invoke various fi
 
 ```cpp
 ecs::Query q = w.query();
-// Take into account everything with Position...
-q.all<Position>()
-// ... and at the same time everything with Velocity...
- .all<Velocity>()
- // ... at least Something or SomethingElse...
+// Take into account everything with Position (mutable access)...
+q.all<Position&>()
+// ... and at the same time everything with Velocity (mutable access)...
+ .all<Velocity&>()
+ // ... at least Something or SomethingElse (immutable access)...
  .any<Something, SomethingElse>()
- // ... and no Player component...
+ // ... and no Player component (no access)...
  .none<Player>(); 
 ```
 
@@ -394,6 +394,27 @@ All queries are cached by default. This makes sense for queries which happen ver
 ```cpp
 // Create an uncached query taking into account all entities with either Positon or Velocity components
 ecs::QueryUncached q = w.query<false>().any<Position, Velocity>(); 
+```
+
+Queries can be defined using a low-level API (used internally).
+
+```cpp
+ecs::Entity p = w.add<Position>().entity;
+ecs::Entity v = w.add<Velocity>().entity;
+ecs::Entity s = w.add<Something>().entity;
+ecs::Entity se = w.add<SomethingElse>().entity;
+ecs::Entity pl = w.add<Player>().entity;
+
+ecs::Query q = w.query();
+// Take into account everything with Position (mutable access)...
+q.add({p, QueryOp::All, QueryAccess::Write})
+// ... and at the same time everything with Velocity (mutable access)...
+ .add({v, QueryOp::All, QueryAccess::Write})
+ // ... at least Something or SomethingElse (imutable access)..
+ .add({s, QueryOp::Any, QueryAccess::Read})
+ .add({se, QueryOp::Any, QueryAccess::Read})
+ // ... and no Player component (no access)...
+ .add({pl, QueryOp::None, QueryAccess::None}); 
 ```
 
 ### Iteration

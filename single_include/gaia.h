@@ -3144,6 +3144,16 @@ namespace gaia {
 namespace gaia {
 	namespace meta {
 
+		GAIA_MSVC_WARNING_PUSH()
+		// Fix for MSVC bug:
+		// ...
+		// template <DataLayout TDataLayout, typename ValueType>
+		// struct data_view_policy_soa {
+		//		static_assert(std::is_copy_assignable_v<ValueType>);
+		//		using TTuple = decltype(meta::struct_to_tuple(std::declval<ValueType>())); << unreachable code
+		// ...
+		GAIA_MSVC_WARNING_DISABLE(4702) // unreachable code
+
 		namespace detail {
 			// Check if type T is constructible via T{Args...}
 			struct any_type {
@@ -3442,6 +3452,7 @@ namespace gaia {
 			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
+		GAIA_MSVC_WARNING_POP() // C4702
 	} // namespace meta
 } // namespace gaia
 
@@ -3831,15 +3842,15 @@ namespace gaia {
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
-			using TTuple = decltype(meta::struct_to_tuple(ValueType{}));
+			using TTuple = decltype(meta::struct_to_tuple(std::declval<ValueType>()));
 			using TargetCastType = uint8_t*;
 
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
 			constexpr static size_t ArrayAlignment = data_layout_properties<TDataLayout, ValueType>::ArrayAlignment;
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
-			static_assert(Alignment > 0, "SoA data can't be zero-aligned");
-			static_assert(sizeof(ValueType) > 0, "SoA data can't be zero-size");
+			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
+			static_assert(sizeof(ValueType) > 0U, "SoA data can't be zero-size");
 
 			template <size_t Item>
 			using value_type = typename std::tuple_element<Item, TTuple>::type;
@@ -15090,7 +15101,7 @@ namespace gaia {
 				static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						uint32_t i = 0;
-						using TTuple = decltype(meta::struct_to_tuple(U{}));
+						using TTuple = decltype(meta::struct_to_tuple(std::declval<U>()));
 						// is_soa_layout_v is always false for empty types so we know there is at least one element in the tuple
 						constexpr auto TTupleSize = std::tuple_size_v<TTuple>;
 						static_assert(TTupleSize > 0);

@@ -10,6 +10,16 @@
 namespace gaia {
 	namespace meta {
 
+		GAIA_MSVC_WARNING_PUSH()
+		// Fix for MSVC bug:
+		// ...
+		// template <DataLayout TDataLayout, typename ValueType>
+		// struct data_view_policy_soa {
+		//		static_assert(std::is_copy_assignable_v<ValueType>);
+		//		using TTuple = decltype(meta::struct_to_tuple(std::declval<ValueType>())); << unreachable code
+		// ...
+		GAIA_MSVC_WARNING_DISABLE(4702) // unreachable code
+
 		namespace detail {
 			// Check if type T is constructible via T{Args...}
 			struct any_type {
@@ -308,5 +318,6 @@ namespace gaia {
 			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
+		GAIA_MSVC_WARNING_POP() // C4702
 	} // namespace meta
 } // namespace gaia
