@@ -47,7 +47,7 @@ namespace gaia {
 		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
 
 		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
+		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
 
 		//! Obtains the actual address of the object \param obj or function arg, even in presence of overloaded operator&.
 		template <typename T>

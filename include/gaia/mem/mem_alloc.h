@@ -110,33 +110,6 @@ namespace gaia {
 			return dst;
 		}
 
-		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove((void*)&to, (const void*)from, sizeof(T));
-				return to;
-			}
-
-			T operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
 		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
 		template <typename T>
 		class unaligned_ref {
@@ -154,31 +127,6 @@ namespace gaia {
 				T tmp;
 				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
 				return tmp;
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
 			}
 		};
 	} // namespace mem

@@ -77,7 +77,7 @@ namespace gaia {
 				static constexpr EntityKind Kind = EntityKind::EK_Gen;
 
 				//! Raw type with no additional sugar
-				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using Type = core::raw_t<T>;
 				//!
 				using TypeFull = Type;
 				//! Original template type

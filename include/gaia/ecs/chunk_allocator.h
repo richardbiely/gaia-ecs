@@ -119,7 +119,7 @@ namespace gaia {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * mem_block_size(m_sizeType);
-							*mem::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+							mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
 

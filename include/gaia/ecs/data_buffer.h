@@ -73,7 +73,7 @@ namespace gaia {
 				reserve(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
-				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
+				mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
 				mem = GAIA_FWD(value);
 
 				m_dataPos += sizeof(T);
@@ -118,7 +118,8 @@ namespace gaia {
 			void load(T& value) {
 				GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
 
-				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
+				const auto& cdata = std::as_const(m_data);
+				value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
 
 				m_dataPos += sizeof(T);
 			}
@@ -127,7 +128,8 @@ namespace gaia {
 			void load(void* pDst, uint32_t size) {
 				GAIA_ASSERT(m_dataPos + size <= bytes());
 
-				memcpy(pDst, (void*)&m_data[m_dataPos], size);
+				const auto& cdata = std::as_const(m_data);
+				memmove(pDst, (const void*)&cdata[m_dataPos], size);
 
 				m_dataPos += size;
 			}
@@ -139,7 +141,8 @@ namespace gaia {
 
 				const auto& desc = m_cc->get(entity);
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
-				auto* pSrc = (void*)&m_data[m_dataPos];
+				const auto& cdata = std::as_const(m_data);
+				auto* pSrc = (void*)&cdata[m_dataPos];
 				desc.move(pSrc, pDst);
 				if (isManualDestroyNeeded)
 					desc.dtor(pSrc);

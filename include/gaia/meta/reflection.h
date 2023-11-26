@@ -5,6 +5,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "../core/utility.h"
+
 namespace gaia {
 	namespace meta {
 
@@ -49,11 +51,10 @@ namespace gaia {
 		static constexpr uint32_t StructToTupleMaxTypes_Bits = 4;
 		static constexpr uint32_t StructToTupleMaxTypes = (1 << StructToTupleMaxTypes_Bits) - 1;
 
-		//! Converts a struct to a tuple (struct must support initialization via:
-		//! Struct{x,y,...,z})
+		//! Converts a struct to a tuple. The struct must support brace-initialization
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using type = typename core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();
@@ -62,78 +63,78 @@ namespace gaia {
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				auto&& [p1, p2, p3, p4, p5, p6] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5] = object;
+				auto&& [p1, p2, p3, p4, p5] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4] = object;
+				auto&& [p1, p2, p3, p4] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3] = object;
+				auto&& [p1, p2, p3] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2] = object;
+				auto&& [p1, p2] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
-				auto&& [p1] = object;
+				auto&& [p1] = GAIA_FWD(object);
 				return std::make_tuple(p1);
 			}
 
@@ -146,7 +147,7 @@ namespace gaia {
 
 		template <typename T>
 		auto struct_member_count() {
-			using type = std::decay_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return 0;
@@ -220,7 +221,7 @@ namespace gaia {
 
 		template <typename T, typename Func>
 		auto each_member(T&& object, Func&& visitor) {
-			using type = std::decay_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				visitor();
