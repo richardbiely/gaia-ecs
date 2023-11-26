@@ -43,8 +43,21 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
 
+		template <class T>
+		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
+
 		template <typename T>
 		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
+
+		//! Obtains the actual address of the object \param obj or function arg, even in presence of overloaded operator&.
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		//! Rvalue overload is deleted to prevent taking the address of const rvalues.
+		template <class T>
+		const T* addressof(const T&&) = delete;
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -80,15 +93,54 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
+		//! Constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_raw(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
+			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
+		}
+
+		//! Constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_raw_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
+			for (size_t i = 0; i < cnt; ++i) {
+				auto* ptr = pData + i;
+				(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*ptr)))) T;
+			}
+		}
+
+		//! Value-constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_val(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
+			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
+		}
+
+		//! Value-constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param
+		//! pData.
+		template <typename T>
+		void call_ctor_val_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
+			for (size_t i = 0; i < cnt; ++i) {
+				auto* ptr = pData + i;
+				(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*ptr)))) T();
+			}
+		}
+
+		//! Constructs an object of type \tparam T in at the memory address \param pData.
 		template <typename T>
 		void call_ctor(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				(void)::new (pData) T();
 			}
 		}
 
+		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
@@ -97,18 +149,23 @@ namespace gaia {
 
 		template <typename T, typename... Args>
 		void call_ctor(T* pData, Args&&... args) {
+			GAIA_ASSERT(pData != nullptr);
 			(void)::new (pData) T(GAIA_FWD(args)...);
 		}
 
+		//! Constructs an object of type \tparam T at the memory address \param pData.
 		template <typename T>
 		void call_dtor(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				pData.~T();
 			}
 		}
 
+		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_dtor_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					pData[i].~T();

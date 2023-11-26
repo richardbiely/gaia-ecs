@@ -99,7 +99,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
 				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
@@ -111,7 +111,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;

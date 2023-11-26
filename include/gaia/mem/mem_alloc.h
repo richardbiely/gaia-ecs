@@ -181,13 +181,5 @@ namespace gaia {
 				return unaligned_pointer(m_p - d * sizeof(T));
 			}
 		};
-
-		template <typename T>
-		constexpr T* addressof(T& obj) noexcept {
-			return &obj;
-		}
-
-		template <class T>
-		const T* addressof(const T&&) = delete;
 	} // namespace mem
 } // namespace gaia

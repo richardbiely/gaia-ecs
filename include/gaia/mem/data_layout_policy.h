@@ -155,7 +155,7 @@ namespace gaia {
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
 				auto* pData = (ValueType*)mem::mem_alloc(bytes);
-				core::call_ctor_n(pData, cnt);
+				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
 

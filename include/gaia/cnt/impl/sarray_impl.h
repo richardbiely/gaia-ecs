@@ -221,7 +221,7 @@ namespace gaia {
 
 			constexpr sarr() noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 			}
 
 			~sarr() {
@@ -254,13 +254,11 @@ namespace gaia {
 			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
 
 			constexpr sarr(sarr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
-
-				other.m_cnt = size_type(0);
 			}
 
 			sarr& operator=(std::initializer_list<T> il) {
@@ -269,7 +267,7 @@ namespace gaia {
 			}
 
 			constexpr sarr& operator=(const sarr& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -280,7 +278,7 @@ namespace gaia {
 			}
 
 			constexpr sarr& operator=(sarr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -359,7 +357,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), 0);
 				else
-					return iterator((pointer)&m_data[0]);
+					return iterator(data());
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
@@ -373,7 +371,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size());
 				else
-					return iterator((pointer)&m_data[0] + size());
+					return iterator(data() + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {

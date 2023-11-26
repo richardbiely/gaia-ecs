@@ -295,7 +295,7 @@ namespace gaia {
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
 			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
 					if (m_pData == m_pDataHeap)
@@ -320,7 +320,7 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
 				mem::copy_elements<T>(
@@ -330,7 +330,7 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				// Moving from heap-allocated source
 				if (other.m_pDataHeap != nullptr) {

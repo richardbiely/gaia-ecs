@@ -69,7 +69,7 @@ namespace gaia {
 			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
 
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
@@ -83,7 +83,7 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::copy_elements<T>((uint8_t*)&m_data[0], other.m_data, 0, other.size(), extent, other.extent);
 
@@ -94,7 +94,7 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 

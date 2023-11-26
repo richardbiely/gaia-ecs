@@ -288,7 +288,7 @@ namespace gaia {
 			}
 
 			darr& operator=(const darr& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
 				mem::copy_elements<T>(
@@ -298,7 +298,7 @@ namespace gaia {
 			}
 
 			darr& operator=(darr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				view_policy::free_mem(m_pData, size());
 				m_pData = other.m_pData;
