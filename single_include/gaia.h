@@ -1733,8 +1733,21 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
 
+		template <class T>
+		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
+
 		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
+		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
+
+		//! Obtains the actual address of the object \param obj or function arg, even in presence of overloaded operator&.
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		//! Rvalue overload is deleted to prevent taking the address of const rvalues.
+		template <class T>
+		const T* addressof(const T&&) = delete;
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -1770,15 +1783,54 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
+		//! Constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_raw(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
+			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
+		}
+
+		//! Constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_raw_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
+			for (size_t i = 0; i < cnt; ++i) {
+				auto* ptr = pData + i;
+				(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*ptr)))) T;
+			}
+		}
+
+		//! Value-constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		template <typename T>
+		void call_ctor_val(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
+			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
+		}
+
+		//! Value-constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param
+		//! pData.
+		template <typename T>
+		void call_ctor_val_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
+			for (size_t i = 0; i < cnt; ++i) {
+				auto* ptr = pData + i;
+				(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*ptr)))) T();
+			}
+		}
+
+		//! Constructs an object of type \tparam T in at the memory address \param pData.
 		template <typename T>
 		void call_ctor(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				(void)::new (pData) T();
 			}
 		}
 
+		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
@@ -1787,18 +1839,23 @@ namespace gaia {
 
 		template <typename T, typename... Args>
 		void call_ctor(T* pData, Args&&... args) {
+			GAIA_ASSERT(pData != nullptr);
 			(void)::new (pData) T(GAIA_FWD(args)...);
 		}
 
+		//! Constructs an object of type \tparam T at the memory address \param pData.
 		template <typename T>
 		void call_dtor(T* pData) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				pData.~T();
 			}
 		}
 
+		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_dtor_n(T* pData, size_t cnt) {
+			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					pData[i].~T();
@@ -3128,11 +3185,10 @@ namespace gaia {
 		static constexpr uint32_t StructToTupleMaxTypes_Bits = 4;
 		static constexpr uint32_t StructToTupleMaxTypes = (1 << StructToTupleMaxTypes_Bits) - 1;
 
-		//! Converts a struct to a tuple (struct must support initialization via:
-		//! Struct{x,y,...,z})
+		//! Converts a struct to a tuple. The struct must support brace-initialization
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using type = typename core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();
@@ -3141,78 +3197,78 @@ namespace gaia {
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				auto&& [p1, p2, p3, p4, p5, p6] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
 															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5] = object;
+				auto&& [p1, p2, p3, p4, p5] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4, p5);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4] = object;
+				auto&& [p1, p2, p3, p4] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3, p4);
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3] = object;
+				auto&& [p1, p2, p3] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2, p3);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2] = object;
+				auto&& [p1, p2] = GAIA_FWD(object);
 				return std::make_tuple(p1, p2);
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
-				auto&& [p1] = object;
+				auto&& [p1] = GAIA_FWD(object);
 				return std::make_tuple(p1);
 			}
 
@@ -3225,7 +3281,7 @@ namespace gaia {
 
 		template <typename T>
 		auto struct_member_count() {
-			using type = std::decay_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return 0;
@@ -3299,7 +3355,7 @@ namespace gaia {
 
 		template <typename T, typename Func>
 		auto each_member(T&& object, Func&& visitor) {
-			using type = std::decay_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				visitor();
@@ -3496,33 +3552,6 @@ namespace gaia {
 			return dst;
 		}
 
-		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove((void*)&to, (const void*)from, sizeof(T));
-				return to;
-			}
-
-			T operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
 		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
 		template <typename T>
 		class unaligned_ref {
@@ -3542,39 +3571,6 @@ namespace gaia {
 				return tmp;
 			}
 		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
-			}
-		};
-
-		template <typename T>
-		constexpr T* addressof(T& obj) noexcept {
-			return &obj;
-		}
-
-		template <class T>
-		const T* addressof(const T&&) = delete;
 	} // namespace mem
 } // namespace gaia
 
@@ -3723,7 +3719,7 @@ namespace gaia {
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
 				auto* pData = (ValueType*)mem::mem_alloc(bytes);
-				core::call_ctor_n(pData, cnt);
+				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
 
@@ -3882,14 +3878,14 @@ namespace gaia {
 				size_t m_idx;
 
 			public:
-				accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
+				constexpr accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
 				constexpr void operator=(const ValueType& val) noexcept {
 					set_inter(meta::struct_to_tuple(val), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
-					set_inter(meta::struct_to_tuple(GAIA_FWD(val)), m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(meta::struct_to_tuple(GAIA_MOV(val)), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
@@ -3934,9 +3930,9 @@ namespace gaia {
 				return pCastData[idx];
 			}
 
-			template <size_t... Ids>
+			template <typename Tup, size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType
-			get_inter(TTuple&& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			get_inter(Tup&& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
@@ -3947,9 +3943,9 @@ namespace gaia {
 				return meta::tuple_to_struct<ValueType, TTuple>(GAIA_FWD(t));
 			}
 
-			template <size_t... Ids>
+			template <typename Tup, size_t... Ids>
 			constexpr static void
-			set_inter(TTuple&& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			set_inter(Tup&& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
@@ -4421,7 +4417,7 @@ namespace gaia {
 			};
 
 			template <typename C>
-			constexpr auto size(const C& c) noexcept -> decltype(c.size()) {
+			constexpr auto size(C&& c) noexcept -> decltype(c.size()) {
 				return c.size();
 			}
 			template <typename T, auto N>
@@ -4430,11 +4426,7 @@ namespace gaia {
 			}
 
 			template <typename C>
-			constexpr auto data(C& c) noexcept -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename C>
-			constexpr auto data(const C& c) noexcept -> decltype(c.data()) {
+			constexpr auto data(C&& c) noexcept -> decltype(c.data()) {
 				return c.data();
 			}
 			template <typename T, auto N>
@@ -4490,7 +4482,7 @@ namespace gaia {
 					return serialization_type_id::b;
 				}
 
-				GAIA_ASSERT2(false, "Unsupported integral type");
+				GAIA_ASSERT2(false, "Unsupported integral U");
 			}
 
 			template <typename T>
@@ -4508,7 +4500,7 @@ namespace gaia {
 					return serialization_type_id::f128;
 				}
 
-				GAIA_ASSERT2(false, "Unsupported floating point type");
+				GAIA_ASSERT2(false, "Unsupported floating point U");
 				return serialization_type_id::Last;
 			}
 
@@ -4525,69 +4517,69 @@ namespace gaia {
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
 
-				GAIA_ASSERT2(false, "Unsupported serialization type");
+				GAIA_ASSERT2(false, "Unsupported serialization U");
 				return serialization_type_id::Last;
 			}
 
 			template <typename T>
 			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
-				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using U = core::raw_t<T>;
 
-				constexpr auto id = type_id<type>();
+				constexpr auto id = type_id<U>();
 				static_assert(id != serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
 				// Custom bytes() has precedence
-				if constexpr (has_bytes<type>::value) {
+				if constexpr (has_bytes<U>::value) {
 					size_in_bytes = (uint32_t)item.bytes();
 				}
 				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<type>::value) {
-					size_in_bytes = (uint32_t)sizeof(type);
+				else if constexpr (is_trivially_serializable<U>::value) {
+					size_in_bytes = (uint32_t)sizeof(U);
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<U>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
-				else if constexpr (std::is_class_v<type>) {
+				else if constexpr (std::is_class_v<U>) {
 					meta::each_member(item, [&](auto&&... items) {
 						size_in_bytes += (bytes_one(items) + ...);
 					});
 				} else
-					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 
 				return size_in_bytes;
 			}
 
 			template <bool Write, typename Serializer, typename T>
 			void ser_data_one(Serializer& s, T&& arg) {
-				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using U = core::raw_t<T>;
 
 				// Custom save() & load() have precedence
-				if constexpr (Write && has_save<type, Serializer&>::value) {
+				if constexpr (Write && has_save<U, Serializer&>::value) {
 					arg.save(s);
-				} else if constexpr (!Write && has_load<type, Serializer&>::value) {
+				} else if constexpr (!Write && has_load<U, Serializer&>::value) {
 					arg.load(s);
 				}
 				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<type>::value) {
+				else if constexpr (is_trivially_serializable<U>::value) {
 					if constexpr (Write)
 						s.save(GAIA_FWD(arg));
 					else
 						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<U>::value) {
 					if constexpr (Write) {
-						if constexpr (has_resize<type>::value) {
+						if constexpr (has_resize<U>::value) {
 							const auto size = arg.size();
 							s.save(size);
 						}
 						for (const auto& e: arg)
 							ser_data_one<Write>(s, e);
 					} else {
-						if constexpr (has_resize<type>::value) {
+						if constexpr (has_resize<U>::value) {
 							auto size = arg.size();
 							s.load(size);
 							arg.resize(size);
@@ -4597,13 +4589,13 @@ namespace gaia {
 					}
 				}
 				// Classes
-				else if constexpr (std::is_class_v<type>) {
+				else if constexpr (std::is_class_v<U>) {
 					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(ser_data_one<Write>(s, items), ...);
 					});
 				} else
-					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
 		} // namespace detail
 
@@ -5316,7 +5308,7 @@ namespace gaia {
 			}
 
 			darr& operator=(const darr& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
 				mem::copy_elements<T>(
@@ -5326,7 +5318,7 @@ namespace gaia {
 			}
 
 			darr& operator=(darr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				view_policy::free_mem(m_pData, size());
 				m_pData = other.m_pData;
@@ -5937,7 +5929,7 @@ namespace gaia {
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
 			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
 					if (m_pData == m_pDataHeap)
@@ -5962,7 +5954,7 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
 				mem::copy_elements<T>(
@@ -5972,7 +5964,7 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				// Moving from heap-allocated source
 				if (other.m_pDataHeap != nullptr) {
@@ -6423,7 +6415,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
 				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
@@ -6435,7 +6427,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -9486,7 +9478,7 @@ namespace gaia {
 
 			constexpr sarr() noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 			}
 
 			~sarr() {
@@ -9519,13 +9511,11 @@ namespace gaia {
 			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
 
 			constexpr sarr(sarr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
-
-				other.m_cnt = size_type(0);
 			}
 
 			sarr& operator=(std::initializer_list<T> il) {
@@ -9534,7 +9524,7 @@ namespace gaia {
 			}
 
 			constexpr sarr& operator=(const sarr& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -9545,7 +9535,7 @@ namespace gaia {
 			}
 
 			constexpr sarr& operator=(sarr&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -9624,7 +9614,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), 0);
 				else
-					return iterator((pointer)&m_data[0]);
+					return iterator(data());
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
@@ -9638,7 +9628,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size());
 				else
-					return iterator((pointer)&m_data[0] + size());
+					return iterator(data() + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
@@ -9925,7 +9915,10 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 		public:
-			constexpr sarr_ext() noexcept = default;
+			constexpr sarr_ext() noexcept {
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_raw_n(data(), extent);
+			}
 
 			~sarr_ext() {
 				if constexpr (!mem::is_soa_layout_v<T>)
@@ -9968,7 +9961,7 @@ namespace gaia {
 			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -9983,7 +9976,7 @@ namespace gaia {
 			}
 
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -9995,7 +9988,7 @@ namespace gaia {
 			}
 
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
-				GAIA_ASSERT(gaia::mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
@@ -12703,7 +12696,7 @@ namespace gaia {
 			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
 
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
@@ -12717,7 +12710,7 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::copy_elements<T>((uint8_t*)&m_data[0], other.m_data, 0, other.size(), extent, other.extent);
 
@@ -12728,7 +12721,7 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
-				GAIA_ASSERT(mem::addressof(other) != this);
+				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
@@ -14121,7 +14114,7 @@ namespace gaia {
 				static constexpr EntityKind Kind = EntityKind::EK_Gen;
 
 				//! Raw type with no additional sugar
-				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using Type = core::raw_t<T>;
 				//!
 				using TypeFull = Type;
 				//! Original template type
@@ -14526,7 +14519,7 @@ namespace gaia {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * mem_block_size(m_sizeType);
-							*mem::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+							mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
 
@@ -17921,7 +17914,7 @@ namespace gaia {
 				reserve(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
-				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
+				mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
 				mem = GAIA_FWD(value);
 
 				m_dataPos += sizeof(T);
@@ -17966,7 +17959,8 @@ namespace gaia {
 			void load(T& value) {
 				GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
 
-				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
+				const auto& cdata = std::as_const(m_data);
+				value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
 
 				m_dataPos += sizeof(T);
 			}
@@ -17975,7 +17969,8 @@ namespace gaia {
 			void load(void* pDst, uint32_t size) {
 				GAIA_ASSERT(m_dataPos + size <= bytes());
 
-				memcpy(pDst, (void*)&m_data[m_dataPos], size);
+				const auto& cdata = std::as_const(m_data);
+				memmove(pDst, (const void*)&cdata[m_dataPos], size);
 
 				m_dataPos += size;
 			}
@@ -17987,7 +17982,8 @@ namespace gaia {
 
 				const auto& desc = m_cc->get(entity);
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
-				auto* pSrc = (void*)&m_data[m_dataPos];
+				const auto& cdata = std::as_const(m_data);
+				auto* pSrc = (void*)&cdata[m_dataPos];
 				desc.move(pSrc, pDst);
 				if (isManualDestroyNeeded)
 					desc.dtor(pSrc);
@@ -18108,16 +18104,23 @@ namespace gaia {
 		//! Number of components that can be a part of Query
 		static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
-		//! List type
-		enum QueryListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
+		//! Operation type
+		enum class QueryOp : uint8_t { Not, Any, All, Count };
+		//! Access type
+		enum class QueryAccess : uint8_t { None, Read, Write };
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryComponentArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
-		using QueryListTypeArray = cnt::sarray_ext<QueryListType, MAX_COMPONENTS_IN_QUERY>;
-		using QueryChangeArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
+		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_COMPONENTS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
+
+		struct QueryItem {
+			Entity entity;
+			QueryOp op;
+			QueryAccess access = QueryAccess::Read;
+		};
 
 		struct QueryCtx {
 			ComponentCache* cc{};
@@ -18127,23 +18130,24 @@ namespace gaia {
 			QueryId queryId = QueryIdBad;
 
 			struct Data {
-				//! List of querried components
-				QueryComponentArray comps;
-				//! Filtering rules for the components
-				QueryListTypeArray rules;
+				//! List of querried ids
+				QueryEntityArray ids;
+				//! Query operation types
+				QueryOpArray ops;
 				//! List of component matcher hashes
-				ComponentMatcherHash hash[QueryListType::LT_Count];
+				cnt::sarray<ComponentMatcherHash, (uint32_t)QueryOp::Count> matcherHash;
 				//! Array of indices to the last checked archetype in the component-to-archetype map
 				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
 				//! List of filtered components
-				QueryChangeArray withChanged;
+				QueryEntityArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
-				uint8_t rulesAllCount;
+				uint8_t opsAllCount;
 			} data{};
-			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
+			// Make sure that MAX_COMPONENTS_IN_QUERY can fit into data.readWriteMask
+			static_assert(MAX_COMPONENTS_IN_QUERY == 8);
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
@@ -18160,9 +18164,9 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.comps.size() != right.comps.size())
+				if (left.ids.size() != right.ids.size())
 					return false;
-				if (left.rules.size() != right.rules.size())
+				if (left.ops.size() != right.ops.size())
 					return false;
 				if (left.withChanged.size() != right.withChanged.size())
 					return false;
@@ -18170,17 +18174,15 @@ namespace gaia {
 					return false;
 
 				// Matches hashes need to be the same
-				GAIA_FOR_(QueryListType::LT_Count, j) {
-					if (left.hash[j] != right.hash[j])
-						return false;
-				}
+				if (left.matcherHash != right.matcherHash)
+					return false;
 
 				// Components need to be the same
-				if (left.comps != right.comps)
+				if (left.ids != right.ids)
 					return false;
 
 				// Rules need to be the same
-				if (left.rules != right.rules)
+				if (left.ops != right.ops)
 					return false;
 
 				// Filters need to be the same
@@ -18193,15 +18195,20 @@ namespace gaia {
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return !operator==(other);
 			};
+
+			QueryCtx() {
+				// Matcher hash needs to be zero-initialized
+				GAIA_EACH(data.matcherHash) data.matcherHash[i].hash = {0};
+			}
 		};
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
 			// Make sure the read-write mask remains correct after sorting
-			core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-				core::swap(data.comps[left], data.comps[right]);
-				core::swap(data.rules[left], data.rules[right]);
+			core::sort(data.ids, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+				core::swap(data.ids[left], data.ids[right]);
+				core::swap(data.ops[left], data.ops[right]);
 
 				{
 					// Swap the bits in the read-write mask
@@ -18225,7 +18232,10 @@ namespace gaia {
 
 			// Calculate the matcher hash
 			auto& data = ctx.data;
-			GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
+			GAIA_EACH(data.ops) {
+				const auto opIdx = (uint32_t)data.ops[i];
+				update_matcher_hash(data.matcherHash[opIdx], data.ids[i]);
+			}
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
@@ -18241,23 +18251,23 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& comps = data.comps;
-				for (const auto comp: comps)
+				const auto& ids = data.ids;
+				for (const auto comp: ids)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ids.size());
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 
-			// Rules
+			// Operations
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& rules = data.rules;
-				for (auto listType: rules)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
+				const auto& ops = data.ops;
+				for (auto op: ops)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)op);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ops.size());
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -18301,7 +18311,7 @@ namespace gaia {
 			uint32_t m_worldVersion{};
 
 			template <typename T>
-			bool has_inter([[maybe_unused]] QueryListType listType, bool isReadWrite) const {
+			bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Entities are read-only.
 					GAIA_ASSERT(!isReadWrite);
@@ -18309,12 +18319,12 @@ namespace gaia {
 					return true;
 				} else {
 					const auto& data = m_lookupCtx.data;
-					const auto& comps = data.comps;
+					const auto& ids = data.ids;
 
 					const auto comp = m_lookupCtx.cc->get<T>().entity;
-					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(comps.data(), comp);
+					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(ids.data(), comp);
 
-					if (listType != data.rules[compIdx])
+					if (op != data.ops[compIdx])
 						return false;
 
 					// Read-write mask must match
@@ -18325,29 +18335,29 @@ namespace gaia {
 			}
 
 			template <typename T>
-			bool has_inter(QueryListType listType) const {
+			bool has_inter(QueryOp op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 				constexpr bool isReadWrite = core::is_mut_v<T>;
 
-				return has_inter<FT>(listType, isReadWrite);
+				return has_inter<FT>(op, isReadWrite);
 			}
 
-			//! Tries to match query component ids with those in \param comps given the rule \param func.
+			//! Tries to match query component ids with those in \param ids given the rule \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& comps, QueryListType listType, Func func) const {
+			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& ids, QueryOp op, Func func) const {
 				const auto& data = m_lookupCtx.data;
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
 				uint32_t j = 0;
-				while (i < comps.size() && j < data.comps.size()) {
-					if (data.rules[j] == listType) {
-						const auto compArchetype = comps[i];
-						const auto compQuery = data.comps[j];
+				while (i < ids.size() && j < data.ids.size()) {
+					if (data.ops[j] == op) {
+						const auto compArchetype = ids[i];
+						const auto compQuery = data.ids[j];
 
 						if (compArchetype == compQuery && func(compArchetype, compQuery))
 							return true;
@@ -18363,21 +18373,21 @@ namespace gaia {
 				return false;
 			}
 
-			//! Tries to match all query component ids with those in \param comps.
+			//! Tries to match all query component ids with those in \param ids.
 			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& comps, QueryListType listType) const {
-				return match_inter(comps, listType, [](Entity comp, Entity compQuery) {
+			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& ids, QueryOp op) const {
+				return match_inter(ids, op, [](Entity comp, Entity compQuery) {
 					return comp == compQuery;
 				});
 			}
 
-			//! Tries to match all query component ids with those in \param comps.
+			//! Tries to match all query component ids with those in \param ids.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& comps) const {
+			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& ids) const {
 				uint32_t matches = 0;
 				const auto& data = m_lookupCtx.data;
-				return match_inter(comps, QueryListType::LT_All, [&](Entity comp, Entity compQuery) {
-					return comp == compQuery && (++matches == data.rulesAllCount);
+				return match_inter(ids, QueryOp::All, [&](Entity comp, Entity compQuery) {
+					return comp == compQuery && (++matches == data.opsAllCount);
 				});
 			}
 
@@ -18388,30 +18398,30 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				const auto& matcherHash = archetype.matcher_hash();
-				const auto& comps = archetype.entities();
+				const auto& ids = archetype.entities();
 				const auto& compData = data();
 
-				const auto withNoneTest = matcherHash.hash & compData.hash[QueryListType::LT_None].hash;
-				const auto withAnyTest = matcherHash.hash & compData.hash[QueryListType::LT_Any].hash;
-				const auto withAllTest = matcherHash.hash & compData.hash[QueryListType::LT_All].hash;
+				const auto withNoneTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::Not].hash;
+				const auto withAnyTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::Any].hash;
+				const auto withAllTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::All].hash;
 
 				// If withAnyTest is empty but we wanted something
-				if (withAnyTest == 0 && compData.hash[QueryListType::LT_Any].hash != 0)
+				if (withAnyTest == 0 && compData.matcherHash[(uint32_t)QueryOp::Any].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If withAllTest is empty but we wanted something
-				if (withAllTest == 0 && compData.hash[QueryListType::LT_All].hash != 0)
+				if (withAllTest == 0 && compData.matcherHash[(uint32_t)QueryOp::All].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					if (match_one(comps, QueryListType::LT_None))
+					if (match_one(ids, QueryOp::Not))
 						return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					if (match_one(comps, QueryListType::LT_Any))
+					if (match_one(ids, QueryOp::Any))
 						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
@@ -18423,9 +18433,9 @@ namespace gaia {
 				if (withAllTest != 0) {
 					if (
 							// We skip archetypes with less components than the query requires
-							compData.rulesAllCount <= comps.size() &&
+							compData.opsAllCount <= ids.size() &&
 							// Match everything with LT_ALL
-							match_all(comps))
+							match_all(ids))
 						return MatchArchetypeQueryRet::Ok;
 
 					// No match found. We're done
@@ -18474,8 +18484,8 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& data = m_lookupCtx.data;
-				GAIA_EACH(data.comps) {
-					const auto comp = data.comps[i];
+				GAIA_EACH(data.ids) {
+					const auto comp = data.ids[i];
 
 					// Check if any archetype is associated with the component id
 					const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
@@ -18510,11 +18520,11 @@ namespace gaia {
 				return m_lookupCtx.data;
 			}
 
-			GAIA_NODISCARD const QueryComponentArray& comps() const {
-				return m_lookupCtx.data.comps;
+			GAIA_NODISCARD const QueryEntityArray& ids() const {
+				return m_lookupCtx.data.ids;
 			}
 
-			GAIA_NODISCARD const QueryChangeArray& filters() const {
+			GAIA_NODISCARD const QueryEntityArray& filters() const {
 				return m_lookupCtx.data.withChanged;
 			}
 
@@ -18524,17 +18534,17 @@ namespace gaia {
 
 			template <typename... T>
 			bool has_any() const {
-				return (has_inter<T>(QueryListType::LT_Any) || ...);
+				return (has_inter<T>(QueryOp::Any) || ...);
 			}
 
 			template <typename... T>
 			bool has_all() const {
-				return (has_inter<T>(QueryListType::LT_All) && ...);
+				return (has_inter<T>(QueryOp::All) && ...);
 			}
 
 			template <typename... T>
 			bool has_none() const {
-				return (!has_inter<T>(QueryListType::LT_None) && ...);
+				return (!has_inter<T>(QueryOp::Not) && ...);
 			}
 
 			//! Removes an archetype from cache
@@ -18689,42 +18699,41 @@ namespace gaia {
 
 			private:
 				//! Command buffer command type
-				enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
+				enum CommandBufferCmd : uint8_t { ADD_ITEM, ADD_FILTER };
 
-				struct Command_AddComponent {
-					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
+				struct Command_AddItem {
+					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_ITEM;
 
-					Entity comp;
-					QueryListType listType;
-					bool isReadWrite;
+					QueryItem item;
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
-						auto& comps = data.comps;
+						auto& ids = data.ids;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
-						auto& rules = data.rules;
+						auto& ops = data.ops;
 
 						// Unique component ids only
-						GAIA_ASSERT(!core::has(comps, comp));
+						GAIA_ASSERT(!core::has(ids, item.entity));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
+						if (ids.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							auto compName = ctx.cc->get(comp).name.str();
-							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
+							const auto* name = ctx.cc->get(item.entity).name.str();
+							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
 							return;
 						}
 #endif
 
-						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)comps.size();
-						comps.push_back(comp);
+						const uint8_t isReadWrite = item.access == QueryAccess::Write;
+						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+						ids.push_back(item.entity);
 						lastMatchedArchetypeIdx.push_back(0);
-						rules.push_back(listType);
+						ops.push_back(item.op);
 
-						if (listType == QueryListType::LT_All)
-							++data.rulesAllCount;
+						if (item.op == QueryOp::All)
+							++data.opsAllCount;
 					}
 				};
 
@@ -18735,11 +18744,11 @@ namespace gaia {
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
-						auto& comps = data.comps;
+						auto& ids = data.ids;
 						auto& withChanged = data.withChanged;
-						const auto& rules = data.rules;
+						const auto& ops = data.ops;
 
-						GAIA_ASSERT(core::has(comps, comp));
+						GAIA_ASSERT(core::has(ids, comp));
 						GAIA_ASSERT(!core::has(withChanged, comp));
 
 #if GAIA_DEBUG
@@ -18754,17 +18763,17 @@ namespace gaia {
 #endif
 
 						uint32_t compIdx = 0;
-						for (; compIdx < comps.size(); ++compIdx)
-							if (comps[compIdx] == comp)
+						for (; compIdx < ids.size(); ++compIdx)
+							if (ids[compIdx] == comp)
 								break;
 						// NOTE: This code bellow does technically the same as above.
 						//       However, compilers can't quite optimize it as well because it does some more
 						//       calculations. This is a used often so go with the custom code.
-						// const auto compIdx = core::get_index_unsafe(comps, comp);
+						// const auto compIdx = core::get_index_unsafe(ids, comp);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (rules[compIdx] != QueryListType::LT_None) {
+						if (ops[compIdx] != QueryOp::Not) {
 							withChanged.push_back(comp);
 							return;
 						}
@@ -18780,7 +18789,7 @@ namespace gaia {
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
 						[](SerializationBuffer& buffer, QueryCtx& ctx) {
-							Command_AddComponent cmd;
+							Command_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
@@ -18850,26 +18859,39 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
-				void add_inter(QueryListType listType, Entity entity, bool isReadWrite) {
-					Command_AddComponent cmd{entity, listType, isReadWrite};
-					ser::save(m_serBuffer, Command_AddComponent::Id);
+				void add_inter(QueryItem item) {
+					// Adding new query items invalidates the query
+					invalidate();
+
+					// When excluding make sure the access type is None.
+					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
+
+					Command_AddItem cmd{item};
+					ser::save(m_serBuffer, Command_AddItem::Id);
 					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
-				void add_inter(QueryListType listType) {
-					constexpr auto isReadWrite = core::is_mut_v<T>;
-					// LT_NONE should be used with raw types only
-					GAIA_ASSERT(listType != QueryListType::LT_None || !isReadWrite);
-
+				void add_inter(QueryOp type) {
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_world);
-					add_inter(listType, desc.entity, isReadWrite);
+
+					// Determine the access type
+					QueryAccess access = QueryAccess::None;
+					if (type != QueryOp::Not) {
+						constexpr auto isReadWrite = core::is_mut_v<T>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+					}
+
+					add_inter({desc.entity, type, access});
 				}
 
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
+					// Adding new changed items invalidates the query
+					invalidate();
+
 					Command_Filter cmd{entity};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
@@ -18916,7 +18938,7 @@ namespace gaia {
 
 				//! Unpacks the parameter list \param types into query \param query and performs All for each of them
 				template <typename... T>
-				void unpack_args_into_query_All(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
+				void unpack_args_into_query_all(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 					query.all<T...>();
 				}
@@ -19173,61 +19195,50 @@ namespace gaia {
 					return m_storage.m_queryId;
 				}
 
-				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					// Adding new rules invalidates the query
-					invalidate();
+				QueryImpl& add(QueryItem item) {
 					// Add commands to the command buffer
-					add_inter(QueryListType::LT_All, entity, isReadWrite);
+					add_inter(item);
+					return *this;
+				}
+
+				QueryImpl& all(Entity entity, bool isReadWrite = false) {
+					add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& all() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_All), ...);
+					(add_inter<T>(QueryOp::All), ...);
 					return *this;
 				}
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					// Adding new rules invalidates the query
-					invalidate();
-					// Add commands to the command buffer
-					add_inter(QueryListType::LT_Any, entity, isReadWrite);
+					add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& any() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_Any), ...);
+					(add_inter<T>(QueryOp::Any), ...);
 					return *this;
 				}
 
 				QueryImpl& none(Entity entity) {
-					// Adding new rules invalidates the query
-					invalidate();
-					// Add commands to the command buffer
-					add_inter(QueryListType::LT_None, entity, false);
+					add({entity, QueryOp::Not, QueryAccess::None});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& none() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_None), ...);
+					(add_inter<T>(QueryOp::Not), ...);
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& changed() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
 					return *this;

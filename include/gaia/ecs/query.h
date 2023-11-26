@@ -55,42 +55,41 @@ namespace gaia {
 
 			private:
 				//! Command buffer command type
-				enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
+				enum CommandBufferCmd : uint8_t { ADD_ITEM, ADD_FILTER };
 
-				struct Command_AddComponent {
-					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
+				struct Command_AddItem {
+					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_ITEM;
 
-					Entity comp;
-					QueryListType listType;
-					bool isReadWrite;
+					QueryItem item;
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
-						auto& comps = data.comps;
+						auto& ids = data.ids;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
-						auto& rules = data.rules;
+						auto& ops = data.ops;
 
 						// Unique component ids only
-						GAIA_ASSERT(!core::has(comps, comp));
+						GAIA_ASSERT(!core::has(ids, item.entity));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
+						if (ids.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							auto compName = ctx.cc->get(comp).name.str();
-							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
+							const auto* name = ctx.cc->get(item.entity).name.str();
+							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
 							return;
 						}
 #endif
 
-						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)comps.size();
-						comps.push_back(comp);
+						const uint8_t isReadWrite = item.access == QueryAccess::Write;
+						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+						ids.push_back(item.entity);
 						lastMatchedArchetypeIdx.push_back(0);
-						rules.push_back(listType);
+						ops.push_back(item.op);
 
-						if (listType == QueryListType::LT_All)
-							++data.rulesAllCount;
+						if (item.op == QueryOp::All)
+							++data.opsAllCount;
 					}
 				};
 
@@ -101,11 +100,11 @@ namespace gaia {
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
-						auto& comps = data.comps;
+						auto& ids = data.ids;
 						auto& withChanged = data.withChanged;
-						const auto& rules = data.rules;
+						const auto& ops = data.ops;
 
-						GAIA_ASSERT(core::has(comps, comp));
+						GAIA_ASSERT(core::has(ids, comp));
 						GAIA_ASSERT(!core::has(withChanged, comp));
 
 #if GAIA_DEBUG
@@ -120,17 +119,17 @@ namespace gaia {
 #endif
 
 						uint32_t compIdx = 0;
-						for (; compIdx < comps.size(); ++compIdx)
-							if (comps[compIdx] == comp)
+						for (; compIdx < ids.size(); ++compIdx)
+							if (ids[compIdx] == comp)
 								break;
 						// NOTE: This code bellow does technically the same as above.
 						//       However, compilers can't quite optimize it as well because it does some more
 						//       calculations. This is a used often so go with the custom code.
-						// const auto compIdx = core::get_index_unsafe(comps, comp);
+						// const auto compIdx = core::get_index_unsafe(ids, comp);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (rules[compIdx] != QueryListType::LT_None) {
+						if (ops[compIdx] != QueryOp::Not) {
 							withChanged.push_back(comp);
 							return;
 						}
@@ -146,7 +145,7 @@ namespace gaia {
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
 						[](SerializationBuffer& buffer, QueryCtx& ctx) {
-							Command_AddComponent cmd;
+							Command_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
@@ -216,26 +215,39 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
-				void add_inter(QueryListType listType, Entity entity, bool isReadWrite) {
-					Command_AddComponent cmd{entity, listType, isReadWrite};
-					ser::save(m_serBuffer, Command_AddComponent::Id);
+				void add_inter(QueryItem item) {
+					// Adding new query items invalidates the query
+					invalidate();
+
+					// When excluding make sure the access type is None.
+					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
+
+					Command_AddItem cmd{item};
+					ser::save(m_serBuffer, Command_AddItem::Id);
 					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
-				void add_inter(QueryListType listType) {
-					constexpr auto isReadWrite = core::is_mut_v<T>;
-					// LT_NONE should be used with raw types only
-					GAIA_ASSERT(listType != QueryListType::LT_None || !isReadWrite);
-
+				void add_inter(QueryOp type) {
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_world);
-					add_inter(listType, desc.entity, isReadWrite);
+
+					// Determine the access type
+					QueryAccess access = QueryAccess::None;
+					if (type != QueryOp::Not) {
+						constexpr auto isReadWrite = core::is_mut_v<T>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+					}
+
+					add_inter({desc.entity, type, access});
 				}
 
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
+					// Adding new changed items invalidates the query
+					invalidate();
+
 					Command_Filter cmd{entity};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
@@ -282,7 +294,7 @@ namespace gaia {
 
 				//! Unpacks the parameter list \param types into query \param query and performs All for each of them
 				template <typename... T>
-				void unpack_args_into_query_All(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
+				void unpack_args_into_query_all(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 					query.all<T...>();
 				}
@@ -539,61 +551,50 @@ namespace gaia {
 					return m_storage.m_queryId;
 				}
 
-				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					// Adding new rules invalidates the query
-					invalidate();
+				QueryImpl& add(QueryItem item) {
 					// Add commands to the command buffer
-					add_inter(QueryListType::LT_All, entity, isReadWrite);
+					add_inter(item);
+					return *this;
+				}
+
+				QueryImpl& all(Entity entity, bool isReadWrite = false) {
+					add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& all() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_All), ...);
+					(add_inter<T>(QueryOp::All), ...);
 					return *this;
 				}
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					// Adding new rules invalidates the query
-					invalidate();
-					// Add commands to the command buffer
-					add_inter(QueryListType::LT_Any, entity, isReadWrite);
+					add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& any() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_Any), ...);
+					(add_inter<T>(QueryOp::Any), ...);
 					return *this;
 				}
 
 				QueryImpl& none(Entity entity) {
-					// Adding new rules invalidates the query
-					invalidate();
-					// Add commands to the command buffer
-					add_inter(QueryListType::LT_None, entity, false);
+					add({entity, QueryOp::Not, QueryAccess::None});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& none() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(QueryListType::LT_None), ...);
+					(add_inter<T>(QueryOp::Not), ...);
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& changed() {
-					// Adding new rules invalidates the query
-					invalidate();
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
 					return *this;

@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "../cnt/darray.h"
+#include "../cnt/sarray.h"
 #include "../cnt/sarray_ext.h"
 #include "../core/hashing_policy.h"
 #include "component.h"
@@ -13,16 +14,23 @@ namespace gaia {
 		//! Number of components that can be a part of Query
 		static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
-		//! List type
-		enum QueryListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
+		//! Operation type
+		enum class QueryOp : uint8_t { Not, Any, All, Count };
+		//! Access type
+		enum class QueryAccess : uint8_t { None, Read, Write };
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryComponentArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
-		using QueryListTypeArray = cnt::sarray_ext<QueryListType, MAX_COMPONENTS_IN_QUERY>;
-		using QueryChangeArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
+		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_COMPONENTS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
+
+		struct QueryItem {
+			Entity entity;
+			QueryOp op;
+			QueryAccess access = QueryAccess::Read;
+		};
 
 		struct QueryCtx {
 			ComponentCache* cc{};
@@ -32,23 +40,24 @@ namespace gaia {
 			QueryId queryId = QueryIdBad;
 
 			struct Data {
-				//! List of querried components
-				QueryComponentArray comps;
-				//! Filtering rules for the components
-				QueryListTypeArray rules;
+				//! List of querried ids
+				QueryEntityArray ids;
+				//! Query operation types
+				QueryOpArray ops;
 				//! List of component matcher hashes
-				ComponentMatcherHash hash[QueryListType::LT_Count];
+				cnt::sarray<ComponentMatcherHash, (uint32_t)QueryOp::Count> matcherHash;
 				//! Array of indices to the last checked archetype in the component-to-archetype map
 				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
 				//! List of filtered components
-				QueryChangeArray withChanged;
+				QueryEntityArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
-				uint8_t rulesAllCount;
+				uint8_t opsAllCount;
 			} data{};
-			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
+			// Make sure that MAX_COMPONENTS_IN_QUERY can fit into data.readWriteMask
+			static_assert(MAX_COMPONENTS_IN_QUERY == 8);
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
@@ -65,9 +74,9 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.comps.size() != right.comps.size())
+				if (left.ids.size() != right.ids.size())
 					return false;
-				if (left.rules.size() != right.rules.size())
+				if (left.ops.size() != right.ops.size())
 					return false;
 				if (left.withChanged.size() != right.withChanged.size())
 					return false;
@@ -75,17 +84,15 @@ namespace gaia {
 					return false;
 
 				// Matches hashes need to be the same
-				GAIA_FOR_(QueryListType::LT_Count, j) {
-					if (left.hash[j] != right.hash[j])
-						return false;
-				}
+				if (left.matcherHash != right.matcherHash)
+					return false;
 
 				// Components need to be the same
-				if (left.comps != right.comps)
+				if (left.ids != right.ids)
 					return false;
 
 				// Rules need to be the same
-				if (left.rules != right.rules)
+				if (left.ops != right.ops)
 					return false;
 
 				// Filters need to be the same
@@ -98,15 +105,20 @@ namespace gaia {
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return !operator==(other);
 			};
+
+			QueryCtx() {
+				// Matcher hash needs to be zero-initialized
+				GAIA_EACH(data.matcherHash) data.matcherHash[i].hash = {0};
+			}
 		};
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
 			// Make sure the read-write mask remains correct after sorting
-			core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-				core::swap(data.comps[left], data.comps[right]);
-				core::swap(data.rules[left], data.rules[right]);
+			core::sort(data.ids, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+				core::swap(data.ids[left], data.ids[right]);
+				core::swap(data.ops[left], data.ops[right]);
 
 				{
 					// Swap the bits in the read-write mask
@@ -130,7 +142,10 @@ namespace gaia {
 
 			// Calculate the matcher hash
 			auto& data = ctx.data;
-			GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
+			GAIA_EACH(data.ops) {
+				const auto opIdx = (uint32_t)data.ops[i];
+				update_matcher_hash(data.matcherHash[opIdx], data.ids[i]);
+			}
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
@@ -146,23 +161,23 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& comps = data.comps;
-				for (const auto comp: comps)
+				const auto& ids = data.ids;
+				for (const auto comp: ids)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ids.size());
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 
-			// Rules
+			// Operations
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& rules = data.rules;
-				for (auto listType: rules)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
+				const auto& ops = data.ops;
+				for (auto op: ops)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)op);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ops.size());
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}

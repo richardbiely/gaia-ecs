@@ -1605,7 +1605,7 @@ TEST_CASE("Add - namespaces") {
 TEST_CASE("Add - many components") {
 	ecs::World w;
 
-	auto create = [&](uint32_t id) {
+	auto create = [&]() {
 		auto e = w.add();
 
 		w.add<Int3>(e, {3, 3, 3});
@@ -1649,13 +1649,13 @@ TEST_CASE("Add - many components") {
 	};
 
 	const uint32_t N = 1'500;
-	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) create();
 }
 
 TEST_CASE("Add - many components, bulk") {
 	ecs::World w;
 
-	auto create = [&](uint32_t id) {
+	auto create = [&]() {
 		auto e = w.add();
 
 		w.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
@@ -1701,7 +1701,7 @@ TEST_CASE("Add - many components, bulk") {
 	};
 
 	const uint32_t N = 1'500;
-	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) create();
 }
 
 TEST_CASE("AddAndDel_entity - no components") {
@@ -2145,35 +2145,18 @@ TEST_CASE("Query - QueryResult complex") {
 template <typename TQuery>
 void Test_Query_Equality() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr uint32_t N = 100;
 
-	SECTION("2 components") {
-		ecs::World w;
-
-		auto create = [&]() {
-			auto e = w.add();
-			w.add<Position>(e);
-			w.add<Rotation>(e);
-		};
-
-		const uint32_t N = 100;
-		GAIA_FOR(N) create();
-
-		auto p = w.add<Position>().entity;
-		auto r = w.add<Rotation>().entity;
-
-		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
-		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
-		auto qq3 = w.query<UseCachedQuery>().all(p).all(r);
-		auto qq4 = w.query<UseCachedQuery>().all(r).all(p);
-		REQUIRE(qq1.count() == qq2.count());
-		REQUIRE(qq1.count() == qq3.count());
-		REQUIRE(qq1.count() == qq4.count());
+	auto verify = [&](TQuery& q1, TQuery& q2, TQuery& q3, TQuery& q4) {
+		REQUIRE(q1.count() == q2.count());
+		REQUIRE(q1.count() == q3.count());
+		REQUIRE(q1.count() == q4.count());
 
 		cnt::darr<ecs::Entity> ents1, ents2, ents3, ents4;
-		qq1.arr(ents1);
-		qq2.arr(ents2);
-		qq3.arr(ents3);
-		qq4.arr(ents4);
+		q1.arr(ents1);
+		q2.arr(ents2);
+		q3.arr(ents3);
+		q4.arr(ents4);
 		REQUIRE(ents1.size() == ents2.size());
 		REQUIRE(ents1.size() == ents3.size());
 		REQUIRE(ents1.size() == ents4.size());
@@ -2193,9 +2176,34 @@ void Test_Query_Equality() {
 			REQUIRE(e == ents4[i]);
 			++i;
 		}
+	};
+
+	SECTION("2 components") {
+		ecs::World w;
+		GAIA_FOR(N) {
+			auto e = w.add();
+			w.add<Position>(e);
+			w.add<Rotation>(e);
+		}
+
+		auto p = w.add<Position>().entity;
+		auto r = w.add<Rotation>().entity;
+
+		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
+		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
+		auto qq3 = w.query<UseCachedQuery>().all(p).all(r);
+		auto qq4 = w.query<UseCachedQuery>().all(r).all(p);
+		verify(qq1, qq2, qq3, qq4);
 	}
 	SECTION("4 components") {
 		ecs::World w;
+		GAIA_FOR(N) {
+			auto e = w.add();
+			w.add<Position>(e);
+			w.add<Rotation>(e);
+			w.add<Acceleration>(e);
+			w.add<Something>(e);
+		}
 
 		auto p = w.add<Position>().entity;
 		auto r = w.add<Rotation>().entity;
@@ -2206,34 +2214,7 @@ void Test_Query_Equality() {
 		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Something, Position, Acceleration>();
 		auto qq3 = w.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
 		auto qq4 = w.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
-		REQUIRE(qq1.count() == qq2.count());
-		REQUIRE(qq1.count() == qq3.count());
-		REQUIRE(qq1.count() == qq4.count());
-
-		cnt::darr<ecs::Entity> ents1, ents2, ents3, ents4;
-		qq1.arr(ents1);
-		qq2.arr(ents2);
-		qq3.arr(ents3);
-		qq4.arr(ents4);
-		REQUIRE(ents1.size() == ents2.size());
-		REQUIRE(ents1.size() == ents3.size());
-		REQUIRE(ents1.size() == ents4.size());
-
-		uint32_t i = 0;
-		for (auto e: ents1) {
-			REQUIRE(e == ents2[i]);
-			++i;
-		}
-		i = 0;
-		for (auto e: ents1) {
-			REQUIRE(e == ents3[i]);
-			++i;
-		}
-		i = 0;
-		for (auto e: ents1) {
-			REQUIRE(e == ents4[i]);
-			++i;
-		}
+		verify(qq1, qq2, qq3, qq4);
 	}
 }
 
@@ -2254,13 +2235,13 @@ TEST_CASE("Enable") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	auto create = [&](uint32_t id) {
+	auto create = [&]() {
 		auto e = w.add();
 		w.add<Position>(e);
 		arr.push_back(e);
 	};
 
-	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) create();
 
 	SECTION("State validity") {
 		w.enable(arr[0], false);
@@ -2828,13 +2809,12 @@ TEST_CASE("entity name") {
 		auto e = ents[0];
 
 		char original[MaxLen];
-		const auto* str = w.name(e);
-		GAIA_STRFMT(original, MaxLen, "%s", str);
+		GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
 
 		// If we change the original string we still must have a match
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			REQUIRE(strcmp(str, original) == 0);
+			REQUIRE(strcmp(w.name(e), original) == 0);
 			REQUIRE(w.get(original) == e);
 			REQUIRE(w.get(tmp) == ecs::IdentifierBad);
 
@@ -2870,8 +2850,7 @@ TEST_CASE("entity name") {
 		auto e = ents[0];
 
 		char original[MaxLen];
-		const auto* str = w.name(e);
-		GAIA_STRFMT(original, MaxLen, "%s", str);
+		GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
 
 		// If we change the original string we can't have a match
 		{
@@ -2919,8 +2898,7 @@ TEST_CASE("entity name") {
 			auto e = ents[1000];
 
 			char original[MaxLen];
-			const auto* str = w.name(e);
-			GAIA_STRFMT(original, MaxLen, "%s", str);
+			GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
 
 			{
 				w.enable(e, false);
