@@ -119,13 +119,15 @@ namespace gaia {
 				EntityId id;
 
 				///////////////////////////////////////////////////////////////////
-				// Bits in this section need to be 1:1 with Entity internal data
+				// Bits in this section need to be 1:1 with EntityContainer data
 				///////////////////////////////////////////////////////////////////
 
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 29;
+				IdentifierData gen : 28;
 				//! 0-component, 1-entity
 				IdentifierData ent : 1;
+				//! 0-ordinary, 1-pair
+				IdentifierData pair : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
@@ -149,10 +151,11 @@ namespace gaia {
 				data.id = id;
 				data.gen = gen;
 			}
-			Entity(EntityId id, IdentifierData gen, bool isEntity, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
 				data.ent = isEntity;
+				data.pair = isPair;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -167,6 +170,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool entity() const noexcept {
 				return data.ent != 0;
+			}
+
+			GAIA_NODISCARD constexpr bool pair() const noexcept {
+				return data.pair != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -234,11 +241,28 @@ namespace gaia {
 			uint32_t len{};
 		};
 
-		struct Core {};
+		struct Pair {
+			Entity first;
+			Entity second;
 
-		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Component);
+			Pair(Entity a, Entity b) noexcept: first(a), second(b) {}
+
+			operator Entity() const noexcept {
+				return Entity(first.id(), second.id(), false, true, EntityKind::EK_Gen);
+			}
+		};
+
+		struct Core {};
+		struct All {};
+		struct Any {};
+		struct Not {};
+
+		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Any) = Entity(4, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Not) = Entity(5, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Not);
 	} // namespace ecs
 } // namespace gaia

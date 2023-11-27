@@ -13934,13 +13934,15 @@ namespace gaia {
 				EntityId id;
 
 				///////////////////////////////////////////////////////////////////
-				// Bits in this section need to be 1:1 with Entity internal data
+				// Bits in this section need to be 1:1 with EntityContainer data
 				///////////////////////////////////////////////////////////////////
 
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 29;
+				IdentifierData gen : 28;
 				//! 0-component, 1-entity
 				IdentifierData ent : 1;
+				//! 0-ordinary, 1-pair
+				IdentifierData pair : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
@@ -13964,10 +13966,11 @@ namespace gaia {
 				data.id = id;
 				data.gen = gen;
 			}
-			Entity(EntityId id, IdentifierData gen, bool isEntity, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
 				data.ent = isEntity;
+				data.pair = isPair;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -13982,6 +13985,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool entity() const noexcept {
 				return data.ent != 0;
+			}
+
+			GAIA_NODISCARD constexpr bool pair() const noexcept {
+				return data.pair != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -14049,12 +14056,29 @@ namespace gaia {
 			uint32_t len{};
 		};
 
-		struct Core {};
+		struct Pair {
+			Entity first;
+			Entity second;
 
-		inline Entity GAIA_ID(Core) = Entity(0, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Component);
+			Pair(Entity a, Entity b) noexcept: first(a), second(b) {}
+
+			operator Entity() const noexcept {
+				return Entity(first.id(), second.id(), false, true, EntityKind::EK_Gen);
+			}
+		};
+
+		struct Core {};
+		struct All {};
+		struct Any {};
+		struct Not {};
+
+		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Any) = Entity(4, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Not) = Entity(5, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Not);
 	} // namespace ecs
 } // namespace gaia
 
@@ -15701,8 +15725,9 @@ namespace gaia {
 		class Archetype;
 
 		struct EntityContainerCtx {
-			EntityKind kind;
 			bool isEntity;
+			bool isPair;
+			EntityKind kind;
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -15715,9 +15740,11 @@ namespace gaia {
 			///////////////////////////////////////////////////////////////////
 
 			//! Generation ID of the record
-			uint32_t gen : 29;
+			uint32_t gen : 28;
 			//! 0-component, 1-entity
 			uint32_t ent : 1;
+			//! 0-ordinary, 1-pair
+			uint32_t pair : 1;
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
@@ -15742,13 +15769,14 @@ namespace gaia {
 				EntityContainer ec{};
 				ec.idx = index;
 				ec.gen = generation;
-				ec.kind = (uint32_t)ctx->kind;
 				ec.ent = (uint32_t)ctx->isEntity;
+				ec.pair = (uint32_t)ctx->isPair;
+				ec.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			static Entity create(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 		};
 	} // namespace ecs
@@ -18370,8 +18398,13 @@ namespace gaia {
 						const auto compArchetype = ids[i];
 						const auto compQuery = data.ids[j];
 
-						if (compArchetype == compQuery && func(compArchetype, compQuery))
-							return true;
+						if (compQuery.pair()) {
+							const auto first = compQuery.id();
+							const auto second = compQuery.gen();
+						} else {
+							if (compArchetype == compQuery && func(compArchetype, compQuery))
+								return true;
+						}
 
 						if (SortComponentCond{}.operator()(compArchetype, compQuery)) {
 							++i;
@@ -20184,19 +20217,20 @@ namespace gaia {
 
 				// Register the core component
 				{
-					auto comp = add(*m_pRootArchetype, GAIA_ID(Core).kind(), GAIA_ID(Core).entity());
-					const auto& desc = comp_cache_mut().add<Core>(GAIA_ID(Core));
-					GAIA_ASSERT(desc.entity == GAIA_ID(Core));
+					const auto& id = GAIA_ID(Core);
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<Core>(id);
+					GAIA_ASSERT(desc.entity == id);
 					(void)comp;
 					(void)desc;
-					// add_inter(comp, desc.entity);
 				}
 
 				// Register the entity archetype (entity + EntityDesc component)
 				{
-					auto comp = add(*m_pRootArchetype, GAIA_ID(EntityDesc).kind(), GAIA_ID(EntityDesc).entity());
+					const auto& id = GAIA_ID(EntityDesc);
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<EntityDesc>(comp);
-					GAIA_ASSERT(desc.entity == GAIA_ID(EntityDesc));
+					GAIA_ASSERT(desc.entity == id);
 					add_inter(comp, desc.entity);
 					sset<EntityDesc>(comp, {desc.name.str(), desc.name.len()});
 					m_pEntityArchetype = m_entities[comp.id()].pArchetype;
@@ -20204,9 +20238,10 @@ namespace gaia {
 
 				// Register the component archetype (entity + EntityDesc + Component)
 				{
-					auto comp = add(*m_pEntityArchetype, GAIA_ID(Component).kind(), GAIA_ID(Component).entity());
+					const auto& id = GAIA_ID(Component);
+					auto comp = add(*m_pEntityArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<Component>(comp);
-					GAIA_ASSERT(desc.entity == GAIA_ID(Component));
+					GAIA_ASSERT(desc.entity == id);
 					add_inter(comp, desc.entity);
 					set(comp)
 							// Entity descriptor
@@ -20214,6 +20249,36 @@ namespace gaia {
 							// Component
 							.sset<Component>(desc.comp);
 					m_pCompArchetype = m_entities[comp.id()].pArchetype;
+				}
+
+				// Register All component. Used with relationship queries.
+				{
+					const auto& id = GAIA_ID(All);
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<All>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
+				// Register Any component. Used with relationship queries.
+				{
+					const auto& id = GAIA_ID(Any);
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<Any>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
+				// Register Not component. Used with relationship queries.
+				{
+					const auto& id = GAIA_ID(Not);
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<Not>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
 				}
 			}
 
@@ -20227,10 +20292,12 @@ namespace gaia {
 
 			//! Creates a new entity of a given archetype
 			//! \param archetype Archetype the entity should inherit
+			//! \param isEntity True if entity, false otherwise
+			//! \param isPair True if pair, false otherwise
 			//! \param kind Component kind
 			//! \return New entity
-			GAIA_NODISCARD Entity add(Archetype& archetype, EntityKind kind, bool isEntity) {
-				EntityContainerCtx ctx{kind, isEntity};
+			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
+				EntityContainerCtx ctx{isEntity, isPair, kind};
 				const auto entity = m_entities.alloc(&ctx);
 
 				auto* pChunk = archetype.foc_free_chunk();
@@ -20363,7 +20430,42 @@ namespace gaia {
 			//! \param kind Entity kind
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, kind, true);
+				return add(*m_pEntityArchetype, true, false, kind);
+			}
+
+			//! Creates a new entity relationship pair
+			//! \param src Source entity
+			//! \param relation Relation
+			//! \param tgt Target entity
+			GAIA_NODISCARD void pair(Entity src, Entity relation, Entity tgt) {
+				GAIA_ASSERT(valid(src));
+				GAIA_ASSERT(valid(relation));
+				GAIA_ASSERT(valid(tgt));
+				add_inter(src, Pair(relation, tgt));
+			}
+
+			//! Removes an entity relationship pair
+			//! \param src Source entity
+			//! \param relation Relation
+			//! \param tgt Target entity
+			GAIA_NODISCARD void unpair(Entity src, Entity relation, Entity tgt) {
+				GAIA_ASSERT(valid(src));
+				GAIA_ASSERT(valid(relation));
+				GAIA_ASSERT(valid(tgt));
+				del_inter(src, Pair(relation, tgt));
+			}
+
+			//! Checks if the given relationship exists
+			//! \param src Source entity
+			//! \param relation Relation
+			//! \param tgt Target entity
+			GAIA_NODISCARD bool has(Entity src, Entity relation, Entity tgt) const {
+				GAIA_ASSERT(valid(src));
+				GAIA_ASSERT(valid(relation));
+				GAIA_ASSERT(valid(tgt));
+
+				const auto& ec = m_entities[src.id()];
+				return ComponentGetter{ec.pChunk, ec.row}.has(Pair(relation, tgt));
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -20376,7 +20478,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.kind(), entity.entity());
+				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
 
 				Chunk::copy_entity_data(
 						entity, newEntity,
@@ -20420,10 +20522,10 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				if (ec.pChunk != nullptr) {
 					auto entityExpected = ec.pChunk->entity_view()[ec.row];
-					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind));
+					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
 				}
 #endif
-				return Entity(id, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
+				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 
 			//! Enables or disables an entire entity.
@@ -20510,7 +20612,7 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto entity = add(*m_pCompArchetype, kind, false);
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
 				const auto& desc = comp_cache_mut().add<FT>(entity);
 
 				// Following lines do the following but a bit faster:
@@ -20918,7 +21020,7 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (Archetype*)archetypePtr;
 					[[maybe_unused]] const auto res =
-							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen, true));
+							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, true, false, EntityKind::EK_Gen));
 					GAIA_ASSERT(res.second);
 				}
 			};

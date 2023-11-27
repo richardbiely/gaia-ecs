@@ -13,8 +13,9 @@ namespace gaia {
 		class Archetype;
 
 		struct EntityContainerCtx {
-			EntityKind kind;
 			bool isEntity;
+			bool isPair;
+			EntityKind kind;
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -27,9 +28,11 @@ namespace gaia {
 			///////////////////////////////////////////////////////////////////
 
 			//! Generation ID of the record
-			uint32_t gen : 29;
+			uint32_t gen : 28;
 			//! 0-component, 1-entity
 			uint32_t ent : 1;
+			//! 0-ordinary, 1-pair
+			uint32_t pair : 1;
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
@@ -54,13 +57,14 @@ namespace gaia {
 				EntityContainer ec{};
 				ec.idx = index;
 				ec.gen = generation;
-				ec.kind = (uint32_t)ctx->kind;
 				ec.ent = (uint32_t)ctx->isEntity;
+				ec.pair = (uint32_t)ctx->isPair;
+				ec.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			static Entity create(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 		};
 	} // namespace ecs

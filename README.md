@@ -244,10 +244,10 @@ w.bulk(e)
  .add<Something1, Something2, Something3>();
 ```
 
-It is also possible to manually commit all changes by calling ***commit()***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove componenets based on some complex logic.
+It is also possible to manually commit all changes by calling ***commit()***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
-auto builder = w.bulk(e);
+ecs::CompMoveHelper builder = w.bulk(e);
 builder
   .add<Velocity>()
   .del<Position>()

@@ -1,4 +1,3 @@
-#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1520,16 +1519,16 @@ TEST_CASE("Add - no components") {
 		ents.push_back(e);
 	};
 	auto verify = [&](uint32_t i) {
-		REQUIRE(arr[i] == ents[i]);
+		REQUIRE(arr[i + 1] == ents[i]);
 	};
 
 	GAIA_FOR(N) create();
-	// // TODO: Add support for querying entities
-	// auto q = w.query().all<ecs::Entity>();
-	// q.arr(arr);
-	// REQUIRE(arr.size() == ents.size());
 
-	// GAIA_FOR(N) verify(i);
+	auto q = w.query().all<ecs::EntityDesc>().none<ecs::Component>();
+	q.arr(arr);
+	REQUIRE(arr.size() - 1 == ents.size()); // +1 for core component
+
+	GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {
@@ -2139,6 +2138,53 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 	SECTION("Non-cached query") {
 		Test_Query_QueryResult_Complex<ecs::QueryUncached>();
+	}
+}
+
+TEST_CASE("Relationship") {
+	ecs::World w;
+
+	SECTION("Simple") {
+		auto wolf = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
+
+		w.pair(rabbit, eats, carrot);
+		w.pair(wolf, eats, rabbit);
+
+		REQUIRE(w.has(rabbit, eats, carrot));
+		REQUIRE(w.has(wolf, eats, rabbit));
+		REQUIRE_FALSE(w.has(wolf, eats, carrot));
+		REQUIRE_FALSE(w.has(rabbit, eats, wolf));
+
+		{
+			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = w.query().all<ecs::Pair(eats, carrot)>();
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == rabbit);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+
+		{
+			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = w.query().all<ecs::Pair(eats, rabbit)>();
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == wolf);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
 	}
 }
 
