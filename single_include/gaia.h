@@ -604,9 +604,9 @@ namespace gaia {
 // Breaking changes and big features
 #define GAIA_VERSION_MAJOR 0
 // Smaller changes and features
-#define GAIA_VERSION_MINOR 7
+#define GAIA_VERSION_MINOR 8
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 9
+#define GAIA_VERSION_PATCH 0
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -14076,9 +14076,7 @@ namespace gaia {
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Any) = Entity(4, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Not) = Entity(5, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Not);
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(All);
 	} // namespace ecs
 } // namespace gaia
 
@@ -14093,7 +14091,6 @@ namespace gaia {
 		using CompOffsetMappingIndex = uint8_t;
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
-		using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
 		using ComponentSpan = std::span<const Component>;
 
@@ -14200,42 +14197,6 @@ namespace gaia {
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
-		}
-
-		//----------------------------------------------------------------------
-		// Component matcher hash
-		//----------------------------------------------------------------------
-
-		namespace detail {
-			inline constexpr uint64_t calc_matcher_hash(uint64_t type_hash) noexcept {
-				return (uint64_t(1) << (type_hash % uint64_t(63)));
-			}
-
-			template <typename T>
-			constexpr uint64_t calc_matcher_hash() noexcept {
-				constexpr uint64_t type_hash = meta::type_info::hash<T>();
-				return (uint64_t(1) << (type_hash % uint64_t(63)));
-			}
-		} // namespace detail
-
-		inline constexpr ComponentMatcherHash calc_matcher_hash(uint64_t type_hash) noexcept {
-			return {detail::calc_matcher_hash(type_hash)};
-		}
-
-		template <typename = void, typename...>
-		constexpr ComponentMatcherHash calc_matcher_hash() noexcept;
-
-		template <typename T, typename... Rest>
-		GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
-			if constexpr (sizeof...(Rest) == 0)
-				return {detail::calc_matcher_hash<T>()};
-			else
-				return {core::combine_or(detail::calc_matcher_hash<T>(), detail::calc_matcher_hash<Rest>()...)};
-		}
-
-		template <>
-		GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
-			return {0};
 		}
 
 		//----------------------------------------------------------------------
@@ -15104,10 +15065,6 @@ namespace gaia {
 					return {meta::type_info::hash<DescU>()};
 				}
 
-				static constexpr ComponentMatcherHash hash_matcher() {
-					return {calc_matcher_hash<DescU>()};
-				}
-
 				static constexpr auto name() {
 					return meta::type_info::name<DescU>();
 				}
@@ -15310,8 +15267,6 @@ namespace gaia {
 			Component comp;
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
-			//! Simple hash used for matching component
-			ComponentMatcherHash matcherHash;
 			//! If component is SoA, this stores how many bytes each of the elemenets take
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
@@ -15418,7 +15373,6 @@ namespace gaia {
 						// alignment
 						detail::ComponentDesc<T>::alig());
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
-				cci->matcherHash = detail::ComponentDesc<T>::hash_matcher();
 
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
@@ -15674,29 +15628,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		//! Updates the provided component matcher hash based on the provided component id
-		//! \param matcherHash Initial matcher hash
-		//! \param comp Component id
-		inline void update_matcher_hash(ComponentMatcherHash& matcherHash, Entity entity) noexcept {
-			auto hash = calc_matcher_hash(core::calculate_hash64(entity.value())).hash;
-			matcherHash.hash = core::combine_or(matcherHash.hash, hash);
-		}
-
-		//! Calculates a component matcher hash from the provided component ids
-		//! \param comps Span of component ids
-		//! \return Component matcher hash
-		GAIA_NODISCARD inline ComponentMatcherHash matcher_hash(EntitySpan comps) noexcept {
-			const auto compsSize = comps.size();
-			if (compsSize == 0)
-				return {0};
-
-			auto hash = calc_matcher_hash(core::calculate_hash64(comps[0].value())).hash;
-			GAIA_FOR2(1, compsSize) {
-				hash = core::combine_or(hash, calc_matcher_hash(core::calculate_hash64(comps[i].value())).hash);
-			}
-			return {hash};
-		}
-
 		//! Calculates a lookup hash from the provided entities
 		//! \param comps Span of entities
 		//! \return Lookup hash
@@ -16987,8 +16918,8 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
-		const ComponentCache& comp_cache(const World& world);
-		const char* entity_name(const World& world, Entity entity);
+		inline const ComponentCache& comp_cache(const World& world);
+		inline const char* entity_name(const World& world, Entity entity);
 
 		class ArchetypeBase {
 		protected:
@@ -17069,8 +17000,6 @@ namespace gaia {
 
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
-			//! Hash of components within this archetype - used for matching
-			ComponentMatcherHash m_matcherHash{};
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
@@ -17315,7 +17244,6 @@ namespace gaia {
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
-				newArch->m_matcherHash = ecs::matcher_hash(ents);
 
 				return newArch;
 			}
@@ -17533,10 +17461,6 @@ namespace gaia {
 				return m_hashLookup;
 			}
 
-			GAIA_NODISCARD ComponentMatcherHash matcher_hash() const {
-				return m_matcherHash;
-			}
-
 			GAIA_NODISCARD const Chunk::EntityArray& entities() const {
 				return m_ents;
 			}
@@ -17663,10 +17587,9 @@ namespace gaia {
 				GAIA_LOG_N(
 						"Archetype ID:%u, "
 						"hashLookup:%016" PRIx64 ", "
-						"mask:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash, archetype.matcher_hash().hash,
+						archetype.id(), archetype.lookup_hash().hash,
 						(uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
@@ -17677,8 +17600,8 @@ namespace gaia {
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
-								"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
-								desc.hashLookup.hash, desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
+								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
+								desc.hashLookup.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
 								EntityKindString[entity.kind()]);
 					}
 				};
@@ -18140,18 +18063,18 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		//! Number of components that can be a part of Query
-		static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
+		//! Number of items that can be a part of Query
+		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
 
 		//! Operation type
-		enum class QueryOp : uint8_t { Not, Any, All, Count };
+		enum class QueryOp : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
-		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_COMPONENTS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -18173,20 +18096,18 @@ namespace gaia {
 				QueryEntityArray ids;
 				//! Query operation types
 				QueryOpArray ops;
-				//! List of component matcher hashes
-				cnt::sarray<ComponentMatcherHash, (uint32_t)QueryOp::Count> matcherHash;
-				//! Array of indices to the last checked archetype in the component-to-archetype map
-				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
+				//! Sorted queried ids grouped by op
+				QueryEntityArray ops_ids[(uint32_t)QueryOp::Count];
+				//! Index of the last checked archetype in the component-to-archetype map
+				uint32_t lastMatchedArchetypeIdx;
 				//! List of filtered components
 				QueryEntityArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
-				//! The number of components which are required for the query to match
-				uint8_t opsAllCount;
 			} data{};
-			// Make sure that MAX_COMPONENTS_IN_QUERY can fit into data.readWriteMask
-			static_assert(MAX_COMPONENTS_IN_QUERY == 8);
+			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
+			static_assert(MAX_ITEMS_IN_QUERY == 8);
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
@@ -18212,10 +18133,6 @@ namespace gaia {
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 
-				// Matches hashes need to be the same
-				if (left.matcherHash != right.matcherHash)
-					return false;
-
 				// Components need to be the same
 				if (left.ids != right.ids)
 					return false;
@@ -18234,21 +18151,19 @@ namespace gaia {
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return !operator==(other);
 			};
-
-			QueryCtx() {
-				// Matcher hash needs to be zero-initialized
-				GAIA_EACH(data.matcherHash) data.matcherHash[i].hash = {0};
-			}
 		};
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
-			// Make sure the read-write mask remains correct after sorting
+
+			// Sort data. Necessary for correct hash calculation.
+			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			core::sort(data.ids, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.ops[left], data.ops[right]);
 
+				// Make sure the read-write mask remains correct after sorting
 				{
 					// Swap the bits in the read-write mask
 					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
@@ -18261,19 +18176,10 @@ namespace gaia {
 					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
 				}
 			});
-		}
 
-		inline void matcher_hashes(QueryCtx& ctx) {
-			GAIA_ASSERT(ctx.cc != nullptr);
-
-			// Sort the arrays if necessary
-			sort(ctx);
-
-			// Calculate the matcher hash
-			auto& data = ctx.data;
-			GAIA_EACH(data.ops) {
-				const auto opIdx = (uint32_t)data.ops[i];
-				update_matcher_hash(data.matcherHash[opIdx], data.ids[i]);
+			// Ids per op need to be sorted
+			GAIA_FOR((uint32_t)QueryOp::Count) {
+				core::sort(data.ops_ids[i], SortComponentCond{});
 			}
 		}
 
@@ -18361,7 +18267,7 @@ namespace gaia {
 					const auto& ids = data.ids;
 
 					const auto comp = m_lookupCtx.cc->get<T>().entity;
-					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(ids.data(), comp);
+					const auto compIdx = ecs::comp_idx<MAX_ITEMS_IN_QUERY>(ids.data(), comp);
 
 					if (op != data.ops[compIdx])
 						return false;
@@ -18384,115 +18290,60 @@ namespace gaia {
 				return has_inter<FT>(op, isReadWrite);
 			}
 
-			//! Tries to match query component ids with those in \param ids given the rule \param func.
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& ids, QueryOp op, Func func) const {
+			GAIA_NODISCARD bool match_inter(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds, Func func) const {
 				const auto& data = m_lookupCtx.data;
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
 				uint32_t j = 0;
-				while (i < ids.size() && j < data.ids.size()) {
-					if (data.ops[j] == op) {
-						const auto compArchetype = ids[i];
-						const auto compQuery = data.ids[j];
+				while (i < archetypeIds.size() && j < queryIds.size()) {
+					const auto idInArchetype = archetypeIds[i];
+					const auto idInQuery = queryIds[j];
 
-						if (compQuery.pair()) {
-							const auto first = compQuery.id();
-							const auto second = compQuery.gen();
-						} else {
-							if (compArchetype == compQuery && func(compArchetype, compQuery))
-								return true;
-						}
+					if (func(idInArchetype, idInQuery))
+						return true;
 
-						if (SortComponentCond{}.operator()(compArchetype, compQuery)) {
-							++i;
-							continue;
-						}
+					if (SortComponentCond{}.operator()(idInArchetype, idInQuery)) {
+						++i;
+						continue;
 					}
+
 					++j;
 				}
 
 				return false;
 			}
 
-			//! Tries to match all query component ids with those in \param ids.
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
 			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& ids, QueryOp op) const {
-				return match_inter(ids, op, [](Entity comp, Entity compQuery) {
+			GAIA_NODISCARD bool match_one(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds) const {
+				return match_inter(queryIds, archetypeIds, [](Entity comp, Entity compQuery) {
 					return comp == compQuery;
 				});
 			}
 
-			//! Tries to match all query component ids with those in \param ids.
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& ids) const {
+			GAIA_NODISCARD bool match_all(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds) const {
 				uint32_t matches = 0;
 				const auto& data = m_lookupCtx.data;
-				return match_inter(ids, QueryOp::All, [&](Entity comp, Entity compQuery) {
-					return comp == compQuery && (++matches == data.opsAllCount);
+				return match_inter(queryIds, archetypeIds, [&](Entity comp, Entity compQuery) {
+					return comp == compQuery && (++matches == (int32_t)queryIds.size());
 				});
-			}
-
-			//! Tries to match component with component type \param kind from the archetype \param archetype with
-			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
-			//! or MatchArchetypeQueryRet::Skip is not relevant.
-			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype) const {
-				GAIA_PROF_SCOPE(queryinfo::match);
-
-				const auto& matcherHash = archetype.matcher_hash();
-				const auto& ids = archetype.entities();
-				const auto& compData = data();
-
-				const auto withNoneTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::Not].hash;
-				const auto withAnyTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::Any].hash;
-				const auto withAllTest = matcherHash.hash & compData.matcherHash[(uint32_t)QueryOp::All].hash;
-
-				// If withAnyTest is empty but we wanted something
-				if (withAnyTest == 0 && compData.matcherHash[(uint32_t)QueryOp::Any].hash != 0)
-					return MatchArchetypeQueryRet::Fail;
-
-				// If withAllTest is empty but we wanted something
-				if (withAllTest == 0 && compData.matcherHash[(uint32_t)QueryOp::All].hash != 0)
-					return MatchArchetypeQueryRet::Fail;
-
-				// If there is any match with withNoneList we quit
-				if (withNoneTest != 0) {
-					if (match_one(ids, QueryOp::Not))
-						return MatchArchetypeQueryRet::Fail;
-				}
-
-				// If there is any match with withAnyTest
-				if (withAnyTest != 0) {
-					if (match_one(ids, QueryOp::Any))
-						goto checkWithAllMatches;
-
-					// At least one match necessary to continue
-					return MatchArchetypeQueryRet::Fail;
-				}
-
-			checkWithAllMatches:
-				// If withAllList is not empty there has to be an exact match
-				if (withAllTest != 0) {
-					if (
-							// We skip archetypes with less components than the query requires
-							compData.opsAllCount <= ids.size() &&
-							// Match everything with LT_ALL
-							match_all(ids))
-						return MatchArchetypeQueryRet::Ok;
-
-					// No match found. We're done
-					return MatchArchetypeQueryRet::Fail;
-				}
-
-				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
 		public:
 			GAIA_NODISCARD static QueryInfo create(QueryId id, QueryCtx&& ctx) {
+				// Make sure query items are sorted
+				sort(ctx);
+
 				QueryInfo info;
-				matcher_hashes(ctx);
 				info.m_lookupCtx = GAIA_MOV(ctx);
 				info.m_lookupCtx.queryId = id;
 				return info;
@@ -18517,8 +18368,6 @@ namespace gaia {
 			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			void match(const ComponentIdToArchetypeMap& componentToArchetypeMap, ArchetypeId archetypeLastId) {
-				static cnt::set<Archetype*> s_tmpArchetypeMatches;
-
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
 				if (m_lastArchetypeId == archetypeLastId)
@@ -18528,32 +18377,81 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& data = m_lookupCtx.data;
-				GAIA_EACH(data.ids) {
-					const auto comp = data.ids[i];
+				if (data.ids.empty())
+					return;
 
-					// Check if any archetype is associated with the component id
-					const auto it = componentToArchetypeMap.find(EntityLookupKey(comp));
+				const auto& ops_ids_not = data.ops_ids[(uint32_t)QueryOp::Not];
+				const auto& ops_ids_any = data.ops_ids[(uint32_t)QueryOp::Any];
+				const auto& ops_ids_all = data.ops_ids[(uint32_t)QueryOp::All];
+
+				if (!ops_ids_all.empty()) {
+					// Check if any archetype is associated with the entity id
+					const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_all[0]));
 					if (it == componentToArchetypeMap.end())
-						continue;
+						return;
 
+					// Start from the item 1 instead of 0.
+					// Item 0 is guaranteed to be found because we checked it in the component->archetype map.
+					EntitySpan s{ops_ids_all.data() + 1, ops_ids_all.size() - 1};
+
+					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx;
 					const auto& archetypes = it->second;
-					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
-					GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
+					data.lastMatchedArchetypeIdx = archetypes.size();
+
+					for (uint32_t j = lastMatchedIdx; j < archetypes.size();) {
 						auto* pArchetype = archetypes[j];
 
-						// Early exit if query doesn't match
-						const auto ret = match(*pArchetype);
-						if (ret == MatchArchetypeQueryRet::Fail)
-							continue;
+						// Eliminate all archetypes not matching the NOT rule
+						if (!ops_ids_not.empty() && match_one({ops_ids_not.data(), ops_ids_not.size()}, pArchetype->entities()))
+							goto nextIterationAll;
 
-						(void)s_tmpArchetypeMatches.emplace(pArchetype);
+						// Eliminate all archetypes not matching the ANY rule
+						if (!ops_ids_any.empty() && !match_one({ops_ids_any.data(), ops_ids_any.size()}, pArchetype->entities()))
+							goto nextIterationAll;
+
+						// Eliminate all archetypes not matching the ALL rule
+						if (!s.empty() && !match_all(s, pArchetype->entities()))
+							goto nextIterationAll;
+
+						m_archetypeCache.push_back(archetypes[j]);
+
+					nextIterationAll:
+						++j;
 					}
-					data.lastMatchedArchetypeIdx[i] = archetypes.size();
-				}
+				} else if (!ops_ids_any.empty()) {
+					// Check if any archetype is associated with any of the "Any" entity ids
+					ComponentIdToArchetypeMap::const_iterator it;
+					GAIA_EACH(ops_ids_any) {
+						it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
+						if (it == componentToArchetypeMap.end())
+							continue;
+						break;
+					}
 
-				for (auto* pArchetype: s_tmpArchetypeMatches)
-					m_archetypeCache.push_back(pArchetype);
-				s_tmpArchetypeMatches.clear();
+					if (it == componentToArchetypeMap.end())
+						return;
+
+					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx;
+					const auto& archetypes = it->second;
+					data.lastMatchedArchetypeIdx = archetypes.size();
+
+					if (!ops_ids_not.empty()) {
+						for (uint32_t j = lastMatchedIdx; j < archetypes.size(); ++j) {
+							auto* pArchetype = archetypes[j];
+
+							// Eliminate all archetypes not matching the NOT rule
+							if (match_one({ops_ids_not.data(), ops_ids_not.size()}, pArchetype->entities()))
+								continue;
+
+							m_archetypeCache.push_back(pArchetype);
+						}
+					} else {
+						for (uint32_t j = lastMatchedIdx; j < archetypes.size(); ++j)
+							m_archetypeCache.push_back(archetypes[j]);
+					}
+				} else {
+					GAIA_ASSERT2(false, "Querying exclusively for NOT items is not supported yet");
+				}
 			}
 
 			GAIA_NODISCARD QueryId id() const {
@@ -18603,10 +18501,10 @@ namespace gaia {
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
-				for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
-					if (lastMatchedArchetypeIdx > 0)
-						--lastMatchedArchetypeIdx;
-				}
+				// for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
+				// 	if (lastMatchedArchetypeIdx > 0)
+				// 		--lastMatchedArchetypeIdx;
+				// }
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -18753,15 +18651,16 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& ops = data.ops;
+						auto& ops_ids = data.ops_ids;
+						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 
 						// Unique component ids only
 						GAIA_ASSERT(!core::has(ids, item.entity));
 
 #if GAIA_DEBUG
-						// There's a limit to the amount of components which we can store
-						if (ids.size() >= MAX_COMPONENTS_IN_QUERY) {
+						// There's a limit to the amount of query items which we can store
+						if (ids.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
 							const auto* name = ctx.cc->get(item.entity).name.str();
@@ -18772,12 +18671,11 @@ namespace gaia {
 
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
-						ids.push_back(item.entity);
-						lastMatchedArchetypeIdx.push_back(0);
-						ops.push_back(item.op);
 
-						if (item.op == QueryOp::All)
-							++data.opsAllCount;
+						ids.push_back(item.entity);
+						ops.push_back(item.op);
+						ops_ids[(uint32_t)item.op].push_back(item.entity);
+						lastMatchedArchetypeIdx = 0;
 					}
 				};
 
@@ -18797,7 +18695,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
+						if (withChanged.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->get(comp).name.str();
@@ -20256,26 +20154,6 @@ namespace gaia {
 					const auto& id = GAIA_ID(All);
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<All>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Register Any component. Used with relationship queries.
-				{
-					const auto& id = GAIA_ID(Any);
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Any>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Register Not component. Used with relationship queries.
-				{
-					const auto& id = GAIA_ID(Not);
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Not>(id);
 					GAIA_ASSERT(desc.entity == id);
 					(void)comp;
 					(void)desc;

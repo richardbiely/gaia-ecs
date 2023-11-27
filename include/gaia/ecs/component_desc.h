@@ -41,10 +41,6 @@ namespace gaia {
 					return {meta::type_info::hash<DescU>()};
 				}
 
-				static constexpr ComponentMatcherHash hash_matcher() {
-					return {calc_matcher_hash<DescU>()};
-				}
-
 				static constexpr auto name() {
 					return meta::type_info::name<DescU>();
 				}

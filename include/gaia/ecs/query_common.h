@@ -11,18 +11,18 @@
 
 namespace gaia {
 	namespace ecs {
-		//! Number of components that can be a part of Query
-		static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
+		//! Number of items that can be a part of Query
+		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
 
 		//! Operation type
-		enum class QueryOp : uint8_t { Not, Any, All, Count };
+		enum class QueryOp : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
-		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_COMPONENTS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -44,20 +44,18 @@ namespace gaia {
 				QueryEntityArray ids;
 				//! Query operation types
 				QueryOpArray ops;
-				//! List of component matcher hashes
-				cnt::sarray<ComponentMatcherHash, (uint32_t)QueryOp::Count> matcherHash;
-				//! Array of indices to the last checked archetype in the component-to-archetype map
-				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
+				//! Sorted queried ids grouped by op
+				QueryEntityArray ops_ids[(uint32_t)QueryOp::Count];
+				//! Index of the last checked archetype in the component-to-archetype map
+				uint32_t lastMatchedArchetypeIdx;
 				//! List of filtered components
 				QueryEntityArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
-				//! The number of components which are required for the query to match
-				uint8_t opsAllCount;
 			} data{};
-			// Make sure that MAX_COMPONENTS_IN_QUERY can fit into data.readWriteMask
-			static_assert(MAX_COMPONENTS_IN_QUERY == 8);
+			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
+			static_assert(MAX_ITEMS_IN_QUERY == 8);
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
@@ -83,10 +81,6 @@ namespace gaia {
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 
-				// Matches hashes need to be the same
-				if (left.matcherHash != right.matcherHash)
-					return false;
-
 				// Components need to be the same
 				if (left.ids != right.ids)
 					return false;
@@ -105,21 +99,19 @@ namespace gaia {
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return !operator==(other);
 			};
-
-			QueryCtx() {
-				// Matcher hash needs to be zero-initialized
-				GAIA_EACH(data.matcherHash) data.matcherHash[i].hash = {0};
-			}
 		};
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
-			// Make sure the read-write mask remains correct after sorting
+
+			// Sort data. Necessary for correct hash calculation.
+			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			core::sort(data.ids, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.ops[left], data.ops[right]);
 
+				// Make sure the read-write mask remains correct after sorting
 				{
 					// Swap the bits in the read-write mask
 					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
@@ -132,19 +124,10 @@ namespace gaia {
 					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
 				}
 			});
-		}
 
-		inline void matcher_hashes(QueryCtx& ctx) {
-			GAIA_ASSERT(ctx.cc != nullptr);
-
-			// Sort the arrays if necessary
-			sort(ctx);
-
-			// Calculate the matcher hash
-			auto& data = ctx.data;
-			GAIA_EACH(data.ops) {
-				const auto opIdx = (uint32_t)data.ops[i];
-				update_matcher_hash(data.matcherHash[opIdx], data.ids[i]);
+			// Ids per op need to be sorted
+			GAIA_FOR((uint32_t)QueryOp::Count) {
+				core::sort(data.ops_ids[i], SortComponentCond{});
 			}
 		}
 

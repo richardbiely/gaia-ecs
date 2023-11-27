@@ -794,26 +794,6 @@ namespace gaia {
 					(void)comp;
 					(void)desc;
 				}
-
-				// Register Any component. Used with relationship queries.
-				{
-					const auto& id = GAIA_ID(Any);
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Any>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Register Not component. Used with relationship queries.
-				{
-					const auto& id = GAIA_ID(Not);
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Not>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
 			}
 
 			void done() {

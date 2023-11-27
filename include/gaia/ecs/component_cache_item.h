@@ -31,8 +31,6 @@ namespace gaia {
 			Component comp;
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
-			//! Simple hash used for matching component
-			ComponentMatcherHash matcherHash;
 			//! If component is SoA, this stores how many bytes each of the elemenets take
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
@@ -139,7 +137,6 @@ namespace gaia {
 						// alignment
 						detail::ComponentDesc<T>::alig());
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
-				cci->matcherHash = detail::ComponentDesc<T>::hash_matcher();
 
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).

@@ -261,8 +261,6 @@ namespace gaia {
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Any) = Entity(4, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Not) = Entity(5, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(Not);
+		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(All);
 	} // namespace ecs
 } // namespace gaia

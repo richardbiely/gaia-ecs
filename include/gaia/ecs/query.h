@@ -65,15 +65,16 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& ops = data.ops;
+						auto& ops_ids = data.ops_ids;
+						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 
 						// Unique component ids only
 						GAIA_ASSERT(!core::has(ids, item.entity));
 
 #if GAIA_DEBUG
-						// There's a limit to the amount of components which we can store
-						if (ids.size() >= MAX_COMPONENTS_IN_QUERY) {
+						// There's a limit to the amount of query items which we can store
+						if (ids.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
 							const auto* name = ctx.cc->get(item.entity).name.str();
@@ -84,12 +85,11 @@ namespace gaia {
 
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
-						ids.push_back(item.entity);
-						lastMatchedArchetypeIdx.push_back(0);
-						ops.push_back(item.op);
 
-						if (item.op == QueryOp::All)
-							++data.opsAllCount;
+						ids.push_back(item.entity);
+						ops.push_back(item.op);
+						ops_ids[(uint32_t)item.op].push_back(item.entity);
+						lastMatchedArchetypeIdx = 0;
 					}
 				};
 
@@ -109,7 +109,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
+						if (withChanged.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->get(comp).name.str();

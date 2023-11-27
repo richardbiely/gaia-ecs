@@ -25,8 +25,8 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
-		const ComponentCache& comp_cache(const World& world);
-		const char* entity_name(const World& world, Entity entity);
+		inline const ComponentCache& comp_cache(const World& world);
+		inline const char* entity_name(const World& world, Entity entity);
 
 		class ArchetypeBase {
 		protected:
@@ -107,8 +107,6 @@ namespace gaia {
 
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
-			//! Hash of components within this archetype - used for matching
-			ComponentMatcherHash m_matcherHash{};
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
@@ -353,7 +351,6 @@ namespace gaia {
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
-				newArch->m_matcherHash = ecs::matcher_hash(ents);
 
 				return newArch;
 			}
@@ -571,10 +568,6 @@ namespace gaia {
 				return m_hashLookup;
 			}
 
-			GAIA_NODISCARD ComponentMatcherHash matcher_hash() const {
-				return m_matcherHash;
-			}
-
 			GAIA_NODISCARD const Chunk::EntityArray& entities() const {
 				return m_ents;
 			}
@@ -701,10 +694,9 @@ namespace gaia {
 				GAIA_LOG_N(
 						"Archetype ID:%u, "
 						"hashLookup:%016" PRIx64 ", "
-						"mask:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash, archetype.matcher_hash().hash,
+						archetype.id(), archetype.lookup_hash().hash,
 						(uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
@@ -715,8 +707,8 @@ namespace gaia {
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
-								"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
-								desc.hashLookup.hash, desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
+								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
+								desc.hashLookup.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
 								EntityKindString[entity.kind()]);
 					}
 				};

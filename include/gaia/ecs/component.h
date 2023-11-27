@@ -21,7 +21,6 @@ namespace gaia {
 		using CompOffsetMappingIndex = uint8_t;
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
-		using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
 		using ComponentSpan = std::span<const Component>;
 
@@ -128,42 +127,6 @@ namespace gaia {
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
-		}
-
-		//----------------------------------------------------------------------
-		// Component matcher hash
-		//----------------------------------------------------------------------
-
-		namespace detail {
-			inline constexpr uint64_t calc_matcher_hash(uint64_t type_hash) noexcept {
-				return (uint64_t(1) << (type_hash % uint64_t(63)));
-			}
-
-			template <typename T>
-			constexpr uint64_t calc_matcher_hash() noexcept {
-				constexpr uint64_t type_hash = meta::type_info::hash<T>();
-				return (uint64_t(1) << (type_hash % uint64_t(63)));
-			}
-		} // namespace detail
-
-		inline constexpr ComponentMatcherHash calc_matcher_hash(uint64_t type_hash) noexcept {
-			return {detail::calc_matcher_hash(type_hash)};
-		}
-
-		template <typename = void, typename...>
-		constexpr ComponentMatcherHash calc_matcher_hash() noexcept;
-
-		template <typename T, typename... Rest>
-		GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
-			if constexpr (sizeof...(Rest) == 0)
-				return {detail::calc_matcher_hash<T>()};
-			else
-				return {core::combine_or(detail::calc_matcher_hash<T>(), detail::calc_matcher_hash<Rest>()...)};
-		}
-
-		template <>
-		GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
-			return {0};
 		}
 
 		//----------------------------------------------------------------------
