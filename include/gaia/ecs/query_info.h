@@ -280,12 +280,11 @@ namespace gaia {
 					return;
 				core::erase_fast(m_archetypeCache, idx);
 
-				// An archetype was removed from the world so the last matching archetype index needs to be
-				// lowered by one for every component context.
-				// for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
-				// 	if (lastMatchedArchetypeIdx > 0)
-				// 		--lastMatchedArchetypeIdx;
-				// }
+				// An archetype was removed from the world so the last matching archetype index
+				// needs to be lowered by one.
+				auto& lastMatchedArchetypeIdx = m_lookupCtx.data.lastMatchedArchetypeIdx;
+				if (lastMatchedArchetypeIdx > 0)
+					--lastMatchedArchetypeIdx;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {

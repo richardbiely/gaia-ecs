@@ -18197,8 +18197,8 @@ namespace gaia {
 				QueryLookupHash::Type hash = 0;
 
 				const auto& ids = data.ids;
-				for (const auto comp: ids)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				for (const auto id: ids)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ids.size());
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
@@ -18222,8 +18222,8 @@ namespace gaia {
 				QueryLookupHash::Type hash = 0;
 
 				const auto& withChanged = data.withChanged;
-				for (auto comp: withChanged)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
+				for (auto id: withChanged)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
 
 				hashLookup = core::hash_combine(hashLookup, hash);
@@ -18499,12 +18499,11 @@ namespace gaia {
 					return;
 				core::erase_fast(m_archetypeCache, idx);
 
-				// An archetype was removed from the world so the last matching archetype index needs to be
-				// lowered by one for every component context.
-				// for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
-				// 	if (lastMatchedArchetypeIdx > 0)
-				// 		--lastMatchedArchetypeIdx;
-				// }
+				// An archetype was removed from the world so the last matching archetype index
+				// needs to be lowered by one.
+				auto& lastMatchedArchetypeIdx = m_lookupCtx.data.lastMatchedArchetypeIdx;
+				if (lastMatchedArchetypeIdx > 0)
+					--lastMatchedArchetypeIdx;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
