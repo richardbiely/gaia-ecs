@@ -105,12 +105,16 @@ namespace gaia {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
 					//       Ideally we want to do "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(All, All))
+							return true;
+
 						// all(Pair<X, All>):
 						//   X, AAA
 						//   X, BBB
 						//   ...
 						//   X, ZZZ
-						if (idQuery.gen() == GAIA_ID(All).id())
+						if (idQuery.gen() == All.id())
 							return idQuery.id() == idArchetype.id();
 
 						// all(Pair<All, X>):
@@ -118,12 +122,8 @@ namespace gaia {
 						//   BBB, X
 						//   ...
 						//   ZZZ, X
-						if (idQuery.id() == GAIA_ID(All).id())
+						if (idQuery.id() == All.id())
 							return idQuery.gen() == idArchetype.gen();
-
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
-							return true;
 					}
 
 					return idQuery == idArchetype;
@@ -139,12 +139,16 @@ namespace gaia {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
 					//       Ideally we want to do "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(All, All))
+							return ++matches == (uint32_t)queryIds.size();
+
 						// all(Pair<X, All>):
 						//   X, AAA
 						//   X, BBB
 						//   ...
 						//   X, ZZZ
-						if (idQuery.gen() == GAIA_ID(All).id())
+						if (idQuery.gen() == All.id())
 							return idQuery.id() == idArchetype.id() && (++matches == (uint32_t)queryIds.size());
 
 						// all(Pair<All, X>):
@@ -152,12 +156,8 @@ namespace gaia {
 						//   BBB, X
 						//   ...
 						//   ZZZ, X
-						if (idQuery.id() == GAIA_ID(All).id())
+						if (idQuery.id() == All.id())
 							return idQuery.gen() == idArchetype.gen() && (++matches == (uint32_t)queryIds.size());
-
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
-							return ++matches == (uint32_t)queryIds.size();
 					}
 
 					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());

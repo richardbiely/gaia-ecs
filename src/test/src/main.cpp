@@ -2228,7 +2228,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, ecs::GAIA_ID(All)), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = w.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 3);
 
@@ -2245,7 +2245,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(ecs::GAIA_ID(All), carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = w.query().add({ecs::Pair(ecs::All, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -2254,6 +2254,23 @@ TEST_CASE("Relationship") {
 				const bool isRabbit = entity == rabbit;
 				const bool isHare = entity == hare;
 				const bool is = isRabbit || isHare;
+				REQUIRE(is);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+
+		{
+			auto q = w.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+			const auto cnt = q.count();
+			REQUIRE(cnt == 3);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				const bool isRabbit = entity == rabbit;
+				const bool isHare = entity == hare;
+				const bool isWolf = entity == wolf;
+				const bool is = isRabbit || isHare || isWolf;
 				REQUIRE(is);
 				++i;
 			});

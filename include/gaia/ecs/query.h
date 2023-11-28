@@ -558,7 +558,10 @@ namespace gaia {
 				}
 
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+					if (entity.pair())
+						add({entity, QueryOp::All, QueryAccess::None});
+					else
+						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
@@ -570,7 +573,10 @@ namespace gaia {
 				}
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+					if (entity.pair())
+						add({entity, QueryOp::Any, QueryAccess::None});
+					else
+						add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 

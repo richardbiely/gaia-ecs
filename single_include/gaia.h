@@ -14068,15 +14068,13 @@ namespace gaia {
 		};
 
 		struct Core {};
-		struct All {};
-		struct Any {};
-		struct Not {};
+		struct WildcardAll {};
 
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(All);
+		inline Entity All = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(LastCoreComponent) = All;
 	} // namespace ecs
 } // namespace gaia
 
@@ -18341,12 +18339,16 @@ namespace gaia {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
 					//       Ideally we want to do "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(All, All))
+							return true;
+
 						// all(Pair<X, All>):
 						//   X, AAA
 						//   X, BBB
 						//   ...
 						//   X, ZZZ
-						if (idQuery.gen() == GAIA_ID(All).id())
+						if (idQuery.gen() == All.id())
 							return idQuery.id() == idArchetype.id();
 
 						// all(Pair<All, X>):
@@ -18354,12 +18356,8 @@ namespace gaia {
 						//   BBB, X
 						//   ...
 						//   ZZZ, X
-						if (idQuery.id() == GAIA_ID(All).id())
+						if (idQuery.id() == All.id())
 							return idQuery.gen() == idArchetype.gen();
-
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
-							return true;
 					}
 
 					return idQuery == idArchetype;
@@ -18375,12 +18373,16 @@ namespace gaia {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
 					//       Ideally we want to do "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(All, All))
+							return ++matches == (uint32_t)queryIds.size();
+
 						// all(Pair<X, All>):
 						//   X, AAA
 						//   X, BBB
 						//   ...
 						//   X, ZZZ
-						if (idQuery.gen() == GAIA_ID(All).id())
+						if (idQuery.gen() == All.id())
 							return idQuery.id() == idArchetype.id() && (++matches == (uint32_t)queryIds.size());
 
 						// all(Pair<All, X>):
@@ -18388,12 +18390,8 @@ namespace gaia {
 						//   BBB, X
 						//   ...
 						//   ZZZ, X
-						if (idQuery.id() == GAIA_ID(All).id())
+						if (idQuery.id() == All.id())
 							return idQuery.gen() == idArchetype.gen() && (++matches == (uint32_t)queryIds.size());
-
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
-							return ++matches == (uint32_t)queryIds.size();
 					}
 
 					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
@@ -19270,7 +19268,10 @@ namespace gaia {
 				}
 
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+					if (entity.pair())
+						add({entity, QueryOp::All, QueryAccess::None});
+					else
+						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
@@ -19282,7 +19283,10 @@ namespace gaia {
 				}
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+					if (entity.pair())
+						add({entity, QueryOp::Any, QueryAccess::None});
+					else
+						add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
 					return *this;
 				}
 
@@ -19784,20 +19788,11 @@ namespace gaia {
 						const uint32_t second = entity.gen();
 
 						// (*, XXX)
-						{
-							Pair pair(GAIA_ID(All), second);
-							regEntity(pair);
-						}
+						regEntity(Pair(All, second));
 						// (XXX, *)
-						{
-							Pair pair(first, GAIA_ID(All));
-							regEntity(pair);
-						}
+						regEntity(Pair(first, All));
 						// (*, *)
-						{
-							Pair pair(GAIA_ID(All), GAIA_ID(All));
-							regEntity(pair);
-						}
+						regEntity(Pair(All, All));
 					}
 				}
 
@@ -20304,9 +20299,9 @@ namespace gaia {
 
 				// Register All component. Used with relationship queries.
 				{
-					const auto& id = GAIA_ID(All);
+					const auto& id = All;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<All>(id);
+					const auto& desc = comp_cache_mut().add<WildcardAll>(id);
 					GAIA_ASSERT(desc.entity == id);
 					(void)comp;
 					(void)desc;
@@ -20474,8 +20469,8 @@ namespace gaia {
 				GAIA_ASSERT(valid(tgt));
 
 				// Make sure wildcard are not used
-				GAIA_ASSERT(relation != GAIA_ID(All));
-				GAIA_ASSERT(tgt != GAIA_ID(All));
+				GAIA_ASSERT(relation != All);
+				GAIA_ASSERT(tgt != All);
 
 				add_inter(src, Pair(relation, tgt));
 			}

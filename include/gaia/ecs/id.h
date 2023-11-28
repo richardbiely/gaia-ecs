@@ -253,14 +253,12 @@ namespace gaia {
 		};
 
 		struct Core {};
-		struct All {};
-		struct Any {};
-		struct Not {};
+		struct WildcardAll {};
 
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(All) = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = GAIA_ID(All);
+		inline Entity All = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(LastCoreComponent) = All;
 	} // namespace ecs
 } // namespace gaia

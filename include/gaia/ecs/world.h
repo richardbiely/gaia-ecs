@@ -294,20 +294,11 @@ namespace gaia {
 						const uint32_t second = entity.gen();
 
 						// (*, XXX)
-						{
-							Pair pair(GAIA_ID(All), second);
-							regEntity(pair);
-						}
+						regEntity(Pair(All, second));
 						// (XXX, *)
-						{
-							Pair pair(first, GAIA_ID(All));
-							regEntity(pair);
-						}
+						regEntity(Pair(first, All));
 						// (*, *)
-						{
-							Pair pair(GAIA_ID(All), GAIA_ID(All));
-							regEntity(pair);
-						}
+						regEntity(Pair(All, All));
 					}
 				}
 
@@ -814,9 +805,9 @@ namespace gaia {
 
 				// Register All component. Used with relationship queries.
 				{
-					const auto& id = GAIA_ID(All);
+					const auto& id = All;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<All>(id);
+					const auto& desc = comp_cache_mut().add<WildcardAll>(id);
 					GAIA_ASSERT(desc.entity == id);
 					(void)comp;
 					(void)desc;
@@ -984,8 +975,8 @@ namespace gaia {
 				GAIA_ASSERT(valid(tgt));
 
 				// Make sure wildcard are not used
-				GAIA_ASSERT(relation != GAIA_ID(All));
-				GAIA_ASSERT(tgt != GAIA_ID(All));
+				GAIA_ASSERT(relation != All);
+				GAIA_ASSERT(tgt != All);
 
 				add_inter(src, Pair(relation, tgt));
 			}

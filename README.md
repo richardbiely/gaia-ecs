@@ -26,6 +26,7 @@
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * support for run-time defined tags
+* support for data relationships
 * based on [C++17](https://en.cppreference.com/w/cpp/17)
 * no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
@@ -52,6 +53,7 @@
     * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
+  * [Relationships](#relationships)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
@@ -575,6 +577,72 @@ q.each([&](Position& p, const Velocity& v) {
 ```
 
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one of them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
+
+## Relationships
+Relationships are a mechanism to create entity graphs and queries. They are a powerful feature allowing you to express hierarchies for example and even effectively allow you to add multiple components of the same type to an entity.
+
+Relationship pair is created by calling ***world::pair()***.
+
+```cpp
+ecs::World w;
+ecs::Entity rabbit = w.add();
+ecs::Entity hare = w.add();
+ecs::Entity carrot = w.add();
+ecs::Entity eats = w.add();
+
+w.pair(rabbit, eats, carrot);
+w.pair(hare, eats, carrot);
+
+ecs::Query q = w.query().all(ecs::Pair(eats, carrot));
+q.each([](ecs::Entity entity)) {
+  // Called for each entity implementing (eats, carrot) relationship.
+  // Triggers for rabbit and hare.
+}
+```
+
+This by itself would not be much different from adding entities/component to entities. A similar result can be achieved by creating a "eats_carrot" tag and assigning it to "hare" and "rabbit". What sets relationships apart is the ability to use wildcards in queries.
+
+There are three kinds of wildcard queries possible:
+- ***( X, * )*** - X that does anything
+- ***( * , X )*** - anything that does X
+- ***( * , * )*** - anything that does anything
+
+The "*" wildcard is expressed via ***All*** entity.
+
+```cpp
+w.pair(rabbit, eats, carrot);
+w.pair(hare, eats, carrot);
+w.pair(wolf, eats, rabbit);
+
+ecs::Query q1 = w.query().all(ecs::Pair(eats, All));
+q1.each([]()) {
+  // Called for each entity implementing (eats, *) relationship.
+  // This can be read as "entity that eats anything".
+  // Triggers for rabbit, hare and wolf.
+}
+
+ecs::Query q2 = w.query().all(ecs::Pair(All, eats));
+q2.each([]()) {
+  // Called for each entity implementing (*, carrot) relationship.
+  // This can be read as "anything that has something with carrot".
+  // Triggers for rabbit and hare.
+}
+
+ecs::Query q3 = w.query().all(ecs::Pair(All, All));
+q3.each([]()) {
+  // Called for each entity implementing (*, *) relationship.
+  // This can be read as "anything that does/has anything".
+  // Triggers for rabbit, hare and wolf.
+}
+```
+
+Multiple components of the same kind can be added to one entity thanks to relationships.
+
+```cpp
+// "eats" is added twice to the entity "rabbit"
+w.pair(rabbit, eats, carrot);
+w.pair(rabbit, eats, salad);
+```
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
