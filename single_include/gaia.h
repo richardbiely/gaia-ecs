@@ -18064,10 +18064,17 @@ namespace gaia {
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
 
+		GAIA_GCC_WARNING_PUSH()
+		// GCC is unnecessarily too strict about shadowing.
+		// We have a globally defined entity All and thinks QueryOp::All shadows it.
+		GAIA_GCC_WARNING_DISABLE("-Wshadow")
+
 		//! Operation type
 		enum class QueryOp : uint8_t { Not, Any, All, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
+
+		GAIA_GCC_WARNING_POP()
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
