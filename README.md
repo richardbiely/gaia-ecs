@@ -25,8 +25,8 @@
 * very simple and safe API
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
-* support for run-time defined tags
-* support for data relationships
+* support for [run-time defined tags](#create-or-delete-entity)
+* support for data [relationships](#relationships)
 * based on [C++17](https://en.cppreference.com/w/cpp/17)
 * no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
@@ -642,6 +642,20 @@ Multiple components of the same kind can be added to one entity thanks to relati
 // "eats" is added twice to the entity "rabbit"
 w.pair(rabbit, eats, carrot);
 w.pair(rabbit, eats, salad);
+```
+
+Relationships can be ended by calling ***ecs::World::unpair***.
+
+```cpp
+// Rabbit no longer eats carrot
+w.unpair(rabbit, eats, carrot);
+```
+
+Whether a realtionship exists can be check via ***ecs::World::has*** just like any other entity presence.
+
+```cpp
+// Checks if rabbit eats carrot
+w.has(rabbit, eats, carrot);
 ```
 
 ## Unique components
