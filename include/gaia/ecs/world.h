@@ -276,12 +276,39 @@ namespace gaia {
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
 				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, entities);
 
-				for (auto entity: entities) {
+				auto regEntity = [&](Entity entity) {
 					const auto it = m_componentToArchetypeMap.find(EntityLookupKey(entity));
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(entity, ArchetypeList{pArchetype});
 					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
+				};
+
+				for (auto entity: entities) {
+					regEntity(entity);
+
+					// If the entity is a pair, make sure to create special wildcard records for it
+					// as well so wildcard queries can find the archetype.
+					if (entity.pair()) {
+						const uint32_t first = entity.id();
+						const uint32_t second = entity.gen();
+
+						// (*, XXX)
+						{
+							Pair pair(GAIA_ID(All), second);
+							regEntity(pair);
+						}
+						// (XXX, *)
+						{
+							Pair pair(first, GAIA_ID(All));
+							regEntity(pair);
+						}
+						// (*, *)
+						{
+							Pair pair(GAIA_ID(All), GAIA_ID(All));
+							regEntity(pair);
+						}
+					}
 				}
 
 				return pArchetype;
@@ -951,10 +978,15 @@ namespace gaia {
 			//! \param src Source entity
 			//! \param relation Relation
 			//! \param tgt Target entity
-			GAIA_NODISCARD void pair(Entity src, Entity relation, Entity tgt) {
+			void pair(Entity src, Entity relation, Entity tgt) {
 				GAIA_ASSERT(valid(src));
 				GAIA_ASSERT(valid(relation));
 				GAIA_ASSERT(valid(tgt));
+
+				// Make sure wildcard are not used
+				GAIA_ASSERT(relation != GAIA_ID(All));
+				GAIA_ASSERT(tgt != GAIA_ID(All));
+
 				add_inter(src, Pair(relation, tgt));
 			}
 
@@ -962,7 +994,7 @@ namespace gaia {
 			//! \param src Source entity
 			//! \param relation Relation
 			//! \param tgt Target entity
-			GAIA_NODISCARD void unpair(Entity src, Entity relation, Entity tgt) {
+			void unpair(Entity src, Entity relation, Entity tgt) {
 				GAIA_ASSERT(valid(src));
 				GAIA_ASSERT(valid(relation));
 				GAIA_ASSERT(valid(tgt));

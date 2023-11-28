@@ -15,22 +15,36 @@ namespace gaia {
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
 
 		//! Operation type
-		enum class QueryOp : uint8_t { All, Any, Not, Count };
+		enum class QueryOp : uint8_t { Not, Any, All, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryArchetypeIndexArray = cnt::sarray_ext<uint32_t, MAX_ITEMS_IN_QUERY>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 		struct QueryItem {
-			Entity entity;
+			Entity id;
 			QueryOp op;
 			QueryAccess access = QueryAccess::Read;
 		};
+
+		struct QueryEntityOpPair {
+			QueryOp op;
+			Entity id;
+
+			bool operator==(const QueryEntityOpPair& other) const {
+				return op == other.op && id == other.id;
+			}
+			bool operator!=(const QueryEntityOpPair& other) const {
+				return !operator==(other);
+			}
+		};
+		using QueryEntityOpPairArray = cnt::sarray_ext<QueryEntityOpPair, MAX_ITEMS_IN_QUERY>;
 
 		struct QueryCtx {
 			ComponentCache* cc{};
@@ -42,14 +56,16 @@ namespace gaia {
 			struct Data {
 				//! List of querried ids
 				QueryEntityArray ids;
-				//! Query operation types
-				QueryOpArray ops;
-				//! Sorted queried ids grouped by op
-				QueryEntityArray ops_ids[(uint32_t)QueryOp::Count];
+				//! List or op::id pairs
+				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
-				uint32_t lastMatchedArchetypeIdx;
+				QueryArchetypeIndexArray lastMatchedArchetypeIdx;
 				//! List of filtered components
 				QueryEntityArray withChanged;
+				//! First NOT record in pairs/ids/ops
+				uint8_t firstNot;
+				//! First ANY record in pairs/ids/ops
+				uint8_t firstAny;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
@@ -72,9 +88,7 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.ids.size() != right.ids.size())
-					return false;
-				if (left.ops.size() != right.ops.size())
+				if (left.pairs.size() != right.pairs.size())
 					return false;
 				if (left.withChanged.size() != right.withChanged.size())
 					return false;
@@ -82,11 +96,7 @@ namespace gaia {
 					return false;
 
 				// Components need to be the same
-				if (left.ids != right.ids)
-					return false;
-
-				// Rules need to be the same
-				if (left.ops != right.ops)
+				if (left.pairs != right.pairs)
 					return false;
 
 				// Filters need to be the same
@@ -101,15 +111,26 @@ namespace gaia {
 			};
 		};
 
+		struct query_sort_cond {
+			constexpr bool operator()(const QueryEntityOpPair& lhs, const QueryEntityOpPair& rhs) const {
+				// Not < Any < All
+				if (lhs.op < rhs.op)
+					return true;
+				// Smaller ids first
+				return lhs.id < rhs.id;
+			}
+		};
+
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
-			core::sort(data.ids, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
-				core::swap(data.ops[left], data.ops[right]);
+				core::swap(data.pairs[left], data.pairs[right]);
+				core::swap(data.lastMatchedArchetypeIdx[left], data.lastMatchedArchetypeIdx[right]);
 
 				// Make sure the read-write mask remains correct after sorting
 				{
@@ -125,9 +146,15 @@ namespace gaia {
 				}
 			});
 
-			// Ids per op need to be sorted
-			GAIA_FOR((uint32_t)QueryOp::Count) {
-				core::sort(data.ops_ids[i], SortComponentCond{});
+			auto& pairs = data.pairs;
+			if (!pairs.empty()) {
+				uint32_t i = 0;
+				while (i < pairs.size() && pairs[i].op == QueryOp::All)
+					++i;
+				data.firstAny = (uint8_t)i;
+				while (i < pairs.size() && pairs[i].op == QueryOp::Any)
+					++i;
+				data.firstNot = (uint8_t)i;
 			}
 		}
 
@@ -140,28 +167,18 @@ namespace gaia {
 
 			auto& data = ctx.data;
 
-			// Components
+			// Ids & ops
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& ids = data.ids;
-				for (const auto id: ids)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ids.size());
+				const auto& pairs = data.pairs;
+				for (auto pair: pairs) {
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
+				}
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)pairs.size());
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
-				hashLookup = core::hash_combine(hashLookup, hash);
-			}
-
-			// Operations
-			{
-				QueryLookupHash::Type hash = 0;
-
-				const auto& ops = data.ops;
-				for (auto op: ops)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)op);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ops.size());
-
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 

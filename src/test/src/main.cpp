@@ -2187,63 +2187,79 @@ TEST_CASE("Relationship") {
 		}
 	}
 
-	// SECTION("Intermediate") {
-	// 	auto wolf = w.add();
-	// 	auto hare = w.add();
-	// 	auto rabbit = w.add();
-	// 	auto carrot = w.add();
-	// 	auto eats = w.add();
+	SECTION("Intermediate") {
+		auto wolf = w.add();
+		auto hare = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
 
-	// 	w.pair(rabbit, eats, carrot);
-	// 	w.pair(hare, eats, carrot);
-	// 	w.pair(wolf, eats, rabbit);
+		w.pair(rabbit, eats, carrot);
+		w.pair(hare, eats, carrot);
+		w.pair(wolf, eats, rabbit);
 
-	// 	{
-	// 		auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
-	// 		const auto cnt = q.count();
-	// 		REQUIRE(cnt == 2);
+		{
+			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			const auto cnt = q.count();
+			REQUIRE(cnt == 2);
 
-	// 		uint32_t i = 0;
-	// 		q.each([&](ecs::Entity entity) {
-	// 			const bool isRabbit = entity == rabbit;
-	// 			const bool isHare = entity == hare;
-	// 			const bool is = isRabbit || isHare;
-	// 			REQUIRE(is);
-	// 			++i;
-	// 		});
-	// 		REQUIRE(i == cnt);
-	// 	}
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				const bool isRabbit = entity == rabbit;
+				const bool isHare = entity == hare;
+				const bool is = isRabbit || isHare;
+				REQUIRE(is);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
 
-	// 	{
-	// 		auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
-	// 		const auto cnt = q.count();
-	// 		REQUIRE(cnt == 1);
+		{
+			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
 
-	// 		uint32_t i = 0;
-	// 		q.each([&](ecs::Entity entity) {
-	// 			REQUIRE(entity == wolf);
-	// 			++i;
-	// 		});
-	// 		REQUIRE(i == cnt);
-	// 	}
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == wolf);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
 
-	// 	{
-	// 		auto q = w.query().add({ecs::Pair(eats, ecs::GAIA_ID(All)), ecs::QueryOp::All, ecs::QueryAccess::None});
-	// 		const auto cnt = q.count();
-	// 		REQUIRE(cnt == 3);
+		{
+			auto q = w.query().add({ecs::Pair(eats, ecs::GAIA_ID(All)), ecs::QueryOp::All, ecs::QueryAccess::None});
+			const auto cnt = q.count();
+			REQUIRE(cnt == 3);
 
-	// 		uint32_t i = 0;
-	// 		q.each([&](ecs::Entity entity) {
-	// 			const bool isRabbit = entity == rabbit;
-	// 			const bool isHare = entity == hare;
-	// 			const bool isWolf = entity == wolf;
-	// 			const bool is = isRabbit || isHare || isWolf;
-	// 			REQUIRE(is);
-	// 			++i;
-	// 		});
-	// 		REQUIRE(i == cnt);
-	// 	}
-	// }
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				const bool isRabbit = entity == rabbit;
+				const bool isHare = entity == hare;
+				const bool isWolf = entity == wolf;
+				const bool is = isRabbit || isHare || isWolf;
+				REQUIRE(is);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+
+		{
+			auto q = w.query().add({ecs::Pair(ecs::GAIA_ID(All), carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			const auto cnt = q.count();
+			REQUIRE(cnt == 2);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				const bool isRabbit = entity == rabbit;
+				const bool isHare = entity == hare;
+				const bool is = isRabbit || isHare;
+				REQUIRE(is);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+	}
 }
 
 template <typename TQuery>

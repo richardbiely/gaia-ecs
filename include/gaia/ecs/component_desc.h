@@ -13,7 +13,6 @@
 #include "../meta/reflection.h"
 #include "../meta/type_info.h"
 #include "component.h"
-#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {

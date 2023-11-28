@@ -65,19 +65,18 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& ops = data.ops;
-						auto& ops_ids = data.ops_ids;
+						auto& pairs = data.pairs;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 
 						// Unique component ids only
-						GAIA_ASSERT(!core::has(ids, item.entity));
+						GAIA_ASSERT(!core::has(ids, item.id));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of query items which we can store
 						if (ids.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							const auto* name = ctx.cc->get(item.entity).name.str();
+							const auto* name = ctx.cc->get(item.id).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
 							return;
 						}
@@ -86,10 +85,9 @@ namespace gaia {
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
 
-						ids.push_back(item.entity);
-						ops.push_back(item.op);
-						ops_ids[(uint32_t)item.op].push_back(item.entity);
-						lastMatchedArchetypeIdx = 0;
+						ids.push_back(item.id);
+						pairs.push_back({item.op, item.id});
+						lastMatchedArchetypeIdx.push_back(0);
 					}
 				};
 
@@ -102,7 +100,7 @@ namespace gaia {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
 						auto& withChanged = data.withChanged;
-						const auto& ops = data.ops;
+						const auto& pair = data.pairs;
 
 						GAIA_ASSERT(core::has(ids, comp));
 						GAIA_ASSERT(!core::has(withChanged, comp));
@@ -129,7 +127,7 @@ namespace gaia {
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (ops[compIdx] != QueryOp::Not) {
+						if (pair[compIdx].op != QueryOp::Not) {
 							withChanged.push_back(comp);
 							return;
 						}
@@ -169,6 +167,8 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
+				//! List of world's entity records
+				const cnt::ilist<EntityContainer, Entity>* m_entities{};
 
 				//--------------------------------------------------------------------------------
 			public:

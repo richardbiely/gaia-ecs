@@ -12,7 +12,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
-#include "gaia/ecs/id.h"
+#include "id.h"
 #include "query_common.h"
 
 namespace gaia {
@@ -47,10 +47,10 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data;
 					const auto& ids = data.ids;
 
-					const auto comp = m_lookupCtx.cc->get<T>().entity;
-					const auto compIdx = ecs::comp_idx<MAX_ITEMS_IN_QUERY>(ids.data(), comp);
+					const auto id = m_lookupCtx.cc->get<T>().entity;
+					const auto compIdx = ecs::comp_idx<MAX_ITEMS_IN_QUERY>(ids.data(), id);
 
-					if (op != data.ops[compIdx])
+					if (op != data.pairs[compIdx].op)
 						return false;
 
 					// Read-write mask must match
@@ -75,9 +75,7 @@ namespace gaia {
 			//! the comparison function \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool match_inter(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds, Func func) const {
-				const auto& data = m_lookupCtx.data;
-
+			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds, Func func) const {
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
 				uint32_t j = 0;
@@ -102,20 +100,67 @@ namespace gaia {
 			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
 			//! the comparison function \param func.
 			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds) const {
-				return match_inter(queryIds, archetypeIds, [](Entity comp, Entity compQuery) {
-					return comp == compQuery;
+			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
+				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
+					// TODO: Comparison inside match_inter is slow. Do something about it.
+					//       Ideally we want to do "idQuery == idArchetype" here.
+					if (idQuery.pair()) {
+						// all(Pair<X, All>):
+						//   X, AAA
+						//   X, BBB
+						//   ...
+						//   X, ZZZ
+						if (idQuery.gen() == GAIA_ID(All).id())
+							return idQuery.id() == idArchetype.id();
+
+						// all(Pair<All, X>):
+						//   AAA, X
+						//   BBB, X
+						//   ...
+						//   ZZZ, X
+						if (idQuery.id() == GAIA_ID(All).id())
+							return idQuery.gen() == idArchetype.gen();
+
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
+							return true;
+					}
+
+					return idQuery == idArchetype;
 				});
 			}
 
 			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
 			//! the comparison function \param func.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(EntitySpan queryIds, const Chunk::EntityArray& archetypeIds) const {
+			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
 				uint32_t matches = 0;
-				const auto& data = m_lookupCtx.data;
-				return match_inter(queryIds, archetypeIds, [&](Entity comp, Entity compQuery) {
-					return comp == compQuery && (++matches == (int32_t)queryIds.size());
+				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
+					// TODO: Comparison inside match_inter is slow. Do something about it.
+					//       Ideally we want to do "idQuery == idArchetype" here.
+					if (idQuery.pair()) {
+						// all(Pair<X, All>):
+						//   X, AAA
+						//   X, BBB
+						//   ...
+						//   X, ZZZ
+						if (idQuery.gen() == GAIA_ID(All).id())
+							return idQuery.id() == idArchetype.id() && (++matches == (uint32_t)queryIds.size());
+
+						// all(Pair<All, X>):
+						//   AAA, X
+						//   BBB, X
+						//   ...
+						//   ZZZ, X
+						if (idQuery.id() == GAIA_ID(All).id())
+							return idQuery.gen() == idArchetype.gen() && (++matches == (uint32_t)queryIds.size());
+
+						// all(Pair<All, All>) aka "any pair"
+						if (idQuery == Pair(GAIA_ID(All), GAIA_ID(All)))
+							return ++matches == (uint32_t)queryIds.size();
+					}
+
+					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
 				});
 			}
 
@@ -146,9 +191,46 @@ namespace gaia {
 				return !operator==(other);
 			}
 
+			void match(
+					uint32_t firstArchetypeIdx,
+					// matched archetypes
+					cnt::set<Archetype*>& matchedArchetypes,
+					// list of archetypes associated with a given id/entity
+					const ArchetypeList& archetypes, EntitySpan ops_ids_not, EntitySpan ops_ids_any, EntitySpan ops_ids_all) {
+				for (uint32_t j = firstArchetypeIdx; j < archetypes.size(); ++j) {
+					auto* pArchetype = archetypes[j];
+					if (pArchetype == nullptr || matchedArchetypes.contains(pArchetype))
+						continue;
+
+					// Eliminate archetypes not matching the NOT rule
+					if (!ops_ids_not.empty() && match_one(pArchetype->entities(), ops_ids_not))
+						continue;
+					// Eliminate archetypes not matching the ANY rule
+					if (!ops_ids_any.empty() && !match_one(pArchetype->entities(), ops_ids_any))
+						continue;
+					// Eliminate archetypes not matching the ALL rule
+					if (!ops_ids_all.empty() && !match_all(pArchetype->entities(), ops_ids_all))
+						continue;
+
+					matchedArchetypes.emplace(archetypes[j]);
+				}
+			}
+
 			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			void match(const ComponentIdToArchetypeMap& componentToArchetypeMap, ArchetypeId archetypeLastId) {
+			void match(
+					// component -> archetypes mapping
+					const ComponentIdToArchetypeMap& componentToArchetypeMap,
+					// last matched archetype id
+					ArchetypeId archetypeLastId) {
+				static cnt::set<Archetype*> s_tmpArchetypeMatches;
+
+				struct CleanUpTmpArchetypeMatches {
+					~CleanUpTmpArchetypeMatches() {
+						s_tmpArchetypeMatches.clear();
+					}
+				} autoCleanup;
+
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
 				if (m_lastArchetypeId == archetypeLastId)
@@ -158,77 +240,104 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& data = m_lookupCtx.data;
-				if (data.ids.empty())
+				const auto& ids = data.ids;
+				if (ids.empty())
 					return;
 
-				const auto& ops_ids_not = data.ops_ids[(uint32_t)QueryOp::Not];
-				const auto& ops_ids_any = data.ops_ids[(uint32_t)QueryOp::Any];
-				const auto& ops_ids_all = data.ops_ids[(uint32_t)QueryOp::All];
+				cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> cache;
+				uint32_t jj = 0;
+
+				EntitySpan ops_ids{ids.data(), ids.size()};
+				EntitySpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
+				EntitySpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
+				EntitySpan ops_ids_not = ops_ids.subspan(data.firstNot);
 
 				if (!ops_ids_all.empty()) {
-					// Check if any archetype is associated with the entity id
-					const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_all[0]));
-					if (it == componentToArchetypeMap.end())
-						return;
+					GAIA_EACH(ops_ids_all) {
+						// Check if any archetype is associated with the entity id.
+						// All ids must be registered in the world.
+						const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_all[i]));
+						if (it == componentToArchetypeMap.end() || it->second.empty())
+							return;
 
-					// Start from the item 1 instead of 0.
-					// Item 0 is guaranteed to be found because we checked it in the component->archetype map.
-					EntitySpan s{ops_ids_all.data() + 1, ops_ids_all.size() - 1};
-
-					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx;
-					const auto& archetypes = it->second;
-					data.lastMatchedArchetypeIdx = archetypes.size();
-
-					for (uint32_t j = lastMatchedIdx; j < archetypes.size();) {
-						auto* pArchetype = archetypes[j];
-
-						// Eliminate all archetypes not matching the NOT rule
-						if (!ops_ids_not.empty() && match_one({ops_ids_not.data(), ops_ids_not.size()}, pArchetype->entities()))
-							goto nextIterationAll;
-
-						// Eliminate all archetypes not matching the ANY rule
-						if (!ops_ids_any.empty() && !match_one({ops_ids_any.data(), ops_ids_any.size()}, pArchetype->entities()))
-							goto nextIterationAll;
-
-						// Eliminate all archetypes not matching the ALL rule
-						if (!s.empty() && !match_all(s, pArchetype->entities()))
-							goto nextIterationAll;
-
-						m_archetypeCache.push_back(archetypes[j]);
-
-					nextIterationAll:
-						++j;
+						cache.push_back(&it->second);
 					}
-				} else if (!ops_ids_any.empty()) {
-					// Check if any archetype is associated with any of the "Any" entity ids
-					ComponentIdToArchetypeMap::const_iterator it;
-					GAIA_EACH(ops_ids_any) {
-						it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
-						if (it == componentToArchetypeMap.end())
-							continue;
-						break;
+					GAIA_EACH(ops_ids_all) {
+						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
+						const auto& archetypes = *cache[i];
+						data.lastMatchedArchetypeIdx[jj++] = archetypes.size();
+						match(lastMatchedIdx, s_tmpArchetypeMatches, archetypes, ops_ids_not, ops_ids_any, ops_ids_all);
 					}
 
-					if (it == componentToArchetypeMap.end())
-						return;
-
-					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx;
-					const auto& archetypes = it->second;
-					data.lastMatchedArchetypeIdx = archetypes.size();
-
-					if (!ops_ids_not.empty()) {
-						for (uint32_t j = lastMatchedIdx; j < archetypes.size(); ++j) {
-							auto* pArchetype = archetypes[j];
-
-							// Eliminate all archetypes not matching the NOT rule
-							if (match_one({ops_ids_not.data(), ops_ids_not.size()}, pArchetype->entities()))
+					if (!ops_ids_any.empty()) {
+						cache.clear();
+						GAIA_EACH(ops_ids_any) {
+							// Check if any archetype is associated with the entity id.
+							// All ids must be registered in the world.
+							const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
+							if (it == componentToArchetypeMap.end() || it->second.empty()) {
+								cache.push_back(nullptr);
 								continue;
+							}
 
+							cache.push_back(&it->second);
+						}
+						if (cache.empty())
+							return;
+					}
+					GAIA_EACH(ops_ids_any) {
+						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
+						const auto& archetypes = *cache[i];
+						data.lastMatchedArchetypeIdx[jj++] = archetypes.size();
+						match(lastMatchedIdx, s_tmpArchetypeMatches, archetypes, ops_ids_not, ops_ids_any, ops_ids_all);
+					}
+
+					// Make sure there is no match with NOT items.
+					// It is possible they were not a part of previous archetypes.
+					if (ops_ids_not.empty()) {
+						for (auto* pArchetype: s_tmpArchetypeMatches) {
+							if (match_one(pArchetype->entities(), ops_ids_not))
+								continue;
 							m_archetypeCache.push_back(pArchetype);
 						}
 					} else {
-						for (uint32_t j = lastMatchedIdx; j < archetypes.size(); ++j)
-							m_archetypeCache.push_back(archetypes[j]);
+						for (auto* pArchetype: s_tmpArchetypeMatches) {
+							m_archetypeCache.push_back(pArchetype);
+						}
+					}
+				} else if (!ops_ids_any.empty()) {
+					GAIA_EACH(ops_ids_any) {
+						// Check if any archetype is associated with the entity id.
+						// All ids must be registered in the world.
+						const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
+						if (it == componentToArchetypeMap.end() || it->second.empty()) {
+							cache.push_back(nullptr);
+							continue;
+						}
+
+						cache.push_back(&it->second);
+					}
+					if (cache.empty())
+						return;
+					GAIA_EACH(ops_ids_any) {
+						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
+						const auto& archetypes = *cache[i];
+						data.lastMatchedArchetypeIdx[jj++] = archetypes.size();
+						match(lastMatchedIdx, s_tmpArchetypeMatches, archetypes, ops_ids_not, ops_ids_any, ops_ids_all);
+					}
+
+					// Make sure there is no match with NOT items.
+					// It is possible they were not a part of previous archetypes.
+					if (ops_ids_not.empty()) {
+						for (auto* pArchetype: s_tmpArchetypeMatches) {
+							if (match_one(pArchetype->entities(), ops_ids_not))
+								continue;
+							m_archetypeCache.push_back(pArchetype);
+						}
+					} else {
+						for (auto* pArchetype: s_tmpArchetypeMatches) {
+							m_archetypeCache.push_back(pArchetype);
+						}
 					}
 				} else {
 					GAIA_ASSERT2(false, "Querying exclusively for NOT items is not supported yet");
@@ -280,11 +389,12 @@ namespace gaia {
 					return;
 				core::erase_fast(m_archetypeCache, idx);
 
-				// An archetype was removed from the world so the last matching archetype index
-				// needs to be lowered by one.
-				auto& lastMatchedArchetypeIdx = m_lookupCtx.data.lastMatchedArchetypeIdx;
-				if (lastMatchedArchetypeIdx > 0)
-					--lastMatchedArchetypeIdx;
+				// An archetype was removed from the world so the last matching archetype index needs to be
+				// lowered by one for every component context.
+				for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
+					if (lastMatchedArchetypeIdx > 0)
+						--lastMatchedArchetypeIdx;
+				}
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
