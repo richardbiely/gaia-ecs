@@ -375,22 +375,19 @@ namespace gaia {
 			}
 
 			/*!
-			Removes a chunk from the list of chunks managed by their archetype.
+			Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
-			void remove_chunk(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToRemove) {
+			void del(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToDelete) {
 				const auto chunkIndex = pChunk->idx();
 
 				Chunk::free(pChunk);
 
-				auto remove = [&](auto& chunkArray) {
-					if (chunkArray.size() > 1)
-						chunkArray.back()->set_idx(chunkIndex);
-					GAIA_ASSERT(chunkIndex == core::get_index(chunkArray, pChunk));
-					core::erase_fast(chunkArray, chunkIndex);
-				};
-
-				remove(m_chunks);
+				// Remove the chunk from the chunk array
+				if (m_chunks.size() > 1)
+					m_chunks.back()->set_idx(chunkIndex);
+				GAIA_ASSERT(chunkIndex == core::get_index(m_chunks, pChunk));
+				core::erase_fast(m_chunks, chunkIndex);
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
@@ -410,15 +407,15 @@ namespace gaia {
 					// record for removal for any given chunk.
 					start_dying();
 
-					archetypesToRemove.push_back(this);
+					archetypesToDelete.push_back(this);
 				}
 			}
 
 			//! Defragments the chunk.
 			//! \param maxEntites Maximum number of entities moved per call
-			//! \param chunksToRemove Container of chunks ready for removal
+			//! \param chunksToDelete Container of chunks ready for removal
 			//! \param entities Container with entities
-			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
+			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, std::span<EntityContainer> entities) {
 				// Assuming the following chunk layout:
 				//   Chunk_1: 10/10
 				//   Chunk_2:  1/10
@@ -505,7 +502,7 @@ namespace gaia {
 						enable_entity(pDstChunk, newRow, wasEnabled, entities);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldRow, entities, chunksToRemove);
+						pSrcChunk->remove_entity(oldRow, entities, chunksToDelete);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -696,8 +693,7 @@ namespace gaia {
 						"hashLookup:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash,
-						(uint32_t)archetype.chunks().size(),
+						archetype.id(), archetype.lookup_hash().hash, (uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
@@ -707,9 +703,8 @@ namespace gaia {
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
-								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
-								desc.hashLookup.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
-								EntityKindString[entity.kind()]);
+								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash,
+								desc.comp.size(), desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
 					}
 				};
 

@@ -16028,10 +16028,11 @@ namespace gaia {
 			}
 
 			/*!
-			Remove the last entity from chunk.
-			\param chunksToRemove Container of chunks ready for removal
+			Remove the last entity from a chunk.
+			If as a result the chunk becomes empty it is scheduled for deletion.
+			\param chunksToDelete Container of chunks ready for deletion
 			*/
-			void remove_last_entity(cnt::darray<Chunk*>& chunksToRemove) {
+			void remove_last_entity(cnt::darray<Chunk*>& chunksToDelete) {
 				remove_last_entity_inter();
 
 				// TODO: This needs cleaning up.
@@ -16052,7 +16053,7 @@ namespace gaia {
 					// record for removal for any given chunk.
 					start_dying();
 
-					chunksToRemove.push_back(this);
+					chunksToDelete.push_back(this);
 				}
 			}
 
@@ -16404,7 +16405,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToRemove) {
+			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToDelete) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -16431,7 +16432,7 @@ namespace gaia {
 				}
 
 				// At this point the last entity is no longer valid so remove it
-				remove_last_entity(chunksToRemove);
+				remove_last_entity(chunksToDelete);
 			}
 
 			/*!
@@ -17266,22 +17267,19 @@ namespace gaia {
 			}
 
 			/*!
-			Removes a chunk from the list of chunks managed by their archetype.
+			Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
-			void remove_chunk(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToRemove) {
+			void del(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToDelete) {
 				const auto chunkIndex = pChunk->idx();
 
 				Chunk::free(pChunk);
 
-				auto remove = [&](auto& chunkArray) {
-					if (chunkArray.size() > 1)
-						chunkArray.back()->set_idx(chunkIndex);
-					GAIA_ASSERT(chunkIndex == core::get_index(chunkArray, pChunk));
-					core::erase_fast(chunkArray, chunkIndex);
-				};
-
-				remove(m_chunks);
+				// Remove the chunk from the chunk array
+				if (m_chunks.size() > 1)
+					m_chunks.back()->set_idx(chunkIndex);
+				GAIA_ASSERT(chunkIndex == core::get_index(m_chunks, pChunk));
+				core::erase_fast(m_chunks, chunkIndex);
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
@@ -17301,15 +17299,15 @@ namespace gaia {
 					// record for removal for any given chunk.
 					start_dying();
 
-					archetypesToRemove.push_back(this);
+					archetypesToDelete.push_back(this);
 				}
 			}
 
 			//! Defragments the chunk.
 			//! \param maxEntites Maximum number of entities moved per call
-			//! \param chunksToRemove Container of chunks ready for removal
+			//! \param chunksToDelete Container of chunks ready for removal
 			//! \param entities Container with entities
-			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
+			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, std::span<EntityContainer> entities) {
 				// Assuming the following chunk layout:
 				//   Chunk_1: 10/10
 				//   Chunk_2:  1/10
@@ -17396,7 +17394,7 @@ namespace gaia {
 						enable_entity(pDstChunk, newRow, wasEnabled, entities);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldRow, entities, chunksToRemove);
+						pSrcChunk->remove_entity(oldRow, entities, chunksToDelete);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -17587,8 +17585,7 @@ namespace gaia {
 						"hashLookup:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash,
-						(uint32_t)archetype.chunks().size(),
+						archetype.id(), archetype.lookup_hash().hash, (uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
@@ -17598,9 +17595,8 @@ namespace gaia {
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
-								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]",
-								desc.hashLookup.hash, desc.comp.size(), desc.comp.alig(), desc.name.str(),
-								EntityKindString[entity.kind()]);
+								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash,
+								desc.comp.size(), desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
 					}
 				};
 
@@ -19575,9 +19571,9 @@ namespace gaia {
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
 			//! List of chunks to delete
-			cnt::darray<Chunk*> m_chunksToRemove;
+			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
-			cnt::darray<Archetype*> m_archetypesToRemove;
+			cnt::darray<Archetype*> m_archetypesToDel;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
 			//! Maximum number of entities to defragment per world tick
@@ -19596,14 +19592,14 @@ namespace gaia {
 				pChunk->remove_entity(
 						row,
 						// entities
-						{m_entities.data(), m_entities.size()}, m_chunksToRemove);
+						{m_entities.data(), m_entities.size()}, m_chunksToDel);
 
 				pChunk->update_versions();
 			}
 
 			//! Delete an empty chunk from its archetype
-			void remove_empty_chunk(Chunk* pChunk) {
-				GAIA_PROF_SCOPE(world::remove_empty_chunk);
+			void del_empty_chunk(Chunk* pChunk) {
+				GAIA_PROF_SCOPE(world::del_empty_chunk);
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
@@ -19623,20 +19619,20 @@ namespace gaia {
 				auto* pArchetype = find_archetype({hashLookup}, {ents.data(), ents.size()});
 				GAIA_ASSERT(pArchetype != nullptr);
 
-				pArchetype->remove_chunk(pChunk, m_archetypesToRemove);
+				pArchetype->del(pChunk, m_archetypesToDel);
 			}
 
 			//! Delete all chunks which are empty (have no entities) and have not been used in a while
-			void remove_empty_chunks() {
-				GAIA_PROF_SCOPE(world::remove_empty_chunks);
+			void del_empty_chunk() {
+				GAIA_PROF_SCOPE(world::del_empty_chunk);
 
-				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
-					auto* pChunk = m_chunksToRemove[i];
+				for (uint32_t i = 0; i < m_chunksToDel.size();) {
+					auto* pChunk = m_chunksToDel[i];
 
 					// Skip reclaimed chunks
 					if (!pChunk->empty()) {
 						pChunk->revive();
-						core::erase_fast(m_chunksToRemove, i);
+						core::erase_fast(m_chunksToDel, i);
 						continue;
 					}
 
@@ -19647,14 +19643,14 @@ namespace gaia {
 					}
 
 					// Remove unused chunks
-					remove_empty_chunk(pChunk);
-					core::erase_fast(m_chunksToRemove, i);
+					del_empty_chunk(pChunk);
+					core::erase_fast(m_chunksToDel, i);
 				}
 			}
 
-			//! Delete an empty archetype from the world
-			void remove_empty_archetype(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(world::remove_empty_archetype);
+			//! Delete an archetype from the world
+			void del_empty_archetype(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(world::del_empty_archetype);
 
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pArchetype->empty());
@@ -19673,30 +19669,26 @@ namespace gaia {
 						m_defragLastArchetypeID = it->second->id();
 				}
 
-				const auto& ents = pArchetype->entities();
-				auto tmpArchetype = ArchetypeLookupChecker({ents.data(), ents.size()});
-				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
-				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(pArchetype->id());
+				unreg_archetype(pArchetype);
 			}
 
 			//! Delete all archetypes which are empty (have no used chunks) and have not been used in a while
-			void remove_empty_archetypes() {
-				GAIA_PROF_SCOPE(world::remove_empty_archetypes);
+			void del_empty_archetypes() {
+				GAIA_PROF_SCOPE(world::del_empty_archetypes);
 
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
-				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
-					auto* pArchetype = m_archetypesToRemove[i];
+				for (uint32_t i = 0; i < m_archetypesToDel.size();) {
+					auto* pArchetype = m_archetypesToDel[i];
 
 					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
 						pArchetype->revive();
-						core::erase_fast(m_archetypesToRemove, i);
+						core::erase_fast(m_archetypesToDel, i);
 						continue;
 					}
 
-					// Skip chunks which still has some lifetime left
+					// Skip archetypes which still has some lifetime left
 					if (pArchetype->progress_death()) {
 						++i;
 						continue;
@@ -19704,9 +19696,9 @@ namespace gaia {
 
 					tmp.push_back(pArchetype);
 
-					// Remove the unused archetype
-					remove_empty_archetype(pArchetype);
-					core::erase_fast(m_archetypesToRemove, i);
+					// Remove the unused archetypes
+					del_empty_archetype(pArchetype);
+					core::erase_fast(m_archetypesToDel, i);
 				}
 
 				// Remove all dead archetypes from query caches.
@@ -19740,7 +19732,7 @@ namespace gaia {
 				GAIA_FOR(maxIters) {
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
 					pArchetype->defrag(
-							maxEntities, m_chunksToRemove,
+							maxEntities, m_chunksToDel,
 							// entities
 							{m_entities.data(), m_entities.size()});
 					if (maxEntities == 0)
@@ -19809,6 +19801,8 @@ namespace gaia {
 			//! Registers the archetype in the world.
 			//! \param pArchetype Archetype to register.
 			void reg_archetype(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+
 				// Make sure hashes were set already
 				GAIA_ASSERT(
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
@@ -19819,6 +19813,25 @@ namespace gaia {
 				// Register the archetype
 				m_archetypesById.emplace(pArchetype->id(), pArchetype);
 				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+			}
+
+			//! Unregisters the archetype in the world.
+			//! \param pArchetype Archetype to register.
+			void unreg_archetype(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				// Make sure hashes were set already
+				GAIA_ASSERT(
+						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
+
+				// Make sure the archetype was registered already
+				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
+
+				const auto& ents = pArchetype->entities();
+				auto tmpArchetype = ArchetypeLookupChecker({ents.data(), ents.size()});
+				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
+				m_archetypesByHash.erase(key);
+				m_archetypesById.erase(pArchetype->id());
 			}
 
 #if GAIA_DEBUG
@@ -19862,8 +19875,8 @@ namespace gaia {
 			}
 #endif
 
-			//! Searches for an archetype which is formed by adding entity \param entity of entity kind \param kind to
-			//! \param pArchetypeLeft. If no such archetype is found a new one is created.
+			//! Searches for an archetype which is formed by adding entity \param entity of \param pArchetypeLeft.
+			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
 			//! \param entity Enity we want to add.
 			//! \return Archetype pointer.
@@ -19922,12 +19935,12 @@ namespace gaia {
 				return pArchetypeRight;
 			}
 
-			//! Searches for an archetype which is formed by removing \param kind from \param pArchetypeRight.
+			//! Searches for an archetype which is formed by removing entity \param entity from \param pArchetypeRight.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeRight Archetype we originate from.
 			//! \param entity Component we want to remove.
 			//! \return Pointer to archetype.
-			GAIA_NODISCARD Archetype* foc_archetype_del_comp(Archetype* pArchetypeRight, Entity entity) {
+			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity) {
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->find_edge_left(entity);
@@ -20195,7 +20208,7 @@ namespace gaia {
 					verify_del(m_world, *m_pArchetype, m_entity, object);
 #endif
 
-					m_pArchetype = m_world.foc_archetype_del_comp(m_pArchetype, object);
+					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, object);
 
 					return *this;
 				}
@@ -20354,9 +20367,9 @@ namespace gaia {
 			void gc() {
 				GAIA_PROF_SCOPE(world::gc);
 
-				remove_empty_chunks();
+				del_empty_chunk();
 				defrag_chunks(m_defragEntitesPerTick);
-				remove_empty_archetypes();
+				del_empty_archetypes();
 			}
 
 		public:
@@ -20424,8 +20437,8 @@ namespace gaia {
 
 					m_archetypesById = {};
 					m_archetypesByHash = {};
-					m_chunksToRemove = {};
-					m_archetypesToRemove = {};
+					m_chunksToDel = {};
+					m_archetypesToDel = {};
 				}
 
 				// Clear caches
@@ -21615,7 +21628,7 @@ namespace gaia {
 			//! List of new systems which need to be initialised
 			cnt::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			cnt::darray<BaseSystem*> m_systemsToRemove;
+			cnt::darray<BaseSystem*> m_systemsToDelete;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
@@ -21642,7 +21655,7 @@ namespace gaia {
 				m_systemsMap.clear();
 
 				m_systemsToCreate.clear();
-				m_systemsToRemove.clear();
+				m_systemsToDelete.clear();
 			}
 
 			void cleanup() {
@@ -21652,20 +21665,20 @@ namespace gaia {
 
 			void update() {
 				// Remove all systems queued to be destroyed
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->enable(false);
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->OnCleanup();
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->OnDestroyed();
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					m_systemsMap.erase({pSystem->m_hash});
-				for (auto* pSystem: m_systemsToRemove) {
+				for (auto* pSystem: m_systemsToDelete) {
 					m_systems.erase(core::find(m_systems, pSystem));
 				}
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					delete pSystem;
-				m_systemsToRemove.clear();
+				m_systemsToDelete.clear();
 
 				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
 					// Sort systems if necessary
@@ -21737,7 +21750,7 @@ namespace gaia {
 				pSystem->set_destroyed(true);
 
 				// Request removal of the system
-				m_systemsToRemove.push_back(pSystem);
+				m_systemsToDelete.push_back(pSystem);
 			}
 
 			template <typename T>

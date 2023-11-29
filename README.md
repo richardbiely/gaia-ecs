@@ -166,7 +166,7 @@ ecs::Entity e_by_name = w.get("my_unique_name");
 w.name(e, nullptr);
 ```
 
-If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***ecs::world::name_raw*** to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
+If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***World::name_raw*** to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
 
 ```cpp
 const char* pUserManagedString = ...;
@@ -246,7 +246,7 @@ w.bulk(e)
  .add<Something1, Something2, Something3>();
 ```
 
-It is also possible to manually commit all changes by calling ***commit()***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
+It is also possible to manually commit all changes by calling ***CompMoveHelper::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
 ecs::CompMoveHelper builder = w.bulk(e);
@@ -260,7 +260,7 @@ if (some_conditon) {
 builder.commit();
 ```
 
->**NOTE:**<br/>Once ***commit()*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
+>**NOTE:**<br/>Once ***CompMoveHelper::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
 
 
 ### Set or get component value
@@ -284,10 +284,10 @@ w.set(e)
   .set...;
 ```
 
-Similar to ***bulk()*** you can also use the setter object in scenarios with complex logic.
+Similar to ***CompMoveHelper::bulk*** you can also use the setter object in scenarios with complex logic.
 
 ```cpp
-auto setter = w.set(e);
+ecs::ComponentSetter setter = w.set(e);
 setter.set<Velocity>({0, 0, 2});
 if (some_condition)
   setter.set<Position>({0, 100, 0});
@@ -421,7 +421,7 @@ q.add({p, QueryOp::All, QueryAccess::Write})
 ```
 
 ### Iteration
-To process data from queries one uses the ***ecs::Query::each*** function.
+To process data from queries one uses the ***Query::each*** function.
 It accepts either a list of components or an iterator as its argument.
 
 ```cpp
@@ -445,9 +445,9 @@ Processing via an iterator gives you even more expressive power and also opens d
 Iterator is an abstraction above underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
-1) ***ecs::Iterator*** - iterates over enabled entities
-2) ***ecs::IteratorDisabled*** - iterates over distabled entities
-3) ***ecs::IteratorAll*** - iterate over all entities
+1) ***Iterator*** - iterates over enabled entities
+2) ***IteratorDisabled*** - iterates over distabled entities
+3) ***IteratorAll*** - iterate over all entities
 
 ```cpp
 ecs::Query q = w.query();
@@ -581,7 +581,7 @@ q.each([&](Position& p, const Velocity& v) {
 ## Relationships
 Relationships are a mechanism to create entity graphs and queries. They are a powerful feature allowing you to express hierarchies for example and even effectively allow you to add multiple components of the same type to an entity.
 
-Relationship pair is created by calling ***world::pair()***.
+Relationship pair is created by calling ***World::pair***.
 
 ```cpp
 ecs::World w;
@@ -644,14 +644,14 @@ w.pair(rabbit, eats, carrot);
 w.pair(rabbit, eats, salad);
 ```
 
-Relationships can be ended by calling ***ecs::World::unpair***.
+Relationships can be ended by calling ***World::unpair***.
 
 ```cpp
 // Rabbit no longer eats carrot
 w.unpair(rabbit, eats, carrot);
 ```
 
-Whether a realtionship exists can be check via ***ecs::World::has*** just like any other entity presence.
+Whether a realtionship exists can be check via ***World::has*** just like any other entity presence.
 
 ```cpp
 // Checks if rabbit eats carrot
@@ -898,7 +898,7 @@ struct CustomStruct {
 ## Multithreading
 To fully utilize your system's potential **Gaia-ECS** allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
-Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
+Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***ThreadPool::sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
 ```cpp
 mt::Job job0 {[]() {
   InitializeScriptEngine();
@@ -906,6 +906,8 @@ mt::Job job0 {[]() {
 mt::Job job1 {[]() {
   InitializeAudioEngine();
 }};
+
+ThreadPool &tp = ThreadPool::get();
 
 // Schedule jobs for parallel execution
 mt::JobHandle jobHandle0 = tp.sched(job0);
@@ -917,15 +919,15 @@ tp.wait(jobHandle1);
 ```
 
 >**NOTE:<br/>**
-It is important to call ***wait*** for each scheduled ***JobHandle*** because it also performs cleanup.
+It is important to call ***ThreadPool::wait*** for each scheduled ***JobHandle*** because it also performs cleanup.
 
-Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
+Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***ThreadPool::wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
 ```cpp
 // Wait for all jobs to complete
 tp.wait_all();
 ```
 
-When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***sched_par*** is for. 
+When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ThreadPool::sched_par*** is for. 
 
 ```cpp
 static uint32_t SumNumbers(std::span<const uint32_t> arr) {
@@ -959,7 +961,7 @@ tp.wait(jobHandle);
 GAIA_LOG("Sum: %u\n", sum);
 ```
 
-A similar result can be achieved via ***sched***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
+A similar result can be achieved via ***ThreadPool::sched***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
 
 ```cpp
 ...

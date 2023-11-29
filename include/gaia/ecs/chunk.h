@@ -337,10 +337,11 @@ namespace gaia {
 			}
 
 			/*!
-			Remove the last entity from chunk.
-			\param chunksToRemove Container of chunks ready for removal
+			Remove the last entity from a chunk.
+			If as a result the chunk becomes empty it is scheduled for deletion.
+			\param chunksToDelete Container of chunks ready for deletion
 			*/
-			void remove_last_entity(cnt::darray<Chunk*>& chunksToRemove) {
+			void remove_last_entity(cnt::darray<Chunk*>& chunksToDelete) {
 				remove_last_entity_inter();
 
 				// TODO: This needs cleaning up.
@@ -361,7 +362,7 @@ namespace gaia {
 					// record for removal for any given chunk.
 					start_dying();
 
-					chunksToRemove.push_back(this);
+					chunksToDelete.push_back(this);
 				}
 			}
 
@@ -713,7 +714,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToRemove) {
+			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToDelete) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -740,7 +741,7 @@ namespace gaia {
 				}
 
 				// At this point the last entity is no longer valid so remove it
-				remove_last_entity(chunksToRemove);
+				remove_last_entity(chunksToDelete);
 			}
 
 			/*!

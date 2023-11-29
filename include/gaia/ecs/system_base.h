@@ -125,7 +125,7 @@ namespace gaia {
 			//! List of new systems which need to be initialised
 			cnt::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			cnt::darray<BaseSystem*> m_systemsToRemove;
+			cnt::darray<BaseSystem*> m_systemsToDelete;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
@@ -152,7 +152,7 @@ namespace gaia {
 				m_systemsMap.clear();
 
 				m_systemsToCreate.clear();
-				m_systemsToRemove.clear();
+				m_systemsToDelete.clear();
 			}
 
 			void cleanup() {
@@ -162,20 +162,20 @@ namespace gaia {
 
 			void update() {
 				// Remove all systems queued to be destroyed
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->enable(false);
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->OnCleanup();
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					pSystem->OnDestroyed();
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					m_systemsMap.erase({pSystem->m_hash});
-				for (auto* pSystem: m_systemsToRemove) {
+				for (auto* pSystem: m_systemsToDelete) {
 					m_systems.erase(core::find(m_systems, pSystem));
 				}
-				for (auto* pSystem: m_systemsToRemove)
+				for (auto* pSystem: m_systemsToDelete)
 					delete pSystem;
-				m_systemsToRemove.clear();
+				m_systemsToDelete.clear();
 
 				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
 					// Sort systems if necessary
@@ -247,7 +247,7 @@ namespace gaia {
 				pSystem->set_destroyed(true);
 
 				// Request removal of the system
-				m_systemsToRemove.push_back(pSystem);
+				m_systemsToDelete.push_back(pSystem);
 			}
 
 			template <typename T>
