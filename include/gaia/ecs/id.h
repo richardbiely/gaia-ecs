@@ -241,14 +241,23 @@ namespace gaia {
 			uint32_t len{};
 		};
 
-		struct Pair {
-			Entity first;
-			Entity second;
+		class Pair {
+			Entity m_first;
+			Entity m_second;
 
-			Pair(Entity a, Entity b) noexcept: first(a), second(b) {}
+		public:
+			Pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
 
 			operator Entity() const noexcept {
-				return Entity(first.id(), second.id(), false, true, EntityKind::EK_Gen);
+				return Entity(m_first.id(), m_second.id(), false, true, EntityKind::EK_Gen);
+			}
+
+			Entity first() const noexcept {
+				return m_first;
+			}
+
+			Entity second() const noexcept {
+				return m_second;
 			}
 		};
 

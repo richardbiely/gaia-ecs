@@ -85,6 +85,113 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
+		public:
+			struct EntityBuilder final {
+				World& m_world;
+				Entity m_entity;
+				Archetype* m_pArchetype;
+
+				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
+					GAIA_ASSERT(!entity.pair());
+					GAIA_ASSERT(world.valid(entity));
+					auto& ec = world.m_entities[entity.id()];
+					m_pArchetype = ec.pArchetype;
+				}
+
+				EntityBuilder(const EntityBuilder&) = default;
+				EntityBuilder(EntityBuilder&&) = delete;
+				EntityBuilder& operator=(const EntityBuilder&) = delete;
+				EntityBuilder& operator=(EntityBuilder&&) = delete;
+
+				~EntityBuilder() {
+					commit();
+				}
+
+				//! Commits all gathered changes and performs an archetype movement.
+				//! \warning Once called, the object is returned to its default state (as if no add/remove was ever called).
+				void commit() {
+					if (m_pArchetype == nullptr)
+						return;
+
+					// Now that we have the final archetype move the entity to it
+					m_world.move_entity(m_entity, *m_pArchetype);
+
+					// Finalize the builder by reseting the archetype pointer
+					m_pArchetype = nullptr;
+				}
+
+				//! Prepares an archetype movement by following the "add" edge of the current archetype.
+				//! \param entity Added entity
+				EntityBuilder& add(Entity entity) {
+					GAIA_PROF_SCOPE(EntityBuilder::add);
+					GAIA_ASSERT(m_world.valid(m_entity));
+					GAIA_ASSERT(m_world.valid(entity));
+					add_inter(entity);
+					return *this;
+				}
+
+				//! Prepares an archetype movement by following the "add" edge of the current archetype.
+				//! \param pair Relationship pair
+				EntityBuilder& add(Pair pair) {
+					GAIA_PROF_SCOPE(EntityBuilder::add);
+					GAIA_ASSERT(m_world.valid(m_entity));
+					GAIA_ASSERT(m_world.valid(pair.first()));
+					GAIA_ASSERT(m_world.valid(pair.second()));
+					add_inter(pair);
+					return *this;
+				}
+
+				template <typename... T>
+				EntityBuilder& add() {
+					(verify_comp<T>(), ...);
+					(add(m_world.add<T>().entity), ...);
+					return *this;
+				}
+
+				//! Prepares an archetype movement by following the "del" edge of the current archetype.
+				//! \param entity Removed entity
+				EntityBuilder& del(Entity entity) {
+					GAIA_PROF_SCOPE(EntityBuilder::del);
+					GAIA_ASSERT(m_world.valid(m_entity));
+					GAIA_ASSERT(m_world.valid(entity));
+					del_inter(entity);
+					return *this;
+				}
+
+				//! Prepares an archetype movement by following the "del" edge of the current archetype.
+				//! \param pair Relationship pair
+				EntityBuilder& del(Pair pair) {
+					GAIA_PROF_SCOPE(EntityBuilder::add);
+					GAIA_ASSERT(m_world.valid(m_entity));
+					GAIA_ASSERT(m_world.valid(pair.first()));
+					GAIA_ASSERT(m_world.valid(pair.second()));
+					del_inter(pair);
+					return *this;
+				}
+
+				template <typename... T>
+				EntityBuilder& del() {
+					(verify_comp<T>(), ...);
+					(del(m_world.add<T>().entity), ...);
+					return *this;
+				}
+
+			private:
+				void add_inter(Entity entity) {
+#if GAIA_DEBUG
+					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
+#endif
+					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
+				}
+
+				void del_inter(Entity entity) {
+#if GAIA_DEBUG
+					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
+#endif
+					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
+				}
+			};
+
 		private:
 			//! Remove an entity from its chunk.
 			//! \param pChunk Chunk we remove the entity from
@@ -648,90 +755,6 @@ namespace gaia {
 #endif
 			}
 
-			struct CompMoveHelper {
-				World& m_world;
-				Entity m_entity;
-				Archetype* m_pArchetype;
-
-				CompMoveHelper(World& world, Entity entity): m_world(world), m_entity(entity) {
-					GAIA_ASSERT(world.valid(entity));
-					auto& ec = world.m_entities[entity.id()];
-					m_pArchetype = ec.pArchetype;
-				}
-
-				CompMoveHelper(const CompMoveHelper&) = default;
-				CompMoveHelper(CompMoveHelper&&) = delete;
-				CompMoveHelper& operator=(const CompMoveHelper&) = delete;
-				CompMoveHelper& operator=(CompMoveHelper&&) = delete;
-
-				~CompMoveHelper() {
-					commit();
-				}
-
-				//! Commits all gathered changes and performs an archetype movement
-				//! \warning Once called, the object is returned to its default state (as if no add/remove was ever called).
-				void commit() {
-					if (m_pArchetype == nullptr)
-						return;
-
-					// Now that we have the final archetype move the entity to it
-					m_world.move_entity(m_entity, *m_pArchetype);
-
-					// Finalize the helper by reseting the archetype pointer
-					m_pArchetype = nullptr;
-				}
-
-				//! Prepares an archetype movement by following the "add" edge of the current archetype
-				//! \param object Added entity
-				CompMoveHelper& add(Entity object) {
-					GAIA_PROF_SCOPE(CompMoveHelper::add);
-
-#if GAIA_DEBUG
-					verify_add(m_world, *m_pArchetype, m_entity, object);
-#endif
-
-					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, object);
-
-					return *this;
-				}
-
-				template <typename... T>
-				CompMoveHelper& add() {
-					(verify_comp<T>(), ...);
-					(add(m_world.add<T>().entity), ...);
-					return *this;
-				}
-
-				//! Prepares an archetype movement by following the "del" edge of the current archetype
-				//! \param object Removed entity
-				CompMoveHelper& del(Entity object) {
-					GAIA_PROF_SCOPE(CompMoveHelper::del);
-
-#if GAIA_DEBUG
-					verify_del(m_world, *m_pArchetype, m_entity, object);
-#endif
-
-					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, object);
-
-					return *this;
-				}
-
-				template <typename... T>
-				CompMoveHelper& del() {
-					(verify_comp<T>(), ...);
-					(del(m_world.add<T>().entity), ...);
-					return *this;
-				}
-			};
-
-			void add_inter(Entity entity, Entity object) {
-				CompMoveHelper(*this, entity).add(object);
-			}
-
-			void del_inter(Entity entity, Entity object) {
-				CompMoveHelper(*this, entity).del(object);
-			}
-
 			template <bool IsOwned>
 			void name_inter(Entity entity, const char* name, uint32_t len) {
 				GAIA_ASSERT(valid(entity));
@@ -800,7 +823,7 @@ namespace gaia {
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<EntityDesc>(comp);
 					GAIA_ASSERT(desc.entity == id);
-					add_inter(comp, desc.entity);
+					EntityBuilder(*this, comp).add(desc.entity);
 					sset<EntityDesc>(comp, {desc.name.str(), desc.name.len()});
 					m_pEntityArchetype = m_entities[comp.id()].pArchetype;
 				}
@@ -811,7 +834,7 @@ namespace gaia {
 					auto comp = add(*m_pEntityArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<Component>(comp);
 					GAIA_ASSERT(desc.entity == id);
-					add_inter(comp, desc.entity);
+					EntityBuilder(*this, comp).add(desc.entity);
 					set(comp)
 							// Entity descriptor
 							.sset<EntityDesc>({desc.name.str(), desc.name.len()})
@@ -889,12 +912,16 @@ namespace gaia {
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
 
+			//----------------------------------------------------------------------
+
 			GAIA_NODISCARD ComponentCache& comp_cache_mut() {
 				return m_compCache;
 			}
 			GAIA_NODISCARD const ComponentCache& comp_cache() const {
 				return m_compCache;
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Checks if \param entity is valid.
 			//! \return True is the entity is valid. False otherwise.
@@ -927,146 +954,7 @@ namespace gaia {
 				return pChunk != nullptr && ec.row < pChunk->size();
 			}
 
-			//! Clears the world so that all its entities and components are released
-			void cleanup() {
-				// Clear entities
-				m_entities = {};
-
-				// Clear archetypes
-				{
-					// Delete all allocated chunks and their parent archetypes
-					for (auto pair: m_archetypesById)
-						delete pair.second;
-
-					m_archetypesById = {};
-					m_archetypesByHash = {};
-					m_chunksToDel = {};
-					m_archetypesToDel = {};
-				}
-
-				// Clear caches
-				{
-					m_componentToArchetypeMap = {};
-					m_queryCache.clear();
-				}
-
-				// Clear entity names
-				{
-					for (auto& pair: m_nameToEntity) {
-						if (!pair.first.owned())
-							continue;
-						// Release any memory allocated for owned names
-						mem::mem_free((void*)pair.first.str());
-					}
-					m_nameToEntity = {};
-				}
-
-				// Clear component cache
-				m_compCache.clear();
-			}
-
 			//----------------------------------------------------------------------
-
-			//! Returns the current version of the world.
-			//! \return World version number.
-			GAIA_NODISCARD uint32_t& world_version() {
-				return m_worldVersion;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Creates a new empty entity
-			//! \param kind Entity kind
-			//! \return New entity
-			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, true, false, kind);
-			}
-
-			//! Creates a new entity relationship pair
-			//! \param src Source entity
-			//! \param relation Relation
-			//! \param tgt Target entity
-			void pair(Entity src, Entity relation, Entity tgt) {
-				GAIA_ASSERT(valid(src));
-				GAIA_ASSERT(valid(relation));
-				GAIA_ASSERT(valid(tgt));
-
-				// Make sure wildcard are not used
-				GAIA_ASSERT(relation != All);
-				GAIA_ASSERT(tgt != All);
-
-				add_inter(src, Pair(relation, tgt));
-			}
-
-			//! Removes an entity relationship pair
-			//! \param src Source entity
-			//! \param relation Relation
-			//! \param tgt Target entity
-			void unpair(Entity src, Entity relation, Entity tgt) {
-				GAIA_ASSERT(valid(src));
-				GAIA_ASSERT(valid(relation));
-				GAIA_ASSERT(valid(tgt));
-				del_inter(src, Pair(relation, tgt));
-			}
-
-			//! Checks if the given relationship exists
-			//! \param src Source entity
-			//! \param relation Relation
-			//! \param tgt Target entity
-			GAIA_NODISCARD bool has(Entity src, Entity relation, Entity tgt) const {
-				GAIA_ASSERT(valid(src));
-				GAIA_ASSERT(valid(relation));
-				GAIA_ASSERT(valid(tgt));
-
-				const auto& ec = m_entities[src.id()];
-				return ComponentGetter{ec.pChunk, ec.row}.has(Pair(relation, tgt));
-			}
-
-			//! Creates a new entity by cloning an already existing one.
-			//! \param entity Entity to clone
-			//! \return New entity
-			GAIA_NODISCARD Entity copy(Entity entity) {
-				auto& ec = m_entities[entity.id()];
-
-				GAIA_ASSERT(ec.pChunk != nullptr);
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-
-				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
-
-				Chunk::copy_entity_data(
-						entity, newEntity,
-						// entities
-						{m_entities.data(), m_entities.size()});
-
-				return newEntity;
-			}
-
-			//! Removes an entity along with all data associated with it.
-			//! \param entity Entity to delete
-			void del(Entity entity) {
-				if (m_entities.item_count() == 0 || entity == IdentifierBad)
-					return;
-
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
-
-				const auto& ec = m_entities[entity.id()];
-				auto* pChunk = ec.pChunk;
-				GAIA_ASSERT(pChunk != nullptr);
-
-				// Remove the entity from its chunk.
-				// We call del_name first because remove_entity calls component destructors.
-				// If the call was made inside del_entity we would access a memory location
-				// which has already been destructed which is not nice.
-				del_name(entity);
-				remove_entity(pChunk, ec.row);
-				del_entity(entity);
-
-				// End-state validation
-				validate_chunk(pChunk);
-				validate_entities();
-			}
 
 			//! Returns the entity located at the index \param id
 			//! \return Entity
@@ -1082,75 +970,21 @@ namespace gaia {
 				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 
-			//! Enables or disables an entire entity.
-			//! \param entity Entity
-			//! \param enable Enable or disable the entity
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			void enable(Entity entity, bool enable) {
-				auto& ec = m_entities[entity.id()];
-
-				GAIA_ASSERT(
-						(ec.pChunk && !ec.pChunk->locked()) &&
-						"Entities can't be enabled/disabled while their chunk is being iterated "
-						"(structural changes are forbidden during this time!)");
-
-				auto& archetype = *ec.pArchetype;
-				archetype.enable_entity(
-						ec.pChunk, ec.row, enable,
-						// entities
-						{m_entities.data(), m_entities.size()});
-			}
-
-			//! Checks if an entity is enabled.
-			//! \param entity Entity
-			//! \return True it the entity is enabled. False otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			bool enabled(Entity entity) const {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_entities[entity.id()];
-				const bool entityStateInContainer = !ec.dis;
-#if GAIA_ASSERT_ENABLED
-				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
-				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
-#endif
-				return entityStateInContainer;
-			}
-
-			//! Returns the number of active entities
-			//! \return Entity
-			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t size() const {
-				return m_entities.item_count();
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns a chunk containing the \param entity.
-			//! \return Chunk or nullptr if not found.
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& ec = m_entities[entity.id()];
-				return ec.pChunk;
-			}
-
-			//! Returns a chunk containing the \param entity.
-			//! Index of the entity is stored in \param indexInChunk
-			//! \return Chunk or nullptr if not found
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& ec = m_entities[entity.id()];
-				indexInChunk = ec.row;
-				return ec.pChunk;
-			}
-
 			//----------------------------------------------------------------------
 
 			//! Starts a bulk add/remove operation on \param entity.
 			//! \param entity Entity
-			//! \return CompMoveHelper
+			//! \return EntityBuilder
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			CompMoveHelper bulk(Entity entity) {
-				return CompMoveHelper(*this, entity);
+			EntityBuilder bulk(Entity entity) {
+				return EntityBuilder(*this, entity);
+			}
+
+			//! Creates a new empty entity
+			//! \param kind Entity kind
+			//! \return New entity
+			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
+				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
 			//! Creates a new component if not found already.
@@ -1187,9 +1021,16 @@ namespace gaia {
 			//! \param object Added entity
 			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
 			void add(Entity entity, Entity object) {
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(valid(object));
-				add_inter(entity, object);
+				EntityBuilder(*this, entity).add(object);
+			}
+
+			//! Creates a new entity relationship pair
+			//! \param entity Source entity
+			//! \param pair Pair
+			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//!          Undefined behavior otherwise.
+			void add(Entity entity, Pair pair) {
+				EntityBuilder(*this, entity).add(pair);
 			}
 
 			//! Attaches a new component \tparam T to \param entity.
@@ -1201,12 +1042,7 @@ namespace gaia {
 			void add(Entity entity) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-				GAIA_ASSERT(valid(entity));
-
-				const auto& desc = add<FT>();
-				add_inter(entity, desc.entity);
+				EntityBuilder(*this, entity).add<FT>();
 			}
 
 			//! Attaches \param object to \param entity. Also sets its value.
@@ -1220,10 +1056,7 @@ namespace gaia {
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
 
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(valid(object));
-
-				add_inter(entity, object);
+				EntityBuilder(*this, entity).add(object);
 
 				const auto& ec = m_entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
@@ -1243,16 +1076,75 @@ namespace gaia {
 				using FT = typename CT::TypeFull;
 				constexpr auto kind = (uint32_t)CT::Kind;
 
-				verify_comp<T>();
-				GAIA_ASSERT(valid(entity));
-
-				const auto& desc = add<FT>();
-				add_inter(entity, desc.entity);
+				EntityBuilder(*this, entity).add<FT>();
 
 				const auto& ec = m_entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = ec.row * (1U - (uint32_t)kind);
 				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Creates a new entity by cloning an already existing one.
+			//! \param entity Entity to clone
+			//! \return New entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity copy(Entity entity) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				auto& archetype = *ec.pArchetype;
+				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
+
+				Chunk::copy_entity_data(
+						entity, newEntity,
+						// entities
+						{m_entities.data(), m_entities.size()});
+
+				return newEntity;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Removes an entity along with all data associated with it.
+			//! \param entity Entity to delete
+			void del(Entity entity) {
+				if (m_entities.item_count() == 0 || entity == IdentifierBad)
+					return;
+
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
+
+				const auto& ec = m_entities[entity.id()];
+				auto* pChunk = ec.pChunk;
+				GAIA_ASSERT(pChunk != nullptr);
+
+				// Remove the entity from its chunk.
+				// We call del_name first because remove_entity calls component destructors.
+				// If the call was made inside del_entity we would access a memory location
+				// which has already been destructed which is not nice.
+				del_name(entity);
+				remove_entity(pChunk, ec.row);
+				del_entity(entity);
+
+				// End-state validation
+				validate_chunk(pChunk);
+				validate_entities();
+			}
+
+			//! Removes an existing entity relationship pair
+			//! \param entity Source entity
+			//! \param pair Pair
+			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//!          Undefined behavior otherwise.
+			void del(Entity entity, Pair pair) {
+				EntityBuilder(*this, entity).del(pair);
 			}
 
 			//! Removes a component \tparam T from \param entity.
@@ -1264,12 +1156,7 @@ namespace gaia {
 			void del(Entity entity) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-				GAIA_ASSERT(valid(entity));
-
-				const auto& desc = add<FT>();
-				del_inter(entity, desc.entity);
+				EntityBuilder(*this, entity).del<FT>();
 			}
 
 			//----------------------------------------------------------------------
@@ -1339,6 +1226,8 @@ namespace gaia {
 				return ComponentGetter{ec.pChunk, ec.row}.get<T>();
 			}
 
+			//----------------------------------------------------------------------
+
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
@@ -1352,6 +1241,22 @@ namespace gaia {
 
 				const auto& ec = m_entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.has(object);
+			}
+
+			//! Tells if \param entity contains the entity \param object.
+			//! \param entity Entity
+			//! \param object Tested entity
+			//! \return True if the component is present on entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(pair.first()));
+				GAIA_ASSERT(valid(pair.second()));
+
+				const auto& ec = m_entities[entity.id()];
+				return ComponentGetter{ec.pChunk, ec.row}.has(pair);
 			}
 
 			//! Tells if \param entity contains the component \tparam T.
@@ -1439,6 +1344,75 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Enables or disables an entire entity.
+			//! \param entity Entity
+			//! \param enable Enable or disable the entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			void enable(Entity entity, bool enable) {
+				auto& ec = m_entities[entity.id()];
+
+				GAIA_ASSERT(
+						(ec.pChunk && !ec.pChunk->locked()) &&
+						"Entities can't be enabled/disabled while their chunk is being iterated "
+						"(structural changes are forbidden during this time!)");
+
+				auto& archetype = *ec.pArchetype;
+				archetype.enable_entity(
+						ec.pChunk, ec.row, enable,
+						// entities
+						{m_entities.data(), m_entities.size()});
+			}
+
+			//! Checks if an entity is enabled.
+			//! \param entity Entity
+			//! \return True it the entity is enabled. False otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			bool enabled(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_entities[entity.id()];
+				const bool entityStateInContainer = !ec.dis;
+#if GAIA_ASSERT_ENABLED
+				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
+				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
+#endif
+				return entityStateInContainer;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns a chunk containing the \param entity.
+			//! \return Chunk or nullptr if not found.
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
+				GAIA_ASSERT(entity.id() < m_entities.size());
+				const auto& ec = m_entities[entity.id()];
+				return ec.pChunk;
+			}
+
+			//! Returns a chunk containing the \param entity.
+			//! Index of the entity is stored in \param indexInChunk
+			//! \return Chunk or nullptr if not found
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
+				GAIA_ASSERT(entity.id() < m_entities.size());
+				const auto& ec = m_entities[entity.id()];
+				indexInChunk = ec.row;
+				return ec.pChunk;
+			}
+
+			//! Returns the number of active entities
+			//! \return Entity
+			GAIA_NODISCARD uint32_t size() const {
+				return m_entities.item_count();
+			}
+
+			//! Returns the current version of the world.
+			//! \return World version number.
+			GAIA_NODISCARD uint32_t& world_version() {
+				return m_worldVersion;
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Performs various internal operations related to the end of the frame such as
 			//! memory cleanup and other managment operations which keep the system healthy.
 			void update() {
@@ -1446,6 +1420,44 @@ namespace gaia {
 
 				// Signal the end of the frame
 				GAIA_PROF_FRAME();
+			}
+
+			//! Clears the world so that all its entities and components are released
+			void cleanup() {
+				// Clear entities
+				m_entities = {};
+
+				// Clear archetypes
+				{
+					// Delete all allocated chunks and their parent archetypes
+					for (auto pair: m_archetypesById)
+						delete pair.second;
+
+					m_archetypesById = {};
+					m_archetypesByHash = {};
+					m_chunksToDel = {};
+					m_archetypesToDel = {};
+				}
+
+				// Clear caches
+				{
+					m_componentToArchetypeMap = {};
+					m_queryCache.clear();
+				}
+
+				// Clear entity names
+				{
+					for (auto& pair: m_nameToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_nameToEntity = {};
+				}
+
+				// Clear component cache
+				m_compCache.clear();
 			}
 
 			//! Sets the maximum number of entites defragmented per world tick

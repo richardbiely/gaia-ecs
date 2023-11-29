@@ -246,10 +246,10 @@ w.bulk(e)
  .add<Something1, Something2, Something3>();
 ```
 
-It is also possible to manually commit all changes by calling ***CompMoveHelper::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
+gaiaIt is also possible to manually commit all changes by calling ***EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
-ecs::CompMoveHelper builder = w.bulk(e);
+ecs::EntityBuilder builder = w.bulk(e);
 builder
   .add<Velocity>()
   .del<Position>()
@@ -260,7 +260,7 @@ if (some_conditon) {
 builder.commit();
 ```
 
->**NOTE:**<br/>Once ***CompMoveHelper::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
+>**NOTE:**<br/>Once ***EntityBuilder::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
 
 
 ### Set or get component value
@@ -284,7 +284,7 @@ w.set(e)
   .set...;
 ```
 
-Similar to ***CompMoveHelper::bulk*** you can also use the setter object in scenarios with complex logic.
+Similar to ***EntityBuilder::bulk*** you can also use the setter object in scenarios with complex logic.
 
 ```cpp
 ecs::ComponentSetter setter = w.set(e);
@@ -590,8 +590,8 @@ ecs::Entity hare = w.add();
 ecs::Entity carrot = w.add();
 ecs::Entity eats = w.add();
 
-w.pair(rabbit, eats, carrot);
-w.pair(hare, eats, carrot);
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(hare, ecs::Pair(eats, carrot));
 
 ecs::Query q = w.query().all(ecs::Pair(eats, carrot));
 q.each([](ecs::Entity entity)) {
@@ -610,9 +610,9 @@ There are three kinds of wildcard queries possible:
 The "*" wildcard is expressed via ***All*** entity.
 
 ```cpp
-w.pair(rabbit, eats, carrot);
-w.pair(hare, eats, carrot);
-w.pair(wolf, eats, rabbit);
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(hare, ecs::Pair(eats, carrot));
+w.add(wolf, ecs::Pair(eats, rabbit));
 
 ecs::Query q1 = w.query().all(ecs::Pair(eats, All));
 q1.each([]()) {
@@ -640,22 +640,22 @@ Multiple components of the same kind can be added to one entity thanks to relati
 
 ```cpp
 // "eats" is added twice to the entity "rabbit"
-w.pair(rabbit, eats, carrot);
-w.pair(rabbit, eats, salad);
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(rabbit, ecs::Pair(eats, salad));
 ```
 
 Relationships can be ended by calling ***World::unpair***.
 
 ```cpp
 // Rabbit no longer eats carrot
-w.unpair(rabbit, eats, carrot);
+w.del(rabbit, ecs::Pair(eats, carrot));
 ```
 
 Whether a realtionship exists can be check via ***World::has*** just like any other entity presence.
 
 ```cpp
 // Checks if rabbit eats carrot
-w.has(rabbit, eats, carrot);
+w.has(rabbit, ecs::Pair(eats, carrot));
 ```
 
 ## Unique components

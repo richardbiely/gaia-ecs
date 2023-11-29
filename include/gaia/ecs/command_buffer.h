@@ -93,7 +93,7 @@ namespace gaia {
 				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					ctx.world.add_inter(entity, object);
+					World::EntityBuilder(ctx.world, entity).add(object);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -107,7 +107,7 @@ namespace gaia {
 				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					ctx.world.add_inter(entity, object);
+					World::EntityBuilder(ctx.world, entity).add(object);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -134,7 +134,7 @@ namespace gaia {
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
 					Entity entity = it->second;
-					ctx.world.add_inter(entity, object);
+					World::EntityBuilder(ctx.world, entity).add(object);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -155,7 +155,7 @@ namespace gaia {
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
 					Entity entity = it->second;
-					ctx.world.add_inter(entity, object);
+					World::EntityBuilder(ctx.world, entity).add(object);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -213,7 +213,7 @@ namespace gaia {
 				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					ctx.world.del_inter(entity, object);
+					World::EntityBuilder(ctx.world, entity).del(object);
 				}
 			};
 

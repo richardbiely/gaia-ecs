@@ -2150,13 +2150,56 @@ TEST_CASE("Relationship") {
 		auto carrot = w.add();
 		auto eats = w.add();
 
-		w.pair(rabbit, eats, carrot);
-		w.pair(wolf, eats, rabbit);
+		w.add(rabbit, ecs::Pair(eats, carrot));
+		w.add(wolf, ecs::Pair(eats, rabbit));
 
-		REQUIRE(w.has(rabbit, eats, carrot));
-		REQUIRE(w.has(wolf, eats, rabbit));
-		REQUIRE_FALSE(w.has(wolf, eats, carrot));
-		REQUIRE_FALSE(w.has(rabbit, eats, wolf));
+		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(w.has(wolf, ecs::Pair(eats, rabbit)));
+		REQUIRE_FALSE(w.has(wolf, ecs::Pair(eats, carrot)));
+		REQUIRE_FALSE(w.has(rabbit, ecs::Pair(eats, wolf)));
+
+		{
+			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = w.query().all<ecs::Pair(eats, carrot)>();
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == rabbit);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+
+		{
+			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = w.query().all<ecs::Pair(eats, rabbit)>();
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == wolf);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
+	}
+
+	SECTION("Simple - bulk") {
+		auto wolf = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
+
+		w.bulk(rabbit).add(ecs::Pair(eats, carrot));
+		w.bulk(wolf).add(ecs::Pair(eats, rabbit));
+
+		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(w.has(wolf, ecs::Pair(eats, rabbit)));
+		REQUIRE_FALSE(w.has(wolf, ecs::Pair(eats, carrot)));
+		REQUIRE_FALSE(w.has(rabbit, ecs::Pair(eats, wolf)));
 
 		{
 			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -2194,9 +2237,9 @@ TEST_CASE("Relationship") {
 		auto carrot = w.add();
 		auto eats = w.add();
 
-		w.pair(rabbit, eats, carrot);
-		w.pair(hare, eats, carrot);
-		w.pair(wolf, eats, rabbit);
+		w.add(rabbit, ecs::Pair(eats, carrot));
+		w.add(hare, ecs::Pair(eats, carrot));
+		w.add(wolf, ecs::Pair(eats, rabbit));
 
 		{
 			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});

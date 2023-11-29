@@ -1,9 +1,10 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cstdint>
 
 #include "chunk.h"
 #include "component.h"
-#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {
