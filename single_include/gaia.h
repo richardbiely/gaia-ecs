@@ -20191,7 +20191,6 @@ namespace gaia {
 				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_componentToArchetypeMap.end()) {
 					for (auto* pArchetype: it->second) {
-						Archetype::diag(*this, *pArchetype);
 						for (auto* pChunk: pArchetype->chunks()) {
 							auto ents = pChunk->entity_view();
 							for (auto e: ents) {
