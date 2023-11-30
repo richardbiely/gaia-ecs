@@ -2949,6 +2949,128 @@ TEST_CASE("del - generic, unique") {
 	}
 }
 
+TEST_CASE("del - rules, entity") {
+	SECTION("default") {
+		ecs::World w;
+		auto wolf = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
+		auto hungry = w.add();
+		w.add(wolf, hungry);
+		w.add(wolf, ecs::Pair(eats, rabbit));
+		w.add(rabbit, ecs::Pair(eats, carrot));
+
+		w.del(wolf);
+		REQUIRE(!w.has(wolf));
+		REQUIRE(w.has(rabbit));
+		REQUIRE(w.has(eats));
+		REQUIRE(w.has(carrot));
+		REQUIRE(w.has(hungry));
+		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+	}
+	SECTION("(OnDelete,Remove)") {
+		ecs::World w;
+		auto wolf = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
+		auto hungry = w.add();
+		w.add(wolf, hungry);
+		w.add(wolf, ecs::Pair(ecs::OnDelete, ecs::Remove));
+		w.add(wolf, ecs::Pair(eats, rabbit));
+		w.add(rabbit, ecs::Pair(eats, carrot));
+
+		w.del(wolf);
+		REQUIRE(!w.has(wolf));
+		REQUIRE(w.has(rabbit));
+		REQUIRE(w.has(eats));
+		REQUIRE(w.has(carrot));
+		REQUIRE(w.has(hungry));
+		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+	}
+	SECTION("(OnDelete,Delete)") {
+		ecs::World w;
+		auto wolf = w.add();
+		auto rabbit = w.add();
+		auto carrot = w.add();
+		auto eats = w.add();
+		auto hungry = w.add();
+		w.add(wolf, hungry);
+		w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
+		w.add(wolf, ecs::Pair(eats, rabbit));
+		w.add(rabbit, ecs::Pair(eats, carrot));
+
+		w.del(hungry);
+		REQUIRE(!w.has(wolf));
+		REQUIRE(w.has(rabbit));
+		REQUIRE(w.has(eats));
+		REQUIRE(w.has(carrot));
+		REQUIRE(!w.has(hungry));
+		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+	}
+}
+
+// TEST_CASE("del - rules, pairs") {
+// 	SECTION("(OnDelete,Remove) - entity") {
+// 		ecs::World w;
+// 		auto wolf = w.add();
+// 		auto rabbit = w.add();
+// 		auto carrot = w.add();
+// 		auto eats = w.add();
+// 		w.add(wolf, ecs::Pair(eats, rabbit));
+// 		w.add(rabbit, ecs::Pair(eats, carrot));
+
+// 		w.del(eats);
+// 		REQUIRE(w.has(wolf));
+// 		REQUIRE(w.has(rabbit));
+// 		REQUIRE(!w.has(eats));
+// 		REQUIRE(w.has(carrot));
+// 		REQUIRE(!w.has(ecs::Pair(eats, rabbit)));
+// 		REQUIRE(!w.has(ecs::Pair(eats, carrot)));
+// 	}
+// 	SECTION("(OnDelete,Remove) - pair") {
+// 		ecs::World w;
+// 		auto wolf = w.add();
+// 		auto rabbit = w.add();
+// 		auto carrot = w.add();
+// 		auto eats = w.add();
+// 		w.add(wolf, ecs::Pair(eats, rabbit));
+// 		w.add(rabbit, ecs::Pair(eats, carrot));
+
+// 		w.del(ecs::Pair(eats, carrot));
+// 		REQUIRE(w.has(wolf));
+// 		REQUIRE(w.has(rabbit));
+// 		REQUIRE(w.has(eats));
+// 		REQUIRE(w.has(carrot));
+// 		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
+// 		REQUIRE(!w.has(ecs::Pair(eats, carrot)));
+// 	}
+// 	SECTION("(OnDelete,Delete)") {
+// 		ecs::World w;
+// 		auto wolf = w.add();
+// 		auto rabbit = w.add();
+// 		auto carrot = w.add();
+// 		auto eats = w.add();
+// 		w.add(eats, ecs::Pair(ecs::OnDelete, ecs::Delete));
+// 		w.add(wolf, ecs::Pair(eats, rabbit));
+// 		w.add(rabbit, ecs::Pair(eats, carrot));
+
+// 		w.del(eats);
+// 		REQUIRE(!w.has(wolf));
+// 		REQUIRE(!w.has(rabbit));
+// 		REQUIRE(!w.has(eats));
+// 		REQUIRE(!w.has(carrot));
+// 		REQUIRE(!w.has(ecs::Pair(eats, rabbit)));
+// 		REQUIRE(!w.has(ecs::Pair(eats, carrot)));
+// 	}
+// 	SECTION("(OnDeleteTarget,Remove)") {}
+// 	SECTION("(OnDeleteTarget,Delete)") {}
+// }
+
 TEST_CASE("entity name") {
 	constexpr uint32_t N = 1'500;
 

@@ -262,12 +262,20 @@ namespace gaia {
 		};
 
 		struct Core {};
-		struct WildcardAll {};
+		struct OnDelete_ {};
+		struct OnDeleteTarget_ {};
+		struct Remove_ {};
+		struct Delete_ {};
+		struct All_ {};
 
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
-		inline Entity All = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnDelete = Entity(3, false, false, false, EntityKind::EK_Gen);
+		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
+		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
+		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(7, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(LastCoreComponent) = All;
 	} // namespace ecs
 } // namespace gaia

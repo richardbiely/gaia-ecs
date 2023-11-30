@@ -12,6 +12,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		const char* entity_name(const World& world, Entity entity);
+		const char* entity_name(const World& world, EntityId entityId);
 
 		class ArchetypeGraph {
 			struct ArchetypeGraphEdge {
@@ -53,28 +54,34 @@ namespace gaia {
 			}
 
 			void diag(const World& world) const {
+				auto diagEdge = [&](const auto& edges, bool addEdge) {
+					for (const auto& edge: edges) {
+						const auto entity = edge.first.entity();
+						if (entity.pair()) {
+							const auto* name0 = entity_name(world, entity.id());
+							const auto* name1 = entity_name(world, entity.gen());
+							GAIA_LOG_N(
+									"      pair [%u,%u] %s -> %s  (--%c Archetype ID:%u)", entity.id(), entity.gen(), name0, name1,
+									addEdge ? '>' : '<', edge.second.archetypeId);
+						} else {
+							const auto* name = entity_name(world, entity);
+							GAIA_LOG_N(
+									"      ent [%u:%u] %s [%s] [] (--%c Archetype ID:%u)", entity.id(), entity.gen(), name,
+									EntityKindString[entity.kind()], addEdge ? '>' : '<', edge.second.archetypeId);
+						}
+					}
+				};
+
 				// Add edges (movement towards the leafs)
 				if (!m_edgesAdd.empty()) {
 					GAIA_LOG_N("  Add edges - count:%u", (uint32_t)m_edgesAdd.size());
-
-					for (const auto& edge: m_edgesAdd) {
-						const auto entity = edge.first.entity();
-						const auto* name = entity_name(world, entity);
-						GAIA_LOG_N(
-								"      %s [%s] (--> Archetype ID:%u)", name, EntityKindString[entity.kind()], edge.second.archetypeId);
-					}
+					diagEdge(m_edgesAdd, true);
 				}
 
 				// Delete edges (movement towards the root)
 				if (!m_edgesDel.empty()) {
 					GAIA_LOG_N("  Del edges - count:%u", (uint32_t)m_edgesDel.size());
-
-					for (const auto& edge: m_edgesDel) {
-						const auto entity = edge.first.entity();
-						const auto* name = entity_name(world, entity);
-						GAIA_LOG_N(
-								"      %s [%s] (--> Archetype ID:%u)", name, EntityKindString[entity.kind()], edge.second.archetypeId);
-					}
+					diagEdge(m_edgesDel, false);
 				}
 			}
 		};

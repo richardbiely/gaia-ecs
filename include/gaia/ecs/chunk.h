@@ -681,7 +681,7 @@ namespace gaia {
 
 					// Move component data from rightEntity to leftEntity
 					auto recs = comp_rec_view();
-					GAIA_FOR2(0, m_header.genEntities) {
+					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
@@ -697,7 +697,7 @@ namespace gaia {
 				} else {
 					// This is the last entity in chunk so simply destroy its data
 					auto recs = comp_rec_view();
-					GAIA_FOR2(0, m_header.genEntities) {
+					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;

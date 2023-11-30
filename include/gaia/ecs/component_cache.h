@@ -222,7 +222,7 @@ namespace gaia {
 
 				auto logDesc = [](const ComponentCacheItem* pDesc) {
 					GAIA_LOG_N(
-							"  [%u.%u], id:%010u, %s", pDesc->entity.id(), pDesc->entity.gen(), pDesc->comp.id(), pDesc->name.str());
+							"  [%u:%u], id:%010u, %s", pDesc->entity.id(), pDesc->entity.gen(), pDesc->comp.id(), pDesc->name.str());
 				};
 				for (const auto* pDesc: m_descIdArr)
 					logDesc(pDesc);

@@ -27,6 +27,7 @@ namespace gaia {
 
 		inline const ComponentCache& comp_cache(const World& world);
 		inline const char* entity_name(const World& world, Entity entity);
+		inline const char* entity_name(const World& world, EntityId entityId);
 
 		class ArchetypeBase {
 		protected:
@@ -699,7 +700,13 @@ namespace gaia {
 
 				auto logComponentInfo = [&](Entity entity) {
 					if (entity.entity()) {
-						GAIA_LOG_N("    ent %s [%s]", entity_name(world, entity), EntityKindString[entity.kind()]);
+						GAIA_LOG_N(
+								"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+								EntityKindString[entity.kind()]);
+					} else if (entity.pair()) {
+						GAIA_LOG_N(
+								"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
+								entity_name(world, entity.gen()));
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
