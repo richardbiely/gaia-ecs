@@ -54,6 +54,8 @@
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
   * [Relationships](#relationships)
+    * [Basics](#basics)
+    * [Cleanup relation](#cleanup-relation)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
@@ -579,9 +581,10 @@ q.each([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one of them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
 
 ## Relationships
-Relationships are a mechanism to create entity graphs and queries. They are a powerful feature allowing you to express hierarchies for example and even effectively allow you to add multiple components of the same type to an entity.
+### Basics
+Relationships is a mechanism used to create entity graphs and queries. It is a powerful feature allowing you to express hierarchies for example and even effectively allow you to add multiple components of the same type to an entity.
 
-Relationship pair is created by calling ***World::pair***.
+Relationship pair is created by calling ***World::pair(relation, target)*** with two valid entities as its arguments.
 
 ```cpp
 ecs::World w;
@@ -656,6 +659,49 @@ Whether a realtionship exists can be check via ***World::has*** just like any ot
 ```cpp
 // Checks if rabbit eats carrot
 w.has(rabbit, ecs::Pair(eats, carrot));
+```
+
+### Cleanup relation
+When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup relations.
+
+Cleanup relations are defined as ecs::Pair(Condition, Reaction).
+
+Condition is one of the following:
+* ***OnDelete*** - deleting an entity/pair
+* ***OnDeleteTarget*** - deleting a pair's target
+
+Reaction is one of the following:
+* ***Remove*** - removes the entity/pair from anything referencing it
+* ***Delete*** - delete everything referencing the entity
+
+The default behavior of deleting an entity is to simply remove it from the parent entity. This is an equivalent of Pair(OnDelete, Remove) relationship pair attached to the entity getting deleted.
+Additionally, a behavior which can not be changed, all relationship pairs formed by this entity need to be deleted as well. This is needed because entity ids are recycled internally and we could not guarantee that the relationship entity would be be used for something unrelated later.
+
+```cpp
+ecs::Entity rabbit = w.add();
+ecs::Entity hare = w.add();
+ecs::Entity eats = w.add();
+ecs::Entity carrot = w.add();
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(hare, ecs::Pair(eats, carrot));
+
+// Delete the rabbit. Everything else is unaffected.
+w.del(rabbit);
+// Delete eats. Deletes eats and all associated relationships.
+w.del(eats); 
+```
+
+We can create our own rules, though.
+
+```cpp
+ecs::Entity bomb_exploding_on_del = w.add();
+w.add(bomb_exploding_on_del, ecs::Pair(OnDelete, Delete));
+
+// Attach a bomb to our rabbit
+w.add(rabbit, bomb_exploding_on_del);
+
+// Deleting the bomb will take out all entities associated with it along. Rabbit included.
+w.del(bomb_exploding_on_del); 
 ```
 
 ## Unique components
