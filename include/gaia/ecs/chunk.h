@@ -92,7 +92,7 @@ namespace gaia {
 					for (; j < ents.size(); ++j)
 						dst[j] = ents[j];
 					for (; j < MAX_COMPONENTS; ++j)
-						dst[j] = IdentifierIdBad;
+						dst[j] = EntityBad;
 				}
 
 				// Cache component records

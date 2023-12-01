@@ -13820,6 +13820,7 @@ namespace gaia {
 #include <type_traits>
 
 #include <cstdint>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -13958,9 +13959,14 @@ namespace gaia {
 			};
 
 			constexpr Entity() noexcept: val(IdentifierBad){};
-			constexpr Entity(Identifier value) noexcept: val(value) {}
 
-			// Special constructor for cnt::ilist
+			//! We need the entity to be braces-construcible and at the same type prevent it from
+			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
+			//! allow Entity(Identifier) to be used.
+			template <typename T, typename = std::enable_if_t<std::is_same_v<T, Identifier>>>
+			constexpr Entity(T value) noexcept: val(value) {}
+
+			//! Special constructor for cnt::ilist
 			Entity(EntityId id, IdentifierData gen) noexcept {
 				val = 0;
 				data.id = id;
@@ -14011,6 +14017,8 @@ namespace gaia {
 				return value() < other.value();
 			}
 		};
+
+		struct Entity EntityBad = Entity(IdentifierBad);
 
 		struct EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint32_t>;
@@ -15807,7 +15815,7 @@ namespace gaia {
 					for (; j < ents.size(); ++j)
 						dst[j] = ents[j];
 					for (; j < MAX_COMPONENTS; ++j)
-						dst[j] = IdentifierIdBad;
+						dst[j] = EntityBad;
 				}
 
 				// Cache component records
@@ -19922,8 +19930,11 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						const uint32_t first = entity.id();
-						const uint32_t second = entity.gen();
+						// Fake entities instantiated for both ids.
+						// We don't care though because to construct the archetype pair we only need
+						// the IDs anyway.
+						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
+						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
 						// (*, tgt)
 						add_entity_archetype_pair(Pair(All, second), pArchetype);
@@ -20161,7 +20172,7 @@ namespace gaia {
 
 				if (entity.pair())
 					return;
-				if (m_entities.item_count() == 0 || entity == IdentifierBad)
+				if (m_entities.item_count() == 0 || entity == EntityBad)
 					return;
 
 				const auto& ec = m_entities[entity.id()];
@@ -20608,7 +20619,7 @@ namespace gaia {
 			//! Checks if \param entity is valid.
 			//! \return True is the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
-				GAIA_ASSERT(!entity.pair() || entity == ecs::IdentifierBad);
+				GAIA_ASSERT(!entity.pair() || entity == EntityBad);
 
 				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
@@ -21017,11 +21028,11 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity get(const char* name) const {
 				if (name == nullptr)
-					return IdentifierBad;
+					return EntityBad;
 
 				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
 				if (it == m_nameToEntity.end())
-					return IdentifierBad;
+					return EntityBad;
 
 				return it->second;
 			}

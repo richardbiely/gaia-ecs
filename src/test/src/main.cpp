@@ -1494,15 +1494,15 @@ TEST_CASE("Entity - has") {
 	}
 }
 
-TEST_CASE("Entity - IdentifierBad") {
-	REQUIRE(ecs::Entity{} == ecs::IdentifierBad);
+TEST_CASE("Entity - EntityBad") {
+	REQUIRE(ecs::Entity{} == ecs::EntityBad);
 
 	ecs::World w;
-	REQUIRE_FALSE(w.valid(ecs::IdentifierBad));
+	REQUIRE_FALSE(w.valid(ecs::EntityBad));
 
 	auto e = w.add();
-	REQUIRE(e != ecs::IdentifierBad);
-	REQUIRE_FALSE(e == ecs::IdentifierBad);
+	REQUIRE(e != ecs::EntityBad);
+	REQUIRE_FALSE(e == ecs::EntityBad);
 	REQUIRE(e.entity());
 }
 
@@ -3118,7 +3118,7 @@ TEST_CASE("entity name") {
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
 			REQUIRE(strcmp(w.name(e), original) == 0);
 			REQUIRE(w.get(original) == e);
-			REQUIRE(w.get(tmp) == ecs::IdentifierBad);
+			REQUIRE(w.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
 			GAIA_STRCPY(tmp, MaxLen, original);
@@ -3137,12 +3137,12 @@ TEST_CASE("entity name") {
 #endif
 
 		w.name(e, nullptr);
-		REQUIRE(w.get(original) == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::EntityBad);
 		REQUIRE(w.name(e) == nullptr);
 
 		w.name(e, original);
 		w.del(e);
-		REQUIRE(w.get(original) == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("basic - non-owned") {
@@ -3159,10 +3159,10 @@ TEST_CASE("entity name") {
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
 			const auto* str = w.name(e);
 			REQUIRE(strcmp(str, "some_random_string") == 0);
-			REQUIRE(w.get(original) == ecs::IdentifierBad);
+			REQUIRE(w.get(original) == ecs::EntityBad);
 			// Hash was calculated for [original] but we changed the string to "some_random_string".
 			// Hash won't match so we shouldn't be able to find the entity still.
-			REQUIRE(w.get("some_random_string") == ecs::IdentifierBad);
+			REQUIRE(w.get("some_random_string") == ecs::EntityBad);
 		}
 
 		{
@@ -3172,12 +3172,12 @@ TEST_CASE("entity name") {
 		}
 
 		w.name(e, nullptr);
-		REQUIRE(w.get(original) == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::EntityBad);
 		REQUIRE(w.name(e) == nullptr);
 
 		w.name_raw(e, original);
 		w.del(e);
-		REQUIRE(w.get(original) == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("two") {

@@ -2,6 +2,7 @@
 #include "../config/config.h"
 
 #include <cstdint>
+#include <type_traits>
 
 #include "../core/hashing_policy.h"
 #include "../mem/data_layout_policy.h"
@@ -143,9 +144,14 @@ namespace gaia {
 			};
 
 			constexpr Entity() noexcept: val(IdentifierBad){};
-			constexpr Entity(Identifier value) noexcept: val(value) {}
 
-			// Special constructor for cnt::ilist
+			//! We need the entity to be braces-construcible and at the same type prevent it from
+			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
+			//! allow Entity(Identifier) to be used.
+			template <typename T, typename = std::enable_if_t<std::is_same_v<T, Identifier>>>
+			constexpr Entity(T value) noexcept: val(value) {}
+
+			//! Special constructor for cnt::ilist
 			Entity(EntityId id, IdentifierData gen) noexcept {
 				val = 0;
 				data.id = id;
@@ -196,6 +202,8 @@ namespace gaia {
 				return value() < other.value();
 			}
 		};
+
+		struct Entity EntityBad = Entity(IdentifierBad);
 
 		struct EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint32_t>;
