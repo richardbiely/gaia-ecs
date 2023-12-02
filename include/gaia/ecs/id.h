@@ -222,7 +222,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			EntityLookupKey() = default;
-			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+			explicit EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
 
 			Entity entity() const {
 				return m_entity;

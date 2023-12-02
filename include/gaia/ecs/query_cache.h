@@ -16,7 +16,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			QueryLookupKey(): m_hash({0}), m_pCtx(nullptr) {}
-			QueryLookupKey(QueryLookupHash hash, const QueryCtx* pCtx): m_hash(hash), m_pCtx(pCtx) {}
+			explicit QueryLookupKey(QueryLookupHash hash, const QueryCtx* pCtx): m_hash(hash), m_pCtx(pCtx) {}
 
 			size_t hash() const {
 				return (size_t)m_hash.hash;

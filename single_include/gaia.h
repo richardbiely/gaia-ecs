@@ -14037,7 +14037,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			EntityLookupKey() = default;
-			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+			explicit EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
 
 			Entity entity() const {
 				return m_entity;
@@ -17686,7 +17686,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			ArchetypeLookupKey(): m_hash({0}), m_pArchetypeBase(nullptr) {}
-			ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
+			explicit ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
 					m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
 
 			size_t hash() const {
@@ -18696,7 +18696,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			QueryLookupKey(): m_hash({0}), m_pCtx(nullptr) {}
-			QueryLookupKey(QueryLookupHash hash, const QueryCtx* pCtx): m_hash(hash), m_pCtx(pCtx) {}
+			explicit QueryLookupKey(QueryLookupHash hash, const QueryCtx* pCtx): m_hash(hash), m_pCtx(pCtx) {}
 
 			size_t hash() const {
 				return (size_t)m_hash.hash;
@@ -19917,7 +19917,7 @@ namespace gaia {
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
 				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_componentToArchetypeMap.end())
-					m_componentToArchetypeMap.try_emplace(entity, ArchetypeList{pArchetype});
+					m_componentToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
 				else if (!core::has(it->second, pArchetype))
 					it->second.push_back(pArchetype);
 			}

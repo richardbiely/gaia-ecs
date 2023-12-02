@@ -55,7 +55,7 @@
     * [Change detection](#change-detection)
   * [Relationships](#relationships)
     * [Basics](#basics)
-    * [Cleanup relation](#cleanup-relation)
+    * [Cleanup rules](#cleanup-rules)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)

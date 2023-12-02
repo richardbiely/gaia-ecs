@@ -760,7 +760,7 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			ArchetypeLookupKey(): m_hash({0}), m_pArchetypeBase(nullptr) {}
-			ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
+			explicit ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
 					m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
 
 			size_t hash() const {
