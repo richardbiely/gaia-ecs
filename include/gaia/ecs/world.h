@@ -690,12 +690,75 @@ namespace gaia {
 				}
 			}
 
+			//! Updates all chunks and entities of archetype \param srcArchetype so they are a part of \param dstArchetype
+			void move_to_archetype(Archetype& srcArchetype, Archetype& dstArchetype) {
+				GAIA_ASSERT(&srcArchetype != &dstArchetype);
+
+				for (auto* pSrcChunk: srcArchetype.chunks()) {
+					auto srcEnts = pSrcChunk->entity_view();
+					if (srcEnts.empty())
+						continue;
+
+					// Copy entities back-to-front to avoid unnecessary data movements.
+					// TODO: Handle disabled entities efficiently.
+					//       If there are disabled entites, we still do data movements if there already
+					//       are enabled entities in the chunk.
+					// TODO: If the header was of some fixed size, e.g. if we always acted as if we had
+					//       Chunk::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
+					//       E.g. when removing tags or pairs, we would simply replace the chunk pointer
+					//       with a pointer to another one. The some goes for archetypes. Component data
+					//       would not have to move at all internal chunk header pointers would remain unchanged.
+
+					auto* pDstChunk = dstArchetype.foc_free_chunk();
+					int i = (int)(srcEnts.size() - 1);
+					while (i >= 0) {
+						if (pDstChunk->full())
+							pDstChunk = dstArchetype.foc_free_chunk();
+						move_entity(srcEnts[(uint32_t)i], dstArchetype, *pDstChunk);
+
+						--i;
+					}
+				}
+			}
+
 			//! Removes the entity \param target from anything referencing it.
 			template <typename EntityOrPair>
 			void rem_from_entities(EntityOrPair target) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
+
+				auto calcDstArchetype = [&](Archetype* pArchetype, Entity entityToRemove) {
+					Archetype* pDstArchetype = pArchetype;
+					bool found = false;
+
+					const auto& types = pArchetype->entities();
+					for (auto type: types) {
+						if (type != entityToRemove)
+							continue;
+
+						pDstArchetype = foc_archetype_del(pDstArchetype, type);
+						found = true;
+					}
+
+					return found ? pDstArchetype : nullptr;
+				};
+
+				auto calcDstArchetype_Pair = [&](Archetype* pArchetype, Entity entityToRemove) {
+					Archetype* pDstArchetype = pArchetype;
+					bool found = false;
+
+					const auto& types = pArchetype->entities();
+					for (auto type: types) {
+						if (!type.pair() || type.id() != entityToRemove.id())
+							continue;
+
+						pDstArchetype = foc_archetype_del(pDstArchetype, type);
+						found = true;
+					}
+
+					return found ? pDstArchetype : nullptr;
+				};
 
 				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_componentToArchetypeMap.end()) {
@@ -705,98 +768,33 @@ namespace gaia {
 							if (target.first() == All || target.second() == All) {
 								// (first, All) means we need to match (first, A), (first, B), ...
 								if (target.first() != All && target.second() == All) {
-									const auto& types = pArchetype->entities();
-									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
-									for (auto type: types) {
-										if (!type.pair() || type.id() != target.first().id())
-											continue;
-										matches.push_back(type);
-									}
-
-									if (matches.empty())
-										continue;
-
-									// TODO: Archetype target for these chunks is always the same. We will be moving all
-									//       the entities to another archetype. Therefore, we could simply update chunk
-									//       headers to match the chunk header of the target archetype etc.
-									for (auto* pChunk: pArchetype->chunks()) {
-										auto ents = pChunk->entity_view();
-										for (auto e: ents) {
-											auto bulk = EntityBuilder(*this, e);
-											for (auto match: matches)
-												bulk.del_inter(match);
-										}
-									}
+									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, target.first());
+									if (pDstArchetype != nullptr)
+										move_to_archetype(*pArchetype, *pDstArchetype);
 								}
 								// (All, second) means we need to match (A, second), (B, second), ...
 								else if (target.first() == All && target.second() == All) {
-									const auto& types = pArchetype->entities();
-									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
-									for (auto type: types) {
-										if (!type.pair() || type.id() != target.second().id())
-											continue;
-										matches.push_back(type);
-									}
-
-									if (matches.empty())
-										continue;
-
-									// TODO: Archetype target for these chunks is always the same. We will be moving all
-									//       the entities to another archetype. Therefore, we could simply update chunk
-									//       headers to match the chunk header of the target archetype etc.
-									for (auto* pChunk: pArchetype->chunks()) {
-										auto ents = pChunk->entity_view();
-										for (auto e: ents) {
-											auto bulk = EntityBuilder(*this, e);
-											for (auto match: matches)
-												bulk.del_inter(match);
-										}
-									}
+									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, target.second());
+									if (pDstArchetype != nullptr)
+										move_to_archetype(*pArchetype, *pDstArchetype);
 								}
 								// (All, All) means we need to match all relationships
 								else {
-									const auto& types = pArchetype->entities();
-									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
-									for (auto type: types) {
-										if (!type.pair())
-											continue;
-										matches.push_back(type);
-									}
-
-									if (matches.empty())
-										continue;
-
-									// TODO: Archetype target for these chunks is always the same. We will be moving all
-									//       the entities to another archetype. Therefore, we could simply update chunk
-									//       headers to match the chunk header of the target archetype etc.
-									for (auto* pChunk: pArchetype->chunks()) {
-										auto ents = pChunk->entity_view();
-										for (auto e: ents) {
-											auto bulk = EntityBuilder(*this, e);
-											for (auto match: matches)
-												bulk.del_inter(match);
-										}
-									}
+									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, EntityBad);
+									if (pDstArchetype != nullptr)
+										move_to_archetype(*pArchetype, *pDstArchetype);
 								}
-							} else {
-								// TODO: Archetype target for these chunks is always the same. We will be moving all
-								//       the entities to another archetype. Therefore, we could simply update chunk
-								//       headers to match the chunk header of the target archetype etc.
-								for (auto* pChunk: pArchetype->chunks()) {
-									auto ents = pChunk->entity_view();
-									for (auto e: ents)
-										EntityBuilder(*this, e).del(target);
-								}
+							}
+							// Non-wildcard pair or entity
+							else {
+								auto* pDstArchetype = calcDstArchetype(pArchetype, target);
+								if (pDstArchetype != nullptr)
+									move_to_archetype(*pArchetype, *pDstArchetype);
 							}
 						} else {
-							// TODO: Archetype target for these chunks is always the same. We will be moving all
-							//       the entities to another archetype. Therefore, we could simply update chunk
-							//       headers to match the chunk header of the target archetype etc.
-							for (auto* pChunk: pArchetype->chunks()) {
-								auto ents = pChunk->entity_view();
-								for (auto e: ents)
-									EntityBuilder(*this, e).del(target);
-							}
+							auto* pDstArchetype = calcDstArchetype(pArchetype, target);
+							if (pDstArchetype != nullptr)
+								move_to_archetype(*pArchetype, *pDstArchetype);
 						}
 					}
 				}

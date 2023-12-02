@@ -28,28 +28,30 @@ namespace gaia {
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
 			//! comp of type \param kind.
 			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = m_edgesAdd.try_emplace({entity}, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						m_edgesAdd.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
 			//! comp of type \param kind.
 			void add_edge_left(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = m_edgesDel.try_emplace({entity}, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						m_edgesDel.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
-				const auto it = m_edgesAdd.find({entity});
+				const auto it = m_edgesAdd.find(EntityLookupKey(entity));
 				return it != m_edgesAdd.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
-				const auto it = m_edgesDel.find({entity});
+				const auto it = m_edgesDel.find(EntityLookupKey(entity));
 				return it != m_edgesDel.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
 
