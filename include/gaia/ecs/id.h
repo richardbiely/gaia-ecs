@@ -201,6 +201,16 @@ namespace gaia {
 			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
 				return value() < other.value();
 			}
+			GAIA_NODISCARD constexpr bool operator<=(Entity other) const noexcept {
+				return value() <= other.value();
+			}
+
+			GAIA_NODISCARD constexpr bool operator>(Entity other) const noexcept {
+				return value() > other.value();
+			}
+			GAIA_NODISCARD constexpr bool operator>=(Entity other) const noexcept {
+				return value() >= other.value();
+			}
 		};
 
 		struct Entity EntityBad = Entity(IdentifierBad);
@@ -275,6 +285,7 @@ namespace gaia {
 		struct Remove_ {};
 		struct Delete_ {};
 		struct All_ {};
+		struct ChildOf_ {};
 
 		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
@@ -283,7 +294,12 @@ namespace gaia {
 		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
 		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
+		// Wildcard query entity
 		inline Entity All = Entity(7, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(LastCoreComponent) = All;
+		// Entity representing a physical hierarchy
+		inline Entity ChildOf = Entity(8, 0, false, false, EntityKind::EK_Gen);
+
+		// Always has to match the last internal entity
+		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
 	} // namespace ecs
 } // namespace gaia

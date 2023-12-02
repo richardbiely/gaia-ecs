@@ -1100,6 +1100,17 @@ namespace gaia {
 					(void)comp;
 					(void)desc;
 				}
+
+				// Register ChildOf component. Used with relationship queries.
+				// When the relationship target is deleted all children are deleted as well.
+				{
+					const auto& id = ChildOf;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<ChildOf_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)desc;
+					add(comp, ecs::Pair(OnDeleteTarget, Delete));
+				}
 			}
 
 			void done() {

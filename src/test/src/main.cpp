@@ -2306,10 +2306,12 @@ TEST_CASE("Relationship") {
 		{
 			auto q = w.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 3);
+			REQUIRE(cnt == 4); // 3 +1 for internal relationhsip
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
+				if (entity <= ecs::GAIA_ID(LastCoreComponent))
+					return;
 				const bool isRabbit = entity == rabbit;
 				const bool isHare = entity == hare;
 				const bool isWolf = entity == wolf;
@@ -2317,7 +2319,7 @@ TEST_CASE("Relationship") {
 				REQUIRE(is);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			REQUIRE(i == 3);
 		}
 	}
 }
