@@ -608,7 +608,7 @@ This by itself would not be much different from adding entities/component to ent
 There are three kinds of wildcard queries possible:
 - ***( X, * )*** - X that does anything
 - ***( * , X )*** - anything that does X
-- ***( * , * )*** - anything that does anything
+- ***( * , * )*** - anything that does anything (aka any relationship)
 
 The "*" wildcard is expressed via ***All*** entity.
 
@@ -661,10 +661,10 @@ Whether a realtionship exists can be check via ***World::has*** just like any ot
 w.has(rabbit, ecs::Pair(eats, carrot));
 ```
 
-### Cleanup relation
-When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup relations.
+### Cleanup rules
+When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.
 
-Cleanup relations are defined as ecs::Pair(Condition, Reaction).
+Cleanup rules are defined as ecs::Pair(Condition, Reaction).
 
 Condition is one of the following:
 * ***OnDelete*** - deleting an entity/pair
@@ -691,7 +691,7 @@ w.del(rabbit);
 w.del(eats); 
 ```
 
-We can create our own rules, though.
+Creating custom rules is just a matter of adding the relationship to an entity.
 
 ```cpp
 ecs::Entity bomb_exploding_on_del = w.add();

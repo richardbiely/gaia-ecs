@@ -19623,6 +19623,8 @@ namespace gaia {
 
 		public:
 			struct EntityBuilder final {
+				friend class World;
+
 				World& m_world;
 				Entity m_entity;
 				Archetype* m_pArchetype;
@@ -20170,8 +20172,6 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
-				if (entity.pair())
-					return;
 				if (m_entities.item_count() == 0 || entity == EntityBad)
 					return;
 
@@ -20194,8 +20194,8 @@ namespace gaia {
 
 			//! Delete anything referencing the entity \param target. No questions asked.
 			template <typename EntityOrPair>
-			void del_entities_with_target(EntityOrPair target) {
-				GAIA_PROF_SCOPE(World::del_entities_with_target);
+			void del_entities_with(EntityOrPair target) {
+				GAIA_PROF_SCOPE(World::del_entities_with);
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
 
@@ -20226,22 +20226,113 @@ namespace gaia {
 				}
 			}
 
-			//! Removes the \param target entity from anything referencing it.
+			//! Removes the entity \param target from anything referencing it.
 			template <typename EntityOrPair>
-			void remove_target_from_entities(EntityOrPair target) {
-				GAIA_PROF_SCOPE(World::remove_target_from_entities);
+			void rem_from_entities(EntityOrPair target) {
+				GAIA_PROF_SCOPE(World::rem_from_entities);
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
 
 				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_componentToArchetypeMap.end()) {
 					for (auto* pArchetype: it->second) {
-						for (auto* pChunk: pArchetype->chunks()) {
-							auto ents = pChunk->entity_view();
-							// TODO: Archetype target for these chunks is always the same. Therefore
-							//       we could speed this up by providing the archetype directly.
-							for (auto e: ents)
-								EntityBuilder(*this, e).del(target);
+						if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+							// Removing a wildcard pair. We need to find all pairs matching it.
+							if (target.first() == All || target.second() == All) {
+								// (first, All) means we need to match (first, A), (first, B), ...
+								if (target.first() != All && target.second() == All) {
+									const auto& types = pArchetype->entities();
+									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
+									for (auto type: types) {
+										if (!type.pair() || type.id() != target.first().id())
+											continue;
+										matches.push_back(type);
+									}
+
+									if (matches.empty())
+										continue;
+
+									// TODO: Archetype target for these chunks is always the same. We will be moving all
+									//       the entities to another archetype. Therefore, we could simply update chunk
+									//       headers to match the chunk header of the target archetype etc.
+									for (auto* pChunk: pArchetype->chunks()) {
+										auto ents = pChunk->entity_view();
+										for (auto e: ents) {
+											auto bulk = EntityBuilder(*this, e);
+											for (auto match: matches)
+												bulk.del_inter(match);
+										}
+									}
+								}
+								// (All, second) means we need to match (A, second), (B, second), ...
+								else if (target.first() == All && target.second() == All) {
+									const auto& types = pArchetype->entities();
+									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
+									for (auto type: types) {
+										if (!type.pair() || type.id() != target.second().id())
+											continue;
+										matches.push_back(type);
+									}
+
+									if (matches.empty())
+										continue;
+
+									// TODO: Archetype target for these chunks is always the same. We will be moving all
+									//       the entities to another archetype. Therefore, we could simply update chunk
+									//       headers to match the chunk header of the target archetype etc.
+									for (auto* pChunk: pArchetype->chunks()) {
+										auto ents = pChunk->entity_view();
+										for (auto e: ents) {
+											auto bulk = EntityBuilder(*this, e);
+											for (auto match: matches)
+												bulk.del_inter(match);
+										}
+									}
+								}
+								// (All, All) means we need to match all relationships
+								else {
+									const auto& types = pArchetype->entities();
+									cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> matches;
+									for (auto type: types) {
+										if (!type.pair())
+											continue;
+										matches.push_back(type);
+									}
+
+									if (matches.empty())
+										continue;
+
+									// TODO: Archetype target for these chunks is always the same. We will be moving all
+									//       the entities to another archetype. Therefore, we could simply update chunk
+									//       headers to match the chunk header of the target archetype etc.
+									for (auto* pChunk: pArchetype->chunks()) {
+										auto ents = pChunk->entity_view();
+										for (auto e: ents) {
+											auto bulk = EntityBuilder(*this, e);
+											for (auto match: matches)
+												bulk.del_inter(match);
+										}
+									}
+								}
+							} else {
+								// TODO: Archetype target for these chunks is always the same. We will be moving all
+								//       the entities to another archetype. Therefore, we could simply update chunk
+								//       headers to match the chunk header of the target archetype etc.
+								for (auto* pChunk: pArchetype->chunks()) {
+									auto ents = pChunk->entity_view();
+									for (auto e: ents)
+										EntityBuilder(*this, e).del(target);
+								}
+							}
+						} else {
+							// TODO: Archetype target for these chunks is always the same. We will be moving all
+							//       the entities to another archetype. Therefore, we could simply update chunk
+							//       headers to match the chunk header of the target archetype etc.
+							for (auto* pChunk: pArchetype->chunks()) {
+								auto ents = pChunk->entity_view();
+								for (auto e: ents)
+									EntityBuilder(*this, e).del(target);
+							}
 						}
 					}
 				}
@@ -20265,23 +20356,24 @@ namespace gaia {
 				// TODO: Make it possible to check the conditions simply via some pre-calculated bit mask
 				//       to speed the search up (aka no search necessary).
 				if constexpr (std::is_same_v<EntityOrPair, Entity>) {
-					if (has(entity, Pair(OnDelete, Delete)))
-						del_entities_with_target(entity);
-					else
-						remove_target_from_entities(entity);
+					if (has(entity, Pair(OnDelete, Delete))) {
+						// Delete all references to the entity if explicitely wanted
+						del_entities_with(entity);
+					} else {
+						// Entities are only removed by default
+						rem_from_entities(entity);
+					}
 				} else {
-					if (has(entity, Pair(OnDeleteTarget, Delete)))
-						del_entities_with_target(entity.second());
-					else if (has(entity, Pair(OnDeleteTarget, Remove)))
-						remove_target_from_entities(entity.second());
-					if (has(entity, Pair(OnDelete, Delete)))
-						del_entities_with_target(entity);
-					else // if (has(entity, Pair(OnDelete, Remove)))
-						remove_target_from_entities(entity);
+					auto target = entity.second();
+
+					if (has(target, Pair(OnDeleteTarget, Delete)))
+						del_entities_with(target);
+
+					rem_from_entities(entity);
 				}
 			}
 
-			//! Invalidates the entity record, effectivelly deleting it
+			//! Invalidates the entity record, effectivelly deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
 				auto& ec = m_entities.free(entity);
@@ -20291,7 +20383,8 @@ namespace gaia {
 
 			//! Associates an entity with a chunk.
 			//! \param entity Entity to associate with a chunk
-			//! \param pChunk Chunk the entity is to become a part of
+			//! \param pArchetype Target archetype
+			//! \param pChunk Target chunk (with the archetype \param pArchetype)
 			void store_entity(Entity entity, Archetype* pArchetype, Chunk* pChunk) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pChunk != nullptr);
@@ -20807,15 +20900,21 @@ namespace gaia {
 
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			template <typename EntityOrPair>
-			void del(EntityOrPair entity) {
+			void del(Entity entity) {
+				// Delete all relationships associated with this entity (if any)
+				del(Pair(entity, All));
+				del(Pair(All, entity));
+
 				// Handle specific conditions that might arise from deleting the entity
 				handle_del_entity(entity);
 
-				if constexpr (!std::is_same_v<EntityOrPair, Pair>) {
-					// Delete the entity itself
-					del_entity(entity);
-				}
+				// Delete the entity itself
+				del_entity(entity);
+			}
+
+			void del(Pair pair) {
+				// Handle specific conditions that might arise from deleting the pair
+				handle_del_entity(pair);
 			}
 
 			//! Removes an existing entity relationship pair
@@ -20935,13 +21034,11 @@ namespace gaia {
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
-			//! \return True if the component is present on entity.
+			//! \return True if object is present on entity. Flase otherwise or if any of the entites is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
 				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(valid(object));
 
 				const auto& ec = m_entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.has(object);
@@ -20950,14 +21047,11 @@ namespace gaia {
 			//! Tells if \param entity contains the pair \param pair.
 			//! \param entity Entity
 			//! \param pair Pair
-			//! \return True if the component is present on entity.
+			//! \return True if the pair is present on entity. False otherwise or if any of the entities is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected both entities forming the \param pair are valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
 				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(valid(pair.first()));
-				GAIA_ASSERT(valid(pair.second()));
 
 				const auto& ec = m_entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.has(pair);
