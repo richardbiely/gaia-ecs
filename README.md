@@ -23,15 +23,18 @@
 
 **Gaia-ECS** is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
 * very simple and safe API
-* archetype / chunk-based storage for maximum iteration speed and easy code parallelization
-* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
-* support for [run-time defined tags](#create-or-delete-entity)
-* support for data [relationships](#relationships)
-* based on [C++17](https://en.cppreference.com/w/cpp/17)
-* no external dependencies (no STL strings or containers)
+* based on [C++17](https://en.cppreference.com/w/cpp/17) with no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
+* archetype / chunk-based storage for maximum iteration speed and easy code parallelization
+* supports [run-time defined tags](#create-or-delete-entity)
+* supports [entity relationships](#relationships)
+* supports applications with large number of components and archetypes
+* automatic component registration
+* integrated [compile-time serialization](#serialization)
+* comes with [multithreading](#multithreading) support with job-dependencies 
+* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiles almost instantly
-* stability secured by running thousands of [unit tests](#unit-testing) and debug-mode asserts in the code
+* stability and correctness secured by running thousands of [unit tests](#unit-testing) and debug-mode asserts in the code
 * thoroughly documented both public and internal code
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
@@ -46,6 +49,7 @@
     * [Create or delete entity](#create-or-delete-entity)
     * [Name entity](#name-entity)
     * [Add or remove component](#add-or-remove-component)
+    * [Bulk editing](#bulk-editing)
     * [Set or get component value](#set-or-get-component-value)
     * [Component presence](#component-presence)
   * [Data processing](#data-processing)
@@ -104,7 +108,7 @@ Chunk memory is preallocated in blocks organized into pages via the internal chu
 
 The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph.
 
-In this project, components are entities with Component component attached to them. Treating components as entities allows for great design simplification and big features.
+In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
 # Usage
 ## Minimum requirements
@@ -120,11 +124,18 @@ In the code examples below we will assume we are inside the namespace already.
 ## Basic operations
 ### Create or delete entity
 
+Entity a unique "thing" in ***World***. Creating an entity at runtime is as easy as calling ***World::add***. Deleting is done via ***World::del***. Once deleted, entity is no longer valid and if used with some APIs it is going to trigger a debug-mode assert. Verifying that an entity is valid can be done by calling ***World::valid***.
+
 ```cpp
 ecs::World w;
+// Create a new entity
 ecs::Entity e = w.add();
-... // do something with the created entity
+// Check if "e" is valid. Returns true.
+bool isValid = w.valid(e); // true
+// Delete the entity
 w.del(e);
+// Check if "e" is still valid. Return false.
+isValid = w.valid(e); // false
 ```
 
 It is also possible to attach entities to entities. This effectively means you are able to create your own components/tags at runtime.
@@ -188,7 +199,17 @@ w.name_raw(e, pUserManagedString);
 
 ### Add or remove component
 
-Adding a component to entity means the entity becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means all component data associated with the entity need to move from the old one. The more components in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
+Components can be created using ***World::add<T>***. This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scences any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
+
+```cpp
+struct Position {
+  float x, y, z;
+};
+const ecs::ComponentCacheItem& cci = w.add<Position>();
+ecs::Entity position_entity = cci.entity;
+```
+
+Because components are entites as well, adding them is very similar to what we have seen previously.
 
 ```cpp
 struct Position {
@@ -209,7 +230,7 @@ w.add<Velocity>(e, {0, 0, 1});
 w.del<Velocity>(e);
 ```
 
-Because internally components are just entities with the Component component attached to them, what the code above does can be rewritten also as following:
+This also means the code above could be rewritten as following:
 
 ```cpp
 // Create Position and Velocity entities
@@ -225,8 +246,11 @@ w.add(e, velocity, Position{0, 0, 1});
 w.del(e, velocity);
 ```
 
+### Bulk editing
 
-With that said, when adding or removing multiple components at once it is more efficient doing it via chaining. This way only one archetype movement is performed in total rather than one per added/removed component.
+Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
+
+Instead, when adding or removing multiple entities/components at once it is more efficient doing it via bulk operations. This way only one archetype movement is performed in total rather than one per added/removed entity.
 
 ```cpp
 ecs::World w;
@@ -236,7 +260,7 @@ ecs::Entity e = w.add();
 w.add<Position>();
 
 // Add and remove multiple components. 
-// This is also one archetype movement rather than 6 compared to doing these operations separate.
+// This does one archetype movement rather than 6 compared to doing these operations separate.
 w.bulk(e)
  // add Velocity to entity e
  .add<Velocity>()
@@ -248,7 +272,7 @@ w.bulk(e)
  .add<Something1, Something2, Something3>();
 ```
 
-gaiaIt is also possible to manually commit all changes by calling ***EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
+It is also possible to manually commit all changes by calling ***EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
 ecs::EntityBuilder builder = w.bulk(e);
@@ -263,7 +287,6 @@ builder.commit();
 ```
 
 >**NOTE:**<br/>Once ***EntityBuilder::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
-
 
 ### Set or get component value
 
@@ -659,6 +682,28 @@ Whether a realtionship exists can be check via ***World::has*** just like any ot
 ```cpp
 // Checks if rabbit eats carrot
 w.has(rabbit, ecs::Pair(eats, carrot));
+```
+
+### Targets
+
+Targets of a relationship can be retrieved via ***World::target***.
+
+```cpp
+ecs::World w;
+ecs::Entity rabbit = w.add();
+ecs::Entity carrot = w.add();
+ecs::Entity salad = w.add();
+ecs::Entity eats = w.add();
+
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(rabbit, ecs::Pair(eats, salad));
+
+// Returns carrot (carrot entity was created before salad)
+ecs::Entity first_target = w.target(rabbit, eats);
+
+// Appends carrot and salad entities to the array
+cnt::sarr_ext<ecs::Entity, 32> what_rabbit_eats;
+w.target(rabbit, eats, what_rabbit_eats);
 ```
 
 ### Cleanup rules
