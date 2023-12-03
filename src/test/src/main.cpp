@@ -2324,6 +2324,31 @@ TEST_CASE("Relationship") {
 	}
 }
 
+TEST_CASE("Relationship target") {
+	ecs::World w;
+
+	auto wolf = w.add();
+	auto hates = w.add();
+	auto rabbit = w.add();
+	auto carrot = w.add();
+	auto salad = w.add();
+	auto eats = w.add();
+
+	w.add(rabbit, ecs::Pair(eats, carrot));
+	w.add(rabbit, ecs::Pair(eats, salad));
+	w.add(rabbit, ecs::Pair(hates, wolf));
+	
+	auto e = w.target(rabbit, eats);
+	const bool ret_e = e == carrot || e == salad;
+	REQUIRE(ret_e);
+
+	cnt::sarr_ext<ecs::Entity, 32> rabbit_eats_targets;
+	w.target(rabbit, eats, rabbit_eats_targets);
+	REQUIRE(rabbit_eats_targets.size() == 2);
+	REQUIRE(core::has(rabbit_eats_targets, carrot));
+	REQUIRE(core::has(rabbit_eats_targets, salad));
+}
+
 template <typename TQuery>
 void Test_Query_Equality() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;

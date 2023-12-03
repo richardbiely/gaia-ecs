@@ -19,7 +19,7 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 
-		using ComponentIdToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
+		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
 
 		class QueryInfo {
 		public:
@@ -216,11 +216,11 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
+			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			void match(
-					// component -> archetypes mapping
-					const ComponentIdToArchetypeMap& componentToArchetypeMap,
+					// entity -> archetypes mapping
+					const EntityToArchetypeMap& entityToArchetypeMap,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
@@ -256,8 +256,8 @@ namespace gaia {
 					GAIA_EACH(ops_ids_all) {
 						// Check if any archetype is associated with the entity id.
 						// All ids must be registered in the world.
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_all[i]));
-						if (it == componentToArchetypeMap.end() || it->second.empty())
+						const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_all[i]));
+						if (it == entityToArchetypeMap.end() || it->second.empty())
 							return;
 
 						cache.push_back(&it->second);
@@ -274,8 +274,8 @@ namespace gaia {
 						GAIA_EACH(ops_ids_any) {
 							// Check if any archetype is associated with the entity id.
 							// All ids must be registered in the world.
-							const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
-							if (it == componentToArchetypeMap.end() || it->second.empty()) {
+							const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
+							if (it == entityToArchetypeMap.end() || it->second.empty()) {
 								cache.push_back(nullptr);
 								continue;
 							}
@@ -309,8 +309,8 @@ namespace gaia {
 					GAIA_EACH(ops_ids_any) {
 						// Check if any archetype is associated with the entity id.
 						// All ids must be registered in the world.
-						const auto it = componentToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
-						if (it == componentToArchetypeMap.end() || it->second.empty()) {
+						const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_any[i]));
+						if (it == entityToArchetypeMap.end() || it->second.empty()) {
 							cache.push_back(nullptr);
 							continue;
 						}

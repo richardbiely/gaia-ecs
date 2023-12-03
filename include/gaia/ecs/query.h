@@ -166,7 +166,7 @@ namespace gaia {
 				//! List of archetypes (stable pointer to parent world's archetype array)
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
-				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
+				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! List of world's entity records
 				const cnt::ilist<EntityContainer, Entity>* m_entities{};
 
@@ -185,7 +185,7 @@ namespace gaia {
 						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
-							queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
+							queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
 
@@ -195,7 +195,7 @@ namespace gaia {
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
-						queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
+						queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
 						return queryInfo;
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
@@ -204,7 +204,7 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
-						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
+						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
 				}
@@ -529,22 +529,20 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes,
-						const ComponentIdToArchetypeMap& componentToArchetypeMap):
+						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
+						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes,
-						const ComponentIdToArchetypeMap& componentToArchetypeMap):
+						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
+						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");

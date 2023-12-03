@@ -52,7 +52,7 @@ namespace gaia {
 			//! Cache of queries
 			QueryCache m_queryCache;
 			//! Map of components -> archetype matches
-			ComponentIdToArchetypeMap m_componentToArchetypeMap;
+			EntityToArchetypeMap m_entityToArchetypeMap;
 
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
@@ -377,9 +377,9 @@ namespace gaia {
 
 			//! Adds the archetype to <entity, archetype> map for quick lookups of archetypes by comp/tag/pair
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
-				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(entity));
-				if (it == m_componentToArchetypeMap.end())
-					m_componentToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
 				else if (!core::has(it->second, pArchetype))
 					it->second.push_back(pArchetype);
 			}
@@ -663,8 +663,8 @@ namespace gaia {
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
 
-				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(target));
-				if (it != m_componentToArchetypeMap.end()) {
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
+				if (it != m_entityToArchetypeMap.end()) {
 					for (auto* pArchetype: it->second) {
 						for (auto* pChunk: pArchetype->chunks()) {
 							auto ents = pChunk->entity_view();
@@ -760,8 +760,8 @@ namespace gaia {
 					return found ? pDstArchetype : nullptr;
 				};
 
-				const auto it = m_componentToArchetypeMap.find(EntityLookupKey(target));
-				if (it != m_componentToArchetypeMap.end()) {
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
+				if (it != m_entityToArchetypeMap.end()) {
 					for (auto* pArchetype: it->second) {
 						if constexpr (std::is_same_v<EntityOrPair, Pair>) {
 							// Removing a wildcard pair. We need to find all pairs matching it.
@@ -1498,7 +1498,7 @@ namespace gaia {
 			//! Checks if \param pair is currently used by the world.
 			//! \return True is the pair is used. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
-				const bool ret = m_componentToArchetypeMap.contains(EntityLookupKey(pair));
+				const bool ret = m_entityToArchetypeMap.contains(EntityLookupKey(pair));
 				// If the pair is found, both entities forming it need to be found as well
 				GAIA_ASSERT(!ret || (has(pair.first()) && has(pair.second())));
 				return ret;
@@ -1582,7 +1582,7 @@ namespace gaia {
 			//! Returns the name assigned to \param entityId.
 			//! \param entityId EntityId
 			//! \return Name assigned to entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(EntityId entityId) const {
 				const auto& ec = m_entities[entityId];
 				auto entity = ec.pChunk->entity_view()[ec.row];
@@ -1591,8 +1591,7 @@ namespace gaia {
 
 			//! Returns the entity that is assigned with the \param name.
 			//! \param name Name
-			//! \return Entity assigned the given name.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \return Entity assigned the given name. EntityBad if there is nothing to return.
 			GAIA_NODISCARD Entity get(const char* name) const {
 				if (name == nullptr)
 					return EntityBad;
@@ -1606,6 +1605,61 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns the first relationship target for the \param relation entity on \param entity.
+			//! \return Relationship target. EntityBad if there is nothing to return.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return EntityBad;
+
+				const auto& ec = m_entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				uint32_t i = 0;
+				const auto& ents = pArchetype->entities();
+				for (auto e: ents) {
+					if (!e.pair())
+						continue;
+					if (e.id() != relation.id())
+						continue;
+
+					const auto& ecTarget = m_entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					return target;
+				}
+
+				return EntityBad;
+			}
+
+			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Appends all relationship targets if any to \param targets.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename C>
+			GAIA_NODISCARD void target(Entity entity, Entity relation, C& targets) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return;
+
+				const auto& ec = m_entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				uint32_t i = 0;
+				const auto& ents = pArchetype->entities();
+				for (auto e: ents) {
+					if (!e.pair())
+						continue;
+					if (e.id() != relation.id())
+						continue;
+
+					const auto& ecTarget = m_entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					targets.push_back(target);
+				}
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Provides a query set up to work with the parent world.
 			//! \tparam UseCache If true, results of the query are cached
 			//! \return Valid query object
@@ -1615,12 +1669,12 @@ namespace gaia {
 					return Query(
 							*const_cast<World*>(this), m_queryCache,
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
 				else
 					return QueryUncached(
 							*const_cast<World*>(this),
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
 			}
 
 			//----------------------------------------------------------------------
@@ -1722,7 +1776,7 @@ namespace gaia {
 
 				// Clear caches
 				{
-					m_componentToArchetypeMap = {};
+					m_entityToArchetypeMap = {};
 					m_queryCache.clear();
 				}
 
