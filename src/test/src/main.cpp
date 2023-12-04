@@ -3022,8 +3022,18 @@ TEST_CASE("del - cleanup rules") {
 		REQUIRE(w.has(eats));
 		REQUIRE(w.has(carrot));
 		REQUIRE(w.has(hungry));
+		// global relationships
 		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
 		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+		REQUIRE(w.has(ecs::Pair(eats, ecs::All)));
+		REQUIRE(w.has(ecs::Pair(ecs::All, carrot)));
+		REQUIRE(w.has(ecs::Pair(ecs::All, rabbit)));
+		REQUIRE(w.has(ecs::Pair(ecs::All, ecs::All)));
+		// rabbit relationships
+		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(w.has(rabbit, ecs::Pair(eats, ecs::All)));
+		REQUIRE(w.has(rabbit, ecs::Pair(ecs::All, carrot)));
+		REQUIRE(w.has(rabbit, ecs::Pair(ecs::All, ecs::All)));
 	}
 	SECTION("default, relationship source") {
 		ecs::World w;
@@ -3065,6 +3075,7 @@ TEST_CASE("del - cleanup rules") {
 		REQUIRE(w.has(hungry));
 		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
 		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
 	}
 	SECTION("(OnDelete,Delete)") {
 		ecs::World w;

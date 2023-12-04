@@ -21235,6 +21235,46 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_entities[entity.id()];
+
+				// (*,*)
+				if (pair.first() == All && pair.second() == All) {
+					const auto& ids = ec.pArchetype->entities();
+					for (auto id: ids) {
+						if (!id.pair())
+							continue;
+						return true;
+					}
+
+					return false;
+				}
+
+				// (X,*)
+				if (pair.first() != All && pair.second() == All) {
+					const auto& ids = ec.pArchetype->entities();
+					for (auto id: ids) {
+						if (!id.pair())
+							continue;
+						if (id.id() == pair.first().id())
+							return true;
+					}
+
+					return false;
+				}
+
+				// (*,X)
+				if (pair.first() == All && pair.second() != All) {
+					const auto& ids = ec.pArchetype->entities();
+					for (auto id: ids) {
+						if (!id.pair())
+							continue;
+						if (id.gen() == pair.second().id())
+							return true;
+					}
+
+					return false;
+				}
+
+				// (X,Y)
 				return ComponentGetter{ec.pChunk, ec.row}.has(pair);
 			}
 

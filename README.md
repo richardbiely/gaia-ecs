@@ -643,9 +643,12 @@ q.each([&](Position& p, const Velocity& v) {
 
 ## Relationships
 ### Basics
-Relationships is a mechanism used to create entity graphs and queries. It is a powerful feature allowing you to express hierarchies for example and even effectively allow you to add multiple components of the same type to an entity.
+Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way.
+Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.
 
-Relationship pair is created by calling ***World::pair(relation, target)*** with two valid entities as its arguments.
+Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling ***ecs::Pair(relation, target***) with two valid entities as its arguments.
+
+Adding a relationship to any entity is as simple as adding any other entity.
 
 ```cpp
 ecs::World w;
@@ -700,26 +703,27 @@ q3.each([]()) {
 }
 ```
 
-Multiple components of the same kind can be added to one entity thanks to relationships.
-
-```cpp
-// "eats" is added twice to the entity "rabbit"
-w.add(rabbit, ecs::Pair(eats, carrot));
-w.add(rabbit, ecs::Pair(eats, salad));
-```
-
-Relationships can be ended by calling ***World::unpair***.
+Relationships can be ended by calling ***World::del*** (just like it is done for regular entities/components)..
 
 ```cpp
 // Rabbit no longer eats carrot
 w.del(rabbit, ecs::Pair(eats, carrot));
 ```
 
-Whether a realtionship exists can be check via ***World::has*** just like any other entity presence.
+Whether a relationship exists can be check via ***World::has*** (just like it is done for regular entities/components).
 
 ```cpp
 // Checks if rabbit eats carrot
 w.has(rabbit, ecs::Pair(eats, carrot));
+// Checks if rabbit eats anything
+w.has(rabbit, ecs::Pair(eats, All));
+```
+A nice side-effect of relationship is they allow for multiple components/entities of the same kind be added to one entity.
+
+```cpp
+// "eats" is added twice to the entity "rabbit"
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(rabbit, ecs::Pair(eats, salad));
 ```
 
 ### Targets
@@ -786,6 +790,8 @@ w.add(rabbit, bomb_exploding_on_del);
 // Deleting the bomb will take out all entities associated with it along. Rabbit included.
 w.del(bomb_exploding_on_del); 
 ```
+
+A native ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines a (OnDelete, Delete) relationship so if the parent is deleted, all the children all deleted as well.
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
