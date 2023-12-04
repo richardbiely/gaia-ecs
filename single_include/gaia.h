@@ -10186,17 +10186,17 @@ namespace gaia {
 			GAIA_NODISCARD constexpr auto back() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
-					return (operator[])(N - 1);
+					return (operator[])(m_cnt - 1);
 				else
-					return (reference) operator[](N - 1);
+					return (reference) operator[](m_cnt - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto back() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
-					return operator[](N - 1);
+					return operator[](m_cnt - 1);
 				else
-					return (const_reference) operator[](N - 1);
+					return (const_reference) operator[](m_cnt - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
