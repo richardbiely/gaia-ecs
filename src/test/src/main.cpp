@@ -270,6 +270,7 @@ void fixed_arr_test() {
 		arr[i] = i;
 		REQUIRE(arr[i] == i);
 	}
+	REQUIRE(arr.back() == N - 1);
 	// Verify the values remain the same even after the internal buffer is reallocated
 	GAIA_FOR(N) {
 		REQUIRE(arr[i] == i);
@@ -312,6 +313,7 @@ void resizable_arr_test(uint32_t N) {
 	GAIA_FOR(N) {
 		arr.push_back(i);
 		REQUIRE(arr[i] == i);
+		REQUIRE(arr.back() == i);
 	}
 	// Verify the values remain the same even after the internal buffer is reallocated
 	GAIA_FOR(N) {
