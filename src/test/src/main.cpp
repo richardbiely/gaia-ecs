@@ -1,3 +1,5 @@
+#include "gaia/config/config_core.h"
+#include "gaia/core/utility.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -2171,6 +2173,18 @@ TEST_CASE("Relationship") {
 			});
 			REQUIRE(i == cnt);
 		}
+		{
+			auto q = w.query().add("(%e, %e)", eats.value(), carrot.value());
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Entity entity) {
+				REQUIRE(entity == rabbit);
+				++i;
+			});
+			REQUIRE(i == cnt);
+		}
 
 		{
 			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -2337,7 +2351,7 @@ TEST_CASE("Relationship target") {
 	w.add(rabbit, ecs::Pair(eats, carrot));
 	w.add(rabbit, ecs::Pair(eats, salad));
 	w.add(rabbit, ecs::Pair(hates, wolf));
-	
+
 	auto e = w.target(rabbit, eats);
 	const bool ret_e = e == carrot || e == salad;
 	REQUIRE(ret_e);
@@ -2401,6 +2415,12 @@ void Test_Query_Equality() {
 		auto qq3 = w.query<UseCachedQuery>().all(p).all(r);
 		auto qq4 = w.query<UseCachedQuery>().all(r).all(p);
 		verify(qq1, qq2, qq3, qq4);
+
+		auto qq1_ = w.query<UseCachedQuery>().add("Position; Rotation");
+		auto qq2_ = w.query<UseCachedQuery>().add("Rotation; Position");
+		auto qq3_ = w.query<UseCachedQuery>().add("Position").add("Rotation");
+		auto qq4_ = w.query<UseCachedQuery>().add("Rotation").add("Position");
+		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 	SECTION("4 components") {
 		ecs::World w;
@@ -2422,6 +2442,12 @@ void Test_Query_Equality() {
 		auto qq3 = w.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
 		auto qq4 = w.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
 		verify(qq1, qq2, qq3, qq4);
+
+		auto qq1_ = w.query<UseCachedQuery>().add("Position; Rotation; Acceleration; Something");
+		auto qq2_ = w.query<UseCachedQuery>().add("Rotation; Something; Position; Acceleration");
+		auto qq3_ = w.query<UseCachedQuery>().add("Position").add("Rotation").add("Acceleration").add("Something");
+		auto qq4_ = w.query<UseCachedQuery>().add("Rotation").add("Position").add("Something").add("Acceleration");
+		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 }
 

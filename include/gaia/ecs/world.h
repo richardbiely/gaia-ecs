@@ -1616,7 +1616,6 @@ namespace gaia {
 				const auto& ec = m_entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
 
-				uint32_t i = 0;
 				const auto& ents = pArchetype->entities();
 				for (auto e: ents) {
 					if (!e.pair())
@@ -1636,7 +1635,7 @@ namespace gaia {
 			//! Appends all relationship targets if any to \param targets.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename C>
-			GAIA_NODISCARD void target(Entity entity, Entity relation, C& targets) const {
+			void target(Entity entity, Entity relation, C& targets) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
@@ -1644,7 +1643,6 @@ namespace gaia {
 				const auto& ec = m_entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
 
-				uint32_t i = 0;
 				const auto& ents = pArchetype->entities();
 				for (auto e: ents) {
 					if (!e.pair())

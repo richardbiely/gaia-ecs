@@ -5939,22 +5939,25 @@ namespace gaia {
 
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
-			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
+			darr_ext(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if (other.m_pData == other.m_pDataHeap) {
-					if (m_pData == m_pDataHeap)
-						view_policy::free_mem(m_pDataHeap);
+				if (other.m_pDataHeap != nullptr) {
+					GAIA_ASSERT(m_pDataHeap == nullptr);
 					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
-					m_pData = m_data;
-					mem::move_elements<T>(m_data, other.m_data, 0, other.size());
+					resize(other.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
+					m_pData = m_data;
 				}
 
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
 				other.m_pDataHeap = nullptr;
-				other.m_pData = m_data;
+				other.m_pData = other.m_data;
 				other.m_cnt = size_type(0);
 				other.m_cap = extent;
 			}
@@ -5988,7 +5991,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				{
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}
@@ -5998,7 +6001,7 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 				other.m_cap = extent;
 				other.m_pDataHeap = nullptr;
-				other.m_pData = m_data;
+				other.m_pData = other.m_data;
 
 				return *this;
 			}
@@ -18108,6 +18111,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstdarg>
 #include <type_traits>
 
 #include <type_traits>
@@ -18797,6 +18801,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		inline const ComponentCache& comp_cache(const World& world);
 		inline ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
 		inline const ComponentCacheItem& comp_cache_add(World& world);
@@ -19293,6 +19298,68 @@ namespace gaia {
 					}
 				}
 
+				static auto trim(std::span<const char> expr) {
+					uint32_t beg = 0;
+					while (expr[beg] == ' ')
+						++beg;
+					uint32_t end = (uint32_t)expr.size() - 1;
+					while (end > beg && expr[end] == ' ')
+						--end;
+					return expr.subspan(beg, end - beg + 1);
+				};
+
+				Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) {
+					auto expr = trim(exprRaw);
+
+					if (expr[0] == '%') {
+						if (expr[1] != 'e') {
+							GAIA_ASSERT2(false, "Expression '%' not terminated");
+							return EntityBad;
+						}
+
+						auto id = (Identifier)va_arg(args, unsigned long long);
+						return Entity(id);
+					}
+
+					if (expr[0] == '(') {
+						if (expr.back() != ')') {
+							GAIA_ASSERT2(false, "Expression '(' not terminated");
+							return EntityBad;
+						}
+
+						auto idStr = expr.subspan(1, expr.size() - 2);
+						const auto commaIdx = core::get_index(idStr, ',');
+
+						const auto first = expr_to_entity(args, idStr.subspan(0, commaIdx));
+						if (first == EntityBad)
+							return EntityBad;
+						const auto second = expr_to_entity(args, idStr.subspan(commaIdx + 1));
+						if (second == EntityBad)
+							return EntityBad;
+
+						return ecs::Pair(first, second);
+					}
+
+					{
+						auto idStr = trim(expr);
+
+						// Wildcard character
+						if (idStr.size() == 1 && idStr[0] == '*')
+							return All;
+
+						// Anything else is a component name
+						const auto& cc = comp_cache(*m_world);
+						const auto* pItem = cc.find(idStr.data(), (uint32_t)idStr.size());
+						if (pItem == nullptr) {
+							GAIA_ASSERT2(false, "Type not found");
+							GAIA_LOG_W("Type '%.*s' not found", (uint32_t)idStr.size(), idStr.data());
+							return EntityBad;
+						}
+
+						return pItem->entity;
+					}
+				};
+
 			public:
 				QueryImpl() = default;
 
@@ -19317,6 +19384,95 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
 					return m_storage.m_queryId;
+				}
+
+				//! Creates a query from a null-terminated expression string.
+				//!
+				//! Expresion is a string between two semicolons.
+				//! Spaces are trimmed automatically.
+				//!
+				//! Supported modifiers:
+				//!   ";" - separates expressions
+				//!   "+" - query::any
+				//!   "!" - query::none
+				//!   "&" - read-write access
+				//!   "%e" - entity value
+				//!   "(rel,tgt)" - relationship pair, a wildcard character in either rel or tgt is translated into All
+				//!
+				//! Example:
+				//!   struct Position {...};
+				//!   struct Velocity {...};
+				//!   struct RigidBody {...};
+				//!   struct Fuel {...};
+				//!   auto player = w.add();
+				//!   w.query().add("&Position; !Velocity; +RigidBody; (Fuel,*); %e", player.value());
+				//! Translates into:
+				//!   w.query()
+				//!      .all<Position&>()
+				//!      .none<Velocity>()
+				//!      .any<RigidBody>()
+				//!      .all(Pair(w.add<Fuel>().entity, All)>()
+				//!      .all(Player);
+				//!
+				//! \param str Null-terminated string with the query expression
+				QueryImpl& add(const char* str, ...) {
+
+					GAIA_ASSERT(str != nullptr);
+					if (str == nullptr)
+						return *this;
+
+					va_list args{};
+					va_start(args, str);
+
+					uint32_t pos = 0;
+					uint32_t exp0 = 0;
+
+					auto process = [&]() {
+						std::span<const char> exprRaw(&str[exp0], pos - exp0);
+						exp0 = ++pos;
+
+						auto expr = trim(exprRaw);
+						if (expr.empty())
+							return true;
+
+						if (expr[0] == '+') {
+							uint32_t off = 1;
+							if (expr[1] == '&')
+								off = 2;
+
+							auto var = expr.subspan(off);
+							auto entity = expr_to_entity(args, var);
+							if (entity == EntityBad)
+								return false;
+
+							any(entity, off != 0);
+						} else if (expr[0] == '!') {
+							auto var = expr.subspan(1);
+							auto entity = expr_to_entity(args, var);
+							if (entity == EntityBad)
+								return false;
+
+							none(entity);
+						} else {
+							auto entity = expr_to_entity(args, expr);
+							if (entity == EntityBad)
+								return false;
+
+							all(entity);
+						}
+
+						return true;
+					};
+
+					for (; str[pos] != 0; ++pos) {
+						if (str[pos] == ';' && !process())
+							goto add_end;
+					}
+					process();
+
+				add_end:
+					va_end(args);
+					return *this;
 				}
 
 				QueryImpl& add(QueryItem item) {
@@ -21168,7 +21324,6 @@ namespace gaia {
 				const auto& ec = m_entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
 
-				uint32_t i = 0;
 				const auto& ents = pArchetype->entities();
 				for (auto e: ents) {
 					if (!e.pair())
@@ -21188,7 +21343,7 @@ namespace gaia {
 			//! Appends all relationship targets if any to \param targets.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename C>
-			GAIA_NODISCARD void target(Entity entity, Entity relation, C& targets) const {
+			void target(Entity entity, Entity relation, C& targets) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
@@ -21196,7 +21351,6 @@ namespace gaia {
 				const auto& ec = m_entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
 
-				uint32_t i = 0;
 				const auto& ents = pArchetype->entities();
 				for (auto e: ents) {
 					if (!e.pair())

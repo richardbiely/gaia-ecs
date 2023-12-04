@@ -438,11 +438,49 @@ ecs::Query q = w.query();
 q.add({p, QueryOp::All, QueryAccess::Write})
 // ... and at the same time everything with Velocity (mutable access)...
  .add({v, QueryOp::All, QueryAccess::Write})
- // ... at least Something or SomethingElse (imutable access)..
+ // ... at least Something or SomethingElse (immutable access)..
  .add({s, QueryOp::Any, QueryAccess::Read})
  .add({se, QueryOp::Any, QueryAccess::Read})
  // ... and no Player component (no access)...
  .add({pl, QueryOp::None, QueryAccess::None}); 
+```
+
+Another way to define queries is using string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
+
+Supported modifiers:
+* ***;*** - separates expressions
+* ***+*** - query::any
+* ***!*** - query::none
+* ***&*** - read-write access
+* ***%e*** - entity value
+* ***(rel,tgt)*** - relationship pair, a wildcard character in either rel or tgt is translated into ***All***
+
+```cpp
+// Some context for the example
+struct Position {...};
+struct Velocity {...};
+struct RigidBody {...};
+struct Fuel {...};
+auto player = w.add();
+ecs::Entity player = w.add();
+
+// Create the query from a string expression.
+ecs::Query q = w.query()
+  .add("&Position; !Velocity; +RigidBody; (Fuel,*); %e", player.value());
+
+// It does not matter how we split the expressions. This query is the same as the above.
+ecs::Query q1 = w.query()
+  .add("&Position; !Velocity;")
+  .add("+RigidBody; (Fuel,*)")
+  .add("%e", player.value());
+
+// The queries above can be rewritten as following:
+ecs::Query q2 = w.query()
+  .all<Position&>()
+  .none<Velocity>()
+  .any<RigidBody>()
+  .all(ecs::Pair(w.add<Fuel>().entity, All)>()
+  .all(player);
 ```
 
 ### Iteration
