@@ -20,7 +20,7 @@ namespace gaia {
 		GAIA_GCC_WARNING_DISABLE("-Wshadow")
 
 		//! Operation type
-		enum class QueryOp : uint8_t { Not, Any, All, Count };
+		enum class QueryOp : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 
@@ -118,12 +118,12 @@ namespace gaia {
 			};
 		};
 
+		//! Smaller ops first. Smaller ids second.
 		struct query_sort_cond {
 			constexpr bool operator()(const QueryEntityOpPair& lhs, const QueryEntityOpPair& rhs) const {
-				// Not < Any < All
-				if (lhs.op < rhs.op)
-					return true;
-				// Smaller ids first
+				if (lhs.op != rhs.op)
+					return lhs.op < rhs.op;
+
 				return lhs.id < rhs.id;
 			}
 		};
