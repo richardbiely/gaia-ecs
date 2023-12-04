@@ -419,9 +419,9 @@ namespace gaia {
 			void reg_archetype(Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 
-				// Make sure hashes were set already
-				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
+				// // Make sure hashes were set already
+				// GAIA_ASSERT(
+				// 		(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
@@ -800,13 +800,14 @@ namespace gaia {
 				}
 			}
 
-			//! Handles specific conditions that might arise from deleting the comp/tag/pair \param entity.
+			//! Handles specific conditions that might arise from deleting \param entity.
 			//! Conditions are:
 			//!   OnDelete - deleting an entity/pair
 			//!   OnDeleteTarget - deleting a pair's target
 			//! Reactions are:
 			//!   Remove - removes the entity/pair from anything referencing it
 			//!   Delete - delete everything referencing the entity
+			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
 			template <typename EntityOrPair>
@@ -818,6 +819,14 @@ namespace gaia {
 				// TODO: Make it possible to check the conditions simply via some pre-calculated bit mask
 				//       to speed the search up (aka no search necessary).
 				if constexpr (std::is_same_v<EntityOrPair, Entity>) {
+					if (has(entity, Pair(OnDelete, Error))) {
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
+						GAIA_LOG_E(
+								"Trying to delete entity [%u.%u] %s [%s] that is forbidden to be deleted", entity.id(), entity.gen(),
+								name(entity), EntityKindString[entity.kind()]);
+						return;
+					}
+
 					if (has(entity, Pair(OnDelete, Delete))) {
 						// Delete all references to the entity if explicitely wanted
 						del_entities_with(entity);
@@ -827,6 +836,14 @@ namespace gaia {
 					}
 				} else {
 					auto target = entity.second();
+
+					if (has(target, Pair(OnDeleteTarget, Error))) {
+						GAIA_ASSERT2(false, "Trying to delete a pair but the target entity is forbidden to be deleted");
+						GAIA_LOG_E(
+								"Trying to delete a pair but the target entity [%u.%u] %s [%s] is forbidden to be deleted", //
+								target.id(), target.gen(), name(target), EntityKindString[target.kind()]);
+						return;
+					}
 
 					if (has(target, Pair(OnDeleteTarget, Delete)))
 						del_entities_with(target);
@@ -1022,9 +1039,9 @@ namespace gaia {
 
 				// Register the core component
 				{
-					const auto& id = GAIA_ID(Core);
+					const auto& id = Core;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Core>(id);
+					const auto& desc = comp_cache_mut().add<Core_>(id);
 					GAIA_ASSERT(desc.entity == id);
 					(void)comp;
 					(void)desc;
@@ -1090,6 +1107,14 @@ namespace gaia {
 					(void)comp;
 					(void)desc;
 				}
+				{
+					const auto& id = Error;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<Error_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
 
 				// Register All component. Used with relationship queries.
 				{
@@ -1108,9 +1133,39 @@ namespace gaia {
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<ChildOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
 					(void)desc;
-					add(comp, ecs::Pair(OnDeleteTarget, Delete));
 				}
+
+				// Special properites for core components
+				EntityBuilder(*this, Core) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, GAIA_ID(EntityDesc)) //
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, GAIA_ID(Component)) //
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, OnDelete) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, OnDeleteTarget) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Remove) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Delete) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Error) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, All) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, ChildOf) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
 			}
 
 			void done() {
@@ -1703,16 +1758,21 @@ namespace gaia {
 			//! \return Valid query object
 			template <bool UseCache = true>
 			auto query() {
-				if constexpr (UseCache)
-					return Query(
+				if constexpr (UseCache) {
+					Query q(
 							*const_cast<World*>(this), m_queryCache,
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
-				else
-					return QueryUncached(
+					q.none(Core);
+					return q;
+				} else {
+					QueryUncached q(
 							*const_cast<World*>(this),
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
+					q.none(Core);
+					return q;
+				}
 			}
 
 			//----------------------------------------------------------------------

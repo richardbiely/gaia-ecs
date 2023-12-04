@@ -279,25 +279,29 @@ namespace gaia {
 			}
 		};
 
-		struct Core {};
+		//! Core component. The entity it is attached to is ignored by queries
+		struct Core_ {};
 		struct OnDelete_ {};
 		struct OnDeleteTarget_ {};
 		struct Remove_ {};
 		struct Delete_ {};
+		struct Error_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 
-		inline Entity GAIA_ID(Core) = Entity(0, 0, false, false, EntityKind::EK_Gen);
+		//! Core component. The entity it is attached to is ignored by queries
+		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
 		inline Entity OnDelete = Entity(3, false, false, false, EntityKind::EK_Gen);
 		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
 		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
+		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(7, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(8, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(9, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;

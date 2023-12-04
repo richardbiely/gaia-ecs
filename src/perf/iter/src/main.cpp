@@ -177,7 +177,7 @@ DEFINE_EACH_ITER_INDEX(1000);
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.query<false>().all<c1>();                                                                                  \
+		auto query = w.query().all<c1>();                                                                                  \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.empty());                                                                                \

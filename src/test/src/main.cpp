@@ -2322,7 +2322,7 @@ TEST_CASE("Relationship") {
 		{
 			auto q = w.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 4); // 3 +1 for internal relationhsip
+			REQUIRE(cnt == 5); // 3 +2 for internal relationhsip
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {

@@ -760,9 +760,11 @@ Condition is one of the following:
 Reaction is one of the following:
 * ***Remove*** - removes the entity/pair from anything referencing it
 * ***Delete*** - delete everything referencing the entity
+* ***Error*** - error out when deleted
 
 The default behavior of deleting an entity is to simply remove it from the parent entity. This is an equivalent of Pair(OnDelete, Remove) relationship pair attached to the entity getting deleted.
 Additionally, a behavior which can not be changed, all relationship pairs formed by this entity need to be deleted as well. This is needed because entity ids are recycled internally and we could not guarantee that the relationship entity would be be used for something unrelated later.
+All core entities are defined with (OnDelete,Error). This means that instead of deleting the entity an error is thrown when an attempt to delete the entity is made. 
 
 ```cpp
 ecs::Entity rabbit = w.add();
@@ -791,7 +793,7 @@ w.add(rabbit, bomb_exploding_on_del);
 w.del(bomb_exploding_on_del); 
 ```
 
-A native ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines a (OnDelete, Delete) relationship so if the parent is deleted, all the children all deleted as well.
+A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines a (OnDelete, Delete) relationship so if the parent is deleted, all the children all deleted as well.
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
