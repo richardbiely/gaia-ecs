@@ -294,22 +294,25 @@ namespace gaia {
 
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
-			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
+			darr_ext(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if (other.m_pData == other.m_pDataHeap) {
-					if (m_pData == m_pDataHeap)
-						view_policy::free_mem(m_pDataHeap);
+				if (other.m_pDataHeap != nullptr) {
+					GAIA_ASSERT(m_pDataHeap == nullptr);
 					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
-					m_pData = m_data;
-					mem::move_elements<T>(m_data, other.m_data, 0, other.size());
+					resize(other.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
+					m_pData = m_data;
 				}
 
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
 				other.m_pDataHeap = nullptr;
-				other.m_pData = m_data;
+				other.m_pData = other.m_data;
 				other.m_cnt = size_type(0);
 				other.m_cap = extent;
 			}
@@ -343,7 +346,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				{
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}
@@ -353,7 +356,7 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 				other.m_cap = extent;
 				other.m_pDataHeap = nullptr;
-				other.m_pData = m_data;
+				other.m_pData = other.m_data;
 
 				return *this;
 			}
