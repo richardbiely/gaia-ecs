@@ -365,13 +365,13 @@ namespace gaia {
 			}
 
 			/*!
-			Enables or disables the entity on a given index in the chunk.
+			Enables or disables the entity on a given row in the chunk.
 			\param pChunk Chunk the entity belongs to
-			\param index Index of the entity
+			\param row Row of the entity
 			\param enableEntity Enables the entity
 			*/
-			void enable_entity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity, std::span<EntityContainer> entities) {
-				pChunk->enable_entity(entityIdx, enableEntity, entities);
+			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, std::span<EntityContainer> entities) {
+				pChunk->enable_entity(row, enableEntity, entities);
 				// m_disabledMask.set(pChunk->idx(), enableEntity ? true : pChunk->has_disabled_entities());
 			}
 
@@ -496,7 +496,7 @@ namespace gaia {
 
 						// Make sure the old entity becomes enabled now
 						enable_entity(pSrcChunk, oldRow, true, entities);
-						// We go back-to-front in the chunk so enabling the entity is not expected to change its index
+						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
 						GAIA_ASSERT(oldRow == ec.row);
 
 						// Transfer the original enabled state to the new chunk
@@ -716,7 +716,7 @@ namespace gaia {
 				};
 
 				if (!ents.empty()) {
-					GAIA_LOG_N("  Components - count:%u", (uint32_t)ents.size());
+					GAIA_LOG_N("  Components - count:%u", ents.size());
 					for (const auto ent: ents)
 						logComponentInfo(ent);
 				}
@@ -727,18 +727,13 @@ namespace gaia {
 			}
 
 			static void diag_chunk_info(const Archetype& archetype) {
-				auto logChunks = [](const auto& chunks) {
-					GAIA_EACH(chunks) {
-						const auto* pChunk = chunks[i];
-						pChunk->diag((uint32_t)i);
-					}
-				};
-
 				const auto& chunks = archetype.m_chunks;
-				if (!chunks.empty())
-					GAIA_LOG_N("  Chunks");
+				if (chunks.empty())
+					return;
 
-				logChunks(chunks);
+				GAIA_LOG_N("  Chunks");
+				for (const auto* pChunk: chunks)
+					pChunk->diag();
 			}
 
 			/*!

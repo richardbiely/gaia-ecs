@@ -73,8 +73,8 @@ namespace gaia {
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool enabled(uint32_t index) const {
-					const auto entityIdx = from() + index;
-					return m_chunk.enabled(entityIdx);
+					const auto row = (uint16_t)(from() + index);
+					return m_chunk.enabled(row);
 				}
 
 				//! Checks if entity \param entity is present in the chunk.
@@ -93,7 +93,7 @@ namespace gaia {
 				}
 
 				//! Returns the number of entities accessible via the iterator
-				GAIA_NODISCARD uint32_t size() const noexcept {
+				GAIA_NODISCARD uint16_t size() const noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
 						return m_chunk.size_enabled();
 					else if constexpr (IterConstraint == Constraints::DisabledOnly)
@@ -104,7 +104,7 @@ namespace gaia {
 
 			private:
 				//! Returns the starting index of the iterator
-				GAIA_NODISCARD uint32_t from() const noexcept {
+				GAIA_NODISCARD uint16_t from() const noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
 						return m_chunk.size_disabled();
 					else
@@ -112,7 +112,7 @@ namespace gaia {
 				}
 
 				//! Returns the ending index of the iterator (one past the last valid index)
-				GAIA_NODISCARD uint32_t to() const noexcept {
+				GAIA_NODISCARD uint16_t to() const noexcept {
 					if constexpr (IterConstraint == Constraints::DisabledOnly)
 						return m_chunk.size_disabled();
 					else

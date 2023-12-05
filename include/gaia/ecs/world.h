@@ -198,7 +198,7 @@ namespace gaia {
 			//! Remove an entity from its chunk.
 			//! \param pChunk Chunk we remove the entity from
 			//! \param row Index of entity within its chunk
-			void remove_entity(Chunk* pChunk, uint32_t row) {
+			void remove_entity(Chunk* pChunk, uint16_t row) {
 				GAIA_PROF_SCOPE(World::remove_entity);
 
 				pChunk->remove_entity(
@@ -835,17 +835,18 @@ namespace gaia {
 						rem_from_entities(entity);
 					}
 				} else {
+					auto relation = entity.first();
 					auto target = entity.second();
 
-					if (has(target, Pair(OnDeleteTarget, Error))) {
+					if (has(relation, Pair(OnDeleteTarget, Error))) {
 						GAIA_ASSERT2(false, "Trying to delete a pair but the target entity is forbidden to be deleted");
 						GAIA_LOG_E(
 								"Trying to delete a pair but the target entity [%u.%u] %s [%s] is forbidden to be deleted", //
-								target.id(), target.gen(), name(target), EntityKindString[target.kind()]);
+								relation.id(), relation.gen(), name(relation), EntityKindString[relation.kind()]);
 						return;
 					}
 
-					if (has(target, Pair(OnDeleteTarget, Delete)))
+					if (has(relation, Pair(OnDeleteTarget, Delete)))
 						del_entities_with(target);
 
 					rem_from_entities(entity);
@@ -926,7 +927,7 @@ namespace gaia {
 				// Bring the entity container record up-to-date
 				ec.pArchetype = &newArchetype;
 				ec.pChunk = pNewChunk;
-				ec.row = newRow;
+				ec.row = (uint16_t)newRow;
 
 				// Make the enabled state in the new chunk match the original state
 				newArchetype.enable_entity(
@@ -1374,7 +1375,7 @@ namespace gaia {
 
 				const auto& ec = m_entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
-				const auto idx = ec.row * (1U - (uint32_t)object.kind());
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
 			}
 
@@ -1394,7 +1395,7 @@ namespace gaia {
 
 				const auto& ec = m_entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
-				const auto idx = ec.row * (1U - (uint32_t)kind);
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
 				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
 			}
 

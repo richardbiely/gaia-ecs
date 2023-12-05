@@ -40,16 +40,14 @@ namespace gaia {
 
 			///////////////////////////////////////////////////////////////////
 
-			//! Index within the chunk
-			uint32_t row;
+			//! Row at which the entity is stored in the chunk
+			uint16_t row;
 			//! Archetype
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 
 			EntityContainer() = default;
-			// EntityContainer(uint32_t index, uint32_t generation):
-			// 		idx(index), gen(generation), dis(0), row(0), pArchetype(nullptr), pChunk(nullptr) {}
 
 			static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (EntityContainerCtx*)pCtx;

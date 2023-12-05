@@ -74,30 +74,30 @@ namespace gaia {
 			uint16_t capacity;
 
 			//! Index of the first enabled entity in the chunk
-			uint32_t firstEnabledEntityIndex: MAX_CHUNK_ENTITIES_BITS;
-			//! When it hits 0 the chunk is scheduled for deletion
-			uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
-			//! True if deleted, false otherwise
-			uint32_t dead : 1;
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint32_t structuralChangesLocked: CHUNK_LOCKS_BITS;
+			uint16_t rowFirstEnabledEntity: MAX_CHUNK_ENTITIES_BITS;
 			//! True if there's any generic component that requires custom construction
-			uint32_t hasAnyCustomGenCtor : 1;
+			uint16_t hasAnyCustomGenCtor : 1;
 			//! True if there's any unique component that requires custom construction
-			uint32_t hasAnyCustomUniCtor : 1;
+			uint16_t hasAnyCustomUniCtor : 1;
 			//! True if there's any generic component that requires custom destruction
-			uint32_t hasAnyCustomGenDtor : 1;
+			uint16_t hasAnyCustomGenDtor : 1;
 			//! True if there's any unique component that requires custom destruction
-			uint32_t hasAnyCustomUniDtor : 1;
+			uint16_t hasAnyCustomUniDtor : 1;
 			//! Chunk size type. This tells whether it's 8K or 16K
-			uint32_t sizeType : 1;
+			uint16_t sizeType : 1;
+			//! When it hits 0 the chunk is scheduled for deletion
+			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			//! True if deleted, false otherwise
+			uint16_t dead : 1;
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! Empty space for future use
-			uint32_t unused : 7;
+			uint16_t unused : 8;
 
 			//! Number of generic entities/components
 			uint8_t genEntities;
 			//! Number of components on the archetype
-			uint8_t componentCount{};
+			uint8_t componentCount;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
@@ -108,15 +108,18 @@ namespace gaia {
 					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
 					uint32_t& version):
 					cc(&compCache),
-					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), unused(0), genEntities(genEntitiesCnt), worldVersion(version) {
+					index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					//
+					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
+					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
+					//
+					genEntities(genEntitiesCnt), componentCount(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}
 
 			bool has_disabled_entities() const {
-				return firstEnabledEntityIndex > 0;
+				return rowFirstEnabledEntity > 0;
 			}
 
 			bool has_enabled_entities() const {

@@ -718,7 +718,7 @@ w.has(rabbit, ecs::Pair(eats, carrot));
 // Checks if rabbit eats anything
 w.has(rabbit, ecs::Pair(eats, All));
 ```
-A nice side-effect of relationship is they allow for multiple components/entities of the same kind be added to one entity.
+A nice side-effect of relationships is they allow for multiple components/entities of the same kind be added to one entity.
 
 ```cpp
 // "eats" is added twice to the entity "rabbit"
@@ -763,7 +763,9 @@ Reaction is one of the following:
 * ***Error*** - error out when deleted
 
 The default behavior of deleting an entity is to simply remove it from the parent entity. This is an equivalent of Pair(OnDelete, Remove) relationship pair attached to the entity getting deleted.
+
 Additionally, a behavior which can not be changed, all relationship pairs formed by this entity need to be deleted as well. This is needed because entity ids are recycled internally and we could not guarantee that the relationship entity would be be used for something unrelated later.
+
 All core entities are defined with (OnDelete,Error). This means that instead of deleting the entity an error is thrown when an attempt to delete the entity is made. 
 
 ```cpp

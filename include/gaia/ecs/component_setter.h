@@ -10,7 +10,7 @@ namespace gaia {
 	namespace ecs {
 		struct ComponentSetter {
 			Chunk* m_pChunk;
-			uint32_t m_idx;
+			uint16_t m_row;
 
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
@@ -23,7 +23,7 @@ namespace gaia {
 
 				verify_comp<T>();
 
-				m_pChunk->template set<FT>(m_idx, GAIA_FWD(value));
+				m_pChunk->template set<FT>(m_row, GAIA_FWD(value));
 				return *this;
 			}
 
@@ -31,7 +31,7 @@ namespace gaia {
 			ComponentSetter& set(Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
 
-				m_pChunk->template set<T>(m_idx, object, GAIA_FWD(value));
+				m_pChunk->template set<T>(m_row, object, GAIA_FWD(value));
 				return *this;
 			}
 
@@ -46,7 +46,7 @@ namespace gaia {
 
 				verify_comp<T>();
 
-				m_pChunk->template sset<FT>(m_idx, GAIA_FWD(value));
+				m_pChunk->template sset<FT>(m_row, GAIA_FWD(value));
 				return *this;
 			}
 
@@ -54,7 +54,7 @@ namespace gaia {
 			ComponentSetter& sset(Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
 
-				m_pChunk->template sset<T>(m_idx, object, GAIA_FWD(value));
+				m_pChunk->template sset<T>(m_row, object, GAIA_FWD(value));
 				return *this;
 			}
 		};

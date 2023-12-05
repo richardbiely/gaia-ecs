@@ -8,7 +8,7 @@ namespace gaia {
 	namespace ecs {
 		struct ComponentGetter {
 			const Chunk* m_pChunk;
-			uint32_t m_idx;
+			uint16_t m_row;
 
 			//! Returns the value stored in the component \tparam T on \param entity.
 			//! \tparam T Component
@@ -18,7 +18,7 @@ namespace gaia {
 				verify_comp<T>();
 
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
-					return m_pChunk->template get<T>(m_idx);
+					return m_pChunk->template get<T>(m_row);
 				else
 					return m_pChunk->template get<T>();
 			}
