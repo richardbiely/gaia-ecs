@@ -18,6 +18,15 @@ namespace gaia {
 			EntityKind kind;
 		};
 
+		enum EntityContainerFlags : uint16_t {
+			OnDelete_Remove = 1 << 0,
+			OnDelete_Delete = 1 << 1,
+			OnDelete_Error = 1 << 2,
+			OnDeleteTarget_Remove = 1 << 3,
+			OnDeleteTarget_Delete = 1 << 4,
+			OnDeleteTarget_Error = 1 << 5,
+		};
+
 		struct EntityContainer: cnt::ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
@@ -42,6 +51,8 @@ namespace gaia {
 
 			//! Row at which the entity is stored in the chunk
 			uint16_t row;
+			//! Flags
+			uint16_t flags;
 			//! Archetype
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in

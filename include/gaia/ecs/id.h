@@ -277,6 +277,13 @@ namespace gaia {
 			Entity second() const noexcept {
 				return m_second;
 			}
+
+			bool operator==(const Pair& other) const {
+				return m_first == other.m_first && m_second == other.m_second;
+			}
+			bool operator!=(const Pair& other) const {
+				return !operator==(other);
+			}
 		};
 
 		//! Core component. The entity it is attached to is ignored by queries
@@ -286,6 +293,7 @@ namespace gaia {
 		struct Remove_ {};
 		struct Delete_ {};
 		struct Error_ {};
+		struct DependsOn_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 

@@ -179,17 +179,95 @@ namespace gaia {
 				}
 
 			private:
-				void add_inter(Entity entity) {
+				template <typename EntityOrPair>
+				void add_inter(EntityOrPair entity) {
 #if GAIA_DEBUG
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
+
+					bool onDeleteAdded = false;
+
+					if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+						// Adding a pair to an entity with OnDeleteTarget relationship.
+						// We need to update the target entity's flags.
+						const auto first = entity.first();
+						if (m_world.has(first, Pair(OnDeleteTarget, Delete))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags |= EntityContainerFlags::OnDeleteTarget_Delete;
+							onDeleteAdded = true;
+						} else if (m_world.has(first, Pair(OnDeleteTarget, Remove))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags |= EntityContainerFlags::OnDeleteTarget_Remove;
+							onDeleteAdded = true;
+						} else if (m_world.has(first, Pair(OnDeleteTarget, Error))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags |= EntityContainerFlags::OnDeleteTarget_Error;
+							onDeleteAdded = true;
+						}
+					}
+
+					if (!onDeleteAdded) {
+						if (entity == Pair(OnDelete, Delete)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags |= EntityContainerFlags::OnDelete_Delete;
+						} else if (entity == Pair(OnDelete, Remove)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags |= EntityContainerFlags::OnDelete_Remove;
+						} else if (entity == Pair(OnDelete, Error)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags |= EntityContainerFlags::OnDelete_Error;
+						}
+					}
+
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
 
-				void del_inter(Entity entity) {
+				template <typename EntityOrPair>
+				void del_inter(EntityOrPair entity) {
 #if GAIA_DEBUG
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
+
+					bool onDeleteAdded = false;
+
+					if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+						// Adding a pair to an entity with OnDeleteTarget relationship.
+						// We need to update the target entity's flags.
+						const auto first = entity.first();
+						if (m_world.has(first, Pair(OnDeleteTarget, Delete))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Delete;
+							onDeleteAdded = true;
+						} else if (m_world.has(first, Pair(OnDeleteTarget, Remove))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Remove;
+							onDeleteAdded = true;
+						} else if (m_world.has(first, Pair(OnDeleteTarget, Error))) {
+							const auto target = entity.second();
+							auto& ec = m_world.m_entities[target.id()];
+							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Error;
+							onDeleteAdded = true;
+						}
+					}
+
+					if (!onDeleteAdded) {
+						if (entity == Pair(OnDelete, Delete)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags &= ~EntityContainerFlags::OnDelete_Delete;
+						} else if (entity == Pair(OnDelete, Remove)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags &= ~EntityContainerFlags::OnDelete_Remove;
+						} else if (entity == Pair(OnDelete, Error)) {
+							auto& ec = m_world.m_entities[m_entity.id()];
+							ec.flags &= ~EntityContainerFlags::OnDelete_Error;
+						}
+					}
+
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
 			};
@@ -454,7 +532,7 @@ namespace gaia {
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
 				const auto& ents = archetype.entities();
 
-				// Make sure not to add too many comps
+				// Make sure not to add too many entities/components
 				if GAIA_UNLIKELY (ents.size() + 1 >= Chunk::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
@@ -658,14 +736,47 @@ namespace gaia {
 
 			//! Delete anything referencing the entity \param target. No questions asked.
 			template <typename EntityOrPair>
-			void del_entities_with(EntityOrPair target) {
+			void del_entities_with(EntityOrPair target, Pair cond = {EntityBad, EntityBad}) {
 				GAIA_PROF_SCOPE(World::del_entities_with);
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
+				constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
 
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_entityToArchetypeMap.end()) {
-					for (auto* pArchetype: it->second) {
+					const auto& archetypes = it->second;
+					for (auto* pArchetype: archetypes) {
+						// Evaluate the conditon if a valid pair is given
+						if (cond.first() != EntityBad) {
+							// E.g.:
+							//   target = (All, entity)
+							//   cond = (OnDeleteTarget, delete)
+							// Delete the entity if it matches the cond
+							const auto& ents = pArchetype->entities();
+							for (auto e: ents) {
+								if constexpr (IsPair) {
+									// Find the pair which matches (All, entity)
+									if (!e.pair() || e.gen() != target.second().id())
+										continue;
+
+									const auto& ec = m_entities[e.id()];
+									const auto entity = ec.pChunk->entity_view()[ec.row];
+									if (!has(entity, cond))
+										continue;
+								} else {
+									if (e.pair())
+										continue;
+									if (!has(e, cond))
+										continue;
+								}
+
+								goto del_entity;
+							}
+
+							return;
+						}
+
+					del_entity:
 						for (auto* pChunk: pArchetype->chunks()) {
 							auto ents = pChunk->entity_view();
 							for (auto e: ents) {
@@ -723,10 +834,11 @@ namespace gaia {
 
 			//! Removes the entity \param target from anything referencing it.
 			template <typename EntityOrPair>
-			void rem_from_entities(EntityOrPair target) {
+			void rem_from_entities(EntityOrPair target, Pair cond = {EntityBad, EntityBad}) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
+				constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
 
 				auto calcDstArchetype = [&](Archetype* pArchetype, Entity entityToRemove) {
 					Archetype* pDstArchetype = pArchetype;
@@ -763,7 +875,38 @@ namespace gaia {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_entityToArchetypeMap.end()) {
 					for (auto* pArchetype: it->second) {
-						if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+						// Evaluate the conditon if a valid pair is given
+						if (cond.first() != EntityBad) {
+							// E.g.:
+							//   target = (All, entity)
+							//   cond = (OnDeleteTarget, delete)
+							// Delete the entity if it matches the cond
+							const auto& ents = pArchetype->entities();
+							for (auto e: ents) {
+								if constexpr (IsPair) {
+									// Find the pair which matches (All, entity)
+									if (!e.pair() || e.gen() != target.second().id())
+										continue;
+
+									const auto& ec = m_entities[e.id()];
+									const auto entity = ec.pChunk->entity_view()[ec.row];
+									if (!has(entity, cond))
+										continue;
+								} else {
+									if (e.pair())
+										continue;
+									if (!has(e, cond))
+										continue;
+								}
+
+								goto rem_entity;
+							}
+
+							return;
+						}
+
+					rem_entity:
+						if constexpr (IsPair) {
 							// Removing a wildcard pair. We need to find all pairs matching it.
 							if (target.first() == All || target.second() == All) {
 								// (first, All) means we need to match (first, A), (first, B), ...
@@ -816,10 +959,9 @@ namespace gaia {
 
 				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
 
-				// TODO: Make it possible to check the conditions simply via some pre-calculated bit mask
-				//       to speed the search up (aka no search necessary).
 				if constexpr (std::is_same_v<EntityOrPair, Entity>) {
-					if (has(entity, Pair(OnDelete, Error))) {
+					const auto& ec = m_entities[entity.id()];
+					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
 						GAIA_LOG_E(
 								"Trying to delete entity [%u.%u] %s [%s] that is forbidden to be deleted", entity.id(), entity.gen(),
@@ -827,28 +969,32 @@ namespace gaia {
 						return;
 					}
 
-					if (has(entity, Pair(OnDelete, Delete))) {
-						// Delete all references to the entity if explicitely wanted
+					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (a pair's target)");
+						GAIA_LOG_E(
+								"Trying to delete entity [%u.%u] %s [%s] that is forbidden to be deleted (a pair's target)",
+								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
+						return;
+					}
+
+					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
+						// Delete all references to the entity
 						del_entities_with(entity);
 					} else {
 						// Entities are only removed by default
 						rem_from_entities(entity);
 					}
-				} else {
-					auto relation = entity.first();
-					auto target = entity.second();
 
-					if (has(relation, Pair(OnDeleteTarget, Error))) {
-						GAIA_ASSERT2(false, "Trying to delete a pair but the target entity is forbidden to be deleted");
-						GAIA_LOG_E(
-								"Trying to delete a pair but the target entity [%u.%u] %s [%s] is forbidden to be deleted", //
-								relation.id(), relation.gen(), name(relation), EntityKindString[relation.kind()]);
-						return;
+					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
+						// Delete all entities referencing this one as a relationship pair's target
+						del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
+					} else {
+						// Remove from all entities referencing this one as a relationship pair's target
+						rem_from_entities(Pair(All, entity), Pair(OnDeleteTarget, Delete));
 					}
-
-					if (has(relation, Pair(OnDeleteTarget, Delete)))
-						del_entities_with(target);
-
+				} else {
+					// TODO: Implement support for cleanup rules on pairs as well
+					//       (OnDelete, Remove) is used for now. Always.
 					rem_from_entities(entity);
 				}
 			}
@@ -1166,7 +1312,8 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
-						.add(Pair(OnDelete, Error));
+						.add(Pair(OnDelete, Error))
+						.add(Pair(OnDeleteTarget, Delete));
 			}
 
 			void done() {

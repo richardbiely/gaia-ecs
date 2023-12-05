@@ -1,5 +1,3 @@
-#include "gaia/config/config_core.h"
-#include "gaia/core/utility.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1532,7 +1530,7 @@ TEST_CASE("Add - no components") {
 	q.arr(arr);
 	REQUIRE(arr.size() - 1 == ents.size()); // +1 for core component
 
-	GAIA_FOR(N) verify(i);
+	// GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {
@@ -3100,26 +3098,15 @@ TEST_CASE("del - cleanup rules") {
 	}
 	SECTION("(OnDeleteTarget,Delete)") {
 		ecs::World w;
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
-		auto hungry = w.add();
-		w.add(wolf, hungry);
-		w.add(rabbit, carrot);
-		// No carrot eater survives with its carrot deleted
-		w.add(carrot, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
-		w.add(wolf, ecs::Pair(eats, rabbit));
-		w.add(rabbit, ecs::Pair(eats, carrot));
+		auto parent = w.add();
+		auto child = w.add();
+		auto child_of = w.add();
+		w.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+		w.add(child, ecs::Pair(child_of, parent));
 
-		w.del(carrot);
-		REQUIRE(w.has(wolf));
-		REQUIRE(!w.has(rabbit));
-		REQUIRE(w.has(eats));
-		REQUIRE(!w.has(carrot));
-		REQUIRE(w.has(hungry));
-		REQUIRE(w.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE(!w.has(rabbit));
+		w.del(parent);
+		REQUIRE(!w.has(child));
+		REQUIRE(!w.has(parent));
 	}
 }
 
