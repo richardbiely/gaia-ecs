@@ -60,6 +60,7 @@
   * [Relationships](#relationships)
     * [Basics](#basics)
     * [Cleanup rules](#cleanup-rules)
+    * [Entity dependencies](#entity-dependencies)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
@@ -795,7 +796,49 @@ w.add(rabbit, bomb_exploding_on_del);
 w.del(bomb_exploding_on_del); 
 ```
 
-A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines a (OnDelete, Delete) relationship so if the parent is deleted, all the children all deleted as well.
+A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines as (OnDeleteTarget, Delete) relationship so if the parent is deleted, all the children are deleted as well.
+
+```cpp
+ecs::Entity parent = w.add();
+ecs::Entity child1 = w.add();
+ecs::Entity child2 = w.add();
+w.add(child1, ecs::Pair(ecs::ChildOf, parent));
+w.add(child2, ecs::Pair(ecs::ChildOf, parent));
+
+// Deleting parent deletes child1 and child2 as well.
+w.del(parent); 
+```
+
+### Entity dependencies
+Defining dependencies among entities is made possible via the (DependsOn, target) relationship.
+
+When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.
+
+```cpp
+ecs::World w;
+auto rabbit = w.add();
+auto animal = w.add();
+auto herbivore = w.add();
+auto carrot = w.add();
+w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
+w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+
+// carrot depends on herbivore so the later is added as well.
+// At the same time, herbivore depends on animal so animal is added, too.
+w.add(rabbit, carrot);
+const bool isHerbivore = w.has(rabbit, herbivore)); // true
+const bool isAnimal = w.has(rabbit, animal); // true
+
+// Animal will not be removed from rabbit because of the dependency chain.
+// Carrot depends on herbivore which depends on animal.
+w.del(rabbit, animal); // does nothing
+// Herbivore will not be removed from rabbit because of the dependency chain.
+// Carrot depends on herbivore.
+w.del(rabbit, herbivore); // does nothing
+
+// Carrot can be deleted. It requires herbivore is present which is true.
+w.del(rabbit, carrot); // removes carrot from rabbit
+```
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
