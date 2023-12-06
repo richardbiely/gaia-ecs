@@ -1705,6 +1705,29 @@ TEST_CASE("Add - many components, bulk") {
 	GAIA_FOR(N) create();
 }
 
+TEST_CASE("DependsOn") {
+	ecs::World w;
+	auto rabbit = w.add();
+	auto animal = w.add();
+	auto herbivore = w.add();
+	auto carrot = w.add();
+	w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
+	w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+
+	w.add(rabbit, carrot);
+	REQUIRE(w.has(rabbit, herbivore));
+	REQUIRE(w.has(rabbit, animal));
+
+	w.del(rabbit, animal);
+	REQUIRE(w.has(rabbit, animal));
+
+	w.del(rabbit, herbivore);
+	REQUIRE(w.has(rabbit, herbivore));
+
+	w.del(rabbit, carrot);
+	REQUIRE(!w.has(rabbit, carrot));
+}
+
 TEST_CASE("AddAndDel_entity - no components") {
 	const uint32_t N = 1'500;
 

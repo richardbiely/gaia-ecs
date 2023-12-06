@@ -14119,15 +14119,18 @@ namespace gaia {
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		// Cleanup rules
 		inline Entity OnDelete = Entity(3, false, false, false, EntityKind::EK_Gen);
 		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
 		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
+		// Entity dependencies
+		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(8, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(9, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(10, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
@@ -19913,15 +19916,52 @@ namespace gaia {
 				}
 
 			private:
+				void handle_add_deps(Entity entity) {
+					if (entity.pair())
+						return;
+
+					cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> targets;
+					m_world.target(entity, DependsOn, targets);
+					for (auto e: targets) {
+						auto* pArchetype = m_pArchetype;
+						handle_add(e);
+						if (m_pArchetype != pArchetype)
+							handle_add_deps(e);
+					}
+				}
+
+				bool handle_del_deps(Entity entity) {
+					if (entity.pair())
+						return false;
+
+					// Don't allow to delete entity if something in the archetype depends on it
+					const auto& ents = m_pArchetype->entities();
+					for (auto e: ents) {
+						if (e.pair())
+							continue;
+						if (m_world.has(e, Pair(DependsOn, entity)))
+							return false;
+					}
+
+					return true;
+				}
+
 				template <typename EntityOrPair>
-				void add_inter(EntityOrPair entity) {
+				void handle_add(EntityOrPair entity) {
+					constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
+
 #if GAIA_DEBUG
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
+					// Don't add the same entity twice
+					if (m_pArchetype->has(entity))
+						return;
+
 					bool onDeleteAdded = false;
 
-					if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+					// Set the OnDeleteTarget flag as necessary
+					if constexpr (IsPair) {
 						// Adding a pair to an entity with OnDeleteTarget relationship.
 						// We need to update the target entity's flags.
 						const auto first = entity.first();
@@ -19943,6 +19983,7 @@ namespace gaia {
 						}
 					}
 
+					// Set the OnDelete flag as necessary
 					if (!onDeleteAdded) {
 						if (entity == Pair(OnDelete, Delete)) {
 							auto& ec = m_world.m_entities[m_entity.id()];
@@ -19960,14 +20001,16 @@ namespace gaia {
 				}
 
 				template <typename EntityOrPair>
-				void del_inter(EntityOrPair entity) {
+				void handle_del(EntityOrPair entity) {
+					constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
+
 #if GAIA_DEBUG
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
 					bool onDeleteAdded = false;
 
-					if constexpr (std::is_same_v<EntityOrPair, Pair>) {
+					if constexpr (IsPair) {
 						// Adding a pair to an entity with OnDeleteTarget relationship.
 						// We need to update the target entity's flags.
 						const auto first = entity.first();
@@ -20003,6 +20046,19 @@ namespace gaia {
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
+				}
+
+				template <typename EntityOrPair>
+				void add_inter(EntityOrPair entity) {
+					handle_add_deps(entity);
+					handle_add(entity);
+				}
+
+				template <typename EntityOrPair>
+				void del_inter(EntityOrPair entity) {
+					if (!handle_del_deps(entity))
+						return;
+					handle_del(entity);
 				}
 			};
 
@@ -20270,22 +20326,12 @@ namespace gaia {
 				if GAIA_UNLIKELY (ents.size() + 1 >= Chunk::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
-					GAIA_LOG_W("Already present:");
-					GAIA_EACH(ents)
-					GAIA_LOG_W(
-							"> [%u] %s [%s]", (uint32_t)i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
+					GAIA_LOG_W("Currently present:");
+					GAIA_EACH(ents) {
+						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
+					}
 					GAIA_LOG_W("Trying to add:");
 					GAIA_LOG_W("> %s [%s]", entity_name(world, addEntity), EntityKindString[(uint32_t)entity.kind()]);
-				}
-
-				// Don't add the same entity twice
-				for (auto ent: ents) {
-					if (ent == addEntity) {
-						GAIA_ASSERT2(false, "Trying to add a duplicate entity");
-						GAIA_LOG_W(
-								"Trying to add a duplicate entity %s [%s] to entity [%u:%u]", entity_name(world, ent),
-								EntityKindString[(uint32_t)entity.kind()], entity.id(), entity.gen());
-					}
 				}
 			}
 
@@ -20296,8 +20342,10 @@ namespace gaia {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(ents) GAIA_LOG_W("> [%u] %s", i, entity_name(world, ents[i]));
-					GAIA_LOG_W("Trying to remove:");
+					GAIA_EACH(ents) {
+						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
+					}
+					GAIA_LOG_W("Trying to del:");
 					GAIA_LOG_W("> %s [%s]", entity_name(world, delEntity), EntityKindString[(uint32_t)entity.kind()]);
 				}
 			}
@@ -20828,6 +20876,11 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void move_entity(Entity entity, Archetype& newArchetype) {
+				// Archetypes need to be different
+				const auto& ec = m_entities[entity.id()];
+				if (ec.pArchetype == &newArchetype)
+					return;
+
 				auto* pNewChunk = newArchetype.foc_free_chunk();
 				move_entity(entity, newArchetype, *pNewChunk);
 			}
@@ -20997,6 +21050,16 @@ namespace gaia {
 					(void)desc;
 				}
 
+				// Dependencies
+				{
+					const auto& id = DependsOn;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<DependsOn_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
 				// Register All component. Used with relationship queries.
 				{
 					const auto& id = All;
@@ -21042,6 +21105,9 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, All) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, DependsOn) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, ChildOf) //
@@ -21197,6 +21263,9 @@ namespace gaia {
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				// Don't allow components to be deleted
+				EntityBuilder(*this, entity).add(Pair(OnDelete, Error));
+
 				const auto& desc = comp_cache_mut().add<FT>(entity);
 
 				// Following lines do the following but a bit faster:
@@ -21325,6 +21394,14 @@ namespace gaia {
 			void del(Pair pair) {
 				// Handle specific conditions that might arise from deleting the pair
 				handle_del_entity(pair);
+			}
+
+			//! Removes an \param object from \param entity if possible.
+			//! \param entity Entity to delete from
+			//! \param object Entity to delete
+			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			void del(Entity entity, Entity object) {
+				EntityBuilder(*this, entity).del(object);
 			}
 
 			//! Removes an existing entity relationship pair

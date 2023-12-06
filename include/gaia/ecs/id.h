@@ -301,15 +301,18 @@ namespace gaia {
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		// Cleanup rules
 		inline Entity OnDelete = Entity(3, false, false, false, EntityKind::EK_Gen);
 		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
 		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
+		// Entity dependencies
+		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(8, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(9, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(10, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
