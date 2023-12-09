@@ -25,7 +25,8 @@ namespace gaia {
 			OnDelete_Error = 1 << 2,
 			OnDeleteTarget_Remove = 1 << 3,
 			OnDeleteTarget_Delete = 1 << 4,
-			OnDeleteTarget_Error = 1 << 5
+			OnDeleteTarget_Error = 1 << 5,
+			HasCantCombine = 1 << 6,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {

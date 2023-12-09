@@ -1530,7 +1530,7 @@ TEST_CASE("Add - no components") {
 	q.arr(arr);
 	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
-	//GAIA_FOR(N) verify(i);
+	// GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {
@@ -1703,6 +1703,22 @@ TEST_CASE("Add - many components, bulk") {
 
 	const uint32_t N = 1'500;
 	GAIA_FOR(N) create();
+}
+
+TEST_CASE("CantCombine") {
+	ecs::World w;
+	auto weak = w.add();
+	auto strong = w.add();
+	w.add(weak, ecs::Pair(ecs::CantCombine, strong));
+
+	auto dummy = w.add();
+	w.add(dummy, strong);
+#if !GAIA_ASSERT_ENABLED
+	// Can be tested only with asserts disabled because the situation is assert-protected.
+	w.add(dummy, weak);
+	REQUIRE(w.has(dummy, strong));
+	REQUIRE(!w.has(dummy, weak));
+#endif
 }
 
 TEST_CASE("DependsOn") {

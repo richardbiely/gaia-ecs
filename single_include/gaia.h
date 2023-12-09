@@ -14112,6 +14112,7 @@ namespace gaia {
 		struct Delete_ {};
 		struct Error_ {};
 		struct DependsOn_ {};
+		struct CantCombine_ {};
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
@@ -14128,12 +14129,13 @@ namespace gaia {
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
 		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
+		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
 		// Graph restrictions
-		inline Entity Acyclic = Entity(9, false, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
@@ -15746,7 +15748,8 @@ namespace gaia {
 			OnDelete_Error = 1 << 2,
 			OnDeleteTarget_Remove = 1 << 3,
 			OnDeleteTarget_Delete = 1 << 4,
-			OnDeleteTarget_Error = 1 << 5
+			OnDeleteTarget_Error = 1 << 5,
+			HasCantCombine = 1 << 6,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -19963,13 +19966,35 @@ namespace gaia {
 			private:
 				void handle_add_deps(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
-					m_world.targets(entity, DependsOn, targets);
 
-					for (auto e: targets) {
-						auto* pArchetype = m_pArchetype;
-						handle_add(e);
-						if (m_pArchetype != pArchetype)
-							handle_add_deps(e);
+					// Handle entity combination that can't be together
+					{
+						const auto& ec = m_world.fetch(entity);
+						if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
+							m_world.targets(entity, CantCombine, targets);
+							for (auto e: targets) {
+								if (m_pArchetype->has(e)) {
+#if GAIA_ASSERT_ENABLED
+									GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
+									print_archetype_entities(m_world, *m_pArchetype, entity, true);
+#endif
+									return;
+								}
+							}
+						}
+					}
+
+					// Handle dependencies
+					{
+						targets.clear();
+						m_world.targets(entity, DependsOn, targets);
+
+						for (auto e: targets) {
+							auto* pArchetype = m_pArchetype;
+							handle_add(e);
+							if (m_pArchetype != pArchetype)
+								handle_add_deps(e);
+						}
 					}
 				}
 
@@ -19984,46 +20009,45 @@ namespace gaia {
 					return false;
 				}
 
+				void updateFlag(Entity entity, EntityContainerFlags flag, bool enable) {
+					auto& ec = m_world.fetch(entity);
+					if (enable)
+						ec.flags |= flag;
+					else
+						ec.flags &= ~flag;
+				};
+
+				void try_set_CantCombine(Entity entity, bool enable) {
+					if (!entity.pair() || entity.id() != CantCombine.id())
+						return;
+
+					updateFlag(m_entity, EntityContainerFlags::HasCantCombine, enable);
+				}
+
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
 					if (!entity.pair())
 						return;
 
 					const auto rel = m_world.get(entity.id());
-
-					auto updateFlag = [&](EntityContainerFlags flag) {
-						const auto tgt = m_world.get(entity.gen());
-						auto& ec = m_world.fetch(tgt);
-						if (enable)
-							ec.flags |= flag;
-						else
-							ec.flags &= ~flag;
-					};
+					const auto tgt = m_world.get(entity.gen());
 
 					// Adding a pair to an entity with OnDeleteTarget relationship.
 					// We need to update the target entity's flags.
 					if (m_world.has(rel, Pair(OnDeleteTarget, Delete)))
-						updateFlag(EntityContainerFlags::OnDeleteTarget_Delete);
+						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Delete, enable);
 					else if (m_world.has(rel, Pair(OnDeleteTarget, Remove)))
-						updateFlag(EntityContainerFlags::OnDeleteTarget_Remove);
+						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Remove, enable);
 					else if (m_world.has(rel, Pair(OnDeleteTarget, Error)))
-						updateFlag(EntityContainerFlags::OnDeleteTarget_Error);
+						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Error, enable);
 				}
 
 				void try_set_OnDelete(Entity entity, bool enable) {
-					auto updateFlag = [&](EntityContainerFlags flag) {
-						auto& ec = m_world.fetch(m_entity);
-						if (enable)
-							ec.flags |= flag;
-						else
-							ec.flags &= ~flag;
-					};
-
 					if (entity == Pair(OnDelete, Delete))
-						updateFlag(EntityContainerFlags::OnDelete_Delete);
+						updateFlag(m_entity, EntityContainerFlags::OnDelete_Delete, enable);
 					else if (entity == Pair(OnDelete, Remove))
-						updateFlag(EntityContainerFlags::OnDelete_Remove);
+						updateFlag(m_entity, EntityContainerFlags::OnDelete_Remove, enable);
 					else if (entity == Pair(OnDelete, Error))
-						updateFlag(EntityContainerFlags::OnDelete_Error);
+						updateFlag(m_entity, EntityContainerFlags::OnDelete_Error, enable);
 				}
 
 				void handle_add(Entity entity) {
@@ -20035,6 +20059,7 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return;
 
+					try_set_CantCombine(entity, true);
 					try_set_OnDeleteTarget(entity, true);
 					try_set_OnDelete(entity, true);
 
@@ -20046,6 +20071,7 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
+					try_set_CantCombine(entity, false);
 					try_set_OnDeleteTarget(entity, false);
 					try_set_OnDelete(entity, false);
 
@@ -20321,45 +20347,40 @@ namespace gaia {
 			}
 
 #if GAIA_DEBUG
-			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
+			static void print_archetype_entities(const World& world, const Archetype& archetype, Entity entity, bool adding) {
 				const auto& ids = archetype.ids();
 
-				auto printEntities = [&]() {
-					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(ids) {
-						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
-					}
-					GAIA_LOG_W("Trying to add:");
-					GAIA_LOG_W("> %s [%s]", entity_name(world, addEntity), EntityKindString[(uint32_t)entity.kind()]);
-				};
+				GAIA_LOG_W("Currently present:");
+				GAIA_EACH(ids) {
+					GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
+				}
 
+				GAIA_LOG_W("Trying to %s:", adding ? "add" : "del");
+				GAIA_LOG_W("> %s [%s]", entity_name(world, entity), EntityKindString[(uint32_t)entity.kind()]);
+			}
+
+			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
 				// Makes sure no wildcard entities are added
 				if (is_wildcard(addEntity)) {
 					GAIA_ASSERT2(false, "Adding wildcard pairs is not supported");
-					printEntities();
+					print_archetype_entities(world, archetype, addEntity, true);
 					return;
 				}
 				// Make sure not to add too many entities/components
+				const auto& ids = archetype.ids();
 				if GAIA_UNLIKELY (ids.size() + 1 >= Chunk::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
-					printEntities();
+					print_archetype_entities(world, archetype, addEntity, true);
 					return;
 				}
 			}
 
 			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity delEntity) {
-				const auto& ids = archetype.ids();
-
 				if GAIA_UNLIKELY (!archetype.has(delEntity)) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
-					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(ids) {
-						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
-					}
-					GAIA_LOG_W("Trying to del:");
-					GAIA_LOG_W("> %s [%s]", entity_name(world, delEntity), EntityKindString[(uint32_t)entity.kind()]);
+					print_archetype_entities(world, archetype, delEntity, false);
 				}
 			}
 #endif
@@ -21157,6 +21178,14 @@ namespace gaia {
 					(void)comp;
 					(void)desc;
 				}
+				{
+					const auto& id = CantCombine;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<CantCombine_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
 
 				// Graph restrictions
 				{
@@ -21216,6 +21245,10 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, DependsOn) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, CantCombine) //
 						.add(Core)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
@@ -21536,9 +21569,9 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			void del_inter(Entity entity) {
-				auto handle_del = [this](Entity entity) {
-					handle_del_entity(entity);
-					del_entity(entity);
+				auto handle_del = [this](Entity entityToDel) {
+					handle_del_entity(entityToDel);
+					del_entity(entityToDel);
 				};
 
 				if (is_wildcard(entity)) {

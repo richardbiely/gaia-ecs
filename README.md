@@ -59,8 +59,11 @@
     * [Change detection](#change-detection)
   * [Relationships](#relationships)
     * [Basics](#basics)
-    * [Cleanup rules](#cleanup-rules)
     * [Entity dependencies](#entity-dependencies)
+    * [Entity constraints](#entity-constraints)
+    * [Targets](#targets)
+    * [Relations](#relations)
+    * [Cleanup rules](#cleanup-rules)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
@@ -732,12 +735,6 @@ w.add(rabbit, ecs::Pair(eats, salad));
 Targets of a relationship can be retrieved via ***World::target*** and ***World::targets***.
 
 ```cpp
-ecs::World w;
-ecs::Entity rabbit = w.add();
-ecs::Entity carrot = w.add();
-ecs::Entity salad = w.add();
-ecs::Entity eats = w.add();
-
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(rabbit, ecs::Pair(eats, salad));
 
@@ -755,22 +752,62 @@ w.target(rabbit, eats, what_rabbit_eats);
 Relations of a relationhip can be retrived via ***World::relation*** and ***World::relations***.
 
 ```cpp
-ecs::World w;
-ecs::Entity rabbit = w.add();
-ecs::Entity carrot = w.add();
-ecs::Entity salad = w.add();
-ecs::Entity eats = w.add();
-
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(rabbit, ecs::Pair(eats, salad));
 
 // Returns whatever the first found relation of the rabbit(*, salad) relationship is.
 // In our case it is eats.
-ecs::Entity first_relation = w.reation(rabbit, salad);
+ecs::Entity first_relation = w.relation(rabbit, salad);
 
 // Appends eats to the array
 cnt::sarr_ext<ecs::Entity, 32> related_to_salad;
-w.realtions(rabbit, salad, related_to_salad);
+w.relations(rabbit, salad, related_to_salad);
+```
+
+### Entity dependencies
+Defining dependencies among entities is made possible via the (DependsOn, target) relationship.
+
+When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.
+
+```cpp
+ecs::World w;
+auto rabbit = w.add();
+auto animal = w.add();
+auto herbivore = w.add();
+auto carrot = w.add();
+w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
+w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+
+// carrot depends on herbivore so the later is added as well.
+// At the same time, herbivore depends on animal so animal is added, too.
+w.add(rabbit, carrot);
+const bool isHerbivore = w.has(rabbit, herbivore)); // true
+const bool isAnimal = w.has(rabbit, animal); // true
+
+// Animal will not be removed from rabbit because of the dependency chain.
+// Carrot depends on herbivore which depends on animal.
+w.del(rabbit, animal); // does nothing
+// Herbivore will not be removed from rabbit because of the dependency chain.
+// Carrot depends on herbivore.
+w.del(rabbit, herbivore); // does nothing
+
+// Carrot can be deleted. It requires herbivore is present which is true.
+w.del(rabbit, carrot); // removes carrot from rabbit
+```
+
+### Entity constraints
+Entity constrains are used to define what entities can not be combined with others.
+
+```cpp
+ecs::World w;
+auto weak = w.add();
+auto strong = w.add();
+w.add(weak, ecs::Pair(ecs::CantCombine, strong));
+
+auto e = w.add();
+w.add(e, strong);
+// Following line is an invalid operation.
+w.add(e, weak);
 ```
 
 ### Cleanup rules
@@ -833,36 +870,6 @@ w.add(child2, ecs::Pair(ecs::ChildOf, parent));
 w.del(parent); 
 ```
 
-### Entity dependencies
-Defining dependencies among entities is made possible via the (DependsOn, target) relationship.
-
-When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.
-
-```cpp
-ecs::World w;
-auto rabbit = w.add();
-auto animal = w.add();
-auto herbivore = w.add();
-auto carrot = w.add();
-w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
-w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
-
-// carrot depends on herbivore so the later is added as well.
-// At the same time, herbivore depends on animal so animal is added, too.
-w.add(rabbit, carrot);
-const bool isHerbivore = w.has(rabbit, herbivore)); // true
-const bool isAnimal = w.has(rabbit, animal); // true
-
-// Animal will not be removed from rabbit because of the dependency chain.
-// Carrot depends on herbivore which depends on animal.
-w.del(rabbit, animal); // does nothing
-// Herbivore will not be removed from rabbit because of the dependency chain.
-// Carrot depends on herbivore.
-w.del(rabbit, herbivore); // does nothing
-
-// Carrot can be deleted. It requires herbivore is present which is true.
-w.del(rabbit, carrot); // removes carrot from rabbit
-```
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
