@@ -56,6 +56,7 @@ option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
+option(GAIA_DEVMODE, "Enables various verification checks. Only useful for library maintainers." OFF)
 
 option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
 option(GAIA_PROFILER_MEM "Enable memory profiling." OFF)

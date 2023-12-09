@@ -24,6 +24,10 @@ function(enable_cxx_compiler_flag_if_supported flag)
   endif()
 endfunction()
 
+if (GAIA_DEVMODE)
+  add_definitions(-DGAIA_DEVMODE=1)
+endif()
+
 if(MSVC)
   # parallel build
   enable_cxx_compiler_flag_if_supported("/MP")

@@ -95,10 +95,10 @@
 #endif
 
 #if !defined(GAIA_ECS_VALIDATE_CHUNKS)
-	#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG)
+	#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG && GAIA_DEVMODE)
 #endif
 #if !defined(GAIA_ECS_VALIDATE_ENTITY_LIST)
-	#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG)
+	#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG && GAIA_DEVMODE)
 #endif
 
 //------------------------------------------------------------------------------
