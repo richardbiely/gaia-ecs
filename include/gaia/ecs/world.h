@@ -198,7 +198,7 @@ namespace gaia {
 			private:
 				void handle_add_deps(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
-					m_world.target(entity, DependsOn, targets);
+					m_world.targets(entity, DependsOn, targets);
 
 					for (auto e: targets) {
 						auto* pArchetype = m_pArchetype;
@@ -2101,9 +2101,9 @@ namespace gaia {
 			//! Returns the first relationship relation for the \param target entity on \param entity.
 			//! \return Relationship target. EntityBad if there is nothing to return.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity relation(Entity entity, Entity relation) const {
+			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
 				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
+				if (!valid(target))
 					return EntityBad;
 
 				const auto& ec = fetch(entity);
@@ -2113,12 +2113,12 @@ namespace gaia {
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.gen() != relation.gen())
+					if (e.gen() != target.id())
 						continue;
 
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					return target;
+					const auto& ecRel = m_recs.entities[e.id()];
+					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					return relation;
 				}
 
 				return EntityBad;
@@ -2128,9 +2128,9 @@ namespace gaia {
 			//! Appends all relationship relations if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename C>
-			void relation(Entity entity, Entity relation, C& out) const {
+			void relations(Entity entity, Entity target, C& out) const {
 				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
+				if (!valid(target))
 					return;
 
 				const auto& ec = m_recs.entities[entity.id()];
@@ -2140,12 +2140,12 @@ namespace gaia {
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.gen() != relation.gen())
+					if (e.gen() != target.id())
 						continue;
 
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					out.push_back(target);
+					const auto& ecRel = m_recs.entities[e.id()];
+					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					out.push_back(relation);
 				}
 			}
 
@@ -2191,7 +2191,7 @@ namespace gaia {
 			//! Appends all relationship targets if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename C>
-			void target(Entity entity, Entity relation, C& out) const {
+			void targets(Entity entity, Entity relation, C& out) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;

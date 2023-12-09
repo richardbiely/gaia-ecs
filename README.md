@@ -729,7 +729,7 @@ w.add(rabbit, ecs::Pair(eats, salad));
 
 ### Targets
 
-Targets of a relationship can be retrieved via ***World::target***.
+Targets of a relationship can be retrieved via ***World::target*** and ***World::targets***.
 
 ```cpp
 ecs::World w;
@@ -741,12 +741,36 @@ ecs::Entity eats = w.add();
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(rabbit, ecs::Pair(eats, salad));
 
-// Returns carrot (carrot entity was created before salad)
+// Returns whatever the first found target of the rabbit(eats, *) relationship is.
+// In our case it is the carrot entity because it was created before salad.
 ecs::Entity first_target = w.target(rabbit, eats);
 
 // Appends carrot and salad entities to the array
 cnt::sarr_ext<ecs::Entity, 32> what_rabbit_eats;
 w.target(rabbit, eats, what_rabbit_eats);
+```
+
+### Relations
+
+Relations of a relationhip can be retrived via ***World::relation*** and ***World::relations***.
+
+```cpp
+ecs::World w;
+ecs::Entity rabbit = w.add();
+ecs::Entity carrot = w.add();
+ecs::Entity salad = w.add();
+ecs::Entity eats = w.add();
+
+w.add(rabbit, ecs::Pair(eats, carrot));
+w.add(rabbit, ecs::Pair(eats, salad));
+
+// Returns whatever the first found relation of the rabbit(*, salad) relationship is.
+// In our case it is eats.
+ecs::Entity first_relation = w.reation(rabbit, salad);
+
+// Appends eats to the array
+cnt::sarr_ext<ecs::Entity, 32> related_to_salad;
+w.realtions(rabbit, salad, related_to_salad);
 ```
 
 ### Cleanup rules

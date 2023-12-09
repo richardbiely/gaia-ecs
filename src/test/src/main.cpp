@@ -2361,7 +2361,7 @@ TEST_CASE("Relationship") {
 	}
 }
 
-TEST_CASE("Relationship target") {
+TEST_CASE("Relationship target/relation") {
 	ecs::World w;
 
 	auto wolf = w.add();
@@ -2379,11 +2379,18 @@ TEST_CASE("Relationship target") {
 	const bool ret_e = e == carrot || e == salad;
 	REQUIRE(ret_e);
 
-	cnt::sarr_ext<ecs::Entity, 32> rabbit_eats_targets;
-	w.target(rabbit, eats, rabbit_eats_targets);
-	REQUIRE(rabbit_eats_targets.size() == 2);
-	REQUIRE(core::has(rabbit_eats_targets, carrot));
-	REQUIRE(core::has(rabbit_eats_targets, salad));
+	cnt::sarr_ext<ecs::Entity, 32> out;
+	w.targets(rabbit, eats, out);
+	REQUIRE(out.size() == 2);
+	REQUIRE(core::has(out, carrot));
+	REQUIRE(core::has(out, salad));
+	REQUIRE(w.target(rabbit, eats) == carrot);
+
+	out.clear();
+	w.relations(rabbit, salad, out);
+	REQUIRE(out.size() == 1);
+	REQUIRE(core::has(out, eats));
+	REQUIRE(w.relation(rabbit, salad) == eats);
 }
 
 template <typename TQuery>
