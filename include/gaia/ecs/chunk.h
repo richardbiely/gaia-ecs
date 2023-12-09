@@ -73,33 +73,33 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					const EntityArray& ents, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
+					const EntityArray& ids, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
 					const ComponentOffsetArray& compOffs) {
-				m_header.componentCount = (uint8_t)ents.size();
+				m_header.componentCount = (uint8_t)ids.size();
 
 				// Cache pointers to versions
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 				}
 
 				// Cache entity ids
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
-					for (; j < ents.size(); ++j)
-						dst[j] = ents[j];
+					for (; j < ids.size(); ++j)
+						dst[j] = ids[j];
 					for (; j < MAX_COMPONENTS; ++j)
 						dst[j] = EntityBad;
 				}
 
 				// Cache component records
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_EACH_(comps, j) {
-						dst[j].entity = ents[j];
+						dst[j].entity = ids[j];
 						dst[j].comp = comps[j];
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pDesc = m_header.cc->find(comps[j].id());
@@ -290,7 +290,7 @@ namespace gaia {
 					// data offsets
 					const ChunkDataOffsets& offsets,
 					// component entities
-					const EntityArray& ents,
+					const EntityArray& ids,
 					// component
 					const ComponentArray& comps,
 					// component offsets
@@ -307,7 +307,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
-				pChunk->init(ents, comps, offsets, compOffs);
+				pChunk->init(ids, comps, offsets, compOffs);
 				return pChunk;
 			}
 
@@ -536,13 +536,13 @@ namespace gaia {
 			/*!
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
-			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
+			static void copy_entity_data(Entity oldEntity, Entity newEntity, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
-				auto& oldEntityContainer = entities[oldEntity.id()];
+				auto& oldEntityContainer = recs[oldEntity];
 				auto* pOldChunk = oldEntityContainer.pChunk;
 
-				auto& newEntityContainer = entities[newEntity.id()];
+				auto& newEntityContainer = recs[newEntity];
 				auto* pNewChunk = newEntityContainer.pChunk;
 
 				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
@@ -564,10 +564,10 @@ namespace gaia {
 			/*!
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_entity_data(Entity entity, uint16_t row, std::span<EntityContainer> entities) {
+			void move_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
-				auto& ec = entities[entity.id()];
+				auto& ec = recs[entity];
 				auto* pOldChunk = ec.pChunk;
 				auto oldRecs = pOldChunk->comp_rec_view();
 
@@ -593,7 +593,7 @@ namespace gaia {
 
 				auto oldIds = pOldChunk->ents_id_view();
 				auto newIds = pNewChunk->ents_id_view();
-				auto recsNew = pNewChunk->comp_rec_view();
+				auto newRecs = pNewChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
@@ -606,7 +606,7 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							const auto& rec = recsNew[j];
+							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldRow);
@@ -620,7 +620,7 @@ namespace gaia {
 							++i;
 						} else {
 							// No match with the old chunk. Construct the component
-							const auto& rec = recsNew[j];
+							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
@@ -633,7 +633,7 @@ namespace gaia {
 
 					// Initialize the rest of the components if they are generic.
 					for (; j < pNewChunk->m_header.genEntities; ++j) {
-						const auto& rec = recsNew[j];
+						const auto& rec = newRecs[j];
 						if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
 							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 							rec.pDesc->func_ctor(pDst, 1);
@@ -645,10 +645,10 @@ namespace gaia {
 			/*!
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_foreign_entity_data(Entity entity, uint16_t row, std::span<EntityContainer> entities) {
+			void move_foreign_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
-				auto& ec = entities[entity.id()];
+				auto& ec = recs[entity];
 				move_foreign_entity_data(ec.pChunk, ec.row, this, row);
 			}
 
@@ -658,7 +658,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given row already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity_inter(uint16_t row, std::span<EntityContainer> entities) {
+			void remove_entity_inter(uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::remove_entity_inter);
 
 				const uint16_t rowA = row;
@@ -674,10 +674,10 @@ namespace gaia {
 
 					// Update entity data
 					const auto entityB = ev[rowB];
-					auto& ecB = entities[entityB.id()];
+					auto& ecB = recs[entityB];
 #if GAIA_ASSERT_ENABLED
 					const auto entityA = ev[rowA];
-					auto& ecA = entities[entityA.id()];
+					auto& ecA = recs[entityA];
 
 					GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
 					GAIA_ASSERT(ecA.pChunk == ecB.pChunk);
@@ -686,9 +686,9 @@ namespace gaia {
 					ev[rowA] = entityB;
 
 					// Move component data from entityB to entityA
-					auto recs = comp_rec_view();
+					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
-						const auto& rec = recs[i];
+						const auto& rec = recView[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
@@ -702,9 +702,9 @@ namespace gaia {
 					ecB.row = rowA;
 				} else {
 					// This is the last entity in chunk so simply destroy its data
-					auto recs = comp_rec_view();
+					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
-						const auto& rec = recs[i];
+						const auto& rec = recView[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
@@ -720,7 +720,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given row already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity(uint16_t row, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToDelete) {
+			void remove_entity(uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -733,16 +733,16 @@ namespace gaia {
 
 				if (enabled(row)) {
 					// Entity was previously enabled. Swap with the last entity
-					remove_entity_inter(row, entities);
+					remove_entity_inter(row, recs);
 					// If this was the first enabled entity make sure to update the row
 					if (m_header.rowFirstEnabledEntity > 0 && row == m_header.rowFirstEnabledEntity)
 						--m_header.rowFirstEnabledEntity;
 				} else {
 					// Entity was previously disabled. Swap with the last disabled entity
 					const uint16_t pivot = size_disabled() - 1;
-					swap_chunk_entities(row, pivot, entities);
+					swap_chunk_entities(row, pivot, recs);
 					// Once swapped, try to swap with the last (enabled) entity in the chunk.
-					remove_entity_inter(pivot, entities);
+					remove_entity_inter(pivot, recs);
 					--m_header.rowFirstEnabledEntity;
 				}
 
@@ -756,7 +756,7 @@ namespace gaia {
 			If \param rowA equals \param rowB no swapping is performed.
 			\warning "rowA" must he smaller or equal to "rowB"
 			*/
-			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, std::span<EntityContainer> entities) {
+			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
 				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB".
 				// Unlike remove_entity_inter, it is not technically necessary but we do it
 				// anyway for the sake of consistency.
@@ -773,8 +773,8 @@ namespace gaia {
 				const auto entityA = ev[rowA];
 				const auto entityB = ev[rowB];
 
-				auto& ecA = entities[entityA.id()];
-				auto& ecB = entities[entityB.id()];
+				auto& ecA = recs[entityA];
+				auto& ecB = recs[entityB];
 				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
 				GAIA_ASSERT(ecA.pChunk == ecB.pChunk);
 
@@ -782,9 +782,9 @@ namespace gaia {
 				ev[rowB] = entityA;
 
 				// Swap component data
-				auto recs = comp_rec_view();
+				auto recView = comp_rec_view();
 				GAIA_FOR2(0, m_header.genEntities) {
-					const auto& rec = recs[i];
+					const auto& rec = recView[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
@@ -804,7 +804,7 @@ namespace gaia {
 			\param enableEntity Enables or disabled the entity
 			\param entities Span of entity container records
 			*/
-			void enable_entity(uint16_t row, bool enableEntity, std::span<EntityContainer> entities) {
+			void enable_entity(uint16_t row, bool enableEntity, EntityContainers& recs) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be enable while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -818,9 +818,9 @@ namespace gaia {
 					if (enabled(row))
 						return;
 					// Try swapping our entity with the last disabled one
-					const auto entityId = entity_view()[row].id();
-					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, entities);
-					entities[entityId].dis = 0;
+					const auto entity = entity_view()[row];
+					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, recs);
+					recs[entity].dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -830,9 +830,9 @@ namespace gaia {
 					if (!enabled(row))
 						return;
 					// Try swapping our entity with the last one in our chunk
-					const auto entityId = entity_view()[row].id();
-					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, entities);
-					entities[entityId].dis = 1;
+					const auto entity = entity_view()[row];
+					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, recs);
+					recs[entity].dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -940,8 +940,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				auto ents = ents_id_view();
-				return core::has(ents, entity);
+				auto ids = ents_id_view();
+				return core::has(ids, entity);
 			}
 
 			/*!

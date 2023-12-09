@@ -14112,6 +14112,7 @@ namespace gaia {
 		struct Delete_ {};
 		struct Error_ {};
 		struct DependsOn_ {};
+		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 
@@ -14127,13 +14128,22 @@ namespace gaia {
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
 		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
+		// Graph restrictions
+		inline Entity Acyclic = Entity(9, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(9, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(10, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(11, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
+
+		inline bool is_wildcard(Entity entity) {
+			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
+		}
+		inline bool is_wildcard(Pair pair) {
+			return pair.first() == All || pair.second() == All;
+		}
 	} // namespace ecs
 } // namespace gaia
 
@@ -15736,7 +15746,7 @@ namespace gaia {
 			OnDelete_Error = 1 << 2,
 			OnDeleteTarget_Remove = 1 << 3,
 			OnDeleteTarget_Delete = 1 << 4,
-			OnDeleteTarget_Error = 1 << 5,
+			OnDeleteTarget_Error = 1 << 5
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -15764,7 +15774,8 @@ namespace gaia {
 			//! Row at which the entity is stored in the chunk
 			uint16_t row;
 			//! Flags
-			uint16_t flags;
+			uint16_t flags = 0;
+
 			//! Archetype
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
@@ -15786,6 +15797,26 @@ namespace gaia {
 
 			static Entity create(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+		};
+
+		struct EntityContainers {
+			//! Implicit list of entities. Used for look-ups only when searching for
+			//! entities in chunks + data validation. Entities only.
+			cnt::ilist<EntityContainer, Entity> entities;
+			//! Just m_recs.entities, but stores pairs.
+			cnt::map<EntityLookupKey, EntityContainer> pairs;
+
+			EntityContainer& operator[](Entity entity) {
+				return entity.pair() //
+									 ? pairs.find(EntityLookupKey(entity))->second
+									 : entities[entity.id()];
+			}
+
+			const EntityContainer& operator[](Entity entity) const {
+				return entity.pair() //
+									 ? pairs.find(EntityLookupKey(entity))->second
+									 : entities[entity.id()];
 			}
 		};
 	} // namespace ecs
@@ -15844,33 +15875,33 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					const EntityArray& ents, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
+					const EntityArray& ids, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
 					const ComponentOffsetArray& compOffs) {
-				m_header.componentCount = (uint8_t)ents.size();
+				m_header.componentCount = (uint8_t)ids.size();
 
 				// Cache pointers to versions
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 				}
 
 				// Cache entity ids
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
-					for (; j < ents.size(); ++j)
-						dst[j] = ents[j];
+					for (; j < ids.size(); ++j)
+						dst[j] = ids[j];
 					for (; j < MAX_COMPONENTS; ++j)
 						dst[j] = EntityBad;
 				}
 
 				// Cache component records
-				if (!ents.empty()) {
+				if (!ids.empty()) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_EACH_(comps, j) {
-						dst[j].entity = ents[j];
+						dst[j].entity = ids[j];
 						dst[j].comp = comps[j];
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pDesc = m_header.cc->find(comps[j].id());
@@ -16061,7 +16092,7 @@ namespace gaia {
 					// data offsets
 					const ChunkDataOffsets& offsets,
 					// component entities
-					const EntityArray& ents,
+					const EntityArray& ids,
 					// component
 					const ComponentArray& comps,
 					// component offsets
@@ -16078,7 +16109,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
-				pChunk->init(ents, comps, offsets, compOffs);
+				pChunk->init(ids, comps, offsets, compOffs);
 				return pChunk;
 			}
 
@@ -16307,13 +16338,13 @@ namespace gaia {
 			/*!
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
-			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
+			static void copy_entity_data(Entity oldEntity, Entity newEntity, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
-				auto& oldEntityContainer = entities[oldEntity.id()];
+				auto& oldEntityContainer = recs[oldEntity];
 				auto* pOldChunk = oldEntityContainer.pChunk;
 
-				auto& newEntityContainer = entities[newEntity.id()];
+				auto& newEntityContainer = recs[newEntity];
 				auto* pNewChunk = newEntityContainer.pChunk;
 
 				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
@@ -16335,10 +16366,10 @@ namespace gaia {
 			/*!
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_entity_data(Entity entity, uint16_t row, std::span<EntityContainer> entities) {
+			void move_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
-				auto& ec = entities[entity.id()];
+				auto& ec = recs[entity];
 				auto* pOldChunk = ec.pChunk;
 				auto oldRecs = pOldChunk->comp_rec_view();
 
@@ -16364,7 +16395,7 @@ namespace gaia {
 
 				auto oldIds = pOldChunk->ents_id_view();
 				auto newIds = pNewChunk->ents_id_view();
-				auto recsNew = pNewChunk->comp_rec_view();
+				auto newRecs = pNewChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
@@ -16377,7 +16408,7 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							const auto& rec = recsNew[j];
+							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldRow);
@@ -16391,7 +16422,7 @@ namespace gaia {
 							++i;
 						} else {
 							// No match with the old chunk. Construct the component
-							const auto& rec = recsNew[j];
+							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
@@ -16404,7 +16435,7 @@ namespace gaia {
 
 					// Initialize the rest of the components if they are generic.
 					for (; j < pNewChunk->m_header.genEntities; ++j) {
-						const auto& rec = recsNew[j];
+						const auto& rec = newRecs[j];
 						if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
 							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 							rec.pDesc->func_ctor(pDst, 1);
@@ -16416,10 +16447,10 @@ namespace gaia {
 			/*!
 			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_foreign_entity_data(Entity entity, uint16_t row, std::span<EntityContainer> entities) {
+			void move_foreign_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
-				auto& ec = entities[entity.id()];
+				auto& ec = recs[entity];
 				move_foreign_entity_data(ec.pChunk, ec.row, this, row);
 			}
 
@@ -16429,7 +16460,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given row already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity_inter(uint16_t row, std::span<EntityContainer> entities) {
+			void remove_entity_inter(uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::remove_entity_inter);
 
 				const uint16_t rowA = row;
@@ -16445,10 +16476,10 @@ namespace gaia {
 
 					// Update entity data
 					const auto entityB = ev[rowB];
-					auto& ecB = entities[entityB.id()];
+					auto& ecB = recs[entityB];
 #if GAIA_ASSERT_ENABLED
 					const auto entityA = ev[rowA];
-					auto& ecA = entities[entityA.id()];
+					auto& ecA = recs[entityA];
 
 					GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
 					GAIA_ASSERT(ecA.pChunk == ecB.pChunk);
@@ -16457,9 +16488,9 @@ namespace gaia {
 					ev[rowA] = entityB;
 
 					// Move component data from entityB to entityA
-					auto recs = comp_rec_view();
+					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
-						const auto& rec = recs[i];
+						const auto& rec = recView[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
@@ -16473,9 +16504,9 @@ namespace gaia {
 					ecB.row = rowA;
 				} else {
 					// This is the last entity in chunk so simply destroy its data
-					auto recs = comp_rec_view();
+					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
-						const auto& rec = recs[i];
+						const auto& rec = recView[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
@@ -16491,7 +16522,7 @@ namespace gaia {
 			Upon removal, all associated data is also removed.
 			If the entity at the given row already is the last chunk entity, it is removed directly.
 			*/
-			void remove_entity(uint16_t row, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToDelete) {
+			void remove_entity(uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -16504,16 +16535,16 @@ namespace gaia {
 
 				if (enabled(row)) {
 					// Entity was previously enabled. Swap with the last entity
-					remove_entity_inter(row, entities);
+					remove_entity_inter(row, recs);
 					// If this was the first enabled entity make sure to update the row
 					if (m_header.rowFirstEnabledEntity > 0 && row == m_header.rowFirstEnabledEntity)
 						--m_header.rowFirstEnabledEntity;
 				} else {
 					// Entity was previously disabled. Swap with the last disabled entity
 					const uint16_t pivot = size_disabled() - 1;
-					swap_chunk_entities(row, pivot, entities);
+					swap_chunk_entities(row, pivot, recs);
 					// Once swapped, try to swap with the last (enabled) entity in the chunk.
-					remove_entity_inter(pivot, entities);
+					remove_entity_inter(pivot, recs);
 					--m_header.rowFirstEnabledEntity;
 				}
 
@@ -16527,7 +16558,7 @@ namespace gaia {
 			If \param rowA equals \param rowB no swapping is performed.
 			\warning "rowA" must he smaller or equal to "rowB"
 			*/
-			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, std::span<EntityContainer> entities) {
+			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
 				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB".
 				// Unlike remove_entity_inter, it is not technically necessary but we do it
 				// anyway for the sake of consistency.
@@ -16544,8 +16575,8 @@ namespace gaia {
 				const auto entityA = ev[rowA];
 				const auto entityB = ev[rowB];
 
-				auto& ecA = entities[entityA.id()];
-				auto& ecB = entities[entityB.id()];
+				auto& ecA = recs[entityA];
+				auto& ecB = recs[entityB];
 				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
 				GAIA_ASSERT(ecA.pChunk == ecB.pChunk);
 
@@ -16553,9 +16584,9 @@ namespace gaia {
 				ev[rowB] = entityA;
 
 				// Swap component data
-				auto recs = comp_rec_view();
+				auto recView = comp_rec_view();
 				GAIA_FOR2(0, m_header.genEntities) {
-					const auto& rec = recs[i];
+					const auto& rec = recView[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
@@ -16575,7 +16606,7 @@ namespace gaia {
 			\param enableEntity Enables or disabled the entity
 			\param entities Span of entity container records
 			*/
-			void enable_entity(uint16_t row, bool enableEntity, std::span<EntityContainer> entities) {
+			void enable_entity(uint16_t row, bool enableEntity, EntityContainers& recs) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be enable while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -16589,9 +16620,9 @@ namespace gaia {
 					if (enabled(row))
 						return;
 					// Try swapping our entity with the last disabled one
-					const auto entityId = entity_view()[row].id();
-					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, entities);
-					entities[entityId].dis = 0;
+					const auto entity = entity_view()[row];
+					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, recs);
+					recs[entity].dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -16601,9 +16632,9 @@ namespace gaia {
 					if (!enabled(row))
 						return;
 					// Try swapping our entity with the last one in our chunk
-					const auto entityId = entity_view()[row].id();
-					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, entities);
-					entities[entityId].dis = 1;
+					const auto entity = entity_view()[row];
+					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, recs);
+					recs[entity].dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -16711,8 +16742,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				auto ents = ents_id_view();
-				return core::has(ents, entity);
+				auto ids = ents_id_view();
+				return core::has(ids, entity);
 			}
 
 			/*!
@@ -17078,8 +17109,8 @@ namespace gaia {
 
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
-			//! List of entity ids
-			Chunk::EntityArray m_ents;
+			//! List of entities used to identify the archetype
+			Chunk::EntityArray m_ids;
 			//! List of component ids
 			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
@@ -17184,13 +17215,12 @@ namespace gaia {
 			};
 
 			static void reg_components(
-					Archetype& arch, EntitySpan ents, ComponentSpan comps, uint8_t from, uint8_t to, uint32_t& currOff,
+					Archetype& arch, EntitySpan ids, ComponentSpan comps, uint8_t from, uint8_t to, uint32_t& currOff,
 					uint32_t count) {
-				auto& ids = arch.m_ents;
 				auto& ofs = arch.m_compOffs;
 
 				// Set component ids
-				GAIA_FOR2(from, to) ids[i] = ents[i];
+				GAIA_FOR2(from, to) arch.m_ids[i] = ids[i];
 
 				// Calulate offsets and assign them indices according to our mappings
 				GAIA_FOR2(from, to) {
@@ -17223,24 +17253,23 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				const auto& ents = entities();
-				return ecs::cmp_comps({ents.data(), ents.size()}, other.m_comps);
+				return ecs::cmp_comps({m_ids.data(), m_ids.size()}, other.m_comps);
 			}
 
 			GAIA_NODISCARD static Archetype*
-			create(const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ents) {
+			create(const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
-				newArch->m_ents.resize((uint32_t)ents.size());
-				newArch->m_comps.resize((uint32_t)ents.size());
-				newArch->m_compOffs.resize((uint32_t)ents.size());
+				newArch->m_ids.resize((uint32_t)ids.size());
+				newArch->m_comps.resize((uint32_t)ids.size());
+				newArch->m_compOffs.resize((uint32_t)ids.size());
 
 				// Prepare m_comps array
 				auto comps = std::span(newArch->m_comps.data(), newArch->m_comps.size());
-				GAIA_EACH(ents) {
-					const auto* pDesc = cc.find(ents[i]);
+				GAIA_EACH(ids) {
+					const auto* pDesc = cc.find(ids[i]);
 					if (pDesc == nullptr)
 						comps[i] = Component(IdentifierIdBad, 0, 0, 0);
 					else
@@ -17259,10 +17288,10 @@ namespace gaia {
 				const auto& offs = newArch->m_dataOffsets;
 
 				// Find the index of the last generic component in both arrays
-				uint32_t entsGeneric = (uint32_t)ents.size();
-				if (!ents.empty()) {
-					for (int i = (int)ents.size() - 1; i >= 0; --i) {
-						if (ents[(uint32_t)i].kind() != EntityKind::EK_Uni)
+				uint32_t entsGeneric = (uint32_t)ids.size();
+				if (!ids.empty()) {
+					for (int i = (int)ids.size() - 1; i >= 0; --i) {
+						if (ids[(uint32_t)i].kind() != EntityKind::EK_Uni)
 							break;
 						--entsGeneric;
 					}
@@ -17274,7 +17303,7 @@ namespace gaia {
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
 				GAIA_FOR(entsGeneric) genCompsSize += newArch->m_comps[i].size();
-				GAIA_FOR2(entsGeneric, ents.size()) uniCompsSize += newArch->m_comps[i].size();
+				GAIA_FOR2(entsGeneric, ids.size()) uniCompsSize += newArch->m_comps[i].size();
 
 				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
 				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
@@ -17324,8 +17353,8 @@ namespace gaia {
 
 				// Update the offsets according to the recalculated maxGenItemsInArchetype
 				currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenItemsInArchetype;
-				reg_components(*newArch, ents, comps, (uint8_t)0, (uint8_t)entsGeneric, currOff, maxGenItemsInArchetype);
-				reg_components(*newArch, ents, comps, (uint8_t)entsGeneric, (uint8_t)ents.size(), currOff, 1);
+				reg_components(*newArch, ids, comps, (uint8_t)0, (uint8_t)entsGeneric, currOff, maxGenItemsInArchetype);
+				reg_components(*newArch, ids, comps, (uint8_t)entsGeneric, (uint8_t)ids.size(), currOff, 1);
 
 				GAIA_ASSERT(Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
@@ -17349,8 +17378,8 @@ namespace gaia {
 			\param row Row of the entity
 			\param enableEntity Enables the entity
 			*/
-			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, std::span<EntityContainer> entities) {
-				pChunk->enable_entity(row, enableEntity, entities);
+			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, EntityContainers& recs) {
+				pChunk->enable_entity(row, enableEntity, recs);
 				// m_disabledMask.set(pChunk->idx(), enableEntity ? true : pChunk->has_disabled_entities());
 			}
 
@@ -17395,7 +17424,7 @@ namespace gaia {
 			//! \param maxEntites Maximum number of entities moved per call
 			//! \param chunksToDelete Container of chunks ready for removal
 			//! \param entities Container with entities
-			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, std::span<EntityContainer> entities) {
+			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, EntityContainers& recs) {
 				// Assuming the following chunk layout:
 				//   Chunk_1: 10/10
 				//   Chunk_2:  1/10
@@ -17432,7 +17461,7 @@ namespace gaia {
 
 				auto* pDstChunk = m_chunks[front];
 
-				const bool hasUniEnts = !m_ents.empty() && m_ents.back().kind() == EntityKind::EK_Uni;
+				const bool hasUniEnts = !m_ids.empty() && m_ids.back().kind() == EntityKind::EK_Uni;
 
 				// Find the first semi-empty chunk in the back
 				while (front < back && m_chunks[--back]->is_semi()) {
@@ -17442,7 +17471,7 @@ namespace gaia {
 					if (hasUniEnts) {
 						auto rec = pSrcChunk->comp_rec_view();
 						bool res = true;
-						GAIA_FOR2(m_properties.genEntities, m_ents.size()) {
+						GAIA_FOR2(m_properties.genEntities, m_ids.size()) {
 							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
 							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
 							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
@@ -17467,22 +17496,22 @@ namespace gaia {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
 						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
-						const auto& ec = entities[entity.id()];
+						const auto& ec = recs[entity];
 
 						const auto oldRow = ec.row;
 						const auto newRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, oldRow, true, entities);
+						enable_entity(pSrcChunk, oldRow, true, recs);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
 						GAIA_ASSERT(oldRow == ec.row);
 
 						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newRow, wasEnabled, entities);
+						enable_entity(pDstChunk, newRow, wasEnabled, recs);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldRow, entities, chunksToDelete);
+						pSrcChunk->remove_entity(oldRow, recs, chunksToDelete);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -17527,7 +17556,7 @@ namespace gaia {
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
 						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
-						m_dataOffsets, m_ents, m_comps, m_compOffs);
+						m_dataOffsets, m_ids, m_comps, m_compOffs);
 
 				m_chunks.push_back(pChunk);
 				return pChunk;
@@ -17545,8 +17574,8 @@ namespace gaia {
 				return m_hashLookup;
 			}
 
-			GAIA_NODISCARD const Chunk::EntityArray& entities() const {
-				return m_ents;
+			GAIA_NODISCARD const Chunk::EntityArray& ids() const {
+				return m_ids;
 			}
 
 			GAIA_NODISCARD const Chunk::ComponentArray& comps() const {
@@ -17563,8 +17592,7 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				const auto& c = entities();
-				return core::has_if(c, [&](Entity e) {
+				return core::has_if(m_ids, [&](Entity e) {
 					return e == entity;
 				});
 			}
@@ -17648,7 +17676,7 @@ namespace gaia {
 
 			static void diag_basic_info(const World& world, const Archetype& archetype) {
 				const auto& cc = comp_cache(world);
-				const auto& ents = archetype.entities();
+				const auto& ids = archetype.ids();
 				const auto& comps = archetype.comps();
 
 				// Caclulate the number of entites in archetype
@@ -17694,9 +17722,9 @@ namespace gaia {
 					}
 				};
 
-				if (!ents.empty()) {
-					GAIA_LOG_N("  Components - count:%u", ents.size());
-					for (const auto ent: ents)
+				if (!ids.empty()) {
+					GAIA_LOG_N("  Components - count:%u", ids.size());
+					for (const auto ent: ids)
 						logComponentInfo(ent);
 				}
 			}
@@ -18530,13 +18558,13 @@ namespace gaia {
 						continue;
 
 					// Eliminate archetypes not matching the NOT rule
-					if (!ops_ids_not.empty() && match_one(pArchetype->entities(), ops_ids_not))
+					if (!ops_ids_not.empty() && match_one(pArchetype->ids(), ops_ids_not))
 						continue;
 					// Eliminate archetypes not matching the ANY rule
-					if (!ops_ids_any.empty() && !match_one(pArchetype->entities(), ops_ids_any))
+					if (!ops_ids_any.empty() && !match_one(pArchetype->ids(), ops_ids_any))
 						continue;
 					// Eliminate archetypes not matching the ALL rule
-					if (!ops_ids_all.empty() && !match_all(pArchetype->entities(), ops_ids_all))
+					if (!ops_ids_all.empty() && !match_all(pArchetype->ids(), ops_ids_all))
 						continue;
 
 					matchedArchetypes.emplace(archetypes[j]);
@@ -18623,7 +18651,7 @@ namespace gaia {
 					// It is possible they were not a part of previous archetypes.
 					if (ops_ids_not.empty()) {
 						for (auto* pArchetype: s_tmpArchetypeMatches) {
-							if (match_one(pArchetype->entities(), ops_ids_not))
+							if (match_one(pArchetype->ids(), ops_ids_not))
 								continue;
 							m_archetypeCache.push_back(pArchetype);
 						}
@@ -18657,7 +18685,7 @@ namespace gaia {
 					// It is possible they were not a part of previous archetypes.
 					if (ops_ids_not.empty()) {
 						for (auto* pArchetype: s_tmpArchetypeMatches) {
-							if (match_one(pArchetype->entities(), ops_ids_not))
+							if (match_one(pArchetype->ids(), ops_ids_not))
 								continue;
 							m_archetypeCache.push_back(pArchetype);
 						}
@@ -18972,7 +19000,7 @@ namespace gaia {
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! List of world's entity records
-				const cnt::ilist<EntityContainer, Entity>* m_entities{};
+				const cnt::ilist<EntityContainer, Entity>* m_ids{};
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -19783,13 +19811,19 @@ namespace gaia {
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
 			using EntityNameLookupKey = core::StringLookupKey<256>;
+			using PairMap = cnt::map<EntityLookupKey, cnt::set<EntityLookupKey>>;
 
 			//! Cache of components
 			ComponentCache m_compCache;
 			//! Cache of queries
 			QueryCache m_queryCache;
-			//! Map of components -> archetype matches
+
+			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
+			//! Map of relation -> targets
+			PairMap m_relationsToTargets;
+			//! Map of target -> relations
+			PairMap m_targetsToRelations;
 
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
@@ -19804,9 +19838,9 @@ namespace gaia {
 			//! Id assigned to the next created archetype
 			ArchetypeId m_nextArchetypeId = 0;
 
-			//! Implicit list of entities. Used for look-ups only when searching for
-			//! entities in chunks + data validation
-			cnt::ilist<EntityContainer, Entity> m_entities;
+			//! Entity records
+			EntityContainers m_recs;
+
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
@@ -19823,6 +19857,19 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 		public:
+			EntityContainer& fetch(Entity entity) {
+				// Valid entity
+				GAIA_ASSERT(valid(entity));
+				// Wildcard pairs are not a real entity so we can't accept them
+				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
+				return m_recs[entity];
+			}
+
+			const EntityContainer& fetch(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+				return m_recs[entity];
+			}
+
 			struct EntityBuilder final {
 				friend class World;
 
@@ -19831,9 +19878,7 @@ namespace gaia {
 				Archetype* m_pArchetype;
 
 				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
-					GAIA_ASSERT(!entity.pair());
-					GAIA_ASSERT(world.valid(entity));
-					auto& ec = world.m_entities[entity.id()];
+					auto& ec = world.fetch(entity);
 					m_pArchetype = ec.pArchetype;
 				}
 
@@ -19917,11 +19962,9 @@ namespace gaia {
 
 			private:
 				void handle_add_deps(Entity entity) {
-					if (entity.pair())
-						return;
-
-					cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> targets;
+					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
 					m_world.target(entity, DependsOn, targets);
+
 					for (auto e: targets) {
 						auto* pArchetype = m_pArchetype;
 						handle_add(e);
@@ -19930,26 +19973,60 @@ namespace gaia {
 					}
 				}
 
-				bool handle_del_deps(Entity entity) {
-					if (entity.pair())
-						return false;
-
+				bool has_DependsOn_deps(Entity entity) const {
 					// Don't allow to delete entity if something in the archetype depends on it
-					const auto& ents = m_pArchetype->entities();
-					for (auto e: ents) {
-						if (e.pair())
-							continue;
+					const auto& ids = m_pArchetype->ids();
+					for (auto e: ids) {
 						if (m_world.has(e, Pair(DependsOn, entity)))
-							return false;
+							return true;
 					}
 
-					return true;
+					return false;
 				}
 
-				template <typename EntityOrPair>
-				void handle_add(EntityOrPair entity) {
-					constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
+				void try_set_OnDeleteTarget(Entity entity, bool enable) {
+					if (!entity.pair())
+						return;
 
+					const auto rel = m_world.get(entity.id());
+
+					auto updateFlag = [&](EntityContainerFlags flag) {
+						const auto tgt = m_world.get(entity.gen());
+						auto& ec = m_world.fetch(tgt);
+						if (enable)
+							ec.flags |= flag;
+						else
+							ec.flags &= ~flag;
+					};
+
+					// Adding a pair to an entity with OnDeleteTarget relationship.
+					// We need to update the target entity's flags.
+					if (m_world.has(rel, Pair(OnDeleteTarget, Delete)))
+						updateFlag(EntityContainerFlags::OnDeleteTarget_Delete);
+					else if (m_world.has(rel, Pair(OnDeleteTarget, Remove)))
+						updateFlag(EntityContainerFlags::OnDeleteTarget_Remove);
+					else if (m_world.has(rel, Pair(OnDeleteTarget, Error)))
+						updateFlag(EntityContainerFlags::OnDeleteTarget_Error);
+				}
+
+				void try_set_OnDelete(Entity entity, bool enable) {
+					auto updateFlag = [&](EntityContainerFlags flag) {
+						auto& ec = m_world.fetch(m_entity);
+						if (enable)
+							ec.flags |= flag;
+						else
+							ec.flags &= ~flag;
+					};
+
+					if (entity == Pair(OnDelete, Delete))
+						updateFlag(EntityContainerFlags::OnDelete_Delete);
+					else if (entity == Pair(OnDelete, Remove))
+						updateFlag(EntityContainerFlags::OnDelete_Remove);
+					else if (entity == Pair(OnDelete, Error))
+						updateFlag(EntityContainerFlags::OnDelete_Error);
+				}
+
+				void handle_add(Entity entity) {
 #if GAIA_DEBUG
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
@@ -19958,105 +20035,37 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return;
 
-					bool onDeleteAdded = false;
-
-					// Set the OnDeleteTarget flag as necessary
-					if constexpr (IsPair) {
-						// Adding a pair to an entity with OnDeleteTarget relationship.
-						// We need to update the target entity's flags.
-						const auto first = entity.first();
-						if (m_world.has(first, Pair(OnDeleteTarget, Delete))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags |= EntityContainerFlags::OnDeleteTarget_Delete;
-							onDeleteAdded = true;
-						} else if (m_world.has(first, Pair(OnDeleteTarget, Remove))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags |= EntityContainerFlags::OnDeleteTarget_Remove;
-							onDeleteAdded = true;
-						} else if (m_world.has(first, Pair(OnDeleteTarget, Error))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags |= EntityContainerFlags::OnDeleteTarget_Error;
-							onDeleteAdded = true;
-						}
-					}
-
-					// Set the OnDelete flag as necessary
-					if (!onDeleteAdded) {
-						if (entity == Pair(OnDelete, Delete)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags |= EntityContainerFlags::OnDelete_Delete;
-						} else if (entity == Pair(OnDelete, Remove)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags |= EntityContainerFlags::OnDelete_Remove;
-						} else if (entity == Pair(OnDelete, Error)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags |= EntityContainerFlags::OnDelete_Error;
-						}
-					}
+					try_set_OnDeleteTarget(entity, true);
+					try_set_OnDelete(entity, true);
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
 
-				template <typename EntityOrPair>
-				void handle_del(EntityOrPair entity) {
-					constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
-
+				void handle_del(Entity entity) {
 #if GAIA_DEBUG
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
-					bool onDeleteAdded = false;
-
-					if constexpr (IsPair) {
-						// Adding a pair to an entity with OnDeleteTarget relationship.
-						// We need to update the target entity's flags.
-						const auto first = entity.first();
-						if (m_world.has(first, Pair(OnDeleteTarget, Delete))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Delete;
-							onDeleteAdded = true;
-						} else if (m_world.has(first, Pair(OnDeleteTarget, Remove))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Remove;
-							onDeleteAdded = true;
-						} else if (m_world.has(first, Pair(OnDeleteTarget, Error))) {
-							const auto target = entity.second();
-							auto& ec = m_world.m_entities[target.id()];
-							ec.flags &= ~EntityContainerFlags::OnDeleteTarget_Error;
-							onDeleteAdded = true;
-						}
-					}
-
-					if (!onDeleteAdded) {
-						if (entity == Pair(OnDelete, Delete)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags &= ~EntityContainerFlags::OnDelete_Delete;
-						} else if (entity == Pair(OnDelete, Remove)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags &= ~EntityContainerFlags::OnDelete_Remove;
-						} else if (entity == Pair(OnDelete, Error)) {
-							auto& ec = m_world.m_entities[m_entity.id()];
-							ec.flags &= ~EntityContainerFlags::OnDelete_Error;
-						}
-					}
+					try_set_OnDeleteTarget(entity, false);
+					try_set_OnDelete(entity, false);
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
 
-				template <typename EntityOrPair>
-				void add_inter(EntityOrPair entity) {
+				void add_inter(Entity entity) {
+					GAIA_ASSERT(!is_wildcard(entity));
+
+					if (entity.pair()) {
+						// Make sure the entity container record exists if it is a pair
+						m_world.assign(entity, *m_world.m_pEntityArchetype);
+					}
+
 					handle_add_deps(entity);
 					handle_add(entity);
 				}
 
-				template <typename EntityOrPair>
-				void del_inter(EntityOrPair entity) {
-					if (!handle_del_deps(entity))
+				void del_inter(Entity entity) {
+					if (has_DependsOn_deps(entity))
 						return;
 					handle_del(entity);
 				}
@@ -20069,11 +20078,7 @@ namespace gaia {
 			void remove_entity(Chunk* pChunk, uint16_t row) {
 				GAIA_PROF_SCOPE(World::remove_entity);
 
-				pChunk->remove_entity(
-						row,
-						// entities
-						{m_entities.data(), m_entities.size()}, m_chunksToDel);
-
+				pChunk->remove_entity(row, m_recs, m_chunksToDel);
 				pChunk->update_versions();
 			}
 
@@ -20085,18 +20090,18 @@ namespace gaia {
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
 
-				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ents;
+				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ids;
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps;
 				{
 					auto recs = pChunk->comp_rec_view();
-					ents.resize((uint32_t)recs.size());
+					ids.resize((uint32_t)recs.size());
 					comps.resize((uint32_t)recs.size());
-					GAIA_EACH_(recs, j) ents[j] = recs[j].entity;
+					GAIA_EACH_(recs, j) ids[j] = recs[j].entity;
 					GAIA_EACH_(recs, j) comps[j] = recs[j].comp;
 				}
 
-				const auto hashLookup = calc_lookup_hash({ents.data(), ents.size()}).hash;
-				auto* pArchetype = find_archetype({hashLookup}, {ents.data(), ents.size()});
+				const auto hashLookup = calc_lookup_hash({ids.data(), ids.size()}).hash;
+				auto* pArchetype = find_archetype({hashLookup}, {ids.data(), ids.size()});
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->del(pChunk, m_archetypesToDel);
@@ -20211,10 +20216,7 @@ namespace gaia {
 
 				GAIA_FOR(maxIters) {
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
-					pArchetype->defrag(
-							maxEntities, m_chunksToDel,
-							// entities
-							{m_entities.data(), m_entities.size()});
+					pArchetype->defrag(maxEntities, m_chunksToDel, m_recs);
 					if (maxEntities == 0)
 						return;
 
@@ -20228,10 +20230,10 @@ namespace gaia {
 
 			//! Searches for archetype with a given set of components
 			//! \param hashLookup Archetype lookup hash
-			//! \param ents Archetype entities/components
+			//! \param ids Archetype entities/components
 			//! \return Pointer to archetype or nullptr.
-			GAIA_NODISCARD Archetype* find_archetype(Archetype::LookupHash hashLookup, EntitySpan ents) {
-				auto tmpArchetype = ArchetypeLookupChecker(ents);
+			GAIA_NODISCARD Archetype* find_archetype(Archetype::LookupHash hashLookup, EntitySpan ids) {
+				auto tmpArchetype = ArchetypeLookupChecker(ids);
 				ArchetypeLookupKey key(hashLookup, &tmpArchetype);
 
 				// Search for the archetype in the map
@@ -20252,7 +20254,7 @@ namespace gaia {
 					it->second.push_back(pArchetype);
 			}
 
-			//! Creates a new archetype from a given set of components
+			//! Creates a new archetype from a given set of entities
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
@@ -20311,8 +20313,8 @@ namespace gaia {
 				// Make sure the archetype was registered already
 				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
 
-				const auto& ents = pArchetype->entities();
-				auto tmpArchetype = ArchetypeLookupChecker({ents.data(), ents.size()});
+				const auto& ids = pArchetype->ids();
+				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
 				m_archetypesById.erase(pArchetype->id());
@@ -20320,30 +20322,41 @@ namespace gaia {
 
 #if GAIA_DEBUG
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
-				const auto& ents = archetype.entities();
+				const auto& ids = archetype.ids();
 
-				// Make sure not to add too many entities/components
-				if GAIA_UNLIKELY (ents.size() + 1 >= Chunk::MAX_COMPONENTS) {
-					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
-					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
+				auto printEntities = [&]() {
 					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(ents) {
-						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
+					GAIA_EACH(ids) {
+						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
 					}
 					GAIA_LOG_W("Trying to add:");
 					GAIA_LOG_W("> %s [%s]", entity_name(world, addEntity), EntityKindString[(uint32_t)entity.kind()]);
+				};
+
+				// Makes sure no wildcard entities are added
+				if (is_wildcard(addEntity)) {
+					GAIA_ASSERT2(false, "Adding wildcard pairs is not supported");
+					printEntities();
+					return;
+				}
+				// Make sure not to add too many entities/components
+				if GAIA_UNLIKELY (ids.size() + 1 >= Chunk::MAX_COMPONENTS) {
+					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
+					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
+					printEntities();
+					return;
 				}
 			}
 
 			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity delEntity) {
-				const auto& ents = archetype.entities();
+				const auto& ids = archetype.ids();
 
 				if GAIA_UNLIKELY (!archetype.has(delEntity)) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
-					GAIA_EACH(ents) {
-						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ents[i]), EntityKindString[(uint32_t)ents[i].kind()]);
+					GAIA_EACH(ids) {
+						GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
 					}
 					GAIA_LOG_W("Trying to del:");
 					GAIA_LOG_W("> %s [%s]", entity_name(world, delEntity), EntityKindString[(uint32_t)entity.kind()]);
@@ -20388,7 +20401,7 @@ namespace gaia {
 				// Prepare a joint array of components of old + the newly added component
 				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
 				{
-					const auto& entsOld = pArchetypeLeft->entities();
+					const auto& entsOld = pArchetypeLeft->ids();
 					entsNew.resize(entsOld.size() + 1);
 					GAIA_EACH(entsOld) entsNew[i] = entsOld[i];
 					entsNew[entsOld.size()] = entity;
@@ -20425,7 +20438,7 @@ namespace gaia {
 				}
 
 				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
-				const auto& entsOld = pArchetypeRight->entities();
+				const auto& entsOld = pArchetypeRight->ids();
 
 				// Find the intersection
 				for (const auto e: entsOld) {
@@ -20460,16 +20473,15 @@ namespace gaia {
 			//! Returns the archetype the entity belongs to.
 			//! \param entity Entity
 			//! \return Reference to the archetype.
-			GAIA_NODISCARD Archetype& archetype(Entity entity) const {
-				GAIA_ASSERT(valid(entity));
-
-				return *m_entities[entity.id()].pArchetype;
+			GAIA_NODISCARD Archetype& archetype(Entity entity) {
+				const auto& ec = fetch(entity);
+				return *ec.pArchetype;
 			}
 
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
 			void del_name(Entity entity) {
-				auto& ec = m_entities[entity.id()];
+				auto& ec = fetch(entity);
 				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];
 				if (entityDesc.name == nullptr)
 					return;
@@ -20492,14 +20504,16 @@ namespace gaia {
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
-
-				if (m_entities.item_count() == 0 || entity == EntityBad)
+				// Wildcard entites are a virtual concept, there is nothing to delete
+				if (is_wildcard(entity))
 					return;
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = fetch(entity);
+				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
+
+				if (m_recs.entities.item_count() == 0 || entity == EntityBad)
+					return;
+
 				auto* pChunk = ec.pChunk;
 				GAIA_ASSERT(pChunk != nullptr);
 
@@ -20516,68 +20530,83 @@ namespace gaia {
 				validate_entities();
 			}
 
-			//! Delete anything referencing the entity \param target. No questions asked.
-			template <typename EntityOrPair>
-			void del_entities_with(EntityOrPair target, Pair cond = {EntityBad, EntityBad}) {
-				GAIA_PROF_SCOPE(World::del_entities_with);
+			void del_entities(Archetype& archetype) {
+				for (auto* pChunk: archetype.chunks()) {
+					auto ids = pChunk->entity_view();
+					for (auto e: ids) {
+						del_name(e);
+						invalidate_entity(e);
+					}
 
-				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
-				constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
+					// If the chunk was already dying we need to remove it
+					// from the delete list.
+					// TODO: Instead of searching for it we could store a delete index in the chunk
+					//       header. This was the lookup is O(1) instead of O(N) and it would help
+					//       with edge-cases (tons of chunks removed at the same time).
+					if (pChunk->dying()) {
+						const auto idx = core::get_index(m_chunksToDel, pChunk);
+						if (idx != BadIndex)
+							core::erase_fast(m_chunksToDel, idx);
+					}
+
+					archetype.del(pChunk, m_archetypesToDel);
+				}
+			}
+
+			bool archetype_cond_match(Archetype& archetype, Pair cond, Entity target) {
+				// E.g.:
+				//   target = (All, entity)
+				//   cond = (OnDeleteTarget, delete)
+				// Delete the entity if it matches the cond
+				const auto& ids = archetype.ids();
+
+				if (target.pair()) {
+					for (auto e: ids) {
+						// Find the pair which matches (All, entity)
+						if (!e.pair())
+							continue;
+						if (e.gen() != target.gen())
+							continue;
+
+						const auto& ec = m_recs.entities[e.id()];
+						const auto entity = ec.pChunk->entity_view()[ec.row];
+						if (!has(entity, cond))
+							continue;
+
+						return true;
+					}
+				} else {
+					for (auto e: ids) {
+						if (e.pair())
+							continue;
+						if (!has(e, cond))
+							continue;
+
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			//! Delete anything referencing the entity \param target. No questions asked.
+			void del_entities_with(Entity target, Pair cond = {EntityBad, EntityBad}) {
+				GAIA_PROF_SCOPE(World::del_entities_with);
 
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_entityToArchetypeMap.end()) {
 					const auto& archetypes = it->second;
-					for (auto* pArchetype: archetypes) {
-						// Evaluate the conditon if a valid pair is given
-						if (cond.first() != EntityBad) {
-							// E.g.:
-							//   target = (All, entity)
-							//   cond = (OnDeleteTarget, delete)
-							// Delete the entity if it matches the cond
-							const auto& ents = pArchetype->entities();
-							for (auto e: ents) {
-								if constexpr (IsPair) {
-									// Find the pair which matches (All, entity)
-									if (!e.pair() || e.gen() != target.second().id())
-										continue;
+					if (cond.first() != EntityBad) {
+						for (auto* pArchetype: archetypes) {
+							// Evaluate the conditon if a valid pair is given
+							if (!archetype_cond_match(*pArchetype, cond, target))
+								continue;
 
-									const auto& ec = m_entities[e.id()];
-									const auto entity = ec.pChunk->entity_view()[ec.row];
-									if (!has(entity, cond))
-										continue;
-								} else {
-									if (e.pair())
-										continue;
-									if (!has(e, cond))
-										continue;
-								}
-
-								goto del_entity;
-							}
-
-							return;
+							del_entities(*pArchetype);
 						}
-
-					del_entity:
-						for (auto* pChunk: pArchetype->chunks()) {
-							auto ents = pChunk->entity_view();
-							for (auto e: ents) {
-								del_name(e);
-								invalidate_entity(e);
-							}
-
-							// If the chunk's death was already in progress we need to remove it
-							// from the delete list.
-							// TODO: Instead of searching for it we could store a delete index in the chunk
-							//       header. This was the lookup is O(1) instead of O(N) and it would help
-							//       with edge-cases (tons of chunks removed at the same time).
-							if (pChunk->dying()) {
-								const auto idx = core::get_index(m_chunksToDel, pChunk);
-								if (idx != BadIndex)
-									core::erase_fast(m_chunksToDel, idx);
-							}
-
-							pArchetype->del(pChunk, m_archetypesToDel);
+					} else {
+						for (auto* pArchetype: archetypes) {
+							del_entities(*pArchetype);
 						}
 					}
 				}
@@ -20614,110 +20643,131 @@ namespace gaia {
 				}
 			}
 
+			//! Find the destination archetype \param pArchetype as if removing \param entity.
+			//! \return Destination archetype of nullptr if no match is found
+			Archetype* calc_dst_archetype_ent(Archetype* pArchetype, Entity entity) {
+				GAIA_ASSERT(!is_wildcard(entity));
+
+				const auto& ids = pArchetype->ids();
+				for (auto id: ids) {
+					if (id != entity)
+						continue;
+
+					return foc_archetype_del(pArchetype, id);
+				}
+
+				return nullptr;
+			}
+
+			//! Find the destination archetype \param pArchetype as if removing all entities
+			//! matching (All, entity) from the archetype.
+			//! \return Destination archetype of nullptr if no match is found
+			Archetype* calc_dst_archetype_all_ent(Archetype* pArchetype, Entity entity) {
+				GAIA_ASSERT(is_wildcard(entity));
+
+				Archetype* pDstArchetype = pArchetype;
+				bool found = false;
+
+				const auto& ids = pArchetype->ids();
+				for (auto id: ids) {
+					if (!id.pair() || id.gen() != entity.gen())
+						continue;
+
+					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					found = true;
+				}
+
+				return found ? pDstArchetype : nullptr;
+			}
+
+			//! Find the destination archetype \param pArchetype as if removing all entities
+			//! matching (entity, All) from the archetype.
+			//! \return Destination archetype of nullptr if no match is found
+			Archetype* calc_dst_archetype_ent_all(Archetype* pArchetype, Entity entity) {
+				GAIA_ASSERT(is_wildcard(entity));
+
+				Archetype* pDstArchetype = pArchetype;
+				bool found = false;
+
+				const auto& ids = pArchetype->ids();
+				for (auto id: ids) {
+					if (!id.pair() || id.id() != entity.id())
+						continue;
+
+					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					found = true;
+				}
+
+				return found ? pDstArchetype : nullptr;
+			}
+
+			//! Find the destination archetype \param pArchetype as if removing all entities
+			//! matching (All, All) from the archetype.
+			//! \return Destination archetype of nullptr if no match is found
+			Archetype* calc_dst_archetype_all_all(Archetype* pArchetype, [[maybe_unused]] Entity entity) {
+				GAIA_ASSERT(is_wildcard(entity));
+
+				Archetype* pDstArchetype = pArchetype;
+				bool found = false;
+
+				const auto& ids = pArchetype->ids();
+				for (auto id: ids) {
+					if (!id.pair())
+						continue;
+
+					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					found = true;
+				}
+
+				return found ? pDstArchetype : nullptr;
+			}
+
+			//! Find the destination archetype \param pArchetype as if removing \param entity.
+			//! Wildcard pair entities are supported as well.
+			//! \return Destination archetype of nullptr if no match is found
+			Archetype* calc_dst_archetype(Archetype* pArchetype, Entity entity) {
+				if (entity.pair()) {
+					auto rel = entity.id();
+					auto tgt = entity.gen();
+
+					// Removing a wildcard pair. We need to find all pairs matching it.
+					if (rel == All.id() || tgt == All.id()) {
+						// (first, All) means we need to match (first, A), (first, B), ...
+						if (rel != All.id() && tgt == All.id())
+							return calc_dst_archetype_ent_all(pArchetype, entity);
+
+						// (All, second) means we need to match (A, second), (B, second), ...
+						if (rel == All.id() && tgt != All.id())
+							return calc_dst_archetype_all_ent(pArchetype, entity);
+
+						// (All, All) means we need to match all relationships
+						return calc_dst_archetype_all_all(pArchetype, EntityBad);
+					}
+				}
+
+				// Non-wildcard pair or entity
+				return calc_dst_archetype_ent(pArchetype, entity);
+			}
+
 			//! Removes the entity \param target from anything referencing it.
-			template <typename EntityOrPair>
-			void rem_from_entities(EntityOrPair target, Pair cond = {EntityBad, EntityBad}) {
+			void rem_from_entities(Entity target, Pair cond = {EntityBad, EntityBad}) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
-
-				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
-				constexpr bool IsPair = std::is_same_v<EntityOrPair, Pair>;
-
-				auto calcDstArchetype = [&](Archetype* pArchetype, Entity entityToRemove) {
-					Archetype* pDstArchetype = pArchetype;
-					bool found = false;
-
-					const auto& types = pArchetype->entities();
-					for (auto type: types) {
-						if (type != entityToRemove)
-							continue;
-
-						pDstArchetype = foc_archetype_del(pDstArchetype, type);
-						found = true;
-					}
-
-					return found ? pDstArchetype : nullptr;
-				};
-
-				auto calcDstArchetype_Pair = [&](Archetype* pArchetype, Entity entityToRemove) {
-					Archetype* pDstArchetype = pArchetype;
-					bool found = false;
-
-					const auto& types = pArchetype->entities();
-					for (auto type: types) {
-						if (!type.pair() || type.id() != entityToRemove.id())
-							continue;
-
-						pDstArchetype = foc_archetype_del(pDstArchetype, type);
-						found = true;
-					}
-
-					return found ? pDstArchetype : nullptr;
-				};
 
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
 				if (it != m_entityToArchetypeMap.end()) {
-					for (auto* pArchetype: it->second) {
-						// Evaluate the conditon if a valid pair is given
-						if (cond.first() != EntityBad) {
-							// E.g.:
-							//   target = (All, entity)
-							//   cond = (OnDeleteTarget, delete)
-							// Delete the entity if it matches the cond
-							const auto& ents = pArchetype->entities();
-							for (auto e: ents) {
-								if constexpr (IsPair) {
-									// Find the pair which matches (All, entity)
-									if (!e.pair() || e.gen() != target.second().id())
-										continue;
+					if (cond.first() != EntityBad) {
+						for (auto* pArchetype: it->second) {
+							// Evaluate the conditon if a valid pair is given
+							if (!archetype_cond_match(*pArchetype, cond, target))
+								continue;
 
-									const auto& ec = m_entities[e.id()];
-									const auto entity = ec.pChunk->entity_view()[ec.row];
-									if (!has(entity, cond))
-										continue;
-								} else {
-									if (e.pair())
-										continue;
-									if (!has(e, cond))
-										continue;
-								}
-
-								goto rem_entity;
-							}
-
-							return;
+							auto* pDstArchetype = calc_dst_archetype(pArchetype, target);
+							if (pDstArchetype != nullptr)
+								move_to_archetype(*pArchetype, *pDstArchetype);
 						}
-
-					rem_entity:
-						if constexpr (IsPair) {
-							// Removing a wildcard pair. We need to find all pairs matching it.
-							if (target.first() == All || target.second() == All) {
-								// (first, All) means we need to match (first, A), (first, B), ...
-								if (target.first() != All && target.second() == All) {
-									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, target.first());
-									if (pDstArchetype != nullptr)
-										move_to_archetype(*pArchetype, *pDstArchetype);
-								}
-								// (All, second) means we need to match (A, second), (B, second), ...
-								else if (target.first() == All && target.second() == All) {
-									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, target.second());
-									if (pDstArchetype != nullptr)
-										move_to_archetype(*pArchetype, *pDstArchetype);
-								}
-								// (All, All) means we need to match all relationships
-								else {
-									auto* pDstArchetype = calcDstArchetype_Pair(pArchetype, EntityBad);
-									if (pDstArchetype != nullptr)
-										move_to_archetype(*pArchetype, *pDstArchetype);
-								}
-							}
-							// Non-wildcard pair or entity
-							else {
-								auto* pDstArchetype = calcDstArchetype(pArchetype, target);
-								if (pDstArchetype != nullptr)
-									move_to_archetype(*pArchetype, *pDstArchetype);
-							}
-						} else {
-							auto* pDstArchetype = calcDstArchetype(pArchetype, target);
+					} else {
+						for (auto* pArchetype: it->second) {
+							auto* pDstArchetype = calc_dst_archetype(pArchetype, target);
 							if (pDstArchetype != nullptr)
 								move_to_archetype(*pArchetype, *pDstArchetype);
 						}
@@ -20735,14 +20785,48 @@ namespace gaia {
 			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
-			template <typename EntityOrPair>
-			void handle_del_entity(EntityOrPair entity) {
+			void handle_del_entity(Entity entity) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
-				static_assert(std::is_same_v<EntityOrPair, Entity> || std::is_same_v<EntityOrPair, Pair>);
+				GAIA_ASSERT(!is_wildcard(entity));
 
-				if constexpr (std::is_same_v<EntityOrPair, Entity>) {
-					const auto& ec = m_entities[entity.id()];
+				if (entity.pair()) {
+					const auto& ec = fetch(entity);
+					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
+						GAIA_LOG_E(
+								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted", entity.id(), entity.gen(),
+								name(entity), EntityKindString[entity.kind()]);
+						return;
+					}
+
+					const auto tgt = get(entity.gen());
+					const auto& ecTgt = fetch(tgt);
+					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restricion)");
+						GAIA_LOG_E(
+								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restricion)",
+								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
+						return;
+					}
+
+					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
+						// Delete all entities referencing this one as a relationship pair's target
+						del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+					} else {
+						// Remove from all entities referencing this one as a relationship pair's target
+						rem_from_entities(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+					}
+
+					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
+						// Delete all references to the entity
+						del_entities_with(entity);
+					} else {
+						// Entities are only removed by default
+						rem_from_entities(entity);
+					}
+				} else {
+					const auto& ec = fetch(entity);
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
 						GAIA_LOG_E(
@@ -20759,14 +20843,6 @@ namespace gaia {
 						return;
 					}
 
-					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
-						// Delete all references to the entity
-						del_entities_with(entity);
-					} else {
-						// Entities are only removed by default
-						rem_from_entities(entity);
-					}
-
 					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
 						// Delete all entities referencing this one as a relationship pair's target
 						del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
@@ -20774,52 +20850,85 @@ namespace gaia {
 						// Remove from all entities referencing this one as a relationship pair's target
 						rem_from_entities(Pair(All, entity), Pair(OnDeleteTarget, Delete));
 					}
-				} else {
-					// TODO: Implement support for cleanup rules on pairs as well
-					//       (OnDelete, Remove) is used for now. Always.
-					rem_from_entities(entity);
+
+					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
+						// Delete all references to the entity
+						del_entities_with(entity);
+					} else {
+						// Entities are only removed by default
+						rem_from_entities(entity);
+					}
 				}
 			}
 
 			//! Invalidates the entity record, effectivelly deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
-				auto& ec = m_entities.free(entity);
-				ec.pArchetype = nullptr;
-				ec.pChunk = nullptr;
+				auto delPair = [](PairMap& map, Entity source, Entity remove) {
+					auto itTargets = map.find(EntityLookupKey(source));
+					if (itTargets != map.end()) {
+						auto& targets = itTargets->second;
+						targets.erase(EntityLookupKey(remove));
+					}
+				};
+
+				if (entity.pair()) {
+					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+					if (it != m_recs.pairs.end()) {
+						// Delete the container record
+						m_recs.pairs.erase(it);
+
+						// Update pairs
+						auto rel = get(entity.id());
+						auto tgt = get(entity.gen());
+
+						delPair(m_relationsToTargets, rel, tgt);
+						delPair(m_relationsToTargets, All, tgt);
+						delPair(m_targetsToRelations, tgt, rel);
+						delPair(m_targetsToRelations, All, rel);
+					}
+				} else {
+					// Update the container record
+					auto& ec = m_recs.entities.free(entity);
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+
+					// Update pairs
+					delPair(m_relationsToTargets, All, entity);
+					delPair(m_targetsToRelations, All, entity);
+					m_relationsToTargets.erase(EntityLookupKey(entity));
+					m_targetsToRelations.erase(EntityLookupKey(entity));
+				}
 			}
 
 			//! Associates an entity with a chunk.
 			//! \param entity Entity to associate with a chunk
 			//! \param pArchetype Target archetype
 			//! \param pChunk Target chunk (with the archetype \param pArchetype)
-			void store_entity(Entity entity, Archetype* pArchetype, Chunk* pChunk) {
+			void store_entity(EntityContainer& ec, Entity entity, Archetype* pArchetype, Chunk* pChunk) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
 						!pChunk->locked() && "Entities can't be added while their chunk is being iterated "
 																 "(structural changes are forbidden during this time!)");
 
-				auto& ec = m_entities[entity.id()];
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
-				GAIA_ASSERT(ec.gen == entity.gen());
+				GAIA_ASSERT(entity.pair() || ec.gen == entity.gen());
 				ec.dis = 0;
 			}
 
-			/*!
-			Moves an entity along with all its generic components from its current chunk to another one.
-			\param entity Entity to move
-			\param targetArchetype Target archetype
-			\param targetChunk Target chunk
-			*/
+			//! Moves an entity along with all its generic components from its current chunk to another one.
+			//! \param entity Entity to move
+			//! \param targetArchetype Target archetype
+			//! \param targetChunk Target chunk
 			void move_entity(Entity entity, Archetype& targetArchetype, Chunk& targetChunk) {
 				GAIA_PROF_SCOPE(World::move_entity);
 
 				auto* pNewChunk = &targetChunk;
 
-				auto& ec = m_entities[entity.id()];
+				auto& ec = fetch(entity);
 				auto* pOldChunk = ec.pChunk;
 
 				const auto oldRow0 = ec.row;
@@ -20830,24 +20939,15 @@ namespace gaia {
 				auto& newArchetype = targetArchetype;
 
 				// Make sure the old entity becomes enabled now
-				oldArchetype.enable_entity(
-						pOldChunk, oldRow0, true,
-						// entities
-						{m_entities.data(), m_entities.size()});
+				oldArchetype.enable_entity(pOldChunk, oldRow0, true, m_recs);
 				// Enabling the entity might have changed its chunk index so fetch it again
 				const auto oldRow = ec.row;
 
 				// Move data from the old chunk to the new one
 				if (newArchetype.id() == oldArchetype.id())
-					pNewChunk->move_entity_data(
-							entity, newRow,
-							// entities
-							{m_entities.data(), m_entities.size()});
+					pNewChunk->move_entity_data(entity, newRow, m_recs);
 				else
-					pNewChunk->move_foreign_entity_data(
-							entity, newRow,
-							// entities
-							{m_entities.data(), m_entities.size()});
+					pNewChunk->move_foreign_entity_data(entity, newRow, m_recs);
 
 				// Remove the entity record from the old chunk
 				remove_entity(pOldChunk, oldRow);
@@ -20858,10 +20958,7 @@ namespace gaia {
 				ec.row = (uint16_t)newRow;
 
 				// Make the enabled state in the new chunk match the original state
-				newArchetype.enable_entity(
-						pNewChunk, newRow, wasEnabled,
-						// entities
-						{m_entities.data(), m_entities.size()});
+				newArchetype.enable_entity(pNewChunk, newRow, wasEnabled, m_recs);
 
 				// End-state validation
 				GAIA_ASSERT(valid(entity));
@@ -20870,14 +20967,11 @@ namespace gaia {
 				validate_entities();
 			}
 
-			/*!
-			Moves an entity along with all its generic components from its current chunk to another one in a new archetype.
-			\param entity Entity to move
-			\param newArchetype Target archetype
-			*/
+			//! Moves an entity along with all its generic components from its current chunk to another one in a new
+			//! archetype. \param entity Entity to move \param newArchetype Target archetype
 			void move_entity(Entity entity, Archetype& newArchetype) {
 				// Archetypes need to be different
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = fetch(entity);
 				if (ec.pArchetype == &newArchetype)
 					return;
 
@@ -20888,32 +20982,36 @@ namespace gaia {
 			//! Verifies than the implicit linked list of entities is valid
 			void validate_entities() const {
 #if GAIA_ECS_VALIDATE_ENTITY_LIST
-				m_entities.validate();
+				m_recs.entities.validate();
 #endif
 			}
 
 			//! Verifies that the chunk is valid
 			void validate_chunk([[maybe_unused]] Chunk* pChunk) const {
-#if GAIA_ECS_VALIDATE_CHUNKS
-				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
-				// 2017 suffers an internal compiler error in that case...
-				(void)pChunk;
+#if GAIA_ECS_VALIDATE_CHUNKS && GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(pChunk != nullptr);
 
 				if (!pChunk->empty()) {
 					// Make sure a proper amount of entities reference the chunk
 					uint32_t cnt = 0;
-					for (const auto& e: m_entities) {
-						if (e.pChunk != pChunk)
+					for (const auto& ec: m_recs.entities) {
+						if (ec.pChunk != pChunk)
+							continue;
+						++cnt;
+					}
+					for (const auto& pair: m_recs.pairs) {
+						if (pair.second.pChunk != pChunk)
 							continue;
 						++cnt;
 					}
 					GAIA_ASSERT(cnt == pChunk->size());
 				} else {
 					// Make sure no entites reference the chunk
-					for (const auto& e: m_entities) {
-						(void)e;
-						GAIA_ASSERT(e.pChunk != pChunk);
+					for (const auto& ec: m_recs.entities) {
+						GAIA_ASSERT(ec.pChunk != pChunk);
+					}
+					for (const auto& pair: m_recs.pairs) {
+						GAIA_ASSERT(pair.second.pChunk != pChunk);
 					}
 				}
 #endif
@@ -20989,7 +21087,7 @@ namespace gaia {
 					GAIA_ASSERT(desc.entity == id);
 					EntityBuilder(*this, comp).add(desc.entity);
 					sset<EntityDesc>(comp, {desc.name.str(), desc.name.len()});
-					m_pEntityArchetype = m_entities[comp.id()].pArchetype;
+					m_pEntityArchetype = m_recs.entities[comp.id()].pArchetype;
 				}
 
 				// Register the component archetype (entity + EntityDesc + Component)
@@ -21004,7 +21102,7 @@ namespace gaia {
 							.sset<EntityDesc>({desc.name.str(), desc.name.len()})
 							// Component
 							.sset<Component>(desc.comp);
-					m_pCompArchetype = m_entities[comp.id()].pArchetype;
+					m_pCompArchetype = m_recs.entities[comp.id()].pArchetype;
 				}
 
 				// Register OnDelete/OnDeleteTarget/Remove/Delete components.
@@ -21060,6 +21158,16 @@ namespace gaia {
 					(void)desc;
 				}
 
+				// Graph restrictions
+				{
+					const auto& id = Acyclic;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<Acyclic_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
 				// Register All component. Used with relationship queries.
 				{
 					const auto& id = All;
@@ -21109,6 +21217,10 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, DependsOn) //
 						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, Acyclic) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
@@ -21132,23 +21244,61 @@ namespace gaia {
 			//! \return New entity
 			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
 				EntityContainerCtx ctx{isEntity, isPair, kind};
-				const auto entity = m_entities.alloc(&ctx);
+				const auto entity = m_recs.entities.alloc(&ctx);
+				assign(entity, archetype);
+				return entity;
+			}
 
-				auto* pChunk = archetype.foc_free_chunk();
-				store_entity(entity, &archetype, pChunk);
+			//! Assigns an entity to a given archetype
+			//! \param archetype Archetype the entity should inherit
+			//! \param entity Entity
+			void assign(Entity entity, Archetype& archetype) {
+				if (entity.pair()) {
+					// Pairs are always added to m_pEntityArchetype initially and this can't change.
+					GAIA_ASSERT(&archetype == m_pEntityArchetype);
+					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+					if (it == m_recs.pairs.end()) {
+						// Update the container record
+						EntityContainer ec{};
+						ec.idx = entity.id();
+						ec.gen = entity.gen();
+						ec.pair = 1;
+						ec.ent = 1;
+						ec.kind = EntityKind::EK_Gen;
 
-				// Call constructors for the generic components on the newly added entity if necessary
-				if (pChunk->has_custom_gen_ctor())
-					pChunk->call_gen_ctors(pChunk->size() - 1, 1);
+						auto* pChunk = archetype.foc_free_chunk();
+						store_entity(ec, entity, &archetype, pChunk);
+						m_recs.pairs.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
+
+						// Update pair mappings
+						const auto rel = get(entity.id());
+						const auto tgt = get(entity.gen());
+
+						auto addPair = [](PairMap& map, Entity source, Entity add) {
+							auto& ents = map[EntityLookupKey(source)];
+							ents.insert(EntityLookupKey(add));
+						};
+
+						addPair(m_relationsToTargets, rel, tgt);
+						addPair(m_relationsToTargets, All, tgt);
+						addPair(m_targetsToRelations, tgt, rel);
+						addPair(m_targetsToRelations, All, rel);
+					}
+				} else {
+					auto* pChunk = archetype.foc_free_chunk();
+					store_entity(m_recs.entities[entity.id()], entity, &archetype, pChunk);
+
+					// Call constructors for the generic components on the newly added entity if necessary
+					if (pChunk->has_custom_gen_ctor())
+						pChunk->call_gen_ctors(pChunk->size() - 1, 1);
 
 #if GAIA_ASSERT_ENABLED
-				const auto& ec = m_entities[entity.id()];
-				GAIA_ASSERT(ec.pChunk == pChunk);
-				auto entityExpected = pChunk->entity_view()[ec.row];
-				GAIA_ASSERT(entityExpected == entity);
+					const auto& ec = m_recs.entities[entity.id()];
+					GAIA_ASSERT(ec.pChunk == pChunk);
+					auto entityExpected = pChunk->entity_view()[ec.row];
+					GAIA_ASSERT(entityExpected == entity);
 #endif
-
-				return entity;
+				}
 			}
 
 			//! Garbage collection
@@ -21188,32 +21338,42 @@ namespace gaia {
 			//! Checks if \param entity is valid.
 			//! \return True is the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
-				GAIA_ASSERT(!entity.pair() || entity == EntityBad);
-
-				// Entity ID has to fit inside the entity array
-				if (entity.id() >= m_entities.size())
+				if (entity == EntityBad)
 					return false;
 
-				const auto& ec = m_entities[entity.id()];
+				// Pair
+				if (entity.pair()) {
+					// Ignore wildcards because they can't be attached to entities
+					if (is_wildcard(entity))
+						return true;
 
-				// Generation ID has to match the one in the array
-				if (ec.gen != entity.gen())
-					return false;
+					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+					if (it == m_recs.pairs.end())
+						return false;
 
-				// The entity in the chunk must match the index in the entity container
-				auto* pChunk = ec.pChunk;
-				return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
-			}
+					const auto& ec = it->second;
 
-			//! Checks if \param pair is valid.
-			//! \return True if both entities forming the pair are valid. False otherwise.
-			GAIA_NODISCARD bool valid(Pair pair) const {
-				// Pairs can't be composed of pairs
-				if (pair.first().pair() || pair.second().pair())
-					return false;
+					// The entity in the chunk must match the index in the entity container
+					auto* pChunk = ec.pChunk;
+					return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+				}
 
-				// Borht entites forming the pair need to be valid.
-				return valid(pair.first()) && valid(pair.second());
+				// Regular entity
+				{
+					// Entity ID has to fit inside the entity array
+					if (entity.id() >= m_recs.entities.size())
+						return false;
+
+					const auto& ec = m_recs.entities[entity.id()];
+
+					// Generation ID has to match the one in the array
+					if (ec.gen != entity.gen())
+						return false;
+
+					// The entity in the chunk must match the index in the entity container
+					auto* pChunk = ec.pChunk;
+					return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -21221,8 +21381,8 @@ namespace gaia {
 			//! Returns the entity located at the index \param id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
-				GAIA_ASSERT(id < m_entities.size());
-				const auto& ec = m_entities[id];
+				GAIA_ASSERT(id < m_recs.entities.size());
+				const auto& ec = m_recs.entities[id];
 #if GAIA_ASSERT_ENABLED
 				if (ec.pChunk != nullptr) {
 					auto entityExpected = ec.pChunk->entity_view()[ec.row];
@@ -21270,7 +21430,7 @@ namespace gaia {
 
 				// Following lines do the following but a bit faster:
 				// sset<Component>(comp, desc.comp);
-				auto& ec = m_entities[entity.id()];
+				auto& ec = m_recs.entities[entity.id()];
 				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(EntityKind::EK_Gen, 1);
 				auto& comp = pComps[ec.row];
 				comp = desc.comp;
@@ -21323,7 +21483,7 @@ namespace gaia {
 
 				EntityBuilder(*this, entity).add(object);
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
@@ -21341,9 +21501,11 @@ namespace gaia {
 				using FT = typename CT::TypeFull;
 				constexpr auto kind = (uint32_t)CT::Kind;
 
+				GAIA_ASSERT(!entity.pair());
+
 				EntityBuilder(*this, entity).add<FT>();
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
 				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
@@ -21359,41 +21521,63 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 
-				auto& ec = m_entities[entity.id()];
+				auto& ec = m_recs.entities[entity.id()];
 
 				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
 				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
-
-				Chunk::copy_entity_data(
-						entity, newEntity,
-						// entities
-						{m_entities.data(), m_entities.size()});
+				Chunk::copy_entity_data(entity, newEntity, m_recs);
 
 				return newEntity;
 			}
 
 			//----------------------------------------------------------------------
 
+			void del_inter(Entity entity) {
+				auto handle_del = [this](Entity entity) {
+					handle_del_entity(entity);
+					del_entity(entity);
+				};
+
+				if (is_wildcard(entity)) {
+					const auto rel = get(entity.id());
+					const auto tgt = get(entity.gen());
+
+					// (*,*)
+					if (rel == All && tgt == All) {
+						GAIA_ASSERT2(false, "Not supported yet");
+					}
+					// (*,X)
+					else if (rel == All) {
+						if (const auto* pTargets = relations(tgt)) {
+							for (auto key: *pTargets)
+								handle_del(Pair(key.entity(), tgt));
+						}
+					}
+					// (X,*)
+					else if (tgt == All) {
+						if (const auto* pRelations = targets(rel)) {
+							for (auto key: *pRelations)
+								handle_del(Pair(rel, key.entity()));
+						}
+					}
+				} else {
+					handle_del(entity);
+				}
+			}
+
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
-				// Delete all relationships associated with this entity (if any)
-				del(Pair(entity, All));
-				del(Pair(All, entity));
+				if (!entity.pair()) {
+					// Delete all relationships associated with this entity (if any)
+					del_inter(Pair(entity, All));
+					del_inter(Pair(All, entity));
+				}
 
-				// Handle specific conditions that might arise from deleting the entity
-				handle_del_entity(entity);
-
-				// Delete the entity itself
-				del_entity(entity);
-			}
-
-			void del(Pair pair) {
-				// Handle specific conditions that might arise from deleting the pair
-				handle_del_entity(pair);
+				del_inter(entity);
 			}
 
 			//! Removes an \param object from \param entity if possible.
@@ -21435,7 +21619,7 @@ namespace gaia {
 			ComponentSetter set(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				return ComponentSetter{ec.pChunk, ec.row};
 			}
 
@@ -21453,7 +21637,7 @@ namespace gaia {
 
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				ComponentSetter{ec.pChunk, ec.row}.set<FT>(GAIA_FWD(value));
 			}
 
@@ -21471,7 +21655,7 @@ namespace gaia {
 
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				ComponentSetter{ec.pChunk, ec.row}.sset<FT>(GAIA_FWD(value));
 			}
 
@@ -21488,7 +21672,7 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.get<T>();
 			}
 
@@ -21497,91 +21681,101 @@ namespace gaia {
 			//! Checks if \param entity is currently used by the world.
 			//! \return True is the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
-				GAIA_ASSERT(!entity.pair());
+				// Pair
+				if (entity.pair()) {
+					if (is_wildcard(entity)) {
+						if (!m_entityToArchetypeMap.contains(EntityLookupKey(entity)))
+							return false;
 
-				// Entity ID has to fit inside the entity array
-				if (entity.id() >= m_entities.size())
-					return false;
+						// If the pair is found, both entities forming it need to be found as well
+						GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
 
-				// Index of the entity must fit inside the chunk
-				const auto& ec = m_entities[entity.id()];
-				auto* pChunk = ec.pChunk;
-				return pChunk != nullptr && ec.row < pChunk->size();
-			}
+						return true;
+					}
 
-			//! Checks if \param pair is currently used by the world.
-			//! \return True is the pair is used. False otherwise.
-			GAIA_NODISCARD bool has(Pair pair) const {
-				const bool ret = m_entityToArchetypeMap.contains(EntityLookupKey(pair));
-				// If the pair is found, both entities forming it need to be found as well
-				GAIA_ASSERT(!ret || (has(pair.first()) && has(pair.second())));
-				return ret;
+					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+					if (it == m_recs.pairs.end())
+						return false;
+
+#if GAIA_ASSERT_ENABLED
+					// If the pair is found, both entities forming it need to be found as well
+					GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
+
+					// Index of the entity must fit inside the chunk
+					const auto& ec = it->second;
+					auto* pChunk = ec.pChunk;
+					GAIA_ASSERT(pChunk != nullptr && ec.row < pChunk->size());
+#endif
+
+					return true;
+				}
+
+				// Regular entity
+				{
+					// Entity ID has to fit inside the entity array
+					if (entity.id() >= m_recs.entities.size())
+						return false;
+
+					// Index of the entity must fit inside the chunk
+					const auto& ec = m_recs.entities[entity.id()];
+					auto* pChunk = ec.pChunk;
+					return pChunk != nullptr && ec.row < pChunk->size();
+				}
 			}
 
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
-			//! \return True if object is present on entity. Flase otherwise or if any of the entites is not valid.
+			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
-				GAIA_ASSERT(valid(entity));
+				const auto& ec = fetch(entity);
 
-				const auto& ec = m_entities[entity.id()];
+				if (object.pair()) {
+					EntityId rel = object.id();
+					EntityId tgt = object.gen();
+
+					// (*,*)
+					if (rel == All.id() && tgt == All.id()) {
+						const auto& ids = ec.pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							return true;
+						}
+
+						return false;
+					}
+
+					// (X,*)
+					if (rel != All.id() && tgt == All.id()) {
+						const auto& ids = ec.pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							if (id.id() == rel)
+								return true;
+						}
+
+						return false;
+					}
+
+					// (*,X)
+					if (rel == All.id() && tgt != All.id()) {
+						const auto& ids = ec.pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							if (id.gen() == tgt)
+								return true;
+						}
+
+						return false;
+					}
+				}
+
 				return ComponentGetter{ec.pChunk, ec.row}.has(object);
-			}
-
-			//! Tells if \param entity contains the pair \param pair.
-			//! \param entity Entity
-			//! \param pair Pair
-			//! \return True if the pair is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_entities[entity.id()];
-
-				// (*,*)
-				if (pair.first() == All && pair.second() == All) {
-					const auto& ids = ec.pArchetype->entities();
-					for (auto id: ids) {
-						if (!id.pair())
-							continue;
-						return true;
-					}
-
-					return false;
-				}
-
-				// (X,*)
-				if (pair.first() != All && pair.second() == All) {
-					const auto& ids = ec.pArchetype->entities();
-					for (auto id: ids) {
-						if (!id.pair())
-							continue;
-						if (id.id() == pair.first().id())
-							return true;
-					}
-
-					return false;
-				}
-
-				// (*,X)
-				if (pair.first() == All && pair.second() != All) {
-					const auto& ids = ec.pArchetype->entities();
-					for (auto id: ids) {
-						if (!id.pair())
-							continue;
-						if (id.gen() == pair.second().id())
-							return true;
-					}
-
-					return false;
-				}
-
-				// (X,Y)
-				return ComponentGetter{ec.pChunk, ec.row}.has(pair);
 			}
 
 			//! Tells if \param entity contains the component \tparam T.
@@ -21594,7 +21788,7 @@ namespace gaia {
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				return ComponentGetter{ec.pChunk, ec.row}.has<T>();
 			}
 
@@ -21638,7 +21832,7 @@ namespace gaia {
 			//! \return Name assigned to entity.
 			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(EntityId entityId) const {
-				const auto& ec = m_entities[entityId];
+				const auto& ec = m_recs.entities[entityId];
 				auto entity = ec.pChunk->entity_view()[ec.row];
 				return get<EntityDesc>(entity).name;
 			}
@@ -21659,6 +21853,79 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns relations for \param target.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
+				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
+				if (it == m_targetsToRelations.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
+			//! Returns the first relationship relation for the \param target entity on \param entity.
+			//! \return Relationship target. EntityBad if there is nothing to return.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity relation(Entity entity, Entity relation) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return EntityBad;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.gen() != relation.gen())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					return target;
+				}
+
+				return EntityBad;
+			}
+
+			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Appends all relationship relations if any to \param out.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename C>
+			void relation(Entity entity, Entity relation, C& out) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return;
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.gen() != relation.gen())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					out.push_back(target);
+				}
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns targets for \param relation.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
+				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
+				if (it == m_relationsToTargets.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
 			//! Returns the first relationship target for the \param relation entity on \param entity.
 			//! \return Relationship target. EntityBad if there is nothing to return.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
@@ -21667,17 +21934,17 @@ namespace gaia {
 				if (!valid(relation))
 					return EntityBad;
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
-				const auto& ents = pArchetype->entities();
-				for (auto e: ents) {
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
 					if (!e.pair())
 						continue;
 					if (e.id() != relation.id())
 						continue;
 
-					const auto& ecTarget = m_entities[e.gen()];
+					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					return target;
 				}
@@ -21686,27 +21953,27 @@ namespace gaia {
 			}
 
 			//! Returns the relationship targets for the \param relation entity on \param entity.
-			//! Appends all relationship targets if any to \param targets.
+			//! Appends all relationship targets if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename C>
-			void target(Entity entity, Entity relation, C& targets) const {
+			void target(Entity entity, Entity relation, C& out) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
 
-				const auto& ents = pArchetype->entities();
-				for (auto e: ents) {
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
 					if (!e.pair())
 						continue;
 					if (e.id() != relation.id())
 						continue;
 
-					const auto& ecTarget = m_entities[e.gen()];
+					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					targets.push_back(target);
+					out.push_back(target);
 				}
 			}
 
@@ -21741,7 +22008,7 @@ namespace gaia {
 			//! \param enable Enable or disable the entity
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
-				auto& ec = m_entities[entity.id()];
+				auto& ec = m_recs.entities[entity.id()];
 
 				GAIA_ASSERT(
 						(ec.pChunk && !ec.pChunk->locked()) &&
@@ -21749,10 +22016,7 @@ namespace gaia {
 						"(structural changes are forbidden during this time!)");
 
 				auto& archetype = *ec.pArchetype;
-				archetype.enable_entity(
-						ec.pChunk, ec.row, enable,
-						// entities
-						{m_entities.data(), m_entities.size()});
+				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
 			}
 
 			//! Checks if an entity is enabled.
@@ -21762,7 +22026,7 @@ namespace gaia {
 			bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& ec = m_entities[entity.id()];
+				const auto& ec = m_recs.entities[entity.id()];
 				const bool entityStateInContainer = !ec.dis;
 #if GAIA_ASSERT_ENABLED
 				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
@@ -21776,8 +22040,8 @@ namespace gaia {
 			//! Returns a chunk containing the \param entity.
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& ec = m_entities[entity.id()];
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
 				return ec.pChunk;
 			}
 
@@ -21785,8 +22049,8 @@ namespace gaia {
 			//! Index of the entity is stored in \param indexInChunk
 			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& ec = m_entities[entity.id()];
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
 				indexInChunk = ec.row;
 				return ec.pChunk;
 			}
@@ -21794,7 +22058,7 @@ namespace gaia {
 			//! Returns the number of active entities
 			//! \return Entity
 			GAIA_NODISCARD uint32_t size() const {
-				return m_entities.item_count();
+				return m_recs.entities.item_count();
 			}
 
 			//! Returns the current version of the world.
@@ -21817,13 +22081,17 @@ namespace gaia {
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
 				// Clear entities
-				m_entities = {};
+				m_recs.entities = {};
+				m_recs.pairs = {};
 
 				// Clear archetypes
 				{
 					// Delete all allocated chunks and their parent archetypes
 					for (auto pair: m_archetypesById)
 						delete pair.second;
+
+					m_targetsToRelations.clear();
+					m_relationsToTargets.clear();
 
 					m_archetypesById = {};
 					m_archetypesByHash = {};
@@ -21878,21 +22146,21 @@ namespace gaia {
 			void diag_entities() const {
 				validate_entities();
 
-				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_entities.get_free_items());
-				if (m_entities.get_free_items() != 0U) {
-					GAIA_LOG_N("  --> %u", (uint32_t)m_entities.get_next_free_item());
+				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_recs.entities.get_free_items());
+				if (m_recs.entities.get_free_items() != 0U) {
+					GAIA_LOG_N("  --> %u", (uint32_t)m_recs.entities.get_next_free_item());
 
 					uint32_t iters = 0;
-					auto fe = m_entities[m_entities.get_next_free_item()].idx;
+					auto fe = m_recs.entities[m_recs.entities.get_next_free_item()].idx;
 					while (fe != IdentifierIdBad) {
-						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
-						fe = m_entities[fe].idx;
+						GAIA_LOG_N("  --> %u", m_recs.entities[fe].idx);
+						fe = m_recs.entities[fe].idx;
 						++iters;
-						if (iters > m_entities.get_free_items())
+						if (iters > m_recs.entities.get_free_items())
 							break;
 					}
 
-					if ((iters == 0U) || iters > m_entities.get_free_items())
+					if ((iters == 0U) || iters > m_recs.entities.get_free_items())
 						GAIA_LOG_E("  Entities recycle list contains inconsistent data!");
 				}
 			}
@@ -22088,7 +22356,7 @@ namespace gaia {
 				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& ec = ctx.world.m_entities[entity.id()];
+					const auto& ec = ctx.world.m_recs.entities[entity.id()];
 					auto* pChunk = ec.pChunk;
 					const auto indexInChunk = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 
@@ -22111,7 +22379,7 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& ec = ctx.world.m_entities[entity.id()];
+					const auto& ec = ctx.world.m_recs.entities[entity.id()];
 					auto* pChunk = ec.pChunk;
 					const auto indexInChunk = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 

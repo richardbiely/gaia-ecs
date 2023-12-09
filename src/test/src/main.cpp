@@ -1521,16 +1521,16 @@ TEST_CASE("Add - no components") {
 		ents.push_back(e);
 	};
 	auto verify = [&](uint32_t i) {
-		REQUIRE(arr[i + 1] == ents[i]);
+		REQUIRE(arr[i + 3] == ents[i]);
 	};
 
 	GAIA_FOR(N) create();
 
 	auto q = w.query().all<ecs::EntityDesc>().none<ecs::Component>();
 	q.arr(arr);
-	REQUIRE(arr.size() - 1 == ents.size()); // +1 for core component
+	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
-	// GAIA_FOR(N) verify(i);
+	//GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {

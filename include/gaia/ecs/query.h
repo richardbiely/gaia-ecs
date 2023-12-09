@@ -21,7 +21,7 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "data_buffer.h"
-#include "gaia/ecs/id.h"
+#include "id.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
@@ -171,7 +171,7 @@ namespace gaia {
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! List of world's entity records
-				const cnt::ilist<EntityContainer, Entity>* m_entities{};
+				const cnt::ilist<EntityContainer, Entity>* m_ids{};
 
 				//--------------------------------------------------------------------------------
 			public:

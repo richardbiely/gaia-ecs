@@ -203,13 +203,13 @@ namespace gaia {
 						continue;
 
 					// Eliminate archetypes not matching the NOT rule
-					if (!ops_ids_not.empty() && match_one(pArchetype->entities(), ops_ids_not))
+					if (!ops_ids_not.empty() && match_one(pArchetype->ids(), ops_ids_not))
 						continue;
 					// Eliminate archetypes not matching the ANY rule
-					if (!ops_ids_any.empty() && !match_one(pArchetype->entities(), ops_ids_any))
+					if (!ops_ids_any.empty() && !match_one(pArchetype->ids(), ops_ids_any))
 						continue;
 					// Eliminate archetypes not matching the ALL rule
-					if (!ops_ids_all.empty() && !match_all(pArchetype->entities(), ops_ids_all))
+					if (!ops_ids_all.empty() && !match_all(pArchetype->ids(), ops_ids_all))
 						continue;
 
 					matchedArchetypes.emplace(archetypes[j]);
@@ -296,7 +296,7 @@ namespace gaia {
 					// It is possible they were not a part of previous archetypes.
 					if (ops_ids_not.empty()) {
 						for (auto* pArchetype: s_tmpArchetypeMatches) {
-							if (match_one(pArchetype->entities(), ops_ids_not))
+							if (match_one(pArchetype->ids(), ops_ids_not))
 								continue;
 							m_archetypeCache.push_back(pArchetype);
 						}
@@ -330,7 +330,7 @@ namespace gaia {
 					// It is possible they were not a part of previous archetypes.
 					if (ops_ids_not.empty()) {
 						for (auto* pArchetype: s_tmpArchetypeMatches) {
-							if (match_one(pArchetype->entities(), ops_ids_not))
+							if (match_one(pArchetype->ids(), ops_ids_not))
 								continue;
 							m_archetypeCache.push_back(pArchetype);
 						}

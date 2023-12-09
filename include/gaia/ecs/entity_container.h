@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "../cnt/ilist.h"
+#include "../cnt/map.h"
 #include "id.h"
 
 namespace gaia {
@@ -24,7 +25,7 @@ namespace gaia {
 			OnDelete_Error = 1 << 2,
 			OnDeleteTarget_Remove = 1 << 3,
 			OnDeleteTarget_Delete = 1 << 4,
-			OnDeleteTarget_Error = 1 << 5,
+			OnDeleteTarget_Error = 1 << 5
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -52,7 +53,8 @@ namespace gaia {
 			//! Row at which the entity is stored in the chunk
 			uint16_t row;
 			//! Flags
-			uint16_t flags;
+			uint16_t flags = 0;
+
 			//! Archetype
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
@@ -74,6 +76,26 @@ namespace gaia {
 
 			static Entity create(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+		};
+
+		struct EntityContainers {
+			//! Implicit list of entities. Used for look-ups only when searching for
+			//! entities in chunks + data validation. Entities only.
+			cnt::ilist<EntityContainer, Entity> entities;
+			//! Just m_recs.entities, but stores pairs.
+			cnt::map<EntityLookupKey, EntityContainer> pairs;
+
+			EntityContainer& operator[](Entity entity) {
+				return entity.pair() //
+									 ? pairs.find(EntityLookupKey(entity))->second
+									 : entities[entity.id()];
+			}
+
+			const EntityContainer& operator[](Entity entity) const {
+				return entity.pair() //
+									 ? pairs.find(EntityLookupKey(entity))->second
+									 : entities[entity.id()];
 			}
 		};
 	} // namespace ecs

@@ -294,6 +294,7 @@ namespace gaia {
 		struct Delete_ {};
 		struct Error_ {};
 		struct DependsOn_ {};
+		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 
@@ -309,12 +310,21 @@ namespace gaia {
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
 		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
+		// Graph restrictions
+		inline Entity Acyclic = Entity(9, false, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(9, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(10, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy
-		inline Entity ChildOf = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(11, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
+
+		inline bool is_wildcard(Entity entity) {
+			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
+		}
+		inline bool is_wildcard(Pair pair) {
+			return pair.first() == All || pair.second() == All;
+		}
 	} // namespace ecs
 } // namespace gaia
