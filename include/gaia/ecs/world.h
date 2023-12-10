@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "../cnt/darray.h"
+#include "../cnt/darray_ext.h"
 #include "../cnt/ilist.h"
 #include "../cnt/map.h"
 #include "../cnt/sarray.h"
@@ -160,6 +161,16 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Shortcut for add(Pair(AliasOf, baseEntity))
+				EntityBuilder& alias(Entity baseEntity) {
+					return add(Pair(AliasOf, baseEntity));
+				}
+
+				//! Shortcut for add(Pair(ChildOf, parent))
+				EntityBuilder& child(Entity parent) {
+					return add(Pair(ChildOf, parent));
+				}
+
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
@@ -249,6 +260,20 @@ namespace gaia {
 						ec.flags &= ~flag;
 				};
 
+				void try_set_flags(Entity entity, bool enable) {
+					try_set_AliasOf(entity, enable);
+					try_set_CantCombine(entity, enable);
+					try_set_OnDeleteTarget(entity, enable);
+					try_set_OnDelete(entity, enable);
+				}
+
+				void try_set_AliasOf(Entity entity, bool enable) {
+					if (!entity.pair() || entity.id() != AliasOf.id())
+						return;
+
+					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
+				}
+
 				void try_set_CantCombine(Entity entity, bool enable) {
 					if (!entity.pair() || entity.id() != CantCombine.id())
 						return;
@@ -291,9 +316,7 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return;
 
-					try_set_CantCombine(entity, true);
-					try_set_OnDeleteTarget(entity, true);
-					try_set_OnDelete(entity, true);
+					try_set_flags(entity, true);
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
@@ -303,9 +326,7 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
-					try_set_CantCombine(entity, false);
-					try_set_OnDeleteTarget(entity, false);
-					try_set_OnDelete(entity, false);
+					try_set_flags(entity, false);
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
@@ -734,6 +755,9 @@ namespace gaia {
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
 			void del_name(Entity entity) {
+				if (entity.pair())
+					return;
+
 				auto& ec = fetch(entity);
 				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];
 				if (entityDesc.name == nullptr)
@@ -757,8 +781,7 @@ namespace gaia {
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
-				// Wildcard entites are a virtual concept, there is nothing to delete
-				if (is_wildcard(entity))
+				if (entity.pair())
 					return;
 
 				const auto& ec = fetch(entity);
@@ -919,7 +942,6 @@ namespace gaia {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
-				bool found = false;
 
 				const auto& ids = pArchetype->ids();
 				for (auto id: ids) {
@@ -927,10 +949,9 @@ namespace gaia {
 						continue;
 
 					pDstArchetype = foc_archetype_del(pDstArchetype, id);
-					found = true;
 				}
 
-				return found ? pDstArchetype : nullptr;
+				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing all entities
@@ -940,7 +961,6 @@ namespace gaia {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
-				bool found = false;
 
 				const auto& ids = pArchetype->ids();
 				for (auto id: ids) {
@@ -948,10 +968,9 @@ namespace gaia {
 						continue;
 
 					pDstArchetype = foc_archetype_del(pDstArchetype, id);
-					found = true;
 				}
 
-				return found ? pDstArchetype : nullptr;
+				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing all entities
@@ -1068,7 +1087,7 @@ namespace gaia {
 						del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
 					} else {
 						// Remove from all entities referencing this one as a relationship pair's target
-						rem_from_entities(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+						rem_from_entities(Pair(All, tgt));
 					}
 
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
@@ -1450,6 +1469,16 @@ namespace gaia {
 					(void)desc;
 				}
 
+				// Base entity alias.
+				{
+					const auto& id = AliasOf;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
 				// Special properites for core components
 				EntityBuilder(*this, Core) //
 						.add(Core)
@@ -1489,8 +1518,13 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
+						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
+				EntityBuilder(*this, AliasOf) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
 			}
 
 			void done() {
@@ -1817,15 +1851,26 @@ namespace gaia {
 					// (*,X)
 					else if (rel == All) {
 						if (const auto* pTargets = relations(tgt)) {
+							// handle_del might invalide the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pTargets)
-								handle_del(Pair(key.entity(), tgt));
+								tmp.push_back(key.entity());
+
+							for (auto e: tmp)
+								handle_del(Pair(e, tgt));
 						}
 					}
 					// (X,*)
 					else if (tgt == All) {
 						if (const auto* pRelations = targets(rel)) {
+							// handle_del might invalide the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pRelations)
-								handle_del(Pair(rel, key.entity()));
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								handle_del(Pair(rel, e));
 						}
 					}
 				} else {
@@ -1872,6 +1917,32 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 				EntityBuilder(*this, entity).del<FT>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(AliasOf, baseEntity)
+			void alias(Entity entity, Entity baseEntity) {
+				add(entity, Pair(AliasOf, baseEntity));
+			}
+
+			//! Checks if \param entity is an alias of \param baseEntity
+			//! True if entity is an alias for baseEntity. False otherwise.
+			GAIA_NODISCARD bool alias(Entity entity, Entity baseEntity) const {
+				return has(entity, Pair(AliasOf, baseEntity));
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(ChildOf, parent)
+			void child(Entity entity, Entity parent) {
+				add(entity, Pair(ChildOf, parent));
+			}
+
+			//! Checks if \param entity is a child of \param parent
+			//! True if entity is a child of parent. False otherwise.
+			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
+				return has(entity, Pair(ChildOf, parent));
 			}
 
 			//----------------------------------------------------------------------

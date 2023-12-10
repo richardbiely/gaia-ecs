@@ -298,6 +298,7 @@ namespace gaia {
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
+		struct AliasOf_ {};
 
 		//! Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
@@ -312,15 +313,17 @@ namespace gaia {
 		// Entity dependencies
 		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
-		// Graph restrictions
+		//! Graph restrictions
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
-		// Wildcard query entity
+		//! Wildcard query entity
 		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a physical hierarchy
+		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		//! Alias for a base entity
+		inline Entity AliasOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
+		inline Entity GAIA_ID(LastCoreComponent) = AliasOf;
 
 		inline bool is_wildcard(Entity entity) {
 			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());

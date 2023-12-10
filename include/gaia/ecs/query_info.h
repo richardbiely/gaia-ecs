@@ -103,7 +103,7 @@ namespace gaia {
 			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do "idQuery == idArchetype" here.
+					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))
@@ -137,7 +137,7 @@ namespace gaia {
 				uint32_t matches = 0;
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do "idQuery == idArchetype" here.
+					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))

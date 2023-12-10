@@ -61,6 +61,7 @@
     * [Basics](#basics)
     * [Entity dependencies](#entity-dependencies)
     * [Entity constraints](#entity-constraints)
+    * [Entity aliasing](#entity-aliasing)
     * [Targets](#targets)
     * [Relations](#relations)
     * [Cleanup rules](#cleanup-rules)
@@ -771,10 +772,10 @@ When adding an entity with a dependency to some source it is guaranteed the depe
 
 ```cpp
 ecs::World w;
-auto rabbit = w.add();
-auto animal = w.add();
-auto herbivore = w.add();
-auto carrot = w.add();
+ecs::Entity rabbit = w.add();
+ecs::Entity animal = w.add();
+ecs::Entity herbivore = w.add();
+ecs::Entity carrot = w.add();
 w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
 w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
 
@@ -800,14 +801,34 @@ Entity constrains are used to define what entities can not be combined with othe
 
 ```cpp
 ecs::World w;
-auto weak = w.add();
-auto strong = w.add();
+ecs::Entity weak = w.add();
+ecs::Entity strong = w.add();
 w.add(weak, ecs::Pair(ecs::CantCombine, strong));
 
-auto e = w.add();
+ecs::Entity e = w.add();
 w.add(e, strong);
 // Following line is an invalid operation.
 w.add(e, weak);
+```
+
+### Entity aliasing
+Entities can alias another entities by using the (AliasOf, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
+
+```cpp
+ecs::World w;
+ecs::Entity animal = w.add();
+ecs::Entity herbivore = w.add();
+ecs::Entity rabbit = w.add();
+ecs::Entity hare = w.add();
+
+w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.as(herbivore, animal)
+w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.as(rabbit, herbivore)
+w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.as(hare, herbivore)
+
+ecs::Query q = w.query().add(animal);
+q.each([](Entity entity) {
+  // runs for herbivore, rabbit and hare
+});
 ```
 
 ### Cleanup rules

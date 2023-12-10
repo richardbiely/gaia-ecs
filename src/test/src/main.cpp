@@ -3959,7 +3959,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == N + ecs::GAIA_ID(LastCoreComponent).id() + 1);
+		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
 	SECTION("Entity creation from another entity") {

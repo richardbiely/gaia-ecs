@@ -14116,6 +14116,7 @@ namespace gaia {
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
+		struct AliasOf_ {};
 
 		//! Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
@@ -14130,15 +14131,17 @@ namespace gaia {
 		// Entity dependencies
 		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
-		// Graph restrictions
+		//! Graph restrictions
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
-		// Wildcard query entity
+		//! Wildcard query entity
 		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a physical hierarchy
+		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		//! Alias for a base entity
+		inline Entity AliasOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = ChildOf;
+		inline Entity GAIA_ID(LastCoreComponent) = AliasOf;
 
 		inline bool is_wildcard(Entity entity) {
 			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
@@ -15749,7 +15752,9 @@ namespace gaia {
 			OnDeleteTarget_Remove = 1 << 3,
 			OnDeleteTarget_Delete = 1 << 4,
 			OnDeleteTarget_Error = 1 << 5,
-			HasCantCombine = 1 << 6,
+			HasAcyclic = 1 << 6,
+			HasCantCombine = 1 << 7,
+			HasAliasOf = 1 << 8,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -18461,7 +18466,7 @@ namespace gaia {
 			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do "idQuery == idArchetype" here.
+					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))
@@ -18495,7 +18500,7 @@ namespace gaia {
 				uint32_t matches = 0;
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
 					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do "idQuery == idArchetype" here.
+					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))
@@ -19928,6 +19933,16 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Shortcut for add(Pair(AliasOf, baseEntity))
+				EntityBuilder& alias(Entity baseEntity) {
+					return add(Pair(AliasOf, baseEntity));
+				}
+
+				//! Shortcut for add(Pair(ChildOf, parent))
+				EntityBuilder& child(Entity parent) {
+					return add(Pair(ChildOf, parent));
+				}
+
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
@@ -20017,6 +20032,20 @@ namespace gaia {
 						ec.flags &= ~flag;
 				};
 
+				void try_set_flags(Entity entity, bool enable) {
+					try_set_AliasOf(entity, enable);
+					try_set_CantCombine(entity, enable);
+					try_set_OnDeleteTarget(entity, enable);
+					try_set_OnDelete(entity, enable);
+				}
+
+				void try_set_AliasOf(Entity entity, bool enable) {
+					if (!entity.pair() || entity.id() != AliasOf.id())
+						return;
+
+					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
+				}
+
 				void try_set_CantCombine(Entity entity, bool enable) {
 					if (!entity.pair() || entity.id() != CantCombine.id())
 						return;
@@ -20059,9 +20088,7 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return;
 
-					try_set_CantCombine(entity, true);
-					try_set_OnDeleteTarget(entity, true);
-					try_set_OnDelete(entity, true);
+					try_set_flags(entity, true);
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
@@ -20071,9 +20098,7 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
-					try_set_CantCombine(entity, false);
-					try_set_OnDeleteTarget(entity, false);
-					try_set_OnDelete(entity, false);
+					try_set_flags(entity, false);
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
@@ -20502,6 +20527,9 @@ namespace gaia {
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
 			void del_name(Entity entity) {
+				if (entity.pair())
+					return;
+
 				auto& ec = fetch(entity);
 				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];
 				if (entityDesc.name == nullptr)
@@ -20525,8 +20553,7 @@ namespace gaia {
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
-				// Wildcard entites are a virtual concept, there is nothing to delete
-				if (is_wildcard(entity))
+				if (entity.pair())
 					return;
 
 				const auto& ec = fetch(entity);
@@ -20687,7 +20714,6 @@ namespace gaia {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
-				bool found = false;
 
 				const auto& ids = pArchetype->ids();
 				for (auto id: ids) {
@@ -20695,10 +20721,9 @@ namespace gaia {
 						continue;
 
 					pDstArchetype = foc_archetype_del(pDstArchetype, id);
-					found = true;
 				}
 
-				return found ? pDstArchetype : nullptr;
+				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing all entities
@@ -20708,7 +20733,6 @@ namespace gaia {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
-				bool found = false;
 
 				const auto& ids = pArchetype->ids();
 				for (auto id: ids) {
@@ -20716,10 +20740,9 @@ namespace gaia {
 						continue;
 
 					pDstArchetype = foc_archetype_del(pDstArchetype, id);
-					found = true;
 				}
 
-				return found ? pDstArchetype : nullptr;
+				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing all entities
@@ -20836,7 +20859,7 @@ namespace gaia {
 						del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
 					} else {
 						// Remove from all entities referencing this one as a relationship pair's target
-						rem_from_entities(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+						rem_from_entities(Pair(All, tgt));
 					}
 
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
@@ -21218,6 +21241,16 @@ namespace gaia {
 					(void)desc;
 				}
 
+				// Base entity alias.
+				{
+					const auto& id = AliasOf;
+					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
+					GAIA_ASSERT(desc.entity == id);
+					(void)comp;
+					(void)desc;
+				}
+
 				// Special properites for core components
 				EntityBuilder(*this, Core) //
 						.add(Core)
@@ -21257,8 +21290,13 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
+						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
+				EntityBuilder(*this, AliasOf) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
 			}
 
 			void done() {
@@ -21585,15 +21623,26 @@ namespace gaia {
 					// (*,X)
 					else if (rel == All) {
 						if (const auto* pTargets = relations(tgt)) {
+							// handle_del might invalide the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pTargets)
-								handle_del(Pair(key.entity(), tgt));
+								tmp.push_back(key.entity());
+
+							for (auto e: tmp)
+								handle_del(Pair(e, tgt));
 						}
 					}
 					// (X,*)
 					else if (tgt == All) {
 						if (const auto* pRelations = targets(rel)) {
+							// handle_del might invalide the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pRelations)
-								handle_del(Pair(rel, key.entity()));
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								handle_del(Pair(rel, e));
 						}
 					}
 				} else {
@@ -21640,6 +21689,32 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 				EntityBuilder(*this, entity).del<FT>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(AliasOf, baseEntity)
+			void alias(Entity entity, Entity baseEntity) {
+				add(entity, Pair(AliasOf, baseEntity));
+			}
+
+			//! Checks if \param entity is an alias of \param baseEntity
+			//! True if entity is an alias for baseEntity. False otherwise.
+			GAIA_NODISCARD bool alias(Entity entity, Entity baseEntity) const {
+				return has(entity, Pair(AliasOf, baseEntity));
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(ChildOf, parent)
+			void child(Entity entity, Entity parent) {
+				add(entity, Pair(ChildOf, parent));
+			}
+
+			//! Checks if \param entity is a child of \param parent
+			//! True if entity is a child of parent. False otherwise.
+			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
+				return has(entity, Pair(ChildOf, parent));
 			}
 
 			//----------------------------------------------------------------------
