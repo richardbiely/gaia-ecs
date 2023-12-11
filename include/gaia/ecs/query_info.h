@@ -102,8 +102,6 @@ namespace gaia {
 			//! \return True on the first match, false otherwise.
 			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))
@@ -132,12 +130,20 @@ namespace gaia {
 
 			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
 			//! the comparison function \param func.
+			//! A fast version of match_one which does not consider wildcards.
+			//! \return True on the first match, false otherwise.
+			GAIA_NODISCARD bool match_one_fast(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
+				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
+					return idQuery == idArchetype;
+				});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
 			//! \return True if all ids match, false otherwise.
 			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
 				uint32_t matches = 0;
 				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					// TODO: Comparison inside match_inter is slow. Do something about it.
-					//       Ideally we want to do only "idQuery == idArchetype" here.
 					if (idQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idQuery == Pair(All, All))
@@ -160,6 +166,17 @@ namespace gaia {
 							return idQuery.gen() == idArchetype.gen() && (++matches == (uint32_t)queryIds.size());
 					}
 
+					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
+				});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
+			//! A fast version of match_one which does not consider wildcards.
+			//! \return True if all ids match, false otherwise.
+			GAIA_NODISCARD bool match_all_fast(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
+				uint32_t matches = 0;
+				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
 					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
 				});
 			}
@@ -202,15 +219,27 @@ namespace gaia {
 					if (pArchetype == nullptr || matchedArchetypes.contains(pArchetype))
 						continue;
 
-					// Eliminate archetypes not matching the NOT rule
-					if (!ops_ids_not.empty() && match_one(pArchetype->ids(), ops_ids_not))
-						continue;
-					// Eliminate archetypes not matching the ANY rule
-					if (!ops_ids_any.empty() && !match_one(pArchetype->ids(), ops_ids_any))
-						continue;
-					// Eliminate archetypes not matching the ALL rule
-					if (!ops_ids_all.empty() && !match_all(pArchetype->ids(), ops_ids_all))
-						continue;
+					if (pArchetype->pairs() > 0) {
+						// Eliminate archetypes not matching the NOT rule
+						if (!ops_ids_not.empty() && match_one(pArchetype->ids(), ops_ids_not))
+							continue;
+						// Eliminate archetypes not matching the ANY rule
+						if (!ops_ids_any.empty() && !match_one(pArchetype->ids(), ops_ids_any))
+							continue;
+						// Eliminate archetypes not matching the ALL rule
+						if (!ops_ids_all.empty() && !match_all(pArchetype->ids(), ops_ids_all))
+							continue;
+					} else {
+						// Eliminate archetypes not matching the NOT rule
+						if (!ops_ids_not.empty() && match_one_fast(pArchetype->ids(), ops_ids_not))
+							continue;
+						// Eliminate archetypes not matching the ANY rule
+						if (!ops_ids_any.empty() && !match_one_fast(pArchetype->ids(), ops_ids_any))
+							continue;
+						// Eliminate archetypes not matching the ALL rule
+						if (!ops_ids_all.empty() && !match_all_fast(pArchetype->ids(), ops_ids_all))
+							continue;
+					}
 
 					matchedArchetypes.emplace(archetypes[j]);
 				}

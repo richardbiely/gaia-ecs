@@ -106,12 +106,14 @@ Three building blocks of ECS are:
 Following the example given above, a vehicle could be anything with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
 The actual movement is handled by systems. Those that match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
 
+On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could even be both in terms of latency and absolute performance. At the cost of data safety.
+
 ## Implementation
 **Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs.
 
 Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
-The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph.
+The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph and having the ability to add and remove components in batches.
 
 In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
@@ -821,12 +823,12 @@ ecs::Entity herbivore = w.add();
 ecs::Entity rabbit = w.add();
 ecs::Entity hare = w.add();
 
-w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.as(herbivore, animal)
-w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.as(rabbit, herbivore)
-w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.as(hare, herbivore)
+w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
+w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
+w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
 
-ecs::Query q = w.query().add(animal);
-q.each([](Entity entity) {
+ecs::Query q = w.query().all(animal);
+q.each([](ecs::Entity entity) {
   // runs for herbivore, rabbit and hare
 });
 ```

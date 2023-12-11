@@ -1744,6 +1744,38 @@ TEST_CASE("DependsOn") {
 	REQUIRE(!w.has(rabbit, carrot));
 }
 
+// TODO: Implement the feature
+TEST_CASE("AliasOf") {
+	ecs::World w;
+	ecs::Entity animal = w.add();
+	ecs::Entity herbivore = w.add();
+	ecs::Entity rabbit = w.add();
+	ecs::Entity hare = w.add();
+
+	w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
+	w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
+	w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
+
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(animal);
+		q.each([&](ecs::Entity entity) {
+			// runs for herbivore, rabbit and hare
+			++i;
+		});
+		// REQUIRE(i == 3);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(herbivore);
+		q.each([&](ecs::Entity entity) {
+			// runs for rabbit and hare
+			++i;
+		});
+		// REQUIRE(i == 2);
+	}
+}
+
 TEST_CASE("AddAndDel_entity - no components") {
 	const uint32_t N = 1'500;
 

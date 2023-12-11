@@ -17,6 +17,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
+#include "gaia/config/config_core.h"
 #include "id.h"
 
 namespace gaia {
@@ -118,6 +119,7 @@ namespace gaia {
 
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			uint32_t m_dead : 1;
+			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion): m_cc(cc), m_worldVersion(worldVersion) {}
@@ -276,6 +278,13 @@ namespace gaia {
 						// which is why providing a fictional relative offset is enough.
 						ChunkDataAreaOffset);
 				const auto& offs = newArch->m_dataOffsets;
+
+				// Calculate the number of pairs
+				GAIA_EACH(ids) {
+					if (ids[i].pair()) {
+						++newArch->m_pairCnt;
+					}
+				}
 
 				// Find the index of the last generic component in both arrays
 				uint32_t entsGeneric = (uint32_t)ids.size();
@@ -574,6 +583,10 @@ namespace gaia {
 
 			GAIA_NODISCARD const Chunk::ComponentOffsetArray& comp_offs() const {
 				return m_compOffs;
+			}
+
+			GAIA_NODISCARD uint32_t pairs() const {
+				return m_pairCnt;
 			}
 
 			/*!
