@@ -476,12 +476,12 @@ ecs::Entity player = w.add();
 
 // Create the query from a string expression.
 ecs::Query q = w.query()
-  .add("&Position; !Velocity; +RigidBody; (Fuel,*); %e", player.value());
+  .add("&Position; !Velocity; ?RigidBody; (Fuel,*); %e", player.value());
 
 // It does not matter how we split the expressions. This query is the same as the above.
 ecs::Query q1 = w.query()
   .add("&Position; !Velocity;")
-  .add("+RigidBody; (Fuel,*)")
+  .add("?RigidBody; (Fuel,*)")
   .add("%e", player.value());
 
 // The queries above can be rewritten as following:

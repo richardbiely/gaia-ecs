@@ -19499,7 +19499,7 @@ namespace gaia {
 				//!
 				//! Supported modifiers:
 				//!   ";" - separates expressions
-				//!   "+" - query::any
+				//!   "?" - query::any
 				//!   "!" - query::none
 				//!   "&" - read-write access
 				//!   "%e" - entity value
