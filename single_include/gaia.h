@@ -19511,7 +19511,7 @@ namespace gaia {
 				//!   struct RigidBody {...};
 				//!   struct Fuel {...};
 				//!   auto player = w.add();
-				//!   w.query().add("&Position; !Velocity; +RigidBody; (Fuel,*); %e", player.value());
+				//!   w.query().add("&Position; !Velocity; ?RigidBody; (Fuel,*); %e", player.value());
 				//! Translates into:
 				//!   w.query()
 				//!      .all<Position&>()

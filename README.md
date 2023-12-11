@@ -46,6 +46,7 @@
 * [Introduction](#introduction)
   * [ECS](#ecs)
   * [Implementation](#implementation)
+  * [Project structure](#project-structure)
 * [Usage](#usage)
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
@@ -81,7 +82,7 @@
     * [Project settings](#project-settings)
     * [Sanitizers](#sanitizers)
     * [Single-header](#single-header)
-* [Project structure](#project-structure)
+* [Repository structure](#repository-structure)
   * [Examples](#examples)
   * [Benchmarks](#benchmarks)
   * [Profiling](#profiling)
@@ -120,6 +121,17 @@ The main benefits of archetype-based architecture are fast iteration and good me
 
 In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
+## Project structure
+The project consists of multiple parts, each of them implemented in a separated namespace.
+- core - core functionality, use by all other parts of the code
+- mem - memory-related operations, memory allocators
+- cnt - data containers
+- ser - serialization framwork
+- meta - reflection framework
+- mt - multithreading framework
+- ecs - the ECS part of the project
+- external - external support code, not necessarily related to the core project
+
 # Usage
 ## Minimum requirements
 
@@ -129,7 +141,7 @@ In this project, components are entities with the ***Component*** component atta
 
 The entire framework is placed in a namespace called **gaia**.
 The ECS part of the library is found under **gaia::ecs** namespace.<br/>
-In the code examples below we will assume we are inside the namespace already.
+In the code examples below we will assume we are inside gaia namespace.
 
 ## Basic operations
 ### Create or delete entity
@@ -459,7 +471,7 @@ Another way to define queries is using string notation. This allows you to defin
 
 Supported modifiers:
 * ***;*** - separates expressions
-* ***+*** - query::any
+* ***?*** - query::any
 * ***!*** - query::none
 * ***&*** - read-write access
 * ***%e*** - entity value
@@ -1341,7 +1353,7 @@ You can also use the attached make_single_header.sh or create your script for yo
 
 Creation of the single header can be automated via -GAIA_MAKE_SINGLE_HEADER.
 
-# Project structure
+# Repository structure
 
 ## Examples
 The repository contains some code examples for guidance.<br/>
