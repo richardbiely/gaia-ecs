@@ -1286,7 +1286,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v3.4.0](https://github.com/catchorg/Catch2/releases/tag/v3.4.0). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
+Unit testing is handled via [Catch2 v3.5.0](https://github.com/catchorg/Catch2/releases/tag/v3.5.0). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
 # Installation
 
@@ -1370,7 +1370,7 @@ Project name | Description
 ## Benchmarks
 To be able to reason about the project's performance and prevent regressions benchmarks were created.
 
-Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
+Benchmarking relies on [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
 
 Project name | Description      
 -|-
