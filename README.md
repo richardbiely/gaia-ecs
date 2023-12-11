@@ -122,15 +122,16 @@ The main benefits of archetype-based architecture are fast iteration and good me
 In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
 ## Project structure
-The project consists of multiple parts, each of them implemented in a separated namespace.
-- core - core functionality, use by all other parts of the code
-- mem - memory-related operations, memory allocators
-- cnt - data containers
-- ser - serialization framwork
-- meta - reflection framework
-- mt - multithreading framework
-- ecs - the ECS part of the project
-- external - external support code, not necessarily related to the core project
+The entire project is implemented inside gaia ***namespace***. It is further split into multiple subprojects each with a separate namespaces.
+- ***core*** - core functionality, use by all other parts of the code
+- ***mem*** - memory-related operations, memory allocators
+- ***cnt*** - data containers
+- ***meta*** - reflection framework
+- ***ser*** - serialization framework
+- ***mt*** - multithreading framework
+- ***ecs*** - the ECS part of the project
+
+A special part of the project is ***external***. It contains 3rd-party code such as C++17 [implementation of std::span](https://github.com/tcbrindle/span) and a modified [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map.
 
 # Usage
 ## Minimum requirements

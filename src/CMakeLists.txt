@@ -24,7 +24,7 @@ function(enable_cxx_compiler_flag_if_supported flag)
   endif()
 endfunction()
 
-if (GAIA_DEVMODE)
+if(GAIA_DEVMODE)
   add_definitions(-DGAIA_DEVMODE=1)
 endif()
 
@@ -144,6 +144,22 @@ if(GAIA_GENERATE_CC)
     COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja -DGAIA_DEVMODE=${GAIA_DEVMODE} -DGAIA_PROFILER_CPU=${GAIA_PROFILER_CPU} -DGAIA_PROFILER_MEM=${GAIA_PROFILER_MEM}
     COMMENT "Generating compile_commands.json"
   )
+endif()
+
+if(GAIA_BUILD_BENCHMARK)
+  if(IS_FETCH_AVAILABLE)
+    find_package(picobench CONFIG QUIET 2.06)
+
+    if(NOT picobench_FOUND)
+      FetchContent_Declare(
+        picobench
+        GIT_REPOSITORY https://github.com/iboB/picobench.git
+        GIT_TAG v2.06
+      )
+
+      FetchContent_MakeAvailable(picobench)
+    endif()
+  endif()
 endif()
 
 if(GAIA_BUILD_UNITTEST)

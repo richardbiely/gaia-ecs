@@ -7,8 +7,6 @@ set(PROJ_NAME "cli")
 project(${PROJ_NAME} LANGUAGES CXX)
 
 find_package(gaia CONFIG REQUIRED)
-message("gaia_DIR: ${gaia_DIR}")
-message("gaia_INCLUDE_DIR: ${gaia_INCLUDE_DIR}")
 include_directories(${gaia_INCLUDE_DIR})
 
 add_executable(${PROJ_NAME} src/main.cpp)

@@ -1,6 +1,6 @@
 #define PICOBENCH_IMPLEMENT
-#include "gaia/external/picobench.hpp"
 #include <gaia.h>
+#include <picobench/picobench.hpp>
 #include <string_view>
 
 using namespace gaia;
