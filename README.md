@@ -21,7 +21,7 @@
 [actions]: https://github.com/richardbiely/gaia-ecs/actions
 [language]: https://en.wikipedia.org/wiki/C%2B%2B17
 [license]: https://en.wikipedia.org/wiki/MIT_License
-[discord]: https://discord.gg/Xe63xXqx
+[discord]: https://discord.gg/YdWV84GG
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
 **Gaia-ECS** is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
