@@ -7,18 +7,21 @@
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
 [![license][badge.license]][license]
+[![discord][badge.discord]][discord]
 [![codacy][badge.codacy]][codacy]
 
 [badge.version]: https://img.shields.io/github/v/release/richardbiely/gaia-ecs?style=for-the-badge
 [badge.actions]: https://img.shields.io/github/actions/workflow/status/richardbiely/gaia-ecs/build.yml?branch=main&style=for-the-badge
 [badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow?style=for-the-badge
 [badge.license]: https://img.shields.io/badge/license-MIT-blue?style=for-the-badge
-[badge.codacy]: https://app.codacy.com/project/badge/Grade/bb28fa362fce4054bbaf7a6ba9aed140?style=for-the-badge
+[badge.discord]: https://img.shields.io/discord/1183706605108330516?style=for-the-badge
+[badge.codacy]: https://img.shields.io/codacy/grade/bb28fa362fce4054bbaf7a6ba9aed140?style=for-the-badge
 
 [version]: https://github.com/richardbiely/gaia-ecs/releases
 [actions]: https://github.com/richardbiely/gaia-ecs/actions
 [language]: https://en.wikipedia.org/wiki/C%2B%2B17
 [license]: https://en.wikipedia.org/wiki/MIT_License
+[discord]: https://discord.gg/Xe63xXqx
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
 **Gaia-ECS** is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
