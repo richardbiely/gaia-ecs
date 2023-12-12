@@ -18368,9 +18368,9 @@ namespace gaia {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)pairs.size());
-
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
-				hashLookup = core::hash_combine(hashLookup, hash);
+
+				hashLookup = hash;
 			}
 
 			// Filters

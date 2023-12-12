@@ -17,7 +17,6 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
-#include "gaia/config/config_core.h"
 #include "id.h"
 
 namespace gaia {
