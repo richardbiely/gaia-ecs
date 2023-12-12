@@ -16715,7 +16715,7 @@ namespace gaia {
 					const auto& rec = recs[i];
 
 					const auto* pDesc = rec.pDesc;
-					if (pDesc->func_ctor == nullptr)
+					if (pDesc == nullptr || pDesc->func_ctor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, entIdx);

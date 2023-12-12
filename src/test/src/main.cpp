@@ -3393,6 +3393,17 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 	}
 }
 
+TEST_CASE("entity copy") {
+	ecs::World w;
+
+	auto e1 = w.add();
+	auto e2 = w.add();
+	w.add(e1, e2);
+	auto e3 = w.copy(e1);
+	
+	REQUIRE(w.has(e3, e2));
+}
+
 TEST_CASE("Usage 1 - simple query, 1 component") {
 	ecs::World w;
 
