@@ -1746,34 +1746,40 @@ TEST_CASE("DependsOn") {
 
 // TODO: Implement the feature
 TEST_CASE("AliasOf") {
-	ecs::World w;
-	ecs::Entity animal = w.add();
-	ecs::Entity herbivore = w.add();
-	ecs::Entity rabbit = w.add();
-	ecs::Entity hare = w.add();
+	// ecs::World w;
+	// ecs::Entity animal = w.add();
+	// ecs::Entity herbivore = w.add();
+	// ecs::Entity rabbit = w.add();
+	// ecs::Entity hare = w.add();
 
-	w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
-	w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
-	w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
+	// w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
+	// w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
+	// w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
 
-	{
-		uint32_t i = 0;
-		ecs::Query q = w.query().all(animal);
-		q.each([&](ecs::Entity entity) {
-			// runs for herbivore, rabbit and hare
-			++i;
-		});
-		// REQUIRE(i == 3);
-	}
-	{
-		uint32_t i = 0;
-		ecs::Query q = w.query().all(herbivore);
-		q.each([&](ecs::Entity entity) {
-			// runs for rabbit and hare
-			++i;
-		});
-		// REQUIRE(i == 2);
-	}
+	// {
+	// 	uint32_t i = 0;
+	// 	ecs::Query q = w.query().all(animal);
+	// 	q.each([&](ecs::Entity entity) {
+	// 		// runs for herbivore, rabbit and hare
+	// 		const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
+	// 		REQUIRE(isOK);
+
+	// 		++i;
+	// 	});
+	// 	REQUIRE(i == 3);
+	// }
+	// {
+	// 	uint32_t i = 0;
+	// 	ecs::Query q = w.query().all(herbivore);
+	// 	q.each([&](ecs::Entity entity) {
+	// 		// runs for rabbit and hare
+	// 		const bool isOK = entity == hare || entity == rabbit;
+	// 		REQUIRE(isOK);
+
+	// 		++i;
+	// 	});
+	// 	REQUIRE(i == 2);
+	// }
 }
 
 TEST_CASE("AddAndDel_entity - no components") {
@@ -3400,7 +3406,7 @@ TEST_CASE("entity copy") {
 	auto e2 = w.add();
 	w.add(e1, e2);
 	auto e3 = w.copy(e1);
-	
+
 	REQUIRE(w.has(e3, e2));
 }
 
