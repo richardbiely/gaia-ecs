@@ -351,6 +351,78 @@ namespace gaia {
 			};
 
 		private:
+			//! Checks if the pair \param entity is valid.
+			//! \return True if the entity is valid. False otherwise.
+			GAIA_NODISCARD bool valid_pair(Entity entity) const {
+				if (entity == EntityBad)
+					return false;
+
+				GAIA_ASSERT(entity.pair());
+				if (!entity.pair())
+					return false;
+
+				// Ignore wildcards because they can't be attached to entities
+				if (is_wildcard(entity))
+					return true;
+
+				const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+				if (it == m_recs.pairs.end())
+					return false;
+
+				const auto& ec = it->second;
+
+				// The entity in the chunk must match the index in the entity container
+				auto* pChunk = ec.pChunk;
+				return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+			}
+
+			//! Checks if the entity \param entity is valid.
+			//! \return True if the entity is valid. False otherwise.
+			GAIA_NODISCARD bool valid_entity(Entity entity) const {
+				if (entity == EntityBad)
+					return false;
+
+				GAIA_ASSERT(!entity.pair());
+				if (entity.pair())
+					return false;
+
+				// Entity ID has to fit inside the entity array
+				if (entity.id() >= m_recs.entities.size())
+					return false;
+
+				const auto& ec = m_recs.entities[entity.id()];
+
+				// Generation ID has to match the one in the array
+				if (ec.gen != entity.gen())
+					return false;
+
+				// The entity in the chunk must match the index in the entity container
+				auto* pChunk = ec.pChunk;
+				return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+			}
+
+			//! Checks if the entity with id \param entityId is valid. Pairs are not considered.
+			//! \return True if entityId is valid. False otherwise.
+			GAIA_NODISCARD bool valid_entity_id(EntityId entityId) const {
+				if (entityId == EntityBad.id())
+					return false;
+
+				// Entity ID has to fit inside the entity array
+				if (entityId >= m_recs.entities.size())
+					return false;
+
+				const auto& ec = m_recs.entities[entityId];
+
+#if GAIA_ASSERT_ENABLED
+				if (ec.pChunk != nullptr) {
+					auto entityExpected = ec.pChunk->entity_view()[ec.row];
+					GAIA_ASSERT(entityExpected == Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+				}
+#endif
+
+				return ec.pChunk != nullptr;
+			}
+
 			//! Remove an entity from its chunk.
 			//! \param pChunk Chunk we remove the entity from
 			//! \param row Index of entity within its chunk
@@ -1291,6 +1363,10 @@ namespace gaia {
 
 			template <bool IsOwned>
 			void name_inter(Entity entity, const char* name, uint32_t len) {
+				GAIA_ASSERT(!entity.pair());
+				if (entity.pair())
+					return;
+
 				GAIA_ASSERT(valid(entity));
 
 				if (name == nullptr) {
@@ -1298,6 +1374,9 @@ namespace gaia {
 					del_name(entity);
 					return;
 				}
+
+				if (!has<EntityDesc>(entity))
+					return;
 
 				auto res =
 						m_nameToEntity.try_emplace(len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len), entity);
@@ -1635,44 +1714,11 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Checks if \param entity is valid.
-			//! \return True is the entity is valid. False otherwise.
+			//! \return True if the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
-				if (entity == EntityBad)
-					return false;
-
-				// Pair
-				if (entity.pair()) {
-					// Ignore wildcards because they can't be attached to entities
-					if (is_wildcard(entity))
-						return true;
-
-					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
-					if (it == m_recs.pairs.end())
-						return false;
-
-					const auto& ec = it->second;
-
-					// The entity in the chunk must match the index in the entity container
-					auto* pChunk = ec.pChunk;
-					return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
-				}
-
-				// Regular entity
-				{
-					// Entity ID has to fit inside the entity array
-					if (entity.id() >= m_recs.entities.size())
-						return false;
-
-					const auto& ec = m_recs.entities[entity.id()];
-
-					// Generation ID has to match the one in the array
-					if (ec.gen != entity.gen())
-						return false;
-
-					// The entity in the chunk must match the index in the entity container
-					auto* pChunk = ec.pChunk;
-					return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
-				}
+				return entity.pair() //
+									 ? valid_pair(entity)
+									 : valid_entity(entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -1680,14 +1726,9 @@ namespace gaia {
 			//! Returns the entity located at the index \param id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
-				GAIA_ASSERT(id < m_recs.entities.size());
+				GAIA_ASSERT(valid_entity_id(id));
+
 				const auto& ec = m_recs.entities[id];
-#if GAIA_ASSERT_ENABLED
-				if (ec.pChunk != nullptr) {
-					auto entityExpected = ec.pChunk->entity_view()[ec.row];
-					GAIA_ASSERT(entityExpected == Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
-				}
-#endif
 				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 
@@ -2015,7 +2056,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Checks if \param entity is currently used by the world.
-			//! \return True is the entity is used. False otherwise.
+			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				// Pair
 				if (entity.pair()) {
@@ -2130,7 +2171,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Assigns a \param name to \param entity. The string is copied and kept internally.
+			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! The string is copied and kept internally.
 			//! \param entity Entity
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
@@ -2140,7 +2182,7 @@ namespace gaia {
 				name_inter<true>(entity, name, len);
 			}
 
-			//! Assigns a \param name to \param entity.
+			//! Assigns a \param name to \param entity. Ignored if used with pair.
 			//! The string is NOT copied. Your are responsible for its lifetime.
 			//! \param entity Entity
 			//! \param name Pointer to a stable null-terminated string
@@ -2160,6 +2202,12 @@ namespace gaia {
 			//! \return Name assigned to entity.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(Entity entity) const {
+				if (entity.pair())
+					return nullptr;
+
+				if (!has<EntityDesc>(entity))
+					return nullptr;
+
 				return get<EntityDesc>(entity).name;
 			}
 
@@ -2168,9 +2216,8 @@ namespace gaia {
 			//! \return Name assigned to entity.
 			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(EntityId entityId) const {
-				const auto& ec = m_recs.entities[entityId];
-				auto entity = ec.pChunk->entity_view()[ec.row];
-				return get<EntityDesc>(entity).name;
+				auto entity = get(entityId);
+				return name(entity);
 			}
 
 			//! Returns the entity that is assigned with the \param name.
