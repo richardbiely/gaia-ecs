@@ -18955,7 +18955,7 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of query items which we can store
 						if (ids.size() >= MAX_ITEMS_IN_QUERY) {
-							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
+							GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
 							const auto* name = ctx.cc->get(item.id).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
@@ -19003,7 +19003,7 @@ namespace gaia {
 								break;
 						// NOTE: This code bellow does technically the same as above.
 						//       However, compilers can't quite optimize it as well because it does some more
-						//       calculations. This is a used often so go with the custom code.
+						//       calculations. This is used often so go with the custom code.
 						// const auto compIdx = core::get_index_unsafe(ids, comp);
 
 						// Component has to be present in anyList or allList.
@@ -19048,8 +19048,6 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
-				//! List of world's entity records
-				const cnt::ilist<EntityContainer, Entity>* m_ids{};
 
 				//--------------------------------------------------------------------------------
 			public:
