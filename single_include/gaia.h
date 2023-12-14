@@ -681,8 +681,20 @@ namespace gaia {
 #endif
 
 #if GAIA_DISABLE_ASSERTS
-	#undef GAIA_ASSERT
+	#ifdef GAIA_ASSERT_ENABLED
+		#undef
+	#endif
+	#define GAIA_ASSERT_ENABLED 0
+
+	#ifdef GAIA_ASSERT
+		#undef GAIA_ASSERT
+	#endif
 	#define GAIA_ASSERT(cond)
+
+	#ifdef GAIA_ASSERT2
+		#undef GAIA_ASSERT2
+	#endif
+	#define GAIA_ASSERT2(cond, msg)
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	// For Debug builds use system's native assertion capabilities
@@ -693,8 +705,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                         \
-						assert((cond));                                                                                              \
+					[&] {                                                                                                        \
+						assert((cond));                                                                                            \
 					}();                                                                                                         \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
@@ -703,8 +715,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                         \
-						assert((cond) && (msg));                                                                                    \
+					[&] {                                                                                                        \
+						assert((cond) && (msg));                                                                                   \
 					}();                                                                                                         \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
@@ -722,7 +734,7 @@ namespace gaia {
 						}();                                                                                                       \
 					GAIA_MSVC_WARNING_POP()                                                                                      \
 				}
-			#define GAIA_ASSERT2(cond, msg)                                                                                        \
+			#define GAIA_ASSERT2(cond, msg)                                                                                  \
 				{                                                                                                              \
 					GAIA_MSVC_WARNING_PUSH()                                                                                     \
 					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \
@@ -20018,7 +20030,7 @@ namespace gaia {
 				}
 
 			private:
-				void handle_add_deps(Entity entity) {
+				bool handle_add_deps(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
 
 					// Handle entity combination that can't be together
@@ -20032,7 +20044,7 @@ namespace gaia {
 									GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
 									print_archetype_entities(m_world, *m_pArchetype, entity, true);
 #endif
-									return;
+									return false;
 								}
 							}
 						}
@@ -20050,6 +20062,8 @@ namespace gaia {
 								handle_add_deps(e);
 						}
 					}
+
+					return true;
 				}
 
 				bool has_DependsOn_deps(Entity entity) const {
@@ -20150,7 +20164,8 @@ namespace gaia {
 						m_world.assign(entity, *m_world.m_pEntityArchetype);
 					}
 
-					handle_add_deps(entity);
+					if (!handle_add_deps(entity))
+						return;
 					handle_add(entity);
 				}
 

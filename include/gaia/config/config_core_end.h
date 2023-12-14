@@ -35,8 +35,20 @@
 #endif
 
 #if GAIA_DISABLE_ASSERTS
-	#undef GAIA_ASSERT
+	#ifdef GAIA_ASSERT_ENABLED
+		#undef
+	#endif
+	#define GAIA_ASSERT_ENABLED 0
+
+	#ifdef GAIA_ASSERT
+		#undef GAIA_ASSERT
+	#endif
 	#define GAIA_ASSERT(cond)
+
+	#ifdef GAIA_ASSERT2
+		#undef GAIA_ASSERT2
+	#endif
+	#define GAIA_ASSERT2(cond, msg)
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	// For Debug builds use system's native assertion capabilities
@@ -47,8 +59,8 @@
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                         \
-						assert((cond));                                                                                              \
+					[&] {                                                                                                        \
+						assert((cond));                                                                                            \
 					}();                                                                                                         \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
@@ -57,8 +69,8 @@
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                         \
-						assert((cond) && (msg));                                                                                    \
+					[&] {                                                                                                        \
+						assert((cond) && (msg));                                                                                   \
 					}();                                                                                                         \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
@@ -76,7 +88,7 @@
 						}();                                                                                                       \
 					GAIA_MSVC_WARNING_POP()                                                                                      \
 				}
-			#define GAIA_ASSERT2(cond, msg)                                                                                        \
+			#define GAIA_ASSERT2(cond, msg)                                                                                  \
 				{                                                                                                              \
 					GAIA_MSVC_WARNING_PUSH()                                                                                     \
 					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \

@@ -66,7 +66,7 @@ option(GAIA_PROFILER_BUILD "Build profiler if possible." OFF)
 option(GAIA_DEVMODE, "Enables various verification checks. Only useful for library maintainers." OFF)
 option(GAIA_ECS_CHUNK_ALLOCATOR, "If enabled, custom allocator is used for allocating archetype chunks." ON)
 option(GAIA_FORCE_DEBUG, "If enabled, GAIA_DEBUG will be defined despite using the optimized build configuration." OFF)
-option(GAIA_DISABLE_ASSERTS, "If enabled, no asserts will be thrown even in debug builds." OFF)
+option(GAIA_DISABLE_ASSERTS "If enabled, no asserts will be thrown even in debug builds." OFF)
 
 if(GAIA_BUILD_UNITTEST)
     set(GAIA_BUILD_SRC ON)
