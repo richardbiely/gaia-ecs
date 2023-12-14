@@ -17151,7 +17151,8 @@ namespace gaia {
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Create
-			Archetype(const ComponentCache& cc, uint32_t& worldVersion): m_cc(cc), m_worldVersion(worldVersion) {}
+			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
+					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
