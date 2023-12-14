@@ -18,8 +18,8 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-COMPILER_CXX="/usr/bin/clang++"
-COMPILER_SETTINGS="-DCMAKE_CXX_COMPILER=${COMPILER_CXX}"
+export CC="/usr/bin/clang"
+export CXX="/usr/bin/clang++"
 
 ####################################################################
 # Build the project
@@ -31,7 +31,7 @@ PATH_RELEASE="./${PATH_BASE}/release-cachegrind"
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
 if ! cmake --build ${PATH_RELEASE} --config RelWithDebInfo; then
     echo "${PATH_DEBUG} build failed"
     exit 1

@@ -18,8 +18,8 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-COMPILER_CXX="/usr/bin/clang++"
-COMPILER_SETTINGS="-DCMAKE_CXX_COMPILER=${COMPILER_CXX}"
+export CC="/usr/bin/clang"
+export CXX="/usr/bin/clang++"
 
 ####################################################################
 # Build the project
@@ -44,7 +44,7 @@ PATH_RELEASE_MEM="${PATH_RELEASE}-mem"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_DEBUG}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
 if ! cmake --build ${PATH_DEBUG} --config Debug; then
     echo "${PATH_DEBUG} build failed"
     exit 1
@@ -52,7 +52,7 @@ fi
 
 # Debug mode + system allocator
 cmake -E make_directory ${PATH_DEBUG_SYSA}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -S .. -B ${PATH_DEBUG_SYSA}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_DEVMODE=ON -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -S .. -B ${PATH_DEBUG_SYSA}
 if ! cmake --build ${PATH_DEBUG_SYSA} --config Debug; then
     echo "${PATH_DEBUG_SYSA} build failed"
     exit 1
@@ -60,7 +60,7 @@ fi
 
 # Debug mode + profiler
 cmake -E make_directory ${PATH_DEBUG_PROF}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -S .. -B ${PATH_DEBUG_PROF}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG_PROF}
 if ! cmake --build ${PATH_DEBUG_PROF} --config Debug; then
     echo "${PATH_DEBUG_PROF} build failed"
     exit 1
@@ -68,7 +68,7 @@ fi
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
+cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
 if ! cmake --build ${PATH_RELEASE} --config Release; then
     echo "${PATH_RELEASE} build failed"
     exit 1
@@ -76,7 +76,7 @@ fi
 
 # Release mode - adress sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
 if ! cmake --build ${PATH_RELEASE_ADDR} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_ADDR} build failed"
     exit 1
@@ -84,7 +84,7 @@ fi
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
 if ! cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_MEM} build failed"
     exit 1
