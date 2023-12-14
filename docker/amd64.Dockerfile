@@ -8,7 +8,7 @@ CMD /bin/bash
 RUN apt update && apt install -y --no-install-recommends \
     software-properties-common \
     clang \
-    g++-7 \
+    g++ \
     gcc \
     gdb \
     make \
@@ -21,10 +21,5 @@ RUN apt update && apt install -y --no-install-recommends \
     valgrind \
     wget \
     gpg-agent
-
-# Intel compiler is only compatible with x86 architecture
-RUN wget https://registrationcenter-download.intel.com/akdlm/irc_nas/18673/l_BaseKit_p_2022.2.0.262_offline.sh && \
-    chmod +x ./l_BaseKit_p_2022.2.0.262_offline.s && \
-    ./l_BaseKit_p_2022.2.0.262_offline.sh
 
 RUN rm -rf /var/lib/apt/lists/*

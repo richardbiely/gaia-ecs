@@ -8,7 +8,7 @@ CMD /bin/bash
 RUN apt update && apt install -y --no-install-recommends \
     software-properties-common \
     clang \
-    g++-7 \
+    g++ \
     gcc \
     gdb \
     make \
