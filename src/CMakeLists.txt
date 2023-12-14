@@ -2,6 +2,31 @@ if(!GAIA_BUILD_SRC)
   return()
 endif()
 
+# Library configuration
+if(GAIA_DEVMODE)
+  add_definitions(-DGAIA_DEVMODE=1)
+else()
+  add_definitions(-DGAIA_DEVMODE=0)
+endif()
+
+if(GAIA_ECS_CHUNK_ALLOCATOR)
+  add_definitions(-DGAIA_ECS_CHUNK_ALLOCATOR=1)
+else()
+  add_definitions(-DGAIA_ECS_CHUNK_ALLOCATOR=0)
+endif()
+
+if(GAIA_FORCE_DEBUG)
+  add_definitions(-DGAIA_FORCE_DEBUG=1)
+else()
+  add_definitions(-DGAIA_FORCE_DEBUG=0)
+endif()
+
+if(GAIA_DISABLE_ASSERTS)
+  add_definitions(-DGAIA_DISABLE_ASSERTS=1)
+else()
+  add_definitions(-DGAIA_DISABLE_ASSERTS=0)
+endif()
+
 # Compiler settings
 include(CheckCXXCompilerFlag)
 
@@ -23,10 +48,6 @@ function(enable_cxx_compiler_flag_if_supported flag)
     unset(flag_supported CACHE)
   endif()
 endfunction()
-
-if(GAIA_DEVMODE)
-  add_definitions(-DGAIA_DEVMODE=1)
-endif()
 
 if(MSVC)
   # parallel build
@@ -118,7 +139,7 @@ endif()
 
 set(IS_FETCH_AVAILABLE OFF)
 
-if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)
+if(GAIA_BUILD_BENCHMARK OR GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)
   find_package(Git REQUIRED)
   Include(FetchContent OPTIONAL RESULT_VARIABLE FetchContent_FOUND)
 
