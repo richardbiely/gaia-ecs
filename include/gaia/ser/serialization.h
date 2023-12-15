@@ -89,10 +89,30 @@ namespace gaia {
 			};
 
 			template <typename T>
+			struct is_int_kind_id:
+					std::disjunction<
+							std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
+							std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
+							std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
+							std::is_same<T, int64_t>, std::is_same<T, uint64_t>, //
+							std::is_same<T, bool>> {};
+
+			template <typename T>
+			struct is_flt_kind_id:
+					std::disjunction<
+							// std::is_same<T, float8_t>, //
+							// std::is_same<T, float16_t>, //
+							std::is_same<T, float>, //
+							std::is_same<T, double>, //
+							std::is_same<T, long double>> {};
+
+			template <typename T>
 			GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
-				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
+				static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
+
+				if constexpr (std::is_same_v<int8_t, T>) {
 					return serialization_type_id::s8;
-				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
+				} else if constexpr (std::is_same_v<uint8_t, T>) {
 					return serialization_type_id::u8;
 				} else if constexpr (std::is_same_v<int16_t, T>) {
 					return serialization_type_id::s16;
@@ -106,15 +126,15 @@ namespace gaia {
 					return serialization_type_id::s64;
 				} else if constexpr (std::is_same_v<uint64_t, T>) {
 					return serialization_type_id::u64;
-				} else if constexpr (std::is_same_v<bool, T>) {
+				} else { // if constexpr (std::is_same_v<bool, T>) {
 					return serialization_type_id::b;
 				}
-
-				GAIA_ASSERT2(false, "Unsupported integral U");
 			}
 
 			template <typename T>
 			GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
+				static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
+
 				// if constexpr (std::is_same_v<float8_t, T>) {
 				// 	return serialization_type_id::f8;
 				// } else if constexpr (std::is_same_v<float16_t, T>) {
@@ -124,12 +144,9 @@ namespace gaia {
 					return serialization_type_id::f32;
 				} else if constexpr (std::is_same_v<double, T>) {
 					return serialization_type_id::f64;
-				} else if constexpr (std::is_same_v<long double, T>) {
+				} else { // if constexpr (std::is_same_v<long double, T>) {
 					return serialization_type_id::f128;
 				}
-
-				GAIA_ASSERT2(false, "Unsupported floating point U");
-				return serialization_type_id::Last;
 			}
 
 			template <typename T>
@@ -145,7 +162,6 @@ namespace gaia {
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
 
-				GAIA_ASSERT2(false, "Unsupported serialization U");
 				return serialization_type_id::Last;
 			}
 
@@ -204,6 +220,7 @@ namespace gaia {
 							const auto size = arg.size();
 							s.save(size);
 						}
+
 						for (const auto& e: arg)
 							ser_data_one<Write>(s, e);
 					} else {
@@ -212,6 +229,7 @@ namespace gaia {
 							s.load(size);
 							arg.resize(size);
 						}
+						
 						for (auto& e: arg)
 							ser_data_one<Write>(s, e);
 					}

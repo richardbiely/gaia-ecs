@@ -88,6 +88,9 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 template <bool UseCachedQuery, uint32_t QueryComponents>
 void BM_BuildQuery(picobench::state& state) {
 	ecs::World w;
+	// Create some archetypes for a good measure
+	create_archetypes(w, 1000, 10);
+
 	ecs::Entity tmp[QueryComponents];
 	GAIA_FOR(QueryComponents)
 	tmp[i] = w.add();
