@@ -102,7 +102,7 @@ namespace gaia {
 						return m_chunk.size();
 				}
 
-			private:
+			protected:
 				//! Returns the starting index of the iterator
 				GAIA_NODISCARD uint16_t from() const noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
@@ -121,8 +121,27 @@ namespace gaia {
 			};
 		} // namespace detail
 
+		//! Iterator for iterating enabled entities
 		using Iter = detail::ChunkIterImpl<Constraints::EnabledOnly>;
+		//! Iterator for iterating disabled entities
 		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
-		using IterAll = detail::ChunkIterImpl<Constraints::AcceptAll>;
+
+		//! Iterator for iterating both enabled and disabled entities.
+		//! Disabled entities always preceed enabled ones.
+		class IterAll: public detail::ChunkIterImpl<Constraints::AcceptAll> {
+		public:
+			IterAll(Chunk& chunk): detail::ChunkIterImpl<Constraints::AcceptAll>(chunk) {}
+
+			//! Returns the number of enabled entities accessible via the iterator.
+			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
+				return m_chunk.size_enabled();
+			}
+
+			//! Returns the number of disabled entities accessible via the iterator.
+			//! Can be read also as "the index of the first enabled entity".
+			GAIA_NODISCARD uint16_t size_disabled() const noexcept {
+				return m_chunk.size_disabled();
+			}
+		};
 	} // namespace ecs
 } // namespace gaia
