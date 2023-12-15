@@ -299,8 +299,8 @@ namespace gaia {
 
 				if (other.m_pDataHeap != nullptr) {
 					GAIA_ASSERT(m_pDataHeap == nullptr);
-					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				} else {
 					resize(other.size());
 					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
@@ -339,14 +339,14 @@ namespace gaia {
 				if (other.m_pDataHeap != nullptr) {
 					// Release current heap memory and replace it with the source
 					if (m_pDataHeap != nullptr)
-						view_policy::free(m_pDataHeap, size());
+						view_policy::free_mem(m_pDataHeap, size());
 					m_pDataHeap = other.m_pDataHeap;
 					m_pData = m_pDataHeap;
 				} else
 				// Moving from stack-allocated source
 				{
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size(), extent, other.extent);
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}

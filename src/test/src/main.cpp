@@ -270,8 +270,30 @@ void fixed_arr_test() {
 	}
 	REQUIRE(arr.back() == N - 1);
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) {
-		REQUIRE(arr[i] == i);
+	GAIA_FOR(N) REQUIRE(arr[i] == i);
+	// Copy assignment
+	{
+		Container arrCopy = arr;
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+	}
+	// Copy constructor
+	{
+		Container arrCopy(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+	}
+	// Move assignment
+	{
+		Container arrCopy = GAIA_MOV(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+	// Move constructor
+	{
+		Container arrCopy(GAIA_MOV(arr));
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
 	}
 
 	// Container comparison
@@ -314,8 +336,30 @@ void resizable_arr_test(uint32_t N) {
 		REQUIRE(arr.back() == i);
 	}
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) {
-		REQUIRE(arr[i] == i);
+	GAIA_FOR(N) REQUIRE(arr[i] == i);
+	// Copy assignment
+	{
+		Container arrCopy = arr;
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+	}
+	// Copy constructor
+	{
+		Container arrCopy(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+	}
+	// Move assignment
+	{
+		Container arrCopy = GAIA_MOV(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+	// Move constructor
+	{
+		Container arrCopy(GAIA_MOV(arr));
+		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
 	}
 
 	// Container comparison

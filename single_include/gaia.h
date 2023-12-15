@@ -3499,6 +3499,7 @@ namespace gaia {
 			GAIA_ASSERT(size > 0);
 
 			void* ptr = GAIA_MEM_ALLC(size);
+			GAIA_ASSERT(ptr != nullptr);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
@@ -3510,16 +3511,21 @@ namespace gaia {
 			// Make sure size is a multiple of the alignment
 			size = (size + alig - 1) & ~(alig - 1);
 			void* ptr = GAIA_MEM_ALLC_A(size, alig);
+			GAIA_ASSERT(ptr != nullptr);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
 		inline void mem_free(void* ptr) {
+			GAIA_ASSERT(ptr != nullptr);
+
 			GAIA_MEM_FREE(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
 		inline void mem_free_alig(void* ptr) {
+			GAIA_ASSERT(ptr != nullptr);
+			
 			GAIA_MEM_FREE_A(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
@@ -5956,8 +5962,8 @@ namespace gaia {
 
 				if (other.m_pDataHeap != nullptr) {
 					GAIA_ASSERT(m_pDataHeap == nullptr);
-					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				} else {
 					resize(other.size());
 					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
@@ -5996,14 +6002,14 @@ namespace gaia {
 				if (other.m_pDataHeap != nullptr) {
 					// Release current heap memory and replace it with the source
 					if (m_pDataHeap != nullptr)
-						view_policy::free(m_pDataHeap, size());
+						view_policy::free_mem(m_pDataHeap, size());
 					m_pDataHeap = other.m_pDataHeap;
 					m_pData = m_pDataHeap;
 				} else
 				// Moving from stack-allocated source
 				{
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size(), extent, other.extent);
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}

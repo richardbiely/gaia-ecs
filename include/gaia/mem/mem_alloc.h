@@ -34,6 +34,7 @@ namespace gaia {
 			GAIA_ASSERT(size > 0);
 
 			void* ptr = GAIA_MEM_ALLC(size);
+			GAIA_ASSERT(ptr != nullptr);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
@@ -45,16 +46,21 @@ namespace gaia {
 			// Make sure size is a multiple of the alignment
 			size = (size + alig - 1) & ~(alig - 1);
 			void* ptr = GAIA_MEM_ALLC_A(size, alig);
+			GAIA_ASSERT(ptr != nullptr);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
 		inline void mem_free(void* ptr) {
+			GAIA_ASSERT(ptr != nullptr);
+
 			GAIA_MEM_FREE(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
 		inline void mem_free_alig(void* ptr) {
+			GAIA_ASSERT(ptr != nullptr);
+			
 			GAIA_MEM_FREE_A(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
