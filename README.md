@@ -507,7 +507,9 @@ ecs::Query q2 = w.query()
 ```
 
 ### Uncached query
-From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. This means duplicates are possible and therefore more memory and performance can be wasted. However, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute and matching is faster because no query cache lookups are involved.
+From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. As a result, if there are duplicates, more memory and performance is be wasted.
+
+On the other hand, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute for the query and matching is faster because no query cache lookups are involved.
 
 Uncached queries are created via ***World::query< false >***.
 
@@ -542,12 +544,12 @@ q.each([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
 Processing via an iterator gives you even more expressive power and also opens doors for new kinds of optimizations.
-Iter is an abstraction above underlying data structures and gives you access to their public API.
+***Iter*** is an abstraction over underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
 1) ***Iter*** - iterates over enabled entities
-2) ***IterDisabled*** - iterates over distabled entities
-3) ***IterAll*** - iterate over all entities
+2) ***IterDisabled*** - iterates over disabled entities
+3) ***IterAll*** - iterates over all entities
 
 ```cpp
 ecs::Query q = w.query();
@@ -1434,8 +1436,7 @@ Thank you for using the project. You rock! :)
 
 Code and documentation Copyright (c) 2021-2023 Richard Biely.
 
-Code released under
-[the MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
+Code released under the [MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
 
 ![gaia-ecs-small](docs/img/logo_small.png)
 <!--

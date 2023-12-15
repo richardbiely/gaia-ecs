@@ -85,6 +85,44 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	}
 }
 
+template <bool UseCachedQuery, uint32_t QueryComponents>
+void BM_BuildQuery(picobench::state& state) {
+	ecs::World w;
+	ecs::Entity tmp[QueryComponents];
+	GAIA_FOR(QueryComponents)
+	tmp[i] = w.add();
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+		auto query = create_query<UseCachedQuery>(w, tmp);
+
+		// Measure the time to build the query
+		state.start_timer();
+		(void)query.fetch();
+		state.stop_timer();
+	}
+}
+
+#define DEFINE_BUILD_QUERY(QueryComponents)                                                                            \
+	void BM_BuildQuery_##QueryComponents(picobench::state& state) {                                                      \
+		BM_BuildQuery<true, QueryComponents>(state);                                                                       \
+	}
+
+#define DEFINE_BUILD_QUERY_U(QueryComponents)                                                                          \
+	void BM_BuildQuery_U_##QueryComponents(picobench::state& state) {                                                    \
+		BM_BuildQuery<false, QueryComponents>(state);                                                                      \
+	}
+
+DEFINE_BUILD_QUERY(1)
+DEFINE_BUILD_QUERY_U(1)
+DEFINE_BUILD_QUERY(3)
+DEFINE_BUILD_QUERY_U(3)
+DEFINE_BUILD_QUERY(5)
+DEFINE_BUILD_QUERY_U(5)
+DEFINE_BUILD_QUERY(7)
+DEFINE_BUILD_QUERY_U(7)
+
 #define DEFINE_EACH(ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                               \
 	void BM_Each_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                                         \
 		ecs::World w;                                                                                                      \
@@ -197,6 +235,16 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_Each_U_Iter_1000_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("7 comps");
 			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
+
+			PICOBENCH_SUITE_REG("build query");
+			PICOBENCH_REG(BM_BuildQuery_1).PICO_SETTINGS().label("1 comp");
+			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS().label("(u) 1 comp"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_3).PICO_SETTINGS().label(" 3 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS().label("(u) 3 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_5).PICO_SETTINGS().label("5 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS().label("7 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
 		}
 	}
 
