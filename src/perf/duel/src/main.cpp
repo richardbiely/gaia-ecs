@@ -294,7 +294,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto p = iter.view_mut<Position>();
 				auto v = iter.view<Velocity>();
 
@@ -310,7 +310,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto p = iter.view_mut<Position>();
 				auto v = iter.view_mut<Velocity>();
 
@@ -326,7 +326,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto v = iter.view_mut<Velocity>();
 				GAIA_EACH(iter) v[i].y += 9.81f * dt;
 			});
@@ -336,7 +336,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iterator iter) {
+			m_q->each([&](ecs::Iter iter) {
 				auto h = iter.view<Health>();
 
 				uint32_t a = 0;
@@ -384,7 +384,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto p = iter.view_mut<PositionSoA>();
 				auto v = iter.view<VelocitySoA>();
 
@@ -405,7 +405,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto p = iter.view_mut<PositionSoA>();
 				auto v = iter.view_mut<VelocitySoA>();
 
@@ -424,7 +424,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iterator iter) {
+			m_q->each([](ecs::Iter iter) {
 				auto v = iter.view_mut<VelocitySoA>();
 				auto vvy = v.set<1>();
 
@@ -436,7 +436,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iterator iter) {
+			m_q->each([&](ecs::Iter iter) {
 				auto h = iter.view<Health>();
 
 				uint32_t a = 0;

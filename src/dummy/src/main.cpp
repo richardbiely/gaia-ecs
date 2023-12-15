@@ -46,7 +46,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IteratorAll iter) {
+		m_q.each([](ecs::IterAll iter) {
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
@@ -71,7 +71,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IteratorAll iter) {
+		m_q.each([](ecs::IterAll iter) {
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
@@ -96,7 +96,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IteratorDisabled iter) {
+		m_q.each([](ecs::IterDisabled iter) {
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;

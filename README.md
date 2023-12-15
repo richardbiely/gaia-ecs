@@ -62,6 +62,7 @@
     * [Component presence](#component-presence)
   * [Data processing](#data-processing)
     * [Query](#query)
+    * [Uncached query](#uncached-query)
     * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
@@ -359,7 +360,7 @@ auto velCopy = w.get<Velocity>(e);
 Both read and write operations are also accessible via views. Check the [iteration](#iteration) sections to see how.
 
 ### Component presence
-Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iterator*** which can be acquired when running [queries](#query).
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
 
 ```cpp
 // Check if entity e has Velocity (via world).
@@ -370,7 +371,7 @@ const bool hasWheel = w.has(car, wheel);
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.query().any<Position, Velocity>(); 
-q.each([&](ecs::Iterator iter) {
+q.each([&](ecs::Iter iter) {
   const bool hasPosition = iter.has<Position>();
   const bool hasVelocity = iter.has<Velocity>();
   ...
@@ -385,7 +386,7 @@ auto v = w.add<Velocity>().entity;
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.query().any(p).any(v); 
-q.each([&](ecs::Iterator iter) {
+q.each([&](ecs::Iter iter) {
   const bool hasPosition = iter.has(p);
   const bool hasVelocity = iter.has(v);
   ...
@@ -396,7 +397,9 @@ q.each([&](ecs::Iterator iter) {
 ### Query
 For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate or return them in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
 
->**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
+Every Query is cached internally. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
+
+Note, the first Query invocation is always slower than the subsequent ones because internals of the Query need to be initialized.
 
 ```cpp
 ecs::Query q = w.query();
@@ -444,13 +447,6 @@ q.all<Position&>()
  .none<Player>(); 
 ```
 
-All queries are cached by default. This makes sense for queries which happen very often. They are fast to process but might take more time to prepare initially. If caching is not needed you should use uncached queries and save some resources. You would normally do this for one-time initializations or rarely used operations.
-
-```cpp
-// Create an uncached query taking into account all entities with either Positon or Velocity components
-ecs::QueryUncached q = w.query<false>().any<Position, Velocity>(); 
-```
-
 Queries can be defined using a low-level API (used internally).
 
 ```cpp
@@ -472,7 +468,7 @@ q.add({p, QueryOp::All, QueryAccess::Write})
  .add({pl, QueryOp::None, QueryAccess::None}); 
 ```
 
-Another way to define queries is using string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
+Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
 Supported modifiers:
 * ***;*** - separates expressions
@@ -510,6 +506,20 @@ ecs::Query q2 = w.query()
   .all(player);
 ```
 
+### Uncached query
+From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. This means duplicates are possible and therefore more memory and performance can be wasted. However, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute and matching is faster because no query cache lookups are involved.
+
+Uncached queries are created via ***World::query< false >***.
+
+```cpp
+// This is a cached query
+ecs::Query q1 = w.query<true>(). ...; 
+// This is a cached query, shorter version of the above
+ecs::Query q2 = w.query(). ...;
+// This is an uncached query
+ecs::QueryUncached q3 = w.query<false>(). ...; 
+```
+
 ### Iteration
 To process data from queries one uses the ***Query::each*** function.
 It accepts either a list of components or an iterator as its argument.
@@ -532,18 +542,18 @@ q.each([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
 Processing via an iterator gives you even more expressive power and also opens doors for new kinds of optimizations.
-Iterator is an abstraction above underlying data structures and gives you access to their public API.
+Iter is an abstraction above underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
-1) ***Iterator*** - iterates over enabled entities
-2) ***IteratorDisabled*** - iterates over distabled entities
-3) ***IteratorAll*** - iterate over all entities
+1) ***Iter*** - iterates over enabled entities
+2) ***IterDisabled*** - iterates over distabled entities
+3) ***IterAll*** - iterate over all entities
 
 ```cpp
 ecs::Query q = w.query();
 q.all<Position&, Velocity>();
 
-q.each([](ecs::IteratorAll iter) {
+q.each([](ecs::IterAll iter) {
   auto p = iter.view_mut<Position>(); // Read-write access to Position
   auto v = iter.view<Velocity>(); // Read-only access to Velocity
 
@@ -607,17 +617,17 @@ q.arr(entities, ecs::Query::Constraint::AcceptAll);
 // Fills the array with only e1 because e1 is disabled.
 q.arr(entities, ecs::Query::Constraint::DisabledOnly);
 
-q.each([](ecs::Iterator iter) {
+q.each([](ecs::Iter iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over enabled entities
   GAIA_EACH(iter) p[i] = {}; // reset the position of each enabled entity
 });
-q.each([](ecs::IteratorDisabled iter) {
+q.each([](ecs::IterDisabled iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over disabled entities
   GAIA_EACH(iter) p[i] = {}; // reset the position of each disabled entity
 });
-q.each([](ecs::IteratorAll iter) {
+q.each([](ecs::IterAll iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over all entities
   GAIA_EACH(iter) {
@@ -638,7 +648,7 @@ struct Disabled {};
 e.add<Disabled>(); // disable entity
 
 ecs::Query q = w.query().all<Position, Disabled>; 
-q.each([&](ecs::Iterator iter){
+q.each([&](ecs::Iter iter){
   // Processes all disabled entities
 });
 
@@ -985,7 +995,7 @@ struct VelocitySoA {
 ...
 
 ecs::Query q = w.query().all<PositionSoA&, VelocitySoA>;
-q.each([](ecs::Iterator iter) {
+q.each([](ecs::Iter iter) {
   // Position
   auto vp = iter.view_mut<PositionSoA>(); // read-write access to PositionSoA
   auto px = vp.set<0>(); // continuous block of "x" from PositionSoA

@@ -17841,12 +17841,12 @@ namespace gaia {
 
 		namespace detail {
 			template <Constraints IterConstraint>
-			class ChunkIteratorImpl {
+			class ChunkIterImpl {
 			protected:
 				Chunk& m_chunk;
 
 			public:
-				ChunkIteratorImpl(Chunk& chunk): m_chunk(chunk) {}
+				ChunkIterImpl(Chunk& chunk): m_chunk(chunk) {}
 
 				//! Returns a read-only entity or component view.
 				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
@@ -17948,9 +17948,9 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		using Iterator = detail::ChunkIteratorImpl<Constraints::EnabledOnly>;
-		using IteratorDisabled = detail::ChunkIteratorImpl<Constraints::DisabledOnly>;
-		using IteratorAll = detail::ChunkIteratorImpl<Constraints::AcceptAll>;
+		using Iter = detail::ChunkIterImpl<Constraints::EnabledOnly>;
+		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
+		using IterAll = detail::ChunkIterImpl<Constraints::AcceptAll>;
 	} // namespace ecs
 } // namespace gaia
 
@@ -18937,7 +18937,7 @@ namespace gaia {
 				//! QueryImpl cache id
 				QueryId m_queryId = QueryIdBad;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
-				QueryCache* m_entityQueryCache{};
+				QueryCache* m_queryCache{};
 			};
 
 			template <>
@@ -19077,12 +19077,12 @@ namespace gaia {
 
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
-						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
+						GAIA_ASSERT(m_storage.m_queryCache != nullptr);
 
 						// If queryId is set it means QueryInfo was already created.
 						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
-							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
+							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_queryId);
 							queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
@@ -19091,7 +19091,7 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.cc = &comp_cache_mut(*m_world);
 						commit(ctx);
-						auto& queryInfo = m_storage.m_entityQueryCache->add(GAIA_MOV(ctx));
+						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
 						queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
 						return queryInfo;
@@ -19493,7 +19493,7 @@ namespace gaia {
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap) {
-					m_storage.m_entityQueryCache = &queryCache;
+					m_storage.m_queryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
@@ -19675,8 +19675,8 @@ namespace gaia {
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-						run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+					run_query_on_chunks<Iter>(queryInfo, [&](Chunk& chunk) {
+						run_query_on_chunk<Iter>(chunk, func, InputArgs{});
 					});
 				}
 
@@ -19684,17 +19684,17 @@ namespace gaia {
 				void each(Func func) {
 					auto& queryInfo = fetch();
 
-					if constexpr (std::is_invocable_v<Func, IteratorAll>)
-						run_query_on_chunks<IteratorAll>(queryInfo, [&](Chunk& chunk) {
-							func(IteratorAll(chunk));
+					if constexpr (std::is_invocable_v<Func, IterAll>)
+						run_query_on_chunks<IterAll>(queryInfo, [&](Chunk& chunk) {
+							func(IterAll(chunk));
 						});
-					else if constexpr (std::is_invocable_v<Func, Iterator>)
-						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-							func(Iterator(chunk));
+					else if constexpr (std::is_invocable_v<Func, Iter>)
+						run_query_on_chunks<Iter>(queryInfo, [&](Chunk& chunk) {
+							func(Iter(chunk));
 						});
-					else if constexpr (std::is_invocable_v<Func, IteratorDisabled>)
-						run_query_on_chunks<IteratorDisabled>(queryInfo, [&](Chunk& chunk) {
-							func(IteratorDisabled(chunk));
+					else if constexpr (std::is_invocable_v<Func, IterDisabled>)
+						run_query_on_chunks<IterDisabled>(queryInfo, [&](Chunk& chunk) {
+							func(IterDisabled(chunk));
 						});
 					else
 						each(queryInfo, func);
@@ -19703,10 +19703,10 @@ namespace gaia {
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
 				void each(QueryId queryId, Func func) {
 					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
+					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
 					GAIA_ASSERT(queryId != QueryIdBad);
 
-					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
+					auto& queryInfo = m_storage.m_queryCache->get(queryId);
 					each(queryInfo, func);
 				}
 
@@ -19726,17 +19726,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, Iterator>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<true, Iter>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<true, IterDisabled>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, IteratorAll>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<true, IterAll>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 						}
@@ -19744,17 +19744,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, Iterator>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<false, Iter>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<false, IterDisabled>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, IteratorAll>(queryInfo, pArchetype->chunks()))
+									if (empty_inter<false, IterAll>(queryInfo, pArchetype->chunks()))
 										return false;
 							} break;
 						}
@@ -19780,30 +19780,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, Iterator>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, Iter>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, IterDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, IteratorAll>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, IterAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, Iterator>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, Iter>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, IterDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, IteratorAll>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, IterAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					}
@@ -19831,30 +19831,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, Iterator>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, Iter>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, IterDisabled>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, IteratorAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, IterAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, Iterator>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, Iter>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, IterDisabled>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, IteratorAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, IterAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					}

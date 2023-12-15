@@ -42,10 +42,11 @@ void prepare_query_types(ecs::EntitySpan in, std::span<ecs::Entity> out) {
 	}
 }
 
+template <bool UseCachedQuery>
 auto create_query(ecs::World& w, ecs::EntitySpan queryTypes) {
 	GAIA_ASSERT(!queryTypes.empty());
 
-	auto query = w.query();
+	auto query = w.query<UseCachedQuery>();
 	for (auto e: queryTypes)
 		query.all(e);
 
@@ -66,15 +67,16 @@ void bench_query_each(picobench::state& state, ecs::Query& query) {
 	}
 }
 
-template <typename Iterator>
-void bench_query_each_iter(picobench::state& state, ecs::Query& query) {
+template <typename TIter, typename TQuery>
+void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	gaia::dont_optimize(query.empty());
+	[[maybe_unused]] bool isEmpty = query.empty();
+	gaia::dont_optimize(isEmpty);
 
 	for (auto _: state) {
 		(void)_;
 		uint32_t cnt = 0;
-		query.each([&](Iterator iter) {
+		query.each([&](TIter iter) {
 			GAIA_EACH(iter) {
 				++cnt;
 			}
@@ -89,7 +91,7 @@ void bench_query_each_iter(picobench::state& state, ecs::Query& query) {
 		auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);                                             \
 		ecs::Entity tmp[QueryComponents];                                                                                  \
 		prepare_query_types({types.data(), types.size()}, tmp);                                                            \
-		auto query = create_query(w, tmp);                                                                                 \
+		auto query = create_query<true>(w, tmp);                                                                           \
 		bench_query_each(state, query);                                                                                    \
 	}
 
@@ -97,25 +99,44 @@ DEFINE_EACH(1, 1, 1)
 DEFINE_EACH(100, 10, 1)
 DEFINE_EACH(1000, 10, 1)
 
+template <bool UseCachedQuery, uint32_t QueryComponents, typename IterKind>
+void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t MaxIdsPerArchetype) {
+	ecs::World w;
+	auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);
+	ecs::Entity tmp[QueryComponents];
+	prepare_query_types({types.data(), types.size()}, tmp);
+	auto query = create_query<UseCachedQuery>(w, tmp);
+	bench_query_each_iter<IterKind>(state, query);
+}
+
 #define DEFINE_EACH_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                \
 	void BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                            \
-		srand(0U);                                                                                                         \
-		ecs::World w;                                                                                                      \
-		auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);                                             \
-		ecs::Entity tmp[QueryComponents];                                                                                  \
-		prepare_query_types({types.data(), types.size()}, tmp);                                                            \
-		auto query = create_query(w, tmp);                                                                                 \
-		bench_query_each_iter<ecs::IterKind>(state, query);                                                                \
+		BM_Each_Iter<true, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                     \
+	}
+#define DEFINE_EACH_U_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                              \
+	void BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                          \
+		BM_Each_Iter<false, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                    \
 	}
 
-DEFINE_EACH_ITER(Iterator, 1, 1, 1)
-DEFINE_EACH_ITER(Iterator, 100, 10, 1)
-DEFINE_EACH_ITER(Iterator, 1000, 10, 1)
-DEFINE_EACH_ITER(IteratorAll, 1000, 10, 1);
+DEFINE_EACH_ITER(IterAll, 1, 1, 1)
+DEFINE_EACH_ITER(Iter, 1, 1, 1)
+DEFINE_EACH_U_ITER(Iter, 1, 1, 1)
 
-DEFINE_EACH_ITER(Iterator, 1000, 10, 3);
-DEFINE_EACH_ITER(Iterator, 1000, 10, 5);
-DEFINE_EACH_ITER(Iterator, 1000, 10, 7);
+DEFINE_EACH_ITER(IterAll, 100, 10, 1)
+DEFINE_EACH_ITER(Iter, 100, 10, 1)
+DEFINE_EACH_U_ITER(Iter, 100, 10, 1)
+
+DEFINE_EACH_ITER(IterAll, 1000, 10, 1);
+DEFINE_EACH_ITER(Iter, 1000, 10, 1)
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 1)
+
+DEFINE_EACH_ITER(Iter, 1000, 10, 3);
+DEFINE_EACH_ITER(Iter, 1000, 10, 5);
+DEFINE_EACH_ITER(Iter, 1000, 10, 7);
+
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 3);
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 5);
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 7);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
@@ -148,23 +169,34 @@ int main(int argc, char* argv[]) {
 		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
 
 		if (profilingMode) {
-			PICOBENCH_REG(BM_Each_IteratorAll_1000_1).PICO_SETTINGS_1().label("1000 archetypes (All)");
+			PICOBENCH_SUITE_REG("1000 archetypes");
+			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("Iter, 7 comps");
 		} else {
-			PICOBENCH_SUITE_REG("each");
-			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("1 archetype");
-			PICOBENCH_REG(BM_Each_100_1).PICO_SETTINGS().label("100 archetypes");
-			PICOBENCH_REG(BM_Each_1000_1).PICO_SETTINGS().label("1000 archetypes");
+			PICOBENCH_SUITE_REG("1 archetype");
+			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAll_1_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_Iter_1_1).PICO_SETTINGS().label("Iter, 1 comp");
+			PICOBENCH_REG(BM_Each_U_Iter_1_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
 
-			PICOBENCH_SUITE_REG("each - iterator");
-			PICOBENCH_REG(BM_Each_Iterator_1_1).PICO_SETTINGS().label("1 archetype");
-			PICOBENCH_REG(BM_Each_Iterator_100_1).PICO_SETTINGS().label("100 archetypes");
-			PICOBENCH_REG(BM_Each_Iterator_1000_1).PICO_SETTINGS().label("1000 archetypes");
-			PICOBENCH_REG(BM_Each_IteratorAll_1000_1).PICO_SETTINGS().label("1000 archetypes (All)");
+			PICOBENCH_SUITE_REG("100 archetypes");
+			PICOBENCH_REG(BM_Each_100_1).PICO_SETTINGS().label("each, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAll_100_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_Iter_100_1).PICO_SETTINGS().label("Iter, 1 comp");
+			PICOBENCH_REG(BM_Each_U_Iter_100_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
 
-			PICOBENCH_SUITE_REG("1000 archetypes, query all");
-			PICOBENCH_REG(BM_Each_Iterator_1000_3).PICO_SETTINGS().label("1000 archetypes, 3 comps");
-			PICOBENCH_REG(BM_Each_Iterator_1000_5).PICO_SETTINGS().label("1000 archetypes, 5 comps");
-			PICOBENCH_REG(BM_Each_Iterator_1000_7).PICO_SETTINGS().label("1000 archetypes, 7 comps");
+			PICOBENCH_SUITE_REG("1000 archetypes");
+			PICOBENCH_REG(BM_Each_1000_1).PICO_SETTINGS().label("each, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAll_1000_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_Iter_1000_1).PICO_SETTINGS().label("Iter, 1 comp");
+			PICOBENCH_REG(BM_Each_U_Iter_1000_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
+
+			PICOBENCH_SUITE_REG("1000 archetypes, Iter");
+			PICOBENCH_REG(BM_Each_Iter_1000_3).PICO_SETTINGS().label("3 comps");
+			PICOBENCH_REG(BM_Each_U_Iter_1000_3).PICO_SETTINGS().label("(u) 3 comps"); // uncached
+			PICOBENCH_REG(BM_Each_Iter_1000_5).PICO_SETTINGS().label("5 comps");
+			PICOBENCH_REG(BM_Each_U_Iter_1000_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
+			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("7 comps");
+			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
 		}
 	}
 

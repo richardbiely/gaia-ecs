@@ -14,12 +14,12 @@ namespace gaia {
 
 		namespace detail {
 			template <Constraints IterConstraint>
-			class ChunkIteratorImpl {
+			class ChunkIterImpl {
 			protected:
 				Chunk& m_chunk;
 
 			public:
-				ChunkIteratorImpl(Chunk& chunk): m_chunk(chunk) {}
+				ChunkIterImpl(Chunk& chunk): m_chunk(chunk) {}
 
 				//! Returns a read-only entity or component view.
 				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
@@ -121,8 +121,8 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		using Iterator = detail::ChunkIteratorImpl<Constraints::EnabledOnly>;
-		using IteratorDisabled = detail::ChunkIteratorImpl<Constraints::DisabledOnly>;
-		using IteratorAll = detail::ChunkIteratorImpl<Constraints::AcceptAll>;
+		using Iter = detail::ChunkIterImpl<Constraints::EnabledOnly>;
+		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
+		using IterAll = detail::ChunkIterImpl<Constraints::AcceptAll>;
 	} // namespace ecs
 } // namespace gaia

@@ -550,7 +550,7 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.each([&](ecs::Iterator iter) {
+		m_q.each([&](ecs::Iter iter) {
 			auto ent = iter.view<ecs::Entity>();
 			auto vel = iter.view_mut<Velocity>();
 			auto pos = iter.view<Position>();
