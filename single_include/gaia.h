@@ -606,7 +606,7 @@ namespace gaia {
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 8
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 2
+#define GAIA_VERSION_PATCH 3
 
 //------------------------------------------------------------------------------
 // General settings.
