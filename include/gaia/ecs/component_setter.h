@@ -12,48 +12,44 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint16_t m_row;
 
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
+			//! Sets the value of the component \tparam T.
+			//! \tparam T Component or pair
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-
-				m_pChunk->template set<FT>(m_row, GAIA_FWD(value));
+				m_pChunk->template set<T>(m_row, GAIA_FWD(value));
 				return *this;
 			}
 
-			template <typename T>
-			ComponentSetter& set(Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
-
-				m_pChunk->template set<T>(m_row, object, GAIA_FWD(value));
-				return *this;
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
+			//! Sets the value of the component \param type.
+			//! \tparam T Component or pair
+			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& sset(U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-
-				m_pChunk->template sset<FT>(m_row, GAIA_FWD(value));
+			template <typename T>
+			ComponentSetter& set(Entity type, T&& value) {
+				m_pChunk->template set<T>(m_row, type, GAIA_FWD(value));
 				return *this;
 			}
 
+			//! Sets the value of the component \tparam T without trigger a world version update.
+			//! \tparam T Component or pair
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename actual_type_t<T>::Type>
+			ComponentSetter& sset(U&& value) {
+				m_pChunk->template sset<T>(m_row, GAIA_FWD(value));
+				return *this;
+			}
+
+			//! Sets the value of the component \param type without trigger a world version update.
+			//! \tparam T Component or pair
+			//! \param type Entity associated with the type
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& sset(Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
-
 				m_pChunk->template sset<T>(m_row, object, GAIA_FWD(value));
 				return *this;
 			}

@@ -1749,6 +1749,91 @@ TEST_CASE("Add - many components, bulk") {
 	GAIA_FOR(N) create();
 }
 
+TEST_CASE("Pair") {
+	{
+		ecs::World w;
+		auto a = w.add();
+		auto b = w.add();
+		auto p = ecs::Pair(a, b);
+		REQUIRE(p.first() == a);
+		REQUIRE(p.second() == b);
+		auto pe = (ecs::Entity)p;
+		REQUIRE(w.get(pe.id()) == a);
+		REQUIRE(w.get(pe.gen()) == b);
+	}
+	{
+		ecs::World w;
+		auto a = w.add<Position>().entity;
+		auto b = w.add<ecs::DependsOn_>().entity;
+		auto p = ecs::Pair(a, b);
+		REQUIRE(ecs::is_pair<decltype(p)>::value);
+		REQUIRE(p.first() == a);
+		REQUIRE(p.second() == b);
+		auto pe = (ecs::Entity)p;
+		REQUIRE_FALSE(ecs::is_pair<decltype(pe)>::value);
+		REQUIRE(w.get(pe.id()) == a);
+		REQUIRE(w.get(pe.gen()) == b);
+	}
+	struct Start {};
+	struct Stop {};
+	{
+		REQUIRE(ecs::is_pair<ecs::pair<Start, Position>>::value);
+		REQUIRE(ecs::is_pair<ecs::pair<Position, Start>>::value);
+
+		using Pair1 = ecs::pair<Start, Position>;
+		static_assert(std::is_same_v<Pair1::rel, Start>);
+		static_assert(std::is_same_v<Pair1::tgt, Position>);
+		using Pair1Actual = ecs::actual_type_t<Pair1>;
+		static_assert(std::is_same_v<Pair1Actual::Type, Position>);
+
+		using Pair2 = ecs::pair<Start, ecs::uni<Position>>;
+		static_assert(std::is_same_v<Pair2::rel, Start>);
+		static_assert(std::is_same_v<Pair2::tgt, ecs::uni<Position>>);
+		using Pair2Actual = ecs::actual_type_t<Pair2>;
+		static_assert(std::is_same_v<Pair2Actual::Type, Position>);
+		static_assert(std::is_same_v<Pair2Actual::TypeFull, ecs::uni<Position>>);
+	}
+	{
+		ecs::World w;
+		auto eStart = w.add<Start>().entity;
+		auto eStop = w.add<Stop>().entity;
+		auto ePos = w.add<Position>().entity;
+		auto e = w.add();
+
+		w.add<Position>(e, {5, 5, 5});
+		w.add(e, ecs::Pair(eStart, ePos));
+		w.add(e, ecs::Pair(eStop, ePos));
+		auto p = w.get<Position>(e);
+		REQUIRE(p.x == 5);
+		REQUIRE(p.y == 5);
+		REQUIRE(p.z == 5);
+
+		w.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50});
+		auto spu = w.get<ecs::pair<Start, ecs::uni<Position>>>(e);
+		REQUIRE(spu.x == 50);
+		REQUIRE(spu.y == 50);
+		REQUIRE(spu.z == 50);
+		REQUIRE(p.x == 5);
+		REQUIRE(p.y == 5);
+		REQUIRE(p.z == 5);
+
+		w.add<ecs::pair<Start, Position>>(e, {100, 100, 100});
+		auto sp = w.get<ecs::pair<Start, Position>>(e);
+		REQUIRE(sp.x == 100);
+		REQUIRE(sp.y == 100);
+		REQUIRE(sp.z == 100);
+
+		p = w.get<Position>(e);
+		spu = w.get<ecs::pair<Start, ecs::uni<Position>>>(e);
+		REQUIRE(p.x == 5);
+		REQUIRE(p.y == 5);
+		REQUIRE(p.z == 5);
+		REQUIRE(spu.x == 50);
+		REQUIRE(spu.y == 50);
+		REQUIRE(spu.z == 50);
+	}
+}
+
 TEST_CASE("CantCombine") {
 	ecs::World w;
 	auto weak = w.add();

@@ -40,88 +40,12 @@ namespace gaia {
 		} // namespace detail
 
 		//----------------------------------------------------------------------
-		// Component type deduction
-		//----------------------------------------------------------------------
-
-		template <typename T>
-		struct uni {
-			static_assert(core::is_raw_v<T>);
-			static_assert(
-					std::is_trivial_v<T> ||
-							// For non-trivial T the comparison operator must be implemented because
-							// defragmentation needs it to figure out is entities can be moved around.
-							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
-					"Non-trivial Uni component must implement operator==");
-
-			//! Component kind
-			static constexpr EntityKind Kind = EntityKind::EK_Uni;
-
-			//! Raw type with no additional sugar
-			using TType = T;
-			//! uni<TType>
-			using TTypeFull = uni<TType>;
-			//! Original template type
-			using TTypeOriginal = T;
-		};
-
-		namespace detail {
-			template <typename, typename = void>
-			struct has_entity_kind: std::false_type {};
-			template <typename T>
-			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
-
-			template <typename T>
-			struct ExtractComponentType_NoEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = EntityKind::EK_Gen;
-
-				//! Raw type with no additional sugar
-				using Type = core::raw_t<T>;
-				//!
-				using TypeFull = Type;
-				//! Original template type
-				using TypeOriginal = T;
-			};
-			template <typename T>
-			struct ExtractComponentType_WithEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = T::Kind;
-
-				//! Raw type with no additional sugar
-				using Type = typename T::TType;
-				//!
-				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
-				//! Original template type
-				using TypeOriginal = typename T::TTypeOriginal;
-			};
-
-			template <typename, typename = void>
-			struct is_gen_component: std::true_type {};
-			template <typename T>
-			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
-
-			template <typename T, typename = void>
-			struct component_type {
-				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
-			};
-			template <typename T>
-			struct component_type<T, std::void_t<decltype(T::Kind)>> {
-				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
-			};
-		} // namespace detail
-
-		template <typename T>
-		using component_type_t = typename detail::component_type<T>::type;
-		template <typename T>
-		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
-
-		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_type_t<T>::TypeOriginal;
+			using U = typename actual_type_t<T>::TypeOriginal;
 
 			// Make sure we only use this for "raw" types
 			static_assert(

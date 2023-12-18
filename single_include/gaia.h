@@ -13881,17 +13881,6 @@ namespace gaia {
 		// Component
 		// ------------------------------------------------------------------------------------
 
-		enum EntityKind : uint8_t {
-			// Generic entity, one per entity
-			EK_Gen = 0,
-			// Unique entity, one per chunk
-			EK_Uni,
-			// Number of entity kinds
-			EK_Count
-		};
-
-		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
-
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
@@ -13965,6 +13954,17 @@ namespace gaia {
 		// ------------------------------------------------------------------------------------
 		// Entity
 		// ------------------------------------------------------------------------------------
+
+		enum EntityKind : uint8_t {
+			// Generic entity, one per entity
+			EK_Gen = 0,
+			// Unique entity, one per chunk
+			EK_Uni,
+			// Number of entity kinds
+			EK_Count
+		};
+
+		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
 
 		struct Entity final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -14069,6 +14069,7 @@ namespace gaia {
 
 		struct Entity EntityBad = Entity(IdentifierBad);
 
+		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint32_t>;
 
@@ -14108,17 +14109,126 @@ namespace gaia {
 			}
 		};
 
+		//! Component used to describe the entity name
 		struct EntityDesc {
 			const char* name{};
 			uint32_t len{};
 		};
 
-		class Pair {
+		//----------------------------------------------------------------------
+		// Id type deduction
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct uni {
+			static_assert(core::is_raw_v<T>);
+			static_assert(
+					std::is_trivial_v<T> ||
+							// For non-trivial T the comparison operator must be implemented because
+							// defragmentation needs it to figure out if entities can be moved around.
+							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+					"Non-trivial Uni component must implement operator==");
+
+			//! Component kind
+			static constexpr EntityKind Kind = EntityKind::EK_Uni;
+
+			//! Raw type with no additional sugar
+			using TType = T;
+			//! uni<TType>
+			using TTypeFull = uni<TType>;
+			//! Original template type
+			using TTypeOriginal = T;
+		};
+
+		namespace detail {
+			template <typename, typename = void>
+			struct has_entity_kind: std::false_type {};
+			template <typename T>
+			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
+
+			template <typename T>
+			struct ExtractComponentType_NoEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = EntityKind::EK_Gen;
+
+				//! Raw type with no additional sugar
+				using Type = core::raw_t<T>;
+				//! Same as Type
+				using TypeFull = Type;
+				//! Original template type
+				using TypeOriginal = T;
+			};
+
+			template <typename T>
+			struct ExtractComponentType_WithEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = T::Kind;
+
+				//! Raw type with no additional sugar
+				using Type = typename T::TType;
+				//! T or uni<T> depending on entity kind specified
+				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
+				//! Original template type
+				using TypeOriginal = typename T::TTypeOriginal;
+			};
+
+			template <typename, typename = void>
+			struct is_gen_component: std::true_type {};
+			template <typename T>
+			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
+
+			template <typename T, typename = void>
+			struct component_type {
+				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
+			};
+			template <typename T>
+			struct component_type<T, std::void_t<decltype(T::Kind)>> {
+				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
+			};
+		} // namespace detail
+
+		template <typename T>
+		using component_type_t = typename detail::component_type<T>::type;
+
+		template <typename T>
+		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
+
+		//----------------------------------------------------------------------
+		// Pair
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			struct pair_base {};
+		} // namespace detail
+
+		//! Wrapper for two types forming a relationship pair.
+		//! Depending on what types are used to form a pair it can contain a value.
+		//! To determine the storage type the following logic is applied:
+		//! If \tparam Rel is non-empty, the storage type is Rel.
+		//! If \tparam Rel is empty and \tparam Tgt is non-empty, the storage type is Tgt.
+		//! \tparam Rel relation part of the relationship
+		//! \tparam Tgt target part of the relationship
+		template <typename Rel, typename Tgt>
+		class pair: public detail::pair_base {
+			using rel_comp_type = component_type_t<Rel>;
+			using tgt_comp_type = component_type_t<Tgt>;
+
+		public:
+			using rel = typename rel_comp_type::TypeFull;
+			using tgt = typename tgt_comp_type::TypeFull;
+			using rel_type = typename rel_comp_type::Type;
+			using tgt_type = typename tgt_comp_type::Type;
+			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
+		};
+
+		//! Wrapper for two Entities forming a relationship pair.
+		template <>
+		class pair<Entity, Entity>: public detail::pair_base {
 			Entity m_first;
 			Entity m_second;
 
 		public:
-			Pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
+			pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
 
 			operator Entity() const noexcept {
 				return Entity(m_first.id(), m_second.id(), false, true, EntityKind::EK_Gen);
@@ -14132,13 +14242,44 @@ namespace gaia {
 				return m_second;
 			}
 
-			bool operator==(const Pair& other) const {
+			bool operator==(const pair& other) const {
 				return m_first == other.m_first && m_second == other.m_second;
 			}
-			bool operator!=(const Pair& other) const {
+			bool operator!=(const pair& other) const {
 				return !operator==(other);
 			}
 		};
+
+		using Pair = pair<Entity, Entity>;
+
+		template <typename T>
+		struct is_pair {
+			static constexpr bool value = std::is_base_of<detail::pair_base, core::raw_t<T>>::value;
+		};
+
+		//----------------------------------------------------------------------
+		// Core components
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			template <typename T, typename U = void>
+			struct actual_type {
+				using type = typename component_type<T>::type;
+			};
+
+			template <typename T>
+			struct actual_type<T, std::enable_if_t<is_pair<T>::value>> {
+				using storage_type = typename T::type;
+				using type = typename component_type<storage_type>::type;
+			};
+		} // namespace detail
+
+		template <typename T>
+		using actual_type_t = typename detail::actual_type<T>::type;
+
+		//----------------------------------------------------------------------
+		// Core components
+		//----------------------------------------------------------------------
 
 		//! Core component. The entity it is attached to is ignored by queries
 		struct Core_ {};
@@ -14153,6 +14294,10 @@ namespace gaia {
 		struct All_ {};
 		struct ChildOf_ {};
 		struct AliasOf_ {};
+
+		//----------------------------------------------------------------------
+		// Core component entities
+		//----------------------------------------------------------------------
 
 		//! Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
@@ -14179,10 +14324,14 @@ namespace gaia {
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = AliasOf;
 
-		inline bool is_wildcard(Entity entity) {
+		//----------------------------------------------------------------------
+		// Helper functions
+		//----------------------------------------------------------------------
+
+		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
 			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
 		}
-		inline bool is_wildcard(Pair pair) {
+		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
 		}
 	} // namespace ecs
@@ -14218,88 +14367,12 @@ namespace gaia {
 		} // namespace detail
 
 		//----------------------------------------------------------------------
-		// Component type deduction
-		//----------------------------------------------------------------------
-
-		template <typename T>
-		struct uni {
-			static_assert(core::is_raw_v<T>);
-			static_assert(
-					std::is_trivial_v<T> ||
-							// For non-trivial T the comparison operator must be implemented because
-							// defragmentation needs it to figure out is entities can be moved around.
-							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
-					"Non-trivial Uni component must implement operator==");
-
-			//! Component kind
-			static constexpr EntityKind Kind = EntityKind::EK_Uni;
-
-			//! Raw type with no additional sugar
-			using TType = T;
-			//! uni<TType>
-			using TTypeFull = uni<TType>;
-			//! Original template type
-			using TTypeOriginal = T;
-		};
-
-		namespace detail {
-			template <typename, typename = void>
-			struct has_entity_kind: std::false_type {};
-			template <typename T>
-			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
-
-			template <typename T>
-			struct ExtractComponentType_NoEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = EntityKind::EK_Gen;
-
-				//! Raw type with no additional sugar
-				using Type = core::raw_t<T>;
-				//!
-				using TypeFull = Type;
-				//! Original template type
-				using TypeOriginal = T;
-			};
-			template <typename T>
-			struct ExtractComponentType_WithEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = T::Kind;
-
-				//! Raw type with no additional sugar
-				using Type = typename T::TType;
-				//!
-				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
-				//! Original template type
-				using TypeOriginal = typename T::TTypeOriginal;
-			};
-
-			template <typename, typename = void>
-			struct is_gen_component: std::true_type {};
-			template <typename T>
-			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
-
-			template <typename T, typename = void>
-			struct component_type {
-				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
-			};
-			template <typename T>
-			struct component_type<T, std::void_t<decltype(T::Kind)>> {
-				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
-			};
-		} // namespace detail
-
-		template <typename T>
-		using component_type_t = typename detail::component_type<T>::type;
-		template <typename T>
-		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
-
-		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_type_t<T>::TypeOriginal;
+			using U = typename actual_type_t<T>::TypeOriginal;
 
 			// Make sure we only use this for "raw" types
 			static_assert(
@@ -15577,6 +15650,9 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				GAIA_ASSERT(!entity.pair());
+
 				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
@@ -15670,6 +15746,7 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
+				GAIA_ASSERT(!entity.pair());
 				const auto it = m_compByEntity.find(EntityLookupKey(entity));
 				if (it != m_compByEntity.end())
 					return it->second;
@@ -15682,6 +15759,7 @@ namespace gaia {
 			//! \return Component info.
 			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(Entity entity) const noexcept {
+				GAIA_ASSERT(!entity.pair());
 				const auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
@@ -15716,6 +15794,7 @@ namespace gaia {
 			//! \return Component info or nullptr if not found.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem* find() const noexcept {
+				static_assert(!is_pair<T>::value);
 				const auto compDescId = detail::ComponentDesc<T>::id();
 				return find(compDescId);
 			}
@@ -15725,6 +15804,7 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& get() const noexcept {
+				static_assert(!is_pair<T>::value);
 				const auto compDescId = detail::ComponentDesc<T>::id();
 				return get(compDescId);
 			}
@@ -15998,13 +16078,28 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
 					-> decltype(std::span<const uint8_t>{}) {
-				using U = typename component_type_t<T>::Type;
-
 				GAIA_ASSERT(to <= size());
 
-				if constexpr (std::is_same_v<U, Entity>) {
+				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
 					return {(const uint8_t*)&m_records.pEntities[from], to - from};
+				} else if constexpr (is_pair<T>::value) {
+					using TT = typename T::type;
+					using U = typename component_type_t<TT>::Type;
+					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
+
+					constexpr auto kind = entity_kind_v<TT>;
+					const auto rel = m_header.cc->get<typename T::rel>().entity;
+					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
+					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
+
+					if constexpr (kind == EntityKind::EK_Gen) {
+						return {comp_ptr(compIdx, from), to - from};
+					} else {
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
+						return {comp_ptr(compIdx), 1};
+					}
 				} else {
+					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					constexpr auto kind = entity_kind_v<T>;
@@ -16031,16 +16126,33 @@ namespace gaia {
 			template <typename T, bool WorldVersionUpdateWanted>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
 					-> decltype(std::span<uint8_t>{}) {
-				using U = typename component_type_t<T>::Type;
-
 				GAIA_ASSERT(to <= size());
 
-				if constexpr (std::is_same_v<U, Entity>) {
-					static_assert(!WorldVersionUpdateWanted);
+				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "view_mut can't be used to modify Entity");
 
-					return {(uint8_t*)&m_records.pEntities[from], to - from};
+				if constexpr (is_pair<T>::value) {
+					using TT = typename T::type;
+					using U = typename component_type_t<TT>::Type;
+					static_assert(!std::is_empty_v<U>, "view_mut can't be used to modify tag components");
+
+					constexpr auto kind = entity_kind_v<TT>;
+					const auto rel = m_header.cc->get<typename T::rel>().entity;
+					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
+					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
+
+					// Update version number if necessary so we know RW access was used on the chunk
+					if constexpr (WorldVersionUpdateWanted)
+						update_world_version(compIdx);
+
+					if constexpr (kind == EntityKind::EK_Gen) {
+						return {comp_ptr_mut(compIdx, from), to - from};
+					} else {
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
+						return {comp_ptr_mut(compIdx), 1};
+					}
 				} else {
-					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
+					using U = typename component_type_t<T>::Type;
+					static_assert(!std::is_empty_v<U>, "view_mut can't be used to modify tag components");
 
 					constexpr auto kind = entity_kind_v<T>;
 					const auto comp = m_header.cc->get<T>().entity;
@@ -16070,7 +16182,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) comp_inter(uint16_t row) const {
-				using U = typename component_type_t<T>::Type;
+				using U = typename actual_type_t<T>::Type;
 				using RetValueType = decltype(view<T>()[0]);
 
 				GAIA_ASSERT(row < m_header.count);
@@ -16228,8 +16340,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view(uint16_t from, uint16_t to) const {
-				using U = typename component_type_t<T>::Type;
-
+				using U = typename actual_type_t<T>::Type;
 				return mem::auto_view_policy_get<U>{view_inter<T>(from, to)};
 			}
 
@@ -16248,15 +16359,16 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_mut(uint16_t from, uint16_t to) {
-				using U = typename component_type_t<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>);
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(from, to)};
 			}
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_mut() {
-				return view_mut<T>(0, size());
+				using TT = core::raw_t<T>;
+				return view_mut<TT>(0, size());
 			}
 
 			/*!
@@ -16270,8 +16382,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_mut(uint16_t from, uint16_t to) {
-				using U = typename component_type_t<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>);
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
 			}
@@ -16292,7 +16404,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_auto(uint16_t from, uint16_t to) {
-				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				if constexpr (core::is_mut_v<UOriginal>)
 					return view_mut<T>(from, to);
 				else
@@ -16316,7 +16428,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_auto(uint16_t from, uint16_t to) {
-				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				using UOriginal = typename actual_type_t<T>::TypeOriginal;
 				if constexpr (core::is_mut_v<UOriginal>)
 					return sview_mut<T>(from, to);
 				else
@@ -16792,13 +16904,19 @@ namespace gaia {
 
 			/*!
 			Checks if component \tparam T is present in the chunk.
-			\tparam T Component
+			\tparam T Component or pair
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				const auto* pComp = m_header.cc->find<T>();
-				return pComp != nullptr && has(pComp->entity);
+				if constexpr (is_pair<T>::value) {
+					const auto rel = m_header.cc->get<typename T::rel>().entity;
+					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
+					return has((Entity)Pair(rel, tgt));
+				} else {
+					const auto* pComp = m_header.cc->find<T>();
+					return pComp != nullptr && has(pComp->entity);
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -16807,15 +16925,17 @@ namespace gaia {
 
 			/*!
 			Sets the value of the unique component \tparam T on \param row in the chunk.
-			\tparam T Component
+			\tparam T Component or pair
 			\param row Row of entity in the chunk
 			\param value Value to set for the component
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void set(uint16_t row, U&& value) {
+				verify_comp<T>();
+
 				GAIA_ASSERT2(
-						entity_kind_v<T> == EntityKind::EK_Gen || row == 0,
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				// Update the world version
@@ -16826,39 +16946,48 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of a generic entity \param object at the position \param row in the chunk.
+			Sets the value of a generic entity \param type at the position \param row in the chunk.
 			\param row Row of entity in the chunk
-			\param object Component/entity
+			\param type Component/entity/pair
 			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
 			otherwise.
 			*/
 			template <typename T>
-			void set(uint16_t row, [[maybe_unused]] Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
+			void set(uint16_t row, Entity type, T&& value) {
+				verify_comp<T>();
 
 				GAIA_ASSERT2(
-						object.kind() == EntityKind::EK_Gen || row == 0,
+						type.kind() == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 
 				// Update the world version
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
+
+				// TODO: This function work but is useless because it does the same job as
+				//       set(uint16_t row, U&& value).
+				//       This is because T needs to match U anyway so the component lookup can succeed.
+				(void)type;
+				// const uint32_t col = comp_idx(type);
+				//(void)col;
+
 				view_mut<T>()[row] = GAIA_FWD(value);
 			}
 
 			/*!
 			Sets the value of the unique component \tparam T on \param row in the chunk.
-			\tparam T Component
+			\tparam T Component or pair
 			\param row Row of entity in the chunk
 			\param value Value to set for the component
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void sset(uint16_t row, U&& value) {
 				GAIA_ASSERT2(
-						entity_kind_v<T> == EntityKind::EK_Gen || row == 0,
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
@@ -16868,7 +16997,7 @@ namespace gaia {
 			/*!
 			Sets the value of a generic entity \param object at the position \param row in the chunk.
 			\param row Row of entity in the chunk
-			\param object Component/entity
+			\param object Component/entity/pair
 			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
 			otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
@@ -16893,7 +17022,7 @@ namespace gaia {
 			Returns the value stored in the generic component \tparam T on \param row in the chunk.
 			\warning It is expected the \param row is valid. Undefined behavior otherwise.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
+			\tparam T Component or pair
 			\param row Row of entity in the chunk
 			\return Value stored in the component.
 			*/
@@ -16908,7 +17037,7 @@ namespace gaia {
 			/*!
 			Returns the value stored in the unique component \tparam T.
 			\warning It is expected the unique component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
+			\tparam T Component or pair
 			\return Value stored in the component.
 			*/
 			template <typename T>
@@ -17080,6 +17209,7 @@ namespace gaia {
 		struct EntityContainer;
 
 		inline const ComponentCache& comp_cache(const World& world);
+		inline Entity entity_from_id(const World& world, EntityId id);
 		inline const char* entity_name(const World& world, Entity entity);
 		inline const char* entity_name(const World& world, EntityId entityId);
 
@@ -17287,8 +17417,8 @@ namespace gaia {
 			}
 
 		public:
-			Archetype(Archetype&& world) = delete;
-			Archetype(const Archetype& world) = delete;
+			Archetype(Archetype&&) = delete;
+			Archetype(const Archetype&) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
@@ -17303,7 +17433,9 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static Archetype*
-			create(const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
+			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
+				const auto& cc = comp_cache(world);
+
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
@@ -17312,14 +17444,26 @@ namespace gaia {
 				newArch->m_comps.resize((uint32_t)ids.size());
 				newArch->m_compOffs.resize((uint32_t)ids.size());
 
+				auto as_comp = [&](Entity entity) {
+					const auto* pDesc = cc.find(entity);
+					return pDesc == nullptr //
+										 ? Component(IdentifierIdBad, 0, 0, 0) //
+										 : pDesc->comp;
+				};
+
 				// Prepare m_comps array
 				auto comps = std::span(newArch->m_comps.data(), newArch->m_comps.size());
 				GAIA_EACH(ids) {
-					const auto* pDesc = cc.find(ids[i]);
-					if (pDesc == nullptr)
-						comps[i] = Component(IdentifierIdBad, 0, 0, 0);
-					else
-						comps[i] = pDesc->comp;
+					if (ids[i].pair()) {
+						// When using pairs we need to decode the storage type from them.
+						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
+						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
+						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
+						const uint32_t idx = uint32_t(pairComponents[0].size() != 0U) | uint32_t(pairComponents[1].size() == 0U);
+						comps[i] = pairComponents[idx];
+					} else {
+						comps[i] = as_comp(ids[i]);
+					}
 				}
 
 				// Calculate offsets
@@ -18195,48 +18339,44 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint16_t m_row;
 
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
+			//! Sets the value of the component \tparam T.
+			//! \tparam T Component or pair
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-
-				m_pChunk->template set<FT>(m_row, GAIA_FWD(value));
+				m_pChunk->template set<T>(m_row, GAIA_FWD(value));
 				return *this;
 			}
 
-			template <typename T>
-			ComponentSetter& set(Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
-
-				m_pChunk->template set<T>(m_row, object, GAIA_FWD(value));
-				return *this;
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
+			//! Sets the value of the component \param type.
+			//! \tparam T Component or pair
+			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& sset(U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				verify_comp<T>();
-
-				m_pChunk->template sset<FT>(m_row, GAIA_FWD(value));
+			template <typename T>
+			ComponentSetter& set(Entity type, T&& value) {
+				m_pChunk->template set<T>(m_row, type, GAIA_FWD(value));
 				return *this;
 			}
 
+			//! Sets the value of the component \tparam T without trigger a world version update.
+			//! \tparam T Component or pair
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename actual_type_t<T>::Type>
+			ComponentSetter& sset(U&& value) {
+				m_pChunk->template sset<T>(m_row, GAIA_FWD(value));
+				return *this;
+			}
+
+			//! Sets the value of the component \param type without trigger a world version update.
+			//! \tparam T Component or pair
+			//! \param type Entity associated with the type
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& sset(Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
-
 				m_pChunk->template sset<T>(m_row, object, GAIA_FWD(value));
 				return *this;
 			}
@@ -20038,10 +20178,23 @@ namespace gaia {
 					return add(Pair(ChildOf, parent));
 				}
 
+				//! Takes care of registering the component \tparam T
+				template <typename T>
+				Entity register_component() {
+					if constexpr (is_pair<T>::value) {
+						const auto rel = m_world.add<typename T::rel>().entity;
+						const auto tgt = m_world.add<typename T::tgt>().entity;
+						add_inter(Pair(rel, tgt));
+						return (Entity)Pair(rel, tgt);
+					} else {
+						return m_world.add<T>().entity;
+					}
+				}
+
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
-					(add(m_world.add<T>().entity), ...);
+					(add(register_component<T>()), ...);
 					return *this;
 				}
 
@@ -20069,7 +20222,7 @@ namespace gaia {
 				template <typename... T>
 				EntityBuilder& del() {
 					(verify_comp<T>(), ...);
-					(del(m_world.add<T>().entity), ...);
+					(del(register_component<T>()), ...);
 					return *this;
 				}
 
@@ -20479,7 +20632,7 @@ namespace gaia {
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
-				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, entities);
+				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
 				for (auto entity: entities) {
 					add_entity_archetype_pair(entity, pArchetype);
@@ -21624,6 +21777,8 @@ namespace gaia {
 			//! \return Component cache item of the component
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& add() {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 				constexpr auto kind = CT::Kind;
@@ -21675,9 +21830,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				EntityBuilder(*this, entity).add<FT>();
+				EntityBuilder(*this, entity).add<T>();
 			}
 
 			//! Attaches \param object to \param entity. Also sets its value.
@@ -21705,20 +21858,15 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				constexpr auto kind = (uint32_t)CT::Kind;
-
-				GAIA_ASSERT(!entity.pair());
-
-				EntityBuilder(*this, entity).add<FT>();
+				EntityBuilder(*this, entity).add<T>();
 
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
+				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
-				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
+				ComponentSetter{ec.pChunk, idx}.set<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -21877,9 +22025,32 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			void set(Entity entity, U&& value) {
+			template <typename T>
+			void set(Entity entity, typename component_type_t<T>::Type&& value) {
+				static_assert(!is_pair<T>::value);
+
 				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				ComponentSetter{ec.pChunk, ec.row}.set<FT>(GAIA_FWD(value));
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			void set(Entity entity, typename T::type&& value) {
+				static_assert(is_pair<T>::value);
+
+				using U = typename T::type;
+				using CT = component_type_t<U>;
 				using FT = typename CT::TypeFull;
 
 				GAIA_ASSERT(valid(entity));
@@ -22426,24 +22597,28 @@ namespace gaia {
 			}
 		};
 
-		inline const ComponentCache& comp_cache(const World& world) {
+		GAIA_NODISCARD inline const ComponentCache& comp_cache(const World& world) {
 			return world.comp_cache();
 		}
 
-		inline ComponentCache& comp_cache_mut(World& world) {
+		GAIA_NODISCARD inline ComponentCache& comp_cache_mut(World& world) {
 			return world.comp_cache_mut();
 		}
 
 		template <typename T>
-		inline const ComponentCacheItem& comp_cache_add(World& world) {
+		GAIA_NODISCARD inline const ComponentCacheItem& comp_cache_add(World& world) {
 			return world.add<T>();
 		}
 
-		inline const char* entity_name(const World& world, Entity entity) {
+		GAIA_NODISCARD inline Entity entity_from_id(const World& world, EntityId id) {
+			return world.get(id);
+		}
+
+		GAIA_NODISCARD inline const char* entity_name(const World& world, Entity entity) {
 			return world.name(entity);
 		}
 
-		inline const char* entity_name(const World& world, EntityId entityId) {
+		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
 		}
 	} // namespace ecs

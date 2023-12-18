@@ -171,10 +171,23 @@ namespace gaia {
 					return add(Pair(ChildOf, parent));
 				}
 
+				//! Takes care of registering the component \tparam T
+				template <typename T>
+				Entity register_component() {
+					if constexpr (is_pair<T>::value) {
+						const auto rel = m_world.add<typename T::rel>().entity;
+						const auto tgt = m_world.add<typename T::tgt>().entity;
+						add_inter(Pair(rel, tgt));
+						return (Entity)Pair(rel, tgt);
+					} else {
+						return m_world.add<T>().entity;
+					}
+				}
+
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
-					(add(m_world.add<T>().entity), ...);
+					(add(register_component<T>()), ...);
 					return *this;
 				}
 
@@ -202,7 +215,7 @@ namespace gaia {
 				template <typename... T>
 				EntityBuilder& del() {
 					(verify_comp<T>(), ...);
-					(del(m_world.add<T>().entity), ...);
+					(del(register_component<T>()), ...);
 					return *this;
 				}
 
@@ -612,7 +625,7 @@ namespace gaia {
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
-				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, entities);
+				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
 				for (auto entity: entities) {
 					add_entity_archetype_pair(entity, pArchetype);
@@ -1757,6 +1770,8 @@ namespace gaia {
 			//! \return Component cache item of the component
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& add() {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 				constexpr auto kind = CT::Kind;
@@ -1808,9 +1823,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				EntityBuilder(*this, entity).add<FT>();
+				EntityBuilder(*this, entity).add<T>();
 			}
 
 			//! Attaches \param object to \param entity. Also sets its value.
@@ -1838,20 +1851,15 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				constexpr auto kind = (uint32_t)CT::Kind;
-
-				GAIA_ASSERT(!entity.pair());
-
-				EntityBuilder(*this, entity).add<FT>();
+				EntityBuilder(*this, entity).add<T>();
 
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
+				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
-				ComponentSetter{ec.pChunk, idx}.set<FT>(GAIA_FWD(value));
+				ComponentSetter{ec.pChunk, idx}.set<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -2010,9 +2018,32 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			void set(Entity entity, U&& value) {
+			template <typename T>
+			void set(Entity entity, typename component_type_t<T>::Type&& value) {
+				static_assert(!is_pair<T>::value);
+
 				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				ComponentSetter{ec.pChunk, ec.row}.set<FT>(GAIA_FWD(value));
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			void set(Entity entity, typename T::type&& value) {
+				static_assert(is_pair<T>::value);
+
+				using U = typename T::type;
+				using CT = component_type_t<U>;
 				using FT = typename CT::TypeFull;
 
 				GAIA_ASSERT(valid(entity));
@@ -2559,24 +2590,28 @@ namespace gaia {
 			}
 		};
 
-		inline const ComponentCache& comp_cache(const World& world) {
+		GAIA_NODISCARD inline const ComponentCache& comp_cache(const World& world) {
 			return world.comp_cache();
 		}
 
-		inline ComponentCache& comp_cache_mut(World& world) {
+		GAIA_NODISCARD inline ComponentCache& comp_cache_mut(World& world) {
 			return world.comp_cache_mut();
 		}
 
 		template <typename T>
-		inline const ComponentCacheItem& comp_cache_add(World& world) {
+		GAIA_NODISCARD inline const ComponentCacheItem& comp_cache_add(World& world) {
 			return world.add<T>();
 		}
 
-		inline const char* entity_name(const World& world, Entity entity) {
+		GAIA_NODISCARD inline Entity entity_from_id(const World& world, EntityId id) {
+			return world.get(id);
+		}
+
+		GAIA_NODISCARD inline const char* entity_name(const World& world, Entity entity) {
 			return world.name(entity);
 		}
 
-		inline const char* entity_name(const World& world, EntityId entityId) {
+		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
 		}
 	} // namespace ecs

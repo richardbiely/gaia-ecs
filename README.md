@@ -99,13 +99,13 @@
 # Introduction
 
 ## ECS
-[Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is a software architectural pattern based on organizing your code around data which follows the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).
+[Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is a software architectural pattern based on organizing your code around data which follows the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).  
 
 Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
 
 This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code that is easier to maintain, expand and reason about.
 
-For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
+For instance, when moving an object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
 Three building blocks of ECS are:
 * **Entity** - an index that uniquely identifies a group of components
@@ -117,12 +117,26 @@ The actual movement is handled by systems. Those that match against the Flying c
 
 On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could even be both in terms of latency and absolute performance. At the cost of data safety.
 
+The main benefits of a well designed ECS could be sumarized as:
+1) *Modularity and Reusability* - ECS promotes modular and reusable code with self-contained components
+2) *Decoupling of Logic* - separates data from logic for independent development
+3) *Flexibility and Composition* - allows flexible object behavior through composition of entities with specific components
+4) *Scalability* - scales well with a predictable performance impact as the number of entities increases
+5) *Ease of Maintenance and Debugging* - facilitates easier bug tracking and maintenance with a modular structure
+6) *Adaptability* - easily adapts to changing project requirements through component and system modifications
+7) *Facilitation of System Design* - encourages a data-driven design approach for cleaner and more organized code
+8) *Performance* - enhances performance by optimizing for data locality and supports data- and thread-level parallelism almost out-of-the-box
+
 ## Implementation
-**Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs.
+**Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
 
-Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
+Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs. Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator.
 
-The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph and having the ability to add and remove components in batches.
+Components of the same type are group together and laid out linearily in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
+
+The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize.
+
+On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph and having the ability to add and remove components in batches.
 
 In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
@@ -763,6 +777,27 @@ A nice side-effect of relationships is they allow for multiple components/entiti
 // "eats" is added twice to the entity "rabbit"
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(rabbit, ecs::Pair(eats, salad));
+```
+
+Pairs do not need to be formed from tag entities only. Use can use components to build a pair which means they can store data, too!
+To determine the storage type of Pair(rel, target) the following logic is applied:
+1) if "relation" is non-empty, the storage type is rel.
+2) if "relation" is empty and "target" is non-empty, the storage type is "target".
+
+```cpp
+struct Start{};
+struct Position{ int x, y; };
+...
+ecs::Entity e = w.add();
+// Add (Start, Position) from component entities.
+ecs::Entity start_entity = w.add<Start>.entity;
+ecs::Entity pos_entity = w.add<Position>.entity;
+w.add(e, ecs::Pair(start_entity, pos_entity));
+// Add (Start, Position) pair to entity e using a compile-time component pair.
+w.add<ecs::pair<Start, Position>(e);
+// Add (Start, Position) pair to entity e using a compile-time component pair and set its value.
+// According the rules defined above, the storage type used for the pair is Position.
+w.add<ecs::pair<Start, Position>(e, {10, 15});
 ```
 
 ### Targets

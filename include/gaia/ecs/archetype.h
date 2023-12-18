@@ -26,6 +26,7 @@ namespace gaia {
 		struct EntityContainer;
 
 		inline const ComponentCache& comp_cache(const World& world);
+		inline Entity entity_from_id(const World& world, EntityId id);
 		inline const char* entity_name(const World& world, Entity entity);
 		inline const char* entity_name(const World& world, EntityId entityId);
 
@@ -233,8 +234,8 @@ namespace gaia {
 			}
 
 		public:
-			Archetype(Archetype&& world) = delete;
-			Archetype(const Archetype& world) = delete;
+			Archetype(Archetype&&) = delete;
+			Archetype(const Archetype&) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
@@ -249,7 +250,9 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static Archetype*
-			create(const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
+			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
+				const auto& cc = comp_cache(world);
+
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
@@ -258,14 +261,26 @@ namespace gaia {
 				newArch->m_comps.resize((uint32_t)ids.size());
 				newArch->m_compOffs.resize((uint32_t)ids.size());
 
+				auto as_comp = [&](Entity entity) {
+					const auto* pDesc = cc.find(entity);
+					return pDesc == nullptr //
+										 ? Component(IdentifierIdBad, 0, 0, 0) //
+										 : pDesc->comp;
+				};
+
 				// Prepare m_comps array
 				auto comps = std::span(newArch->m_comps.data(), newArch->m_comps.size());
 				GAIA_EACH(ids) {
-					const auto* pDesc = cc.find(ids[i]);
-					if (pDesc == nullptr)
-						comps[i] = Component(IdentifierIdBad, 0, 0, 0);
-					else
-						comps[i] = pDesc->comp;
+					if (ids[i].pair()) {
+						// When using pairs we need to decode the storage type from them.
+						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
+						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
+						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
+						const uint32_t idx = uint32_t(pairComponents[0].size() != 0U) | uint32_t(pairComponents[1].size() == 0U);
+						comps[i] = pairComponents[idx];
+					} else {
+						comps[i] = as_comp(ids[i]);
+					}
 				}
 
 				// Calculate offsets

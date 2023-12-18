@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "../core/hashing_policy.h"
+#include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
 
 namespace gaia {
@@ -26,17 +27,6 @@ namespace gaia {
 		// ------------------------------------------------------------------------------------
 		// Component
 		// ------------------------------------------------------------------------------------
-
-		enum EntityKind : uint8_t {
-			// Generic entity, one per entity
-			EK_Gen = 0,
-			// Unique entity, one per chunk
-			EK_Uni,
-			// Number of entity kinds
-			EK_Count
-		};
-
-		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
 
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -111,6 +101,17 @@ namespace gaia {
 		// ------------------------------------------------------------------------------------
 		// Entity
 		// ------------------------------------------------------------------------------------
+
+		enum EntityKind : uint8_t {
+			// Generic entity, one per entity
+			EK_Gen = 0,
+			// Unique entity, one per chunk
+			EK_Uni,
+			// Number of entity kinds
+			EK_Count
+		};
+
+		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
 
 		struct Entity final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -215,6 +216,7 @@ namespace gaia {
 
 		struct Entity EntityBad = Entity(IdentifierBad);
 
+		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint32_t>;
 
@@ -254,17 +256,126 @@ namespace gaia {
 			}
 		};
 
+		//! Component used to describe the entity name
 		struct EntityDesc {
 			const char* name{};
 			uint32_t len{};
 		};
 
-		class Pair {
+		//----------------------------------------------------------------------
+		// Id type deduction
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct uni {
+			static_assert(core::is_raw_v<T>);
+			static_assert(
+					std::is_trivial_v<T> ||
+							// For non-trivial T the comparison operator must be implemented because
+							// defragmentation needs it to figure out if entities can be moved around.
+							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+					"Non-trivial Uni component must implement operator==");
+
+			//! Component kind
+			static constexpr EntityKind Kind = EntityKind::EK_Uni;
+
+			//! Raw type with no additional sugar
+			using TType = T;
+			//! uni<TType>
+			using TTypeFull = uni<TType>;
+			//! Original template type
+			using TTypeOriginal = T;
+		};
+
+		namespace detail {
+			template <typename, typename = void>
+			struct has_entity_kind: std::false_type {};
+			template <typename T>
+			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
+
+			template <typename T>
+			struct ExtractComponentType_NoEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = EntityKind::EK_Gen;
+
+				//! Raw type with no additional sugar
+				using Type = core::raw_t<T>;
+				//! Same as Type
+				using TypeFull = Type;
+				//! Original template type
+				using TypeOriginal = T;
+			};
+
+			template <typename T>
+			struct ExtractComponentType_WithEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = T::Kind;
+
+				//! Raw type with no additional sugar
+				using Type = typename T::TType;
+				//! T or uni<T> depending on entity kind specified
+				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
+				//! Original template type
+				using TypeOriginal = typename T::TTypeOriginal;
+			};
+
+			template <typename, typename = void>
+			struct is_gen_component: std::true_type {};
+			template <typename T>
+			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
+
+			template <typename T, typename = void>
+			struct component_type {
+				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
+			};
+			template <typename T>
+			struct component_type<T, std::void_t<decltype(T::Kind)>> {
+				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
+			};
+		} // namespace detail
+
+		template <typename T>
+		using component_type_t = typename detail::component_type<T>::type;
+
+		template <typename T>
+		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
+
+		//----------------------------------------------------------------------
+		// Pair
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			struct pair_base {};
+		} // namespace detail
+
+		//! Wrapper for two types forming a relationship pair.
+		//! Depending on what types are used to form a pair it can contain a value.
+		//! To determine the storage type the following logic is applied:
+		//! If \tparam Rel is non-empty, the storage type is Rel.
+		//! If \tparam Rel is empty and \tparam Tgt is non-empty, the storage type is Tgt.
+		//! \tparam Rel relation part of the relationship
+		//! \tparam Tgt target part of the relationship
+		template <typename Rel, typename Tgt>
+		class pair: public detail::pair_base {
+			using rel_comp_type = component_type_t<Rel>;
+			using tgt_comp_type = component_type_t<Tgt>;
+
+		public:
+			using rel = typename rel_comp_type::TypeFull;
+			using tgt = typename tgt_comp_type::TypeFull;
+			using rel_type = typename rel_comp_type::Type;
+			using tgt_type = typename tgt_comp_type::Type;
+			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
+		};
+
+		//! Wrapper for two Entities forming a relationship pair.
+		template <>
+		class pair<Entity, Entity>: public detail::pair_base {
 			Entity m_first;
 			Entity m_second;
 
 		public:
-			Pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
+			pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
 
 			operator Entity() const noexcept {
 				return Entity(m_first.id(), m_second.id(), false, true, EntityKind::EK_Gen);
@@ -278,13 +389,44 @@ namespace gaia {
 				return m_second;
 			}
 
-			bool operator==(const Pair& other) const {
+			bool operator==(const pair& other) const {
 				return m_first == other.m_first && m_second == other.m_second;
 			}
-			bool operator!=(const Pair& other) const {
+			bool operator!=(const pair& other) const {
 				return !operator==(other);
 			}
 		};
+
+		using Pair = pair<Entity, Entity>;
+
+		template <typename T>
+		struct is_pair {
+			static constexpr bool value = std::is_base_of<detail::pair_base, core::raw_t<T>>::value;
+		};
+
+		//----------------------------------------------------------------------
+		// Core components
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			template <typename T, typename U = void>
+			struct actual_type {
+				using type = typename component_type<T>::type;
+			};
+
+			template <typename T>
+			struct actual_type<T, std::enable_if_t<is_pair<T>::value>> {
+				using storage_type = typename T::type;
+				using type = typename component_type<storage_type>::type;
+			};
+		} // namespace detail
+
+		template <typename T>
+		using actual_type_t = typename detail::actual_type<T>::type;
+
+		//----------------------------------------------------------------------
+		// Core components
+		//----------------------------------------------------------------------
 
 		//! Core component. The entity it is attached to is ignored by queries
 		struct Core_ {};
@@ -299,6 +441,10 @@ namespace gaia {
 		struct All_ {};
 		struct ChildOf_ {};
 		struct AliasOf_ {};
+
+		//----------------------------------------------------------------------
+		// Core component entities
+		//----------------------------------------------------------------------
 
 		//! Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
@@ -325,10 +471,14 @@ namespace gaia {
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = AliasOf;
 
-		inline bool is_wildcard(Entity entity) {
+		//----------------------------------------------------------------------
+		// Helper functions
+		//----------------------------------------------------------------------
+
+		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
 			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
 		}
-		inline bool is_wildcard(Pair pair) {
+		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
 		}
 	} // namespace ecs

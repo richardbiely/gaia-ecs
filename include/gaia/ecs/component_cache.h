@@ -64,6 +64,9 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				GAIA_ASSERT(!entity.pair());
+
 				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
@@ -157,6 +160,7 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
+				GAIA_ASSERT(!entity.pair());
 				const auto it = m_compByEntity.find(EntityLookupKey(entity));
 				if (it != m_compByEntity.end())
 					return it->second;
@@ -169,6 +173,7 @@ namespace gaia {
 			//! \return Component info.
 			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(Entity entity) const noexcept {
+				GAIA_ASSERT(!entity.pair());
 				const auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
@@ -203,6 +208,7 @@ namespace gaia {
 			//! \return Component info or nullptr if not found.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem* find() const noexcept {
+				static_assert(!is_pair<T>::value);
 				const auto compDescId = detail::ComponentDesc<T>::id();
 				return find(compDescId);
 			}
@@ -212,6 +218,7 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& get() const noexcept {
+				static_assert(!is_pair<T>::value);
 				const auto compDescId = detail::ComponentDesc<T>::id();
 				return get(compDescId);
 			}
