@@ -113,7 +113,7 @@ Three building blocks of ECS are:
 * **System** - a place where your program's logic is implemented
 
 Following the example given above, a vehicle could be anything with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
-The actual movement is handled by systems. Those that match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
+The actual movement is handled by systems. Those that match the Flying component will implement the logic for flying. Systems matching the Driving component handle the land movement.
 
 On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could even be both in terms of latency and absolute performance. At the cost of data safety.
 
@@ -409,7 +409,7 @@ q.each([&](ecs::Iter iter) {
 
 ## Data processing
 ### Query
-For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate or return them in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
+For querying data you can use a Query. It can help you find all entities, components or chunks matching a list of conditions and constraints and iterate them or return them as an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
 
 Every Query is cached internally. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
@@ -779,8 +779,8 @@ w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(rabbit, ecs::Pair(eats, salad));
 ```
 
-Pairs do not need to be formed from tag entities only. Use can use components to build a pair which means they can store data, too!
-To determine the storage type of Pair(rel, target) the following logic is applied:
+Pairs do not need to be formed from tag entities only. You can use components to build a pair which means they can store data, too!
+To determine the storage type of Pair(relation, target) the following logic is applied:
 1) if "relation" is non-empty, the storage type is rel.
 2) if "relation" is empty and "target" is non-empty, the storage type is "target".
 
@@ -795,9 +795,15 @@ ecs::Entity pos_entity = w.add<Position>.entity;
 w.add(e, ecs::Pair(start_entity, pos_entity));
 // Add (Start, Position) pair to entity e using a compile-time component pair.
 w.add<ecs::pair<Start, Position>(e);
-// Add (Start, Position) pair to entity e using a compile-time component pair and set its value.
-// According the rules defined above, the storage type used for the pair is Position.
+// Add (Start, Position) pair to entity e using a compile-time component pair
+// and set its value. According the rules defined above, the storage type used
+// for the pair is Position.
 w.add<ecs::pair<Start, Position>(e, {10, 15});
+
+// Create a query matching all (Start, Position) pairs using component entities
+ecs::Query q0 = w.query().all( ecs::Pair(start_entity, pos_entity) );
+// Create a query matching all (Start, Position) pairs using compile-time
+ecs::Query q1 = w.query().all< ecs::pair<Start, Position> >();
 ```
 
 ### Targets
