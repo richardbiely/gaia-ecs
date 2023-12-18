@@ -228,18 +228,29 @@ namespace gaia {
 				}
 
 				template <typename T>
-				void add_inter(QueryOp type) {
-					// Make sure the component is always registered
-					const auto& desc = comp_cache_add<T>(*m_world);
+				void add_inter(QueryOp op) {
+					Entity e;
+
+					if constexpr (is_pair<T>::value) {
+						// Make sure the components are always registered
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_world);
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_world);
+
+						e = Pair(desc_rel.entity, desc_tgt.entity);
+					} else {
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_world);
+						e = desc.entity;
+					}
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (type != QueryOp::Not) {
+					if (op != QueryOp::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
 
-					add_inter({desc.entity, type, access});
+					add_inter({e, op, access});
 				}
 
 				//--------------------------------------------------------------------------------

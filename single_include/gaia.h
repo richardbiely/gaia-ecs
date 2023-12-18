@@ -14218,6 +14218,8 @@ namespace gaia {
 			using tgt = typename tgt_comp_type::TypeFull;
 			using rel_type = typename rel_comp_type::Type;
 			using tgt_type = typename tgt_comp_type::Type;
+			using rel_original = typename rel_comp_type::TypeOriginal;
+			using tgt_original = typename tgt_comp_type::TypeOriginal;
 			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
 		};
 
@@ -18607,18 +18609,28 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion{};
 
-			template <typename T>
+			template <typename TType>
 			bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
+				using T = core::raw_t<TType>;
+
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Entities are read-only.
 					GAIA_ASSERT(!isReadWrite);
 					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
+					Entity id;
+
+					if constexpr (is_pair<T>::value) {
+						const auto rel = m_lookupCtx.cc->get<typename T::rel>().entity;
+						const auto tgt = m_lookupCtx.cc->get<typename T::tgt>().entity;
+						id = (Entity)Pair(rel, tgt);
+					} else {
+						id = m_lookupCtx.cc->get<T>().entity;
+					}
+
 					const auto& data = m_lookupCtx.data;
 					const auto& ids = data.ids;
-
-					const auto id = m_lookupCtx.cc->get<T>().entity;
 					const auto compIdx = ecs::comp_idx<MAX_ITEMS_IN_QUERY>(ids.data(), id);
 
 					if (op != data.pairs[compIdx].op)
@@ -18634,12 +18646,8 @@ namespace gaia {
 			template <typename T>
 			bool has_inter(QueryOp op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
-
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
 				constexpr bool isReadWrite = core::is_mut_v<T>;
-
-				return has_inter<FT>(op, isReadWrite);
+				return has_inter<T>(op, isReadWrite);
 			}
 
 			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
@@ -19303,18 +19311,29 @@ namespace gaia {
 				}
 
 				template <typename T>
-				void add_inter(QueryOp type) {
-					// Make sure the component is always registered
-					const auto& desc = comp_cache_add<T>(*m_world);
+				void add_inter(QueryOp op) {
+					Entity e;
+
+					if constexpr (is_pair<T>::value) {
+						// Make sure the components are always registered
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_world);
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_world);
+
+						e = Pair(desc_rel.entity, desc_tgt.entity);
+					} else {
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_world);
+						e = desc.entity;
+					}
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (type != QueryOp::Not) {
+					if (op != QueryOp::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
 
-					add_inter({desc.entity, type, access});
+					add_inter({e, op, access});
 				}
 
 				//--------------------------------------------------------------------------------

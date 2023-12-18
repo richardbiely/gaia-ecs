@@ -1831,6 +1831,15 @@ TEST_CASE("Pair") {
 		REQUIRE(spu.x == 50);
 		REQUIRE(spu.y == 50);
 		REQUIRE(spu.z == 50);
+
+		{
+			uint32_t i = 0;
+			auto q = w.query().all<ecs::pair<Start, Position>>();
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 1);
+		}
 	}
 }
 

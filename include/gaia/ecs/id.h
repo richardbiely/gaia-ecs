@@ -365,6 +365,8 @@ namespace gaia {
 			using tgt = typename tgt_comp_type::TypeFull;
 			using rel_type = typename rel_comp_type::Type;
 			using tgt_type = typename tgt_comp_type::Type;
+			using rel_original = typename rel_comp_type::TypeOriginal;
+			using tgt_original = typename tgt_comp_type::TypeOriginal;
 			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
 		};
 

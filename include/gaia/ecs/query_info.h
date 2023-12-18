@@ -36,18 +36,28 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion{};
 
-			template <typename T>
+			template <typename TType>
 			bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
+				using T = core::raw_t<TType>;
+
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Entities are read-only.
 					GAIA_ASSERT(!isReadWrite);
 					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
+					Entity id;
+
+					if constexpr (is_pair<T>::value) {
+						const auto rel = m_lookupCtx.cc->get<typename T::rel>().entity;
+						const auto tgt = m_lookupCtx.cc->get<typename T::tgt>().entity;
+						id = (Entity)Pair(rel, tgt);
+					} else {
+						id = m_lookupCtx.cc->get<T>().entity;
+					}
+
 					const auto& data = m_lookupCtx.data;
 					const auto& ids = data.ids;
-
-					const auto id = m_lookupCtx.cc->get<T>().entity;
 					const auto compIdx = ecs::comp_idx<MAX_ITEMS_IN_QUERY>(ids.data(), id);
 
 					if (op != data.pairs[compIdx].op)
@@ -63,12 +73,8 @@ namespace gaia {
 			template <typename T>
 			bool has_inter(QueryOp op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
-
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
 				constexpr bool isReadWrite = core::is_mut_v<T>;
-
-				return has_inter<FT>(op, isReadWrite);
+				return has_inter<T>(op, isReadWrite);
 			}
 
 			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
