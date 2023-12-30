@@ -86,7 +86,7 @@ namespace gaia {
 
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
-						data.remapping.push_back(data.remapping.size());
+						data.remapping.push_back((uint8_t)data.remapping.size());
 
 						ids.push_back(item.id);
 						pairs.push_back({item.id, item.src, nullptr, item.op});
