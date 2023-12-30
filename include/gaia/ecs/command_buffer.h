@@ -44,7 +44,7 @@ namespace gaia {
 				}
 			};
 
-			enum CommandBufferCmd : uint8_t {
+			enum CommandBufferCmdType : uint8_t {
 				CREATE_ENTITY,
 				CREATE_ENTITY_FROM_ARCHETYPE,
 				CREATE_ENTITY_FROM_ENTITY,
@@ -58,12 +58,12 @@ namespace gaia {
 				REMOVE_COMPONENT
 			};
 
-			struct CommandBufferCmd_t {
-				CommandBufferCmd id;
+			struct CommandBufferCmd {
+				CommandBufferCmdType id;
 			};
 
-			struct CREATE_ENTITY_t: CommandBufferCmd_t {};
-			struct CREATE_ENTITY_FROM_ARCHETYPE_t: CommandBufferCmd_t {
+			struct CreateEntityCmd: CommandBufferCmd {};
+			struct CreateEntityFromArchetypeCmd: CommandBufferCmd {
 				uint64_t archetypePtr;
 
 				void commit(CommandBufferCtx& ctx) const {
@@ -73,7 +73,7 @@ namespace gaia {
 					GAIA_ASSERT(res.second);
 				}
 			};
-			struct CREATE_ENTITY_FROM_ENTITY_t: CommandBufferCmd_t {
+			struct CreateEntityFromEntityCmd: CommandBufferCmd {
 				Entity entity;
 
 				void commit(CommandBufferCtx& ctx) const {
@@ -81,14 +81,14 @@ namespace gaia {
 					GAIA_ASSERT(res.second);
 				}
 			};
-			struct DELETE_ENTITY_t: CommandBufferCmd_t {
+			struct DeleteEntityCmd: CommandBufferCmd {
 				Entity entity;
 
 				void commit(CommandBufferCtx& ctx) const {
 					ctx.world.del(entity);
 				}
 			};
-			struct ADD_COMPONENT_t: CommandBufferCmd_t {
+			struct AddComponentCmd: CommandBufferCmd {
 				Entity entity;
 				Entity object;
 
@@ -102,7 +102,7 @@ namespace gaia {
 #endif
 				}
 			};
-			struct ADD_COMPONENT_DATA_t: CommandBufferCmd_t {
+			struct AddComponentWithDataCmd: CommandBufferCmd {
 				Entity entity;
 				Entity object;
 
@@ -122,7 +122,7 @@ namespace gaia {
 					ctx.load_comp(pComponentData, object);
 				}
 			};
-			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
+			struct AddComponentToTempEntityCmd: CommandBufferCmd {
 				TempEntity tempEntity;
 				Entity object;
 
@@ -143,7 +143,7 @@ namespace gaia {
 #endif
 				}
 			};
-			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
+			struct AddComponentWithDataToTempEntityCmd: CommandBufferCmd {
 				TempEntity tempEntity;
 				Entity object;
 
@@ -170,7 +170,7 @@ namespace gaia {
 					ctx.load_comp(pComponentData, object);
 				}
 			};
-			struct SET_COMPONENT_t: CommandBufferCmd_t {
+			struct SetComponentCmd: CommandBufferCmd {
 				Entity entity;
 				Entity object;
 
@@ -185,7 +185,7 @@ namespace gaia {
 					ctx.load_comp(pComponentData, object);
 				}
 			};
-			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
+			struct SetComponentOnTempEntityCmd: CommandBufferCmd {
 				TempEntity tempEntity;
 				Entity object;
 
@@ -208,7 +208,7 @@ namespace gaia {
 					ctx.load_comp(pComponentData, object);
 				}
 			};
-			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
+			struct RemoveComponentCmd: CommandBufferCmd {
 				Entity entity;
 				Entity object;
 
@@ -230,7 +230,7 @@ namespace gaia {
 			GAIA_NODISCARD TempEntity add(Archetype& archetype) {
 				m_ctx.save(CREATE_ENTITY_FROM_ARCHETYPE);
 
-				CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
+				CreateEntityFromArchetypeCmd cmd;
 				cmd.archetypePtr = (uintptr_t)&archetype;
 				ser::save(m_ctx, cmd);
 
@@ -265,7 +265,7 @@ namespace gaia {
 			GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
 				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
-				CREATE_ENTITY_FROM_ENTITY_t cmd;
+				CreateEntityFromEntityCmd cmd;
 				cmd.entity = entityFrom;
 				ser::save(m_ctx, cmd);
 
@@ -278,7 +278,7 @@ namespace gaia {
 			void del(Entity entity) {
 				m_ctx.save(DELETE_ENTITY);
 
-				DELETE_ENTITY_t cmd;
+				DeleteEntityCmd cmd;
 				cmd.entity = entity;
 				ser::save(m_ctx, cmd);
 			}
@@ -295,7 +295,7 @@ namespace gaia {
 
 				m_ctx.save(ADD_COMPONENT);
 
-				ADD_COMPONENT_t cmd;
+				AddComponentCmd cmd;
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -313,7 +313,7 @@ namespace gaia {
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
-				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+				AddComponentToTempEntityCmd cmd;
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -331,7 +331,7 @@ namespace gaia {
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
-				ADD_COMPONENT_DATA_t cmd;
+				AddComponentWithDataCmd cmd;
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -350,7 +350,7 @@ namespace gaia {
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
-				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+				AddComponentToTempEntityCmd cmd;
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -369,7 +369,7 @@ namespace gaia {
 
 				m_ctx.save(SET_COMPONENT);
 
-				SET_COMPONENT_t cmd;
+				SetComponentCmd cmd;
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -389,7 +389,7 @@ namespace gaia {
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
-				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
+				SetComponentOnTempEntityCmd cmd;
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -408,7 +408,7 @@ namespace gaia {
 
 				m_ctx.save(REMOVE_COMPONENT);
 
-				REMOVE_COMPONENT_t cmd;
+				RemoveComponentCmd cmd;
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
@@ -424,61 +424,61 @@ namespace gaia {
 					},
 					// CREATE_ENTITY_FROM_ARCHETYPE
 					[](CommandBufferCtx& ctx) {
-						CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
+						CreateEntityFromArchetypeCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
-						CREATE_ENTITY_FROM_ENTITY_t cmd;
+						CreateEntityFromEntityCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// DELETE_ENTITY
 					[](CommandBufferCtx& ctx) {
-						DELETE_ENTITY_t cmd;
+						DeleteEntityCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						ADD_COMPONENT_t cmd;
+						AddComponentCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
-						ADD_COMPONENT_DATA_t cmd;
+						AddComponentWithDataCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+						AddComponentToTempEntityCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
-						ADD_COMPONENT_TO_TEMPENTITY_DATA_t cmd;
+						AddComponentWithDataToTempEntityCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						SET_COMPONENT_t cmd;
+						SetComponentCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						SET_COMPONENT_FOR_TEMPENTITY_t cmd;
+						SetComponentOnTempEntityCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						REMOVE_COMPONENT_t cmd;
+						RemoveComponentCmd cmd;
 						ser::load(ctx, cmd);
 						cmd.commit(ctx);
 					}};
@@ -494,7 +494,7 @@ namespace gaia {
 				// Extract data from the buffer
 				m_ctx.seek(0);
 				while (m_ctx.tell() < m_ctx.bytes()) {
-					CommandBufferCmd id{};
+					CommandBufferCmdType id{};
 					m_ctx.load(id);
 					CommandBufferRead[id](m_ctx);
 				}
@@ -502,6 +502,6 @@ namespace gaia {
 				m_entities = 0;
 				m_ctx.reset();
 			} // namespace ecs
-		}; // namespace gaia
+		};
 	} // namespace ecs
 } // namespace gaia

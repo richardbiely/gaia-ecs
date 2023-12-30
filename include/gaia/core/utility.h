@@ -342,7 +342,7 @@ namespace gaia {
 		};
 
 		//----------------------------------------------------------------------
-		// Compile - time for each
+		// Looping
 		//----------------------------------------------------------------------
 
 		namespace detail {
@@ -383,10 +383,6 @@ namespace gaia {
 					(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
-
-		//----------------------------------------------------------------------
-		// Looping
-		//----------------------------------------------------------------------
 
 		//! Compile-time for loop. Performs \tparam Iters iterations.
 		//!

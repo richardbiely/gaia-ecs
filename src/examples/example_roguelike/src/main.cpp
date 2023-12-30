@@ -427,7 +427,7 @@ struct World {
 
 	void CreatePlayer() {
 		auto player = w.add();
-		w.bulk(player)
+		w.bulk(player) //
 				.add<Position>()
 				.add<Velocity>()
 				.add<RigidBody>()
@@ -436,7 +436,7 @@ struct World {
 				.add<Health>()
 				.add<BattleStats>()
 				.add<Player>();
-		w.set(player)
+		w.set(player) //
 				.set<Position>({5, 10})
 				.set<Velocity>({0, 0})
 				.set<Orientation>({1, 0})
@@ -450,13 +450,25 @@ struct World {
 		GAIA_EACH(enemies) {
 			auto& e = enemies[i];
 			e = w.add();
-			w.bulk(e).add<Position>().add<Velocity>().add<RigidBody>().add<Sprite>().add<Health>().add<BattleStats>();
+			w.bulk(e) //
+					.add<Position>()
+					.add<Velocity>()
+					.add<RigidBody>()
+					.add<Sprite>()
+					.add<Health>()
+					.add<BattleStats>();
 
-			const bool isOrc = i % 2;
+			const bool isOrc = (i % 2) != 0;
 			if (isOrc) {
-				w.set(e).set<Sprite>({TILE_ENEMY_ORC}).set<Health>({60, 60}).set<BattleStats>({12, 7});
+				w.set(e) //
+						.set<Sprite>({TILE_ENEMY_ORC})
+						.set<Health>({60, 60})
+						.set<BattleStats>({12, 7});
 			} else {
-				w.set(e).set<Sprite>({TILE_ENEMY_GOBLIN}).set<Health>({40, 40}).set<BattleStats>({10, 5});
+				w.set(e) //
+						.set<Sprite>({TILE_ENEMY_GOBLIN})
+						.set<Health>({40, 40})
+						.set<BattleStats>({10, 5});
 			}
 		}
 		w.set<Position>(enemies[0], {8, 8});
@@ -466,16 +478,26 @@ struct World {
 
 	void CreateItems() {
 		auto potion = w.add();
-		w.bulk(potion).add<Position>().add<Sprite>().add<RigidBody>().add<Item>().add<BattleStats>();
-		w.set(potion)
+		w.bulk(potion) //
+				.add<Position>()
+				.add<Sprite>()
+				.add<RigidBody>()
+				.add<Item>()
+				.add<BattleStats>();
+		w.set(potion) //
 				.set<Position>({5, 5})
 				.set<Sprite>({TILE_POTION})
 				.set<Item>({ItemType::Potion})
 				.set<BattleStats>({10, 0});
 
 		auto poison = w.add();
-		w.bulk(poison).add<Position>().add<Sprite>().add<RigidBody>().add<Item>().add<BattleStats>();
-		w.set(poison)
+		w.bulk(poison) //
+				.add<Position>()
+				.add<Sprite>()
+				.add<RigidBody>()
+				.add<Item>()
+				.add<BattleStats>();
+		w.set(poison) //
 				.set<Position>({15, 10})
 				.set<Sprite>({TILE_POISON})
 				.set<Item>({ItemType::Poison})
@@ -484,7 +506,7 @@ struct World {
 
 	void CreateArrow(Position p, Velocity v) {
 		auto e = w.add();
-		w.bulk(e)
+		w.bulk(e) //
 				.add<Position>()
 				.add<Velocity>()
 				.add<Sprite>()
@@ -492,7 +514,7 @@ struct World {
 				.add<Item>()
 				.add<BattleStats>()
 				.add<Health>();
-		w.set(e)
+		w.set(e) //
 				.set<Position>(GAIA_MOV(p))
 				.set<Velocity>(GAIA_MOV(v))
 				.set<Sprite>({TILE_ARROW})

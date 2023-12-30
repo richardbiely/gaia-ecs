@@ -57,10 +57,10 @@ namespace gaia {
 
 			private:
 				//! Command buffer command type
-				enum CommandBufferCmd : uint8_t { ADD_ITEM, ADD_FILTER };
+				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER };
 
 				struct Command_AddItem {
-					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_ITEM;
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_ITEM;
 
 					QueryItem item;
 
@@ -86,15 +86,16 @@ namespace gaia {
 
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+						data.remapping.push_back(data.remapping.size());
 
 						ids.push_back(item.id);
-						pairs.push_back({item.op, item.id});
+						pairs.push_back({item.id, item.src, nullptr, item.op});
 						lastMatchedArchetypeIdx.push_back(0);
 					}
 				};
 
 				struct Command_Filter {
-					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_FILTER;
 
 					Entity comp;
 
@@ -191,7 +192,7 @@ namespace gaia {
 
 						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
-						ctx.cc = &comp_cache_mut(*m_world);
+						ctx.init(m_world);
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
@@ -200,7 +201,7 @@ namespace gaia {
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
-							ctx.cc = &comp_cache_mut(*m_world);
+							ctx.init(m_world);
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
@@ -288,7 +289,7 @@ namespace gaia {
 					// Read data from buffer and execute the command stored in it
 					m_serBuffer.seek(0);
 					while (m_serBuffer.tell() < m_serBuffer.bytes()) {
-						CommandBufferCmd id{};
+						CommandBufferCmdType id{};
 						ser::load(m_serBuffer, id);
 						CommandBufferRead[id](m_serBuffer, ctx);
 					}
@@ -652,7 +653,6 @@ namespace gaia {
 				//!
 				//! \param str Null-terminated string with the query expression
 				QueryImpl& add(const char* str, ...) {
-
 					GAIA_ASSERT(str != nullptr);
 					if (str == nullptr)
 						return *this;
@@ -722,6 +722,14 @@ namespace gaia {
 						add({entity, QueryOp::All, QueryAccess::None});
 					else
 						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+					return *this;
+				}
+
+				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
+					if (entity.pair())
+						add({entity, QueryOp::All, QueryAccess::None, src});
+					else
+						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, src});
 					return *this;
 				}
 

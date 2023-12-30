@@ -2607,6 +2607,11 @@ namespace gaia {
 			return world.get(id);
 		}
 
+		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
+			const auto& ec = world.fetch(entity);
+			return ec.pArchetype;
+		}
+
 		GAIA_NODISCARD inline const char* entity_name(const World& world, Entity entity) {
 			return world.name(entity);
 		}

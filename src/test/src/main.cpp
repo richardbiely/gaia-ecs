@@ -2146,6 +2146,49 @@ void Test_Query_QueryResult() {
 		});
 		REQUIRE(cnt == cnt3);
 	}
+
+	// Verify querying at a different source entity works, too
+	auto game = w.add();
+	struct Level {
+		uint32_t value;
+	};
+	w.add<Level>(game, {2});
+	auto q4 = w.query<UseCachedQuery>().template all<Position>().all(w.add<Level>().entity, game);
+
+	{
+		const auto cnt = q4.count();
+		GAIA_ASSERT(cnt == N);
+	}
+	{
+		cnt::darr<ecs::Entity> arr;
+		q4.arr(arr);
+		GAIA_ASSERT(arr.size() == N);
+		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
+	}
+	{
+		cnt::darr<Position> arr;
+		q4.arr(arr);
+		GAIA_ASSERT(arr.size() == N);
+		GAIA_EACH(arr) {
+			const auto& pos = arr[i];
+			REQUIRE(pos.x == (float)i);
+			REQUIRE(pos.y == (float)i);
+			REQUIRE(pos.z == (float)i);
+		}
+	}
+	{
+		const auto cnt = q4.count();
+		REQUIRE(cnt > 0);
+
+		const auto empty = q4.empty();
+		REQUIRE(empty == false);
+
+		uint32_t cnt2 = 0;
+		q4.each([&]() {
+			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+	}
 }
 
 TEST_CASE("Query - QueryResult") {

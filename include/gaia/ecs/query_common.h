@@ -8,9 +8,15 @@
 #include "../core/hashing_policy.h"
 #include "component.h"
 #include "component_utils.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		class Archetype;
+
+		inline ComponentCache& comp_cache_mut(World& world);
+
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
 
@@ -35,25 +41,44 @@ namespace gaia {
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 		struct QueryItem {
+			//! Entity/Component/Pair to query
 			Entity id;
-			QueryOp op;
+			//! Operation to perform with the query item
+			QueryOp op = QueryOp::All;
+			//! Access type
 			QueryAccess access = QueryAccess::Read;
+			//! Source entity to query the id on.
+			//! If id==EntityBad the source is fixed.
+			//! If id!=src the source is variable.
+			Entity src = EntityBad;
 		};
 
 		struct QueryEntityOpPair {
-			QueryOp op;
+			//! Queried id
 			Entity id;
+			//! Source of where the queried id if looked up at
+			Entity src;
+			//! Archetype of the src entity
+			Archetype* srcArchetype;
+			//! Operation to perform with the query item
+			QueryOp op;
 
 			bool operator==(const QueryEntityOpPair& other) const {
-				return op == other.op && id == other.id;
+				return id == other.id && src == other.src && op == other.op;
 			}
 			bool operator!=(const QueryEntityOpPair& other) const {
 				return !operator==(other);
 			}
 		};
+
 		using QueryEntityOpPairArray = cnt::sarray_ext<QueryEntityOpPair, MAX_ITEMS_IN_QUERY>;
+		using QueryEntityOpPairSpan = std::span<QueryEntityOpPair>;
+		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
 		struct QueryCtx {
+			// World
+			const World* w{};
+			//! Component cache
 			ComponentCache* cc{};
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
@@ -63,10 +88,12 @@ namespace gaia {
 			struct Data {
 				//! List of querried ids
 				QueryEntityArray ids;
-				//! List or op::id pairs
+				//! List of [op,id] pairs
 				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeIndexArray lastMatchedArchetypeIdx;
+				//! Mapping of the original indices to the new ones after sorting
+				QueryRemappingArray remapping;
 				//! List of filtered components
 				QueryEntityArray withChanged;
 				//! First NOT record in pairs/ids/ops
@@ -79,6 +106,11 @@ namespace gaia {
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY == 8);
+
+			void init(World* pWorld) {
+				w = pWorld;
+				cc = &comp_cache_mut(*pWorld);
+			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
@@ -138,6 +170,7 @@ namespace gaia {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.pairs[left], data.pairs[right]);
 				core::swap(data.lastMatchedArchetypeIdx[left], data.lastMatchedArchetypeIdx[right]);
+				core::swap(data.remapping[left], data.remapping[right]);
 
 				// Make sure the read-write mask remains correct after sorting
 				{
@@ -202,6 +235,24 @@ namespace gaia {
 			}
 
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
+		}
+
+		//! Located the index at which the provided component id is located in the component array
+		//! \param pComps Pointer to the start of the component array
+		//! \param entity Entity we search for
+		//! \return Index of the component id in the array
+		//! \warning The component id must be present in the array
+		template <uint32_t MAX_COMPONENTS>
+		GAIA_NODISCARD inline uint32_t comp_idx(const QueryEntityOpPair* pComps, Entity entity, Entity src) {
+			// We let the compiler know the upper iteration bound at compile-time.
+			// This way it can optimize better (e.g. loop unrolling, vectorization).
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pComps[i].id == entity && pComps[i].src == src)
+					return i;
+			}
+
+			GAIA_ASSERT(false);
+			return BadIndex;
 		}
 	} // namespace ecs
 } // namespace gaia
