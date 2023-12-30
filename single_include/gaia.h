@@ -18864,7 +18864,6 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& data = m_lookupCtx.data;
-				const auto& ids = data.ids;
 				const auto& pairs = data.pairs;
 				if (pairs.empty())
 					return;
@@ -18880,14 +18879,6 @@ namespace gaia {
 				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
 				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
-
-				{
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_all[0].id));
-					const auto& archetypes = it->second;
-					GAIA_EACH(archetypes) {
-						const auto* pArchetype = archetypes[i];
-					}
-				}
 
 				if (!ops_ids_all.empty()) {
 					GAIA_EACH(ops_ids_all) {
@@ -18981,7 +18972,6 @@ namespace gaia {
 
 						// Try find matches with optional components.
 						GAIA_EACH(ids_any) {
-							const auto& ids = ids_any[i];
 							const auto& archetypes = *archetypesWithId[i];
 							const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
 							data.lastMatchedArchetypeIdx[jj++] = archetypes.size();
