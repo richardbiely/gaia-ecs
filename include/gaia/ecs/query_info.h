@@ -22,7 +22,7 @@ namespace gaia {
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
 
-		inline Archetype* archetype_from_entity(const World& world, Entity entity);
+		Archetype* archetype_from_entity(const World& world, Entity entity);
 
 		class QueryInfo {
 		public:

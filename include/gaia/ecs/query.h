@@ -28,10 +28,11 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-		inline const ComponentCache& comp_cache(const World& world);
-		inline ComponentCache& comp_cache_mut(World& world);
+
+		const ComponentCache& comp_cache(const World& world);
+		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
-		inline const ComponentCacheItem& comp_cache_add(World& world);
+		const ComponentCacheItem& comp_cache_add(World& world);
 
 		namespace detail {
 			template <bool Cached>

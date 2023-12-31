@@ -108,24 +108,24 @@ This way of thinking is more natural for machines than people but when used corr
 For instance, when moving an object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
 Three building blocks of ECS are:
-* **Entity** - an index that uniquely identifies a group of components
-* **Component** - a piece of data (position, velocity, age)
-* **System** - a place where your program's logic is implemented
+* **Entity** (id) - an index that uniquely identifies a group of components
+* **Component** (data) - a piece of data (position, velocity, age)
+* **System** (processor) - a place where your program's logic is implemented
 
-Following the example given above, a vehicle could be anything with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
+Following the example given above, a vehicle could be any entity with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
 The actual movement is handled by systems. Those that match the Flying component will implement the logic for flying. Systems matching the Driving component handle the land movement.
 
-On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could even be both in terms of latency and absolute performance. At the cost of data safety.
+On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could ever be both in terms of latency and absolute performance. At the cost of data safety.
 
-The main benefits of a well designed ECS could be sumarized as:
-1) *Modularity and Reusability* - ECS promotes modular and reusable code with self-contained components
-2) *Decoupling of Logic* - separates data from logic for independent development
-3) *Flexibility and Composition* - allows flexible object behavior through composition of entities with specific components
-4) *Scalability* - scales well with a predictable performance impact as the number of entities increases
-5) *Ease of Maintenance and Debugging* - facilitates easier bug tracking and maintenance with a modular structure
-6) *Adaptability* - easily adapts to changing project requirements through component and system modifications
-7) *Facilitation of System Design* - encourages a data-driven design approach for cleaner and more organized code
-8) *Performance* - enhances performance by optimizing for data locality and supports data- and thread-level parallelism almost out-of-the-box
+The main strengths of an ECS done right could be sumarized as:
+1) *modularity and reusability* - promotes modular and reusable code with self-contained components
+2) *decoupling of logic* - separates data from logic
+7) *facilitation of system design* - encourages a data-driven design approach for cleaner and more organized code
+3) *flexibility* - allows dynamic object behavior through composition of entities with specific components
+4) *scalability* - scales well with a predictable performance impact as the number of entities increases
+5) *ease of maintenance* - promotes less spaghetti code with a modular structure that is easier to debug
+6) *adaptability* - easily adapts to changing project requirements through component and system modifications
+8) *performance* - optimized for data locality, supports data- and thread-level parallelism almost out-of-the-box
 
 ## Implementation
 **Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.

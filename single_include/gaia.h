@@ -17206,10 +17206,10 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
-		inline const ComponentCache& comp_cache(const World& world);
-		inline Entity entity_from_id(const World& world, EntityId id);
-		inline const char* entity_name(const World& world, Entity entity);
-		inline const char* entity_name(const World& world, EntityId entityId);
+		const ComponentCache& comp_cache(const World& world);
+		Entity entity_from_id(const World& world, EntityId id);
+		const char* entity_name(const World& world, Entity entity);
+		const char* entity_name(const World& world, EntityId entityId);
 
 		class ArchetypeBase {
 		protected:
@@ -18392,7 +18392,7 @@ namespace gaia {
 		class World;
 		class Archetype;
 
-		inline ComponentCache& comp_cache_mut(World& world);
+		ComponentCache& comp_cache_mut(World& world);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
@@ -18641,7 +18641,7 @@ namespace gaia {
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
 
-		inline Archetype* archetype_from_entity(const World& world, Entity entity);
+		Archetype* archetype_from_entity(const World& world, Entity entity);
 
 		class QueryInfo {
 		public:
@@ -19187,10 +19187,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
-		inline const ComponentCache& comp_cache(const World& world);
-		inline ComponentCache& comp_cache_mut(World& world);
+
+		const ComponentCache& comp_cache(const World& world);
+		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
-		inline const ComponentCacheItem& comp_cache_add(World& world);
+		const ComponentCacheItem& comp_cache_add(World& world);
 
 		namespace detail {
 			template <bool Cached>

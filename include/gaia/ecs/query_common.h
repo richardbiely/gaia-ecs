@@ -15,7 +15,7 @@ namespace gaia {
 		class World;
 		class Archetype;
 
-		inline ComponentCache& comp_cache_mut(World& world);
+		ComponentCache& comp_cache_mut(World& world);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;

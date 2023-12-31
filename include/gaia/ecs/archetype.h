@@ -25,10 +25,10 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
-		inline const ComponentCache& comp_cache(const World& world);
-		inline Entity entity_from_id(const World& world, EntityId id);
-		inline const char* entity_name(const World& world, Entity entity);
-		inline const char* entity_name(const World& world, EntityId entityId);
+		const ComponentCache& comp_cache(const World& world);
+		Entity entity_from_id(const World& world, EntityId id);
+		const char* entity_name(const World& world, Entity entity);
+		const char* entity_name(const World& world, EntityId entityId);
 
 		class ArchetypeBase {
 		protected:
