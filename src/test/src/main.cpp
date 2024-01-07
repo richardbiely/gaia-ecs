@@ -1886,6 +1886,8 @@ TEST_CASE("Inheritance (As)") {
 	ecs::World w;
 	ecs::Entity animal = w.add();
 	ecs::Entity herbivore = w.add();
+	w.add<Position>(herbivore, {});
+	w.add<Rotation>(herbivore, {});
 	ecs::Entity rabbit = w.add();
 	ecs::Entity hare = w.add();
 	ecs::Entity wolf = w.add();

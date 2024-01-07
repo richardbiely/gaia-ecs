@@ -17255,7 +17255,7 @@ namespace gaia {
 		class Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
-
+			
 			struct Properties {
 				//! The number of data entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
@@ -17266,6 +17266,8 @@ namespace gaia {
 			};
 
 		private:
+			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
+
 			Properties m_properties{};
 			//! Component cache reference
 			const ComponentCache& m_cc;
@@ -17283,6 +17285,9 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
 			Chunk::EntityArray m_ids;
+			//! List of indices to As relationship pairs in m_ids.
+			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
+			AsPairsIndexBuffer m_as_pairs_index_buffer;
 			//! List of component ids
 			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
@@ -17307,7 +17312,7 @@ namespace gaia {
 			//! Number of As relationship pairs on the archetype
 			uint32_t m_pairCnt_as: Chunk::MAX_COMPONENTS_BITS;
 
-			// Constructor is hidden. Create archetypes via Create
+			// Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_as(0) {}
 
@@ -17487,9 +17492,9 @@ namespace gaia {
 
 					++newArch->m_pairCnt;
 
-					// If it is a As relationship, count it separately as well
+					// If it is a As relationship, count it separately
 					if (ids[i].id() == As.id())
-						++newArch->m_pairCnt_as;
+						newArch->m_as_pairs_index_buffer[newArch->m_pairCnt_as++] = (uint8_t)i;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -17797,6 +17802,11 @@ namespace gaia {
 
 			GAIA_NODISCARD uint32_t pairs_as() const {
 				return m_pairCnt_as;
+			}
+
+			GAIA_NODISCARD Entity entity_from_as_pair_idx(uint32_t idx) const {
+				const auto ids_idx = m_as_pairs_index_buffer[idx];
+				return m_ids[ids_idx];
 			}
 
 			/*!
@@ -22115,17 +22125,12 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
-				// Early exit if there are no As relationships on the archetype
+				// Early exit if there are no As relationship pairs on the archetype
 				if (pArchetype->pairs_as() == 0)
 					return false;
 
-				const auto& ids = ec.pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.id() != As.id())
-						continue;
-
+				for (uint32_t i = 0; i < pArchetype->pairs_as(); ++i) {
+					auto e = pArchetype->entity_from_as_pair_idx(i);
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					if (target == entityBase)

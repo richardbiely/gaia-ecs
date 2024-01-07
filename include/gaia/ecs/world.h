@@ -1990,17 +1990,12 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
-				// Early exit if there are no As relationships on the archetype
+				// Early exit if there are no As relationship pairs on the archetype
 				if (pArchetype->pairs_as() == 0)
 					return false;
 
-				const auto& ids = ec.pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.id() != As.id())
-						continue;
-
+				for (uint32_t i = 0; i < pArchetype->pairs_as(); ++i) {
+					auto e = pArchetype->entity_from_as_pair_idx(i);
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					if (target == entityBase)
