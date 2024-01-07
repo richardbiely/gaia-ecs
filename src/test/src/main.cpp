@@ -1882,17 +1882,26 @@ TEST_CASE("DependsOn") {
 	REQUIRE(!w.has(rabbit, carrot));
 }
 
-// TODO: Implement the feature
-TEST_CASE("AliasOf") {
-	// ecs::World w;
-	// ecs::Entity animal = w.add();
-	// ecs::Entity herbivore = w.add();
-	// ecs::Entity rabbit = w.add();
-	// ecs::Entity hare = w.add();
+TEST_CASE("Inheritance (IsA)") {
+	ecs::World w;
+	ecs::Entity animal = w.add();
+	ecs::Entity herbivore = w.add();
+	ecs::Entity rabbit = w.add();
+	ecs::Entity hare = w.add();
+	ecs::Entity wolf = w.add();
 
-	// w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
-	// w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
-	// w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
+	w.derive(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::IsA, animal));
+	w.derive(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::IsA, herbivore));
+	w.derive(hare, herbivore); // w.add(hare, ecs::Pair(ecs::IsA, herbivore));
+	w.derive(wolf, animal); // w.add(wolf, ecs::Pair(ecs::IsA, animal))
+
+	REQUIRE(w.is(herbivore, animal));
+	REQUIRE(w.is(rabbit, herbivore));
+	REQUIRE(w.is(hare, herbivore));
+	REQUIRE(w.is(wolf, animal));
+
+	REQUIRE_FALSE(w.is(animal, herbivore));
+	REQUIRE_FALSE(w.is(wolf, herbivore));
 
 	// {
 	// 	uint32_t i = 0;
@@ -2186,6 +2195,19 @@ void Test_Query_QueryResult() {
 		uint32_t cnt2 = 0;
 		q4.each([&]() {
 			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+	}
+	{
+		const auto cnt = q4.count();
+
+		uint32_t cnt2 = 0;
+		q4.each([&](ecs::Iter it /*, ecs::Src src*/) {
+			auto pos_view = it.view<Position>();
+			// auto lvl_view = src.view<Level>();
+			GAIA_EACH(it) {
+				++cnt2;
+			}
 		});
 		REQUIRE(cnt == cnt2);
 	}

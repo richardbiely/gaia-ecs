@@ -482,6 +482,7 @@ q.add({p, QueryOp::All, QueryAccess::Write})
  .add({pl, QueryOp::None, QueryAccess::None}); 
 ```
 
+### Query string
 Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
 Supported modifiers:
@@ -498,7 +499,6 @@ struct Position {...};
 struct Velocity {...};
 struct RigidBody {...};
 struct Fuel {...};
-auto player = w.add();
 ecs::Entity player = w.add();
 
 // Create the query from a string expression.
@@ -599,7 +599,6 @@ for (uint32_t k=0; k<iter.size(); ++k)
 ```
 
 ### Constraints
-
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
 
 Disabling/enabling an entity is a special operation that marks it invisible to queries by default. Archetype of the entity is not changed afterwards so it can be considered fast.
@@ -807,7 +806,6 @@ ecs::Query q1 = w.query().all< ecs::pair<Start, Position> >();
 ```
 
 ### Targets
-
 Targets of a relationship can be retrieved via ***World::target*** and ***World::targets***.
 
 ```cpp
@@ -824,7 +822,6 @@ w.target(rabbit, eats, what_rabbit_eats);
 ```
 
 ### Relations
-
 Relations of a relationhip can be retrived via ***World::relation*** and ***World::relations***.
 
 ```cpp
@@ -886,8 +883,8 @@ w.add(e, strong);
 w.add(e, weak);
 ```
 
-### Entity aliasing
-Entities can alias another entities by using the (AliasOf, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
+### Entity inheritance
+Entities can inherit from other entities by using the (IsA, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
 
 ```cpp
 ecs::World w;
@@ -896,14 +893,28 @@ ecs::Entity herbivore = w.add();
 ecs::Entity rabbit = w.add();
 ecs::Entity hare = w.add();
 
-w.add(herbivore, ecs::Pair(ecs::AliasOf, animal)); // w.alias(herbivore, animal)
-w.add(rabbit, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(rabbit, herbivore)
-w.add(hare, ecs::Pair(ecs::AliasOf, herbivore)); // w.alias(hare, herbivore)
+w.add(herbivore, ecs::Pair(ecs::IsA, animal)); // w.derive(herbivore, animal)
+w.add(rabbit, ecs::Pair(ecs::IsA, herbivore)); // w.derive(rabbit, herbivore)
+w.add(hare, ecs::Pair(ecs::IsA, herbivore)); // w.derive(hare, herbivore)
 
 ecs::Query q = w.query().all(animal);
 q.each([](ecs::Entity entity) {
   // runs for herbivore, rabbit and hare
 });
+```
+
+This also means the entity inherits all ids which are present on the entity we inherit from.
+
+```cpp
+struct Age { int value; };
+...
+w.add<Age>(animal, {10});
+// We did not add the Age componet to hare but we added it to the entity it inherits from.
+// Therefore, we can ask its age.
+Age age = w.get<Age>(hare);
+// We can decide to override the value with a custom one.
+// This will only affect the hare entity (and any entity inheriting from it).
+w.set<Age>(hare, {20});
 ```
 
 ### Cleanup rules
@@ -953,7 +964,7 @@ w.add(rabbit, bomb_exploding_on_del);
 w.del(bomb_exploding_on_del); 
 ```
 
-A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It defines as (OnDeleteTarget, Delete) relationship so if the parent is deleted, all the children are deleted as well.
+A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It is defined as (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
 
 ```cpp
 ecs::Entity parent = w.add();

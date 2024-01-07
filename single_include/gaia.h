@@ -14317,10 +14317,10 @@ namespace gaia {
 		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity AliasOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity IsA = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = AliasOf;
+		inline Entity GAIA_ID(LastCoreComponent) = IsA;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -20272,9 +20272,16 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Shortcut for add(Pair(AliasOf, baseEntity))
-				EntityBuilder& alias(Entity baseEntity) {
-					return add(Pair(AliasOf, baseEntity));
+				//! Shortcut for add(Pair(IsA, entityBase)).
+				//! Effectively makes an entity inherit from \param entityBase
+				EntityBuilder& derive(Entity entityBase) {
+					return add(Pair(IsA, entityBase));
+				}
+
+				//! Check if \param entity inherits from \param entityBase
+				//! \return True if entity inherits from entityBase
+				GAIA_NODISCARD bool derive(Entity entity, Entity entityBase) const {
+					return static_cast<const World&>(m_world).is(entity, entityBase);
 				}
 
 				//! Shortcut for add(Pair(ChildOf, parent))
@@ -20394,7 +20401,7 @@ namespace gaia {
 				}
 
 				void try_set_AliasOf(Entity entity, bool enable) {
-					if (!entity.pair() || entity.id() != AliasOf.id())
+					if (!entity.pair() || entity.id() != IsA.id())
 						return;
 
 					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
@@ -21675,9 +21682,9 @@ namespace gaia {
 					(void)desc;
 				}
 
-				// Base entity alias.
+				// Base entity is.
 				{
-					const auto& id = AliasOf;
+					const auto& id = IsA;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
@@ -21727,7 +21734,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, AliasOf) //
+				EntityBuilder(*this, IsA) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -22014,12 +22021,11 @@ namespace gaia {
 					// (*,X)
 					else if (rel == All) {
 						if (const auto* pTargets = relations(tgt)) {
-							// handle_del might invalide the targets map so we need to make a copy
+							// handle_del might invalidate the targets map so we need to make a copy
 							// TODO: this is suboptimal at best, needs to be optimized
 							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pTargets)
 								tmp.push_back(key.entity());
-
 							for (auto e: tmp)
 								handle_del(Pair(e, tgt));
 						}
@@ -22027,7 +22033,7 @@ namespace gaia {
 					// (X,*)
 					else if (tgt == All) {
 						if (const auto* pRelations = targets(rel)) {
-							// handle_del might invalide the targets map so we need to make a copy
+							// handle_del might invalidate the targets map so we need to make a copy
 							// TODO: this is suboptimal at best, needs to be optimized
 							cnt::darray_ext<Entity, 64> tmp;
 							for (auto key: *pRelations)
@@ -22084,15 +22090,33 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(AliasOf, baseEntity)
-			void alias(Entity entity, Entity baseEntity) {
-				add(entity, Pair(AliasOf, baseEntity));
+			//! Shortcut for add(entity, Pair(IsA, entityBase)
+			void derive(Entity entity, Entity entityBase) {
+				add(entity, Pair(IsA, entityBase));
 			}
 
-			//! Checks if \param entity is an alias of \param baseEntity
-			//! True if entity is an alias for baseEntity. False otherwise.
-			GAIA_NODISCARD bool alias(Entity entity, Entity baseEntity) const {
-				return has(entity, Pair(AliasOf, baseEntity));
+			//! Checks if \param entity inherits from \param entityBase.
+			//! True if entity is an is for entityBase. False otherwise.
+			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
+				const auto& ec = fetch(entity);
+				const auto& ids = ec.pArchetype->ids();
+
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.id() != IsA.id())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					if (target == entityBase)
+						return true;
+
+					if (is(target, entityBase))
+						return true;
+				}
+
+				return false;
 			}
 
 			//----------------------------------------------------------------------
@@ -22255,12 +22279,18 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 
 				if (object.pair()) {
+					const auto* pArchetype = ec.pArchetype;
+
+					// Early exit if there are no pairs on the archetype
+					if (pArchetype->pairs() == 0)
+						return false;
+
 					EntityId rel = object.id();
 					EntityId tgt = object.gen();
 
 					// (*,*)
 					if (rel == All.id() && tgt == All.id()) {
-						const auto& ids = ec.pArchetype->ids();
+						const auto& ids = pArchetype->ids();
 						for (auto id: ids) {
 							if (!id.pair())
 								continue;
@@ -22272,7 +22302,7 @@ namespace gaia {
 
 					// (X,*)
 					if (rel != All.id() && tgt == All.id()) {
-						const auto& ids = ec.pArchetype->ids();
+						const auto& ids = pArchetype->ids();
 						for (auto id: ids) {
 							if (!id.pair())
 								continue;
@@ -22285,7 +22315,7 @@ namespace gaia {
 
 					// (*,X)
 					if (rel == All.id() && tgt != All.id()) {
-						const auto& ids = ec.pArchetype->ids();
+						const auto& ids = pArchetype->ids();
 						for (auto id: ids) {
 							if (!id.pair())
 								continue;
@@ -22402,6 +22432,10 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return EntityBad;
+
 				const auto& ids = pArchetype->ids();
 				for (auto e: ids) {
 					if (!e.pair())
@@ -22428,6 +22462,10 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
 
 				const auto& ids = pArchetype->ids();
 				for (auto e: ids) {
@@ -22465,6 +22503,10 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return EntityBad;
+
 				const auto& ids = pArchetype->ids();
 				for (auto e: ids) {
 					if (!e.pair())
@@ -22491,6 +22533,10 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[entity.id()];
 				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
 
 				const auto& ids = pArchetype->ids();
 				for (auto e: ids) {
