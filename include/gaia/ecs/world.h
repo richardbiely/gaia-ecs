@@ -1995,7 +1995,7 @@ namespace gaia {
 					return false;
 
 				for (uint32_t i = 0; i < pArchetype->pairs_as(); ++i) {
-					auto e = pArchetype->entity_from_as_pair_idx(i);
+					auto e = pArchetype->entity_from_pairs_as_idx(i);
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					if (target == entityBase)

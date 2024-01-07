@@ -106,7 +106,7 @@ namespace gaia {
 			Chunk::EntityArray m_ids;
 			//! List of indices to As relationship pairs in m_ids.
 			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
-			AsPairsIndexBuffer m_as_pairs_index_buffer;
+			AsPairsIndexBuffer m_pairs_as_index_buffer;
 			//! List of component ids
 			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
@@ -313,7 +313,7 @@ namespace gaia {
 
 					// If it is a As relationship, count it separately
 					if (ids[i].id() == As.id())
-						newArch->m_as_pairs_index_buffer[newArch->m_pairCnt_as++] = (uint8_t)i;
+						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_as++] = (uint8_t)i;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -623,8 +623,8 @@ namespace gaia {
 				return m_pairCnt_as;
 			}
 
-			GAIA_NODISCARD Entity entity_from_as_pair_idx(uint32_t idx) const {
-				const auto ids_idx = m_as_pairs_index_buffer[idx];
+			GAIA_NODISCARD Entity entity_from_pairs_as_idx(uint32_t idx) const {
+				const auto ids_idx = m_pairs_as_index_buffer[idx];
 				return m_ids[ids_idx];
 			}
 
