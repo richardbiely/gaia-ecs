@@ -1882,7 +1882,7 @@ TEST_CASE("DependsOn") {
 	REQUIRE(!w.has(rabbit, carrot));
 }
 
-TEST_CASE("Inheritance (IsA)") {
+TEST_CASE("Inheritance (As)") {
 	ecs::World w;
 	ecs::Entity animal = w.add();
 	ecs::Entity herbivore = w.add();
@@ -1890,14 +1890,16 @@ TEST_CASE("Inheritance (IsA)") {
 	ecs::Entity hare = w.add();
 	ecs::Entity wolf = w.add();
 
-	w.derive(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::IsA, animal));
-	w.derive(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::IsA, herbivore));
-	w.derive(hare, herbivore); // w.add(hare, ecs::Pair(ecs::IsA, herbivore));
-	w.derive(wolf, animal); // w.add(wolf, ecs::Pair(ecs::IsA, animal))
+	w.as(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::As, animal));
+	w.as(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::As, herbivore));
+	w.as(hare, herbivore); // w.add(hare, ecs::Pair(ecs::As, herbivore));
+	w.as(wolf, animal); // w.add(wolf, ecs::Pair(ecs::As, animal))
 
 	REQUIRE(w.is(herbivore, animal));
 	REQUIRE(w.is(rabbit, herbivore));
 	REQUIRE(w.is(hare, herbivore));
+	REQUIRE(w.is(rabbit, animal));
+	REQUIRE(w.is(hare, animal));
 	REQUIRE(w.is(wolf, animal));
 
 	REQUIRE_FALSE(w.is(animal, herbivore));

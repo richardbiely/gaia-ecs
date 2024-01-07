@@ -117,13 +117,18 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Remaining lifespan of the archetype
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
+			//! If set the archetype is to be deleted
 			uint32_t m_dead : 1;
+			//! Number of relationship pairs on the archetype
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
+			//! Number of As relationship pairs on the archetype
+			uint32_t m_pairCnt_as: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0) {}
+					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_as(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -296,9 +301,14 @@ namespace gaia {
 
 				// Calculate the number of pairs
 				GAIA_EACH(ids) {
-					if (ids[i].pair()) {
-						++newArch->m_pairCnt;
-					}
+					if (!ids[i].pair())
+						continue;
+
+					++newArch->m_pairCnt;
+
+					// If it is a As relationship, count it separately as well
+					if (ids[i].id() == As.id())
+						++newArch->m_pairCnt_as;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -602,6 +612,10 @@ namespace gaia {
 
 			GAIA_NODISCARD uint32_t pairs() const {
 				return m_pairCnt;
+			}
+
+			GAIA_NODISCARD uint32_t pairs_as() const {
+				return m_pairCnt_as;
 			}
 
 			/*!

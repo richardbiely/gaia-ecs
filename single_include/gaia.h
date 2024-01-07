@@ -14317,10 +14317,10 @@ namespace gaia {
 		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity IsA = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity As = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = IsA;
+		inline Entity GAIA_ID(LastCoreComponent) = As;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -17298,13 +17298,18 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Remaining lifespan of the archetype
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
+			//! If set the archetype is to be deleted
 			uint32_t m_dead : 1;
+			//! Number of relationship pairs on the archetype
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
+			//! Number of As relationship pairs on the archetype
+			uint32_t m_pairCnt_as: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0) {}
+					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_as(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -17477,9 +17482,14 @@ namespace gaia {
 
 				// Calculate the number of pairs
 				GAIA_EACH(ids) {
-					if (ids[i].pair()) {
-						++newArch->m_pairCnt;
-					}
+					if (!ids[i].pair())
+						continue;
+
+					++newArch->m_pairCnt;
+
+					// If it is a As relationship, count it separately as well
+					if (ids[i].id() == As.id())
+						++newArch->m_pairCnt_as;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -17783,6 +17793,10 @@ namespace gaia {
 
 			GAIA_NODISCARD uint32_t pairs() const {
 				return m_pairCnt;
+			}
+
+			GAIA_NODISCARD uint32_t pairs_as() const {
+				return m_pairCnt_as;
 			}
 
 			/*!
@@ -20272,15 +20286,15 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Shortcut for add(Pair(IsA, entityBase)).
+				//! Shortcut for add(Pair(As, entityBase)).
 				//! Effectively makes an entity inherit from \param entityBase
-				EntityBuilder& derive(Entity entityBase) {
-					return add(Pair(IsA, entityBase));
+				EntityBuilder& as(Entity entityBase) {
+					return add(Pair(As, entityBase));
 				}
 
 				//! Check if \param entity inherits from \param entityBase
 				//! \return True if entity inherits from entityBase
-				GAIA_NODISCARD bool derive(Entity entity, Entity entityBase) const {
+				GAIA_NODISCARD bool as(Entity entity, Entity entityBase) const {
 					return static_cast<const World&>(m_world).is(entity, entityBase);
 				}
 
@@ -20401,7 +20415,7 @@ namespace gaia {
 				}
 
 				void try_set_AliasOf(Entity entity, bool enable) {
-					if (!entity.pair() || entity.id() != IsA.id())
+					if (!entity.pair() || entity.id() != As.id())
 						return;
 
 					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
@@ -21684,7 +21698,7 @@ namespace gaia {
 
 				// Base entity is.
 				{
-					const auto& id = IsA;
+					const auto& id = As;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
@@ -21734,7 +21748,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, IsA) //
+				EntityBuilder(*this, As) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -22090,21 +22104,26 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(IsA, entityBase)
-			void derive(Entity entity, Entity entityBase) {
-				add(entity, Pair(IsA, entityBase));
+			//! Shortcut for add(entity, Pair(As, entityBase)
+			void as(Entity entity, Entity entityBase) {
+				add(entity, Pair(As, entityBase));
 			}
 
 			//! Checks if \param entity inherits from \param entityBase.
 			//! True if entity is an is for entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
 				const auto& ec = fetch(entity);
-				const auto& ids = ec.pArchetype->ids();
+				const auto* pArchetype = ec.pArchetype;
 
+				// Early exit if there are no As relationships on the archetype
+				if (pArchetype->pairs_as() == 0)
+					return false;
+
+				const auto& ids = ec.pArchetype->ids();
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.id() != IsA.id())
+					if (e.id() != As.id())
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];

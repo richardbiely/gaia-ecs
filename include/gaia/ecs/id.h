@@ -468,10 +468,10 @@ namespace gaia {
 		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity IsA = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity As = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = IsA;
+		inline Entity GAIA_ID(LastCoreComponent) = As;
 
 		//----------------------------------------------------------------------
 		// Helper functions

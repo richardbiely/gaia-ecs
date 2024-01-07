@@ -161,15 +161,15 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Shortcut for add(Pair(IsA, entityBase)).
+				//! Shortcut for add(Pair(As, entityBase)).
 				//! Effectively makes an entity inherit from \param entityBase
-				EntityBuilder& derive(Entity entityBase) {
-					return add(Pair(IsA, entityBase));
+				EntityBuilder& as(Entity entityBase) {
+					return add(Pair(As, entityBase));
 				}
 
 				//! Check if \param entity inherits from \param entityBase
 				//! \return True if entity inherits from entityBase
-				GAIA_NODISCARD bool derive(Entity entity, Entity entityBase) const {
+				GAIA_NODISCARD bool as(Entity entity, Entity entityBase) const {
 					return static_cast<const World&>(m_world).is(entity, entityBase);
 				}
 
@@ -290,7 +290,7 @@ namespace gaia {
 				}
 
 				void try_set_AliasOf(Entity entity, bool enable) {
-					if (!entity.pair() || entity.id() != IsA.id())
+					if (!entity.pair() || entity.id() != As.id())
 						return;
 
 					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
@@ -1573,7 +1573,7 @@ namespace gaia {
 
 				// Base entity is.
 				{
-					const auto& id = IsA;
+					const auto& id = As;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
@@ -1623,7 +1623,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, IsA) //
+				EntityBuilder(*this, As) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -1979,21 +1979,26 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(IsA, entityBase)
-			void derive(Entity entity, Entity entityBase) {
-				add(entity, Pair(IsA, entityBase));
+			//! Shortcut for add(entity, Pair(As, entityBase)
+			void as(Entity entity, Entity entityBase) {
+				add(entity, Pair(As, entityBase));
 			}
 
 			//! Checks if \param entity inherits from \param entityBase.
 			//! True if entity is an is for entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
 				const auto& ec = fetch(entity);
-				const auto& ids = ec.pArchetype->ids();
+				const auto* pArchetype = ec.pArchetype;
 
+				// Early exit if there are no As relationships on the archetype
+				if (pArchetype->pairs_as() == 0)
+					return false;
+
+				const auto& ids = ec.pArchetype->ids();
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.id() != IsA.id())
+					if (e.id() != As.id())
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
