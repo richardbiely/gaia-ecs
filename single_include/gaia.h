@@ -7917,10 +7917,10 @@ namespace robin_hood {
 			template <typename M>
 			struct Cloner<M, true> {
 				void operator()(M const& source, M& target) const {
-					auto const* const src = reinterpret_cast<char const*>(source.mKeyVals);
-					auto* tgt = reinterpret_cast<char*>(target.mKeyVals);
+					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
+					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					memcpy(tgt, src, src + target.calcNumBytesTotal(numElementsWithBuffer));
+					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -7928,7 +7928,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					memcpy(t.mInfo, s.mInfo, s.mInfo + t.calcNumBytesInfo(numElementsWithBuffer));
+					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -11284,10 +11284,10 @@ namespace robin_hood {
 			template <typename M>
 			struct Cloner<M, true> {
 				void operator()(M const& source, M& target) const {
-					auto const* const src = reinterpret_cast<char const*>(source.mKeyVals);
-					auto* tgt = reinterpret_cast<char*>(target.mKeyVals);
+					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
+					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					memcpy(tgt, src, src + target.calcNumBytesTotal(numElementsWithBuffer));
+					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -11295,7 +11295,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					memcpy(t.mInfo, s.mInfo, s.mInfo + t.calcNumBytesInfo(numElementsWithBuffer));
+					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
