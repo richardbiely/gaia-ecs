@@ -74,7 +74,7 @@ namespace gaia {
 		class Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
-			
+
 			struct Properties {
 				//! The number of data entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
@@ -662,6 +662,21 @@ namespace gaia {
 				GAIA_ASSERT(pArchetypeLeft != this);
 
 				m_graph.add_edge_left(entity, pArchetypeLeft->id());
+			}
+
+			void del_graph_edges(Archetype* pArchetypeRight, Entity entity) {
+				// Loops can't happen
+				GAIA_ASSERT(pArchetypeRight != this);
+
+				m_graph.del_edge_right(entity);
+				pArchetypeRight->del_graph_edges_left(this, entity);
+			}
+
+			void del_graph_edges_left([[maybe_unused]] Archetype* pArchetypeLeft, Entity entity) {
+				// Loops can't happen
+				GAIA_ASSERT(pArchetypeLeft != this);
+
+				m_graph.del_edge_left(entity);
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.

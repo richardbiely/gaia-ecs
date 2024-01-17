@@ -14443,40 +14443,63 @@ namespace gaia {
 				ArchetypeId archetypeId;
 			};
 
-			//! Map of edges in the archetype graph when adding components
-			cnt::map<EntityLookupKey, ArchetypeGraphEdge> m_edgesAdd;
-			//! Map of edges in the archetype graph when removing components
-			cnt::map<EntityLookupKey, ArchetypeGraphEdge> m_edgesDel;
+			using EdgeMap = cnt::map<EntityLookupKey, ArchetypeGraphEdge>;
 
-		public:
-			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! comp of type \param kind.
-			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret =
-						m_edgesAdd.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
+			//! Map of edges in the archetype graph when adding components
+			EdgeMap m_edgesAdd;
+			//! Map of edges in the archetype graph when removing components
+			EdgeMap m_edgesDel;
+
+		private:
+			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId) {
+				[[maybe_unused]] const auto ret = edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! comp of type \param kind.
+			void del_edge(EdgeMap& edges, Entity entity) {
+				edges.erase(EntityLookupKey(entity));
+			}
+
+			GAIA_NODISCARD ArchetypeId find_edge(const EdgeMap& edges, Entity entity) const {
+				const auto it = edges.find(EntityLookupKey(entity));
+				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+			}
+
+		public:
+			//! Creates an "add" edge in the graph leading to the target archetype.
+			//! \param entity Edge entity.
+			//! \param archetypeId Target archetype.
+			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
+				add_edge(m_edgesAdd, entity, archetypeId);
+			}
+
+			//! Creates a "del" edge in the graph leading to the target archetype.
+			//! \param entity Edge entity.
+			//! \param archetypeId Target archetype.
 			void add_edge_left(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret =
-						m_edgesDel.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
-				GAIA_ASSERT(ret.second);
+				add_edge(m_edgesDel, entity, archetypeId);
+			}
+
+			//! Deletes the "add" edge formed by the entity \param entity.
+			void del_edge_right(Entity entity) {
+				del_edge(m_edgesAdd, entity);
+			}
+
+			//! Deletes the "del" edge formed by the entity \param entity.
+			void del_edge_left(Entity entity) {
+				del_edge(m_edgesDel, entity);
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
-				const auto it = m_edgesAdd.find(EntityLookupKey(entity));
-				return it != m_edgesAdd.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return find_edge(m_edgesAdd, entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
-				const auto it = m_edgesDel.find(EntityLookupKey(entity));
-				return it != m_edgesDel.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return find_edge(m_edgesDel, entity);
 			}
 
 			void diag(const World& world) const {
@@ -17255,7 +17278,7 @@ namespace gaia {
 		class Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
-			
+
 			struct Properties {
 				//! The number of data entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
@@ -17843,6 +17866,21 @@ namespace gaia {
 				GAIA_ASSERT(pArchetypeLeft != this);
 
 				m_graph.add_edge_left(entity, pArchetypeLeft->id());
+			}
+
+			void del_graph_edges(Archetype* pArchetypeRight, Entity entity) {
+				// Loops can't happen
+				GAIA_ASSERT(pArchetypeRight != this);
+
+				m_graph.del_edge_right(entity);
+				pArchetypeRight->del_graph_edges_left(this, entity);
+			}
+
+			void del_graph_edges_left([[maybe_unused]] Archetype* pArchetypeLeft, Entity entity) {
+				// Loops can't happen
+				GAIA_ASSERT(pArchetypeLeft != this);
+
+				m_graph.del_edge_left(entity);
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
@@ -20369,7 +20407,9 @@ namespace gaia {
 					{
 						const auto& ec = m_world.fetch(entity);
 						if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
-							m_world.targets(entity, CantCombine, targets);
+							m_world.targets(entity, CantCombine, [&targets](Entity target) {
+								targets.push_back(target);
+							});
 							for (auto e: targets) {
 								if (m_pArchetype->has(e)) {
 #if GAIA_ASSERT_ENABLED
@@ -20385,7 +20425,9 @@ namespace gaia {
 					// Handle dependencies
 					{
 						targets.clear();
-						m_world.targets(entity, DependsOn, targets);
+						m_world.targets(entity, DependsOn, [&targets](Entity target) {
+							targets.push_back(target);
+						});
 
 						for (auto e: targets) {
 							auto* pArchetype = m_pArchetype;
@@ -21363,9 +21405,53 @@ namespace gaia {
 				}
 			}
 
+			//! Removes any edges containing the entity from the archetype graph.
+			//! \param entity Entity to delete
+			void remove_graph_edges(Entity entity) {
+				auto removeEdges = [&](Entity entityToRemove) {
+					const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entityToRemove));
+					if (it == m_entityToArchetypeMap.end())
+						return;
+
+					const auto& archetypes = it->second;
+					for (auto* pArchetype: archetypes) {
+						const auto leftId = pArchetype->find_edge_left(entityToRemove);
+						const auto itLeft = m_archetypesById.find(leftId);
+
+						// The edge might have been deleted aleady
+						if (itLeft == m_archetypesById.end())
+							continue;
+
+						auto* pArchetypeLeft = itLeft->second;
+						GAIA_ASSERT(pArchetypeLeft != nullptr);
+						pArchetypeLeft->del_graph_edges(pArchetype, entityToRemove);
+					}
+				};
+
+				removeEdges(entity);
+
+				// Make sure to remove all pairs containing the entity
+				if (!entity.pair()) {
+					// (X, something)
+					const auto* tgts = targets(entity);
+					if (tgts != nullptr) {
+						for (auto target: *tgts)
+							removeEdges(Pair(entity, target.entity()));
+					}
+					// (something, X)
+					const auto* rels = relations(entity);
+					if (rels != nullptr) {
+						for (auto relation: *rels)
+							removeEdges(Pair(relation.entity(), entity));
+					}
+				}
+			}
+
 			//! Invalidates the entity record, effectivelly deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
+				remove_graph_edges(entity);
+
 				auto delPair = [](PairMap& map, Entity source, Entity remove) {
 					auto itTargets = map.find(EntityLookupKey(source));
 					if (itTargets != map.end()) {
@@ -22478,13 +22564,13 @@ namespace gaia {
 			//! Returns the relationship relations for the \param target entity on \param entity.
 			//! Appends all relationship relations if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename C>
-			void relations(Entity entity, Entity target, C& out) const {
+			template <typename Func>
+			void relations(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(target))
 					return;
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
 				// Early exit if there are no pairs on the archetype
@@ -22500,7 +22586,7 @@ namespace gaia {
 
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
-					out.push_back(relation);
+					func(relation);
 				}
 			}
 
@@ -22549,13 +22635,13 @@ namespace gaia {
 			//! Returns the relationship targets for the \param relation entity on \param entity.
 			//! Appends all relationship targets if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename C>
-			void targets(Entity entity, Entity relation, C& out) const {
+			template <typename Func>
+			void targets(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
 				// Early exit if there are no pairs on the archetype
@@ -22571,7 +22657,7 @@ namespace gaia {
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					out.push_back(target);
+					func(target);
 				}
 			}
 

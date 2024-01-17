@@ -19,40 +19,63 @@ namespace gaia {
 				ArchetypeId archetypeId;
 			};
 
-			//! Map of edges in the archetype graph when adding components
-			cnt::map<EntityLookupKey, ArchetypeGraphEdge> m_edgesAdd;
-			//! Map of edges in the archetype graph when removing components
-			cnt::map<EntityLookupKey, ArchetypeGraphEdge> m_edgesDel;
+			using EdgeMap = cnt::map<EntityLookupKey, ArchetypeGraphEdge>;
 
-		public:
-			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! comp of type \param kind.
-			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret =
-						m_edgesAdd.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
+			//! Map of edges in the archetype graph when adding components
+			EdgeMap m_edgesAdd;
+			//! Map of edges in the archetype graph when removing components
+			EdgeMap m_edgesDel;
+
+		private:
+			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId) {
+				[[maybe_unused]] const auto ret = edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! comp of type \param kind.
+			void del_edge(EdgeMap& edges, Entity entity) {
+				edges.erase(EntityLookupKey(entity));
+			}
+
+			GAIA_NODISCARD ArchetypeId find_edge(const EdgeMap& edges, Entity entity) const {
+				const auto it = edges.find(EntityLookupKey(entity));
+				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+			}
+
+		public:
+			//! Creates an "add" edge in the graph leading to the target archetype.
+			//! \param entity Edge entity.
+			//! \param archetypeId Target archetype.
+			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
+				add_edge(m_edgesAdd, entity, archetypeId);
+			}
+
+			//! Creates a "del" edge in the graph leading to the target archetype.
+			//! \param entity Edge entity.
+			//! \param archetypeId Target archetype.
 			void add_edge_left(Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret =
-						m_edgesDel.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
-				GAIA_ASSERT(ret.second);
+				add_edge(m_edgesDel, entity, archetypeId);
+			}
+
+			//! Deletes the "add" edge formed by the entity \param entity.
+			void del_edge_right(Entity entity) {
+				del_edge(m_edgesAdd, entity);
+			}
+
+			//! Deletes the "del" edge formed by the entity \param entity.
+			void del_edge_left(Entity entity) {
+				del_edge(m_edgesDel, entity);
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
-				const auto it = m_edgesAdd.find(EntityLookupKey(entity));
-				return it != m_edgesAdd.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return find_edge(m_edgesAdd, entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
-				const auto it = m_edgesDel.find(EntityLookupKey(entity));
-				return it != m_edgesDel.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return find_edge(m_edgesDel, entity);
 			}
 
 			void diag(const World& world) const {

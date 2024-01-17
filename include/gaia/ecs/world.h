@@ -234,7 +234,9 @@ namespace gaia {
 					{
 						const auto& ec = m_world.fetch(entity);
 						if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
-							m_world.targets(entity, CantCombine, targets);
+							m_world.targets(entity, CantCombine, [&targets](Entity target) {
+								targets.push_back(target);
+							});
 							for (auto e: targets) {
 								if (m_pArchetype->has(e)) {
 #if GAIA_ASSERT_ENABLED
@@ -250,7 +252,9 @@ namespace gaia {
 					// Handle dependencies
 					{
 						targets.clear();
-						m_world.targets(entity, DependsOn, targets);
+						m_world.targets(entity, DependsOn, [&targets](Entity target) {
+							targets.push_back(target);
+						});
 
 						for (auto e: targets) {
 							auto* pArchetype = m_pArchetype;
@@ -1228,9 +1232,53 @@ namespace gaia {
 				}
 			}
 
+			//! Removes any edges containing the entity from the archetype graph.
+			//! \param entity Entity to delete
+			void remove_graph_edges(Entity entity) {
+				auto removeEdges = [&](Entity entityToRemove) {
+					const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entityToRemove));
+					if (it == m_entityToArchetypeMap.end())
+						return;
+
+					const auto& archetypes = it->second;
+					for (auto* pArchetype: archetypes) {
+						const auto leftId = pArchetype->find_edge_left(entityToRemove);
+						const auto itLeft = m_archetypesById.find(leftId);
+
+						// The edge might have been deleted aleady
+						if (itLeft == m_archetypesById.end())
+							continue;
+
+						auto* pArchetypeLeft = itLeft->second;
+						GAIA_ASSERT(pArchetypeLeft != nullptr);
+						pArchetypeLeft->del_graph_edges(pArchetype, entityToRemove);
+					}
+				};
+
+				removeEdges(entity);
+
+				// Make sure to remove all pairs containing the entity
+				if (!entity.pair()) {
+					// (X, something)
+					const auto* tgts = targets(entity);
+					if (tgts != nullptr) {
+						for (auto target: *tgts)
+							removeEdges(Pair(entity, target.entity()));
+					}
+					// (something, X)
+					const auto* rels = relations(entity);
+					if (rels != nullptr) {
+						for (auto relation: *rels)
+							removeEdges(Pair(relation.entity(), entity));
+					}
+				}
+			}
+
 			//! Invalidates the entity record, effectivelly deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
+				remove_graph_edges(entity);
+
 				auto delPair = [](PairMap& map, Entity source, Entity remove) {
 					auto itTargets = map.find(EntityLookupKey(source));
 					if (itTargets != map.end()) {
@@ -2343,13 +2391,13 @@ namespace gaia {
 			//! Returns the relationship relations for the \param target entity on \param entity.
 			//! Appends all relationship relations if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename C>
-			void relations(Entity entity, Entity target, C& out) const {
+			template <typename Func>
+			void relations(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(target))
 					return;
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
 				// Early exit if there are no pairs on the archetype
@@ -2365,7 +2413,7 @@ namespace gaia {
 
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
-					out.push_back(relation);
+					func(relation);
 				}
 			}
 
@@ -2414,13 +2462,13 @@ namespace gaia {
 			//! Returns the relationship targets for the \param relation entity on \param entity.
 			//! Appends all relationship targets if any to \param out.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename C>
-			void targets(Entity entity, Entity relation, C& out) const {
+			template <typename Func>
+			void targets(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
 
-				const auto& ec = m_recs.entities[entity.id()];
+				const auto& ec = fetch(entity);
 				const auto* pArchetype = ec.pArchetype;
 
 				// Early exit if there are no pairs on the archetype
@@ -2436,7 +2484,7 @@ namespace gaia {
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					out.push_back(target);
+					func(target);
 				}
 			}
 

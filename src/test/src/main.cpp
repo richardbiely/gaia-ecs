@@ -2641,14 +2641,18 @@ TEST_CASE("Relationship target/relation") {
 	REQUIRE(ret_e);
 
 	cnt::sarr_ext<ecs::Entity, 32> out;
-	w.targets(rabbit, eats, out);
+	w.targets(rabbit, eats, [&out](ecs::Entity target) {
+		out.push_back(target);
+	});
 	REQUIRE(out.size() == 2);
 	REQUIRE(core::has(out, carrot));
 	REQUIRE(core::has(out, salad));
 	REQUIRE(w.target(rabbit, eats) == carrot);
 
 	out.clear();
-	w.relations(rabbit, salad, out);
+	w.relations(rabbit, salad, [&out](ecs::Entity relation) {
+		out.push_back(relation);
+	});
 	REQUIRE(out.size() == 1);
 	REQUIRE(core::has(out, eats));
 	REQUIRE(w.relation(rabbit, salad) == eats);
