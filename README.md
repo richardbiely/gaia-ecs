@@ -884,7 +884,7 @@ w.add(e, weak);
 ```
 
 ### Entity inheritance
-Entities can inherit from other entities by using the (As, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
+Entities can inherit from other entities by using the (Is, target) relationship. This is a powerful feature that helps you identify an entire group of entities using a single entity.
 
 ```cpp
 ecs::World w;
@@ -893,9 +893,9 @@ ecs::Entity herbivore = w.add();
 ecs::Entity rabbit = w.add();
 ecs::Entity hare = w.add();
 
-w.add(herbivore, ecs::Pair(ecs::As, animal)); // w.as(herbivore, animal)
-w.add(rabbit, ecs::Pair(ecs::As, herbivore)); // w.as(rabbit, herbivore)
-w.add(hare, ecs::Pair(ecs::As, herbivore)); // w.as(hare, herbivore)
+w.as(herbivore, animal); // equivalent of w.add(herbivore, ecs::Pair(ecs::Is, animal))
+w.as(rabbit, herbivore); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, herbivore))
+w.as(hare, herbivore); // equivalent of w.add(hare, ecs::Pair(ecs::Is, herbivore))
 
 bool herbibore_is_animal = w.is(herbivore, animal); // true
 bool rabbit_is_herbivore = w.is(rabbit, herbivore); // true

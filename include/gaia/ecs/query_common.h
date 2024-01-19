@@ -5,6 +5,7 @@
 #include "../cnt/darray.h"
 #include "../cnt/sarray.h"
 #include "../cnt/sarray_ext.h"
+#include "../core/bit_utils.h"
 #include "../core/hashing_policy.h"
 #include "component.h"
 #include "component_utils.h"
@@ -35,7 +36,7 @@ namespace gaia {
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
-		using QueryArchetypeIndexArray = cnt::sarray_ext<uint32_t, MAX_ITEMS_IN_QUERY>;
+		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
@@ -91,11 +92,18 @@ namespace gaia {
 				//! List of [op,id] pairs
 				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
-				QueryArchetypeIndexArray lastMatchedArchetypeIdx;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! List of filtered components
 				QueryEntityArray withChanged;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the first part (id) is written here.
+				uint32_t as_mask;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the second part (gen) is written here.
+				uint32_t as_mask_2;
 				//! First NOT record in pairs/ids/ops
 				uint8_t firstNot;
 				//! First ANY record in pairs/ids/ops
@@ -166,24 +174,16 @@ namespace gaia {
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
+			// Also makes sure data is in optimal order for query processing.
 			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.pairs[left], data.pairs[right]);
-				core::swap(data.lastMatchedArchetypeIdx[left], data.lastMatchedArchetypeIdx[right]);
 				core::swap(data.remapping[left], data.remapping[right]);
 
-				// Make sure the read-write mask remains correct after sorting
-				{
-					// Swap the bits in the read-write mask
-					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
-					const uint32_t b1 = (data.readWriteMask >> right) & 1U;
-					// XOR the two bits
-					const uint32_t bxor = b0 ^ b1;
-					// Put the XOR bits back to their original positions
-					const uint32_t mask = (bxor << left) | (bxor << right);
-					// XOR mask with the original one effectivelly swapping the bits
-					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
-				}
+				// Make sure masks remains correct after sorting
+				core::swap_bits(data.readWriteMask, left, right);
+				core::swap_bits(data.as_mask, left, right);
+				core::swap_bits(data.as_mask_2, left, right);
 			});
 
 			auto& pairs = data.pairs;

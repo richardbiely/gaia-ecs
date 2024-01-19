@@ -51,5 +51,18 @@ namespace gaia {
 				return byte1;
 			}
 		};
+
+		template <typename T>
+		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
+			// Swap the bits in the read-write mask
+			const uint32_t b0 = (mask >> left) & 1U;
+			const uint32_t b1 = (mask >> right) & 1U;
+			// XOR the two bits
+			const uint32_t bxor = b0 ^ b1;
+			// Put the XOR bits back to their original positions
+			const uint32_t m = (bxor << left) | (bxor << right);
+			// XOR mask with the original one effectivelly swapping the bits
+			mask = mask ^ (uint8_t)m;
+		}
 	} // namespace core
 } // namespace gaia

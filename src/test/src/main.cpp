@@ -1882,7 +1882,7 @@ TEST_CASE("DependsOn") {
 	REQUIRE(!w.has(rabbit, carrot));
 }
 
-TEST_CASE("Inheritance (As)") {
+TEST_CASE("Inheritance (Is)") {
 	ecs::World w;
 	ecs::Entity animal = w.add();
 	ecs::Entity herbivore = w.add();
@@ -1892,10 +1892,10 @@ TEST_CASE("Inheritance (As)") {
 	ecs::Entity hare = w.add();
 	ecs::Entity wolf = w.add();
 
-	w.as(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::As, animal));
-	w.as(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::As, herbivore));
-	w.as(hare, herbivore); // w.add(hare, ecs::Pair(ecs::As, herbivore));
-	w.as(wolf, animal); // w.add(wolf, ecs::Pair(ecs::As, animal))
+	w.as(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::Is, animal));
+	w.as(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::Is, herbivore));
+	w.as(hare, herbivore); // w.add(hare, ecs::Pair(ecs::Is, herbivore));
+	w.as(wolf, animal); // w.add(wolf, ecs::Pair(ecs::Is, animal))
 
 	REQUIRE(w.is(herbivore, animal));
 	REQUIRE(w.is(rabbit, herbivore));
@@ -1907,30 +1907,30 @@ TEST_CASE("Inheritance (As)") {
 	REQUIRE_FALSE(w.is(animal, herbivore));
 	REQUIRE_FALSE(w.is(wolf, herbivore));
 
-	// {
-	// 	uint32_t i = 0;
-	// 	ecs::Query q = w.query().all(animal);
-	// 	q.each([&](ecs::Entity entity) {
-	// 		// runs for herbivore, rabbit and hare
-	// 		const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
-	// 		REQUIRE(isOK);
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal));
+		q.each([&](ecs::Entity entity) {
+			// runs for herbivore, rabbit, hare, wolf
+			const bool isOK = entity == hare || entity == rabbit || entity == herbivore || entity == wolf;
+			REQUIRE(isOK);
 
-	// 		++i;
-	// 	});
-	// 	REQUIRE(i == 3);
-	// }
-	// {
-	// 	uint32_t i = 0;
-	// 	ecs::Query q = w.query().all(herbivore);
-	// 	q.each([&](ecs::Entity entity) {
-	// 		// runs for rabbit and hare
-	// 		const bool isOK = entity == hare || entity == rabbit;
-	// 		REQUIRE(isOK);
+			++i;
+		});
+		REQUIRE(i == 4);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
+		q.each([&](ecs::Entity entity) {
+			// runs for rabbit and hare
+			const bool isOK = entity == hare || entity == rabbit;
+			REQUIRE(isOK);
 
-	// 		++i;
-	// 	});
-	// 	REQUIRE(i == 2);
-	// }
+			++i;
+		});
+		REQUIRE(i == 2);
+	}
 }
 
 TEST_CASE("AddAndDel_entity - no components") {

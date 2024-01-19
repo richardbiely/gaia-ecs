@@ -2937,6 +2937,19 @@ namespace gaia {
 				return byte1;
 			}
 		};
+
+		template <typename T>
+		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
+			// Swap the bits in the read-write mask
+			const uint32_t b0 = (mask >> left) & 1U;
+			const uint32_t b1 = (mask >> right) & 1U;
+			// XOR the two bits
+			const uint32_t bxor = b0 ^ b1;
+			// Put the XOR bits back to their original positions
+			const uint32_t m = (bxor << left) | (bxor << right);
+			// XOR mask with the original one effectivelly swapping the bits
+			mask = mask ^ (uint8_t)m;
+		}
 	} // namespace core
 } // namespace gaia
 
@@ -14317,21 +14330,27 @@ namespace gaia {
 		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity As = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = As;
+		inline Entity GAIA_ID(LastCoreComponent) = Is;
 
 		//----------------------------------------------------------------------
 		// Helper functions
 		//----------------------------------------------------------------------
 
-		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
-			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
+		GAIA_NODISCARD inline bool is_wildcard(EntityId entityId) {
+			return entityId == All.id();
 		}
+
+		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
+			return entity.pair() && (is_wildcard(entity.id()) || is_wildcard(entity.gen()));
+		}
+
 		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
 		}
+
 	} // namespace ecs
 } // namespace gaia
 
@@ -14347,6 +14366,7 @@ namespace gaia {
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
+		using EntitySpanMut = std::span<Entity>;
 		using ComponentSpan = std::span<const Component>;
 
 		//----------------------------------------------------------------------
@@ -15949,7 +15969,8 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::ilist<EntityContainer, Entity> entities;
-			//! Just m_recs.entities, but stores pairs.
+			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
+			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
 
 			EntityContainer& operator[](Entity entity) {
@@ -17308,7 +17329,7 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
 			Chunk::EntityArray m_ids;
-			//! List of indices to As relationship pairs in m_ids.
+			//! List of indices to Is relationship pairs in m_ids.
 			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
 			AsPairsIndexBuffer m_pairs_as_index_buffer;
 			//! List of component ids
@@ -17332,12 +17353,12 @@ namespace gaia {
 			uint32_t m_dead : 1;
 			//! Number of relationship pairs on the archetype
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
-			//! Number of As relationship pairs on the archetype
-			uint32_t m_pairCnt_as: Chunk::MAX_COMPONENTS_BITS;
+			//! Number of Is relationship pairs on the archetype
+			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_as(0) {}
+					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -17515,9 +17536,9 @@ namespace gaia {
 
 					++newArch->m_pairCnt;
 
-					// If it is a As relationship, count it separately
-					if (ids[i].id() == As.id())
-						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_as++] = (uint8_t)i;
+					// If it is a Is relationship, count it separately
+					if (ids[i].id() == Is.id())
+						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_is++] = (uint8_t)i;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -17823,8 +17844,8 @@ namespace gaia {
 				return m_pairCnt;
 			}
 
-			GAIA_NODISCARD uint32_t pairs_as() const {
-				return m_pairCnt_as;
+			GAIA_NODISCARD uint32_t pairs_is() const {
+				return m_pairCnt_is;
 			}
 
 			GAIA_NODISCARD Entity entity_from_pairs_as_idx(uint32_t idx) const {
@@ -18474,7 +18495,7 @@ namespace gaia {
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
-		using QueryArchetypeIndexArray = cnt::sarray_ext<uint32_t, MAX_ITEMS_IN_QUERY>;
+		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
@@ -18530,11 +18551,18 @@ namespace gaia {
 				//! List of [op,id] pairs
 				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
-				QueryArchetypeIndexArray lastMatchedArchetypeIdx;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! List of filtered components
 				QueryEntityArray withChanged;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the first part (id) is written here.
+				uint32_t as_mask;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the second part (gen) is written here.
+				uint32_t as_mask_2;
 				//! First NOT record in pairs/ids/ops
 				uint8_t firstNot;
 				//! First ANY record in pairs/ids/ops
@@ -18605,24 +18633,16 @@ namespace gaia {
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
+			// Also makes sure data is in optimal order for query processing.
 			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.pairs[left], data.pairs[right]);
-				core::swap(data.lastMatchedArchetypeIdx[left], data.lastMatchedArchetypeIdx[right]);
 				core::swap(data.remapping[left], data.remapping[right]);
 
-				// Make sure the read-write mask remains correct after sorting
-				{
-					// Swap the bits in the read-write mask
-					const uint32_t b0 = (data.readWriteMask >> left) & 1U;
-					const uint32_t b1 = (data.readWriteMask >> right) & 1U;
-					// XOR the two bits
-					const uint32_t bxor = b0 ^ b1;
-					// Put the XOR bits back to their original positions
-					const uint32_t mask = (bxor << left) | (bxor << right);
-					// XOR mask with the original one effectivelly swapping the bits
-					data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
-				}
+				// Make sure masks remains correct after sorting
+				core::swap_bits(data.readWriteMask, left, right);
+				core::swap_bits(data.as_mask, left, right);
+				core::swap_bits(data.as_mask_2, left, right);
 			});
 
 			auto& pairs = data.pairs;
@@ -18704,6 +18724,11 @@ namespace gaia {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
 
 		Archetype* archetype_from_entity(const World& world, Entity entity);
+		bool is(const World& world, Entity entity, Entity baseEntity);
+		template <typename Func>
+		void as_relations_trav(const World& world, Entity target, Func func);
+		template <typename Func>
+		bool as_relations_trav_if(const World& world, Entity target, Func func);
 
 		class QueryInfo {
 		public:
@@ -18775,6 +18800,105 @@ namespace gaia {
 					const auto idInArchetype = archetypeIds[i];
 					const auto idInQuery = queryIds[j];
 
+					if (func(idInArchetype, idInQuery, j))
+						return true;
+
+					if (SortComponentCond{}.operator()(idInArchetype, idInQuery)) {
+						++i;
+						continue;
+					}
+
+					++j;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD static bool match_idQueryId_with_idArchetype(
+					const World& w, uint32_t mask, uint32_t idQueryIdx, EntityId idQuery, EntityId idArchetype) {
+				if ((mask & (1U << idQueryIdx)) == 0U)
+					return idQuery == idArchetype;
+
+				const auto qe = entity_from_id(w, idQuery);
+				const auto ae = entity_from_id(w, idArchetype);
+				return is(w, ae, qe);
+			};
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetype given
+			//! the comparison function \param func.
+			//! \return True on the first match, false otherwise.
+			template <typename Func>
+			GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+				const auto& archetypeIds = archetype.ids();
+
+				// Archetype has no pairs we can compare ids directly
+				if (archetype.pairs() == 0) {
+					return match_inter(
+							archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery, [[maybe_unused]] uint32_t idQueryIdx) {
+								return idQuery == idArchetype && func();
+							});
+				}
+
+				return match_inter(
+						archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery, [[maybe_unused]] uint32_t idQueryIdx) {
+							if (idQuery.pair()) {
+								// all(Pair<All, All>) aka "any pair"
+								if (idQuery == Pair(All, All))
+									return func();
+
+								// all(Pair<X, All>):
+								//   X, AAA
+								//   X, BBB
+								//   ...
+								//   X, ZZZ
+								if (idQuery.gen() == All.id())
+									return idQuery.id() == idArchetype.id() && func();
+
+								// all(Pair<All, X>):
+								//   AAA, X
+								//   BBB, X
+								//   ...
+								//   ZZZ, X
+								if (idQuery.id() == All.id())
+									return idQuery.gen() == idArchetype.gen() && func();
+							}
+
+							return idQuery == idArchetype && func();
+						});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetype given
+			//! the comparison function \param func.
+			//! \return True on the first match, false otherwise.
+			GAIA_NODISCARD bool match_one(const Archetype& archetype, EntitySpan queryIds) const {
+				return match_res(archetype, queryIds, []() {
+					return true;
+				});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
+			//! \return True if all ids match, false otherwise.
+			GAIA_NODISCARD
+			bool match_all(const Archetype& archetype, EntitySpan queryIds) const {
+				uint32_t matches = 0;
+				uint32_t expected = (uint32_t)queryIds.size();
+				return match_res(archetype, queryIds, [&matches, expected]() {
+					return (++matches) == expected;
+				});
+			}
+
+			template <typename Func>
+			GAIA_NODISCARD bool match_inter_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+				const auto& archetypeIds = archetype.ids();
+
+				// Arrays are sorted so we can do linear intersection lookup
+				uint32_t i = 0;
+				uint32_t j = 0;
+				while (i < archetypeIds.size() && j < queryIds.size()) {
+					const auto idInArchetype = archetypeIds[i];
+					const auto idInQuery = queryIds[j];
+
 					if (func(idInArchetype, idInQuery))
 						return true;
 
@@ -18789,87 +18913,123 @@ namespace gaia {
 				return false;
 			}
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
-				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					if (idQuery.pair()) {
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(All, All))
+			bool cmp_ids(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+				const auto& archetypeIds = archetype.ids();
+
+				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
+					return as_relations_trav_if(*m_lookupCtx.w, idInQuery, [&](Entity relation) {
+						const auto idx = core::get_index(archetypeIds, idInQuery);
+						// Stop at the first match
+						return idx != BadIndex;
+					});
+				}
+
+				return idInQuery == idInArchetype;
+			}
+
+			bool cmp_ids_ext(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+				const auto& archetypeIds = archetype.ids();
+
+				if (idInQuery.pair()) {
+					// all(Pair<All, All>) aka "any pair"
+					if (idInQuery == Pair(All, All))
+						return true;
+
+					// all(Pair<Is, X>)
+					if (idInQuery.id() == Is.id()) {
+						// (Is, X) in archetype == (Is, X) in query
+						if (idInArchetype == idInQuery)
 							return true;
 
-						// all(Pair<X, All>):
-						//   X, AAA
-						//   X, BBB
-						//   ...
-						//   X, ZZZ
-						if (idQuery.gen() == All.id())
-							return idQuery.id() == idArchetype.id();
+						const auto e = entity_from_id(*m_lookupCtx.w, idInQuery.gen());
 
-						// all(Pair<All, X>):
-						//   AAA, X
-						//   BBB, X
-						//   ...
-						//   ZZZ, X
-						if (idQuery.id() == All.id())
-							return idQuery.gen() == idArchetype.gen();
+						// If the archetype entity is an (Is, X) pair treat is as X and try matching it with
+						// entities inheriting from e.
+						if (idInArchetype.id() == Is.id()) {
+							const auto e2 = entity_from_id(*m_lookupCtx.w, idInArchetype.gen());
+							return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+								return e2 == relation;
+							});
+						}
+
+						// Archetype entity is generic, try matching it with entites inheriting from e.
+						return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+							// Relation does not necessary match the sorted order of components in the archetype
+							// so we need to search through all of its ids.
+							const auto idx = core::get_index(archetypeIds, relation);
+							// Stop at the first match
+							return (idx != BadIndex);
+						});
 					}
 
-					return idQuery == idArchetype;
-				});
-			}
+					// all(Pair<All, X>):
+					//   AAA, X
+					//   BBB, X
+					//   ...
+					//   ZZZ, X
+					if (idInQuery.id() == All.id()) {
+						if (idInQuery.gen() == idInArchetype.gen())
+							return true;
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! A fast version of match_one which does not consider wildcards.
-			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one_nopair(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
-				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					return idQuery == idArchetype;
-				});
-			}
+						// If there are any Is pairs on the archetype we need to check if we match them
+						if (archetype.pairs_is() > 0) {
+							const auto e = entity_from_id(*m_lookupCtx.w, idInQuery.gen());
+							return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+								// Relation does not necessary match the sorted order of components in the archetype
+								// so we need to search through all of its ids.
+								const auto idx = core::get_index(archetypeIds, relation);
+								// Stop at the first match
+								return idx != BadIndex;
+							});
+						}
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
-				uint32_t matches = 0;
-				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					if (idQuery.pair()) {
-						// all(Pair<All, All>) aka "any pair"
-						if (idQuery == Pair(All, All))
-							return ++matches == (uint32_t)queryIds.size();
-
-						// all(Pair<X, All>):
-						//   X, AAA
-						//   X, BBB
-						//   ...
-						//   X, ZZZ
-						if (idQuery.gen() == All.id())
-							return idQuery.id() == idArchetype.id() && (++matches == (uint32_t)queryIds.size());
-
-						// all(Pair<All, X>):
-						//   AAA, X
-						//   BBB, X
-						//   ...
-						//   ZZZ, X
-						if (idQuery.id() == All.id())
-							return idQuery.gen() == idArchetype.gen() && (++matches == (uint32_t)queryIds.size());
+						// No match found
+						return false;
 					}
 
-					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
+					// all(Pair<X, All>):
+					//   X, AAA
+					//   X, BBB
+					//   ...
+					//   X, ZZZ
+					if (idInQuery.gen() == All.id()) {
+						return idInQuery.id() == idInArchetype.id();
+					}
+				}
+
+				return idInQuery == idInArchetype;
+			}
+
+			template <typename Func>
+			GAIA_NODISCARD bool
+			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, uint32_t level, Func func) const {
+				const auto& archetypeIds = archetype.ids();
+
+				// Archetype has no pairs we can compare ids directly
+				if (archetype.pairs() == 0) {
+					return match_inter_backtrack(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+						return cmp_ids(archetype, idInArchetype, idInQuery) && func();
+					});
+				}
+
+				return match_inter_backtrack(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+					return cmp_ids_ext(archetype, idInArchetype, idInQuery) && func();
 				});
 			}
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! A fast version of match_one which does not consider wildcards.
-			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all_nopair(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds) const {
+			GAIA_NODISCARD
+			bool match_one_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
+				return match_res_backtrack(archetype, queryIds, 0, []() {
+					return true;
+				});
+			}
+
+			GAIA_NODISCARD
+			bool match_all_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
 				uint32_t matches = 0;
-				return match_inter(archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery) {
-					return idQuery == idArchetype && (++matches == (uint32_t)queryIds.size());
+				uint32_t expected = (uint32_t)queryIds.size();
+				return match_res_backtrack(archetype, queryIds, 0, [&matches, expected]() {
+					return (++matches) == expected;
 				});
 			}
 
@@ -18898,6 +19058,235 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return !operator==(other);
+			}
+
+			void match_archetype_all(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpan idsToMatch) {
+				// For ALL we need all the archetypes to match. We start by checking
+				// if the first one is registered in the world at all.
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				if (it == entityToArchetypeMap.end() || it->second.empty())
+					return;
+
+				auto& data = m_lookupCtx.data;
+
+				const auto& archetypes = it->second;
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
+				uint32_t lastMatchedIdx = 0;
+				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), 0U);
+				else
+					lastMatchedIdx = cache_it->second;
+				cache_it->second = archetypes.size();
+
+				// For simple cases it is enough to add archetypes to cache right away
+				if (idsToMatch.size() == 1) {
+					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+						auto* pArchetype = archetypes[a];
+
+						auto res = matchesSet.emplace(pArchetype);
+						if (res.second)
+							matchesArr.emplace_back(pArchetype);
+					}
+				} else {
+					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+						auto* pArchetype = archetypes[a];
+
+						if (matchesSet.contains(pArchetype))
+							continue;
+						if (!match_all(*pArchetype, idsToMatch))
+							continue;
+
+						auto res = matchesSet.emplace(pArchetype);
+						if (res.second)
+							matchesArr.emplace_back(pArchetype);
+					}
+				}
+			}
+
+			void match_archetype_one(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpan idsToMatch) {
+				// For ANY we need at least one archetypes to match.
+				// However, because any of them can match, we need to check them all.
+				// Iterating all of them is caller's responsibility.
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				if (it == entityToArchetypeMap.end() || it->second.empty())
+					return;
+
+				auto& data = m_lookupCtx.data;
+
+				const auto& archetypes = it->second;
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
+				uint32_t lastMatchedIdx = 0;
+				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
+					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), 0U);
+				else
+					lastMatchedIdx = cache_it->second;
+				cache_it->second = archetypes.size();
+
+				// For simple cases it is enough to add archetypes to cache right away
+				if (idsToMatch.size() == 1) {
+					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+						auto* pArchetype = archetypes[a];
+
+						auto res = matchesSet.emplace(pArchetype);
+						if (res.second)
+							matchesArr.emplace_back(pArchetype);
+					}
+				} else {
+					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+						auto* pArchetype = archetypes[a];
+
+						if (matchesSet.contains(pArchetype))
+							continue;
+						if (!match_one(*pArchetype, idsToMatch))
+							continue;
+
+						auto res = matchesSet.emplace(pArchetype);
+						if (res.second)
+							matchesArr.emplace_back(pArchetype);
+					}
+				}
+			}
+
+			void match_archetype_all_as(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpan idsToMatch) {
+				if (ent.id() == Is.id())
+					ent = Pair(All, All);
+
+				// For ALL we need all the archetypes to match. We start by checking
+				// if the first one is registered in the world at all.
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				if (it == entityToArchetypeMap.end() || it->second.empty())
+					return;
+
+				auto& data = m_lookupCtx.data;
+
+				const auto& archetypes = it->second;
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
+				uint32_t lastMatchedIdx = 0;
+				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), 0U);
+				else
+					lastMatchedIdx = cache_it->second;
+				cache_it->second = archetypes.size();
+
+				// For simple cases it is enough to add archetypes to cache right away
+				// if (idsToMatch.size() == 1) {
+				// 	for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+				// 		auto* pArchetype = archetypes[a];
+
+				// 		auto res = matchesSet.emplace(pArchetype);
+				// 		if (res.second)
+				// 			matchesArr.emplace_back(pArchetype);
+				// 	}
+				// } else {
+				for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+					auto* pArchetype = archetypes[a];
+
+					if (matchesSet.contains(pArchetype))
+						continue;
+					if (!match_all_backtrack(*pArchetype, idsToMatch))
+						continue;
+
+					auto res = matchesSet.emplace(pArchetype);
+					if (res.second)
+						matchesArr.emplace_back(pArchetype);
+				}
+				//}
+			}
+
+			void match_archetype_one_as(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpan idsToMatch) {
+				if (ent.id() == Is.id())
+					ent = All;
+
+				// For ALL we need all the archetypes to match. We start by checking
+				// if the first one is registered in the world at all.
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				if (it == entityToArchetypeMap.end() || it->second.empty())
+					return;
+
+				auto& data = m_lookupCtx.data;
+
+				const auto& archetypes = it->second;
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
+				uint32_t lastMatchedIdx = 0;
+				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), 0U);
+				else
+					lastMatchedIdx = cache_it->second;
+				cache_it->second = archetypes.size();
+
+				// For simple cases it is enough to add archetypes to cache right away
+				// if (idsToMatch.size() == 1) {
+				// 	for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+				// 		auto* pArchetype = archetypes[a];
+
+				// 		auto res = matchesSet.emplace(pArchetype);
+				// 		if (res.second)
+				// 			matchesArr.emplace_back(pArchetype);
+				// 	}
+				// } else {
+				for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
+					auto* pArchetype = archetypes[a];
+
+					if (matchesSet.contains(pArchetype))
+						continue;
+					if (!match_one_backtrack(*pArchetype, idsToMatch))
+						continue;
+
+					auto res = matchesSet.emplace(pArchetype);
+					if (res.second)
+						matchesArr.emplace_back(pArchetype);
+				}
+				//}
+			}
+
+			void do_match_all(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpanMut idsToMatch, uint32_t as_mask_0,
+					uint32_t as_mask_1) {
+				// First viable item is not related to an Is relationship
+				if (as_mask_0 + as_mask_1 == 0U) {
+					match_archetype_all(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				} else
+				// First viable item is related to an Is relationship.
+				// In this case we need to gather all related archetypes and evaluate one-by-one (backtracking).
+				{
+					match_archetype_all_as(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				}
+			}
+
+			void do_match_one(
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					cnt::darray<Archetype*>& matchesArr, Entity ent, EntitySpanMut idsToMatch, uint32_t j, uint32_t as_mask_0,
+					uint32_t as_mask_1) {
+				// First viable item is not related to an Is relationship
+				if (as_mask_0 + as_mask_1 == 0U) {
+					match_archetype_one(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				}
+				// First viable item is related to an Is relationship.
+				// In this case we need to gather all related archetypes.
+				else {
+					match_archetype_one_as(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				}
+			}
+
+			bool do_match_one(const Archetype& archetype, EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+				// First viable item is not related to an Is relationship
+				if (as_mask_0 + as_mask_1 == 0U) {
+					return match_one(archetype, idsToMatch);
+				}
+				// First viable item is related to an Is relationship.
+				// In this case we need to gather all related archetypes.
+				else {
+					return match_one_backtrack(archetype, idsToMatch);
+				}
 			}
 
 			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
@@ -18943,26 +19332,6 @@ namespace gaia {
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 
 				if (!ops_ids_all.empty()) {
-					GAIA_EACH(ops_ids_all) {
-						const auto& p = ops_ids_all[i];
-						if (p.src != EntityBad)
-							continue;
-
-						// For ALL we need all the archetypes to match. We start by checking
-						// if the first one is registered in the world at all.
-						const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_all[0].id));
-						if (it == entityToArchetypeMap.end() || it->second.empty())
-							return;
-
-						const auto& arr = it->second;
-						archetypesWithId.push_back(&arr);
-						break;
-					}
-
-					const auto& archetypes_all = *archetypesWithId[0];
-					const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
-					data.lastMatchedArchetypeIdx[jj++] = archetypes_all.size();
-
 					// Match static fixed sources
 					GAIA_EACH(ops_ids_all) {
 						auto& p = ops_ids_all[i];
@@ -18981,19 +19350,26 @@ namespace gaia {
 					}
 
 					// Match variable fixed sources
-					{
-						for (uint32_t a = lastMatchedIdx; a < archetypes_all.size(); ++a) {
-							auto* pArchetype = archetypes_all[a];
+					GAIA_EACH(ops_ids_all) {
+						const auto& p = ops_ids_all[i];
+						if (p.src != EntityBad)
+							continue;
 
-							if (s_tmpArchetypeMatches.contains(pArchetype))
-								continue;
-							if (!match_all(pArchetype->ids(), ids_all))
-								continue;
+						// Pick the entity that we use to evalute archetypes.
+						// TODO: Ideally we would pick the entity associated with the least amount of archetypes
+						//       so we do not unnecessarily check too many of them.
+						//       However, we would need to take into account all the possible permutations
+						//       of "base" -> "descendant".
+						//       In order to do this efficiently the query would have to be notified by the world
+						//       that a new Is relationship exists / component was added. We definitelly evaluate
+						//       such a thing every time a query runs.
+						const auto e = ops_ids_all[i].id;
 
-							auto res = s_tmpArchetypeMatches.emplace(pArchetype);
-							if (res.second)
-								s_tmpArchetypeMatchesArr.emplace_back(pArchetype);
-						}
+						do_match_all(
+								entityToArchetypeMap, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
+								//
+								e, ids_all, data.as_mask, data.as_mask_2);
+						// break;
 					}
 
 					// No ALL matches were found. We can quit right away.
@@ -19003,6 +19379,8 @@ namespace gaia {
 
 				if (!ops_ids_any.empty()) {
 					archetypesWithId.clear();
+
+					// Match static fixed sources
 					GAIA_EACH(ops_ids_any) {
 						auto& p = ops_ids_any[i];
 						if (p.src != EntityBad) {
@@ -19034,22 +19412,9 @@ namespace gaia {
 
 						// Try find matches with optional components.
 						GAIA_EACH(ids_any) {
-							const auto& archetypes = *archetypesWithId[i];
-							const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[jj];
-							data.lastMatchedArchetypeIdx[jj++] = archetypes.size();
-
-							for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
-								auto* pArchetype = archetypes[a];
-
-								if (s_tmpArchetypeMatches.contains(pArchetype))
-									continue;
-								if (!match_one(pArchetype->ids(), ids_any))
-									continue;
-
-								auto res = s_tmpArchetypeMatches.emplace(pArchetype);
-								if (res.second)
-									s_tmpArchetypeMatchesArr.emplace_back(pArchetype);
-							}
+							do_match_one(
+									entityToArchetypeMap, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i], ids_any, i,
+									data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -19058,12 +19423,17 @@ namespace gaia {
 						for (uint32_t i = 0; i < s_tmpArchetypeMatchesArr.size();) {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
-							if (match_one(pArchetype->ids(), ids_any)) {
-								++i;
-								continue;
+							GAIA_EACH(ids_any) {
+								if (do_match_one(*pArchetype, ids_any, data.as_mask, data.as_mask_2))
+									goto checkNextArchetype;
 							}
 
+							// No match found among ANY. Remove the archetype from the matching ones
 							core::erase_fast(s_tmpArchetypeMatchesArr, i);
+							continue;
+
+						checkNextArchetype:
+							++i;
 						}
 					}
 				}
@@ -19078,7 +19448,7 @@ namespace gaia {
 
 					// Write the temporary matches to local cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-						if (match_one(pArchetype->ids(), ids_none))
+						if (match_one(*pArchetype, ids_none))
 							continue;
 
 						m_archetypeCache.push_back(pArchetype);
@@ -19137,10 +19507,15 @@ namespace gaia {
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
-				for (auto& lastMatchedArchetypeIdx: m_lookupCtx.data.lastMatchedArchetypeIdx) {
-					if (lastMatchedArchetypeIdx > 0)
-						--lastMatchedArchetypeIdx;
-				}
+				auto clearMatches = [](QueryArchetypeCacheIndexMap& matches) {
+					for (auto& pair: matches) {
+						auto& lastMatchedArchetypeIdx = pair.second;
+						if (lastMatchedArchetypeIdx > 0)
+							--lastMatchedArchetypeIdx;
+					}
+				};
+				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_All);
+				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_Any);
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -19254,6 +19629,7 @@ namespace gaia {
 		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
+		bool is_base(const World& world, Entity entity);
 
 		namespace detail {
 			template <bool Cached>
@@ -19290,7 +19666,6 @@ namespace gaia {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
 						auto& pairs = data.pairs;
-						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 
 						// Unique component ids only
 						GAIA_ASSERT(!core::has(ids, item.id));
@@ -19306,13 +19681,39 @@ namespace gaia {
 						}
 #endif
 
+						// Build the read-write mask.
+						// This will be used to determine what kind of access the user wants for a given component.
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+
+						// Build the Is mask.
+						// We will use it to identify entities with an Is relationship quickly.
+						// TODO: Implement listeners. Every time Is relationship changes archetype cache
+						//       might need to want to cache different archetypes (add some, delete others).
+						if (!item.id.pair()) {
+							const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
+							data.as_mask |= (has_as << (uint8_t)ids.size());
+						} else {
+							if (!is_wildcard(item.id.id())) {
+								const auto e = entity_from_id(*ctx.w, item.id.id());
+								const auto has_as = (uint8_t)is_base(*ctx.w, e);
+								data.as_mask |= (has_as << (uint8_t)ids.size());
+							}
+
+							if (!is_wildcard(item.id.gen())) {
+								const auto e = entity_from_id(*ctx.w, item.id.gen());
+								const auto has_as = (uint8_t)is_base(*ctx.w, e);
+								data.as_mask_2 |= (has_as << (uint8_t)ids.size());
+							}
+						}
+
+						// The query engine is going to reorder the query items as necessary.
+						// Remapping is used so the user can still identify the items according the order in which
+						// they defined them when building the query.
 						data.remapping.push_back((uint8_t)data.remapping.size());
 
 						ids.push_back(item.id);
 						pairs.push_back({item.id, item.src, nullptr, item.op});
-						lastMatchedArchetypeIdx.push_back(0);
 					}
 				};
 
@@ -20229,6 +20630,23 @@ namespace gaia {
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
+			//! Map of [entity; Is relationship targets].
+			//!   w.as(herbivore, animal);
+			//!   w.as(rabbit, herbivore);
+			//!   w.as(hare, herbivore);
+			//! -->
+			//!   herbivore -> {animal}
+			//!   rabbit -> {herbivore}
+			//!   hare -> {herbivore}
+			PairMap m_entityToAsTargets;
+			//! Map of [entity; Is relationship relations]
+			//!   w.as(herbivore, animal);
+			//!   w.as(rabbit, herbivore);
+			//!   w.as(hare, herbivore);
+			//!-->
+			//!   animal -> {herbivore}
+			//!   herbivore -> {rabbit, hare}
+			PairMap m_entityToAsRelations;
 			//! Map of relation -> targets
 			PairMap m_relationsToTargets;
 			//! Map of target -> relations
@@ -20334,10 +20752,10 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Shortcut for add(Pair(As, entityBase)).
+				//! Shortcut for add(Pair(Is, entityBase)).
 				//! Effectively makes an entity inherit from \param entityBase
 				EntityBuilder& as(Entity entityBase) {
-					return add(Pair(As, entityBase));
+					return add(Pair(Is, entityBase));
 				}
 
 				//! Check if \param entity inherits from \param entityBase
@@ -20467,7 +20885,7 @@ namespace gaia {
 				}
 
 				void try_set_AliasOf(Entity entity, bool enable) {
-					if (!entity.pair() || entity.id() != As.id())
+					if (!entity.pair() || entity.id() != Is.id())
 						return;
 
 					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
@@ -20517,6 +20935,22 @@ namespace gaia {
 
 					try_set_flags(entity, true);
 
+					// Update the Is relationship base counter if necessary
+					if (entity.pair() && entity.id() == Is.id()) {
+						auto tgt = m_world.get(entity.gen());
+
+						// m_entity -> {..., e}
+						auto& entity_to_e = m_world.m_entityToAsTargets[EntityLookupKey(m_entity)];
+						entity_to_e.insert(EntityLookupKey{tgt});
+						// e -> {..., m_entity}
+						auto& e_to_entity = m_world.m_entityToAsRelations[EntityLookupKey(tgt)];
+						e_to_entity.insert(EntityLookupKey{m_entity});
+
+						// Make sure the relation entity is registered as archetype so queries can find it
+						// auto& ec = m_world.fetch(tgt);
+						// m_world.add_entity_archetype_pair(m_entity, ec.pArchetype);
+					}
+
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
 
@@ -20525,7 +20959,39 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
+					// Don't add the same entity twice
+					if (!m_pArchetype->has(entity))
+						return;
+
 					try_set_flags(entity, false);
+
+					// Update the Is relationship base counter if necessary
+					if (entity.pair() && entity.id() == Is.id()) {
+						auto e = m_world.get(entity.gen());
+
+						{
+							auto& set = m_world.m_entityToAsTargets;
+							const auto it = set.find(EntityLookupKey(entity));
+							GAIA_ASSERT(it != set.end());
+							GAIA_ASSERT(!it->second.empty());
+							it->second.erase(EntityLookupKey(e));
+
+							// Remove the record if it is not referenced anymore
+							if (it->second.empty())
+								set.erase(it);
+						}
+						{
+							auto& set = m_world.m_entityToAsRelations;
+							const auto it = set.find(EntityLookupKey(e));
+							GAIA_ASSERT(it != set.end());
+							GAIA_ASSERT(!it->second.empty());
+							it->second.erase(EntityLookupKey(entity));
+
+							// Remove the record if it is not referenced anymore
+							if (it->second.empty())
+								set.erase(it);
+						}
+					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
@@ -20540,12 +21006,14 @@ namespace gaia {
 
 					if (!handle_add_deps(entity))
 						return;
+
 					handle_add(entity);
 				}
 
 				void del_inter(Entity entity) {
 					if (has_DependsOn_deps(entity))
 						return;
+
 					handle_del(entity);
 				}
 			};
@@ -21656,6 +22124,44 @@ namespace gaia {
 				}
 			}
 
+			//! If \tparam CheckIn is true, checks if \param entity inherits from \param entityBase.
+			//! If \tparam CheckIn is false, checks if \param entity is located in \param entityBase.
+			//! True if \param entity inherits from/is located in \param entityBase. False otherwise.
+			template <bool CheckIn>
+			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {
+				GAIA_ASSERT(valid_entity(entity));
+				GAIA_ASSERT(valid_entity(entityBase));
+
+				// Pairs are not supported
+				if (entity.pair() || entityBase.pair())
+					return false;
+
+				if constexpr (!CheckIn) {
+					if (entity == entityBase)
+						return true;
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no Is relationship pairs on the archetype
+				if (pArchetype->pairs_is() == 0)
+					return false;
+
+				for (uint32_t i = 0; i < pArchetype->pairs_is(); ++i) {
+					auto e = pArchetype->entity_from_pairs_as_idx(i);
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					if (target == entityBase)
+						return true;
+
+					if (is_inter<CheckIn>(target, entityBase))
+						return true;
+				}
+
+				return false;
+			}
+
 			void init() {
 				// Register the root archetype
 				{
@@ -21794,7 +22300,7 @@ namespace gaia {
 
 				// Base entity is.
 				{
-					const auto& id = As;
+					const auto& id = Is;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
@@ -21844,7 +22350,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, As) //
+				EntityBuilder(*this, Is) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -22200,33 +22706,34 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(As, entityBase)
+			//! Shortcut for add(entity, Pair(Is, entityBase)
 			void as(Entity entity, Entity entityBase) {
-				add(entity, Pair(As, entityBase));
+				add(entity, Pair(Is, entityBase));
 			}
 
 			//! Checks if \param entity inherits from \param entityBase.
-			//! True if entity is an is for entityBase. False otherwise.
+			//! True if entity inherits from entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				return is_inter<true>(entity, entityBase);
+			}
 
-				// Early exit if there are no As relationship pairs on the archetype
-				if (pArchetype->pairs_as() == 0)
+			//! Checks if \param entity is located in \param entityBase.
+			//! This is almost the same as "is" with the exception that false is returned
+			//! if \param entity matches \param entityBase
+			//! True if entity is located in entityBase. False otherwise.
+			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
+				return is_inter<false>(entity, entityBase);
+			}
+
+			GAIA_NODISCARD bool is_base(Entity target) const {
+				GAIA_ASSERT(valid_entity(target));
+
+				// Pairs are not supported
+				if (target.pair())
 					return false;
 
-				for (uint32_t i = 0; i < pArchetype->pairs_as(); ++i) {
-					auto e = pArchetype->entity_from_pairs_as_idx(i);
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					if (target == entityBase)
-						return true;
-
-					if (is(target, entityBase))
-						return true;
-				}
-
-				return false;
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				return it != m_entityToAsRelations.end();
 			}
 
 			//----------------------------------------------------------------------
@@ -22590,6 +23097,44 @@ namespace gaia {
 				}
 			}
 
+			template <typename Func>
+			void as_relations_trav(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					func(relation.entity());
+					as_relations_trav(relation.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_relations_trav_if(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return false;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					if (func(relation.entity()))
+						return true;
+					if (as_relations_trav_if(relation.entity(), func))
+						return true;
+				}
+
+				return false;
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Returns targets for \param relation.
@@ -22659,6 +23204,44 @@ namespace gaia {
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					func(target);
 				}
+			}
+
+			template <typename Func>
+			void as_targets_trav(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					func(target.entity());
+					as_targets_trav(target.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_targets_trav_if(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return false;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					if (func(target.entity()))
+						return true;
+					if (as_targets_trav(target.entity(), func))
+						return true;
+				}
+
+				return false;
 			}
 
 			//----------------------------------------------------------------------
@@ -22774,6 +23357,8 @@ namespace gaia {
 					for (auto pair: m_archetypesById)
 						delete pair.second;
 
+					m_entityToAsRelations.clear();
+					m_entityToAsTargets.clear();
 					m_targetsToRelations.clear();
 					m_relationsToTargets.clear();
 
@@ -22874,6 +23459,14 @@ namespace gaia {
 			return world.get(id);
 		}
 
+		GAIA_NODISCARD inline bool is(const World& world, Entity entity, Entity baseEntity) {
+			return world.is(entity, baseEntity);
+		}
+
+		GAIA_NODISCARD inline bool is_base(const World& world, Entity entity) {
+			return world.is_base(entity);
+		}
+
 		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
 			return ec.pArchetype;
@@ -22885,6 +23478,26 @@ namespace gaia {
 
 		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
+		}
+
+		template <typename Func>
+		void as_relations_trav(const World& world, Entity target, Func func) {
+			world.as_relations_trav(target, func);
+		}
+
+		template <typename Func>
+		bool as_relations_trav_if(const World& world, Entity target, Func func) {
+			return world.as_relations_trav_if(target, func);
+		}
+
+		template <typename Func>
+		void as_targets_trav(const World& world, Entity relation, Func func) {
+			world.as_targets_trav(relation, func);
+		}
+
+		template <typename Func>
+		void as_targets_trav_if(const World& world, Entity relation, Func func) {
+			return world.as_targets_trav_if(relation, func);
 		}
 	} // namespace ecs
 } // namespace gaia

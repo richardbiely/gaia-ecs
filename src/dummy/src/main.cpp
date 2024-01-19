@@ -300,113 +300,188 @@ struct test_2 {
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
-int main() {
-	g_test_0.getters();
-	g_test_0.setters();
-	g_test_0.diag();
-
-	g_test_00.getters();
-	g_test_00.setters();
-	g_test_00.diag();
-
-	g_test_1.getters();
-	g_test_1.setters();
-	g_test_1.diag();
-
-	g_test_2.getters();
-	g_test_2.setters();
-	g_test_2.diag();
-
-	printf("aos\n");
-	{
-		using vp = mem::data_view_policy_aos<int*>;
-		mem::raw_data_holder<int*, 10> arr;
-		(void)arr;
-		auto aa = arr[0];
-		(void)aa;
-		auto* bb = &arr[0];
-		(void)bb;
-		int* a = reinterpret_cast<int*>(arr[0]);
-		(void)a;
-
-		vp::set({(int**)&arr[0], 10}, 0, (int*)bb);
-	}
-
-	printf("darray<int8_t*>\n");
-	{
-		cnt::darray<int8_t*> arr;
-		arr.reserve(2);
-
-		int8_t dummy = 10;
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(nullptr);
-
-		const auto& valR = arr[0];
-		::gaia::dont_optimize(valR);
-		auto* valC = arr[0];
-		(void)valC;
-		arr[0] = &dummy;
-
-		for (auto* it: arr)
-			printf("%p\n", it);
-	}
-
-	printf("darray<int*>\n");
-	{
-		cnt::darray<int*> arr;
-		arr.reserve(2);
-
-		int dummy = 10;
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(nullptr);
-
-		const auto& valR = arr[0];
-		::gaia::dont_optimize(valR);
-		auto* valC = arr[0];
-		(void)valC;
-		arr[0] = &dummy;
-
-		for (auto* it: arr)
-			printf("%p\n", it);
-	}
-
-	printf("darray<const int*>\n");
-	{
-		cnt::darray<const int*> arr;
-		arr.reserve(2);
-
-		const int dummy = 10;
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(&dummy);
-		arr.push_back(nullptr);
-
-		const auto& valR = arr[0];
-		::gaia::dont_optimize(valR);
-		const auto* valC = arr[0];
-		(void)valC;
-		arr[0] = nullptr;
-
-		for (const auto* it: arr)
-			printf("%p\n", it);
-	}
-
+void test1() {
 	ecs::World w;
-	CreateEntities(w);
+	auto wolf = w.add();
+	auto hare = w.add();
+	auto rabbit = w.add();
+	auto carrot = w.add();
+	auto eats = w.add();
 
-	ecs::SystemManager sm(w);
-	sm.add<PositionSystem>();
-	sm.add<PositionSystem_All>();
-	sm.add<PositionSystem_All2>();
-	sm.add<PositionSystem_DisabledOnly>();
-	GAIA_FOR(1000) {
-		sm.update();
-		w.update();
+	w.add(rabbit, ecs::Pair(eats, carrot));
+	w.add(hare, ecs::Pair(eats, carrot));
+	w.add(wolf, ecs::Pair(eats, rabbit));
+
+	{
+		auto q = w.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+		const auto cnt = q.count();
+		GAIA_ASSERT(cnt == 3);
+
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isRabbit = entity == rabbit;
+			const bool isHare = entity == hare;
+			const bool isWolf = entity == wolf;
+			const bool is = isRabbit || isHare || isWolf;
+			GAIA_ASSERT(is);
+			++i;
+		});
+		GAIA_ASSERT(i == cnt);
 	}
+}
+
+void test2() {
+	ecs::World w;
+	ecs::Entity animal = w.add(); // 14
+	ecs::Entity herbivore = w.add(); // 15
+	w.add<Position>(herbivore, {}); // 16
+	w.add<Velocity>(herbivore, {}); // 17
+	ecs::Entity rabbit = w.add(); // 18
+	ecs::Entity hare = w.add(); // 19
+	ecs::Entity wolf = w.add(); // 20
+
+	w.as(herbivore, animal);
+	w.as(rabbit, herbivore);
+	w.as(hare, herbivore);
+	w.as(wolf, animal);
+
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal));
+		q.each([&](ecs::Entity entity) {
+			// runs for herbivore, rabbit, hare, wolf
+			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
+			GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
+
+			++i;
+		});
+		GAIA_LOG_N("cnt = %u", i);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
+		q.each([&](ecs::Entity entity) {
+			// runs for rabbit, hare
+			const bool isOK = entity == hare || entity == rabbit;
+			GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
+
+			++i;
+		});
+		GAIA_LOG_N("cnt = %u", i);
+		GAIA_LOG_N("");
+	}
+}
+
+int main() {
+	// test1();
+	test2();
+
+	// g_test_0.getters();
+	// g_test_0.setters();
+	// g_test_0.diag();
+
+	// g_test_00.getters();
+	// g_test_00.setters();
+	// g_test_00.diag();
+
+	// g_test_1.getters();
+	// g_test_1.setters();
+	// g_test_1.diag();
+
+	// g_test_2.getters();
+	// g_test_2.setters();
+	// g_test_2.diag();
+
+	// printf("aos\n");
+	// {
+	// 	using vp = mem::data_view_policy_aos<int*>;
+	// 	mem::raw_data_holder<int*, 10> arr;
+	// 	(void)arr;
+	// 	auto aa = arr[0];
+	// 	(void)aa;
+	// 	auto* bb = &arr[0];
+	// 	(void)bb;
+	// 	int* a = reinterpret_cast<int*>(arr[0]);
+	// 	(void)a;
+
+	// 	vp::set({(int**)&arr[0], 10}, 0, (int*)bb);
+	// }
+
+	// printf("darray<int8_t*>\n");
+	// {
+	// 	cnt::darray<int8_t*> arr;
+	// 	arr.reserve(2);
+
+	// 	int8_t dummy = 10;
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(nullptr);
+
+	// 	const auto& valR = arr[0];
+	// 	::gaia::dont_optimize(valR);
+	// 	auto* valC = arr[0];
+	// 	(void)valC;
+	// 	arr[0] = &dummy;
+
+	// 	for (auto* it: arr)
+	// 		printf("%p\n", it);
+	// }
+
+	// printf("darray<int*>\n");
+	// {
+	// 	cnt::darray<int*> arr;
+	// 	arr.reserve(2);
+
+	// 	int dummy = 10;
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(nullptr);
+
+	// 	const auto& valR = arr[0];
+	// 	::gaia::dont_optimize(valR);
+	// 	auto* valC = arr[0];
+	// 	(void)valC;
+	// 	arr[0] = &dummy;
+
+	// 	for (auto* it: arr)
+	// 		printf("%p\n", it);
+	// }
+
+	// printf("darray<const int*>\n");
+	// {
+	// 	cnt::darray<const int*> arr;
+	// 	arr.reserve(2);
+
+	// 	const int dummy = 10;
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(&dummy);
+	// 	arr.push_back(nullptr);
+
+	// 	const auto& valR = arr[0];
+	// 	::gaia::dont_optimize(valR);
+	// 	const auto* valC = arr[0];
+	// 	(void)valC;
+	// 	arr[0] = nullptr;
+
+	// 	for (const auto* it: arr)
+	// 		printf("%p\n", it);
+	// }
+
+	// ecs::World w;
+	// CreateEntities(w);
+
+	// ecs::SystemManager sm(w);
+	// sm.add<PositionSystem>();
+	// sm.add<PositionSystem_All>();
+	// sm.add<PositionSystem_All2>();
+	// sm.add<PositionSystem_DisabledOnly>();
+	// GAIA_FOR(1000) {
+	// 	sm.update();
+	// 	w.update();
+	// }
 
 	return 0;
 }

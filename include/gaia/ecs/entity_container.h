@@ -86,7 +86,8 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::ilist<EntityContainer, Entity> entities;
-			//! Just m_recs.entities, but stores pairs.
+			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
+			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
 
 			EntityContainer& operator[](Entity entity) {

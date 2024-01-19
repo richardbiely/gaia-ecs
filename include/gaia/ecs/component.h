@@ -22,6 +22,7 @@ namespace gaia {
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
+		using EntitySpanMut = std::span<Entity>;
 		using ComponentSpan = std::span<const Component>;
 
 		//----------------------------------------------------------------------

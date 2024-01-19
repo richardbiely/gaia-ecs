@@ -33,6 +33,7 @@ namespace gaia {
 		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
+		bool is_base(const World& world, Entity entity);
 
 		namespace detail {
 			template <bool Cached>
@@ -69,7 +70,6 @@ namespace gaia {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
 						auto& pairs = data.pairs;
-						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 
 						// Unique component ids only
 						GAIA_ASSERT(!core::has(ids, item.id));
@@ -85,13 +85,39 @@ namespace gaia {
 						}
 #endif
 
+						// Build the read-write mask.
+						// This will be used to determine what kind of access the user wants for a given component.
 						const uint8_t isReadWrite = item.access == QueryAccess::Write;
 						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+
+						// Build the Is mask.
+						// We will use it to identify entities with an Is relationship quickly.
+						// TODO: Implement listeners. Every time Is relationship changes archetype cache
+						//       might need to want to cache different archetypes (add some, delete others).
+						if (!item.id.pair()) {
+							const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
+							data.as_mask |= (has_as << (uint8_t)ids.size());
+						} else {
+							if (!is_wildcard(item.id.id())) {
+								const auto e = entity_from_id(*ctx.w, item.id.id());
+								const auto has_as = (uint8_t)is_base(*ctx.w, e);
+								data.as_mask |= (has_as << (uint8_t)ids.size());
+							}
+
+							if (!is_wildcard(item.id.gen())) {
+								const auto e = entity_from_id(*ctx.w, item.id.gen());
+								const auto has_as = (uint8_t)is_base(*ctx.w, e);
+								data.as_mask_2 |= (has_as << (uint8_t)ids.size());
+							}
+						}
+
+						// The query engine is going to reorder the query items as necessary.
+						// Remapping is used so the user can still identify the items according the order in which
+						// they defined them when building the query.
 						data.remapping.push_back((uint8_t)data.remapping.size());
 
 						ids.push_back(item.id);
 						pairs.push_back({item.id, item.src, nullptr, item.op});
-						lastMatchedArchetypeIdx.push_back(0);
 					}
 				};
 

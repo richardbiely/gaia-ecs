@@ -468,20 +468,26 @@ namespace gaia {
 		//! Entity representing a physical hierarchy
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity As = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = As;
+		inline Entity GAIA_ID(LastCoreComponent) = Is;
 
 		//----------------------------------------------------------------------
 		// Helper functions
 		//----------------------------------------------------------------------
 
-		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
-			return entity.pair() && (entity.id() == All.id() || entity.gen() == All.id());
+		GAIA_NODISCARD inline bool is_wildcard(EntityId entityId) {
+			return entityId == All.id();
 		}
+
+		GAIA_NODISCARD inline bool is_wildcard(Entity entity) {
+			return entity.pair() && (is_wildcard(entity.id()) || is_wildcard(entity.gen()));
+		}
+
 		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
 		}
+
 	} // namespace ecs
 } // namespace gaia

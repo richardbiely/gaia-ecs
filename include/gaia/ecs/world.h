@@ -56,6 +56,23 @@ namespace gaia {
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
+			//! Map of [entity; Is relationship targets].
+			//!   w.as(herbivore, animal);
+			//!   w.as(rabbit, herbivore);
+			//!   w.as(hare, herbivore);
+			//! -->
+			//!   herbivore -> {animal}
+			//!   rabbit -> {herbivore}
+			//!   hare -> {herbivore}
+			PairMap m_entityToAsTargets;
+			//! Map of [entity; Is relationship relations]
+			//!   w.as(herbivore, animal);
+			//!   w.as(rabbit, herbivore);
+			//!   w.as(hare, herbivore);
+			//!-->
+			//!   animal -> {herbivore}
+			//!   herbivore -> {rabbit, hare}
+			PairMap m_entityToAsRelations;
 			//! Map of relation -> targets
 			PairMap m_relationsToTargets;
 			//! Map of target -> relations
@@ -161,10 +178,10 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Shortcut for add(Pair(As, entityBase)).
+				//! Shortcut for add(Pair(Is, entityBase)).
 				//! Effectively makes an entity inherit from \param entityBase
 				EntityBuilder& as(Entity entityBase) {
-					return add(Pair(As, entityBase));
+					return add(Pair(Is, entityBase));
 				}
 
 				//! Check if \param entity inherits from \param entityBase
@@ -294,7 +311,7 @@ namespace gaia {
 				}
 
 				void try_set_AliasOf(Entity entity, bool enable) {
-					if (!entity.pair() || entity.id() != As.id())
+					if (!entity.pair() || entity.id() != Is.id())
 						return;
 
 					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
@@ -344,6 +361,22 @@ namespace gaia {
 
 					try_set_flags(entity, true);
 
+					// Update the Is relationship base counter if necessary
+					if (entity.pair() && entity.id() == Is.id()) {
+						auto tgt = m_world.get(entity.gen());
+
+						// m_entity -> {..., e}
+						auto& entity_to_e = m_world.m_entityToAsTargets[EntityLookupKey(m_entity)];
+						entity_to_e.insert(EntityLookupKey{tgt});
+						// e -> {..., m_entity}
+						auto& e_to_entity = m_world.m_entityToAsRelations[EntityLookupKey(tgt)];
+						e_to_entity.insert(EntityLookupKey{m_entity});
+
+						// Make sure the relation entity is registered as archetype so queries can find it
+						// auto& ec = m_world.fetch(tgt);
+						// m_world.add_entity_archetype_pair(m_entity, ec.pArchetype);
+					}
+
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
 				}
 
@@ -352,7 +385,39 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
+					// Don't add the same entity twice
+					if (!m_pArchetype->has(entity))
+						return;
+
 					try_set_flags(entity, false);
+
+					// Update the Is relationship base counter if necessary
+					if (entity.pair() && entity.id() == Is.id()) {
+						auto e = m_world.get(entity.gen());
+
+						{
+							auto& set = m_world.m_entityToAsTargets;
+							const auto it = set.find(EntityLookupKey(entity));
+							GAIA_ASSERT(it != set.end());
+							GAIA_ASSERT(!it->second.empty());
+							it->second.erase(EntityLookupKey(e));
+
+							// Remove the record if it is not referenced anymore
+							if (it->second.empty())
+								set.erase(it);
+						}
+						{
+							auto& set = m_world.m_entityToAsRelations;
+							const auto it = set.find(EntityLookupKey(e));
+							GAIA_ASSERT(it != set.end());
+							GAIA_ASSERT(!it->second.empty());
+							it->second.erase(EntityLookupKey(entity));
+
+							// Remove the record if it is not referenced anymore
+							if (it->second.empty())
+								set.erase(it);
+						}
+					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 				}
@@ -367,12 +432,14 @@ namespace gaia {
 
 					if (!handle_add_deps(entity))
 						return;
+
 					handle_add(entity);
 				}
 
 				void del_inter(Entity entity) {
 					if (has_DependsOn_deps(entity))
 						return;
+
 					handle_del(entity);
 				}
 			};
@@ -1483,6 +1550,44 @@ namespace gaia {
 				}
 			}
 
+			//! If \tparam CheckIn is true, checks if \param entity inherits from \param entityBase.
+			//! If \tparam CheckIn is false, checks if \param entity is located in \param entityBase.
+			//! True if \param entity inherits from/is located in \param entityBase. False otherwise.
+			template <bool CheckIn>
+			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {
+				GAIA_ASSERT(valid_entity(entity));
+				GAIA_ASSERT(valid_entity(entityBase));
+
+				// Pairs are not supported
+				if (entity.pair() || entityBase.pair())
+					return false;
+
+				if constexpr (!CheckIn) {
+					if (entity == entityBase)
+						return true;
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no Is relationship pairs on the archetype
+				if (pArchetype->pairs_is() == 0)
+					return false;
+
+				for (uint32_t i = 0; i < pArchetype->pairs_is(); ++i) {
+					auto e = pArchetype->entity_from_pairs_as_idx(i);
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					if (target == entityBase)
+						return true;
+
+					if (is_inter<CheckIn>(target, entityBase))
+						return true;
+				}
+
+				return false;
+			}
+
 			void init() {
 				// Register the root archetype
 				{
@@ -1621,7 +1726,7 @@ namespace gaia {
 
 				// Base entity is.
 				{
-					const auto& id = As;
+					const auto& id = Is;
 					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
 					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
 					GAIA_ASSERT(desc.entity == id);
@@ -1671,7 +1776,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, As) //
+				EntityBuilder(*this, Is) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -2027,33 +2132,34 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(As, entityBase)
+			//! Shortcut for add(entity, Pair(Is, entityBase)
 			void as(Entity entity, Entity entityBase) {
-				add(entity, Pair(As, entityBase));
+				add(entity, Pair(Is, entityBase));
 			}
 
 			//! Checks if \param entity inherits from \param entityBase.
-			//! True if entity is an is for entityBase. False otherwise.
+			//! True if entity inherits from entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
+				return is_inter<true>(entity, entityBase);
+			}
 
-				// Early exit if there are no As relationship pairs on the archetype
-				if (pArchetype->pairs_as() == 0)
+			//! Checks if \param entity is located in \param entityBase.
+			//! This is almost the same as "is" with the exception that false is returned
+			//! if \param entity matches \param entityBase
+			//! True if entity is located in entityBase. False otherwise.
+			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
+				return is_inter<false>(entity, entityBase);
+			}
+
+			GAIA_NODISCARD bool is_base(Entity target) const {
+				GAIA_ASSERT(valid_entity(target));
+
+				// Pairs are not supported
+				if (target.pair())
 					return false;
 
-				for (uint32_t i = 0; i < pArchetype->pairs_as(); ++i) {
-					auto e = pArchetype->entity_from_pairs_as_idx(i);
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					if (target == entityBase)
-						return true;
-
-					if (is(target, entityBase))
-						return true;
-				}
-
-				return false;
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				return it != m_entityToAsRelations.end();
 			}
 
 			//----------------------------------------------------------------------
@@ -2417,6 +2523,44 @@ namespace gaia {
 				}
 			}
 
+			template <typename Func>
+			void as_relations_trav(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					func(relation.entity());
+					as_relations_trav(relation.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_relations_trav_if(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return false;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					if (func(relation.entity()))
+						return true;
+					if (as_relations_trav_if(relation.entity(), func))
+						return true;
+				}
+
+				return false;
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Returns targets for \param relation.
@@ -2486,6 +2630,44 @@ namespace gaia {
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
 					func(target);
 				}
+			}
+
+			template <typename Func>
+			void as_targets_trav(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					func(target.entity());
+					as_targets_trav(target.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_targets_trav_if(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return false;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					if (func(target.entity()))
+						return true;
+					if (as_targets_trav(target.entity(), func))
+						return true;
+				}
+
+				return false;
 			}
 
 			//----------------------------------------------------------------------
@@ -2601,6 +2783,8 @@ namespace gaia {
 					for (auto pair: m_archetypesById)
 						delete pair.second;
 
+					m_entityToAsRelations.clear();
+					m_entityToAsTargets.clear();
 					m_targetsToRelations.clear();
 					m_relationsToTargets.clear();
 
@@ -2701,6 +2885,14 @@ namespace gaia {
 			return world.get(id);
 		}
 
+		GAIA_NODISCARD inline bool is(const World& world, Entity entity, Entity baseEntity) {
+			return world.is(entity, baseEntity);
+		}
+
+		GAIA_NODISCARD inline bool is_base(const World& world, Entity entity) {
+			return world.is_base(entity);
+		}
+
 		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
 			return ec.pArchetype;
@@ -2712,6 +2904,26 @@ namespace gaia {
 
 		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
+		}
+
+		template <typename Func>
+		void as_relations_trav(const World& world, Entity target, Func func) {
+			world.as_relations_trav(target, func);
+		}
+
+		template <typename Func>
+		bool as_relations_trav_if(const World& world, Entity target, Func func) {
+			return world.as_relations_trav_if(target, func);
+		}
+
+		template <typename Func>
+		void as_targets_trav(const World& world, Entity relation, Func func) {
+			world.as_targets_trav(relation, func);
+		}
+
+		template <typename Func>
+		void as_targets_trav_if(const World& world, Entity relation, Func func) {
+			return world.as_targets_trav_if(relation, func);
 		}
 	} // namespace ecs
 } // namespace gaia

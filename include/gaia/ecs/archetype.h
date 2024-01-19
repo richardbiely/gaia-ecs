@@ -104,7 +104,7 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
 			Chunk::EntityArray m_ids;
-			//! List of indices to As relationship pairs in m_ids.
+			//! List of indices to Is relationship pairs in m_ids.
 			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
 			AsPairsIndexBuffer m_pairs_as_index_buffer;
 			//! List of component ids
@@ -128,12 +128,12 @@ namespace gaia {
 			uint32_t m_dead : 1;
 			//! Number of relationship pairs on the archetype
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
-			//! Number of As relationship pairs on the archetype
-			uint32_t m_pairCnt_as: Chunk::MAX_COMPONENTS_BITS;
+			//! Number of Is relationship pairs on the archetype
+			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 
 			// Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_as(0) {}
+					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -311,9 +311,9 @@ namespace gaia {
 
 					++newArch->m_pairCnt;
 
-					// If it is a As relationship, count it separately
-					if (ids[i].id() == As.id())
-						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_as++] = (uint8_t)i;
+					// If it is a Is relationship, count it separately
+					if (ids[i].id() == Is.id())
+						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_is++] = (uint8_t)i;
 				}
 
 				// Find the index of the last generic component in both arrays
@@ -619,8 +619,8 @@ namespace gaia {
 				return m_pairCnt;
 			}
 
-			GAIA_NODISCARD uint32_t pairs_as() const {
-				return m_pairCnt_as;
+			GAIA_NODISCARD uint32_t pairs_is() const {
+				return m_pairCnt_is;
 			}
 
 			GAIA_NODISCARD Entity entity_from_pairs_as_idx(uint32_t idx) const {
