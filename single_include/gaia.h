@@ -18788,108 +18788,11 @@ namespace gaia {
 				return has_inter<T>(op, isReadWrite);
 			}
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! Tries to match entity ids in \param queryIds with those that form \param archetype given
 			//! the comparison function \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool match_inter(const Chunk::EntityArray& archetypeIds, EntitySpan queryIds, Func func) const {
-				// Arrays are sorted so we can do linear intersection lookup
-				uint32_t i = 0;
-				uint32_t j = 0;
-				while (i < archetypeIds.size() && j < queryIds.size()) {
-					const auto idInArchetype = archetypeIds[i];
-					const auto idInQuery = queryIds[j];
-
-					if (func(idInArchetype, idInQuery, j))
-						return true;
-
-					if (SortComponentCond{}.operator()(idInArchetype, idInQuery)) {
-						++i;
-						continue;
-					}
-
-					++j;
-				}
-
-				return false;
-			}
-
-			GAIA_NODISCARD static bool match_idQueryId_with_idArchetype(
-					const World& w, uint32_t mask, uint32_t idQueryIdx, EntityId idQuery, EntityId idArchetype) {
-				if ((mask & (1U << idQueryIdx)) == 0U)
-					return idQuery == idArchetype;
-
-				const auto qe = entity_from_id(w, idQuery);
-				const auto ae = entity_from_id(w, idArchetype);
-				return is(w, ae, qe);
-			};
-
-			//! Tries to match entity ids in \param queryIds with those in \param archetype given
-			//! the comparison function \param func.
-			//! \return True on the first match, false otherwise.
-			template <typename Func>
-			GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds, Func func) const {
-				const auto& archetypeIds = archetype.ids();
-
-				// Archetype has no pairs we can compare ids directly
-				if (archetype.pairs() == 0) {
-					return match_inter(
-							archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery, [[maybe_unused]] uint32_t idQueryIdx) {
-								return idQuery == idArchetype && func();
-							});
-				}
-
-				return match_inter(
-						archetypeIds, queryIds, [&](Entity idArchetype, Entity idQuery, [[maybe_unused]] uint32_t idQueryIdx) {
-							if (idQuery.pair()) {
-								// all(Pair<All, All>) aka "any pair"
-								if (idQuery == Pair(All, All))
-									return func();
-
-								// all(Pair<X, All>):
-								//   X, AAA
-								//   X, BBB
-								//   ...
-								//   X, ZZZ
-								if (idQuery.gen() == All.id())
-									return idQuery.id() == idArchetype.id() && func();
-
-								// all(Pair<All, X>):
-								//   AAA, X
-								//   BBB, X
-								//   ...
-								//   ZZZ, X
-								if (idQuery.id() == All.id())
-									return idQuery.gen() == idArchetype.gen() && func();
-							}
-
-							return idQuery == idArchetype && func();
-						});
-			}
-
-			//! Tries to match entity ids in \param queryIds with those in \param archetype given
-			//! the comparison function \param func.
-			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(const Archetype& archetype, EntitySpan queryIds) const {
-				return match_res(archetype, queryIds, []() {
-					return true;
-				});
-			}
-
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD
-			bool match_all(const Archetype& archetype, EntitySpan queryIds) const {
-				uint32_t matches = 0;
-				uint32_t expected = (uint32_t)queryIds.size();
-				return match_res(archetype, queryIds, [&matches, expected]() {
-					return (++matches) == expected;
-				});
-			}
-
-			template <typename Func>
-			GAIA_NODISCARD bool match_inter_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+			GAIA_NODISCARD bool match_inter(const Archetype& archetype, EntitySpan queryIds, Func func) const {
 				const auto& archetypeIds = archetype.ids();
 
 				// Arrays are sorted so we can do linear intersection lookup
@@ -18913,7 +18816,47 @@ namespace gaia {
 				return false;
 			}
 
-			bool cmp_ids(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD static bool match_idQueryId_with_idArchetype(
+					const World& w, uint32_t mask, uint32_t idQueryIdx, EntityId idQuery, EntityId idArchetype) {
+				if ((mask & (1U << idQueryIdx)) == 0U)
+					return idQuery == idArchetype;
+
+				const auto qe = entity_from_id(w, idQuery);
+				const auto ae = entity_from_id(w, idArchetype);
+				return is(w, ae, qe);
+			};
+
+			GAIA_NODISCARD bool cmp_ids(Entity idInArchetype, Entity idInQuery) const {
+				return idInQuery == idInArchetype;
+			}
+
+			GAIA_NODISCARD bool cmp_ids_pairs(Entity idInArchetype, Entity idInQuery) const {
+				if (idInQuery.pair()) {
+					// all(Pair<All, All>) aka "any pair"
+					if (idInQuery == Pair(All, All))
+						return true;
+
+					// all(Pair<X, All>):
+					//   X, AAA
+					//   X, BBB
+					//   ...
+					//   X, ZZZ
+					if (idInQuery.gen() == All.id())
+						return idInQuery.id() == idInArchetype.id();
+
+					// all(Pair<All, X>):
+					//   AAA, X
+					//   BBB, X
+					//   ...
+					//   ZZZ, X
+					if (idInQuery.id() == All.id())
+						return idInQuery.gen() == idInArchetype.gen();
+				}
+
+				return cmp_ids(idInArchetype, idInQuery);
+			}
+
+			GAIA_NODISCARD bool cmp_ids_is(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
 				const auto& archetypeIds = archetype.ids();
 
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
@@ -18924,10 +18867,10 @@ namespace gaia {
 					});
 				}
 
-				return idInQuery == idInArchetype;
+				return cmp_ids(idInArchetype, idInQuery);
 			}
 
-			bool cmp_ids_ext(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD bool cmp_ids_is_pairs(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
 				const auto& archetypeIds = archetype.ids();
 
 				if (idInQuery.pair()) {
@@ -18997,7 +18940,45 @@ namespace gaia {
 					}
 				}
 
-				return idInQuery == idInArchetype;
+				return cmp_ids(idInArchetype, idInQuery);
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetype given
+			//! the comparison function \param func.
+			//! \return True on the first match, false otherwise.
+			template <typename Func>
+			GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+				// Archetype has no pairs we can compare ids directly
+				if (archetype.pairs() == 0) {
+					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+						return cmp_ids(idInArchetype, idInQuery) && func();
+					});
+				}
+
+				return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+					return cmp_ids_pairs(idInArchetype, idInQuery) && func();
+				});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetype given
+			//! the comparison function \param func.
+			//! \return True on the first match, false otherwise.
+			GAIA_NODISCARD bool match_one(const Archetype& archetype, EntitySpan queryIds) const {
+				return match_res(archetype, queryIds, []() {
+					return true;
+				});
+			}
+
+			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
+			//! the comparison function \param func.
+			//! \return True if all ids match, false otherwise.
+			GAIA_NODISCARD
+			bool match_all(const Archetype& archetype, EntitySpan queryIds) const {
+				uint32_t matches = 0;
+				uint32_t expected = (uint32_t)queryIds.size();
+				return match_res(archetype, queryIds, [&matches, expected]() {
+					return (++matches) == expected;
+				});
 			}
 
 			template <typename Func>
@@ -19007,13 +18988,13 @@ namespace gaia {
 
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
-					return match_inter_backtrack(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-						return cmp_ids(archetype, idInArchetype, idInQuery) && func();
+					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+						return cmp_ids_is(archetype, idInArchetype, idInQuery) && func();
 					});
 				}
 
-				return match_inter_backtrack(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-					return cmp_ids_ext(archetype, idInArchetype, idInQuery) && func();
+				return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
+					return cmp_ids_is_pairs(archetype, idInArchetype, idInQuery) && func();
 				});
 			}
 
