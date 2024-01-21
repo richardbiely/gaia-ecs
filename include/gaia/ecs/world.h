@@ -78,10 +78,13 @@ namespace gaia {
 			//! Map of target -> relations
 			PairMap m_targetsToRelations;
 
+			//! List of all archetypes
+			ArchetypeList m_archetypes;
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
 			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
+
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
 			//! Entity archetype
@@ -100,7 +103,7 @@ namespace gaia {
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
-			cnt::darray<Archetype*> m_archetypesToDel;
+			ArchetypeList m_archetypesToDel;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
 			//! Maximum number of entities to defragment per world tick
@@ -304,13 +307,13 @@ namespace gaia {
 				};
 
 				void try_set_flags(Entity entity, bool enable) {
-					try_set_AliasOf(entity, enable);
+					try_set_Is(entity, enable);
 					try_set_CantCombine(entity, enable);
 					try_set_OnDeleteTarget(entity, enable);
 					try_set_OnDelete(entity, enable);
 				}
 
-				void try_set_AliasOf(Entity entity, bool enable) {
+				void try_set_Is(Entity entity, bool enable) {
 					if (!entity.pair() || entity.id() != Is.id())
 						return;
 
@@ -691,12 +694,51 @@ namespace gaia {
 			}
 
 			//! Adds the archetype to <entity, archetype> map for quick lookups of archetypes by comp/tag/pair
+			//! \param entity Entity getting added
+			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
 					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
 				else if (!core::has(it->second, pArchetype))
 					it->second.push_back(pArchetype);
+			}
+
+			//! Deletes an archetype to <entity, archetype> record
+			//! \param entity Entity getting deleted
+			void del_entity_archetype_pair(Entity entity) {
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				auto& archetypes = it->second;
+				for (int i = (int)archetypes.size() - 1; i >= 0; --i) {
+					const auto* pArchetype = archetypes[(uint32_t)i];
+					if (pArchetype->has(entity))
+						continue;
+
+					core::erase_fast_unsafe(archetypes, i);
+				}
+			}
+
+			//! Deletes an archetype to <entity, archetype> record
+			//! \param entity Entity getting deleted
+			void del_entity_archetype_pairs(Entity entity) {
+				// TODO: Optimize. Either switch to an array or add an index to the map value.
+				//       Otherwise all these lookups make deleting entities slow.
+
+				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
+
+				if (entity.pair()) {
+					// Fake entities instantiated for both ids.
+					// We are find with it because to build a pair all we need are valid entity ids.
+					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
+					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+
+					// (*, tgt)
+					del_entity_archetype_pair(Pair(All, second));
+					// (src, *)
+					del_entity_archetype_pair(Pair(first, All));
+					// (*, *)
+					del_entity_archetype_pair(Pair(All, All));
+				}
 			}
 
 			//! Creates a new archetype from a given set of entities
@@ -712,8 +754,7 @@ namespace gaia {
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
 						// Fake entities instantiated for both ids.
-						// We don't care though because to construct the archetype pair we only need
-						// the IDs anyway.
+						// We are find with it because to build a pair all we need are valid entity ids.
 						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
 						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
@@ -744,6 +785,7 @@ namespace gaia {
 				// Register the archetype
 				m_archetypesById.emplace(pArchetype->id(), pArchetype);
 				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+				m_archetypes.emplace_back(pArchetype);
 			}
 
 			//! Unregisters the archetype in the world.
@@ -763,6 +805,12 @@ namespace gaia {
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
 				m_archetypesById.erase(pArchetype->id());
+
+				// TODO: This is can be thousands or archetypes. We need a better way.
+				//       E.g., hash maps could contain indices to this array or something else.
+				//       Ideally this needs to be O(1).
+				const auto idx = core::get_index(m_archetypes, pArchetype);
+				core::erase_fast(m_archetypes, idx);
 			}
 
 #if GAIA_DEBUG
@@ -1299,9 +1347,9 @@ namespace gaia {
 				}
 			}
 
-			//! Removes any edges containing the entity from the archetype graph.
+			//! Deletes any edges containing the entity from the archetype graph.
 			//! \param entity Entity to delete
-			void remove_graph_edges(Entity entity) {
+			void del_graph_edges(Entity entity) {
 				auto removeEdges = [&](Entity entityToRemove) {
 					const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entityToRemove));
 					if (it == m_entityToArchetypeMap.end())
@@ -1341,11 +1389,7 @@ namespace gaia {
 				}
 			}
 
-			//! Invalidates the entity record, effectivelly deleting it.
-			//! \param entity Entity to delete
-			void invalidate_entity(Entity entity) {
-				remove_graph_edges(entity);
-
+			void del_reltgt_tgtrel_pairs(Entity entity) {
 				auto delPair = [](PairMap& map, Entity source, Entity remove) {
 					auto itTargets = map.find(EntityLookupKey(source));
 					if (itTargets != map.end()) {
@@ -1381,6 +1425,14 @@ namespace gaia {
 					m_relationsToTargets.erase(EntityLookupKey(entity));
 					m_targetsToRelations.erase(EntityLookupKey(entity));
 				}
+			}
+
+			//! Invalidates the entity record, effectivelly deleting it.
+			//! \param entity Entity to delete
+			void invalidate_entity(Entity entity) {
+				del_graph_edges(entity);
+				del_reltgt_tgtrel_pairs(entity);
+				del_entity_archetype_pairs(entity);
 			}
 
 			//! Associates an entity with a chunk.
@@ -1944,19 +1996,23 @@ namespace gaia {
 				// Don't allow components to be deleted
 				EntityBuilder(*this, entity).add(Pair(OnDelete, Error));
 
-				const auto& desc = comp_cache_mut().add<FT>(entity);
+				const auto& item = comp_cache_mut().add<FT>(entity);
+				auto& ec = m_recs.entities[entity.id()];
 
 				// Following lines do the following but a bit faster:
-				// sset<Component>(comp, desc.comp);
-				auto& ec = m_recs.entities[entity.id()];
+				// sset<Component>(item.entity, item.comp);
 				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(EntityKind::EK_Gen, 1);
 				auto& comp = pComps[ec.row];
-				comp = desc.comp;
+				comp = item.comp;
+
+				// Make sure the default component entity name points to the cache item name
+				name_raw(item.entity, item.name.str(), item.name.len());
+
 				// TODO: Implement entity locking. A locked entity can't change archtypes.
 				//       This way we can prevent anybody messing with the internal state of the component
 				//       entities created at compile-time data.
 
-				return desc;
+				return item;
 			}
 
 			//! Attaches entity \param object to entity \param entity.
@@ -2426,7 +2482,8 @@ namespace gaia {
 				if (!has<EntityDesc>(entity))
 					return nullptr;
 
-				return get<EntityDesc>(entity).name;
+				const auto& desc = get<EntityDesc>(entity);
+				return desc.name;
 			}
 
 			//! Returns the name assigned to \param entityId.
@@ -2681,15 +2738,15 @@ namespace gaia {
 					Query q(
 							*const_cast<World*>(this), m_queryCache,
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
-					q.none(Core);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					q.no(Core);
 					return q;
 				} else {
 					QueryUncached q(
 							*const_cast<World*>(this),
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap);
-					q.none(Core);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					q.no(Core);
 					return q;
 				}
 			}

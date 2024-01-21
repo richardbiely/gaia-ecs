@@ -443,8 +443,8 @@ ecs::Query q = w.query();
 q.all<Position&, Velocity&>();
 // ... at least Something or SomethingElse (immutable access for both)...
 q.any<Something, SomethingElse>();
-// ... and no Player component... (no access done for none())
-q.none<Player>();
+// ... and no Player component... (no access done for no())
+q.not<Player>();
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
@@ -458,7 +458,7 @@ q.all<Position&>()
  // ... at least Something or SomethingElse (immutable access)...
  .any<Something, SomethingElse>()
  // ... and no Player component (no access)...
- .none<Player>(); 
+ .no<Player>(); 
 ```
 
 Queries can be defined using a low-level API (used internally).
@@ -514,7 +514,7 @@ ecs::Query q1 = w.query()
 // The queries above can be rewritten as following:
 ecs::Query q2 = w.query()
   .all<Position&>()
-  .none<Velocity>()
+  .no<Velocity>()
   .any<RigidBody>()
   .all(ecs::Pair(w.add<Fuel>().entity, All)>()
   .all(player);
@@ -545,7 +545,7 @@ ecs::Query q = w.query();
 // Take into account all entities with Position and Velocity...
 q.all<Position&, Velocity>();
 // ... but no Player component.
-q.none<Player>();
+q.no<Player>();
 
 q.each([&](Position& p, const Velocity& v) {
   // Run the scope for each entity with Position, Velocity and no Player component
@@ -678,7 +678,7 @@ ecs::Query q = w.query();
 // Take into account all entities with Position and Velocity...
 q.all<Position&, Velocity>();
 // ... no Player component...
-q.none<Player>(); 
+q.no<Player>(); 
 // ... but only iterate when Velocity changes
 q.changed<Velocity>();
 

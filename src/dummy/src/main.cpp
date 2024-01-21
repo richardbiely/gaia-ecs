@@ -300,6 +300,40 @@ struct test_2 {
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
+namespace dummy {
+	struct Position {
+		float x;
+		float y;
+		float z;
+	};
+} // namespace dummy
+
+void test0() {
+	ecs::World w;
+	auto e = w.add(); // 14
+	w.add<Position>(e, {1, 1, 1}); // 15
+	w.add<dummy::Position>(e, {2, 2, 2}); // 16
+	auto e2 = w.add(); // 17
+	w.add<Position>(e2);
+	auto a3 = w.add(); // 18
+	w.add<dummy::Position>(a3);
+	auto a4 = w.copy(a3); // 19
+
+	{
+		auto q1 = w.query().all<Position>();
+		const auto c1 = q1.count();
+		GAIA_ASSERT(c1 == 2);
+
+		auto q2 = w.query().all<dummy::Position>();
+		const auto c2 = q2.count();
+		GAIA_ASSERT(c2 == 3);
+
+		auto q3 = w.query().no<Position>();
+		const auto c3 = q3.count();
+		GAIA_ASSERT(c3 > 0); // It's going to be a bunch
+	}
+}
+
 void test1() {
 	ecs::World w;
 	auto wolf = w.add();
@@ -347,7 +381,7 @@ void test2() {
 
 	{
 		uint32_t i = 0;
-		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal));
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
 		q.each([&](ecs::Entity entity) {
 			// runs for herbivore, rabbit, hare, wolf
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
@@ -357,22 +391,23 @@ void test2() {
 		});
 		GAIA_LOG_N("cnt = %u", i);
 	}
-	{
-		uint32_t i = 0;
-		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
-		q.each([&](ecs::Entity entity) {
-			// runs for rabbit, hare
-			const bool isOK = entity == hare || entity == rabbit;
-			GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
+	// {
+	// 	uint32_t i = 0;
+	// 	ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
+	// 	q.each([&](ecs::Entity entity) {
+	// 		// runs for rabbit, hare
+	// 		const bool isOK = entity == hare || entity == rabbit;
+	// 		GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
 
-			++i;
-		});
-		GAIA_LOG_N("cnt = %u", i);
-		GAIA_LOG_N("");
-	}
+	// 		++i;
+	// 	});
+	// 	GAIA_LOG_N("cnt = %u", i);
+	// 	GAIA_LOG_N("");
+	// }
 }
 
 int main() {
+	test0();
 	// test1();
 	test2();
 

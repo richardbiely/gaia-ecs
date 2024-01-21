@@ -1570,7 +1570,7 @@ TEST_CASE("Add - no components") {
 
 	GAIA_FOR(N) create();
 
-	auto q = w.query().all<ecs::EntityDesc>().none<ecs::Component>();
+	auto q = w.query().all<ecs::EntityDesc>().no<ecs::Component>();
 	q.arr(arr);
 	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
@@ -1629,6 +1629,11 @@ TEST_CASE("Add - namespaces") {
 	auto e = w.add();
 	w.add<Position>(e, {1, 1, 1});
 	w.add<dummy::Position>(e, {2, 2, 2});
+	auto e2 = w.add();
+	w.add<Position>(e2);
+	auto a3 = w.add();
+	w.add<dummy::Position>(a3);
+	auto a4 = w.copy(a3);
 
 	REQUIRE(w.has<Position>(e));
 	REQUIRE(w.has<dummy::Position>(e));
@@ -1644,6 +1649,23 @@ TEST_CASE("Add - namespaces") {
 		REQUIRE(p2.x == 2.f);
 		REQUIRE(p2.y == 2.f);
 		REQUIRE(p2.z == 2.f);
+	}
+	{
+		auto q1 = w.query().all<Position>();
+		const auto c1 = q1.count();
+		REQUIRE(c1 == 2);
+
+		auto q2 = w.query().all<dummy::Position>();
+		const auto c2 = q2.count();
+		REQUIRE(c2 == 3);
+
+		auto q3 = w.query().no<Position>();
+		const auto c3 = q3.count();
+		REQUIRE(c3 > 0); // It's going to be a bunch
+
+		auto q4 = w.query().all<dummy::Position>().no<Position>();
+		const auto c4 = q4.count();
+		REQUIRE(c4 == 2);
 	}
 }
 
@@ -3841,7 +3863,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.query().any<Position, Acceleration>().none<Scale>();
+		ecs::Query q = w.query().any<Position, Acceleration>().no<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3940,7 +3962,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().none<ecs::uni<Scale>>();
+		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {

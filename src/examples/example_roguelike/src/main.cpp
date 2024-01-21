@@ -882,7 +882,7 @@ class UISystem final: public ecs::System {
 public:
 	void OnCreated() override {
 		m_qp = world().query().all<Health, Player>();
-		m_qe = world().query().all<Health>().none<Player, Item>();
+		m_qe = world().query().all<Health>().no<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -905,7 +905,7 @@ class GameStateSystem: public ecs::System {
 public:
 	void OnCreated() override {
 		m_qp = world().query().all<Health, Player>();
-		m_qe = world().query().all<Health>().none<Player, Item>();
+		m_qe = world().query().all<Health>().no<Player, Item>();
 
 		m_hadPlayer = !m_qp.empty();
 		m_hadEnemies = !m_qe.empty();

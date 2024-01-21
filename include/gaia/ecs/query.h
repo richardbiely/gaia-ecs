@@ -197,6 +197,8 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
+				//! All world archetypes
+				const ArchetypeList* m_allArchetypes{};
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -213,7 +215,7 @@ namespace gaia {
 						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_queryId);
-							queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
+							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 							return queryInfo;
 						}
 
@@ -223,7 +225,7 @@ namespace gaia {
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
-						queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
+						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
@@ -232,7 +234,7 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
-						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, last_archetype_id());
+						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
 				}
@@ -630,20 +632,22 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap):
+						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
+						const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap) {
+						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.m_queryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap):
+						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
+						const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap) {}
+						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
@@ -673,7 +677,7 @@ namespace gaia {
 				//! Translates into:
 				//!   w.query()
 				//!      .all<Position&>()
-				//!      .none<Velocity>()
+				//!      .no<Velocity>()
 				//!      .any<RigidBody>()
 				//!      .all(Pair(w.add<Fuel>().entity, All)>()
 				//!      .all(Player);
@@ -715,7 +719,7 @@ namespace gaia {
 							if (entity == EntityBad)
 								return false;
 
-							none(entity);
+							no(entity);
 						} else {
 							auto entity = expr_to_entity(args, expr);
 							if (entity == EntityBad)
@@ -782,13 +786,13 @@ namespace gaia {
 					return *this;
 				}
 
-				QueryImpl& none(Entity entity) {
+				QueryImpl& no(Entity entity) {
 					add({entity, QueryOp::Not, QueryAccess::None});
 					return *this;
 				}
 
 				template <typename... T>
-				QueryImpl& none() {
+				QueryImpl& no() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOp::Not), ...);
 					return *this;
@@ -858,14 +862,12 @@ namespace gaia {
 					each(queryInfo, func);
 				}
 
-				/*!
-					Returns true or false depending on whether there are any entities matching the query.
-					\warning Only use if you only care if there are any entities matching the query.
-									 The result is not cached and repeated calls to the function might be slow.
-									 If you already called arr(), checking if it is empty is preferred.
-									 Use empty() instead of calling count()==0.
-					\return True if there are any entites matchine the query. False otherwise.
-					*/
+				//!	Returns true or false depending on whether there are any entities matching the query.
+				//!	\warning Only use if you only care if there are any entities matching the query.
+				//!					 The result is not cached and repeated calls to the function might be slow.
+				//!					 If you already called arr(), checking if it is empty is preferred.
+				//!					 Use empty() instead of calling count()==0.
+				//!	\return True if there are any entites matchine the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					const bool hasFilters = queryInfo.has_filters();
@@ -911,14 +913,11 @@ namespace gaia {
 					return true;
 				}
 
-				/*!
-				Calculates the number of entities matching the query
-				\warning Only use if you only care about the number of entities matching the query.
-								 The result is not cached and repeated calls to the function might be slow.
-								 If you already called arr(), use the size provided by the array.
-								 Use empty() instead of calling count()==0.
-				\return The number of matching entities
-				*/
+				//! Calculates the number of entities matching the query
+				//! \warning Only use if you only care about the number of entities matching the query.
+				//!          The result is not cached and repeated calls to the function might be slow.If you already called
+				//!          arr(), use the size provided by the array.Use empty() instead of calling count() == 0.
+				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					uint32_t entCnt = 0;
@@ -959,12 +958,10 @@ namespace gaia {
 					return entCnt;
 				}
 
-				/*!
-				Appends all components or entities matching the query to the output array
-				\tparam outArray Container storing entities or components
-				\param constraints QueryImpl constraints
-				\return Array with entities or components
-				*/
+				//! Appends all components or entities matching the query to the output array
+				//! \tparam outArray Container storing entities or components
+				//! \param constraints QueryImpl constraints
+				//! \return Array with entities or components
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
 					const auto entCnt = count();
@@ -1006,6 +1003,14 @@ namespace gaia {
 								break;
 						}
 					}
+				}
+
+				//!
+				void diag() {
+					auto& info = fetch();
+					(void)info;
+					// for (const auto* pArchetype: info)
+					// 	Archetype::diag_basic_info(*m_world, *pArchetype);
 				}
 			};
 		} // namespace detail

@@ -416,7 +416,7 @@ namespace gaia {
 			Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
-			void del(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToDelete) {
+			void del(Chunk* pChunk, ArchetypeList& archetypesToDelete) {
 				const auto chunkIndex = pChunk->idx();
 
 				Chunk::free(pChunk);
@@ -754,8 +754,8 @@ namespace gaia {
 				}
 
 				GAIA_LOG_N(
-						"Archetype ID:%u, "
-						"hashLookup:%016" PRIx64 ", "
+						"aid:%u, "
+						"hash:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
 						archetype.id(), archetype.lookup_hash().hash, (uint32_t)archetype.chunks().size(),
@@ -774,8 +774,8 @@ namespace gaia {
 					} else {
 						const auto& desc = cc.get(entity);
 						GAIA_LOG_N(
-								"    hashLookup:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash,
-								desc.comp.size(), desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
+								"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash, desc.comp.size(),
+								desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
 					}
 				};
 
