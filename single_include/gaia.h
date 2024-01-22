@@ -20723,7 +20723,7 @@ namespace gaia {
 
 				//!
 				void diag() {
-					GAIA_LOG_N("DIAG Query %u, %c", id(), UseCaching ? "C" : "U");
+					GAIA_LOG_N("DIAG Query %u, %c", id(), UseCaching ? 'C' : 'U');
 					auto& info = fetch();
 					for (const auto* pArchetype: info)
 						Archetype::diag_basic_info(*m_world, *pArchetype);
