@@ -7947,7 +7947,7 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -7955,7 +7955,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -11314,7 +11314,7 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -11322,7 +11322,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -14583,7 +14583,7 @@ namespace gaia {
 			}
 
 			void diag(const World& world) const {
-				auto diagEdge = [&](const auto& edges, bool addEdge) {
+				auto diagEdge = [&](const auto& edges) {
 					for (const auto& edge: edges) {
 						const auto entity = edge.first.entity();
 						if (entity.pair()) {
@@ -14606,13 +14606,13 @@ namespace gaia {
 				// Add edges (movement towards the leafs)
 				if (!m_edgesAdd.empty()) {
 					GAIA_LOG_N("  Add edges - count:%u", (uint32_t)m_edgesAdd.size());
-					diagEdge(m_edgesAdd, true);
+					diagEdge(m_edgesAdd);
 				}
 
 				// Delete edges (movement towards the root)
 				if (!m_edgesDel.empty()) {
 					GAIA_LOG_N("  Del edges - count:%u", (uint32_t)m_edgesDel.size());
-					diagEdge(m_edgesDel, false);
+					diagEdge(m_edgesDel);
 				}
 			}
 		};
@@ -18927,7 +18927,7 @@ namespace gaia {
 
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
 					return as_relations_trav_if(*m_lookupCtx.w, idInQuery, [&](Entity relation) {
-						const auto idx = core::get_index(archetypeIds, idInQuery);
+						const auto idx = core::get_index(archetypeIds, relation);
 						// Stop at the first match
 						return idx != BadIndex;
 					});
@@ -19049,9 +19049,7 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_NODISCARD bool
-			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, uint32_t level, Func func) const {
-				const auto& archetypeIds = archetype.ids();
-
+			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
 					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
@@ -19066,7 +19064,7 @@ namespace gaia {
 
 			GAIA_NODISCARD
 			bool match_one_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
-				return match_res_backtrack(archetype, queryIds, 0, []() {
+				return match_res_backtrack(archetype, queryIds, []() {
 					return true;
 				});
 			}
@@ -19075,7 +19073,7 @@ namespace gaia {
 			bool match_all_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
 				uint32_t matches = 0;
 				uint32_t expected = (uint32_t)queryIds.size();
-				return match_res_backtrack(archetype, queryIds, 0, [&matches, expected]() {
+				return match_res_backtrack(archetype, queryIds, [&matches, expected]() {
 					return (++matches) == expected;
 				});
 			}
@@ -19366,7 +19364,7 @@ namespace gaia {
 
 			void do_match_one(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch, uint32_t j,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -19439,7 +19437,6 @@ namespace gaia {
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_none;
-				uint32_t jj = 0;
 
 				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
 				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
@@ -19529,7 +19526,7 @@ namespace gaia {
 						GAIA_EACH(ids_any) {
 							do_match_one(
 									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i],
-									ids_any, i, data.as_mask, data.as_mask_2);
+									ids_any, data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -19538,7 +19535,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < s_tmpArchetypeMatchesArr.size();) {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
-							GAIA_EACH(ids_any) {
+							for (auto _: ids_any) {
 								if (do_match_one(*pArchetype, ids_any, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}
@@ -20726,10 +20723,10 @@ namespace gaia {
 
 				//!
 				void diag() {
+					GAIA_LOG_N("DIAG Query %u, %c", id(), UseCaching ? "C" : "U");
 					auto& info = fetch();
-					(void)info;
-					// for (const auto* pArchetype: info)
-					// 	Archetype::diag_basic_info(*m_world, *pArchetype);
+					for (const auto* pArchetype: info)
+						Archetype::diag_basic_info(*m_world, *pArchetype);
 				}
 			};
 		} // namespace detail

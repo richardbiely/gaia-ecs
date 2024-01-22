@@ -974,7 +974,7 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -982,7 +982,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {

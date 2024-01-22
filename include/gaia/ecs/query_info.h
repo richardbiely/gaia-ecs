@@ -160,7 +160,7 @@ namespace gaia {
 
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
 					return as_relations_trav_if(*m_lookupCtx.w, idInQuery, [&](Entity relation) {
-						const auto idx = core::get_index(archetypeIds, idInQuery);
+						const auto idx = core::get_index(archetypeIds, relation);
 						// Stop at the first match
 						return idx != BadIndex;
 					});
@@ -282,9 +282,7 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_NODISCARD bool
-			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, uint32_t level, Func func) const {
-				const auto& archetypeIds = archetype.ids();
-
+			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
 					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
@@ -299,7 +297,7 @@ namespace gaia {
 
 			GAIA_NODISCARD
 			bool match_one_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
-				return match_res_backtrack(archetype, queryIds, 0, []() {
+				return match_res_backtrack(archetype, queryIds, []() {
 					return true;
 				});
 			}
@@ -308,7 +306,7 @@ namespace gaia {
 			bool match_all_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
 				uint32_t matches = 0;
 				uint32_t expected = (uint32_t)queryIds.size();
-				return match_res_backtrack(archetype, queryIds, 0, [&matches, expected]() {
+				return match_res_backtrack(archetype, queryIds, [&matches, expected]() {
 					return (++matches) == expected;
 				});
 			}
@@ -599,7 +597,7 @@ namespace gaia {
 
 			void do_match_one(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch, uint32_t j,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -672,7 +670,6 @@ namespace gaia {
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_none;
-				uint32_t jj = 0;
 
 				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
 				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
@@ -762,7 +759,7 @@ namespace gaia {
 						GAIA_EACH(ids_any) {
 							do_match_one(
 									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i],
-									ids_any, i, data.as_mask, data.as_mask_2);
+									ids_any, data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -771,7 +768,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < s_tmpArchetypeMatchesArr.size();) {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
-							GAIA_EACH(ids_any) {
+							for (auto _: ids_any) {
 								if (do_match_one(*pArchetype, ids_any, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}

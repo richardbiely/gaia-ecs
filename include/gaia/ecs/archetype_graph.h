@@ -78,7 +78,7 @@ namespace gaia {
 			}
 
 			void diag(const World& world) const {
-				auto diagEdge = [&](const auto& edges, bool addEdge) {
+				auto diagEdge = [&](const auto& edges) {
 					for (const auto& edge: edges) {
 						const auto entity = edge.first.entity();
 						if (entity.pair()) {
@@ -101,13 +101,13 @@ namespace gaia {
 				// Add edges (movement towards the leafs)
 				if (!m_edgesAdd.empty()) {
 					GAIA_LOG_N("  Add edges - count:%u", (uint32_t)m_edgesAdd.size());
-					diagEdge(m_edgesAdd, true);
+					diagEdge(m_edgesAdd);
 				}
 
 				// Delete edges (movement towards the root)
 				if (!m_edgesDel.empty()) {
 					GAIA_LOG_N("  Del edges - count:%u", (uint32_t)m_edgesDel.size());
-					diagEdge(m_edgesDel, false);
+					diagEdge(m_edgesDel);
 				}
 			}
 		};
