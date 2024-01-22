@@ -83,7 +83,7 @@ namespace gaia {
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
-			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
+			cnt::map<ArchetypeIdLookupKey, Archetype*> m_archetypesById;
 
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
@@ -106,6 +106,7 @@ namespace gaia {
 			ArchetypeList m_archetypesToDel;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
+			ArchetypeIdLookupKey::LookupHash m_defragLastArchetypeIDHash = {0};
 			//! Maximum number of entities to defragment per world tick
 			uint32_t m_defragEntitesPerTick = 100;
 
@@ -592,14 +593,19 @@ namespace gaia {
 				// If the deleted archetype is the last one we defragmented
 				// make sure to point to the next one.
 				if (m_defragLastArchetypeID == pArchetype->id()) {
-					auto it = m_archetypesById.find(pArchetype->id());
+					auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
 					++it;
 
 					// Handle the wrap-around
-					if (it == m_archetypesById.end())
-						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
-					else
-						m_defragLastArchetypeID = it->second->id();
+					if (it == m_archetypesById.end()) {
+						auto* pArch = m_archetypesById.begin()->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					} else {
+						auto* pArch = it->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					}
 				}
 
 				unreg_archetype(pArchetype);
@@ -657,22 +663,28 @@ namespace gaia {
 				// There has to be at least the root archetype present
 				GAIA_ASSERT(maxIters > 0);
 
-				auto it = m_archetypesById.find(m_defragLastArchetypeID);
+				auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
 				// Every time we delete an archetype we mamke sure the defrag ID is updated.
 				// Therefore, it should always be valid.
 				GAIA_ASSERT(it != m_archetypesById.end());
 
 				GAIA_FOR(maxIters) {
-					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
+					auto* pArchetype =
+							m_archetypesById[ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash)];
 					pArchetype->defrag(maxEntities, m_chunksToDel, m_recs);
 					if (maxEntities == 0)
 						return;
 
 					++it;
-					if (it == m_archetypesById.end())
-						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
-					else
-						m_defragLastArchetypeID = it->second->id();
+					if (it == m_archetypesById.end()) {
+						auto* pArch = m_archetypesById.begin()->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					} else {
+						auto* pArch = it->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					}
 				}
 			}
 
@@ -780,10 +792,10 @@ namespace gaia {
 				// 		(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
+				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
 
 				// Register the archetype
-				m_archetypesById.emplace(pArchetype->id(), pArchetype);
+				m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
 				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
 				m_archetypes.emplace_back(pArchetype);
 			}
@@ -798,13 +810,13 @@ namespace gaia {
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype was registered already
-				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
+				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
 
 				const auto& ids = pArchetype->ids();
 				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(pArchetype->id());
+				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
 
 				// TODO: This is can be thousands or archetypes. We need a better way.
 				//       E.g., hash maps could contain indices to this array or something else.
@@ -881,9 +893,9 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const auto archetypeId = pArchetypeLeft->find_edge_right(entity);
-					if (archetypeId != ArchetypeIdBad)
-						return m_archetypesById[archetypeId];
+					const auto edge = pArchetypeLeft->find_edge_right(entity);
+					if (edge != ArchetypeIdHashPairBad)
+						return m_archetypesById[edge];
 				}
 
 				// Prepare a joint array of components of old + the newly added component
@@ -920,9 +932,9 @@ namespace gaia {
 			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity) {
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->find_edge_left(entity);
-					if (archetypeId != ArchetypeIdBad)
-						return m_archetypesById[archetypeId];
+					const auto edge = pArchetypeRight->find_edge_left(entity);
+					if (edge != ArchetypeIdHashPairBad)
+						return m_archetypesById[edge];
 				}
 
 				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;

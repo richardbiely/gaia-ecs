@@ -13871,8 +13871,55 @@ namespace gaia {
 
 		using ArchetypeId = uint32_t;
 		using ArchetypeList = cnt::darray<Archetype*>;
+		using ArchetypeIdHash = core::direct_hash_key<uint32_t>;
+
+		struct ArchetypeIdHashPair {
+			ArchetypeId id;
+			ArchetypeIdHash hash;
+
+			GAIA_NODISCARD bool operator==(ArchetypeIdHashPair other) const {
+				return id == other.id;
+			}
+			GAIA_NODISCARD bool operator!=(ArchetypeIdHashPair other) const {
+				return id != other.id;
+			}
+		};
 
 		static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
+		static constexpr ArchetypeIdHashPair ArchetypeIdHashPairBad = {ArchetypeIdBad, {0}};
+
+		class ArchetypeIdLookupKey final {
+		public:
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			ArchetypeId m_id;
+			ArchetypeIdHash m_hash;
+
+		public:
+			GAIA_NODISCARD static LookupHash calc(ArchetypeId id) {
+				return {static_cast<uint32_t>(core::calculate_hash64(id))};
+			}
+
+			static constexpr bool IsDirectHashKey = true;
+
+			ArchetypeIdLookupKey(): m_id(0), m_hash({0}) {}
+			ArchetypeIdLookupKey(ArchetypeIdHashPair pair): m_id(pair.id), m_hash(pair.hash) {}
+			explicit ArchetypeIdLookupKey(ArchetypeId id, LookupHash hash): m_id(id), m_hash(hash) {}
+
+			GAIA_NODISCARD size_t hash() const {
+				return (size_t)m_hash.hash;
+			}
+
+			GAIA_NODISCARD bool operator==(const ArchetypeIdLookupKey& other) const {
+				// Hash doesn't match we don't have a match.
+				// Hash collisions are expected to be very unlikely so optimize for this case.
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_id == other.m_id;
+			}
+		};
 	} // namespace ecs
 } // namespace gaia
 
@@ -14472,11 +14519,9 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
 
-		class ArchetypeGraph {
-			struct ArchetypeGraphEdge {
-				ArchetypeId archetypeId;
-			};
+		using ArchetypeGraphEdge = ArchetypeIdHashPair;
 
+		class ArchetypeGraph {
 			using EdgeMap = cnt::map<EntityLookupKey, ArchetypeGraphEdge>;
 
 			//! Map of edges in the archetype graph when adding components
@@ -14485,8 +14530,9 @@ namespace gaia {
 			EdgeMap m_edgesDel;
 
 		private:
-			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
+			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				[[maybe_unused]] const auto ret =
+						edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId, hash});
 				GAIA_ASSERT(ret.second);
 			}
 
@@ -14494,24 +14540,24 @@ namespace gaia {
 				edges.erase(EntityLookupKey(entity));
 			}
 
-			GAIA_NODISCARD ArchetypeId find_edge(const EdgeMap& edges, Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge(const EdgeMap& edges, Entity entity) const {
 				const auto it = edges.find(EntityLookupKey(entity));
-				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return it != edges.end() ? it->second : ArchetypeIdHashPairBad;
 			}
 
 		public:
 			//! Creates an "add" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
-			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
-				add_edge(m_edgesAdd, entity, archetypeId);
+			void add_edge_right(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				add_edge(m_edgesAdd, entity, archetypeId, hash);
 			}
 
 			//! Creates a "del" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
-			void add_edge_left(Entity entity, ArchetypeId archetypeId) {
-				add_edge(m_edgesDel, entity, archetypeId);
+			void add_edge_left(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
 			//! Deletes the "add" edge formed by the entity \param entity.
@@ -14525,14 +14571,14 @@ namespace gaia {
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
-			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
+			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
-			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
+			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return find_edge(m_edgesDel, entity);
 			}
 
@@ -14544,13 +14590,15 @@ namespace gaia {
 							const auto* name0 = entity_name(world, entity.id());
 							const auto* name1 = entity_name(world, entity.gen());
 							GAIA_LOG_N(
-									"      pair [%u:%u], %s -> %s, aid:%u", entity.id(), entity.gen(), name0, name1,
-									edge.second.archetypeId);
+									"      pair [%u:%u], %s -> %s, aid:%u",
+									//
+									entity.id(), entity.gen(), name0, name1, edge.second.id);
 						} else {
 							const auto* name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"      ent [%u:%u], %s [%s], aid:%u", entity.id(), entity.gen(), name,
-									EntityKindString[entity.kind()], edge.second.archetypeId);
+									"      ent [%u:%u], %s [%s], aid:%u",
+									//
+									entity.id(), entity.gen(), name, EntityKindString[entity.kind()], edge.second.id);
 						}
 					}
 				};
@@ -17326,6 +17374,7 @@ namespace gaia {
 		private:
 			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
 
+			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			Properties m_properties{};
 			//! Component cache reference
 			const ComponentCache& m_cc;
@@ -17370,7 +17419,7 @@ namespace gaia {
 			//! Number of Is relationship pairs on the archetype
 			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 
-			// Constructor is hidden. Create archetypes via Archetype::Create
+			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
@@ -17428,9 +17477,7 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Estimates how many entities can fit into the chunk described by \param comps components.
-			*/
+			//! Estimates how many entities can fit into the chunk described by \param comps components.
 			static bool est_max_entities_per_archetype(
 					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
 					uint32_t maxDataOffset) {
@@ -17504,6 +17551,7 @@ namespace gaia {
 
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
+				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
 				newArch->m_ids.resize((uint32_t)ids.size());
@@ -17630,6 +17678,10 @@ namespace gaia {
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
 
 				return newArch;
+			}
+
+			ArchetypeIdLookupKey::LookupHash id_hash() const {
+				return m_archetypeIdHash;
 			}
 
 			/*!
@@ -17892,7 +17944,7 @@ namespace gaia {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
 
-				m_graph.add_edge_right(entity, pArchetypeRight->id());
+				m_graph.add_edge_right(entity, pArchetypeRight->id(), pArchetypeRight->id_hash());
 				pArchetypeRight->build_graph_edges_left(this, entity);
 			}
 
@@ -17900,7 +17952,7 @@ namespace gaia {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeLeft != this);
 
-				m_graph.add_edge_left(entity, pArchetypeLeft->id());
+				m_graph.add_edge_left(entity, pArchetypeLeft->id(), pArchetypeLeft->id_hash());
 			}
 
 			void del_graph_edges(Archetype* pArchetypeRight, Entity entity) {
@@ -17920,13 +17972,13 @@ namespace gaia {
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return m_graph.find_edge_right(entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return m_graph.find_edge_left(entity);
 			}
 
@@ -18061,11 +18113,11 @@ namespace gaia {
 			explicit ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
 					m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
 
-			size_t hash() const {
+			GAIA_NODISCARD size_t hash() const {
 				return (size_t)m_hash.hash;
 			}
 
-			bool operator==(const ArchetypeLookupKey& other) const {
+			GAIA_NODISCARD bool operator==(const ArchetypeLookupKey& other) const {
 				// Hash doesn't match we don't have a match.
 				// Hash collisions are expected to be very unlikely so optimize for this case.
 				if GAIA_LIKELY (m_hash != other.m_hash)
@@ -19861,7 +19913,7 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of archetypes (stable pointer to parent world's archetype array)
-				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
+				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
@@ -20299,8 +20351,8 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeList& allArchetypes):
+						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
@@ -20310,8 +20362,8 @@ namespace gaia {
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeList& allArchetypes):
+						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
@@ -20733,7 +20785,7 @@ namespace gaia {
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
-			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
+			cnt::map<ArchetypeIdLookupKey, Archetype*> m_archetypesById;
 
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
@@ -20756,6 +20808,7 @@ namespace gaia {
 			ArchetypeList m_archetypesToDel;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
+			ArchetypeIdLookupKey::LookupHash m_defragLastArchetypeIDHash = {0};
 			//! Maximum number of entities to defragment per world tick
 			uint32_t m_defragEntitesPerTick = 100;
 
@@ -21242,14 +21295,19 @@ namespace gaia {
 				// If the deleted archetype is the last one we defragmented
 				// make sure to point to the next one.
 				if (m_defragLastArchetypeID == pArchetype->id()) {
-					auto it = m_archetypesById.find(pArchetype->id());
+					auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
 					++it;
 
 					// Handle the wrap-around
-					if (it == m_archetypesById.end())
-						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
-					else
-						m_defragLastArchetypeID = it->second->id();
+					if (it == m_archetypesById.end()) {
+						auto* pArch = m_archetypesById.begin()->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					} else {
+						auto* pArch = it->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					}
 				}
 
 				unreg_archetype(pArchetype);
@@ -21307,22 +21365,28 @@ namespace gaia {
 				// There has to be at least the root archetype present
 				GAIA_ASSERT(maxIters > 0);
 
-				auto it = m_archetypesById.find(m_defragLastArchetypeID);
+				auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
 				// Every time we delete an archetype we mamke sure the defrag ID is updated.
 				// Therefore, it should always be valid.
 				GAIA_ASSERT(it != m_archetypesById.end());
 
 				GAIA_FOR(maxIters) {
-					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
+					auto* pArchetype =
+							m_archetypesById[ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash)];
 					pArchetype->defrag(maxEntities, m_chunksToDel, m_recs);
 					if (maxEntities == 0)
 						return;
 
 					++it;
-					if (it == m_archetypesById.end())
-						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
-					else
-						m_defragLastArchetypeID = it->second->id();
+					if (it == m_archetypesById.end()) {
+						auto* pArch = m_archetypesById.begin()->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					} else {
+						auto* pArch = it->second;
+						m_defragLastArchetypeID = pArch->id();
+						m_defragLastArchetypeIDHash = pArch->id_hash();
+					}
 				}
 			}
 
@@ -21430,10 +21494,10 @@ namespace gaia {
 				// 		(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
+				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
 
 				// Register the archetype
-				m_archetypesById.emplace(pArchetype->id(), pArchetype);
+				m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
 				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
 				m_archetypes.emplace_back(pArchetype);
 			}
@@ -21448,13 +21512,13 @@ namespace gaia {
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype was registered already
-				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
+				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
 
 				const auto& ids = pArchetype->ids();
 				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(pArchetype->id());
+				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
 
 				// TODO: This is can be thousands or archetypes. We need a better way.
 				//       E.g., hash maps could contain indices to this array or something else.
@@ -21531,9 +21595,9 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const auto archetypeId = pArchetypeLeft->find_edge_right(entity);
-					if (archetypeId != ArchetypeIdBad)
-						return m_archetypesById[archetypeId];
+					const auto edge = pArchetypeLeft->find_edge_right(entity);
+					if (edge != ArchetypeIdHashPairBad)
+						return m_archetypesById[edge];
 				}
 
 				// Prepare a joint array of components of old + the newly added component
@@ -21570,9 +21634,9 @@ namespace gaia {
 			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity) {
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->find_edge_left(entity);
-					if (archetypeId != ArchetypeIdBad)
-						return m_archetypesById[archetypeId];
+					const auto edge = pArchetypeRight->find_edge_left(entity);
+					if (edge != ArchetypeIdHashPairBad)
+						return m_archetypesById[edge];
 				}
 
 				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;

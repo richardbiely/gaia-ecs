@@ -87,6 +87,7 @@ namespace gaia {
 		private:
 			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
 
+			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			Properties m_properties{};
 			//! Component cache reference
 			const ComponentCache& m_cc;
@@ -131,7 +132,7 @@ namespace gaia {
 			//! Number of Is relationship pairs on the archetype
 			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 
-			// Constructor is hidden. Create archetypes via Archetype::Create
+			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
@@ -189,9 +190,7 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Estimates how many entities can fit into the chunk described by \param comps components.
-			*/
+			//! Estimates how many entities can fit into the chunk described by \param comps components.
 			static bool est_max_entities_per_archetype(
 					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
 					uint32_t maxDataOffset) {
@@ -265,6 +264,7 @@ namespace gaia {
 
 				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
+				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
 				newArch->m_ids.resize((uint32_t)ids.size());
@@ -391,6 +391,10 @@ namespace gaia {
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
 
 				return newArch;
+			}
+
+			ArchetypeIdLookupKey::LookupHash id_hash() const {
+				return m_archetypeIdHash;
 			}
 
 			/*!
@@ -653,7 +657,7 @@ namespace gaia {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
 
-				m_graph.add_edge_right(entity, pArchetypeRight->id());
+				m_graph.add_edge_right(entity, pArchetypeRight->id(), pArchetypeRight->id_hash());
 				pArchetypeRight->build_graph_edges_left(this, entity);
 			}
 
@@ -661,7 +665,7 @@ namespace gaia {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeLeft != this);
 
-				m_graph.add_edge_left(entity, pArchetypeLeft->id());
+				m_graph.add_edge_left(entity, pArchetypeLeft->id(), pArchetypeLeft->id_hash());
 			}
 
 			void del_graph_edges(Archetype* pArchetypeRight, Entity entity) {
@@ -681,13 +685,13 @@ namespace gaia {
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return m_graph.find_edge_right(entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return m_graph.find_edge_left(entity);
 			}
 
@@ -822,11 +826,11 @@ namespace gaia {
 			explicit ArchetypeLookupKey(Archetype::LookupHash hash, const ArchetypeBase* pArchetypeBase):
 					m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
 
-			size_t hash() const {
+			GAIA_NODISCARD size_t hash() const {
 				return (size_t)m_hash.hash;
 			}
 
-			bool operator==(const ArchetypeLookupKey& other) const {
+			GAIA_NODISCARD bool operator==(const ArchetypeLookupKey& other) const {
 				// Hash doesn't match we don't have a match.
 				// Hash collisions are expected to be very unlikely so optimize for this case.
 				if GAIA_LIKELY (m_hash != other.m_hash)

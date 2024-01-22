@@ -194,7 +194,7 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of archetypes (stable pointer to parent world's archetype array)
-				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
+				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
@@ -632,8 +632,8 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeList& allArchetypes):
+						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
@@ -643,8 +643,8 @@ namespace gaia {
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeId, Archetype*>& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeList& allArchetypes):
+						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}

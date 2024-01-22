@@ -14,11 +14,9 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
 
-		class ArchetypeGraph {
-			struct ArchetypeGraphEdge {
-				ArchetypeId archetypeId;
-			};
+		using ArchetypeGraphEdge = ArchetypeIdHashPair;
 
+		class ArchetypeGraph {
 			using EdgeMap = cnt::map<EntityLookupKey, ArchetypeGraphEdge>;
 
 			//! Map of edges in the archetype graph when adding components
@@ -27,8 +25,9 @@ namespace gaia {
 			EdgeMap m_edgesDel;
 
 		private:
-			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId});
+			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				[[maybe_unused]] const auto ret =
+						edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId, hash});
 				GAIA_ASSERT(ret.second);
 			}
 
@@ -36,24 +35,24 @@ namespace gaia {
 				edges.erase(EntityLookupKey(entity));
 			}
 
-			GAIA_NODISCARD ArchetypeId find_edge(const EdgeMap& edges, Entity entity) const {
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge(const EdgeMap& edges, Entity entity) const {
 				const auto it = edges.find(EntityLookupKey(entity));
-				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+				return it != edges.end() ? it->second : ArchetypeIdHashPairBad;
 			}
 
 		public:
 			//! Creates an "add" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
-			void add_edge_right(Entity entity, ArchetypeId archetypeId) {
-				add_edge(m_edgesAdd, entity, archetypeId);
+			void add_edge_right(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				add_edge(m_edgesAdd, entity, archetypeId, hash);
 			}
 
 			//! Creates a "del" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
-			void add_edge_left(Entity entity, ArchetypeId archetypeId) {
-				add_edge(m_edgesDel, entity, archetypeId);
+			void add_edge_left(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
+				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
 			//! Deletes the "add" edge formed by the entity \param entity.
@@ -67,14 +66,14 @@ namespace gaia {
 			}
 
 			//! Checks if an archetype graph "add" edge with entity \param entity exists.
-			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(Entity entity) const {
+			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
 			//! Checks if an archetype graph "del" edge with entity \param entity exists.
-			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(Entity entity) const {
+			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
+			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return find_edge(m_edgesDel, entity);
 			}
 
@@ -86,13 +85,15 @@ namespace gaia {
 							const auto* name0 = entity_name(world, entity.id());
 							const auto* name1 = entity_name(world, entity.gen());
 							GAIA_LOG_N(
-									"      pair [%u:%u], %s -> %s, aid:%u", entity.id(), entity.gen(), name0, name1,
-									edge.second.archetypeId);
+									"      pair [%u:%u], %s -> %s, aid:%u",
+									//
+									entity.id(), entity.gen(), name0, name1, edge.second.id);
 						} else {
 							const auto* name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"      ent [%u:%u], %s [%s], aid:%u", entity.id(), entity.gen(), name,
-									EntityKindString[entity.kind()], edge.second.archetypeId);
+									"      ent [%u:%u], %s [%s], aid:%u",
+									//
+									entity.id(), entity.gen(), name, EntityKindString[entity.kind()], edge.second.id);
 						}
 					}
 				};
