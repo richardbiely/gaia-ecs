@@ -892,7 +892,9 @@ ecs::Entity animal = w.add();
 ecs::Entity herbivore = w.add();
 ecs::Entity rabbit = w.add();
 ecs::Entity hare = w.add();
+ecs::Entity wolf = w.add();
 
+w.ad(wolf, animal); // equivalent of w.add(wolf, ecs::Pair(ecs::Is, animal))
 w.as(herbivore, animal); // equivalent of w.add(herbivore, ecs::Pair(ecs::Is, animal))
 w.as(rabbit, herbivore); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, herbivore))
 w.as(hare, herbivore); // equivalent of w.add(hare, ecs::Pair(ecs::Is, herbivore))
@@ -901,10 +903,19 @@ bool herbibore_is_animal = w.is(herbivore, animal); // true
 bool rabbit_is_herbivore = w.is(rabbit, herbivore); // true
 bool rabbit_is_animal = w.is(rabbit, animal); // true
 bool animal_is_rabbit = w.is(animal, rabbit); // false
+bool wolf_is_herbivore = w.is(wolf, herbivore); // false
+bool wolf_is_animal = w.is(wolf, animal); // true
 
-ecs::Query q = w.query().all(animal);
+// Iterate everything that is animal
+ecs::Query q = w.query().all(Pair(ecs::Is, animal));
 q.each([](ecs::Entity entity) {
-  // runs for herbivore, rabbit and hare
+  // runs for herbivore, rabbit, hare and wolf
+});
+
+// Iterate everything that is animal but skip wolfs
+ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(wolf);
+q2.each([](ecs::Entity entity) {
+  // runs for herbivore, rabbit, hare
 });
 ```
 
@@ -914,7 +925,7 @@ This also means the entity inherits all ids which are present on the entity we i
 struct Age { int value; };
 ...
 w.add<Age>(animal, {10});
-// We did not add the Age componet to hare but we added it to the entity it inherits from.
+// We did not add the Age component to hare but we added it to the entity it inherits from.
 // Therefore, we can ask its age.
 Age age = w.get<Age>(hare);
 // We can decide to override the value with a custom one.
