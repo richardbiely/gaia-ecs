@@ -319,6 +319,8 @@ void test0() {
 	w.add<dummy::Position>(a3);
 	auto a4 = w.copy(a3); // 19
 
+	w.diag_archetypes();
+
 	{
 		auto q1 = w.query().all<Position>();
 		const auto c1 = q1.count();
@@ -373,15 +375,22 @@ void test2() {
 	ecs::Entity rabbit = w.add(); // 18
 	ecs::Entity hare = w.add(); // 19
 	ecs::Entity wolf = w.add(); // 20
+	ecs::Entity dummy1 = w.add(); // 21
+	ecs::Entity dummy2 = w.add(); // 22
+	(void)dummy1;
+	(void)dummy2;
 
 	w.as(herbivore, animal);
 	w.as(rabbit, herbivore);
 	w.as(hare, herbivore);
 	w.as(wolf, animal);
 
+	w.diag_archetypes();
+
 	{
 		uint32_t i = 0;
 		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
+		q.diag();
 		q.each([&](ecs::Entity entity) {
 			// runs for herbivore, rabbit, hare, wolf
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
@@ -391,25 +400,50 @@ void test2() {
 		});
 		GAIA_LOG_N("cnt = %u", i);
 	}
-	// {
-	// 	uint32_t i = 0;
-	// 	ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
-	// 	q.each([&](ecs::Entity entity) {
-	// 		// runs for rabbit, hare
-	// 		const bool isOK = entity == hare || entity == rabbit;
-	// 		GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
+		q.each([&](ecs::Entity entity) {
+			// runs for rabbit, hare
+			const bool isOK = entity == hare || entity == rabbit;
+			GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
 
-	// 		++i;
-	// 	});
-	// 	GAIA_LOG_N("cnt = %u", i);
-	// 	GAIA_LOG_N("");
-	// }
+			++i;
+		});
+		GAIA_LOG_N("cnt = %u", i);
+		GAIA_LOG_N("");
+	}
+}
+
+void test3() {
+	ecs::World w;
+	auto wolf = w.add(); // 14
+	auto rabbit = w.add(); // 15
+	auto carrot = w.add(); // 16
+	auto eats = w.add(); // 17
+	auto hungry = w.add(); // 18
+	w.add(wolf, hungry);
+	w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	w.add(wolf, ecs::Pair(eats, rabbit));
+	w.add(rabbit, ecs::Pair(eats, carrot));
+
+	w.diag_archetypes();
+
+	w.del(hungry);
+}
+
+void test4() {
+	ecs::World w;
+	ecs::Entity e = w.add();
+	w.add<Position>(e, {});
 }
 
 int main() {
-	test0();
+	// test0();
 	// test1();
 	test2();
+	// test3();
+	// test4();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

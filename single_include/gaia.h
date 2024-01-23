@@ -16983,7 +16983,7 @@ namespace gaia {
 					const auto& rec = recs[i];
 
 					const auto* pDesc = rec.pDesc;
-					if (pDesc->func_dtor == nullptr)
+					if (pDesc == nullptr || pDesc->func_dtor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
@@ -18022,8 +18022,26 @@ namespace gaia {
 				return dying();
 			}
 
+			static void diag_entity(const World& world, Entity entity) {
+				if (entity.entity()) {
+					GAIA_LOG_N(
+							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+							EntityKindString[entity.kind()]);
+				} else if (entity.pair()) {
+					GAIA_LOG_N(
+							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
+							entity_name(world, entity.gen()));
+				} else {
+					const auto& cc = comp_cache(world);
+					const auto& desc = cc.get(entity);
+					GAIA_LOG_N(
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
+							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
+							EntityKindString[entity.kind()]);
+				}
+			}
+
 			static void diag_basic_info(const World& world, const Archetype& archetype) {
-				const auto& cc = comp_cache(world);
 				const auto& ids = archetype.ids();
 				const auto& comps = archetype.comps();
 
@@ -18053,27 +18071,10 @@ namespace gaia {
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
-				auto logComponentInfo = [&](Entity entity) {
-					if (entity.entity()) {
-						GAIA_LOG_N(
-								"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
-								EntityKindString[entity.kind()]);
-					} else if (entity.pair()) {
-						GAIA_LOG_N(
-								"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-								entity_name(world, entity.gen()));
-					} else {
-						const auto& desc = cc.get(entity);
-						GAIA_LOG_N(
-								"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash, desc.comp.size(),
-								desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
-					}
-				};
-
 				if (!ids.empty()) {
 					GAIA_LOG_N("  Components - count:%u", ids.size());
 					for (const auto ent: ids)
-						logComponentInfo(ent);
+						diag_entity(world, ent);
 				}
 			}
 
@@ -18091,6 +18092,26 @@ namespace gaia {
 					pChunk->diag();
 			}
 
+			static void diag_entity_info(const World& world, const Archetype& archetype) {
+				const auto& chunks = archetype.m_chunks;
+				if (chunks.empty())
+					return;
+
+				GAIA_LOG_N("  Entities");
+				bool noEntities = true;
+				for (const auto* pChunk: chunks) {
+					if (pChunk->empty())
+						continue;
+					noEntities = false;
+
+					auto ev = pChunk->entity_view();
+					for (auto entity: ev)
+						diag_entity(world, entity);
+				}
+				if (noEntities)
+					GAIA_LOG_N("    N/A");
+			}
+
 			/*!
 			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
 			\param archetype Archetype to run diagnostics on
@@ -18099,6 +18120,7 @@ namespace gaia {
 				diag_basic_info(world, archetype);
 				diag_graph_info(world, archetype);
 				diag_chunk_info(archetype);
+				diag_entity_info(world, archetype);
 			}
 		};
 
@@ -19048,8 +19070,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			GAIA_NODISCARD bool
-			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+			GAIA_NODISCARD bool match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
 					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
@@ -19147,21 +19168,26 @@ namespace gaia {
 			}
 
 			void match_archetype_all_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 
-				if (ent.id() == Is.id())
-					ent = Pair(All, All);
+				const ArchetypeList* pSrcArchetypes = nullptr;
 
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
-				if (it == entityToArchetypeMap.end() || it->second.empty())
-					return;
+				if (ent.id() == Is.id()) {
+					ent = EntityBad;
+					pSrcArchetypes = &allArchetypes;
+				} else {
+					const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+					if (it == entityToArchetypeMap.end() || it->second.empty())
+						return;
+					pSrcArchetypes = &it->second;
+				}
 
 				auto& data = m_lookupCtx.data;
 
-				const auto& archetypes = it->second;
+				const auto& archetypes = *pSrcArchetypes;
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
@@ -19349,8 +19375,9 @@ namespace gaia {
 			}
 
 			void do_match_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
 					match_archetype_all(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
@@ -19358,7 +19385,7 @@ namespace gaia {
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes and evaluate one-by-one (backtracking).
 				{
-					match_archetype_all_as(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+					match_archetype_all_as(entityToArchetypeMap, allArchetypes, matchesSet, matchesArr, ent, idsToMatch);
 				}
 			}
 
@@ -19478,7 +19505,7 @@ namespace gaia {
 						const auto e = ops_ids_all[i].id;
 
 						do_match_all(
-								entityToArchetypeMap, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
+								entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
 								//
 								e, ids_all, data.as_mask, data.as_mask_2);
 						break;
@@ -20723,10 +20750,12 @@ namespace gaia {
 
 				//!
 				void diag() {
-					GAIA_LOG_N("DIAG Query %u, %c", id(), UseCaching ? 'C' : 'U');
+					// Make sure matching happened
 					auto& info = fetch();
+					GAIA_LOG_N("DIAG Query %u [%c]", id(), UseCaching ? 'C' : 'U');
 					for (const auto* pArchetype: info)
 						Archetype::diag_basic_info(*m_world, *pArchetype);
+					GAIA_LOG_N("END DIAG Query");
 				}
 			};
 		} // namespace detail
@@ -20799,6 +20828,8 @@ namespace gaia {
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
+			//! Set of entites to delete
+			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
@@ -20866,6 +20897,10 @@ namespace gaia {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(entity));
+
+					if (m_pArchetype == m_world.m_pEntityArchetype) {
+						add_inter(m_entity);
+					}
 					add_inter(entity);
 					return *this;
 				}
@@ -20877,6 +20912,10 @@ namespace gaia {
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(pair.first()));
 					GAIA_ASSERT(m_world.valid(pair.second()));
+
+					if (m_pArchetype == m_world.m_pEntityArchetype) {
+						add_inter(m_entity);
+					}
 					add_inter(pair);
 					return *this;
 				}
@@ -21706,7 +21745,7 @@ namespace gaia {
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
-				if (entity.pair())
+				if (entity.pair() || !has(entity))
 					return;
 
 				const auto& ec = fetch(entity);
@@ -21735,14 +21774,16 @@ namespace gaia {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
 					for (auto e: ids) {
-						del_name(e);
-						invalidate_entity(e);
+						const auto& ec = fetch(e);
+						if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0)
+							continue;
+						m_entitiesToDel.insert(EntityLookupKey(e));
 					}
 
 					// If the chunk was already dying we need to remove it
 					// from the delete list.
 					// TODO: Instead of searching for it we could store a delete index in the chunk
-					//       header. This was the lookup is O(1) instead of O(N) and it would help
+					//       header. This way the lookup is O(1) instead of O(N) and it will help
 					//       with edge-cases (tons of chunks removed at the same time).
 					if (pChunk->dying()) {
 						const auto idx = core::get_index(m_chunksToDel, pChunk);
@@ -22056,6 +22097,14 @@ namespace gaia {
 						rem_from_entities(entity);
 					}
 				}
+
+				// Delete what is requested
+				for (auto key: m_entitiesToDel) {
+					const auto e = key.entity();
+					del_name(e);
+					invalidate_entity(e);
+				}
+				m_entitiesToDel.clear();
 			}
 
 			//! Deletes any edges containing the entity from the archetype graph.
@@ -22814,7 +22863,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			void del_inter(Entity entity) {
-				auto handle_del = [this](Entity entityToDel) {
+				auto on_delete = [this](Entity entityToDel) {
 					handle_del_entity(entityToDel);
 					del_entity(entityToDel);
 				};
@@ -22836,7 +22885,7 @@ namespace gaia {
 							for (auto key: *pTargets)
 								tmp.push_back(key.entity());
 							for (auto e: tmp)
-								handle_del(Pair(e, tgt));
+								on_delete(Pair(e, tgt));
 						}
 					}
 					// (X,*)
@@ -22848,11 +22897,11 @@ namespace gaia {
 							for (auto key: *pRelations)
 								tmp.push_back(key.entity());
 							for (auto e: tmp)
-								handle_del(Pair(rel, e));
+								on_delete(Pair(rel, e));
 						}
 					}
 				} else {
-					handle_del(entity);
+					on_delete(entity);
 				}
 			}
 
@@ -23548,8 +23597,10 @@ namespace gaia {
 				// Clear archetypes
 				{
 					// Delete all allocated chunks and their parent archetypes
-					for (auto pair: m_archetypesById)
-						delete pair.second;
+					for (auto& pair: m_archetypesById) {
+						auto* pArchetype = pair.second;
+						delete pArchetype;
+					}
 
 					m_entityToAsRelations.clear();
 					m_entityToAsTargets.clear();
@@ -23558,6 +23609,7 @@ namespace gaia {
 
 					m_archetypesById = {};
 					m_archetypesByHash = {};
+					m_entitiesToDel = {};
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}
@@ -23594,8 +23646,8 @@ namespace gaia {
 			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			void diag_archetypes() const {
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
-				for (auto pair: m_archetypesById)
-					Archetype::diag(*this, *pair.second);
+				for (auto* pArchetype: m_archetypes)
+					Archetype::diag(*this, *pArchetype);
 			}
 
 			//! Performs diagnostics on registered components.

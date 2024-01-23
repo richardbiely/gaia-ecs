@@ -735,8 +735,26 @@ namespace gaia {
 				return dying();
 			}
 
+			static void diag_entity(const World& world, Entity entity) {
+				if (entity.entity()) {
+					GAIA_LOG_N(
+							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+							EntityKindString[entity.kind()]);
+				} else if (entity.pair()) {
+					GAIA_LOG_N(
+							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
+							entity_name(world, entity.gen()));
+				} else {
+					const auto& cc = comp_cache(world);
+					const auto& desc = cc.get(entity);
+					GAIA_LOG_N(
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
+							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
+							EntityKindString[entity.kind()]);
+				}
+			}
+
 			static void diag_basic_info(const World& world, const Archetype& archetype) {
-				const auto& cc = comp_cache(world);
 				const auto& ids = archetype.ids();
 				const auto& comps = archetype.comps();
 
@@ -766,27 +784,10 @@ namespace gaia {
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
-				auto logComponentInfo = [&](Entity entity) {
-					if (entity.entity()) {
-						GAIA_LOG_N(
-								"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
-								EntityKindString[entity.kind()]);
-					} else if (entity.pair()) {
-						GAIA_LOG_N(
-								"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-								entity_name(world, entity.gen()));
-					} else {
-						const auto& desc = cc.get(entity);
-						GAIA_LOG_N(
-								"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, %s [%s]", desc.hashLookup.hash, desc.comp.size(),
-								desc.comp.alig(), desc.name.str(), EntityKindString[entity.kind()]);
-					}
-				};
-
 				if (!ids.empty()) {
 					GAIA_LOG_N("  Components - count:%u", ids.size());
 					for (const auto ent: ids)
-						logComponentInfo(ent);
+						diag_entity(world, ent);
 				}
 			}
 
@@ -804,6 +805,26 @@ namespace gaia {
 					pChunk->diag();
 			}
 
+			static void diag_entity_info(const World& world, const Archetype& archetype) {
+				const auto& chunks = archetype.m_chunks;
+				if (chunks.empty())
+					return;
+
+				GAIA_LOG_N("  Entities");
+				bool noEntities = true;
+				for (const auto* pChunk: chunks) {
+					if (pChunk->empty())
+						continue;
+					noEntities = false;
+
+					auto ev = pChunk->entity_view();
+					for (auto entity: ev)
+						diag_entity(world, entity);
+				}
+				if (noEntities)
+					GAIA_LOG_N("    N/A");
+			}
+
 			/*!
 			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
 			\param archetype Archetype to run diagnostics on
@@ -812,6 +833,7 @@ namespace gaia {
 				diag_basic_info(world, archetype);
 				diag_graph_info(world, archetype);
 				diag_chunk_info(archetype);
+				diag_entity_info(world, archetype);
 			}
 		};
 

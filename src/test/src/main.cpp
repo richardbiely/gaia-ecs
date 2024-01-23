@@ -1943,6 +1943,18 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
+		q.each([&](ecs::Entity entity) {
+			// runs for herbivore, rabbit, hare, wolf
+			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 3);
+	}
+	{
+		uint32_t i = 0;
 		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			// runs for rabbit and hare

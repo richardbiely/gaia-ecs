@@ -281,8 +281,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			GAIA_NODISCARD bool
-			match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+			GAIA_NODISCARD bool match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
 					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
@@ -380,21 +379,26 @@ namespace gaia {
 			}
 
 			void match_archetype_all_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 
-				if (ent.id() == Is.id())
-					ent = Pair(All, All);
+				const ArchetypeList* pSrcArchetypes = nullptr;
 
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
-				if (it == entityToArchetypeMap.end() || it->second.empty())
-					return;
+				if (ent.id() == Is.id()) {
+					ent = EntityBad;
+					pSrcArchetypes = &allArchetypes;
+				} else {
+					const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+					if (it == entityToArchetypeMap.end() || it->second.empty())
+						return;
+					pSrcArchetypes = &it->second;
+				}
 
 				auto& data = m_lookupCtx.data;
 
-				const auto& archetypes = it->second;
+				const auto& archetypes = *pSrcArchetypes;
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
@@ -582,8 +586,9 @@ namespace gaia {
 			}
 
 			void do_match_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
 					match_archetype_all(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
@@ -591,7 +596,7 @@ namespace gaia {
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes and evaluate one-by-one (backtracking).
 				{
-					match_archetype_all_as(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+					match_archetype_all_as(entityToArchetypeMap, allArchetypes, matchesSet, matchesArr, ent, idsToMatch);
 				}
 			}
 
@@ -711,7 +716,7 @@ namespace gaia {
 						const auto e = ops_ids_all[i].id;
 
 						do_match_all(
-								entityToArchetypeMap, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
+								entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
 								//
 								e, ids_all, data.as_mask, data.as_mask_2);
 						break;

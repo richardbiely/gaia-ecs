@@ -1007,10 +1007,12 @@ namespace gaia {
 
 				//!
 				void diag() {
-					GAIA_LOG_N("DIAG Query %u, %c", id(), UseCaching ? 'C' : 'U');
+					// Make sure matching happened
 					auto& info = fetch();
+					GAIA_LOG_N("DIAG Query %u [%c]", id(), UseCaching ? 'C' : 'U');
 					for (const auto* pArchetype: info)
 						Archetype::diag_basic_info(*m_world, *pArchetype);
+					GAIA_LOG_N("END DIAG Query");
 				}
 			};
 		} // namespace detail

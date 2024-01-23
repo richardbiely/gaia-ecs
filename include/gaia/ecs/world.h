@@ -100,6 +100,8 @@ namespace gaia {
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
+			//! Set of entites to delete
+			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
@@ -167,6 +169,10 @@ namespace gaia {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(entity));
+
+					if (m_pArchetype == m_world.m_pEntityArchetype) {
+						add_inter(m_entity);
+					}
 					add_inter(entity);
 					return *this;
 				}
@@ -178,6 +184,10 @@ namespace gaia {
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(pair.first()));
 					GAIA_ASSERT(m_world.valid(pair.second()));
+
+					if (m_pArchetype == m_world.m_pEntityArchetype) {
+						add_inter(m_entity);
+					}
 					add_inter(pair);
 					return *this;
 				}
@@ -1007,7 +1017,7 @@ namespace gaia {
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
-				if (entity.pair())
+				if (entity.pair() || !has(entity))
 					return;
 
 				const auto& ec = fetch(entity);
@@ -1036,14 +1046,16 @@ namespace gaia {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
 					for (auto e: ids) {
-						del_name(e);
-						invalidate_entity(e);
+						const auto& ec = fetch(e);
+						if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0)
+							continue;
+						m_entitiesToDel.insert(EntityLookupKey(e));
 					}
 
 					// If the chunk was already dying we need to remove it
 					// from the delete list.
 					// TODO: Instead of searching for it we could store a delete index in the chunk
-					//       header. This was the lookup is O(1) instead of O(N) and it would help
+					//       header. This way the lookup is O(1) instead of O(N) and it will help
 					//       with edge-cases (tons of chunks removed at the same time).
 					if (pChunk->dying()) {
 						const auto idx = core::get_index(m_chunksToDel, pChunk);
@@ -1357,6 +1369,14 @@ namespace gaia {
 						rem_from_entities(entity);
 					}
 				}
+
+				// Delete what is requested
+				for (auto key: m_entitiesToDel) {
+					const auto e = key.entity();
+					del_name(e);
+					invalidate_entity(e);
+				}
+				m_entitiesToDel.clear();
 			}
 
 			//! Deletes any edges containing the entity from the archetype graph.
@@ -2115,7 +2135,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			void del_inter(Entity entity) {
-				auto handle_del = [this](Entity entityToDel) {
+				auto on_delete = [this](Entity entityToDel) {
 					handle_del_entity(entityToDel);
 					del_entity(entityToDel);
 				};
@@ -2137,7 +2157,7 @@ namespace gaia {
 							for (auto key: *pTargets)
 								tmp.push_back(key.entity());
 							for (auto e: tmp)
-								handle_del(Pair(e, tgt));
+								on_delete(Pair(e, tgt));
 						}
 					}
 					// (X,*)
@@ -2149,11 +2169,11 @@ namespace gaia {
 							for (auto key: *pRelations)
 								tmp.push_back(key.entity());
 							for (auto e: tmp)
-								handle_del(Pair(rel, e));
+								on_delete(Pair(rel, e));
 						}
 					}
 				} else {
-					handle_del(entity);
+					on_delete(entity);
 				}
 			}
 
@@ -2849,8 +2869,10 @@ namespace gaia {
 				// Clear archetypes
 				{
 					// Delete all allocated chunks and their parent archetypes
-					for (auto pair: m_archetypesById)
-						delete pair.second;
+					for (auto& pair: m_archetypesById) {
+						auto* pArchetype = pair.second;
+						delete pArchetype;
+					}
 
 					m_entityToAsRelations.clear();
 					m_entityToAsTargets.clear();
@@ -2859,6 +2881,7 @@ namespace gaia {
 
 					m_archetypesById = {};
 					m_archetypesByHash = {};
+					m_entitiesToDel = {};
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}
@@ -2895,8 +2918,8 @@ namespace gaia {
 			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			void diag_archetypes() const {
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
-				for (auto pair: m_archetypesById)
-					Archetype::diag(*this, *pair.second);
+				for (auto* pArchetype: m_archetypes)
+					Archetype::diag(*this, *pArchetype);
 			}
 
 			//! Performs diagnostics on registered components.
