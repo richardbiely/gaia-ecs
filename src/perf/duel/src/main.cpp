@@ -1233,6 +1233,7 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().label("Systems_Iter");
 			}
 		} else {
+			PICOBENCH_SUITE_REG("OOP");
 			//  Ordinary coding style.
 			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
 			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
@@ -1245,7 +1246,7 @@ int main(int argc, char* argv[]) {
 			// Memory organized in DoD style.
 			// Performance target BM_ECS_WithSystems_Iter.
 			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			PICOBENCH_SUITE_REG("NonECS_DOD");
+			PICOBENCH_SUITE_REG("DOD");
 			PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
 			PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
@@ -1257,7 +1258,7 @@ int main(int argc, char* argv[]) {
 			// Best possible performance with no manual SIMD optimization.
 			// Performance target for BM_ECS_WithSystems_Iter_SoA.
 			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
+			PICOBENCH_SUITE_REG("DOD_SoA");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");

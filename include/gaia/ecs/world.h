@@ -1046,9 +1046,11 @@ namespace gaia {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
 					for (auto e: ids) {
+#if GAIA_DEBUG
+						// We should never end up trying to delete a forbidden-to-delete entity
 						const auto& ec = fetch(e);
-						if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0)
-							continue;
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0);
+#endif
 						m_entitiesToDel.insert(EntityLookupKey(e));
 					}
 
