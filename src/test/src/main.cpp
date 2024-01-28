@@ -13,6 +13,25 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 
 using namespace gaia;
 
+#define wld twld.m_w
+
+//! World wrapper for test purposes.
+//! Upon destruction it performs world update several times to make sure there are no issues
+//! with the update function no matter what the unit test does.
+struct TestWorld {
+	ecs::World m_w;
+
+	TestWorld() = default;
+	TestWorld(const ecs::World& world) = delete;
+	TestWorld(ecs::World&& world) = delete;
+	TestWorld& operator=(const ecs::World& world) = delete;
+	TestWorld& operator=(ecs::World&& world) = delete;
+
+	~TestWorld() {
+		GAIA_FOR(100) m_w.update();
+	}
+};
+
 struct Int3 {
 	uint32_t x, y, z;
 };
@@ -1520,33 +1539,26 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<RotationSoA16>();
 }
 
-TEST_CASE("Entity - valid") {
-	ecs::World w;
-	GAIA_FOR(2) {
-		auto e = w.add();
-		REQUIRE(w.valid(e));
-		w.del(e);
-		REQUIRE_FALSE(w.valid(e));
-	}
-}
+TEST_CASE("Entity - valid/has") {
+	TestWorld twld;
 
-TEST_CASE("Entity - has") {
-	ecs::World w;
-	GAIA_FOR(2) {
-		auto e = w.add();
-		REQUIRE(w.has(e));
-		w.del(e);
-		REQUIRE_FALSE(w.has(e));
-	}
+	auto e = wld.add();
+	REQUIRE(wld.valid(e));
+	REQUIRE(wld.has(e));
+
+	wld.del(e);
+	REQUIRE_FALSE(wld.valid(e));
+	REQUIRE_FALSE(wld.has(e));
 }
 
 TEST_CASE("Entity - EntityBad") {
 	REQUIRE(ecs::Entity{} == ecs::EntityBad);
 
-	ecs::World w;
-	REQUIRE_FALSE(w.valid(ecs::EntityBad));
+	TestWorld twld;
+	REQUIRE_FALSE(wld.valid(ecs::EntityBad));
+	REQUIRE_FALSE(wld.has(ecs::EntityBad));
 
-	auto e = w.add();
+	auto e = wld.add();
 	REQUIRE(e != ecs::EntityBad);
 	REQUIRE_FALSE(e == ecs::EntityBad);
 	REQUIRE(e.entity());
@@ -1555,13 +1567,13 @@ TEST_CASE("Entity - EntityBad") {
 TEST_CASE("Add - no components") {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> ents, arr;
 	ents.reserve(N);
 	arr.reserve(N);
 
 	auto create = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 		ents.push_back(e);
 	};
 	auto verify = [&](uint32_t i) {
@@ -1570,7 +1582,7 @@ TEST_CASE("Add - no components") {
 
 	GAIA_FOR(N) create();
 
-	auto q = w.query().all<ecs::EntityDesc>().no<ecs::Component>();
+	auto q = wld.query().all<ecs::EntityDesc>().no<ecs::Component>();
 	q.arr(arr);
 	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
@@ -1580,20 +1592,20 @@ TEST_CASE("Add - no components") {
 TEST_CASE("Add - 1 component") {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
 
 	auto create = [&](uint32_t i) {
-		auto e = w.add();
+		auto e = wld.add();
 		ents.push_back(e);
-		w.add<Int3>(e, {i, i, i});
+		wld.add<Int3>(e, {i, i, i});
 	};
 	auto verify = [&](uint32_t i) {
 		auto e = ents[i];
 
-		REQUIRE(w.has<Int3>(e));
-		auto val = w.get<Int3>(e);
+		REQUIRE(wld.has<Int3>(e));
+		auto val = wld.get<Int3>(e);
 		REQUIRE(val.x == i);
 		REQUIRE(val.y == i);
 		REQUIRE(val.z == i);
@@ -1603,13 +1615,13 @@ TEST_CASE("Add - 1 component") {
 	GAIA_FOR(N) verify(i);
 
 	{
-		const auto& p = w.add<Int3>();
-		auto e = w.add();
-		w.add(e, p.entity, Int3{1, 2, 3});
+		const auto& p = wld.add<Int3>();
+		auto e = wld.add();
+		wld.add(e, p.entity, Int3{1, 2, 3});
 
-		REQUIRE(w.has(e, p.entity));
-		REQUIRE(w.has<Int3>(e));
-		auto val0 = w.get<Int3>(e);
+		REQUIRE(wld.has(e, p.entity));
+		REQUIRE(wld.has<Int3>(e));
+		auto val0 = wld.get<Int3>(e);
 		REQUIRE(val0.x == 1);
 		REQUIRE(val0.y == 2);
 		REQUIRE(val0.z == 3);
@@ -1625,90 +1637,90 @@ namespace dummy {
 } // namespace dummy
 
 TEST_CASE("Add - namespaces") {
-	ecs::World w;
-	auto e = w.add();
-	w.add<Position>(e, {1, 1, 1});
-	w.add<dummy::Position>(e, {2, 2, 2});
-	auto e2 = w.add();
-	w.add<Position>(e2);
-	auto a3 = w.add();
-	w.add<dummy::Position>(a3);
-	auto a4 = w.copy(a3);
+	TestWorld twld;
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 1, 1});
+	wld.add<dummy::Position>(e, {2, 2, 2});
+	auto e2 = wld.add();
+	wld.add<Position>(e2);
+	auto a3 = wld.add();
+	wld.add<dummy::Position>(a3);
+	auto a4 = wld.copy(a3);
 
-	REQUIRE(w.has<Position>(e));
-	REQUIRE(w.has<dummy::Position>(e));
+	REQUIRE(wld.has<Position>(e));
+	REQUIRE(wld.has<dummy::Position>(e));
 
 	{
-		auto p1 = w.get<Position>(e);
+		auto p1 = wld.get<Position>(e);
 		REQUIRE(p1.x == 1.f);
 		REQUIRE(p1.y == 1.f);
 		REQUIRE(p1.z == 1.f);
 	}
 	{
-		auto p2 = w.get<dummy::Position>(e);
+		auto p2 = wld.get<dummy::Position>(e);
 		REQUIRE(p2.x == 2.f);
 		REQUIRE(p2.y == 2.f);
 		REQUIRE(p2.z == 2.f);
 	}
 	{
-		auto q1 = w.query().all<Position>();
+		auto q1 = wld.query().all<Position>();
 		const auto c1 = q1.count();
 		REQUIRE(c1 == 2);
 
-		auto q2 = w.query().all<dummy::Position>();
+		auto q2 = wld.query().all<dummy::Position>();
 		const auto c2 = q2.count();
 		REQUIRE(c2 == 3);
 
-		auto q3 = w.query().no<Position>();
+		auto q3 = wld.query().no<Position>();
 		const auto c3 = q3.count();
 		REQUIRE(c3 > 0); // It's going to be a bunch
 
-		auto q4 = w.query().all<dummy::Position>().no<Position>();
+		auto q4 = wld.query().all<dummy::Position>().no<Position>();
 		const auto c4 = q4.count();
 		REQUIRE(c4 == 2);
 	}
 }
 
 TEST_CASE("Add - many components") {
-	ecs::World w;
+	TestWorld twld;
 
 	auto create = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 
-		w.add<Int3>(e, {3, 3, 3});
-		w.add<Position>(e, {1, 1, 1});
-		w.add<Empty>(e);
-		w.add<Else>(e, {true});
-		w.add<Rotation>(e, {2, 2, 2, 2});
-		w.add<Scale>(e, {4, 4, 4});
+		wld.add<Int3>(e, {3, 3, 3});
+		wld.add<Position>(e, {1, 1, 1});
+		wld.add<Empty>(e);
+		wld.add<Else>(e, {true});
+		wld.add<Rotation>(e, {2, 2, 2, 2});
+		wld.add<Scale>(e, {4, 4, 4});
 
-		REQUIRE(w.has<Int3>(e));
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Empty>(e));
-		REQUIRE(w.has<Rotation>(e));
-		REQUIRE(w.has<Scale>(e));
+		REQUIRE(wld.has<Int3>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Empty>(e));
+		REQUIRE(wld.has<Rotation>(e));
+		REQUIRE(wld.has<Scale>(e));
 
 		{
-			auto val = w.get<Int3>(e);
+			auto val = wld.get<Int3>(e);
 			REQUIRE(val.x == 3);
 			REQUIRE(val.y == 3);
 			REQUIRE(val.z == 3);
 		}
 		{
-			auto val = w.get<Position>(e);
+			auto val = wld.get<Position>(e);
 			REQUIRE(val.x == 1.f);
 			REQUIRE(val.y == 1.f);
 			REQUIRE(val.z == 1.f);
 		}
 		{
-			auto val = w.get<Rotation>(e);
+			auto val = wld.get<Rotation>(e);
 			REQUIRE(val.x == 2.f);
 			REQUIRE(val.y == 2.f);
 			REQUIRE(val.z == 2.f);
 			REQUIRE(val.w == 2.f);
 		}
 		{
-			auto val = w.get<Scale>(e);
+			auto val = wld.get<Scale>(e);
 			REQUIRE(val.x == 4.f);
 			REQUIRE(val.y == 4.f);
 			REQUIRE(val.z == 4.f);
@@ -1720,47 +1732,47 @@ TEST_CASE("Add - many components") {
 }
 
 TEST_CASE("Add - many components, bulk") {
-	ecs::World w;
+	TestWorld twld;
 
 	auto create = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 
-		w.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
+		wld.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
 
-		w.set(e)
+		wld.set(e)
 				.set<Int3>({3, 3, 3})
 				.set<Position>({1, 1, 1})
 				.set<Else>({true})
 				.set<Rotation>({2, 2, 2, 2})
 				.set<Scale>({4, 4, 4});
 
-		REQUIRE(w.has<Int3>(e));
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Empty>(e));
-		REQUIRE(w.has<Rotation>(e));
-		REQUIRE(w.has<Scale>(e));
+		REQUIRE(wld.has<Int3>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Empty>(e));
+		REQUIRE(wld.has<Rotation>(e));
+		REQUIRE(wld.has<Scale>(e));
 
 		{
-			auto val = w.get<Int3>(e);
+			auto val = wld.get<Int3>(e);
 			REQUIRE(val.x == 3);
 			REQUIRE(val.y == 3);
 			REQUIRE(val.z == 3);
 		}
 		{
-			auto val = w.get<Position>(e);
+			auto val = wld.get<Position>(e);
 			REQUIRE(val.x == 1.f);
 			REQUIRE(val.y == 1.f);
 			REQUIRE(val.z == 1.f);
 		}
 		{
-			auto val = w.get<Rotation>(e);
+			auto val = wld.get<Rotation>(e);
 			REQUIRE(val.x == 2.f);
 			REQUIRE(val.y == 2.f);
 			REQUIRE(val.z == 2.f);
 			REQUIRE(val.w == 2.f);
 		}
 		{
-			auto val = w.get<Scale>(e);
+			auto val = wld.get<Scale>(e);
 			REQUIRE(val.x == 4.f);
 			REQUIRE(val.y == 4.f);
 			REQUIRE(val.z == 4.f);
@@ -1773,28 +1785,28 @@ TEST_CASE("Add - many components, bulk") {
 
 TEST_CASE("Pair") {
 	{
-		ecs::World w;
-		auto a = w.add();
-		auto b = w.add();
+		TestWorld twld;
+		auto a = wld.add();
+		auto b = wld.add();
 		auto p = ecs::Pair(a, b);
 		REQUIRE(p.first() == a);
 		REQUIRE(p.second() == b);
 		auto pe = (ecs::Entity)p;
-		REQUIRE(w.get(pe.id()) == a);
-		REQUIRE(w.get(pe.gen()) == b);
+		REQUIRE(wld.get(pe.id()) == a);
+		REQUIRE(wld.get(pe.gen()) == b);
 	}
 	{
-		ecs::World w;
-		auto a = w.add<Position>().entity;
-		auto b = w.add<ecs::DependsOn_>().entity;
+		TestWorld twld;
+		auto a = wld.add<Position>().entity;
+		auto b = wld.add<ecs::DependsOn_>().entity;
 		auto p = ecs::Pair(a, b);
 		REQUIRE(ecs::is_pair<decltype(p)>::value);
 		REQUIRE(p.first() == a);
 		REQUIRE(p.second() == b);
 		auto pe = (ecs::Entity)p;
 		REQUIRE_FALSE(ecs::is_pair<decltype(pe)>::value);
-		REQUIRE(w.get(pe.id()) == a);
-		REQUIRE(w.get(pe.gen()) == b);
+		REQUIRE(wld.get(pe.id()) == a);
+		REQUIRE(wld.get(pe.gen()) == b);
 	}
 	struct Start {};
 	struct Stop {};
@@ -1816,22 +1828,22 @@ TEST_CASE("Pair") {
 		static_assert(std::is_same_v<Pair2Actual::TypeFull, ecs::uni<Position>>);
 	}
 	{
-		ecs::World w;
-		auto eStart = w.add<Start>().entity;
-		auto eStop = w.add<Stop>().entity;
-		auto ePos = w.add<Position>().entity;
-		auto e = w.add();
+		TestWorld twld;
+		auto eStart = wld.add<Start>().entity;
+		auto eStop = wld.add<Stop>().entity;
+		auto ePos = wld.add<Position>().entity;
+		auto e = wld.add();
 
-		w.add<Position>(e, {5, 5, 5});
-		w.add(e, ecs::Pair(eStart, ePos));
-		w.add(e, ecs::Pair(eStop, ePos));
-		auto p = w.get<Position>(e);
+		wld.add<Position>(e, {5, 5, 5});
+		wld.add(e, ecs::Pair(eStart, ePos));
+		wld.add(e, ecs::Pair(eStop, ePos));
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 5);
 		REQUIRE(p.y == 5);
 		REQUIRE(p.z == 5);
 
-		w.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50});
-		auto spu = w.get<ecs::pair<Start, ecs::uni<Position>>>(e);
+		wld.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50});
+		auto spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
 		REQUIRE(spu.x == 50);
 		REQUIRE(spu.y == 50);
 		REQUIRE(spu.z == 50);
@@ -1839,14 +1851,14 @@ TEST_CASE("Pair") {
 		REQUIRE(p.y == 5);
 		REQUIRE(p.z == 5);
 
-		w.add<ecs::pair<Start, Position>>(e, {100, 100, 100});
-		auto sp = w.get<ecs::pair<Start, Position>>(e);
+		wld.add<ecs::pair<Start, Position>>(e, {100, 100, 100});
+		auto sp = wld.get<ecs::pair<Start, Position>>(e);
 		REQUIRE(sp.x == 100);
 		REQUIRE(sp.y == 100);
 		REQUIRE(sp.z == 100);
 
-		p = w.get<Position>(e);
-		spu = w.get<ecs::pair<Start, ecs::uni<Position>>>(e);
+		p = wld.get<Position>(e);
+		spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
 		REQUIRE(p.x == 5);
 		REQUIRE(p.y == 5);
 		REQUIRE(p.z == 5);
@@ -1856,7 +1868,7 @@ TEST_CASE("Pair") {
 
 		{
 			uint32_t i = 0;
-			auto q = w.query().all<ecs::pair<Start, Position>>();
+			auto q = wld.query().all<ecs::pair<Start, Position>>();
 			q.each([&]() {
 				++i;
 			});
@@ -1866,72 +1878,73 @@ TEST_CASE("Pair") {
 }
 
 TEST_CASE("CantCombine") {
-	ecs::World w;
-	auto weak = w.add();
-	auto strong = w.add();
-	w.add(weak, ecs::Pair(ecs::CantCombine, strong));
+	TestWorld twld;
+	auto weak = wld.add();
+	auto strong = wld.add();
+	wld.add(weak, ecs::Pair(ecs::CantCombine, strong));
 
-	auto dummy = w.add();
-	w.add(dummy, strong);
+	auto dummy = wld.add();
+	wld.add(dummy, strong);
 #if !GAIA_ASSERT_ENABLED
 	// Can be tested only with asserts disabled because the situation is assert-protected.
-	w.add(dummy, weak);
-	REQUIRE(w.has(dummy, strong));
-	REQUIRE(!w.has(dummy, weak));
+	wld.add(dummy, weak);
+	REQUIRE(wld.has(dummy, strong));
+	REQUIRE(!wld.has(dummy, weak));
 #endif
 }
 
 TEST_CASE("DependsOn") {
-	ecs::World w;
-	auto rabbit = w.add();
-	auto animal = w.add();
-	auto herbivore = w.add();
-	auto carrot = w.add();
-	w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
-	w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+	TestWorld twld;
+	auto rabbit = wld.add();
+	auto animal = wld.add();
+	auto herbivore = wld.add();
+	auto carrot = wld.add();
+	wld.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
+	wld.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
 
-	w.add(rabbit, carrot);
-	REQUIRE(w.has(rabbit, herbivore));
-	REQUIRE(w.has(rabbit, animal));
+	wld.add(rabbit, carrot);
+	REQUIRE(wld.has(rabbit, herbivore));
+	REQUIRE(wld.has(rabbit, animal));
 
-	w.del(rabbit, animal);
-	REQUIRE(w.has(rabbit, animal));
+	wld.del(rabbit, animal);
+	REQUIRE(wld.has(rabbit, animal));
 
-	w.del(rabbit, herbivore);
-	REQUIRE(w.has(rabbit, herbivore));
+	wld.del(rabbit, herbivore);
+	REQUIRE(wld.has(rabbit, herbivore));
 
-	w.del(rabbit, carrot);
-	REQUIRE(!w.has(rabbit, carrot));
+	wld.del(rabbit, carrot);
+	REQUIRE(!wld.has(rabbit, carrot));
 }
 
 TEST_CASE("Inheritance (Is)") {
-	ecs::World w;
-	ecs::Entity animal = w.add();
-	ecs::Entity herbivore = w.add();
-	w.add<Position>(herbivore, {});
-	w.add<Rotation>(herbivore, {});
-	ecs::Entity rabbit = w.add();
-	ecs::Entity hare = w.add();
-	ecs::Entity wolf = w.add();
+	TestWorld twld;
+	ecs::Entity animal = wld.add();
+	ecs::Entity herbivore = wld.add();
+	wld.add<Position>(herbivore, {});
+	wld.add<Rotation>(herbivore, {});
+	ecs::Entity rabbit = wld.add();
+	ecs::Entity hare = wld.add();
+	ecs::Entity wolf = wld.add();
 
-	w.as(herbivore, animal); // w.add(herbivore, ecs::Pair(ecs::Is, animal));
-	w.as(rabbit, herbivore); // w.add(rabbit, ecs::Pair(ecs::Is, herbivore));
-	w.as(hare, herbivore); // w.add(hare, ecs::Pair(ecs::Is, herbivore));
-	w.as(wolf, animal); // w.add(wolf, ecs::Pair(ecs::Is, animal))
+	wld.add(wolf, wolf); // make wolf an archetype
+	wld.as(herbivore, animal); // wld.add(herbivore, ecs::Pair(ecs::Is, animal));
+	wld.as(rabbit, herbivore); // wld.add(rabbit, ecs::Pair(ecs::Is, herbivore));
+	wld.as(hare, herbivore); // wld.add(hare, ecs::Pair(ecs::Is, herbivore));
+	wld.as(wolf, animal); // wld.add(wolf, ecs::Pair(ecs::Is, animal))
 
-	REQUIRE(w.is(herbivore, animal));
-	REQUIRE(w.is(rabbit, herbivore));
-	REQUIRE(w.is(hare, herbivore));
-	REQUIRE(w.is(rabbit, animal));
-	REQUIRE(w.is(hare, animal));
-	REQUIRE(w.is(wolf, animal));
+	REQUIRE(wld.is(herbivore, animal));
+	REQUIRE(wld.is(rabbit, herbivore));
+	REQUIRE(wld.is(hare, herbivore));
+	REQUIRE(wld.is(rabbit, animal));
+	REQUIRE(wld.is(hare, animal));
+	REQUIRE(wld.is(wolf, animal));
 
-	REQUIRE_FALSE(w.is(animal, herbivore));
-	REQUIRE_FALSE(w.is(wolf, herbivore));
+	REQUIRE_FALSE(wld.is(animal, herbivore));
+	REQUIRE_FALSE(wld.is(wolf, herbivore));
 
 	{
 		uint32_t i = 0;
-		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal));
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
 		q.each([&](ecs::Entity entity) {
 			// runs for herbivore, rabbit, hare, wolf
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore || entity == wolf;
@@ -1943,7 +1956,7 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
 		q.each([&](ecs::Entity entity) {
 			// runs for herbivore, rabbit, hare, wolf
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
@@ -1955,7 +1968,7 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, herbivore));
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			// runs for rabbit and hare
 			const bool isOK = entity == hare || entity == rabbit;
@@ -1970,52 +1983,74 @@ TEST_CASE("Inheritance (Is)") {
 TEST_CASE("AddAndDel_entity - no components") {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	auto create = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 		arr.push_back(e);
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.del(e);
-		const bool isEntityValid = w.valid(e);
-		REQUIRE_FALSE(isEntityValid);
+		wld.del(e);
+		const bool isValid = wld.valid(e);
+		const bool hasEntity = wld.has(e);
+		REQUIRE_FALSE(isValid);
+		REQUIRE_FALSE(hasEntity);
 	};
 
 	// Create entities
 	GAIA_FOR(N) create();
 	// Remove entities
 	GAIA_FOR(N) remove(arr[i]);
+
+	wld.update();
+	GAIA_FOR(N) {
+		const auto e = arr[i];
+		const bool isValid = wld.valid(e);
+		const bool hasEntity = wld.has(e);
+		REQUIRE_FALSE(isValid);
+		REQUIRE_FALSE(hasEntity);
+	}
 }
 
 TEST_CASE("AddAndDel_entity - 1 component") {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	auto create = [&](uint32_t id) {
-		auto e = w.add();
+		auto e = wld.add();
 		arr.push_back(e);
 
-		w.add<Int3>(e, {id, id, id});
-		auto pos = w.get<Int3>(e);
+		wld.add<Int3>(e, {id, id, id});
+		auto pos = wld.get<Int3>(e);
 		REQUIRE(pos.x == id);
 		REQUIRE(pos.y == id);
 		REQUIRE(pos.z == id);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.del(e);
-		const bool isEntityValid = w.valid(e);
-		REQUIRE_FALSE(isEntityValid);
+		wld.del(e);
+		const bool isValid = wld.valid(e);
+		const bool hasEntity = wld.has(e);
+		REQUIRE_FALSE(isValid);
+		REQUIRE_FALSE(hasEntity);
 	};
 
 	GAIA_FOR(N) create(i);
 	GAIA_FOR(N) remove(arr[i]);
+
+	wld.update();
+	GAIA_FOR(N) {
+		const auto e = arr[i];
+		const bool isValid = wld.valid(e);
+		const bool hasEntity = wld.has(e);
+		REQUIRE_FALSE(isValid);
+		REQUIRE_FALSE(hasEntity);
+	}
 }
 
 void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
@@ -2051,27 +2086,27 @@ void verify_name_has_not(const ecs::ComponentCache& cc) {
 
 TEST_CASE("Component names") {
 	SECTION("direct registration") {
-		ecs::World w;
-		const auto& cc = w.comp_cache();
+		TestWorld twld;
+		const auto& cc = wld.comp_cache();
 
 		verify_name_has_not(Int3);
 		verify_name_has_not(Position);
 		verify_name_has_not(dummy::Position);
 
-		auto e_pos = w.add<Position>().entity;
+		auto e_pos = wld.add<Position>().entity;
 		verify_entity_has(cc, e_pos);
 		verify_name_has_not(Int3);
 		verify_name_has(Position);
 		verify_name_has_not(dummy::Position);
 
-		auto e_int = w.add<Int3>().entity;
+		auto e_int = wld.add<Int3>().entity;
 		verify_entity_has(cc, e_pos);
 		verify_entity_has(cc, e_int);
 		verify_name_has(Int3);
 		verify_name_has(Position);
 		verify_name_has_not(dummy::Position);
 
-		auto e_dpos = w.add<dummy::Position>().entity;
+		auto e_dpos = wld.add<dummy::Position>().entity;
 		verify_entity_has(cc, e_pos);
 		verify_entity_has(cc, e_int);
 		verify_entity_has(cc, e_dpos);
@@ -2080,30 +2115,30 @@ TEST_CASE("Component names") {
 		verify_name_has(dummy::Position);
 	}
 	SECTION("entity+component") {
-		ecs::World w;
-		const auto& cc = w.comp_cache();
-		auto e = w.add();
+		TestWorld twld;
+		const auto& cc = wld.comp_cache();
+		auto e = wld.add();
 
 		verify_name_has_not(Int3);
 		verify_name_has_not(Position);
 		verify_name_has_not(dummy::Position);
 
-		w.add<Position>(e);
+		wld.add<Position>(e);
 		verify_name_has_not(Int3);
 		verify_name_has(Position);
 		verify_name_has_not(dummy::Position);
 
-		w.add<Int3>(e);
+		wld.add<Int3>(e);
 		verify_name_has(Int3);
 		verify_name_has(Position);
 		verify_name_has_not(dummy::Position);
 
-		w.del<Position>(e);
+		wld.del<Position>(e);
 		verify_name_has(Int3);
 		verify_name_has(Position);
 		verify_name_has_not(dummy::Position);
 
-		w.add<dummy::Position>(e);
+		wld.add<dummy::Position>(e);
 		verify_name_has(Int3);
 		verify_name_has(Position);
 		verify_name_has(dummy::Position);
@@ -2114,22 +2149,22 @@ template <typename TQuery>
 void Test_Query_QueryResult() {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
 
 	auto create = [&](uint32_t i) {
-		auto e = w.add();
+		auto e = wld.add();
 		ents.push_back(e);
-		w.add<Position>(e, {(float)i, (float)i, (float)i});
+		wld.add<Position>(e, {(float)i, (float)i, (float)i});
 	};
 
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.query<UseCachedQuery>().template all<Position>();
-	auto q2 = w.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = w.query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
+	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
 
 	{
 		const auto cnt = q1.count();
@@ -2195,12 +2230,12 @@ void Test_Query_QueryResult() {
 	}
 
 	// Verify querying at a different source entity works, too
-	auto game = w.add();
+	auto game = wld.add();
 	struct Level {
 		uint32_t value;
 	};
-	w.add<Level>(game, {2});
-	auto q4 = w.query<UseCachedQuery>().template all<Position>().all(w.add<Level>().entity, game);
+	wld.add<Level>(game, {2});
+	auto q4 = wld.query<UseCachedQuery>().template all<Position>().all(wld.add<Level>().entity, game);
 
 	{
 		const auto cnt = q4.count();
@@ -2264,7 +2299,7 @@ template <typename TQuery>
 void Test_Query_QueryResult_Complex() {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	struct Data {
 		Position p;
 		Scale s;
@@ -2274,9 +2309,9 @@ void Test_Query_QueryResult_Complex() {
 	ents.reserve(N);
 
 	auto create = [&](uint32_t i) {
-		auto e = w.add();
+		auto e = wld.add();
 
-		auto b = w.bulk(e);
+		auto b = wld.bulk(e);
 		b.add<Position, Scale>();
 		if (i % 2 == 0)
 			b.add<Something>();
@@ -2285,12 +2320,12 @@ void Test_Query_QueryResult_Complex() {
 		auto p1 = Position{(float)i, (float)i, (float)i};
 		auto s1 = Scale{(float)i * 2, (float)i * 2, (float)i * 2};
 
-		auto s = w.set(e);
+		auto s = wld.set(e);
 		s.set<Position>(p1).set<Scale>(s1);
 		if (i % 2 == 0)
 			s.set<Something>({true});
 
-		auto p0 = w.get<Position>(e);
+		auto p0 = wld.get<Position>(e);
 		REQUIRE(memcmp((void*)&p0, (void*)&p1, sizeof(p0)) == 0);
 		cmp.try_emplace(e, Data{p1, s1});
 	};
@@ -2298,11 +2333,11 @@ void Test_Query_QueryResult_Complex() {
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.query<UseCachedQuery>().template all<Position>();
-	auto q2 = w.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = w.query<UseCachedQuery>().template all<Position, Rotation>();
-	auto q4 = w.query<UseCachedQuery>().template all<Position, Scale>();
-	auto q5 = w.query<UseCachedQuery>().template all<Position, Scale, Something>();
+	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
+	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q4 = wld.query<UseCachedQuery>().template all<Position, Scale>();
+	auto q5 = wld.query<UseCachedQuery>().template all<Position, Scale, Something>();
 
 	{
 		ents.clear();
@@ -2316,7 +2351,7 @@ void Test_Query_QueryResult_Complex() {
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
-			const auto& v1 = w.get<Position>(e);
+			const auto& v1 = wld.get<Position>(e);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
@@ -2375,7 +2410,7 @@ void Test_Query_QueryResult_Complex() {
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
-			const auto& v1 = w.get<Position>(e);
+			const auto& v1 = wld.get<Position>(e);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
@@ -2387,7 +2422,7 @@ void Test_Query_QueryResult_Complex() {
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
-			const auto& v1 = w.get<Scale>(e);
+			const auto& v1 = wld.get<Scale>(e);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
@@ -2420,7 +2455,7 @@ void Test_Query_QueryResult_Complex() {
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
-			const auto& v1 = w.get<Position>(e);
+			const auto& v1 = wld.get<Position>(e);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
@@ -2432,7 +2467,7 @@ void Test_Query_QueryResult_Complex() {
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
-			const auto& v1 = w.get<Scale>(e);
+			const auto& v1 = wld.get<Scale>(e);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
 			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
@@ -2462,25 +2497,25 @@ TEST_CASE("Query - QueryResult complex") {
 }
 
 TEST_CASE("Relationship") {
-	ecs::World w;
+	TestWorld twld;
 
 	SECTION("Simple") {
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
 
-		w.add(rabbit, ecs::Pair(eats, carrot));
-		w.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(wolf, ecs::Pair(eats, rabbit));
 
-		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(w.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE_FALSE(w.has(wolf, ecs::Pair(eats, carrot)));
-		REQUIRE_FALSE(w.has(rabbit, ecs::Pair(eats, wolf)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has(wolf, ecs::Pair(eats, rabbit)));
+		REQUIRE_FALSE(wld.has(wolf, ecs::Pair(eats, carrot)));
+		REQUIRE_FALSE(wld.has(rabbit, ecs::Pair(eats, wolf)));
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
-			// auto q = w.query().all<ecs::Pair(eats, carrot)>();
+			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2492,7 +2527,7 @@ TEST_CASE("Relationship") {
 			REQUIRE(i == cnt);
 		}
 		{
-			auto q = w.query().add("(%e, %e)", eats.value(), carrot.value());
+			auto q = wld.query().add("(%e, %e)", eats.value(), carrot.value());
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2505,8 +2540,8 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
-			// auto q = w.query().all<ecs::Pair(eats, rabbit)>();
+			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2520,22 +2555,22 @@ TEST_CASE("Relationship") {
 	}
 
 	SECTION("Simple - bulk") {
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
 
-		w.bulk(rabbit).add(ecs::Pair(eats, carrot));
-		w.bulk(wolf).add(ecs::Pair(eats, rabbit));
+		wld.bulk(rabbit).add(ecs::Pair(eats, carrot));
+		wld.bulk(wolf).add(ecs::Pair(eats, rabbit));
 
-		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(w.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE_FALSE(w.has(wolf, ecs::Pair(eats, carrot)));
-		REQUIRE_FALSE(w.has(rabbit, ecs::Pair(eats, wolf)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has(wolf, ecs::Pair(eats, rabbit)));
+		REQUIRE_FALSE(wld.has(wolf, ecs::Pair(eats, carrot)));
+		REQUIRE_FALSE(wld.has(rabbit, ecs::Pair(eats, wolf)));
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
-			// auto q = w.query().all<ecs::Pair(eats, carrot)>();
+			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2548,8 +2583,8 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
-			// auto q = w.query().all<ecs::Pair(eats, rabbit)>();
+			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2563,18 +2598,18 @@ TEST_CASE("Relationship") {
 	}
 
 	SECTION("Intermediate") {
-		auto wolf = w.add();
-		auto hare = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
+		auto wolf = wld.add();
+		auto hare = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
 
-		w.add(rabbit, ecs::Pair(eats, carrot));
-		w.add(hare, ecs::Pair(eats, carrot));
-		w.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(hare, ecs::Pair(eats, carrot));
+		wld.add(wolf, ecs::Pair(eats, rabbit));
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -2590,7 +2625,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2603,7 +2638,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 3);
 
@@ -2620,7 +2655,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(ecs::All, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(ecs::All, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -2636,7 +2671,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = w.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 5); // 3 +2 for internal relationhsip
 
@@ -2657,39 +2692,39 @@ TEST_CASE("Relationship") {
 }
 
 TEST_CASE("Relationship target/relation") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto wolf = w.add();
-	auto hates = w.add();
-	auto rabbit = w.add();
-	auto carrot = w.add();
-	auto salad = w.add();
-	auto eats = w.add();
+	auto wolf = wld.add();
+	auto hates = wld.add();
+	auto rabbit = wld.add();
+	auto carrot = wld.add();
+	auto salad = wld.add();
+	auto eats = wld.add();
 
-	w.add(rabbit, ecs::Pair(eats, carrot));
-	w.add(rabbit, ecs::Pair(eats, salad));
-	w.add(rabbit, ecs::Pair(hates, wolf));
+	wld.add(rabbit, ecs::Pair(eats, carrot));
+	wld.add(rabbit, ecs::Pair(eats, salad));
+	wld.add(rabbit, ecs::Pair(hates, wolf));
 
-	auto e = w.target(rabbit, eats);
+	auto e = wld.target(rabbit, eats);
 	const bool ret_e = e == carrot || e == salad;
 	REQUIRE(ret_e);
 
 	cnt::sarr_ext<ecs::Entity, 32> out;
-	w.targets(rabbit, eats, [&out](ecs::Entity target) {
+	wld.targets(rabbit, eats, [&out](ecs::Entity target) {
 		out.push_back(target);
 	});
 	REQUIRE(out.size() == 2);
 	REQUIRE(core::has(out, carrot));
 	REQUIRE(core::has(out, salad));
-	REQUIRE(w.target(rabbit, eats) == carrot);
+	REQUIRE(wld.target(rabbit, eats) == carrot);
 
 	out.clear();
-	w.relations(rabbit, salad, [&out](ecs::Entity relation) {
+	wld.relations(rabbit, salad, [&out](ecs::Entity relation) {
 		out.push_back(relation);
 	});
 	REQUIRE(out.size() == 1);
 	REQUIRE(core::has(out, eats));
-	REQUIRE(w.relation(rabbit, salad) == eats);
+	REQUIRE(wld.relation(rabbit, salad) == eats);
 }
 
 template <typename TQuery>
@@ -2729,53 +2764,53 @@ void Test_Query_Equality() {
 	};
 
 	SECTION("2 components") {
-		ecs::World w;
+		TestWorld twld;
 		GAIA_FOR(N) {
-			auto e = w.add();
-			w.add<Position>(e);
-			w.add<Rotation>(e);
+			auto e = wld.add();
+			wld.add<Position>(e);
+			wld.add<Rotation>(e);
 		}
 
-		auto p = w.add<Position>().entity;
-		auto r = w.add<Rotation>().entity;
+		auto p = wld.add<Position>().entity;
+		auto r = wld.add<Rotation>().entity;
 
-		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
-		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
-		auto qq3 = w.query<UseCachedQuery>().all(p).all(r);
-		auto qq4 = w.query<UseCachedQuery>().all(r).all(p);
+		auto qq1 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
+		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation, Position>();
+		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r);
+		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = w.query<UseCachedQuery>().add("Position; Rotation");
-		auto qq2_ = w.query<UseCachedQuery>().add("Rotation; Position");
-		auto qq3_ = w.query<UseCachedQuery>().add("Position").add("Rotation");
-		auto qq4_ = w.query<UseCachedQuery>().add("Rotation").add("Position");
+		auto qq1_ = wld.query<UseCachedQuery>().add("Position; Rotation");
+		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation; Position");
+		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation");
+		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position");
 		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 	SECTION("4 components") {
-		ecs::World w;
+		TestWorld twld;
 		GAIA_FOR(N) {
-			auto e = w.add();
-			w.add<Position>(e);
-			w.add<Rotation>(e);
-			w.add<Acceleration>(e);
-			w.add<Something>(e);
+			auto e = wld.add();
+			wld.add<Position>(e);
+			wld.add<Rotation>(e);
+			wld.add<Acceleration>(e);
+			wld.add<Something>(e);
 		}
 
-		auto p = w.add<Position>().entity;
-		auto r = w.add<Rotation>().entity;
-		auto a = w.add<Acceleration>().entity;
-		auto s = w.add<Something>().entity;
+		auto p = wld.add<Position>().entity;
+		auto r = wld.add<Rotation>().entity;
+		auto a = wld.add<Acceleration>().entity;
+		auto s = wld.add<Something>().entity;
 
-		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation, Acceleration, Something>();
-		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Something, Position, Acceleration>();
-		auto qq3 = w.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
-		auto qq4 = w.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
+		auto qq1 = wld.query<UseCachedQuery>().template all<Position, Rotation, Acceleration, Something>();
+		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation, Something, Position, Acceleration>();
+		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
+		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = w.query<UseCachedQuery>().add("Position; Rotation; Acceleration; Something");
-		auto qq2_ = w.query<UseCachedQuery>().add("Rotation; Something; Position; Acceleration");
-		auto qq3_ = w.query<UseCachedQuery>().add("Position").add("Rotation").add("Acceleration").add("Something");
-		auto qq4_ = w.query<UseCachedQuery>().add("Rotation").add("Position").add("Something").add("Acceleration");
+		auto qq1_ = wld.query<UseCachedQuery>().add("Position; Rotation; Acceleration; Something");
+		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation; Something; Position; Acceleration");
+		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation").add("Acceleration").add("Something");
+		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position").add("Something").add("Acceleration");
 		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 }
@@ -2793,47 +2828,47 @@ TEST_CASE("Enable") {
 	// 1,500 picked so we create enough entites that they overflow into another chunk
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	auto create = [&]() {
-		auto e = w.add();
-		w.add<Position>(e);
+		auto e = wld.add();
+		wld.add<Position>(e);
 		arr.push_back(e);
 	};
 
 	GAIA_FOR(N) create();
 
 	SECTION("State validity") {
-		w.enable(arr[0], false);
-		REQUIRE_FALSE(w.enabled(arr[0]));
+		wld.enable(arr[0], false);
+		REQUIRE_FALSE(wld.enabled(arr[0]));
 
-		w.enable(arr[0], true);
-		REQUIRE(w.enabled(arr[0]));
+		wld.enable(arr[0], true);
+		REQUIRE(wld.enabled(arr[0]));
 
-		w.enable(arr[1], false);
-		REQUIRE(w.enabled(arr[0]));
-		REQUIRE_FALSE(w.enabled(arr[1]));
+		wld.enable(arr[1], false);
+		REQUIRE(wld.enabled(arr[0]));
+		REQUIRE_FALSE(wld.enabled(arr[1]));
 
-		w.enable(arr[1], true);
-		REQUIRE(w.enabled(arr[0]));
-		REQUIRE(w.enabled(arr[1]));
+		wld.enable(arr[1], true);
+		REQUIRE(wld.enabled(arr[0]));
+		REQUIRE(wld.enabled(arr[1]));
 	}
 
 	SECTION("State persistance") {
-		w.enable(arr[0], false);
-		REQUIRE_FALSE(w.enabled(arr[0]));
+		wld.enable(arr[0], false);
+		REQUIRE_FALSE(wld.enabled(arr[0]));
 		auto e = arr[0];
-		w.del<Position>(e);
-		REQUIRE_FALSE(w.enabled(e));
+		wld.del<Position>(e);
+		REQUIRE_FALSE(wld.enabled(e));
 
-		w.enable(arr[0], true);
-		w.add<Position>(arr[0]);
-		REQUIRE(w.enabled(arr[0]));
+		wld.enable(arr[0], true);
+		wld.add<Position>(arr[0]);
+		REQUIRE(wld.enabled(arr[0]));
 	}
 
-	ecs::Query q = w.query().all<Position>();
+	ecs::Query q = wld.query().all<Position>();
 
 	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 		{
@@ -2889,101 +2924,101 @@ TEST_CASE("Enable") {
 	checkQuery(N, N, 0);
 
 	SECTION("Disable vs query") {
-		w.enable(arr[1000], false);
+		wld.enable(arr[1000], false);
 		checkQuery(N, N - 1, 1);
 	}
 
 	SECTION("Enable vs query") {
-		w.enable(arr[1000], true);
+		wld.enable(arr[1000], true);
 		checkQuery(N, N, 0);
 	}
 
 	SECTION("Disable vs query") {
-		w.enable(arr[1], false);
-		w.enable(arr[100], false);
-		w.enable(arr[999], false);
-		w.enable(arr[1400], false);
+		wld.enable(arr[1], false);
+		wld.enable(arr[100], false);
+		wld.enable(arr[999], false);
+		wld.enable(arr[1400], false);
 		checkQuery(N, N - 4, 4);
 	}
 
 	SECTION("Enable vs query") {
-		w.enable(arr[1], true);
-		w.enable(arr[100], true);
-		w.enable(arr[999], true);
-		w.enable(arr[1400], true);
+		wld.enable(arr[1], true);
+		wld.enable(arr[100], true);
+		wld.enable(arr[999], true);
+		wld.enable(arr[1400], true);
 		checkQuery(N, N, 0);
 	}
 }
 
 TEST_CASE("Add - generic") {
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
-		auto f = w.add();
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add();
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
-		w.add<Position>(e);
-		w.add<Acceleration>(e);
+		wld.add<Position>(e);
+		wld.add<Acceleration>(e);
 
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
-		auto f = w.add();
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add();
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
-		w.add<Position>(e, {1, 2, 3});
-		w.add<Acceleration>(e, {4, 5, 6});
+		wld.add<Position>(e, {1, 2, 3});
+		wld.add<Acceleration>(e, {4, 5, 6});
 
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 
-		auto a = w.get<Acceleration>(e);
+		auto a = wld.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
 
-		auto f = w.add();
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add();
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
-		p = w.get<Position>(e);
+		p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 
-		a = w.get<Acceleration>(e);
+		a = wld.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
@@ -2991,88 +3026,88 @@ TEST_CASE("Add - generic") {
 }
 
 // TEST_CASE("Add - from query") {
-// 	ecs::World w;
+// 	TestWorld twld;
 //
 // 	cnt::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
-// 		e = w.add();
+// 		e = wld.add();
 //
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i)
-// 		w.add<Position>(ents[i], {(float)i, (float)i, (float)i});
+// 		wld.add<Position>(ents[i], {(float)i, (float)i, (float)i});
 //
 // 	ecs::Query q;
 // 	q.all<Position>();
-// 	w.add<Acceleration>(q, {1.f, 2.f, 3.f});
+// 	wld.add<Acceleration>(q, {1.f, 2.f, 3.f});
 //
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
-// 		REQUIRE(w.has<Position>(ents[i]));
-// 		REQUIRE(w.has<Acceleration>(ents[i]));
+// 		REQUIRE(wld.has<Position>(ents[i]));
+// 		REQUIRE(wld.has<Acceleration>(ents[i]));
 //
 // 		Position p;
-// 		w.get<Position>(ents[i], p);
+// 		wld.get<Position>(ents[i], p);
 // 		REQUIRE(p.x == (float)i);
 // 		REQUIRE(p.y == (float)i);
 // 		REQUIRE(p.z == (float)i);
 //
 // 		Acceleration a;
-// 		w.get<Acceleration>(ents[i], a);
+// 		wld.get<Acceleration>(ents[i], a);
 // 		REQUIRE(a.x == 1.f);
 // 		REQUIRE(a.y == 2.f);
 // 		REQUIRE(a.z == 3.f);
 // 	}
 //
 // 	{
-// 		REQUIRE_FALSE(w.has<Position>(ents[4]));
-// 		REQUIRE_FALSE(w.has<Acceleration>(ents[4]));
+// 		REQUIRE_FALSE(wld.has<Position>(ents[4]));
+// 		REQUIRE_FALSE(wld.has<Acceleration>(ents[4]));
 // 	}
 // }
 
 TEST_CASE("Add - unique") {
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
-		auto f = w.add(ecs::EntityKind::EK_Uni);
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add(ecs::EntityKind::EK_Uni);
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
-		w.add<ecs::uni<Position>>(e);
-		w.add<ecs::uni<Acceleration>>(e);
+		wld.add<ecs::uni<Position>>(e);
+		wld.add<ecs::uni<Acceleration>>(e);
 
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
 		// Add Position unique component
-		w.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
+		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 		{
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
-		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 		{
-			auto a = w.get<ecs::uni<Acceleration>>(e);
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
@@ -3080,7 +3115,7 @@ TEST_CASE("Add - unique") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
@@ -3088,28 +3123,28 @@ TEST_CASE("Add - unique") {
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
 		// Add Position unique component
-		w.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
+		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 		{
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
-		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 		{
-			auto a = w.get<ecs::uni<Acceleration>>(e);
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
@@ -3117,23 +3152,23 @@ TEST_CASE("Add - unique") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
 		}
 
 		// Add a generic entity. Archetype changes.
-		auto f = w.add();
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add();
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 		{
-			auto a = w.get<ecs::uni<Acceleration>>(e);
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
 			REQUIRE_FALSE(a.x == 4.f);
 			REQUIRE_FALSE(a.y == 5.f);
 			REQUIRE_FALSE(a.z == 6.f);
@@ -3141,7 +3176,7 @@ TEST_CASE("Add - unique") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
@@ -3149,28 +3184,28 @@ TEST_CASE("Add - unique") {
 	}
 
 	{
-		ecs::World w;
-		auto e = w.add();
+		TestWorld twld;
+		auto e = wld.add();
 
 		// Add Position unique component
-		w.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
+		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 		{
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
-		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 		{
-			auto a = w.get<ecs::uni<Acceleration>>(e);
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
@@ -3178,25 +3213,25 @@ TEST_CASE("Add - unique") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
 		}
 
 		// Add a unique entity. Archetype changes.
-		auto f = w.add(ecs::EntityKind::EK_Uni);
-		w.add(e, f);
-		REQUIRE(w.has(e, f));
+		auto f = wld.add(ecs::EntityKind::EK_Uni);
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
 
-		REQUIRE(w.has<ecs::uni<Position>>(e));
-		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto a = w.get<ecs::uni<Acceleration>>(e);
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
 			REQUIRE_FALSE(a.x == 4.f);
 			REQUIRE_FALSE(a.y == 5.f);
 			REQUIRE_FALSE(a.z == 6.f);
@@ -3204,7 +3239,7 @@ TEST_CASE("Add - unique") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::uni<Position>>(e);
+			auto p = wld.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
@@ -3214,235 +3249,235 @@ TEST_CASE("Add - unique") {
 
 TEST_CASE("del - generic") {
 	{
-		ecs::World w;
-		auto e1 = w.add();
+		TestWorld twld;
+		auto e1 = wld.add();
 
 		{
-			w.add<Position>(e1);
-			w.del<Position>(e1);
-			REQUIRE_FALSE(w.has<Position>(e1));
+			wld.add<Position>(e1);
+			wld.del<Position>(e1);
+			REQUIRE_FALSE(wld.has<Position>(e1));
 		}
 		{
-			w.add<Rotation>(e1);
-			w.del<Rotation>(e1);
-			REQUIRE_FALSE(w.has<Rotation>(e1));
+			wld.add<Rotation>(e1);
+			wld.del<Rotation>(e1);
+			REQUIRE_FALSE(wld.has<Rotation>(e1));
 		}
 	}
 	{
-		ecs::World w;
-		auto e1 = w.add();
+		TestWorld twld;
+		auto e1 = wld.add();
 		{
-			w.add<Position>(e1);
-			w.add<Rotation>(e1);
+			wld.add<Position>(e1);
+			wld.add<Rotation>(e1);
 
 			{
-				w.del<Position>(e1);
-				REQUIRE_FALSE(w.has<Position>(e1));
-				REQUIRE(w.has<Rotation>(e1));
+				wld.del<Position>(e1);
+				REQUIRE_FALSE(wld.has<Position>(e1));
+				REQUIRE(wld.has<Rotation>(e1));
 			}
 			{
-				w.del<Rotation>(e1);
-				REQUIRE_FALSE(w.has<Position>(e1));
-				REQUIRE_FALSE(w.has<Rotation>(e1));
+				wld.del<Rotation>(e1);
+				REQUIRE_FALSE(wld.has<Position>(e1));
+				REQUIRE_FALSE(wld.has<Rotation>(e1));
 			}
 		}
 		{
-			w.add<Rotation>(e1);
-			w.add<Position>(e1);
+			wld.add<Rotation>(e1);
+			wld.add<Position>(e1);
 			{
-				w.del<Position>(e1);
-				REQUIRE_FALSE(w.has<Position>(e1));
-				REQUIRE(w.has<Rotation>(e1));
+				wld.del<Position>(e1);
+				REQUIRE_FALSE(wld.has<Position>(e1));
+				REQUIRE(wld.has<Rotation>(e1));
 			}
 			{
-				w.del<Rotation>(e1);
-				REQUIRE_FALSE(w.has<Position>(e1));
-				REQUIRE_FALSE(w.has<Rotation>(e1));
+				wld.del<Rotation>(e1);
+				REQUIRE_FALSE(wld.has<Position>(e1));
+				REQUIRE_FALSE(wld.has<Rotation>(e1));
 			}
 		}
 	}
 }
 
 TEST_CASE("del - unique") {
-	ecs::World w;
-	auto e1 = w.add();
+	TestWorld twld;
+	auto e1 = wld.add();
 
 	{
-		w.add<ecs::uni<Position>>(e1);
-		w.add<ecs::uni<Acceleration>>(e1);
+		wld.add<ecs::uni<Position>>(e1);
+		wld.add<ecs::uni<Acceleration>>(e1);
 		{
-			w.del<ecs::uni<Position>>(e1);
-			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<ecs::uni<Position>>(e1);
+			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<ecs::uni<Acceleration>>(e1);
+			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 
 	{
-		w.add<ecs::uni<Acceleration>>(e1);
-		w.add<ecs::uni<Position>>(e1);
+		wld.add<ecs::uni<Acceleration>>(e1);
+		wld.add<ecs::uni<Position>>(e1);
 		{
-			w.del<ecs::uni<Position>>(e1);
-			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<ecs::uni<Position>>(e1);
+			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<ecs::uni<Acceleration>>(e1);
+			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
 
 TEST_CASE("del - generic, unique") {
-	ecs::World w;
-	auto e1 = w.add();
+	TestWorld twld;
+	auto e1 = wld.add();
 
 	{
-		w.add<Position>(e1);
-		w.add<Acceleration>(e1);
-		w.add<ecs::uni<Position>>(e1);
-		w.add<ecs::uni<Acceleration>>(e1);
+		wld.add<Position>(e1);
+		wld.add<Acceleration>(e1);
+		wld.add<ecs::uni<Position>>(e1);
+		wld.add<ecs::uni<Acceleration>>(e1);
 		{
-			w.del<Position>(e1);
-			REQUIRE_FALSE(w.has<Position>(e1));
-			REQUIRE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<Position>(e1);
+			REQUIRE_FALSE(wld.has<Position>(e1));
+			REQUIRE(wld.has<Acceleration>(e1));
+			REQUIRE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<Acceleration>(e1);
-			REQUIRE_FALSE(w.has<Position>(e1));
-			REQUIRE_FALSE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<Acceleration>(e1);
+			REQUIRE_FALSE(wld.has<Position>(e1));
+			REQUIRE_FALSE(wld.has<Acceleration>(e1));
+			REQUIRE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(w.has<Position>(e1));
-			REQUIRE_FALSE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
+			wld.del<ecs::uni<Acceleration>>(e1);
+			REQUIRE_FALSE(wld.has<Position>(e1));
+			REQUIRE_FALSE(wld.has<Acceleration>(e1));
+			REQUIRE(wld.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
 
 TEST_CASE("del - cleanup rules") {
 	SECTION("default") {
-		ecs::World w;
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
-		auto hungry = w.add();
-		w.add(wolf, hungry);
-		w.add(wolf, ecs::Pair(eats, rabbit));
-		w.add(rabbit, ecs::Pair(eats, carrot));
+		TestWorld twld;
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
+		auto hungry = wld.add();
+		wld.add(wolf, hungry);
+		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
 
-		w.del(wolf);
-		REQUIRE(!w.has(wolf));
-		REQUIRE(w.has(rabbit));
-		REQUIRE(w.has(eats));
-		REQUIRE(w.has(carrot));
-		REQUIRE(w.has(hungry));
+		wld.del(wolf);
+		REQUIRE(!wld.has(wolf));
+		REQUIRE(wld.has(rabbit));
+		REQUIRE(wld.has(eats));
+		REQUIRE(wld.has(carrot));
+		REQUIRE(wld.has(hungry));
 		// global relationships
-		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(w.has(ecs::Pair(eats, carrot)));
-		REQUIRE(w.has(ecs::Pair(eats, ecs::All)));
-		REQUIRE(w.has(ecs::Pair(ecs::All, carrot)));
-		REQUIRE(w.has(ecs::Pair(ecs::All, rabbit)));
-		REQUIRE(w.has(ecs::Pair(ecs::All, ecs::All)));
+		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has(ecs::Pair(eats, ecs::All)));
+		REQUIRE(wld.has(ecs::Pair(ecs::All, carrot)));
+		REQUIRE(wld.has(ecs::Pair(ecs::All, rabbit)));
+		REQUIRE(wld.has(ecs::Pair(ecs::All, ecs::All)));
 		// rabbit relationships
-		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(w.has(rabbit, ecs::Pair(eats, ecs::All)));
-		REQUIRE(w.has(rabbit, ecs::Pair(ecs::All, carrot)));
-		REQUIRE(w.has(rabbit, ecs::Pair(ecs::All, ecs::All)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(eats, ecs::All)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(ecs::All, carrot)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(ecs::All, ecs::All)));
 	}
 	SECTION("default, relationship source") {
-		ecs::World w;
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
-		auto hungry = w.add();
-		w.add(wolf, hungry);
-		w.add(wolf, ecs::Pair(eats, rabbit));
-		w.add(rabbit, ecs::Pair(eats, carrot));
+		TestWorld twld;
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
+		auto hungry = wld.add();
+		wld.add(wolf, hungry);
+		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
 
-		w.del(eats);
-		REQUIRE(w.has(wolf));
-		REQUIRE(w.has(rabbit));
-		REQUIRE(!w.has(eats));
-		REQUIRE(w.has(carrot));
-		REQUIRE(w.has(hungry));
-		REQUIRE(!w.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE(!w.has(rabbit, ecs::Pair(eats, carrot)));
+		wld.del(eats);
+		REQUIRE(wld.has(wolf));
+		REQUIRE(wld.has(rabbit));
+		REQUIRE(!wld.has(eats));
+		REQUIRE(wld.has(carrot));
+		REQUIRE(wld.has(hungry));
+		REQUIRE(!wld.has(wolf, ecs::Pair(eats, rabbit)));
+		REQUIRE(!wld.has(rabbit, ecs::Pair(eats, carrot)));
 	}
 	SECTION("(OnDelete,Remove)") {
-		ecs::World w;
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
-		auto hungry = w.add();
-		w.add(wolf, hungry);
-		w.add(wolf, ecs::Pair(ecs::OnDelete, ecs::Remove));
-		w.add(wolf, ecs::Pair(eats, rabbit));
-		w.add(rabbit, ecs::Pair(eats, carrot));
+		TestWorld twld;
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
+		auto hungry = wld.add();
+		wld.add(wolf, hungry);
+		wld.add(wolf, ecs::Pair(ecs::OnDelete, ecs::Remove));
+		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
 
-		w.del(wolf);
-		REQUIRE(!w.has(wolf));
-		REQUIRE(w.has(rabbit));
-		REQUIRE(w.has(eats));
-		REQUIRE(w.has(carrot));
-		REQUIRE(w.has(hungry));
-		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(w.has(ecs::Pair(eats, carrot)));
-		REQUIRE(w.has(rabbit, ecs::Pair(eats, carrot)));
+		wld.del(wolf);
+		REQUIRE(!wld.has(wolf));
+		REQUIRE(wld.has(rabbit));
+		REQUIRE(wld.has(eats));
+		REQUIRE(wld.has(carrot));
+		REQUIRE(wld.has(hungry));
+		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
 	}
 	SECTION("(OnDelete,Delete)") {
-		ecs::World w;
-		auto wolf = w.add();
-		auto rabbit = w.add();
-		auto carrot = w.add();
-		auto eats = w.add();
-		auto hungry = w.add();
-		w.add(wolf, hungry);
-		w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
-		w.add(wolf, ecs::Pair(eats, rabbit));
-		w.add(rabbit, ecs::Pair(eats, carrot));
+		TestWorld twld;
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto eats = wld.add();
+		auto hungry = wld.add();
+		wld.add(wolf, hungry);
+		wld.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
+		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, ecs::Pair(eats, carrot));
 
-		w.del(hungry);
-		REQUIRE(!w.has(wolf));
-		REQUIRE(w.has(rabbit));
-		REQUIRE(w.has(eats));
-		REQUIRE(w.has(carrot));
-		REQUIRE(!w.has(hungry));
-		REQUIRE(w.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(w.has(ecs::Pair(eats, carrot)));
+		wld.del(hungry);
+		REQUIRE(!wld.has(wolf));
+		REQUIRE(wld.has(rabbit));
+		REQUIRE(wld.has(eats));
+		REQUIRE(wld.has(carrot));
+		REQUIRE(!wld.has(hungry));
+		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
+		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
 	}
 	SECTION("(OnDeleteTarget,Delete)") {
-		ecs::World w;
-		auto parent = w.add();
-		auto child = w.add();
-		auto child_of = w.add();
-		w.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
-		w.add(child, ecs::Pair(child_of, parent));
+		TestWorld twld;
+		auto parent = wld.add();
+		auto child = wld.add();
+		auto child_of = wld.add();
+		wld.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+		wld.add(child, ecs::Pair(child_of, parent));
 
-		w.del(parent);
-		REQUIRE(!w.has(child));
-		REQUIRE(!w.has(parent));
+		wld.del(parent);
+		REQUIRE(!wld.has(child));
+		REQUIRE(!wld.has(parent));
 	}
 }
 
 TEST_CASE("entity name") {
 	constexpr uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
 
@@ -3450,21 +3485,21 @@ TEST_CASE("entity name") {
 	char tmp[MaxLen];
 
 	auto create = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
-		w.name(e, tmp);
+		wld.name(e, tmp);
 		ents.push_back(e);
 	};
 	auto create_raw = [&]() {
-		auto e = w.add();
+		auto e = wld.add();
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
-		w.name_raw(e, tmp);
+		wld.name_raw(e, tmp);
 		ents.push_back(e);
 	};
 	auto verify = [&](uint32_t i) {
 		auto e = ents[i];
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
-		const auto* ename = w.name(e);
+		const auto* ename = wld.name(e);
 
 		const auto l0 = strlen(tmp);
 		const auto l1 = strlen(ename);
@@ -3479,14 +3514,14 @@ TEST_CASE("entity name") {
 		auto e = ents[0];
 
 		char original[MaxLen];
-		GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
+		GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
 
 		// If we change the original string we still must have a match
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			REQUIRE(strcmp(w.name(e), original) == 0);
-			REQUIRE(w.get(original) == e);
-			REQUIRE(w.get(tmp) == ecs::EntityBad);
+			REQUIRE(strcmp(wld.name(e), original) == 0);
+			REQUIRE(wld.get(original) == e);
+			REQUIRE(wld.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
 			GAIA_STRCPY(tmp, MaxLen, original);
@@ -3497,20 +3532,20 @@ TEST_CASE("entity name") {
 		// Renaming has to fail. Can be tested only with asserts disabled
 		// because the situation is assert-protected.
 		{
-			auto e1 = w.add();
-			w.name(e1, original);
-			REQUIRE(w.name(e1) == nullptr);
-			REQUIRE(w.get(original) == e);
+			auto e1 = wld.add();
+			wld.name(e1, original);
+			REQUIRE(wld.name(e1) == nullptr);
+			REQUIRE(wld.get(original) == e);
 		}
 #endif
 
-		w.name(e, nullptr);
-		REQUIRE(w.get(original) == ecs::EntityBad);
-		REQUIRE(w.name(e) == nullptr);
+		wld.name(e, nullptr);
+		REQUIRE(wld.get(original) == ecs::EntityBad);
+		REQUIRE(wld.name(e) == nullptr);
 
-		w.name(e, original);
-		w.del(e);
-		REQUIRE(w.get(original) == ecs::EntityBad);
+		wld.name(e, original);
+		wld.del(e);
+		REQUIRE(wld.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("basic - non-owned") {
@@ -3520,17 +3555,17 @@ TEST_CASE("entity name") {
 		auto e = ents[0];
 
 		char original[MaxLen];
-		GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
+		GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
 
 		// If we change the original string we can't have a match
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			const auto* str = w.name(e);
+			const auto* str = wld.name(e);
 			REQUIRE(strcmp(str, "some_random_string") == 0);
-			REQUIRE(w.get(original) == ecs::EntityBad);
+			REQUIRE(wld.get(original) == ecs::EntityBad);
 			// Hash was calculated for [original] but we changed the string to "some_random_string".
 			// Hash won't match so we shouldn't be able to find the entity still.
-			REQUIRE(w.get("some_random_string") == ecs::EntityBad);
+			REQUIRE(wld.get("some_random_string") == ecs::EntityBad);
 		}
 
 		{
@@ -3539,20 +3574,20 @@ TEST_CASE("entity name") {
 			verify(0);
 		}
 
-		w.name(e, nullptr);
-		REQUIRE(w.get(original) == ecs::EntityBad);
-		REQUIRE(w.name(e) == nullptr);
+		wld.name(e, nullptr);
+		REQUIRE(wld.get(original) == ecs::EntityBad);
+		REQUIRE(wld.name(e) == nullptr);
 
-		w.name_raw(e, original);
-		w.del(e);
-		REQUIRE(w.get(original) == ecs::EntityBad);
+		wld.name_raw(e, original);
+		wld.del(e);
+		REQUIRE(wld.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("two") {
 		ents.clear();
 		GAIA_FOR(2) create();
 		GAIA_FOR(2) verify(i);
-		w.del(ents[0]);
+		wld.del(ents[0]);
 		verify(1);
 	}
 
@@ -3560,7 +3595,7 @@ TEST_CASE("entity name") {
 		ents.clear();
 		GAIA_FOR(N) create();
 		GAIA_FOR(N) verify(i);
-		w.del(ents[900]);
+		wld.del(ents[900]);
 		GAIA_FOR(900) verify(i);
 		GAIA_FOR2(901, N) verify(i);
 
@@ -3568,31 +3603,31 @@ TEST_CASE("entity name") {
 			auto e = ents[1000];
 
 			char original[MaxLen];
-			GAIA_STRFMT(original, MaxLen, "%s", w.name(e));
+			GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
 
 			{
-				w.enable(e, false);
-				const auto* str = w.name(e);
+				wld.enable(e, false);
+				const auto* str = wld.name(e);
 				REQUIRE(strcmp(str, original) == 0);
-				REQUIRE(e == w.get(original));
+				REQUIRE(e == wld.get(original));
 			}
 			{
-				w.enable(e, true);
-				const auto* str = w.name(e);
+				wld.enable(e, true);
+				const auto* str = wld.name(e);
 				REQUIRE(strcmp(str, original) == 0);
-				REQUIRE(e == w.get(original));
+				REQUIRE(e == wld.get(original));
 			}
 		}
 	}
 }
 
 TEST_CASE("Usage 1 - simple query, 0 component") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e = w.add();
+	auto e = wld.add();
 
-	auto qa = w.query().all<Acceleration>();
-	auto qp = w.query().all<Position>();
+	auto qa = wld.query().all<Acceleration>();
+	auto qp = wld.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -3609,9 +3644,9 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	auto e1 = w.copy(e);
-	auto e2 = w.copy(e);
-	auto e3 = w.copy(e);
+	auto e1 = wld.copy(e);
+	auto e2 = wld.copy(e);
+	auto e3 = wld.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3621,7 +3656,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	w.del(e1);
+	wld.del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -3631,9 +3666,9 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	w.del(e2);
-	w.del(e3);
-	w.del(e);
+	wld.del(e2);
+	wld.del(e3);
+	wld.del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3645,24 +3680,24 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 }
 
 TEST_CASE("entity copy") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e1 = w.add();
-	auto e2 = w.add();
-	w.add(e1, e2);
-	auto e3 = w.copy(e1);
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	wld.add(e1, e2);
+	auto e3 = wld.copy(e1);
 
-	REQUIRE(w.has(e3, e2));
+	REQUIRE(wld.has(e3, e2));
 }
 
 TEST_CASE("Usage 1 - simple query, 1 component") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e = w.add();
-	w.add<Position>(e);
+	auto e = wld.add();
+	wld.add<Position>(e);
 
-	auto qa = w.query().all<Acceleration>();
-	auto qp = w.query().all<Position>();
+	auto qa = wld.query().all<Acceleration>();
+	auto qp = wld.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -3679,9 +3714,9 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.copy(e);
-	auto e2 = w.copy(e);
-	auto e3 = w.copy(e);
+	auto e1 = wld.copy(e);
+	auto e2 = wld.copy(e);
+	auto e3 = wld.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3691,7 +3726,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 4);
 	}
 
-	w.del(e1);
+	wld.del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -3701,9 +3736,9 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 3);
 	}
 
-	w.del(e2);
-	w.del(e3);
-	w.del(e);
+	wld.del(e2);
+	wld.del(e3);
+	wld.del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3715,13 +3750,13 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 }
 
 TEST_CASE("Usage 1 - simple query, 1 unique component") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e = w.add();
-	w.add<ecs::uni<Position>>(e);
+	auto e = wld.add();
+	wld.add<ecs::uni<Position>>(e);
 
-	auto q = w.query().all<ecs::uni<Position>>();
-	auto qq = w.query().all<Position>();
+	auto q = wld.query().all<ecs::uni<Position>>();
+	auto qq = wld.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -3745,9 +3780,9 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.copy(e);
-	auto e2 = w.copy(e);
-	auto e3 = w.copy(e);
+	auto e1 = wld.copy(e);
+	auto e2 = wld.copy(e);
+	auto e3 = wld.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3757,7 +3792,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		REQUIRE(cnt == 1);
 	}
 
-	w.del(e1);
+	wld.del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -3767,9 +3802,9 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		REQUIRE(cnt == 1);
 	}
 
-	w.del(e2);
-	w.del(e3);
-	w.del(e);
+	wld.del(e2);
+	wld.del(e3);
+	wld.del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3781,24 +3816,24 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 }
 
 TEST_CASE("Usage 2 - simple query, many components") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e1 = w.add();
-	w.add<Position>(e1, {});
-	w.add<Acceleration>(e1, {});
-	w.add<Else>(e1, {});
-	auto e2 = w.add();
-	w.add<Rotation>(e2, {});
-	w.add<Scale>(e2, {});
-	w.add<Else>(e2, {});
-	auto e3 = w.add();
-	w.add<Position>(e3, {});
-	w.add<Acceleration>(e3, {});
-	w.add<Scale>(e3, {});
+	auto e1 = wld.add();
+	wld.add<Position>(e1, {});
+	wld.add<Acceleration>(e1, {});
+	wld.add<Else>(e1, {});
+	auto e2 = wld.add();
+	wld.add<Rotation>(e2, {});
+	wld.add<Scale>(e2, {});
+	wld.add<Else>(e2, {});
+	auto e3 = wld.add();
+	wld.add<Position>(e3, {});
+	wld.add<Acceleration>(e3, {});
+	wld.add<Scale>(e3, {});
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Position>();
+		auto q = wld.query().all<Position>();
 		q.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
@@ -3806,7 +3841,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Acceleration>();
+		auto q = wld.query().all<Acceleration>();
 		q.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
@@ -3814,7 +3849,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Rotation>();
+		auto q = wld.query().all<Rotation>();
 		q.each([&]([[maybe_unused]] const Rotation&) {
 			++cnt;
 		});
@@ -3822,7 +3857,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Scale>();
+		auto q = wld.query().all<Scale>();
 		q.each([&]([[maybe_unused]] const Scale&) {
 			++cnt;
 		});
@@ -3830,7 +3865,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Position, Acceleration>();
+		auto q = wld.query().all<Position, Acceleration>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
@@ -3838,14 +3873,14 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<Position, Scale>();
+		auto q = wld.query().all<Position, Scale>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Scale&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.query().any<Position, Acceleration>();
+		ecs::Query q = wld.query().any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3859,7 +3894,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.query().any<Position, Acceleration>().all<Scale>();
+		ecs::Query q = wld.query().any<Position, Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3875,7 +3910,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.query().any<Position, Acceleration>().no<Scale>();
+		ecs::Query q = wld.query().any<Position, Acceleration>().no<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3888,24 +3923,24 @@ TEST_CASE("Usage 2 - simple query, many components") {
 }
 
 TEST_CASE("Usage 2 - simple query, many unique components") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e1 = w.add();
-	w.add<ecs::uni<Position>>(e1, {});
-	w.add<ecs::uni<Acceleration>>(e1, {});
-	w.add<ecs::uni<Else>>(e1, {});
-	auto e2 = w.add();
-	w.add<ecs::uni<Rotation>>(e2, {});
-	w.add<ecs::uni<Scale>>(e2, {});
-	w.add<ecs::uni<Else>>(e2, {});
-	auto e3 = w.add();
-	w.add<ecs::uni<Position>>(e3, {});
-	w.add<ecs::uni<Acceleration>>(e3, {});
-	w.add<ecs::uni<Scale>>(e3, {});
+	auto e1 = wld.add();
+	wld.add<ecs::uni<Position>>(e1, {});
+	wld.add<ecs::uni<Acceleration>>(e1, {});
+	wld.add<ecs::uni<Else>>(e1, {});
+	auto e2 = wld.add();
+	wld.add<ecs::uni<Rotation>>(e2, {});
+	wld.add<ecs::uni<Scale>>(e2, {});
+	wld.add<ecs::uni<Else>>(e2, {});
+	auto e3 = wld.add();
+	wld.add<ecs::uni<Position>>(e3, {});
+	wld.add<ecs::uni<Acceleration>>(e3, {});
+	wld.add<ecs::uni<Scale>>(e3, {});
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::uni<Position>>();
+		auto q = wld.query().all<ecs::uni<Position>>();
 		q.each([&]([[maybe_unused]] ecs::Iter iter) {
 			++cnt;
 		});
@@ -3913,7 +3948,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::uni<Acceleration>>();
+		auto q = wld.query().all<ecs::uni<Acceleration>>();
 		q.each([&]([[maybe_unused]] ecs::Iter iter) {
 			++cnt;
 		});
@@ -3921,7 +3956,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::uni<Rotation>>();
+		auto q = wld.query().all<ecs::uni<Rotation>>();
 		q.each([&]([[maybe_unused]] ecs::Iter iter) {
 			++cnt;
 		});
@@ -3929,7 +3964,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::uni<Else>>();
+		auto q = wld.query().all<ecs::uni<Else>>();
 		q.each([&]([[maybe_unused]] ecs::Iter iter) {
 			++cnt;
 		});
@@ -3937,14 +3972,14 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::uni<Scale>>();
+		auto q = wld.query().all<ecs::uni<Scale>>();
 		q.each([&]([[maybe_unused]] ecs::Iter iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>();
+		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3958,7 +3993,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
+		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3974,7 +4009,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
+		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter iter) {
@@ -3987,40 +4022,40 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 }
 
 TEST_CASE("Set - generic") {
-	ecs::World w;
+	TestWorld twld;
 
 	constexpr uint32_t N = 100;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	GAIA_FOR(N) {
-		const auto ent = w.add();
+		const auto ent = wld.add();
 		arr.push_back(ent);
-		w.add<Rotation>(ent, {});
-		w.add<Scale>(ent, {});
-		w.add<Else>(ent, {});
+		wld.add<Rotation>(ent, {});
+		wld.add<Scale>(ent, {});
+		wld.add<Else>(ent, {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.get<Rotation>(ent);
+		auto r = wld.get<Rotation>(ent);
 		REQUIRE(r.x == 0.f);
 		REQUIRE(r.y == 0.f);
 		REQUIRE(r.z == 0.f);
 		REQUIRE(r.w == 0.f);
 
-		auto s = w.get<Scale>(ent);
+		auto s = wld.get<Scale>(ent);
 		REQUIRE(s.x == 0.f);
 		REQUIRE(s.y == 0.f);
 		REQUIRE(s.z == 0.f);
 
-		auto e = w.get<Else>(ent);
+		auto e = wld.get<Else>(ent);
 		REQUIRE(e.value == false);
 	}
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<Rotation&, Scale&, Else&>();
+		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
 
 		q.each([&](ecs::Iter iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -4035,75 +4070,75 @@ TEST_CASE("Set - generic") {
 		});
 
 		for (const auto ent: arr) {
-			auto r = w.get<Rotation>(ent);
+			auto r = wld.get<Rotation>(ent);
 			REQUIRE(r.x == 1.f);
 			REQUIRE(r.y == 2.f);
 			REQUIRE(r.z == 3.f);
 			REQUIRE(r.w == 4.f);
 
-			auto s = w.get<Scale>(ent);
+			auto s = wld.get<Scale>(ent);
 			REQUIRE(s.x == 11.f);
 			REQUIRE(s.y == 22.f);
 			REQUIRE(s.z == 33.f);
 
-			auto e = w.get<Else>(ent);
+			auto e = wld.get<Else>(ent);
 			REQUIRE(e.value == true);
 		}
 	}
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.copy(arr[0]);
-		w.add<Position>(ent, {5, 6, 7});
+		auto ent = wld.copy(arr[0]);
+		wld.add<Position>(ent, {5, 6, 7});
 
-		auto r = w.get<Rotation>(ent);
+		auto r = wld.get<Rotation>(ent);
 		REQUIRE(r.x == 1.f);
 		REQUIRE(r.y == 2.f);
 		REQUIRE(r.z == 3.f);
 		REQUIRE(r.w == 4.f);
 
-		auto s = w.get<Scale>(ent);
+		auto s = wld.get<Scale>(ent);
 		REQUIRE(s.x == 11.f);
 		REQUIRE(s.y == 22.f);
 		REQUIRE(s.z == 33.f);
 
-		auto e = w.get<Else>(ent);
+		auto e = wld.get<Else>(ent);
 		REQUIRE(e.value == true);
 	}
 }
 
 TEST_CASE("Set - generic & unique") {
-	ecs::World w;
+	TestWorld twld;
 
 	constexpr uint32_t N = 100;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	GAIA_FOR(N) {
-		arr.push_back(w.add());
-		w.add<Rotation>(arr.back(), {});
-		w.add<Scale>(arr.back(), {});
-		w.add<Else>(arr.back(), {});
-		w.add<ecs::uni<Position>>(arr.back(), {});
+		arr.push_back(wld.add());
+		wld.add<Rotation>(arr.back(), {});
+		wld.add<Scale>(arr.back(), {});
+		wld.add<Else>(arr.back(), {});
+		wld.add<ecs::uni<Position>>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.get<Rotation>(ent);
+		auto r = wld.get<Rotation>(ent);
 		REQUIRE(r.x == 0.f);
 		REQUIRE(r.y == 0.f);
 		REQUIRE(r.z == 0.f);
 		REQUIRE(r.w == 0.f);
 
-		auto s = w.get<Scale>(ent);
+		auto s = wld.get<Scale>(ent);
 		REQUIRE(s.x == 0.f);
 		REQUIRE(s.y == 0.f);
 		REQUIRE(s.z == 0.f);
 
-		auto e = w.get<Else>(ent);
+		auto e = wld.get<Else>(ent);
 		REQUIRE(e.value == false);
 
-		auto p = w.get<ecs::uni<Position>>(ent);
+		auto p = wld.get<ecs::uni<Position>>(ent);
 		REQUIRE(p.x == 0.f);
 		REQUIRE(p.y == 0.f);
 		REQUIRE(p.z == 0.f);
@@ -4111,7 +4146,7 @@ TEST_CASE("Set - generic & unique") {
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<Rotation&, Scale&, Else&>();
+		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
 
 		q.each([&](ecs::Iter iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -4125,33 +4160,33 @@ TEST_CASE("Set - generic & unique") {
 			}
 		});
 
-		w.set<ecs::uni<Position>>(arr[0], {111, 222, 333});
+		wld.set<ecs::uni<Position>>(arr[0], {111, 222, 333});
 
 		{
-			Position p = w.get<ecs::uni<Position>>(arr[0]);
+			Position p = wld.get<ecs::uni<Position>>(arr[0]);
 			REQUIRE(p.x == 111.f);
 			REQUIRE(p.y == 222.f);
 			REQUIRE(p.z == 333.f);
 		}
 		{
 			for (const auto ent: arr) {
-				auto r = w.get<Rotation>(ent);
+				auto r = wld.get<Rotation>(ent);
 				REQUIRE(r.x == 1.f);
 				REQUIRE(r.y == 2.f);
 				REQUIRE(r.z == 3.f);
 				REQUIRE(r.w == 4.f);
 
-				auto s = w.get<Scale>(ent);
+				auto s = wld.get<Scale>(ent);
 				REQUIRE(s.x == 11.f);
 				REQUIRE(s.y == 22.f);
 				REQUIRE(s.z == 33.f);
 
-				auto e = w.get<Else>(ent);
+				auto e = wld.get<Else>(ent);
 				REQUIRE(e.value == true);
 			}
 		}
 		{
-			auto p = w.get<ecs::uni<Position>>(arr[0]);
+			auto p = wld.get<ecs::uni<Position>>(arr[0]);
 			REQUIRE(p.x == 111.f);
 			REQUIRE(p.y == 222.f);
 			REQUIRE(p.z == 333.f);
@@ -4160,34 +4195,34 @@ TEST_CASE("Set - generic & unique") {
 }
 
 TEST_CASE("Components - non trivial") {
-	ecs::World w;
+	TestWorld twld;
 
 	constexpr uint32_t N = 100;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	GAIA_FOR(N) {
-		arr.push_back(w.add());
-		w.add<StringComponent>(arr.back(), {});
-		w.add<StringComponent2>(arr.back(), {});
-		w.add<PositionNonTrivial>(arr.back(), {});
+		arr.push_back(wld.add());
+		wld.add<StringComponent>(arr.back(), {});
+		wld.add<StringComponent2>(arr.back(), {});
+		wld.add<PositionNonTrivial>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		const auto& s1 = w.get<StringComponent>(ent);
+		const auto& s1 = wld.get<StringComponent>(ent);
 		REQUIRE(s1.value.empty());
 
 		{
-			auto s2 = w.get<StringComponent2>(ent);
+			auto s2 = wld.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 		{
-			const auto& s2 = w.get<StringComponent2>(ent);
+			const auto& s2 = wld.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 
-		const auto& p = w.get<PositionNonTrivial>(ent);
+		const auto& p = wld.get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
@@ -4195,7 +4230,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<StringComponent&, StringComponent2&, PositionNonTrivial&>();
+		ecs::Query q = wld.query().all<StringComponent&, StringComponent2&, PositionNonTrivial&>();
 
 		q.each([&](ecs::Iter iter) {
 			auto strView = iter.view_mut<StringComponent>();
@@ -4210,13 +4245,13 @@ TEST_CASE("Components - non trivial") {
 		});
 
 		for (const auto ent: arr) {
-			const auto& s1 = w.get<StringComponent>(ent);
+			const auto& s1 = wld.get<StringComponent>(ent);
 			REQUIRE(s1.value == StringComponentDefaultValue);
 
-			const auto& s2 = w.get<StringComponent2>(ent);
+			const auto& s2 = wld.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-			const auto& p = w.get<PositionNonTrivial>(ent);
+			const auto& p = wld.get<PositionNonTrivial>(ent);
 			REQUIRE(p.x == 111.f);
 			REQUIRE(p.y == 222.f);
 			REQUIRE(p.z == 333.f);
@@ -4225,16 +4260,16 @@ TEST_CASE("Components - non trivial") {
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.copy(arr[0]);
-		w.add<Position>(ent, {5, 6, 7});
+		auto ent = wld.copy(arr[0]);
+		wld.add<Position>(ent, {5, 6, 7});
 
-		const auto& s1 = w.get<StringComponent>(ent);
+		const auto& s1 = wld.get<StringComponent>(ent);
 		REQUIRE(s1.value == StringComponentDefaultValue);
 
-		const auto& s2 = w.get<StringComponent2>(ent);
+		const auto& s2 = wld.get<StringComponent2>(ent);
 		REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-		const auto& p = w.get<PositionNonTrivial>(ent);
+		const auto& p = wld.get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 111.f);
 		REQUIRE(p.y == 222.f);
 		REQUIRE(p.z == 333.f);
@@ -4243,8 +4278,8 @@ TEST_CASE("Components - non trivial") {
 
 TEST_CASE("CommandBuffer") {
 	SECTION("Entity creation") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		const uint32_t N = 100;
 		GAIA_FOR(N) {
@@ -4253,14 +4288,14 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
 	SECTION("Entity creation from another entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto mainEntity = w.add();
+		auto mainEntity = wld.add();
 
 		const uint32_t N = 100;
 		GAIA_FOR(N) {
@@ -4269,20 +4304,20 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
 	SECTION("Entity creation from another entity with a component") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto mainEntity = w.add();
-		w.add<Position>(mainEntity, {1, 2, 3});
+		auto mainEntity = wld.add();
+		wld.add<Position>(mainEntity, {1, 2, 3});
 
 		[[maybe_unused]] auto tmp = cb.copy(mainEntity);
 		cb.commit();
 
-		auto q = w.query().all<Position>();
+		auto q = wld.query().all<Position>();
 		REQUIRE(q.count() == 2);
 		uint32_t i = 0;
 		q.each([&](const Position& p) {
@@ -4295,102 +4330,102 @@ TEST_CASE("CommandBuffer") {
 	}
 
 	SECTION("Delayed component addition to an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
+		auto e = wld.add();
 		cb.add<Position>(e);
-		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 		cb.commit();
-		REQUIRE(w.has<Position>(e));
+		REQUIRE(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed component addition to a to-be-created entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		auto tmp = cb.add(); // core + 0 (no new entity created yet)
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1);
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1);
 		cb.add<Position>(tmp);
 		cb.commit();
 
-		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
-		REQUIRE(w.has<Position>(e));
+		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		REQUIRE(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed component setting of an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
+		auto e = wld.add();
 
 		cb.add<Position>(e);
 		cb.set<Position>(e, {1, 2, 3});
-		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 
 		cb.commit();
-		REQUIRE(w.has<Position>(e));
+		REQUIRE(wld.has<Position>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 	}
 
 	SECTION("Delayed 2 components setting of an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
+		auto e = wld.add();
 
 		cb.add<Position>(e);
 		cb.set<Position>(e, {1, 2, 3});
 		cb.add<Acceleration>(e);
 		cb.set<Acceleration>(e, {4, 5, 6});
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 
 		cb.commit();
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 
-		auto a = w.get<Acceleration>(e);
+		auto a = wld.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component setting of a to-be-created entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
-		REQUIRE(w.has<Position>(e));
+		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		REQUIRE(wld.has<Position>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components setting of a to-be-created entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
@@ -4398,144 +4433,144 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
+		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 
-		auto a = w.get<Acceleration>(e);
+		auto a = wld.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component add with setting of a to-be-created entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
-		REQUIRE(w.has<Position>(e));
+		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		REQUIRE(wld.has<Position>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
+		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
 
-		auto p = w.get<Position>(e);
+		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 1.f);
 		REQUIRE(p.y == 2.f);
 		REQUIRE(p.z == 3.f);
 
-		auto a = w.get<Acceleration>(e);
+		auto a = wld.get<Acceleration>(e);
 		REQUIRE(a.x == 4.f);
 		REQUIRE(a.y == 5.f);
 		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component removal from an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
-		w.add<Position>(e, {1, 2, 3});
+		auto e = wld.add();
+		wld.add<Position>(e, {1, 2, 3});
 
 		cb.del<Position>(e);
-		REQUIRE(w.has<Position>(e));
+		REQUIRE(wld.has<Position>(e));
 		{
-			auto p = w.get<Position>(e);
+			auto p = wld.get<Position>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
 
 		cb.commit();
-		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed 2 component removal from an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
-		w.add<Position>(e, {1, 2, 3});
-		w.add<Acceleration>(e, {4, 5, 6});
+		auto e = wld.add();
+		wld.add<Position>(e, {1, 2, 3});
+		wld.add<Acceleration>(e, {4, 5, 6});
 
 		cb.del<Position>(e);
 		cb.del<Acceleration>(e);
-		REQUIRE(w.has<Position>(e));
-		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Acceleration>(e));
 		{
-			auto p = w.get<Position>(e);
+			auto p = wld.get<Position>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 
-			auto a = w.get<Acceleration>(e);
+			auto a = wld.get<Acceleration>(e);
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
 		}
 
 		cb.commit();
-		REQUIRE_FALSE(w.has<Position>(e));
-		REQUIRE_FALSE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
 	}
 
 	SECTION("Delayed non-trivial component setting of an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
+		TestWorld twld;
+		ecs::CommandBuffer cb(wld);
 
-		auto e = w.add();
+		auto e = wld.add();
 
 		cb.add<StringComponent>(e);
 		cb.set<StringComponent>(e, {StringComponentDefaultValue});
 		cb.add<StringComponent2>(e);
-		REQUIRE_FALSE(w.has<StringComponent>(e));
-		REQUIRE_FALSE(w.has<StringComponent2>(e));
+		REQUIRE_FALSE(wld.has<StringComponent>(e));
+		REQUIRE_FALSE(wld.has<StringComponent2>(e));
 
 		cb.commit();
-		REQUIRE(w.has<StringComponent>(e));
-		REQUIRE(w.has<StringComponent2>(e));
+		REQUIRE(wld.has<StringComponent>(e));
+		REQUIRE(wld.has<StringComponent2>(e));
 
-		auto s1 = w.get<StringComponent>(e);
+		auto s1 = wld.get<StringComponent>(e);
 		REQUIRE(s1.value == StringComponentDefaultValue);
-		auto s2 = w.get<StringComponent2>(e);
+		auto s2 = wld.get<StringComponent2>(e);
 		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 }
 
 TEST_CASE("Query Filter - no systems") {
-	ecs::World w;
-	ecs::Query q = w.query().all<Position>().changed<Position>();
+	TestWorld twld;
+	ecs::Query q = wld.query().all<Position>().changed<Position>();
 
-	auto e = w.add();
-	w.add<Position>(e);
+	auto e = wld.add();
+	wld.add<Position>(e);
 
 	// System-less filters
 	{
@@ -4552,7 +4587,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
-	{ w.set<Position>(e, {}); }
+	{ wld.set<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
@@ -4567,7 +4602,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
-	{ w.sset<Position>(e, {}); }
+	{ wld.sset<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
@@ -4576,7 +4611,7 @@ TEST_CASE("Query Filter - no systems") {
 		REQUIRE(cnt == 0);
 	}
 	{
-		auto* ch = w.get_chunk(e);
+		auto* ch = wld.get_chunk(e);
 		auto p = ch->sview_mut<Position>();
 		p[0] = {};
 	}
@@ -4590,10 +4625,10 @@ TEST_CASE("Query Filter - no systems") {
 }
 
 TEST_CASE("Query Filter - systems") {
-	ecs::World w;
+	TestWorld twld;
 
-	auto e = w.add();
-	w.add<Position>(e);
+	auto e = wld.add();
+	wld.add<Position>(e);
 
 	class WriterSystem final: public ecs::System {
 		ecs::Query m_q;
@@ -4640,7 +4675,7 @@ TEST_CASE("Query Filter - systems") {
 			REQUIRE(cnt == m_expectedCnt);
 		}
 	};
-	ecs::SystemManager sm(w);
+	ecs::SystemManager sm(wld);
 	auto* ws = sm.add<WriterSystem>();
 	auto* wss = sm.add<WriterSystemSilent>();
 	auto* rs = sm.add<ReaderSystem>();
@@ -4672,20 +4707,20 @@ template <typename T>
 void TestDataLayoutSoA_ECS() {
 	const uint32_t N = 1'500;
 
-	ecs::World w;
+	TestWorld twld;
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
 
 	auto create = [&]() {
-		auto e = w.add();
-		w.add<T>(e, {});
+		auto e = wld.add();
+		wld.add<T>(e, {});
 		ents.push_back(e);
 	};
 
 	GAIA_FOR(N) create();
 
 	SECTION("each - iterator") {
-		ecs::Query q = w.query().all<T&>();
+		ecs::Query q = wld.query().all<T&>();
 
 		{
 			const auto cnt = q.count();
@@ -4716,7 +4751,7 @@ void TestDataLayoutSoA_ECS() {
 		// Make sure disabling works
 		{
 			auto e = ents[0];
-			w.enable(e, false);
+			wld.enable(e, false);
 			const auto cnt = q.count();
 			REQUIRE(cnt == N - 1);
 			uint32_t cntCalculated = 0;
@@ -4729,7 +4764,7 @@ void TestDataLayoutSoA_ECS() {
 
 	// TODO: Finish this part
 	// SECTION("each") {
-	// 	ecs::Query q = w.query().all<T>();
+	// 	ecs::Query q = wld.query().all<T>();
 
 	// 	{
 	// 		const auto cnt = q.count();
@@ -4751,7 +4786,7 @@ void TestDataLayoutSoA_ECS() {
 	// 	// Make sure disabling works
 	// 	{
 	// 		auto e = ents[0];
-	// 		w.enable(e, false);
+	// 		wld.enable(e, false);
 	// 		const auto cnt = q.count();
 	// 		REQUIRE(cnt == N - 1);
 	// 		uint32_t cntCalculated = 0;
@@ -4783,79 +4818,79 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 //------------------------------------------------------------------------------
 
 TEST_CASE("Component cache") {
-	ecs::World w;
-	auto& cc = w.comp_cache_mut();
+	TestWorld twld;
+	auto& cc = wld.comp_cache_mut();
 	{
 		cc.clear();
-		const auto& desc = w.add<Position>();
+		const auto& desc = wld.add<Position>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<const Position>().comp);
-		REQUIRE(comp == w.add<Position&>().comp);
-		REQUIRE(comp == w.add<const Position&>().comp);
-		REQUIRE(comp == w.add<Position*>().comp);
-		REQUIRE(comp == w.add<const Position*>().comp);
+		REQUIRE(comp == wld.add<const Position>().comp);
+		REQUIRE(comp == wld.add<Position&>().comp);
+		REQUIRE(comp == wld.add<const Position&>().comp);
+		REQUIRE(comp == wld.add<Position*>().comp);
+		REQUIRE(comp == wld.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto& desc = w.add<const Position>();
+		const auto& desc = wld.add<const Position>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<Position>().comp);
-		REQUIRE(comp == w.add<Position&>().comp);
-		REQUIRE(comp == w.add<const Position&>().comp);
-		REQUIRE(comp == w.add<Position*>().comp);
-		REQUIRE(comp == w.add<const Position*>().comp);
+		REQUIRE(comp == wld.add<Position>().comp);
+		REQUIRE(comp == wld.add<Position&>().comp);
+		REQUIRE(comp == wld.add<const Position&>().comp);
+		REQUIRE(comp == wld.add<Position*>().comp);
+		REQUIRE(comp == wld.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto& desc = w.add<Position&>();
+		const auto& desc = wld.add<Position&>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<Position>().comp);
-		REQUIRE(comp == w.add<const Position>().comp);
-		REQUIRE(comp == w.add<const Position&>().comp);
-		REQUIRE(comp == w.add<Position*>().comp);
-		REQUIRE(comp == w.add<const Position*>().comp);
+		REQUIRE(comp == wld.add<Position>().comp);
+		REQUIRE(comp == wld.add<const Position>().comp);
+		REQUIRE(comp == wld.add<const Position&>().comp);
+		REQUIRE(comp == wld.add<Position*>().comp);
+		REQUIRE(comp == wld.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto& desc = w.add<const Position&>();
+		const auto& desc = wld.add<const Position&>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<Position>().comp);
-		REQUIRE(comp == w.add<const Position>().comp);
-		REQUIRE(comp == w.add<Position&>().comp);
-		REQUIRE(comp == w.add<Position*>().comp);
-		REQUIRE(comp == w.add<const Position*>().comp);
+		REQUIRE(comp == wld.add<Position>().comp);
+		REQUIRE(comp == wld.add<const Position>().comp);
+		REQUIRE(comp == wld.add<Position&>().comp);
+		REQUIRE(comp == wld.add<Position*>().comp);
+		REQUIRE(comp == wld.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto& desc = w.add<Position*>();
+		const auto& desc = wld.add<Position*>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<Position>().comp);
-		REQUIRE(comp == w.add<const Position>().comp);
-		REQUIRE(comp == w.add<Position&>().comp);
-		REQUIRE(comp == w.add<const Position&>().comp);
-		REQUIRE(comp == w.add<const Position*>().comp);
+		REQUIRE(comp == wld.add<Position>().comp);
+		REQUIRE(comp == wld.add<const Position>().comp);
+		REQUIRE(comp == wld.add<Position&>().comp);
+		REQUIRE(comp == wld.add<const Position&>().comp);
+		REQUIRE(comp == wld.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto& desc = w.add<const Position*>();
+		const auto& desc = wld.add<const Position*>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
 		auto comp = desc.comp;
-		REQUIRE(comp == w.add<Position>().comp);
-		REQUIRE(comp == w.add<const Position>().comp);
-		REQUIRE(comp == w.add<Position&>().comp);
-		REQUIRE(comp == w.add<const Position&>().comp);
-		REQUIRE(comp == w.add<Position*>().comp);
+		REQUIRE(comp == wld.add<Position>().comp);
+		REQUIRE(comp == wld.add<const Position>().comp);
+		REQUIRE(comp == wld.add<Position&>().comp);
+		REQUIRE(comp == wld.add<const Position&>().comp);
+		REQUIRE(comp == wld.add<Position*>().comp);
 	}
 }
 

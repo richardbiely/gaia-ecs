@@ -3,6 +3,9 @@
 
 using namespace gaia;
 
+struct Int3 {
+	uint32_t x, y, z;
+};
 struct Position {
 	float x, y, z;
 };
@@ -380,6 +383,7 @@ void test2() {
 	(void)dummy1;
 	(void)dummy2;
 
+	w.add(wolf, wolf); // turn wolf into an archetype
 	w.as(herbivore, animal);
 	w.as(rabbit, herbivore);
 	w.as(hare, herbivore);
@@ -438,12 +442,117 @@ void test4() {
 	w.add<Position>(e, {});
 }
 
+void test5() {
+	const uint32_t N = 20;
+
+	ecs::World w;
+	cnt::darr<ecs::Entity> arr;
+	arr.reserve(N);
+
+	auto create = [&](uint32_t id) {
+		auto e = w.add(); // 14, 16
+		arr.push_back(e);
+
+		w.add<Int3>(e, {id, id, id}); // 15
+		auto pos = w.get<Int3>(e);
+		GAIA_ASSERT(pos.x == id);
+		GAIA_ASSERT(pos.y == id);
+		GAIA_ASSERT(pos.z == id);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.del(e);
+		const bool isEntityValid = w.valid(e);
+		GAIA_ASSERT(!isEntityValid);
+	};
+
+	GAIA_FOR(N) create(i);
+	w.diag_archetypes();
+
+	GAIA_FOR(N) {
+		remove(arr[i]);
+		w.diag_archetypes();
+	}
+}
+
+void test6() {
+	ecs::World w;
+
+	auto e = w.add(); // 14
+	w.add<Position>(e); // 15
+
+	auto qp = w.query().all<Position>();
+
+	auto e1 = w.copy(e); // 16
+	auto e2 = w.copy(e); // 17
+	auto e3 = w.copy(e); // 18
+
+	w.diag_archetypes();
+
+	w.del(e1);
+	w.diag_archetypes();
+
+	{
+		uint32_t cnt = 0;
+		qp.each([&]([[maybe_unused]] const Position&) {
+			++cnt;
+		});
+		GAIA_ASSERT(cnt == 2);
+	}
+}
+
+void test7() {
+	ecs::World w;
+	auto wolf = w.add(); // 14
+	auto rabbit = w.add(); // 15
+	auto carrot = w.add(); // 16
+	auto eats = w.add(); // 17
+	auto hungry = w.add(); // 18
+	w.add(wolf, hungry);
+	w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	w.add(wolf, ecs::Pair(eats, rabbit));
+	w.add(rabbit, ecs::Pair(eats, carrot));
+
+	w.diag_archetypes();
+	w.del(hungry);
+	w.diag_archetypes();
+	GAIA_ASSERT(!w.has(wolf));
+	GAIA_ASSERT(w.has(rabbit));
+	GAIA_ASSERT(w.has(eats));
+	GAIA_ASSERT(w.has(carrot));
+	GAIA_ASSERT(!w.has(hungry));
+	GAIA_ASSERT(w.has(ecs::Pair(eats, rabbit)));
+	GAIA_ASSERT(w.has(ecs::Pair(eats, carrot)));
+
+	GAIA_FOR(100) w.update();
+}
+
+void test8() {
+	ecs::World w;
+	auto parent = w.add(); // 14
+	auto child = w.add(); // 15
+	auto child_of = w.add(); // 16
+	w.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete)); // 4:6
+	w.add(child, ecs::Pair(child_of, parent)); // 16:14
+
+	w.diag_archetypes();
+	w.del(parent);
+	GAIA_ASSERT(!w.has(child));
+	GAIA_ASSERT(!w.has(parent));
+
+	w.update();
+}
+
 int main() {
 	// test0();
 	// test1();
-	test2();
+	// test2();
 	// test3();
 	// test4();
+	// test5();
+	// test6();
+	// test7();
+	test8();
 
 	// g_test_0.getters();
 	// g_test_0.setters();
