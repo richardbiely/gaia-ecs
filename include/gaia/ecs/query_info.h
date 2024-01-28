@@ -880,7 +880,15 @@ namespace gaia {
 				return m_archetypeCache.begin();
 			}
 
+			GAIA_NODISCARD ArchetypeList::iterator begin() const {
+				return m_archetypeCache.begin();
+			}
+
 			GAIA_NODISCARD ArchetypeList::iterator end() {
+				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD ArchetypeList::iterator end() const {
 				return m_archetypeCache.end();
 			}
 		};

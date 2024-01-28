@@ -123,6 +123,8 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Delete requested
+			uint32_t m_deleteReq : 1;
 			//! Remaining lifespan of the archetype
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			//! If set the archetype is to be deleted
@@ -134,7 +136,9 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
+					m_cc(cc), m_worldVersion(worldVersion),
+					//
+					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -700,6 +704,14 @@ namespace gaia {
 				return m_chunks.empty();
 			}
 
+			void req_del() {
+				m_deleteReq = 1;
+			}
+
+			GAIA_NODISCARD bool is_req_del() const {
+				return m_deleteReq;
+			}
+
 			//! Checks is this chunk is dying
 			GAIA_NODISCARD bool dying() const {
 				return m_lifespanCountdown > 0;
@@ -721,10 +733,11 @@ namespace gaia {
 				m_lifespanCountdown = MAX_ARCHETYPE_LIFESPAN;
 			}
 
-			//! Makes the chunk alive again
+			//! Makes the archetype alive again
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_lifespanCountdown = 0;
+				m_deleteReq = 0;
 			}
 
 			//! Updates internal lifetime
@@ -850,6 +863,10 @@ namespace gaia {
 
 			GAIA_NODISCARD size_t hash() const {
 				return (size_t)m_hash.hash;
+			}
+
+			GAIA_NODISCARD Archetype* archetype() const {
+				return (Archetype*)m_pArchetypeBase;
 			}
 
 			GAIA_NODISCARD bool operator==(const ArchetypeLookupKey& other) const {

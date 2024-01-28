@@ -272,6 +272,12 @@ namespace gaia {
 			void remove_last_entity_inter() {
 				// Should never be called over an empty chunk
 				GAIA_ASSERT(!empty());
+
+#if GAIA_ASSERT_ENABLED
+				// Invalidate the entity in chunk data
+				entity_view_mut()[m_header.count - 1] = EntityBad;
+#endif
+
 				--m_header.count;
 				--m_header.countEnabled;
 			}

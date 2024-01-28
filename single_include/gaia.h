@@ -15964,7 +15964,8 @@ namespace gaia {
 			EntityKind kind;
 		};
 
-		enum EntityContainerFlags : uint16_t {
+		using EntityContainerFlagsType = uint16_t;
+		enum EntityContainerFlags : EntityContainerFlagsType {
 			OnDelete_Remove = 1 << 0,
 			OnDelete_Delete = 1 << 1,
 			OnDelete_Error = 1 << 2,
@@ -15974,6 +15975,8 @@ namespace gaia {
 			HasAcyclic = 1 << 6,
 			HasCantCombine = 1 << 7,
 			HasAliasOf = 1 << 8,
+			IsSingleton = 1 << 9,
+			DeleteRequested = 1 << 10,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -16024,6 +16027,10 @@ namespace gaia {
 
 			static Entity create(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+
+			void req_del() {
+				flags |= DeleteRequested;
 			}
 		};
 
@@ -16302,6 +16309,12 @@ namespace gaia {
 			void remove_last_entity_inter() {
 				// Should never be called over an empty chunk
 				GAIA_ASSERT(!empty());
+
+#if GAIA_ASSERT_ENABLED
+				// Invalidate the entity in chunk data
+				entity_view_mut()[m_header.count - 1] = EntityBad;
+#endif
+
 				--m_header.count;
 				--m_header.countEnabled;
 			}
@@ -17410,6 +17423,8 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Delete requested
+			uint32_t m_deleteReq : 1;
 			//! Remaining lifespan of the archetype
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			//! If set the archetype is to be deleted
@@ -17421,7 +17436,9 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
+					m_cc(cc), m_worldVersion(worldVersion),
+					//
+					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -17987,6 +18004,14 @@ namespace gaia {
 				return m_chunks.empty();
 			}
 
+			void req_del() {
+				m_deleteReq = 1;
+			}
+
+			GAIA_NODISCARD bool is_req_del() const {
+				return m_deleteReq;
+			}
+
 			//! Checks is this chunk is dying
 			GAIA_NODISCARD bool dying() const {
 				return m_lifespanCountdown > 0;
@@ -18008,10 +18033,11 @@ namespace gaia {
 				m_lifespanCountdown = MAX_ARCHETYPE_LIFESPAN;
 			}
 
-			//! Makes the chunk alive again
+			//! Makes the archetype alive again
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_lifespanCountdown = 0;
+				m_deleteReq = 0;
 			}
 
 			//! Updates internal lifetime
@@ -18137,6 +18163,10 @@ namespace gaia {
 
 			GAIA_NODISCARD size_t hash() const {
 				return (size_t)m_hash.hash;
+			}
+
+			GAIA_NODISCARD Archetype* archetype() const {
+				return (Archetype*)m_pArchetypeBase;
 			}
 
 			GAIA_NODISCARD bool operator==(const ArchetypeLookupKey& other) const {
@@ -19669,7 +19699,15 @@ namespace gaia {
 				return m_archetypeCache.begin();
 			}
 
+			GAIA_NODISCARD ArchetypeList::iterator begin() const {
+				return m_archetypeCache.begin();
+			}
+
 			GAIA_NODISCARD ArchetypeList::iterator end() {
+				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD ArchetypeList::iterator end() const {
 				return m_archetypeCache.end();
 			}
 		};
@@ -20143,7 +20181,7 @@ namespace gaia {
 					// Chunks might be located at different memory locations. Not even in the same memory page.
 					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
 					// for the next chunk explictely so we do not end up stalling later.
-					// Note, this is a micro optimization and on average it bring no performance benefit. It only
+					// Note, this is a micro optimization and on average it brings no performance benefit. It only
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
@@ -20167,36 +20205,47 @@ namespace gaia {
 					chunks.clear();
 				}
 
+				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing
+					return !archetype.is_req_del();
+				}
+
 				template <bool HasFilters, typename Iter, typename Func>
-				void run_query(
-						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
-					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+				void run_query(const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch) {
+					for (auto* pArchetype: queryInfo) {
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
 
-					uint32_t chunkOffset = 0;
-					uint32_t itemsLeft = chunks.size();
-					while (itemsLeft > 0) {
-						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
-						ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
-						for (auto* pChunk: chunkSpan) {
-							Iter iter(*pChunk);
-							if (iter.size() == 0)
-								continue;
+						const auto& chunks = pArchetype->chunks();
 
-							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+						uint32_t chunkOffset = 0;
+						uint32_t itemsLeft = chunks.size();
+						while (itemsLeft > 0) {
+							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+							for (auto* pChunk: chunkSpan) {
+								Iter iter(*pChunk);
+								if (iter.size() == 0)
 									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								chunkBatch.push_back(pChunk);
 							}
 
-							chunkBatch.push_back(pChunk);
+							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
+								run_func_batched(func, chunkBatch);
+
+							itemsLeft -= batchSize;
+							chunkOffset += batchSize;
 						}
-
-						if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-							run_func_batched(func, chunkBatch);
-
-						itemsLeft -= batchSize;
-						chunkOffset += batchSize;
 					}
 				}
 
@@ -20208,14 +20257,12 @@ namespace gaia {
 					ChunkBatchedList chunkBatch;
 
 					const bool hasFilters = queryInfo.has_filters();
-					if (hasFilters) {
-						for (auto* pArchetype: queryInfo)
-							run_query<true, Iter>(queryInfo, func, chunkBatch, pArchetype->chunks());
-					} else {
-						for (auto* pArchetype: queryInfo)
-							run_query<false, Iter>(queryInfo, func, chunkBatch, pArchetype->chunks());
-					}
+					if (hasFilters)
+						run_query<true, Iter>(queryInfo, func, chunkBatch);
+					else
+						run_query<false, Iter>(queryInfo, func, chunkBatch);
 
+					// Take care of any leftovers not processed during run_query
 					if (!chunkBatch.empty())
 						run_func_batched(func, chunkBatch);
 
@@ -20254,56 +20301,85 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
-					return core::has_if(chunks, [&](Chunk* pChunk) {
-						Iter iter(*pChunk);
-						if constexpr (UseFilters)
-							return iter.size() > 0 && match_filters(*pChunk, queryInfo);
-						else
-							return iter.size() > 0;
-					});
+				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
+					for (const auto* pArchetype: queryInfo) {
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						GAIA_PROF_SCOPE(query::empty);
+
+						const auto& chunks = pArchetype->chunks();
+						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
+							Iter iter(*pChunk);
+							if constexpr (UseFilters)
+								return iter.size() > 0 && match_filters(*pChunk, queryInfo);
+							else
+								return iter.size() > 0;
+						});
+
+						if (isNotEmpty)
+							return false;
+					}
+
+					return true;
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
 
-					for (auto* pChunk: chunks) {
-						Iter iter(*pChunk);
-						const auto entityCnt = iter.size();
-						if (entityCnt == 0)
+					for (const auto* pArchetype: queryInfo) {
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
+						GAIA_PROF_SCOPE(query::count);
 
-						// Entity count
-						cnt += entityCnt;
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							Iter iter(*pChunk);
+							const auto entityCnt = iter.size();
+							if (entityCnt == 0)
+								continue;
+
+							// Filters
+							if constexpr (UseFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							// Entity count
+							cnt += entityCnt;
+						}
 					}
 
 					return cnt;
 				}
 
 				template <bool UseFilters, typename Iter, typename ContainerOut>
-				void arr_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
+				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 
-					for (auto* pChunk: chunks) {
-						Iter iter(*pChunk);
-						if (iter.size() == 0)
+					for (auto* pArchetype: queryInfo) {
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
+						GAIA_PROF_SCOPE(query::arr);
 
-						const auto dataView = iter.template view<ContainerItemType>();
-						GAIA_EACH(iter) outArray.push_back(dataView[i]);
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							Iter iter(*pChunk);
+							if (iter.size() == 0)
+								continue;
+
+							// Filters
+							if constexpr (UseFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							const auto dataView = iter.template view<ContainerItemType>();
+							GAIA_EACH(iter) outArray.push_back(dataView[i]);
+						}
 					}
 				}
 
@@ -20617,39 +20693,21 @@ namespace gaia {
 
 					if (hasFilters) {
 						switch (constraints) {
-							case Constraints::EnabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, Iter>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
-							case Constraints::DisabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, IterDisabled>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
-							case Constraints::AcceptAll: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<true, IterAll>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
+							case Constraints::EnabledOnly:
+								return empty_inter<true, Iter>(queryInfo);
+							case Constraints::DisabledOnly:
+								return empty_inter<true, IterDisabled>(queryInfo);
+							case Constraints::AcceptAll:
+								return empty_inter<true, IterAll>(queryInfo);
 						}
 					} else {
 						switch (constraints) {
-							case Constraints::EnabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, Iter>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
-							case Constraints::DisabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, IterDisabled>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
-							case Constraints::AcceptAll: {
-								for (auto* pArchetype: queryInfo)
-									if (empty_inter<false, IterAll>(queryInfo, pArchetype->chunks()))
-										return false;
-							} break;
+							case Constraints::EnabledOnly:
+								return empty_inter<false, Iter>(queryInfo);
+							case Constraints::DisabledOnly:
+								return empty_inter<false, IterDisabled>(queryInfo);
+							case Constraints::AcceptAll:
+								return empty_inter<false, IterAll>(queryInfo);
 						}
 					}
 
@@ -20669,31 +20727,25 @@ namespace gaia {
 					if (hasFilters) {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, Iter>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<true, Iter>(queryInfo);
 							} break;
 							case Constraints::DisabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, IterDisabled>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<true, IterDisabled>(queryInfo);
 							} break;
 							case Constraints::AcceptAll: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<true, IterAll>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<true, IterAll>(queryInfo);
 							} break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, Iter>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<false, Iter>(queryInfo);
 							} break;
 							case Constraints::DisabledOnly: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, IterDisabled>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<false, IterDisabled>(queryInfo);
 							} break;
 							case Constraints::AcceptAll: {
-								for (auto* pArchetype: queryInfo)
-									entCnt += count_inter<false, IterAll>(queryInfo, pArchetype->chunks());
+								entCnt += count_inter<false, IterAll>(queryInfo);
 							} break;
 						}
 					}
@@ -20718,31 +20770,25 @@ namespace gaia {
 					if (hasFilters) {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<true, Iter>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<true, Iter>(queryInfo, outArray);
 								break;
 							case Constraints::DisabledOnly:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<true, IterDisabled>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<true, IterDisabled>(queryInfo, outArray);
 								break;
 							case Constraints::AcceptAll:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<true, IterAll>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<true, IterAll>(queryInfo, outArray);
 								break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<false, Iter>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<false, Iter>(queryInfo, outArray);
 								break;
 							case Constraints::DisabledOnly:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<false, IterDisabled>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<false, IterDisabled>(queryInfo, outArray);
 								break;
 							case Constraints::AcceptAll:
-								for (auto* pArchetype: queryInfo)
-									arr_inter<false, IterAll>(queryInfo, pArchetype->chunks(), outArray);
+								arr_inter<false, IterAll>(queryInfo, outArray);
 								break;
 						}
 					}
@@ -20828,7 +20874,10 @@ namespace gaia {
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
-			//! Set of entites to delete
+			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
+			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
+
+			//! Local set of entites to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
@@ -20853,8 +20902,20 @@ namespace gaia {
 			}
 
 			const EntityContainer& fetch(Entity entity) const {
+				// Valid entity
 				GAIA_ASSERT(valid(entity));
+				// Wildcard pairs are not a real entity so we can't accept them
+				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				return m_recs[entity];
+			}
+
+			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
+				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
+					return true;
+				if (ec.pArchetype != nullptr && ec.pArchetype->is_req_del())
+					return true;
+
+				return false;
 			}
 
 			struct EntityBuilder final {
@@ -20898,9 +20959,6 @@ namespace gaia {
 					GAIA_ASSERT(m_world.valid(m_entity));
 					GAIA_ASSERT(m_world.valid(entity));
 
-					if (m_pArchetype == m_world.m_pEntityArchetype) {
-						add_inter(m_entity);
-					}
 					add_inter(entity);
 					return *this;
 				}
@@ -20913,9 +20971,6 @@ namespace gaia {
 					GAIA_ASSERT(m_world.valid(pair.first()));
 					GAIA_ASSERT(m_world.valid(pair.second()));
 
-					if (m_pArchetype == m_world.m_pEntityArchetype) {
-						add_inter(m_entity);
-					}
 					add_inter(pair);
 					return *this;
 				}
@@ -21037,12 +21092,16 @@ namespace gaia {
 					return false;
 				}
 
+				static void updateFlag(EntityContainerFlagsType& flags, EntityContainerFlags flag, bool enable) {
+					if (enable)
+						flags |= flag;
+					else
+						flags &= ~flag;
+				};
+
 				void updateFlag(Entity entity, EntityContainerFlags flag, bool enable) {
 					auto& ec = m_world.fetch(entity);
-					if (enable)
-						ec.flags |= flag;
-					else
-						ec.flags &= ~flag;
+					updateFlag(ec.flags, flag, enable);
 				};
 
 				void try_set_flags(Entity entity, bool enable) {
@@ -21050,6 +21109,7 @@ namespace gaia {
 					try_set_CantCombine(entity, enable);
 					try_set_OnDeleteTarget(entity, enable);
 					try_set_OnDelete(entity, enable);
+					try_set_IsSingleton(entity, enable);
 				}
 
 				void try_set_Is(Entity entity, bool enable) {
@@ -21092,6 +21152,11 @@ namespace gaia {
 						updateFlag(m_entity, EntityContainerFlags::OnDelete_Error, enable);
 				}
 
+				void try_set_IsSingleton(Entity entity, bool enable) {
+					const bool isSingleton = m_entity == entity;
+					updateFlag(m_entity, EntityContainerFlags::IsSingleton, isSingleton && enable);
+				}
+
 				void handle_add(Entity entity) {
 #if GAIA_DEBUG
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
@@ -21127,7 +21192,7 @@ namespace gaia {
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
-					// Don't add the same entity twice
+					// Don't delete what has not beed added
 					if (!m_pArchetype->has(entity))
 						return;
 
@@ -21187,6 +21252,25 @@ namespace gaia {
 			};
 
 		private:
+			GAIA_NODISCARD bool valid(const EntityContainer& ec, Entity entityExpected) const {
+				if (is_req_del(ec))
+					return false;
+
+				// The entity in the chunk must match the index in the entity container
+				auto* pChunk = ec.pChunk;
+				if (pChunk == nullptr || ec.row >= pChunk->size())
+					return false;
+
+#if GAIA_ASSERT_ENABLED
+				const auto entityPresent = ec.pChunk->entity_view()[ec.row];
+				GAIA_ASSERT(entityExpected == entityPresent);
+				if (entityExpected != entityPresent)
+					return false;
+#endif
+
+				return true;
+			}
+
 			//! Checks if the pair \param entity is valid.
 			//! \return True if the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid_pair(Entity entity) const {
@@ -21206,10 +21290,7 @@ namespace gaia {
 					return false;
 
 				const auto& ec = it->second;
-
-				// The entity in the chunk must match the index in the entity container
-				auto* pChunk = ec.pChunk;
-				return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+				return valid(ec, entity);
 			}
 
 			//! Checks if the entity \param entity is valid.
@@ -21227,17 +21308,11 @@ namespace gaia {
 					return false;
 
 				const auto& ec = m_recs.entities[entity.id()];
-
-				// Generation ID has to match the one in the array
-				if (ec.gen != entity.gen())
-					return false;
-
-				// The entity in the chunk must match the index in the entity container
-				auto* pChunk = ec.pChunk;
-				return pChunk != nullptr && pChunk->entity_view()[ec.row] == entity;
+				return valid(ec, entity);
 			}
 
-			//! Checks if the entity with id \param entityId is valid. Pairs are not considered.
+			//! Checks if the entity with id \param entityId is valid.
+			//! Pairs are considered invalid.
 			//! \return True if entityId is valid. False otherwise.
 			GAIA_NODISCARD bool valid_entity_id(EntityId entityId) const {
 				if (entityId == EntityBad.id())
@@ -21248,15 +21323,10 @@ namespace gaia {
 					return false;
 
 				const auto& ec = m_recs.entities[entityId];
+				if (ec.pair != 0)
+					return false;
 
-#if GAIA_ASSERT_ENABLED
-				if (ec.pChunk != nullptr) {
-					auto entityExpected = ec.pChunk->entity_view()[ec.row];
-					GAIA_ASSERT(entityExpected == Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
-				}
-#endif
-
-				return ec.pChunk != nullptr;
+				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
 			}
 
 			//! Remove an entity from its chunk.
@@ -21301,20 +21371,20 @@ namespace gaia {
 				for (uint32_t i = 0; i < m_chunksToDel.size();) {
 					auto* pChunk = m_chunksToDel[i];
 
-					// Skip reclaimed chunks
+					// Revive reclaimed chunks
 					if (!pChunk->empty()) {
 						pChunk->revive();
 						core::erase_fast(m_chunksToDel, i);
 						continue;
 					}
 
-					// Skip chunks which still has some lifetime left
+					// Skip chunks which still have some lifetime left
 					if (pChunk->progress_death()) {
 						++i;
 						continue;
 					}
 
-					// Remove unused chunks
+					// Delete unused chunks that are past their lifetime
 					del_empty_chunk(pChunk);
 					core::erase_fast(m_chunksToDel, i);
 				}
@@ -21326,15 +21396,17 @@ namespace gaia {
 
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pArchetype->empty());
-				GAIA_ASSERT(!pArchetype->dying());
+				GAIA_ASSERT(!pArchetype->dying() || pArchetype->is_req_del());
 
 				// If the deleted archetype is the last one we defragmented
 				// make sure to point to the next one.
+				// Some archetypes are never deleted so the iterator is always going to contain
+				// a valid next archtype.
 				if (m_defragLastArchetypeID == pArchetype->id()) {
 					auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
 					++it;
 
-					// Handle the wrap-around
+					// Handle the wrap-around.
 					if (it == m_archetypesById.end()) {
 						auto* pArch = m_archetypesById.begin()->second;
 						m_defragLastArchetypeID = pArch->id();
@@ -21360,13 +21432,14 @@ namespace gaia {
 
 					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
-						pArchetype->revive();
+						revive_archetype(*pArchetype);
 						core::erase_fast(m_archetypesToDel, i);
 						continue;
 					}
 
-					// Skip archetypes which still has some lifetime left
-					if (pArchetype->progress_death()) {
+					// Skip archetypes which still has some lifetime left unless
+					// they are force-deleted.
+					if (!pArchetype->is_req_del() && pArchetype->progress_death()) {
 						++i;
 						continue;
 					}
@@ -21376,20 +21449,38 @@ namespace gaia {
 					// Remove the unused archetypes
 					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
+					delete pArchetype;
 				}
 
 				// Remove all dead archetypes from query caches.
 				// Because the number of cached queries is way higher than the number of archetypes
 				// we want to remove, we flip the logic around and iterate over all query caches
 				// and match against our lists.
+				// Note, all archetype pointers in the tmp array are invalid at this point and can
+				// be used only for comparison. They can't be dereferenced.
 				if (!tmp.empty()) {
 					// TODO: How to speed this up? If there are 1k cached queries is it still going to
-					//       be fast enough or do we get spikes?
+					//       be fast enough or do we get spikes? Probably a linked list for query cache
+					//       would be a way to go.
 					for (auto& info: m_queryCache) {
 						for (auto* pArchetype: tmp)
 							info.remove(pArchetype);
 					}
 				}
+			}
+
+			void revive_archetype(Archetype& archetype) {
+				archetype.revive();
+				m_reqArchetypesToDel.erase(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
+			}
+
+			void revive_archetype(Entity entity) {
+				auto& ec = fetch(entity);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
+
+				ec.pChunk->revive();
+				revive_archetype(*ec.pArchetype);
 			}
 
 			//! Defragments chunks.
@@ -21548,7 +21639,7 @@ namespace gaia {
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype was registered already
-				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
+				GAIA_ASSERT(m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
 
 				const auto& ids = pArchetype->ids();
 				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
@@ -21556,7 +21647,7 @@ namespace gaia {
 				m_archetypesByHash.erase(key);
 				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
 
-				// TODO: This is can be thousands or archetypes. We need a better way.
+				// TODO: This can be thousands or archetypes. We need a better way.
 				//       E.g., hash maps could contain indices to this array or something else.
 				//       Ideally this needs to be O(1).
 				const auto idx = core::get_index(m_archetypes, pArchetype);
@@ -21744,46 +21835,58 @@ namespace gaia {
 
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			void del_entity(Entity entity) {
-				if (entity.pair() || !has(entity))
+			void del_entity(Entity entity, bool invalidate = true) {
+				if (entity.pair() || entity == EntityBad)
 					return;
 
 				const auto& ec = fetch(entity);
 				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
-				if (m_recs.entities.item_count() == 0 || entity == EntityBad)
-					return;
+				// if (!is_req_del(ec))
+				{
+					if (m_recs.entities.item_count() == 0)
+						return;
 
-				auto* pChunk = ec.pChunk;
-				GAIA_ASSERT(pChunk != nullptr);
+					auto* pChunk = ec.pChunk;
+					GAIA_ASSERT(pChunk != nullptr);
 
-				// Remove the entity from its chunk.
-				// We call del_name first because remove_entity calls component destructors.
-				// If the call was made inside invalidate_entity we would access a memory location
-				// which has already been destructed which is not nice.
-				del_name(entity);
-				remove_entity(pChunk, ec.row);
-				invalidate_entity(entity);
+					// Remove the entity from its chunk.
+					// We call del_name first because remove_entity calls component destructors.
+					// If the call was made inside invalidate_entity we would access a memory location
+					// which has already been destructed which is not nice.
+					del_name(entity);
+					remove_entity(pChunk, ec.row);
+				}
 
-				// End-state validation
-				validate_chunk(pChunk);
-				validate_entities();
+				// Invalidate on-demand.
+				// We delete as a separate step in the delayed deletion.
+				if (invalidate)
+					invalidate_entity(entity);
 			}
 
+			//! Deletes all entites (and in turn chunks) from \param archetype.
+			//! If an archetype forming entity is present, the chunk is treated as if it were empty
+			//! and normal dying procedure is applied to it. At the last dying tick the entity is
+			//! deleted so the chunk can be removed.
 			void del_entities(Archetype& archetype) {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
 					for (auto e: ids) {
-#if GAIA_DEBUG
-						// We should never end up trying to delete a forbidden-to-delete entity
+						if (!valid(e))
+							continue;
+
 						const auto& ec = fetch(e);
-						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0);
-#endif
-						m_entitiesToDel.insert(EntityLookupKey(e));
+
+						// We should never end up trying to delete a forbidden-to-delete entity
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
+
+						del_entity(e);
 					}
 
-					// If the chunk was already dying we need to remove it
-					// from the delete list.
+					validate_chunk(pChunk);
+
+					// If the chunk was already dying we need to remove it from the delete list
+					// because we can delete it right away.
 					// TODO: Instead of searching for it we could store a delete index in the chunk
 					//       header. This way the lookup is O(1) instead of O(N) and it will help
 					//       with edge-cases (tons of chunks removed at the same time).
@@ -21795,9 +21898,11 @@ namespace gaia {
 
 					archetype.del(pChunk, m_archetypesToDel);
 				}
+
+				validate_entities();
 			}
 
-			bool archetype_cond_match(Archetype& archetype, Pair cond, Entity target) {
+			GAIA_NODISCARD bool archetype_cond_match(Archetype& archetype, Pair cond, Entity target) const {
 				// E.g.:
 				//   target = (All, entity)
 				//   cond = (OnDeleteTarget, delete)
@@ -21831,29 +21936,6 @@ namespace gaia {
 				}
 
 				return false;
-			}
-
-			//! Delete anything referencing the entity \param target. No questions asked.
-			void del_entities_with(Entity target, Pair cond = {EntityBad, EntityBad}) {
-				GAIA_PROF_SCOPE(World::del_entities_with);
-
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
-				if (it != m_entityToArchetypeMap.end()) {
-					const auto& archetypes = it->second;
-					if (cond.first() != EntityBad) {
-						for (auto* pArchetype: archetypes) {
-							// Evaluate the conditon if a valid pair is given
-							if (!archetype_cond_match(*pArchetype, cond, target))
-								continue;
-
-							del_entities(*pArchetype);
-						}
-					} else {
-						for (auto* pArchetype: archetypes) {
-							del_entities(*pArchetype);
-						}
-					}
-				}
 			}
 
 			//! Updates all chunks and entities of archetype \param srcArchetype so they are a part of \param dstArchetype
@@ -21989,29 +22071,121 @@ namespace gaia {
 				return calc_dst_archetype_ent(pArchetype, entity);
 			}
 
-			//! Removes the entity \param target from anything referencing it.
-			void rem_from_entities(Entity target, Pair cond = {EntityBad, EntityBad}) {
+			void req_del(Archetype& archetype) {
+				if (archetype.is_req_del())
+					return;
+
+				archetype.req_del();
+				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
+			}
+
+			void req_del(Entity entity) {
+				auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return;
+
+				// del_name(entity);
+				del_entity(entity, false);
+
+				ec.req_del();
+				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
+			}
+
+			//! Requests deleting anything that references the \param entity. No questions asked.
+			void req_del_entities_with(Entity entity) {
+				GAIA_PROF_SCOPE(World::req_del_entities_with);
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (auto* pArchetype: archetypes)
+					req_del(*pArchetype);
+			}
+
+			//! Requests deleting anything that references the \param entity. No questions asked.
+			//! Takes \param cond into account.
+			void req_del_entities_with(Entity entity, Pair cond) {
+				GAIA_PROF_SCOPE(World::req_del_entities_with);
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (auto* pArchetype: archetypes) {
+					// Evaluate the conditon if a valid pair is given
+					if (!archetype_cond_match(*pArchetype, cond, entity))
+						continue;
+
+					req_del(*pArchetype);
+				}
+			}
+
+			//! Removes the entity \param entity from anything referencing it.
+			void rem_from_entities(Entity entity) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(target));
-				if (it != m_entityToArchetypeMap.end()) {
-					if (cond.first() != EntityBad) {
-						for (auto* pArchetype: it->second) {
-							// Evaluate the conditon if a valid pair is given
-							if (!archetype_cond_match(*pArchetype, cond, target))
-								continue;
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
 
-							auto* pDstArchetype = calc_dst_archetype(pArchetype, target);
-							if (pDstArchetype != nullptr)
-								move_to_archetype(*pArchetype, *pDstArchetype);
-						}
-					} else {
-						for (auto* pArchetype: it->second) {
-							auto* pDstArchetype = calc_dst_archetype(pArchetype, target);
-							if (pDstArchetype != nullptr)
-								move_to_archetype(*pArchetype, *pDstArchetype);
-						}
+				// Invalidate the singleton status if necessary
+				if (!entity.pair()) {
+					auto& ec = fetch(entity);
+					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0) {
+						const auto& ids = ec.pArchetype->ids();
+						const auto idx = core::get_index(ids, entity);
+						if (idx != BadIndex)
+							EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::IsSingleton, false);
 					}
+				}
+
+				// Update archetypes of all affected entities
+				const auto& archetypes = it->second;
+				for (auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
+					if (pDstArchetype != nullptr)
+						move_to_archetype(*pArchetype, *pDstArchetype);
+				}
+			}
+
+			//! Removes the entity \param entity from anything referencing it.
+			//! Takes \param cond into account.
+			void rem_from_entities(Entity entity, Pair cond) {
+				GAIA_PROF_SCOPE(World::rem_from_entities);
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				// Invalidate the singleton status if necessary
+				if (!entity.pair()) {
+					auto& ec = fetch(entity);
+					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0) {
+						const auto& ids = ec.pArchetype->ids();
+						const auto idx = core::get_index(ids, entity);
+						if (idx != BadIndex)
+							EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::IsSingleton, false);
+					}
+				}
+
+				const auto& archetypes = it->second;
+				for (auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					// Evaluate the conditon if a valid pair is given
+					if (!archetype_cond_match(*pArchetype, cond, entity))
+						continue;
+
+					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
+					if (pDstArchetype != nullptr)
+						move_to_archetype(*pArchetype, *pDstArchetype);
 				}
 			}
 
@@ -22052,15 +22226,19 @@ namespace gaia {
 
 					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
 						// Delete all entities referencing this one as a relationship pair's target
-						del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+						req_del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
 					} else {
 						// Remove from all entities referencing this one as a relationship pair's target
 						rem_from_entities(Pair(All, tgt));
 					}
 
+					// This entity is supposed to be deleted. Nothing more for us to do here
+					if (is_req_del(ec))
+						return;
+
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
 						// Delete all references to the entity
-						del_entities_with(entity);
+						req_del_entities_with(entity);
 					} else {
 						// Entities are only removed by default
 						rem_from_entities(entity);
@@ -22085,28 +22263,24 @@ namespace gaia {
 
 					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
 						// Delete all entities referencing this one as a relationship pair's target
-						del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
+						req_del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
 					} else {
 						// Remove from all entities referencing this one as a relationship pair's target
-						rem_from_entities(Pair(All, entity), Pair(OnDeleteTarget, Delete));
+						rem_from_entities(Pair(All, entity));
 					}
+
+					// This entity is supposed to be deleted. Nothing more for us to do here
+					if (is_req_del(ec))
+						return;
 
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
 						// Delete all references to the entity
-						del_entities_with(entity);
+						req_del_entities_with(entity);
 					} else {
 						// Entities are only removed by default
 						rem_from_entities(entity);
 					}
 				}
-
-				// Delete what is requested
-				for (auto key: m_entitiesToDel) {
-					const auto e = key.entity();
-					del_name(e);
-					invalidate_entity(e);
-				}
-				m_entitiesToDel.clear();
 			}
 
 			//! Deletes any edges containing the entity from the archetype graph.
@@ -22178,8 +22352,14 @@ namespace gaia {
 				} else {
 					// Update the container record
 					auto& ec = m_recs.entities.free(entity);
+
+					// If this is a singleton entity its archetype needs to be deleted
+					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0)
+						req_del(*ec.pArchetype);
+
 					ec.pArchetype = nullptr;
 					ec.pChunk = nullptr;
+					EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
 					delPair(m_relationsToTargets, All, entity);
@@ -22867,7 +23047,7 @@ namespace gaia {
 			void del_inter(Entity entity) {
 				auto on_delete = [this](Entity entityToDel) {
 					handle_del_entity(entityToDel);
-					del_entity(entityToDel);
+					req_del(entityToDel);
 				};
 
 				if (is_wildcard(entity)) {
@@ -22904,6 +23084,40 @@ namespace gaia {
 					}
 				} else {
 					on_delete(entity);
+				}
+			}
+
+			//! Finalize all queued delete operations
+			void del_finalize() {
+				// Force-delete all entities from the requested archetypes along with the archetype itself
+				for (auto& key: m_reqArchetypesToDel) {
+					auto* pArchetype = key.archetype();
+					if (pArchetype == nullptr)
+						continue;
+
+					del_entities(*pArchetype);
+
+					// Now that all entites are deleted, all their chunks are requestd to get deleted
+					// and in turn the archetype itself as well. Therefore, it is added to the archetype
+					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
+					// > del_empty_archetype(pArchetype);
+				}
+				m_reqArchetypesToDel.clear();
+
+				// Try to delete all requested entities
+				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
+					const auto e = it->entity();
+
+					// Entities that form archetypes need to stay until the archetype itself is gone
+					if (m_entityToArchetypeMap.contains(*it)) {
+						++it;
+						continue;
+					}
+
+					// Requested entities are partialy deleted. We only need to invalidate them.
+					invalidate_entity(e);
+
+					it = m_reqEntitiesToDel.erase(it);
 				}
 			}
 
@@ -23104,12 +23318,15 @@ namespace gaia {
 					if (it == m_recs.pairs.end())
 						return false;
 
+					const auto& ec = it->second;
+					if (is_req_del(ec))
+						return false;
+
 #if GAIA_ASSERT_ENABLED
 					// If the pair is found, both entities forming it need to be found as well
 					GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
 
 					// Index of the entity must fit inside the chunk
-					const auto& ec = it->second;
 					auto* pChunk = ec.pChunk;
 					GAIA_ASSERT(pChunk != nullptr && ec.row < pChunk->size());
 #endif
@@ -23125,6 +23342,9 @@ namespace gaia {
 
 					// Index of the entity must fit inside the chunk
 					const auto& ec = m_recs.entities[entity.id()];
+					if (is_req_del(ec))
+						return false;
+
 					auto* pChunk = ec.pChunk;
 					return pChunk != nullptr && ec.row < pChunk->size();
 				}
@@ -23138,6 +23358,8 @@ namespace gaia {
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
 				const auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return false;
 
 				if (object.pair()) {
 					const auto* pArchetype = ec.pArchetype;
@@ -23202,6 +23424,9 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
+				if (is_req_del(ec))
+					return false;
+
 				return ComponentGetter{ec.pChunk, ec.row}.has<T>();
 			}
 
@@ -23520,6 +23745,8 @@ namespace gaia {
 			//! \param enable Enable or disable the entity
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
+				GAIA_ASSERT(valid(entity));
+
 				auto& ec = m_recs.entities[entity.id()];
 
 				GAIA_ASSERT(
@@ -23584,6 +23811,10 @@ namespace gaia {
 			//! Performs various internal operations related to the end of the frame such as
 			//! memory cleanup and other managment operations which keep the system healthy.
 			void update() {
+				// Finish deleting entities
+				del_finalize();
+
+				// Run garbage collector
 				gc();
 
 				// Signal the end of the frame
@@ -23611,6 +23842,10 @@ namespace gaia {
 
 					m_archetypesById = {};
 					m_archetypesByHash = {};
+
+					m_reqArchetypesToDel = {};
+					m_reqEntitiesToDel = {};
+
 					m_entitiesToDel = {};
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
@@ -23717,6 +23952,9 @@ namespace gaia {
 
 		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
+			if (World::is_req_del(ec))
+				return nullptr;
+
 			return ec.pArchetype;
 		}
 

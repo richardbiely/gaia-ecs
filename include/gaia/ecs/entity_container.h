@@ -19,7 +19,8 @@ namespace gaia {
 			EntityKind kind;
 		};
 
-		enum EntityContainerFlags : uint16_t {
+		using EntityContainerFlagsType = uint16_t;
+		enum EntityContainerFlags : EntityContainerFlagsType {
 			OnDelete_Remove = 1 << 0,
 			OnDelete_Delete = 1 << 1,
 			OnDelete_Error = 1 << 2,
@@ -29,6 +30,8 @@ namespace gaia {
 			HasAcyclic = 1 << 6,
 			HasCantCombine = 1 << 7,
 			HasAliasOf = 1 << 8,
+			IsSingleton = 1 << 9,
+			DeleteRequested = 1 << 10,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -79,6 +82,10 @@ namespace gaia {
 
 			static Entity create(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+
+			void req_del() {
+				flags |= DeleteRequested;
 			}
 		};
 
