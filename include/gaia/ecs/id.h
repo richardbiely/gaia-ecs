@@ -380,7 +380,15 @@ namespace gaia {
 			pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
 
 			operator Entity() const noexcept {
-				return Entity(m_first.id(), m_second.id(), false, true, EntityKind::EK_Gen);
+				return Entity(
+						m_first.id(), m_second.id(),
+						// Pairs have no way of telling gen and uni entities apart.
+						// Therefore, for first, we use the entity bit as Gen/Uni...
+						(bool)m_first.kind(),
+						// Always true for pairs
+						true,
+						// ... and for second, we use the kind bit.
+						m_second.kind());
 			}
 
 			Entity first() const noexcept {
