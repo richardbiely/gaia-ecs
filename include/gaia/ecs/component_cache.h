@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
+#include <cinttypes>
 #include <cstdint>
 #include <type_traits>
 
@@ -227,14 +228,19 @@ namespace gaia {
 				const auto registeredTypes = m_descIdArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
-				auto logDesc = [](const ComponentCacheItem* pDesc) {
+				auto logDesc = [](const ComponentCacheItem& desc) {
 					GAIA_LOG_N(
-							"  [%u:%u], id:%010u, %s", pDesc->entity.id(), pDesc->entity.gen(), pDesc->comp.id(), pDesc->name.str());
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
+							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
+							EntityKindString[desc.entity.kind()]);
 				};
-				for (const auto* pDesc: m_descIdArr)
-					logDesc(pDesc);
+				for (const auto* pDesc: m_descIdArr) {
+					if (pDesc == nullptr)
+						continue;
+					logDesc(*pDesc);
+				}
 				for (auto [componentId, pDesc]: m_descByDescId)
-					logDesc(pDesc);
+					logDesc(*pDesc);
 			}
 		};
 	} // namespace ecs
