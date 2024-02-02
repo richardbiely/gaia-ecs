@@ -290,7 +290,7 @@ namespace gaia {
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
 						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
 						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
-						const uint32_t idx = uint32_t(pairComponents[0].size() != 0U) | uint32_t(pairComponents[1].size() == 0U);
+						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
 						comps[i] = pairComponents[idx];
 					} else {
 						comps[i] = as_comp(ids[i]);

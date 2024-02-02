@@ -14303,7 +14303,15 @@ namespace gaia {
 			pair(Entity a, Entity b) noexcept: m_first(a), m_second(b) {}
 
 			operator Entity() const noexcept {
-				return Entity(m_first.id(), m_second.id(), false, true, EntityKind::EK_Gen);
+				return Entity(
+						m_first.id(), m_second.id(),
+						// Pairs have no way of telling gen and uni entities apart.
+						// Therefore, for first, we use the entity bit as Gen/Uni...
+						(bool)m_first.kind(),
+						// Always true for pairs
+						true,
+						// ... and for second, we use the kind bit.
+						m_second.kind());
 			}
 
 			Entity first() const noexcept {
@@ -15231,6 +15239,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cinttypes>
 #include <cstdint>
 #include <type_traits>
 
@@ -15366,7 +15375,10 @@ namespace gaia {
 				}
 
 				static constexpr uint32_t size() {
-					return (uint32_t)sizeof(U);
+					if constexpr (std::is_empty_v<U>)
+						return 0;
+					else
+						return (uint32_t)sizeof(U);
 				}
 
 				static constexpr uint32_t alig() {
@@ -15916,14 +15928,19 @@ namespace gaia {
 				const auto registeredTypes = m_descIdArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
-				auto logDesc = [](const ComponentCacheItem* pDesc) {
+				auto logDesc = [](const ComponentCacheItem& desc) {
 					GAIA_LOG_N(
-							"  [%u:%u], id:%010u, %s", pDesc->entity.id(), pDesc->entity.gen(), pDesc->comp.id(), pDesc->name.str());
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
+							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
+							EntityKindString[desc.entity.kind()]);
 				};
-				for (const auto* pDesc: m_descIdArr)
-					logDesc(pDesc);
+				for (const auto* pDesc: m_descIdArr) {
+					if (pDesc == nullptr)
+						continue;
+					logDesc(*pDesc);
+				}
 				for (auto [componentId, pDesc]: m_descByDescId)
-					logDesc(pDesc);
+					logDesc(*pDesc);
 			}
 		};
 	} // namespace ecs
@@ -17590,7 +17607,7 @@ namespace gaia {
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
 						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
 						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
-						const uint32_t idx = uint32_t(pairComponents[0].size() != 0U) | uint32_t(pairComponents[1].size() == 0U);
+						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
 						comps[i] = pairComponents[idx];
 					} else {
 						comps[i] = as_comp(ids[i]);
@@ -20998,8 +21015,9 @@ namespace gaia {
 					if constexpr (is_pair<T>::value) {
 						const auto rel = m_world.add<typename T::rel>().entity;
 						const auto tgt = m_world.add<typename T::tgt>().entity;
-						add_inter(Pair(rel, tgt));
-						return (Entity)Pair(rel, tgt);
+						const Entity ent = Pair(rel, tgt);
+						add_inter(ent);
+						return ent;
 					} else {
 						return m_world.add<T>().entity;
 					}

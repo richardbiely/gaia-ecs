@@ -224,8 +224,9 @@ namespace gaia {
 					if constexpr (is_pair<T>::value) {
 						const auto rel = m_world.add<typename T::rel>().entity;
 						const auto tgt = m_world.add<typename T::tgt>().entity;
-						add_inter(Pair(rel, tgt));
-						return (Entity)Pair(rel, tgt);
+						const Entity ent = Pair(rel, tgt);
+						add_inter(ent);
+						return ent;
 					} else {
 						return m_world.add<T>().entity;
 					}

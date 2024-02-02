@@ -45,7 +45,10 @@ namespace gaia {
 				}
 
 				static constexpr uint32_t size() {
-					return (uint32_t)sizeof(U);
+					if constexpr (std::is_empty_v<U>)
+						return 0;
+					else
+						return (uint32_t)sizeof(U);
 				}
 
 				static constexpr uint32_t alig() {
