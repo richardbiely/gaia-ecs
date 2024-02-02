@@ -1826,6 +1826,15 @@ TEST_CASE("Pair") {
 		using Pair2Actual = ecs::actual_type_t<Pair2>;
 		static_assert(std::is_same_v<Pair2Actual::Type, Position>);
 		static_assert(std::is_same_v<Pair2Actual::TypeFull, ecs::uni<Position>>);
+
+		TestWorld twld;
+		const auto& pci = wld.add<Position>();
+		const auto& upci = wld.add<ecs::uni<Position>>();
+		using TestPair = ecs::pair<Position, ecs::uni<Position>>;
+		const auto& pci2 = wld.add<TestPair::rel>();
+		const auto& upci2 = wld.add<TestPair::tgt>();
+		REQUIRE(pci.entity == pci2.entity);
+		REQUIRE(upci.entity == upci2.entity);
 	}
 	{
 		TestWorld twld;
@@ -1842,7 +1851,7 @@ TEST_CASE("Pair") {
 		REQUIRE(p.y == 5);
 		REQUIRE(p.z == 5);
 
-		wld.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50});
+		wld.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50}); // 19, 14:19
 		auto spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
 		REQUIRE(spu.x == 50);
 		REQUIRE(spu.y == 50);
@@ -1851,7 +1860,7 @@ TEST_CASE("Pair") {
 		REQUIRE(p.y == 5);
 		REQUIRE(p.z == 5);
 
-		wld.add<ecs::pair<Start, Position>>(e, {100, 100, 100});
+		wld.add<ecs::pair<Start, Position>>(e, {100, 100, 100}); // 14:18
 		auto sp = wld.get<ecs::pair<Start, Position>>(e);
 		REQUIRE(sp.x == 100);
 		REQUIRE(sp.y == 100);
@@ -3247,7 +3256,93 @@ TEST_CASE("Add - unique") {
 	}
 }
 
-TEST_CASE("del - generic") {
+TEST_CASE("Add - mixed") {
+	{
+		TestWorld twld;
+		auto e = wld.add();
+
+		auto f = wld.add(ecs::EntityKind::EK_Uni);
+		wld.add(e, f);
+		REQUIRE(wld.has(e, f));
+	}
+
+	{
+		TestWorld twld;
+		auto e = wld.add();
+
+		wld.add<Position>(e);
+		wld.add<ecs::uni<Position>>(e);
+
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+	}
+
+	{
+		TestWorld twld;
+		auto e = wld.add();
+
+		// Add Position unique component
+		wld.add<Position>(e, {10, 20, 30});
+		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		{
+			auto p = wld.get<Position>(e);
+			REQUIRE(p.x == 10.f);
+			REQUIRE(p.y == 20.f);
+			REQUIRE(p.z == 30.f);
+		}
+		{
+			auto p = wld.get<ecs::uni<Position>>(e);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
+		}
+		// Add Acceleration unique component.
+		// This moves "e" to a new archetype.
+		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		{
+			auto a = wld.get<ecs::uni<Acceleration>>(e);
+			REQUIRE(a.x == 4.f);
+			REQUIRE(a.y == 5.f);
+			REQUIRE(a.z == 6.f);
+		}
+		{
+			// Position will remain the same
+			auto p = wld.get<Position>(e);
+			REQUIRE(p.x == 10.f);
+			REQUIRE(p.y == 20.f);
+			REQUIRE(p.z == 30.f);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			auto p = wld.get<ecs::uni<Position>>(e);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
+		}
+		wld.set<ecs::uni<Position>>(e, {100.0f, 200.0f, 300.0f});
+		{
+			auto p = wld.get<Position>(e);
+			REQUIRE(p.x == 10.f);
+			REQUIRE(p.y == 20.f);
+			REQUIRE(p.z == 30.f);
+		}
+		{
+			auto p = wld.get<ecs::uni<Position>>(e);
+			REQUIRE(p.x == 100.f);
+			REQUIRE(p.y == 200.f);
+			REQUIRE(p.z == 300.f);
+		}
+	}
+}
+
+TEST_CASE("Del - generic") {
 	{
 		TestWorld twld;
 		auto e1 = wld.add();
@@ -3298,7 +3393,7 @@ TEST_CASE("del - generic") {
 	}
 }
 
-TEST_CASE("del - unique") {
+TEST_CASE("Del - unique") {
 	TestWorld twld;
 	auto e1 = wld.add();
 
@@ -3333,7 +3428,7 @@ TEST_CASE("del - unique") {
 	}
 }
 
-TEST_CASE("del - generic, unique") {
+TEST_CASE("Del - generic, unique") {
 	TestWorld twld;
 	auto e1 = wld.add();
 
@@ -3366,7 +3461,7 @@ TEST_CASE("del - generic, unique") {
 	}
 }
 
-TEST_CASE("del - cleanup rules") {
+TEST_CASE("Del - cleanup rules") {
 	SECTION("default") {
 		TestWorld twld;
 		auto wolf = wld.add();
@@ -3474,7 +3569,7 @@ TEST_CASE("del - cleanup rules") {
 	}
 }
 
-TEST_CASE("entity name") {
+TEST_CASE("Entity name - entity only") {
 	constexpr uint32_t N = 1'500;
 
 	TestWorld twld;
@@ -3621,6 +3716,57 @@ TEST_CASE("entity name") {
 	}
 }
 
+TEST_CASE("Entity name - component") {
+	constexpr uint32_t N = 1'500;
+
+	TestWorld twld;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
+
+	// Add component
+	const auto& pci = wld.add<Position>();
+	{
+		// name must match
+		const char* name = wld.name(pci.entity);
+		REQUIRE(strcmp(name, "Position") == 0);
+		const auto e = wld.get("Position");
+		REQUIRE(e == pci.entity);
+	}
+	// Add unique component
+	const auto& upci = wld.add<ecs::uni<Position>>();
+	{
+		// name must match
+		const char* name = wld.name(upci.entity);
+		REQUIRE(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		const auto e = wld.get("gaia::ecs::uni<Position>");
+		REQUIRE(e == upci.entity);
+	}
+	{
+		// generic component name must still match
+		const char* name = wld.name(pci.entity);
+		REQUIRE(strcmp(name, "Position") == 0);
+		const auto e = wld.get("Position");
+		REQUIRE(e == pci.entity);
+	}
+
+	// Change the component name
+	wld.name(pci.entity, "xyz", 3);
+	{
+		// name must match
+		const char* name = wld.name(pci.entity);
+		REQUIRE(strcmp(name, "xyz") == 0);
+		const auto e = wld.get("xyz");
+		REQUIRE(e == pci.entity);
+	}
+	{
+		// unique component name must still match
+		const char* name = wld.name(upci.entity);
+		REQUIRE(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		const auto e = wld.get("gaia::ecs::uni<Position>");
+		REQUIRE(e == upci.entity);
+	}
+}
+
 TEST_CASE("Usage 1 - simple query, 0 component") {
 	TestWorld twld;
 
@@ -3679,7 +3825,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 	}
 }
 
-TEST_CASE("entity copy") {
+TEST_CASE("Entity copy") {
 	TestWorld twld;
 
 	auto e1 = wld.add();
