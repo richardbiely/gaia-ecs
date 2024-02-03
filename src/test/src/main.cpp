@@ -1564,6 +1564,17 @@ TEST_CASE("Entity - EntityBad") {
 	REQUIRE(e.entity());
 }
 
+TEST_CASE("Entity copy") {
+	TestWorld twld;
+
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	wld.add(e1, e2);
+	auto e3 = wld.copy(e1);
+
+	REQUIRE(wld.has(e3, e2));
+}
+
 TEST_CASE("Add - no components") {
 	const uint32_t N = 1'500;
 
@@ -2301,6 +2312,45 @@ TEST_CASE("Query - QueryResult") {
 	}
 	SECTION("Non-cached query") {
 		Test_Query_QueryResult<ecs::QueryUncached>();
+	}
+	SECTION("Caching") {
+		struct Player {};
+		struct Health {
+			uint32_t value;
+		};
+
+		TestWorld twld;
+
+		const auto player = wld.add();
+		wld.bulk(player).add<Player>().add<Health>();
+
+		uint32_t matches = 0;
+		auto qp = wld.query().all<Health, Player>();
+		qp.each([&matches]() {
+			++matches;
+		});
+		REQUIRE(matches == 1);
+
+		// Add new entity with some new component. Creates a new archetype.
+		const auto something = wld.add();
+		wld.add<Something>(something);
+
+		// We still need to match the player entity once
+		matches = 0;
+		qp.each([&matches]() {
+			++matches;
+		});
+		REQUIRE(matches == 1);
+
+		// New the new item also has the health component
+		wld.add<Health>(something);
+
+		// We still need to match the player entity once
+		matches = 0;
+		qp.each([&matches]() {
+			++matches;
+		});
+		REQUIRE(matches == 1);
 	}
 }
 
@@ -3823,17 +3873,6 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		});
 		REQUIRE(cnt == 0);
 	}
-}
-
-TEST_CASE("Entity copy") {
-	TestWorld twld;
-
-	auto e1 = wld.add();
-	auto e2 = wld.add();
-	wld.add(e1, e2);
-	auto e3 = wld.copy(e1);
-
-	REQUIRE(wld.has(e3, e2));
 }
 
 TEST_CASE("Usage 1 - simple query, 1 component") {

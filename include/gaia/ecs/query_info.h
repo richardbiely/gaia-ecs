@@ -352,10 +352,11 @@ namespace gaia {
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), 0U);
-				else
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), archetypes.size());
+				else {
 					lastMatchedIdx = cache_it->second;
-				cache_it->second = archetypes.size();
+					cache_it->second = archetypes.size();
+				}
 
 				// For simple cases it is enough to add archetypes to cache right away
 				if (idsToMatch.size() == 1) {
@@ -402,10 +403,11 @@ namespace gaia {
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), 0U);
-				else
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), archetypes.size());
+				else {
 					lastMatchedIdx = cache_it->second;
-				cache_it->second = archetypes.size();
+					cache_it->second = archetypes.size();
+				}
 
 				// For simple cases it is enough to add archetypes to cache right away
 				// if (idsToMatch.size() == 1) {
@@ -447,10 +449,11 @@ namespace gaia {
 				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), 0U);
-				else
+					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), archetypes.size());
+				else {
 					lastMatchedIdx = cache_it->second;
-				cache_it->second = archetypes.size();
+					cache_it->second = archetypes.size();
+				}
 
 				// For simple cases it is enough to add archetypes to cache right away
 				if (idsToMatch.size() == 1) {
@@ -501,10 +504,11 @@ namespace gaia {
 				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), 0U);
-				else
+					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), archetypes.size());
+				else {
 					lastMatchedIdx = cache_it->second;
-				cache_it->second = archetypes.size();
+					cache_it->second = archetypes.size();
+				}
 
 				// For simple cases it is enough to add archetypes to cache right away
 				// if (idsToMatch.size() == 1) {
