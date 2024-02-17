@@ -23,7 +23,7 @@ namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
 		static constexpr uint32_t MaxMemoryBlockSize = 16384;
-		//! Unusable area at the beggining of the allocated block designated for special pruposes
+		//! Unusable area at the beggining of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {

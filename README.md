@@ -79,6 +79,9 @@
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
   * [Multithreading](#multithreading)
+    * [Jobs](#jobs)
+    * [Priorities](#priorities)
+    * [Threads](#threads)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
@@ -1232,6 +1235,8 @@ struct CustomStruct {
  It doesn't matter which kind of specialization you use. However, note that if both are used the external one has priority.
 
 ## Multithreading
+
+### Jobs
 To fully utilize your system's potential **Gaia-ECS** allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
 Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***ThreadPool::sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
@@ -1257,7 +1262,8 @@ tp.wait(jobHandle1);
 >**NOTE:<br/>**
 It is important to call ***ThreadPool::wait*** for each scheduled ***JobHandle*** because it also performs cleanup.
 
-Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***ThreadPool::wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
+Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***ThreadPool::wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
+
 ```cpp
 // Wait for all jobs to complete
 tp.wait_all();
@@ -1356,6 +1362,103 @@ tp.submit(job0Handle);
 // Calling wait() for dependencies is not necessary. It is be done internally.
 tp.wait(job2Handle);
 ```
+
+### Priorities
+
+Nowdays, CPUs have multiple cores. Each of them is capable of running at different frequencies depending on the system's power-saving requirements and workload. Some CPUs contain cores designed to be used specifically in high-performance or efficiency scenarios. Or, some systems even have multiple CPUs.
+
+Therefore, it is important to have the abilitly to utilize these CPU features with the right workload for our needs. Gaia-ECS allows jobs to be assigned a priority tag. You can either create a high-priority jobs (default) or low-priority ones.
+
+The operating system should try to schedule the high-priority jobs to cores with highest level of performance (either performance cores, or cores with highest frequency etc.). Low-priority jobs are to target slowest cores (either efficiency cores, or cores with lowest frequency).
+
+Where possible, the given system's QoS is utilized (Windows, MacOS). In case of operating systems based on Linux/FreeBSD that do not support QoS out-of-the-box, thread priorities are utilized.
+
+Note, thread affinity is not managed and left on default because this plays better with QoS and gives the operating system more control over scheduling.
+
+```cpp
+// Create a job designated for performance cores
+mt::Job job0;
+job0.priority = JobPriority::High;
+job0.func = ...;
+tp.sched(job0);
+
+// Create a job designated for efficiency cores
+mt::Job job0;
+job0.priority = JobPriority::Low;
+job0.func = ...;
+tp.sched(job0);
+```
+
+### Threads
+
+The total number of threads created for the pool is set via ***ThreadPool::set_max_workers***. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter have many threads are requested, the final number if always capped to 31 (***ThreadPool::MaxWorkers***). You number of available threads for you hardware can be retrived via ***ThreadPool::hw_thread_cnt***.
+
+```cpp
+auto& tp = mt::ThreadPool::get();
+
+// Get the number of hardware threads.
+const uint32_t hwThreads = tp.hw_thread_cnt();
+
+// Create "hwThreads" worker threads. Make all of them high priority workers.
+tp.set_max_workers(hwThreads, hwThreads);
+
+// Create "hwThreads" worker threads. Make 1 of them a high priority worker.
+// If more then 1 worker threads were created, the rest of them is dedicated
+// for low-priority jobs.
+tp.set_max_workers(hwThreads, 1);
+
+// No workers threads are used. If there were any before, they are destroyed.
+// All processing is happening on the main thread.
+tp.set_max_workers(0, 0);
+```
+
+The number of worker threads for a given performance level can be adjusted via ***ThreadPool::set_workers_high_prio*** and ***ThreadPool::set_workers_low_prio***. By default, all workers created are high-priority ones.
+
+```cpp
+auto& tp = mt::ThreadPool::get();
+
+// Get the number of worker threads available for this system.
+const uint32_t workers = tp.workers();
+
+// Set the number of worker threads dedicted for performance cores.
+// E.g. if workers==5, this dedicates 4 worker threads for high-performance workloads
+// and turns the remaining 1 into an efficiency worker.
+tp.set_workers_high_prio(workers - 1);
+
+// Make all workers high-performance ones.
+tp.set_workers_high_prio(workers);
+
+// Set the number of worker threads dedicted for efficiency cores.
+// E.g. if workers==5, this dedicates 4 worker threads for efficiency workloads loads
+// and turns the remaining 1 into a high-performance worker.
+tp.set_workers_low_prio(workers - 1);
+
+// Make all workers low-performance ones.
+tp.set_workers_low_prio(workers);
+```
+
+The main thread normally does not participate as a worker thread. However, if needed, it can join workers by calling ***ThreadPool::update*** from the main thread.
+
+```cpp
+auto& tp = mt::ThreadPool::get();
+
+ecs::World w1, w2;
+while (!stopProgram) {
+  // Create many jobs here
+  // ...
+
+  // Update both worlds
+  w1.update();
+  w2.update();
+
+  // Help execute jobs on the main thread, too
+  tp.update();
+}
+```
+
+If you need to designate a certain thread as the main thread, you can do it by calling ***ThreadPool::make_main_thread*** from that thread.
+
+Note, the operating system has the last word here. It might decide to schedule low-priority threads to high-performance cores or high-priority threads to efficiency cores depending on how the scheduler decides it should be.
 
 # Requirements
 

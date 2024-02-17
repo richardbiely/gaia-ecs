@@ -34,23 +34,57 @@ namespace gaia {
 
 		struct JobContainer: cnt::ilist_item {
 			uint32_t dependencyIdx;
-			JobInternalState state;
+			JobPriority priority : 1;
+			JobInternalState state : 31;
 			std::function<void()> func;
 
 			JobContainer() = default;
-			JobContainer(uint32_t index, uint32_t generation):
-					cnt::ilist_item(index, generation), state(JobInternalState::Idle) {}
+
+			static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+				auto* ctx = (JobAllocCtx*)pCtx;
+
+				JobContainer jc{};
+				jc.idx = index;
+				jc.gen = generation;
+				jc.priority = ctx->priority;
+				jc.state = JobInternalState::Idle;
+				// The rest of the values are set later on:
+				//   jc.dependencyIdx
+				//   jc.func
+				return jc;
+			}
+
+			static JobHandle create(const JobContainer& jc) {
+				return JobHandle(jc.idx, jc.gen, (uint32_t)jc.priority);
+			}
 		};
+
+		using DepHandle = JobHandle;
 
 		struct JobDependency: cnt::ilist_item {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
 
 			JobDependency() = default;
-			JobDependency(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
-		};
 
-		using DepHandle = JobHandle;
+			static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
+				JobDependency jd{};
+				jd.idx = index;
+				jd.gen = generation;
+				// The rest of the values are set later on:
+				//   jc.dependencyIdxNext
+				//   jc.dependsOn
+				return jd;
+			}
+
+			static DepHandle create(const JobDependency& jd) {
+				return DepHandle(
+						jd.idx, jd.gen,
+						// It does not matter what value we set for priority on dependencies,
+						// it is always going to be ignored.
+						1);
+			}
+		};
 
 		class JobManager {
 			std::mutex m_jobsLock;
@@ -74,8 +108,9 @@ namespace gaia {
 				while (depIdx != (uint32_t)-1) {
 					auto& dep = m_deps[depIdx];
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
+					// const uint32_t depPrio = dep.;
 					wait(dep.dependsOn);
-					free_dep(DepHandle{depIdx, 0});
+					free_dep(DepHandle{depIdx, 0, jobHandle.prio()});
 					depIdx = depIdxNext;
 				}
 
@@ -87,8 +122,9 @@ namespace gaia {
 			//! \return JobHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
+				JobAllocCtx ctx{job.priority};
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto handle = m_jobs.alloc();
+				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
 				j.dependencyIdx = (uint32_t)-1;
@@ -111,7 +147,8 @@ namespace gaia {
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD DepHandle alloc_dep() {
-				return m_deps.alloc();
+				JobAllocCtx dummyCtx{};
+				return m_deps.alloc(&dummyCtx);
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
@@ -172,7 +209,7 @@ namespace gaia {
 					// have already finished and there's no need to check them.
 					do {
 						JobDependency dep = m_deps[depsId];
-						if (!Isdone(dep.dependsOn)) {
+						if (!done(dep.dependsOn)) {
 							m_jobs[jobHandle.id()].dependencyIdx = depsId;
 							return false;
 						}
@@ -276,7 +313,7 @@ namespace gaia {
 				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
 			}
 
-			GAIA_NODISCARD bool Isdone(JobHandle jobHandle) const {
+			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
 				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
 			}

@@ -1,3 +1,4 @@
+#include "gaia/mt/threadpool.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -5471,18 +5472,31 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 }
 
 TEST_CASE("Multithreading - Schedule") {
+	auto& tp = mt::ThreadPool::get();
+
 	constexpr uint32_t JobCount = 64;
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
 	cnt::sarray<uint32_t, JobCount> res;
-	GAIA_FOR(res.max_size()) res[i] = 0;
 
 	cnt::darr<uint32_t> arr;
 	arr.resize(N);
 	GAIA_EACH(arr) arr[i] = 1;
 
-	Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
+	SECTION("Max workers") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
+	}
+	SECTION("0 workers") {
+		tp.set_max_workers(0, 0);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
+	}
 }
 
 TEST_CASE("Multithreading - ScheduleParallel") {
@@ -5502,12 +5516,24 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 		sum1 += JobSystemFunc({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
-	tp.wait(jobHandle);
+	auto work = [&]() {
+		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
+		tp.wait(jobHandle);
+		REQUIRE(sum1 == N);
+		tp.wait_all();
+	};
 
-	REQUIRE(sum1 == N);
+	SECTION("Max workers") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
 
-	tp.wait_all();
+		work();
+	}
+	SECTION("0 workers") {
+		tp.set_max_workers(0, 0);
+
+		work();
+	}
 }
 
 TEST_CASE("Multithreading - complete") {
@@ -5521,58 +5547,86 @@ TEST_CASE("Multithreading - complete") {
 	handles.resize(Jobs);
 	res.resize(Jobs);
 
-	GAIA_EACH(res) res[i] = (uint32_t)-1;
+	auto work = [&]() {
+		GAIA_EACH(res) res[i] = (uint32_t)-1;
 
-	GAIA_FOR(Jobs) {
-		mt::Job job;
-		job.func = [&res, i]() {
-			res[i] = i;
-		};
-		handles[i] = tp.sched(job);
+		GAIA_FOR(Jobs) {
+			mt::Job job;
+			job.func = [&res, i]() {
+				res[i] = i;
+			};
+			handles[i] = tp.sched(job);
+		}
+
+		GAIA_FOR(Jobs) {
+			tp.wait(handles[i]);
+			REQUIRE(res[i] == i);
+		}
+	};
+
+	SECTION("Max workers") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		work();
 	}
+	SECTION("0 workers") {
+		tp.set_max_workers(0, 0);
 
-	GAIA_FOR(Jobs) {
-		tp.wait(handles[i]);
-		REQUIRE(res[i] == i);
+		work();
 	}
 }
 
 TEST_CASE("Multithreading - CompleteMany") {
 	auto& tp = mt::ThreadPool::get();
 
-	srand(0);
-
 	constexpr uint32_t Iters = 15000;
-	uint32_t res = (uint32_t)-1;
 
-	GAIA_FOR(Iters) {
-		mt::Job job0{[&res, i]() {
-			res = (i + 1);
-		}};
-		mt::Job job1{[&res, i]() {
-			res *= (i + 1);
-		}};
-		mt::Job job2{[&res, i]() {
-			res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
-		}};
+	auto work = [&]() {
+		srand(0);
+		uint32_t res = (uint32_t)-1;
 
-		const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
+		GAIA_FOR(Iters) {
+			mt::Job job0{[&res, i]() {
+				res = (i + 1);
+			}};
+			mt::Job job1{[&res, i]() {
+				res *= (i + 1);
+			}};
+			mt::Job job2{[&res, i]() {
+				res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
+			}};
 
-		tp.dep(jobHandle[1], jobHandle[0]);
-		tp.dep(jobHandle[2], jobHandle[1]);
+			const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
 
-		// 2, 0, 1 -> wrong sum
-		// Submit jobs in random order to make sure this doesn't work just by accident
-		const uint32_t startIdx0 = rand() % 3;
-		const uint32_t startIdx1 = (startIdx0 + 1) % 3;
-		const uint32_t startIdx2 = (startIdx0 + 2) % 3;
-		tp.submit(jobHandle[startIdx0]);
-		tp.submit(jobHandle[startIdx1]);
-		tp.submit(jobHandle[startIdx2]);
+			tp.dep(jobHandle[1], jobHandle[0]);
+			tp.dep(jobHandle[2], jobHandle[1]);
 
-		tp.wait(jobHandle[2]);
+			// 2, 0, 1 -> wrong sum
+			// Submit jobs in random order to make sure this doesn't work just by accident
+			const uint32_t startIdx0 = rand() % 3;
+			const uint32_t startIdx1 = (startIdx0 + 1) % 3;
+			const uint32_t startIdx2 = (startIdx0 + 2) % 3;
+			tp.submit(jobHandle[startIdx0]);
+			tp.submit(jobHandle[startIdx1]);
+			tp.submit(jobHandle[startIdx2]);
 
-		REQUIRE(res == (i + 1));
+			tp.wait(jobHandle[2]);
+
+			REQUIRE(res == (i + 1));
+		}
+	};
+
+	SECTION("Max workers") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		work();
+	}
+	SECTION("0 workers") {
+		tp.set_max_workers(0, 0);
+
+		work();
 	}
 }
 

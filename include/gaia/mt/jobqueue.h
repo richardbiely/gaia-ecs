@@ -17,6 +17,7 @@
 namespace gaia {
 	namespace mt {
 		class JobQueue {
+			//! The maximum number of jobs fitting in the queue at the same time
 			static constexpr uint32_t N = 1 << 12;
 #if !JOB_QUEUE_USE_LOCKS
 			static constexpr uint32_t MASK = N - 1;

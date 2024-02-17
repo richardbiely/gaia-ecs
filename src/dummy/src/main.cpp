@@ -543,6 +543,28 @@ void test8() {
 	w.update();
 }
 
+void test9() {
+	ecs::World w;
+	auto e = w.add(); // 14
+
+	struct Start {};
+	w.add<Position>(e); // 15
+	w.add<ecs::uni<Position>>(e); // 16
+	w.add<Start>(e); // 17
+
+	GAIA_LOG_N("set --------------------");
+	w.add<ecs::pair<Start, Position>>(e, {1, 1, 1}); // 17:15
+	w.add<ecs::pair<Start, ecs::uni<Position>>>(e, {10, 10, 10}); // 17:16
+
+	GAIA_LOG_N("get --------------------");
+	auto p = w.get<ecs::pair<Start, Position>>(e);
+	auto up = w.get<ecs::pair<Start, ecs::uni<Position>>>(e);
+
+	w.diag_components();
+	w.diag_archetypes();
+	w.update();
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -552,7 +574,8 @@ int main() {
 	// test5();
 	// test6();
 	// test7();
-	test8();
+	// test8();
+	test9();
 
 	// g_test_0.getters();
 	// g_test_0.setters();
