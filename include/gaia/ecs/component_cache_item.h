@@ -138,13 +138,42 @@ namespace gaia {
 						detail::ComponentDesc<T>::alig());
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
 
+				auto ct_name = detail::ComponentDesc<T>::name();
+
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
-				auto ct_name = detail::ComponentDesc<T>::name();
-				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
-				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
-				name[ct_name.size()] = 0;
-				SymbolLookupKey tmp(name, (uint32_t)ct_name.size());
+				// Different compilers will give a bit different strings, e.g.:
+				//   Clang/GCC: gaia::ecs::uni<Position>
+				//   MSVC     : gaia::ecs::uni<struct Position>
+				// Therefore, we first copy the compile-time string and then tweak it so it is
+				// the same on all supported compilers.
+				char nameTmp[256];
+				auto nameTmpLen = (uint32_t)ct_name.size();
+				GAIA_ASSERT(nameTmpLen < 256);
+				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen + 1);
+				nameTmp[ct_name.size()] = 0;
+
+				// Remove "class " or "struct " substrings from the string
+				const uint32_t NSubstrings = 2;
+				const char* to_remove[NSubstrings] = {"class ", "struct "};
+				const uint32_t to_remove_len[NSubstrings] = {6, 7};
+				GAIA_FOR(NSubstrings) {
+					const auto& str = to_remove[i];
+					const auto len = to_remove_len[i];
+
+					auto* pos = nameTmp;
+					while ((pos = strstr(pos, str)) != nullptr) {
+						memmove(pos, pos + len, strlen(pos + len) + 1);
+						nameTmpLen -= len;
+					}
+				}
+
+				// Allocate the final string
+				char* name = (char*)mem::mem_alloc(nameTmpLen + 1);
+				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
+				name[nameTmpLen] = 0;
+
+				SymbolLookupKey tmp(name, nameTmpLen);
 				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
 
 				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
