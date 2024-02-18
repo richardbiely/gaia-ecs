@@ -575,13 +575,10 @@ namespace gaia {
 				GAIA_ASSERT(!pChunk->dying());
 
 				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ids;
-				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps;
 				{
 					auto recs = pChunk->comp_rec_view();
 					ids.resize((uint32_t)recs.size());
-					comps.resize((uint32_t)recs.size());
 					GAIA_EACH_(recs, j) ids[j] = recs[j].entity;
-					GAIA_EACH_(recs, j) comps[j] = recs[j].comp;
 				}
 
 				const auto hashLookup = calc_lookup_hash({ids.data(), ids.size()}).hash;

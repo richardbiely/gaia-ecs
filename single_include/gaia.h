@@ -18169,15 +18169,23 @@ namespace gaia {
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
 			void del(Chunk* pChunk, ArchetypeList& archetypesToDelete) {
+				// Make sure there are any chunks to delete
+				GAIA_ASSERT(!m_chunks.empty());
+
 				const auto chunkIndex = pChunk->idx();
 
-				Chunk::free(pChunk);
-
-				// Remove the chunk from the chunk array
-				if (m_chunks.size() > 1)
-					m_chunks.back()->set_idx(chunkIndex);
+				// Make sure the chunk is a part of the chunk array
 				GAIA_ASSERT(chunkIndex == core::get_index(m_chunks, pChunk));
+
+				// Remove the chunk from the chunk array. We are swapping this chunk's entry
+				// with the last one in the array. Therefore, we first update the last item's
+				// index with the current chunk's index and then do the swapping.
+				m_chunks.back()->set_idx(chunkIndex);
 				core::erase_fast(m_chunks, chunkIndex);
+
+				// Delete the chunk now. Otherwise, if the chunk happend to be the last
+				// one we would end up overriding released memory.
+				Chunk::free(pChunk);
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
@@ -21797,13 +21805,10 @@ namespace gaia {
 				GAIA_ASSERT(!pChunk->dying());
 
 				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ids;
-				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps;
 				{
 					auto recs = pChunk->comp_rec_view();
 					ids.resize((uint32_t)recs.size());
-					comps.resize((uint32_t)recs.size());
 					GAIA_EACH_(recs, j) ids[j] = recs[j].entity;
-					GAIA_EACH_(recs, j) comps[j] = recs[j].comp;
 				}
 
 				const auto hashLookup = calc_lookup_hash({ids.data(), ids.size()}).hash;
