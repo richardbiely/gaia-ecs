@@ -332,7 +332,7 @@ namespace gaia {
 				return groupHandle;
 			}
 
-			//! Wait for the job to finish.
+			//! Waits for the job to finish.
 			//! \param jobHandle Job handle
 			//! \warning Must be used from the main thread.
 			void wait(JobHandle jobHandle) {
@@ -352,7 +352,7 @@ namespace gaia {
 				m_jobManager.wait(jobHandle);
 			}
 
-			//! Wait for all jobs to finish.
+			//! Waits for all jobs to finish.
 			//! \warning Must be used from the main thread.
 			void wait_all() {
 				// When no workers are available, execute all we have.
@@ -376,7 +376,7 @@ namespace gaia {
 				m_jobManager.reset();
 			}
 
-			//! Use the main thread to help with jobs processing.
+			//! Uses the main thread to help with jobs processing.
 			void update() {
 				GAIA_ASSERT(main_thread());
 
@@ -403,7 +403,7 @@ namespace gaia {
 		private:
 			struct ThreadFuncCtx {
 				ThreadPool* tp;
-				uint32_t i;
+				uint32_t workerIdx;
 				JobPriority prio;
 			};
 
@@ -413,10 +413,10 @@ namespace gaia {
 				// Set the worker thread name.
 				// Needs to be called from inside the thread because some platforms
 				// can change the name only when run from the specific thread.
-				ctx.tp->set_thread_name(ctx.i, ctx.prio);
+				ctx.tp->set_thread_name(ctx.workerIdx, ctx.prio);
 
 				// Set the worker thread priority
-				ctx.tp->set_thread_priority(ctx.i, ctx.prio);
+				ctx.tp->set_thread_priority(ctx.workerIdx, ctx.prio);
 
 				// Process jobs
 				ctx.tp->worker_loop(ctx.prio);
@@ -428,13 +428,16 @@ namespace gaia {
 				return nullptr;
 			}
 
-			void create_thread(uint32_t i, JobPriority prio) {
-				if GAIA_UNLIKELY (i >= m_workers.size())
+			//! Creates a thread
+			//! \param workerIdx Worker index
+			//! \param prio Priority used for the thread
+			void create_thread(uint32_t workerIdx, JobPriority prio) {
+				if GAIA_UNLIKELY (workerIdx >= m_workers.size())
 					return;
 
 #if GAIA_PLATFORM_WINDOWS
-				ThreadFuncCtx ctx{this, i, prio};
-				m_workers[i] = std::thread([ctx]() {
+				ThreadFuncCtx ctx{this, workerIdx, prio};
+				m_workers[workerIdx] = std::thread([ctx]() {
 					thread_func((void*)&ctx);
 				});
 #else
@@ -443,7 +446,7 @@ namespace gaia {
 				pthread_attr_t attr{};
 				ret = pthread_attr_init(&attr);
 				if (ret != 0) {
-					GAIA_LOG_W("pthread_attr_init failed for thread %u. ErrCode = %d", i, ret);
+					GAIA_LOG_W("pthread_attr_init failed for worker thread %u. ErrCode = %d", workerIdx, ret);
 					return;
 				}
 
@@ -469,14 +472,15 @@ namespace gaia {
 					ret = pthread_attr_set_qos_class_np(&attr, QOS_CLASS_USER_INTERACTIVE, -9); // 47-9=38
 					if (ret != 0) {
 						GAIA_LOG_W(
-								"pthread_attr_set_qos_class_np failed for thread %u [prio=%u]. ErrCode = %d", i, (uint32_t)prio, ret);
+								"pthread_attr_set_qos_class_np failed for worker thread %u [prio=%u]. ErrCode = %d", workerIdx,
+								(uint32_t)prio, ret);
 					}
 	#else
 					ret = pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
 					if (ret != 0) {
 						GAIA_LOG_W(
-								"pthread_attr_setschedpolicy SCHED_RR failed for thread %u [prio=%u]. ErrCode = %d", i, (uint32_t)prio,
-								ret);
+								"pthread_attr_setschedpolicy SCHED_RR failed for worker thread %u [prio=%u]. ErrCode = %d", workerIdx,
+								(uint32_t)prio, ret);
 					}
 
 					int prioMax = core::get_min(38, sched_get_priority_max(SCHED_OTHER));
@@ -489,16 +493,16 @@ namespace gaia {
 					ret = pthread_attr_setschedparam(&attr, &param);
 					if (ret != 0) {
 						GAIA_LOG_W(
-								"pthread_attr_setschedparam %d failed for thread %u [prio=%u]. ErrCode = %d", param.sched_priority, i,
-								(uint32_t)prio, ret);
+								"pthread_attr_setschedparam %d failed for worker thread %u [prio=%u]. ErrCode = %d",
+								param.sched_priority, workerIdx, (uint32_t)prio, ret);
 					}
 	#endif
 				} else {
 					ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
 					if (ret != 0) {
 						GAIA_LOG_W(
-								"pthread_attr_setschedpolicy SCHED_RR failed for thread %u [prio=%u]. ErrCode = %d", i, (uint32_t)prio,
-								ret);
+								"pthread_attr_setschedpolicy SCHED_RR failed for worker thread %u [prio=%u]. ErrCode = %d", workerIdx,
+								(uint32_t)prio, ret);
 					}
 
 					int prioMax = core::get_min(41, sched_get_priority_max(SCHED_RR));
@@ -511,27 +515,29 @@ namespace gaia {
 					ret = pthread_attr_setschedparam(&attr, &param);
 					if (ret != 0) {
 						GAIA_LOG_W(
-								"pthread_attr_setschedparam %d failed for thread %u [prio=%u]. ErrCode = %d", param.sched_priority, i,
-								(uint32_t)prio, ret);
+								"pthread_attr_setschedparam %d failed for worker thread %u [prio=%u]. ErrCode = %d",
+								param.sched_priority, workerIdx, (uint32_t)prio, ret);
 					}
 				}
 
 				// Create the thread with given attributes
-				auto* ctx = new ThreadFuncCtx{this, i, prio};
-				ret = pthread_create(&m_workers[i], &attr, thread_func, ctx);
+				auto* ctx = new ThreadFuncCtx{this, workerIdx, prio};
+				ret = pthread_create(&m_workers[workerIdx], &attr, thread_func, ctx);
 				if (ret != 0) {
-					GAIA_LOG_W("pthread_create failed for thread %u. ErrCode = %d", i, ret);
+					GAIA_LOG_W("pthread_create failed for worker thread %u. ErrCode = %d", workerIdx, ret);
 				}
 
 				pthread_attr_destroy(&attr);
 #endif
 
 				// Stick each thread to a specific CPU core if possible
-				set_thread_affinity(i);
+				set_thread_affinity(workerIdx);
 			}
 
-			void join_thread(uint32_t i) {
-				if GAIA_UNLIKELY (i >= m_workers.size())
+			//! Joins a worker thread with the main thread (graceful thread termination)
+			//! \param workerIdx Worker index
+			void join_thread(uint32_t workerIdx) {
+				if GAIA_UNLIKELY (workerIdx >= m_workers.size())
 					return;
 
 #if GAIA_PLATFORM_WINDOWS
@@ -539,27 +545,25 @@ namespace gaia {
 				if (t.joinable())
 					t.join();
 #else
-				pthread_join(m_workers[i], nullptr);
+				pthread_join(m_workers[workerIdx], nullptr);
 #endif
 			}
 
 			void set_workers_high_prio_inter(uint32_t from, uint32_t count) {
 				const uint32_t to = from + count;
-				for (uint32_t i = from; i < to; ++i) {
+				for (uint32_t i = from; i < to; ++i)
 					create_thread(i, JobPriority::High);
-				}
 			}
 
 			void set_workers_low_prio_inter(uint32_t from, uint32_t count) {
 				const uint32_t to = from + count;
-				for (uint32_t i = from; i < to; ++i) {
+				for (uint32_t i = from; i < to; ++i)
 					create_thread(i, JobPriority::Low);
-				}
 			}
 
-			void set_thread_priority(uint32_t threadID, JobPriority priority) {
+			void set_thread_priority(uint32_t workerIdx, JobPriority priority) {
 #if GAIA_PLATFORM_WINDOWS
-				HANDLE nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
 				THREAD_POWER_THROTTLING_STATE state{};
 				state.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
@@ -579,7 +583,7 @@ namespace gaia {
 
 				BOOL ret = SetThreadInformation(nativeHandle, ThreadPowerThrottling, &state, sizeof(state));
 				if (ret != TRUE) {
-					GAIA_LOG_W("SetThreadInformation failed for thread %u", threadID);
+					GAIA_LOG_W("SetThreadInformation failed for thread %u", workerIdx);
 					return;
 				}
 #else
@@ -587,7 +591,7 @@ namespace gaia {
 #endif
 			}
 
-			void set_thread_affinity([[maybe_unused]] uint32_t threadID) {
+			void set_thread_affinity([[maybe_unused]] uint32_t workerIdx) {
 				// NOTE:
 				// Some cores might have multiple logic threads, there might be
 				// more sockets and some cores might even be physically different
@@ -597,63 +601,72 @@ namespace gaia {
 				// it easier for the OS.
 
 				// #if GAIA_PLATFORM_WINDOWS
-				// 				HANDLE nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+				// 				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 				//
-				// 				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
+				// 				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << workerIdx);
 				// 				if (mask <= 0)
-				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", workerIdx);
 				// #elif GAIA_PLATFORM_APPLE
 				// 				// Do not do affinity for MacOS. If is not supported for Apple Silion and
 				// 				// Intel MACs are deprecated anyway.
 				// 				// TODO: Consider supporting this at least for Intel MAC as there are still
 				// 				//       quite of few of them out there.
 				// #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				// 				pthread_t nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+				// 				pthread_t nativeHandle = (pthread_t)m_workers[workerIdx].native_handle();
 				//
 				// 				cpu_set_t cpuset;
 				// 				CPU_ZERO(&cpuset);
-				// 				CPU_SET(threadID, &cpuset);
+				// 				CPU_SET(workerIdx, &cpuset);
 				//
 				// 				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
 				// 				if (ret != 0)
-				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", workerIdx);
 				//
 				// 				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
 				// 				if (ret != 0)
-				// 					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", threadID);
+				// 					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", workerIdx);
 				// #endif
 			}
 
-			void set_thread_name(uint32_t threadID, JobPriority prio) {
+			//! Updates the name of a given thread. It is based on the index and priority of the worker.
+			//! \param workerIdx Index of the worker
+			//! \param prio Worker priority
+			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
 #if GAIA_PLATFORM_WINDOWS
-				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+				auto nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
 				wchar_t threadName[16]{};
-				swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", threadID);
+				swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", workerIdx);
 				auto hr = SetThreadDescription(nativeHandle, threadName);
 				if (FAILED(hr))
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", threadID);
+					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", threadID);
+				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				auto ret = pthread_setname_np(threadName);
 				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", threadID);
+					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				auto nativeHandle = m_workers[threadID];
+				auto nativeHandle = m_workers[workerIdx];
 
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", threadID);
+				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", threadID);
+					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 #endif
 			}
 
+			//! Checks if the calling thread is considered the main thread
+			//! \return True if the calling thread is the main thread. False otherwise.
 			GAIA_NODISCARD bool main_thread() const {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
 
+			//! Loop run by main thread. Pops jobs from the given queue
+			//! and executes it.
+			//! \param prio Target worker queue defined by job priority
+			//! \return True if a job was resubmitted or executed. False otherwise.
 			bool main_thread_tick(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
 
@@ -677,6 +690,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Loop run by worker threads. Pops jobs from the given queue
+			//! and executes it.
+			//! \param prio Target worker queue defined by job priority
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
 				auto& cv = m_cv[(uint32_t)prio];
@@ -706,6 +722,7 @@ namespace gaia {
 				}
 			}
 
+			//! Finishes all jobs and stops all worker threads
 			void reset() {
 				// Request stopping
 				m_stop = true;
