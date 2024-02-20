@@ -541,7 +541,7 @@ namespace gaia {
 					return;
 
 #if GAIA_PLATFORM_WINDOWS
-				auto& t = m_workers[i];
+				auto& t = m_workers[workerIdx];
 				if (t.joinable())
 					t.join();
 #else
