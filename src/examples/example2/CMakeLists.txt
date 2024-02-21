@@ -1,5 +1,5 @@
 set(PROJ_NAME "gaia_example2")
-add_executable(${PROJ_NAME} src/main.cpp)
+add_executable(${PROJ_NAME} src/main.cpp src/dummy.cpp)
 
 target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
