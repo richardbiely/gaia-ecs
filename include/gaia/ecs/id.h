@@ -214,7 +214,7 @@ namespace gaia {
 			}
 		};
 
-		struct Entity EntityBad = Entity(IdentifierBad);
+		inline static const struct Entity EntityBad = Entity(IdentifierBad);
 
 		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {

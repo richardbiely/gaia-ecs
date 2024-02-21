@@ -722,7 +722,7 @@ namespace gaia {
 						do_match_all(
 								entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
 								//
-								e, ids_all, data.as_mask, data.as_mask_2);
+								e, std::span{ids_all.data(), ids_all.size()}, data.as_mask, data.as_mask_2);
 						break;
 					}
 
@@ -768,7 +768,7 @@ namespace gaia {
 						GAIA_EACH(ids_any) {
 							do_match_one(
 									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i],
-									ids_any, data.as_mask, data.as_mask_2);
+									std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -778,7 +778,7 @@ namespace gaia {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
 							for (auto _: ids_any) {
-								if (do_match_one(*pArchetype, ids_any, data.as_mask, data.as_mask_2))
+								if (do_match_one(*pArchetype, std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}
 
@@ -805,11 +805,11 @@ namespace gaia {
 						do_match_no(
 								allArchetypes, s_tmpArchetypeMatches, m_archetypeCache,
 								//
-								ids_none, data.as_mask, data.as_mask_2);
+								std::span{ids_none.data(), ids_none.size()}, data.as_mask, data.as_mask_2);
 					} else {
 						// Write the temporary matches to cache if no match with NO is found
 						for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-							if (match_one(*pArchetype, ids_none))
+							if (match_one(*pArchetype, std::span{ids_none.data(), ids_none.size()}))
 								continue;
 
 							m_archetypeCache.push_back(pArchetype);
