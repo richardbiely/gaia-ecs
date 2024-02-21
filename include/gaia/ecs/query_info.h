@@ -777,7 +777,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < s_tmpArchetypeMatchesArr.size();) {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
-							for (auto _: ids_any) {
+							GAIA_FOR_((uint32_t)ids_any.size(), j) {
 								if (do_match_one(*pArchetype, std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}

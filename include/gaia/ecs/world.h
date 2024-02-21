@@ -479,7 +479,7 @@ namespace gaia {
 			};
 
 		private:
-			GAIA_NODISCARD bool valid(const EntityContainer& ec, Entity entityExpected) const {
+			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
 				if (is_req_del(ec))
 					return false;
 
@@ -1099,10 +1099,12 @@ namespace gaia {
 						if (!valid(e))
 							continue;
 
+#if GAIA_ASSERT_ENABLED
 						const auto& ec = fetch(e);
 
 						// We should never end up trying to delete a forbidden-to-delete entity
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
+#endif
 
 						del_entity(e);
 					}

@@ -9,10 +9,9 @@ namespace gaia {
 			//! High priority job. If avaialble it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
-			Low = 1,
-			//! Don't use
-			Cnt = 2
+			Low = 1
 		};
+		static inline constexpr uint32_t JobPriorityCnt = 2;
 
 		struct JobAllocCtx {
 			JobPriority priority;

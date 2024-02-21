@@ -12942,10 +12942,9 @@ namespace gaia {
 			//! High priority job. If avaialble it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
-			Low = 1,
-			//! Don't use
-			Cnt = 2
+			Low = 1
 		};
+		static inline constexpr uint32_t JobPriorityCnt = 2;
 
 		struct JobAllocCtx {
 			JobPriority priority;
@@ -13538,19 +13537,19 @@ namespace gaia {
 			//! List of worker threads
 			cnt::sarr_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! The number of workers dedicated for a given level of job priority
-			uint32_t m_workerCnt[JobPriority::Cnt]{};
+			uint32_t m_workerCnt[JobPriorityCnt]{};
 
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 
 			//! How many jobs are currently being processed
-			std::atomic_uint32_t m_jobsPending[JobPriority::Cnt]{};
+			std::atomic_uint32_t m_jobsPending[JobPriorityCnt]{};
 			//! Mutex protecting the access to a given queue
-			std::mutex m_cvLock[JobPriority::Cnt];
+			std::mutex m_cvLock[JobPriorityCnt];
 			//! Signals for given workers to wake up
-			std::condition_variable m_cv[JobPriority::Cnt];
+			std::condition_variable m_cv[JobPriorityCnt];
 			//! List of pending user jobs
-			JobQueue m_jobQueue[JobPriority::Cnt];
+			JobQueue m_jobQueue[JobPriorityCnt];
 
 		private:
 			ThreadPool() {
@@ -13688,7 +13687,7 @@ namespace gaia {
 				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
-					jobQueue.try_push(jobHandle);
+					(void)jobQueue.try_push(jobHandle);
 					main_thread_tick(prio);
 					return;
 				}
@@ -13716,7 +13715,7 @@ namespace gaia {
 				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
-					jobQueue.try_push(jobHandle);
+					(void)jobQueue.try_push(jobHandle);
 					// Let the other parts of the code handle resubmittion (submit, update).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
@@ -13863,7 +13862,7 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 				// No jobs should be pending at this point
-				GAIA_FOR(JobPriority::Cnt) {
+				GAIA_FOR(JobPriorityCnt) {
 					GAIA_ASSERT(!busy((JobPriority)i));
 				}
 #endif
@@ -14056,7 +14055,7 @@ namespace gaia {
 					create_thread(i, JobPriority::Low);
 			}
 
-			void set_thread_priority(uint32_t workerIdx, JobPriority priority) {
+			void set_thread_priority([[maybe_unused]] uint32_t workerIdx, [[maybe_unused]] JobPriority priority) {
 #if GAIA_PLATFORM_WINDOWS
 				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
@@ -14281,7 +14280,7 @@ namespace gaia {
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriority::Cnt);
+									 : (JobPriority)((job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 		};
 	} // namespace mt
@@ -20077,7 +20076,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < s_tmpArchetypeMatchesArr.size();) {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
-							for (auto _: ids_any) {
+							GAIA_FOR_((uint32_t)ids_any.size(), j) {
 								if (do_match_one(*pArchetype, std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}
@@ -21738,7 +21737,7 @@ namespace gaia {
 			};
 
 		private:
-			GAIA_NODISCARD bool valid(const EntityContainer& ec, Entity entityExpected) const {
+			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
 				if (is_req_del(ec))
 					return false;
 
@@ -22358,10 +22357,12 @@ namespace gaia {
 						if (!valid(e))
 							continue;
 
+#if GAIA_ASSERT_ENABLED
 						const auto& ec = fetch(e);
 
 						// We should never end up trying to delete a forbidden-to-delete entity
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
+#endif
 
 						del_entity(e);
 					}
