@@ -591,7 +591,7 @@ namespace gaia {
 
 			void do_match_all(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -606,7 +606,7 @@ namespace gaia {
 
 			void do_match_one(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -619,7 +619,7 @@ namespace gaia {
 				}
 			}
 
-			bool do_match_one(const Archetype& archetype, EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+			bool do_match_one(const Archetype& archetype, EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
 					return match_one(archetype, idsToMatch);
@@ -633,7 +633,7 @@ namespace gaia {
 
 			void do_match_no(
 					const ArchetypeList& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+					EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				matchesSet.clear();
 
 				if (as_mask_0 + as_mask_1 == 0U)

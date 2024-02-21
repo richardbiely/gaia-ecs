@@ -14564,7 +14564,7 @@ namespace gaia {
 			}
 		};
 
-		struct Entity EntityBad = Entity(IdentifierBad);
+		inline static const Entity EntityBad = Entity(IdentifierBad);
 
 		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {
@@ -19891,7 +19891,7 @@ namespace gaia {
 
 			void do_match_all(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -19906,7 +19906,7 @@ namespace gaia {
 
 			void do_match_one(
 					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpanMut idsToMatch,
+					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -19919,7 +19919,7 @@ namespace gaia {
 				}
 			}
 
-			bool do_match_one(const Archetype& archetype, EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+			bool do_match_one(const Archetype& archetype, EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
 					return match_one(archetype, idsToMatch);
@@ -19933,7 +19933,7 @@ namespace gaia {
 
 			void do_match_no(
 					const ArchetypeList& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					EntitySpanMut idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+					EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				matchesSet.clear();
 
 				if (as_mask_0 + as_mask_1 == 0U)
@@ -20022,7 +20022,7 @@ namespace gaia {
 						do_match_all(
 								entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
 								//
-								e, ids_all, data.as_mask, data.as_mask_2);
+								e, std::span{ids_all.data(), ids_all.size()}, data.as_mask, data.as_mask_2);
 						break;
 					}
 
@@ -20068,7 +20068,7 @@ namespace gaia {
 						GAIA_EACH(ids_any) {
 							do_match_one(
 									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i],
-									ids_any, data.as_mask, data.as_mask_2);
+									std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -20078,7 +20078,7 @@ namespace gaia {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
 							for (auto _: ids_any) {
-								if (do_match_one(*pArchetype, ids_any, data.as_mask, data.as_mask_2))
+								if (do_match_one(*pArchetype, std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}
 
@@ -20105,11 +20105,11 @@ namespace gaia {
 						do_match_no(
 								allArchetypes, s_tmpArchetypeMatches, m_archetypeCache,
 								//
-								ids_none, data.as_mask, data.as_mask_2);
+								std::span{ids_none.data(), ids_none.size()}, data.as_mask, data.as_mask_2);
 					} else {
 						// Write the temporary matches to cache if no match with NO is found
 						for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-							if (match_one(*pArchetype, ids_none))
+							if (match_one(*pArchetype, std::span{ids_none.data(), ids_none.size()}))
 								continue;
 
 							m_archetypeCache.push_back(pArchetype);
