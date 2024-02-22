@@ -21719,7 +21719,7 @@ namespace gaia {
 
 					if (entity.pair()) {
 						// Make sure the entity container record exists if it is a pair
-						m_world.assign(entity, *m_world.m_pEntityArchetype);
+						m_world.assign<false>(entity, *m_world.m_pEntityArchetype);
 					}
 
 					if (!handle_add_deps(entity))
@@ -23277,19 +23277,20 @@ namespace gaia {
 			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
 				EntityContainerCtx ctx{isEntity, isPair, kind};
 				const auto entity = m_recs.entities.alloc(&ctx);
-				assign(entity, archetype);
+				assign<true>(entity, archetype);
 				return entity;
 			}
 
 			//! Assigns an entity to a given archetype
 			//! \param archetype Archetype the entity should inherit
 			//! \param entity Entity
+			template <bool IsNewEntity>
 			void assign(Entity entity, Archetype& archetype) {
 				if (entity.pair()) {
 					// Pairs are always added to m_pEntityArchetype initially and this can't change.
 					GAIA_ASSERT(&archetype == m_pEntityArchetype);
-					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
-					if (it == m_recs.pairs.end()) {
+
+					auto assingNewEntity = [&]() {
 						// Update the container record
 						EntityContainer ec{};
 						ec.idx = entity.id();
@@ -23315,6 +23316,22 @@ namespace gaia {
 						addPair(m_relationsToTargets, All, tgt);
 						addPair(m_targetsToRelations, tgt, rel);
 						addPair(m_targetsToRelations, All, rel);
+					};
+
+					if constexpr (IsNewEntity) {
+						// No need to make a lookup if this is a new entity
+#if GAIA_ASSERT_ENABLED
+						// Just make sure no such record exists.
+						// The only way for this to happen is if the entity id overflew in which
+						// case everything falls apart anyway.
+						const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+						GAIA_ASSERT(it == m_recs.pairs.end());
+#endif
+						assingNewEntity();
+					} else {
+						const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+						if (it == m_recs.pairs.end())
+							assingNewEntity();
 					}
 				} else {
 					auto* pChunk = archetype.foc_free_chunk();
