@@ -31,7 +31,6 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity_container.h"
-#include "gaia/config/config_core.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"

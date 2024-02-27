@@ -1,5 +1,3 @@
-#include "gaia/config/config_core.h"
-#include "gaia/mt/threadpool.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
