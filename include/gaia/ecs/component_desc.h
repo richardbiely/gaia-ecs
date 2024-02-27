@@ -101,15 +101,15 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						return nullptr;
 					} else if constexpr (std::is_copy_assignable_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
+						return [](const void* from, void* to) {
+							const auto* src = (const U*)from;
 							auto* dst = (U*)to;
 							core::call_ctor(dst);
 							*dst = *src;
 						};
 					} else if constexpr (std::is_copy_constructible_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
+						return [](const void* from, void* to) {
+							const auto* src = (const U*)from;
 							auto* dst = (U*)to;
 							core::call_ctor(dst, U(GAIA_MOV(*src)));
 						};
@@ -122,14 +122,14 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						return nullptr;
 					} else if constexpr (std::is_copy_assignable_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
+						return [](const void* from, void* to) {
+							const auto* src = (const U*)from;
 							auto* dst = (U*)to;
 							*dst = *src;
 						};
 					} else if constexpr (std::is_copy_constructible_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
+						return [](const void* from, void* to) {
+							const auto* src = (const U*)from;
 							auto* dst = (U*)to;
 							*dst = U(*src);
 						};
@@ -218,7 +218,7 @@ namespace gaia {
 							return [](const void* left, const void* right) {
 								const auto* l = (const U*)left;
 								const auto* r = (const U*)right;
-								return memcmp(l, r, 1) == 0;
+								return memcmp(l, r, sizeof(U)) == 0;
 							};
 						}
 					}
