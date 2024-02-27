@@ -20,7 +20,7 @@ namespace gaia {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
-			using FuncCopy = void(void*, void*);
+			using FuncCopy = void(const void*, void*);
 			using FuncMove = void(void*, void*);
 			using FuncSwap = void(void*, void*);
 			using FuncCmp = bool(const void*, const void*);
@@ -79,7 +79,7 @@ namespace gaia {
 					copy(pSrc, pDst);
 			}
 
-			void copy(void* pSrc, void* pDst) const {
+			void copy(const void* pSrc, void* pDst) const {
 				if (func_copy != nullptr)
 					func_copy(pSrc, pDst);
 				else

@@ -31,6 +31,7 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity_container.h"
+#include "gaia/config/config_core.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
@@ -2010,19 +2011,6 @@ namespace gaia {
 #endif
 			}
 
-			//! Creates a new entity of a given archetype
-			//! \param archetype Archetype the entity should inherit
-			//! \param isEntity True if entity, false otherwise
-			//! \param isPair True if pair, false otherwise
-			//! \param kind Component kind
-			//! \return New entity
-			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
-				EntityContainerCtx ctx{isEntity, isPair, kind};
-				const auto entity = m_recs.entities.alloc(&ctx);
-				assign_entity(entity, archetype);
-				return entity;
-			}
-
 			//! Assigns an entity to a given archetype.
 			//! \param archetype Archetype the entity should inherit
 			//! \param entity Entity
@@ -2082,6 +2070,66 @@ namespace gaia {
 				addPair(m_relationsToTargets, All, tgt);
 				addPair(m_targetsToRelations, tgt, rel);
 				addPair(m_targetsToRelations, All, rel);
+			}
+
+			//! Creates a new entity of a given archetype
+			//! \param archetype Archetype the entity should inherit
+			//! \param isEntity True if entity, false otherwise
+			//! \param isPair True if pair, false otherwise
+			//! \param kind Component kind
+			//! \return New entity
+			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
+				EntityContainerCtx ctx{isEntity, isPair, kind};
+				const auto entity = m_recs.entities.alloc(&ctx);
+				assign_entity(entity, archetype);
+				return entity;
+			}
+
+			using TAddManyEntitiesFunc = void(Entity);
+			static void add_many_dummy_func([[maybe_unused]] Entity entity) {}
+
+			//! Creates multiple entity of a given archetype at once.
+			//! More efficient than creating entities individually.
+			//! \param archetype Archetype the entity should inherit
+			//! \param count Number of entities to create
+			//! \param out Output array with the entities
+			template <typename Func>
+			void add_many_entities(Archetype& archetype, uint32_t count, Func func) {
+				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+
+				uint32_t from = 0;
+				uint32_t left = count;
+				do {
+					auto* pChunk = archetype.foc_free_chunk_bulk(from);
+					const uint32_t originalChunkSize = pChunk->size();
+					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
+					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
+					from += (uint32_t)(toCreate >= freeSlotsInChunk);
+
+					GAIA_FOR(toCreate) {
+						const auto entityNew = m_recs.entities.alloc(&ctx);
+						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
+
+#if GAIA_ASSERT_ENABLED
+						const auto& ecNew = m_recs.entities[entityNew.id()];
+						GAIA_ASSERT(ecNew.pChunk == pChunk);
+						auto entityExpected = pChunk->entity_view()[ecNew.row];
+						GAIA_ASSERT(entityExpected == entityNew);
+#endif
+					}
+
+					// Call constructors for the generic components on the newly added entity if necessary
+					if (pChunk->has_custom_gen_ctor())
+						pChunk->call_gen_ctors(originalChunkSize, toCreate);
+
+					// Call functors
+					{
+						auto entities = pChunk->entity_view();
+						GAIA_FOR2(originalChunkSize, pChunk->size()) func(entities[i]);
+					}
+
+					left -= toCreate;
+				} while (left > 0);
 			}
 
 			//! Garbage collection
@@ -2152,6 +2200,27 @@ namespace gaia {
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
+			}
+
+			//! Creates \param count new empty entities
+			//! \param func Functor to execute every time an entity is added
+			template <typename Func = TAddManyEntitiesFunc>
+			void add_n(uint32_t count, Func func = add_many_dummy_func) {
+				add_many_entities(*m_pEntityArchetype, count, func);
+			}
+
+			//! Creates \param count of entities of the same archetype as \param entity.
+			//! \param func Functor to execute every time an entity is added
+			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
+			//!       if they provide a constructor
+			template <typename Func = TAddManyEntitiesFunc>
+			void add_n(Entity entity, uint32_t count, Func func = add_many_dummy_func) {
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				add_many_entities(*ec.pArchetype, count, func);
 			}
 
 			//! Creates a new component if not found already.
@@ -2275,6 +2344,82 @@ namespace gaia {
 				Chunk::copy_entity_data(entity, newEntity, m_recs);
 
 				return newEntity;
+			}
+
+			//! Creates \param count new entities by cloning an already existing one.
+			//! \param entity Entity to clone
+			//! \param count Number of clones to make
+			//! \param func Functor to execute every time a copy is made
+			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
+			template <typename Func = TAddManyEntitiesFunc>
+			void copy_n(Entity entity, uint32_t count, Func func = add_many_dummy_func) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				auto& archetype = *ec.pArchetype;
+				auto& oldEntityContainer = m_recs[entity];
+				auto* pOldChunk = oldEntityContainer.pChunk;
+
+				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+
+				uint32_t from = 0;
+				uint32_t left = count;
+				do {
+					auto* pChunk = archetype.foc_free_chunk_bulk(from);
+					const uint32_t originalChunkSize = pChunk->size();
+					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
+					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
+					from += (uint32_t)(toCreate >= freeSlotsInChunk);
+
+					GAIA_FOR(toCreate) {
+						const auto entityNew = m_recs.entities.alloc(&ctx);
+						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
+
+#if GAIA_ASSERT_ENABLED
+						const auto& ecNew = m_recs.entities[entityNew.id()];
+						GAIA_ASSERT(ecNew.pChunk == pChunk);
+						auto entityExpected = pChunk->entity_view()[ecNew.row];
+						GAIA_ASSERT(entityExpected == entityNew);
+#endif
+					}
+
+					// Call constructors for the generic components on the newly added entity if necessary
+					if (pChunk->has_custom_gen_ctor())
+						pChunk->call_gen_ctors(originalChunkSize, toCreate);
+
+					// Copy data
+					{
+						GAIA_PROF_SCOPE(copy_n::copy_entity_data);
+
+						auto oldRecs = pOldChunk->comp_rec_view();
+
+						// Copy generic component data from reference entity to our new entity
+						GAIA_FOR(pOldChunk->m_header.genEntities) {
+							const auto& rec = oldRecs[i];
+							if (rec.comp.size() == 0U)
+								continue;
+
+							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldEntityContainer.row);
+							GAIA_FOR_(toCreate, rowOffset) {
+								auto* pDst = (void*)pChunk->comp_ptr_mut(i, originalChunkSize + rowOffset);
+								rec.pDesc->copy(pSrc, pDst);
+							}
+						}
+					}
+
+					// Call functors
+					{
+						auto entities = pChunk->entity_view();
+						GAIA_FOR2(originalChunkSize, pChunk->size()) func(entities[i]);
+					}
+
+					left -= toCreate;
+				} while (left > 0);
 			}
 
 			//----------------------------------------------------------------------
@@ -3065,16 +3210,15 @@ namespace gaia {
 				// Clear archetypes
 				{
 					// Delete all allocated chunks and their parent archetypes
-					for (auto& pair: m_archetypesById) {
-						auto* pArchetype = pair.second;
+					for (auto* pArchetype: m_archetypes)
 						delete pArchetype;
-					}
 
-					m_entityToAsRelations.clear();
-					m_entityToAsTargets.clear();
-					m_targetsToRelations.clear();
-					m_relationsToTargets.clear();
+					m_entityToAsRelations = {};
+					m_entityToAsTargets = {};
+					m_targetsToRelations = {};
+					m_relationsToTargets = {};
 
+					m_archetypes = {};
 					m_archetypesById = {};
 					m_archetypesByHash = {};
 

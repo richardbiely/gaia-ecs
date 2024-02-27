@@ -607,6 +607,38 @@ namespace gaia {
 				return pChunk;
 			}
 
+			//! Tries to locate a chunk that has some space left for a new entity.
+			//! If not found a new chunk is created.
+			//! \note It is assumed to be used for operations that are going to fill the chunk with
+			//!       many entities. Therefore, unlike with foc_free_chunk(), any chunk is returned.
+			GAIA_NODISCARD Chunk* foc_free_chunk_bulk(uint32_t& from) {
+				const auto chunkCnt = m_chunks.size();
+
+				if (chunkCnt > 0) {
+					for (uint32_t i = from; i < m_chunks.size(); ++i) {
+						auto* pChunk = m_chunks[i];
+						GAIA_ASSERT(pChunk != nullptr);
+						const auto entityCnt = pChunk->size();
+						if (entityCnt < pChunk->capacity()) {
+							from = i;
+							return pChunk;
+						}
+					}
+				}
+
+				// Make sure not too many chunks are allocated
+				GAIA_ASSERT(chunkCnt < UINT32_MAX);
+
+				// No free space found anywhere. Let's create a new chunk.
+				auto* pChunk = Chunk::create(
+						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
+						m_dataOffsets, m_ids, m_comps, m_compOffs);
+
+				from = m_chunks.size();
+				m_chunks.push_back(pChunk);
+				return pChunk;
+			}
+
 			GAIA_NODISCARD const Properties& props() const {
 				return m_properties;
 			}

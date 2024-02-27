@@ -57,9 +57,11 @@
     * [Create or delete entity](#create-or-delete-entity)
     * [Name entity](#name-entity)
     * [Add or remove component](#add-or-remove-component)
+    * [Component presence](#component-presence)
     * [Bulk editing](#bulk-editing)
     * [Set or get component value](#set-or-get-component-value)
-    * [Component presence](#component-presence)
+    * [Copy entity](#copy-entity)
+    * [Batched creation](#batched-creation)
   * [Data processing](#data-processing)
     * [Query](#query)
     * [Uncached query](#uncached-query)
@@ -290,10 +292,43 @@ w.add(e, velocity, Position{0, 0, 1});
 // Remove Velocity from the entity.
 w.del(e, velocity);
 ```
+### Component presence
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
+
+```cpp
+// Check if entity e has Velocity (via world).
+const bool hasVelocity = w.has<Velocity>(e);
+// Check if entity wheel is attached to the car
+const bool hasWheel = w.has(car, wheel);
+...
+
+// Check if entities hidden behind the iterator have Velocity (via iterator).
+ecs::Query q = w.query().any<Position, Velocity>(); 
+q.each([&](ecs::Iter iter) {
+  const bool hasPosition = iter.has<Position>();
+  const bool hasVelocity = iter.has<Velocity>();
+  ...
+});
+```
+
+Providing entities is supported as well.
+
+```cpp
+auto p = w.add<Position>().entity;
+auto v = w.add<Velocity>().entity;
+
+// Check if entities hidden behind the iterator have Velocity (via iterator).
+ecs::Query q = w.query().any(p).any(v); 
+q.each([&](ecs::Iter iter) {
+  const bool hasPosition = iter.has(p);
+  const bool hasVelocity = iter.has(v);
+  ...
+});
+```
 
 ### Bulk editing
 
-Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
+Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means that all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
 
 Instead, when adding or removing multiple entities/components at once it is more efficient doing it via bulk operations. This way only one archetype movement is performed in total rather than one per added/removed entity.
 
@@ -376,37 +411,52 @@ auto velCopy = w.get<Velocity>(e);
 
 Both read and write operations are also accessible via views. Check the [iteration](#iteration) sections to see how.
 
-### Component presence
-Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
+### Copy entity
+
+A copy of another entity can be easily created.
 
 ```cpp
-// Check if entity e has Velocity (via world).
-const bool hasVelocity = w.has<Velocity>(e);
-// Check if entity wheel is attached to the car
-const bool hasWheel = w.has(car, wheel);
-...
+// Create an entity with Position and Velocity.
+ecs::Entity e = w.add();
+w.add(e, position, Position{0, 100, 0});
+w.add(e, velocity, Position{0, 0, 1});
 
-// Check if entities hidden behind the iterator have Velocity (via iterator).
-ecs::Query q = w.query().any<Position, Velocity>(); 
-q.each([&](ecs::Iter iter) {
-  const bool hasPosition = iter.has<Position>();
-  const bool hasVelocity = iter.has<Velocity>();
-  ...
-});
+// Make a copy of "e". Component values on the copied entitiy will match the source.
+// Value of Position on "e2" will be {0, 100, 0}.
+// Value of Velocity on "e2" will be {0, 0, 1}.
+ecs::Entity e2 = w.copy(e);
 ```
+### Batched creation
 
-Providing entities is supported as well.
+Another way to create entities is by creating many of them at once. This is much more performant than creating entities one by one.
 
 ```cpp
-auto p = w.add<Position>().entity;
-auto v = w.add<Velocity>().entity;
+// Create 1000 empty entities
+w.add(1000);
+w.add(1000, [](Entity newEntity) {
+  // Do something with the new entity
+  // ...
+})
 
-// Check if entities hidden behind the iterator have Velocity (via iterator).
-ecs::Query q = w.query().any(p).any(v); 
-q.each([&](ecs::Iter iter) {
-  const bool hasPosition = iter.has(p);
-  const bool hasVelocity = iter.has(v);
-  ...
+// Create an entity with Position and Velocity.
+ecs::Entity e = w.add();
+w.add(e, position, Position{0, 100, 0});
+w.add(e, velocity, Position{0, 0, 1});
+
+// Create 1000 more entites like "e".
+// Their component values are not initilazed to any particular value.
+w.add_n(e, 1000);
+w.add_n(e, 1000, [](Entity newEntity) {
+  // Do something with the new entity
+  // ...
+});
+
+// Create 1000 more entities like "e".
+// Their component values are going to be the same as "e".
+w.copy_n(e, 1000);
+w.copy_n(e, 1000, [](Entity newEntity) {
+  // Do something with the new entity
+  // ...
 });
 ```
 
@@ -897,7 +947,7 @@ ecs::Entity rabbit = w.add();
 ecs::Entity hare = w.add();
 ecs::Entity wolf = w.add();
 
-w.ad(wolf, animal); // equivalent of w.add(wolf, ecs::Pair(ecs::Is, animal))
+w.as(wolf, animal); // equivalent of w.add(wolf, ecs::Pair(ecs::Is, animal))
 w.as(herbivore, animal); // equivalent of w.add(herbivore, ecs::Pair(ecs::Is, animal))
 w.as(rabbit, herbivore); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, herbivore))
 w.as(hare, herbivore); // equivalent of w.add(hare, ecs::Pair(ecs::Is, herbivore))

@@ -85,13 +85,13 @@ namespace gaia {
 							const auto* name0 = entity_name(world, entity.id());
 							const auto* name1 = entity_name(world, entity.gen());
 							GAIA_LOG_N(
-									"      pair [%u:%u], %s -> %s, aid:%u",
+									"    pair [%u:%u], %s -> %s, aid:%u",
 									//
 									entity.id(), entity.gen(), name0, name1, edge.second.id);
 						} else {
 							const auto* name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"      ent [%u:%u], %s [%s], aid:%u",
+									"    ent [%u:%u], %s [%s], aid:%u",
 									//
 									entity.id(), entity.gen(), name, EntityKindString[entity.kind()], edge.second.id);
 						}

@@ -6,10 +6,42 @@ using namespace gaia;
 
 constexpr uint32_t NEntities = 1'000;
 
-void AddEntities(ecs::World& w, uint32_t n) {
+template <uint32_t Version, typename T, uint32_t TCount>
+struct Component {
+	T value[TCount];
+};
+
+template <uint32_t Version, typename T>
+struct Component<Version, T, 0> {}; // empty component
+
+namespace detail {
+
+	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount, bool BulkCreate>
+	void Adds(ecs::World& w, ecs::Entity e) {
+		if constexpr (BulkCreate) {
+			auto builder = w.bulk(e);
+			core::each<ComponentCount>([&builder](auto i) {
+				builder.add<Component<i, T, ValuesCount>>();
+			});
+		} else {
+			core::each<ComponentCount>([&](auto i) {
+				w.add<Component<i, T, ValuesCount>>(e);
+			});
+		}
+	}
+} // namespace detail
+
+template <typename T, uint32_t ValuesCount, uint32_t ComponentCount, bool BulkCreate>
+constexpr ecs::Entity AddsOne(ecs::World& w) {
+	auto e = w.add();
+	::detail::Adds<T, ValuesCount, ComponentCount, BulkCreate>(w, e);
+	return e;
+}
+
+template <typename T, uint32_t ValuesCount, uint32_t ComponentCount, bool BulkCreate>
+constexpr void Adds(ecs::World& w, uint32_t n) {
 	GAIA_FOR(n) {
-		[[maybe_unused]] auto e = w.add();
-		gaia::dont_optimize(e);
+		(void)AddsOne<T, ValuesCount, ComponentCount, BulkCreate>(w);
 	}
 }
 
@@ -21,35 +53,73 @@ void BM_CreateEntity(picobench::state& state) {
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
-		AddEntities(w, 1);
+		(void)w.add();
 		state.start_timer();
 
-		AddEntities(w, NEntities);
+		GAIA_FOR(NEntities)(void) w.add();
 	}
 }
 
-template <uint32_t Version, typename T, uint32_t TCount>
-struct Component {
-	T value[TCount];
-};
+void BM_CreateEntity_Many(picobench::state& state) {
+	for (auto _: state) {
+		(void)_;
+		ecs::World w;
 
-template <uint32_t Version, typename T>
-struct Component<Version, T, 0> {}; // empty component
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		(void)w.add();
+		state.start_timer();
 
-namespace detail {
-	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
-	constexpr void Adds(ecs::World& w, ecs::Entity e) {
-		core::each<ComponentCount>([&](auto i) {
-			w.add<Component<i, T, ValuesCount>>(e);
-		});
+		w.add_n(NEntities);
 	}
-} // namespace detail
+}
 
-template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
-constexpr void Adds(ecs::World& w, uint32_t n) {
-	GAIA_FOR(n) {
-		[[maybe_unused]] auto e = w.add();
-		::detail::Adds<T, ValuesCount, ComponentCount>(w, e);
+template <uint32_t Iterations>
+void BM_CreateEntity_Many_With_Component(picobench::state& state) {
+	for (auto s: state) {
+		(void)s;
+		ecs::World w;
+
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		auto e = AddsOne<float, 0, Iterations, false>(w);
+		state.start_timer();
+
+		w.add_n(e, NEntities);
+	}
+}
+
+template <uint32_t Iterations>
+void BM_CreateEntity_CopyMany(picobench::state& state) {
+	for (auto s: state) {
+		(void)s;
+		ecs::World w;
+
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		auto e = w.add();
+		state.start_timer();
+
+		w.copy_n(e, NEntities);
+	}
+}
+
+template <uint32_t Iterations>
+void BM_CreateEntity_CopyMany_With_Component(picobench::state& state) {
+	for (auto s: state) {
+		(void)s;
+		ecs::World w;
+
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		auto e = AddsOne<float, 0, Iterations, false>(w);
+		state.start_timer();
+
+		w.copy_n(e, NEntities);
 	}
 }
 
@@ -62,10 +132,26 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
-		Adds<float, 0, Iterations>(w, 1);
+		Adds<float, 0, Iterations, false>(w, 1);
 		state.start_timer();
 
-		Adds<float, 0, Iterations>(w, NEntities);
+		Adds<float, 0, Iterations, false>(w, NEntities);
+	}
+}
+
+template <uint32_t Iterations>
+void BM_BulkCreateEntity_With_Component(picobench::state& state) {
+	for (auto s: state) {
+		(void)s;
+		ecs::World w;
+
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		Adds<float, 0, Iterations, true>(w, 1);
+		state.start_timer();
+
+		Adds<float, 0, Iterations, true>(w, NEntities);
 	}
 }
 
@@ -100,16 +186,43 @@ int main(int argc, char* argv[]) {
 		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
 
 		if (profilingMode) {
-			PICOBENCH_REG(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
 		} else {
-			PICOBENCH_SUITE_REG("Entity and component creation");
+			PICOBENCH_SUITE_REG("Entity creation");
 			PICOBENCH_REG(BM_CreateEntity).PICO_SETTINGS().label("0 components");
+
+			PICOBENCH_SUITE_REG("Entity + N components - add_n");
+			PICOBENCH_REG(BM_CreateEntity_Many).PICO_SETTINGS().label("0 component");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<1>).PICO_SETTINGS().label("1 component");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<2>).PICO_SETTINGS().label("2 components");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<4>).PICO_SETTINGS().label("4 components");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<8>).PICO_SETTINGS().label("8 components");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<16>).PICO_SETTINGS().label("16 components");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");
+
+			PICOBENCH_SUITE_REG("Entity + N components - copy_n");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<1>).PICO_SETTINGS().label("1 component");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<2>).PICO_SETTINGS().label("2 components");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<4>).PICO_SETTINGS().label("4 components");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<8>).PICO_SETTINGS().label("8 components");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<16>).PICO_SETTINGS().label("16 components");
+			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<30>).PICO_SETTINGS().label("30 components");
+
+			PICOBENCH_SUITE_REG("Entity + N component - add() + one-by-one components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
-			PICOBENCH_REG(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
+
+			PICOBENCH_SUITE_REG("Entity + N component - add() + bulk components");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
+			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
 		}
 	}
 

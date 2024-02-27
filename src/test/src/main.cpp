@@ -1,3 +1,4 @@
+#include "gaia/config/config_core.h"
 #include "gaia/mt/threadpool.h"
 #include <gaia.h>
 
@@ -4204,6 +4205,107 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 			REQUIRE(iter.size() == 1);
 		});
 		REQUIRE(cnt == 1);
+	}
+}
+
+TEST_CASE("add_n") {
+	TestWorld twld;
+
+	auto qa = wld.query().all<Acceleration>();
+	auto qp = wld.query().all<Position>();
+
+	auto e = wld.add();
+	wld.add<Acceleration>(e, {1.f, 1.f, 1.f});
+	wld.add<Position>(e, {2.f, 2.f, 2.f});
+
+	constexpr uint32_t N = 1000;
+
+	wld.add_n(e, N);
+
+	{
+		uint32_t cnt = 0;
+		qa.each([&](ecs::Entity ent, const Acceleration& a) {
+			++cnt;
+
+			if (ent == e) {
+				REQUIRE(a.x == 1.f);
+				REQUIRE(a.y == 1.f);
+				REQUIRE(a.z == 1.f);
+			} else {
+				// REQUIRE(a.x == 0.f);
+				// REQUIRE(a.y == 0.f);
+				// REQUIRE(a.z == 0.f);
+			}
+		});
+		REQUIRE(cnt == N + 1);
+	}
+	{
+		uint32_t cnt = 0;
+		qp.each([&](ecs::Entity ent, const Position& p) {
+			++cnt;
+
+			if (ent == e) {
+				REQUIRE(p.x == 2.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 2.f);
+			} else {
+				// REQUIRE(p.x == 0.f);
+				// REQUIRE(p.y == 0.f);
+				// REQUIRE(p.z == 0.f);
+			}
+		});
+		REQUIRE(cnt == N + 1);
+	}
+}
+
+TEST_CASE("copy_n") {
+	TestWorld twld;
+
+	auto qa = wld.query().all<Acceleration>();
+	auto qp = wld.query().all<Position>();
+
+	auto e = wld.add();
+	wld.add<Acceleration>(e, {1.f, 1.f, 1.f});
+	wld.add<Position>(e, {2.f, 2.f, 2.f});
+
+	{
+		const auto& a = wld.get<Acceleration>(e);
+		REQUIRE(a.x == 1.f);
+		REQUIRE(a.y == 1.f);
+		REQUIRE(a.z == 1.f);
+	}
+	{
+		const auto& p = wld.get<Position>(e);
+		REQUIRE(p.x == 2.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 2.f);
+	}
+
+	constexpr uint32_t N = 1000;
+
+	wld.copy_n(e, N);
+
+	{
+		uint32_t cnt = 0;
+		qa.each([&](const Acceleration& a) {
+			++cnt;
+
+			REQUIRE(a.x == 1.f);
+			REQUIRE(a.y == 1.f);
+			REQUIRE(a.z == 1.f);
+		});
+		REQUIRE(cnt == N + 1);
+	}
+	{
+		uint32_t cnt = 0;
+		qp.each([&](const Position& p) {
+			++cnt;
+
+			REQUIRE(p.x == 2.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 2.f);
+		});
+		REQUIRE(cnt == N + 1);
 	}
 }
 

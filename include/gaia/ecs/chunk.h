@@ -588,7 +588,7 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
+				GAIA_FOR(pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
@@ -610,7 +610,7 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity
-				GAIA_FOR2(0, pOldChunk->m_header.genEntities) {
+				GAIA_FOR(pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
