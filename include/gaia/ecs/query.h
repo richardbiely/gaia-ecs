@@ -372,25 +372,30 @@ namespace gaia {
 				}
 
 				//! Execute functors in batches
-				template <typename Func>
-				static void run_func_batched(Func func, ChunkBatchedList& chunks) {
+				template <typename Func, typename TIter>
+				static void run_func_batched(Func func, TIter& it, ChunkBatchedList& chunks) {
+					GAIA_PROF_SCOPE(query::run_func_batched);
+
 					const auto chunkCnt = chunks.size();
 					GAIA_ASSERT(chunkCnt > 0);
+
+					auto runFunc = [&](Chunk* pChunk) {
+						it.set_chunk(pChunk);
+						func(it);
+					};
 
 					// This is what the function is doing:
 					// for (auto *pChunk: chunks) {
 					//  pChunk->lock(true);
-					//	func(*pChunk);
+					//	runFunc(pChunk);
 					//  pChunk->lock(false);
 					// }
 					// chunks.clear();
 
-					GAIA_PROF_SCOPE(query::run_func_batched);
-
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
 						chunks[0]->lock(true);
-						func(*chunks[0]);
+						runFunc(chunks[0]);
 						chunks[0]->lock(false);
 						chunks.clear();
 						return;
@@ -406,19 +411,19 @@ namespace gaia {
 					// least in L3 cache or higher.
 					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
 					chunks[0]->lock(true);
-					func(*chunks[0]);
+					runFunc(chunks[0]);
 					chunks[0]->lock(false);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
 						chunks[chunkIdx]->lock(true);
-						func(*chunks[chunkIdx]);
+						runFunc(chunks[chunkIdx]);
 						chunks[chunkIdx]->lock(false);
 					}
 
 					chunks[chunkIdx]->lock(true);
-					func(*chunks[chunkIdx]);
+					runFunc(chunks[chunkIdx]);
 					chunks[chunkIdx]->lock(false);
 
 					chunks.clear();
@@ -429,8 +434,11 @@ namespace gaia {
 					return !archetype.is_req_del();
 				}
 
-				template <bool HasFilters, typename Iter, typename Func>
-				void run_query(const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch) {
+				template <bool HasFilters, typename TIter, typename Func>
+				void run_query(const QueryInfo& queryInfo, Func func) {
+					ChunkBatchedList chunkBatch;
+					TIter* pLastIter = nullptr;
+
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
@@ -438,6 +446,8 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
 						const auto& chunks = pArchetype->chunks();
+						TIter it;
+						pLastIter = &it;
 
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
@@ -447,7 +457,7 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								Iter it(*pChunk);
+								it.set_chunk(pChunk);
 								if (it.size() == 0)
 									continue;
 
@@ -460,41 +470,39 @@ namespace gaia {
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_func_batched(func, chunkBatch);
+								run_func_batched(func, it, chunkBatch);
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
 						}
 					}
+
+					// Take care of any leftovers not processed during run_query
+					if (!chunkBatch.empty()) {
+						GAIA_ASSERT(pLastIter != nullptr);
+						run_func_batched(func, *pLastIter, chunkBatch);
+					}
 				}
 
-				template <typename Iter, typename Func>
+				template <typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					update_version(*m_worldVersion);
 
-					ChunkBatchedList chunkBatch;
-
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)
-						run_query<true, Iter>(queryInfo, func, chunkBatch);
+						run_query<true, TIter>(queryInfo, func);
 					else
-						run_query<false, Iter>(queryInfo, func, chunkBatch);
-
-					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty())
-						run_func_batched(func, chunkBatch);
+						run_query<false, TIter>(queryInfo, func);
 
 					// Update the query version with the current world's version
 					queryInfo.set_world_version(*m_worldVersion);
 				}
 
-				template <typename Iter, typename Func, typename... T>
+				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
-				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
-						Iter it(chunk);
-
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
 						// Translates to:
@@ -509,7 +517,6 @@ namespace gaia {
 						GAIA_EACH(it) func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						Iter it(chunk);
 						GAIA_EACH(it) func();
 					}
 				}
@@ -519,7 +526,7 @@ namespace gaia {
 						m_storage.m_queryId = QueryIdBad;
 				}
 
-				template <bool UseFilters, typename Iter>
+				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					for (const auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -528,8 +535,10 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::empty);
 
 						const auto& chunks = pArchetype->chunks();
+						TIter it;
+
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
-							Iter it(*pChunk);
+							it.set_chunk(pChunk);
 							if constexpr (UseFilters)
 								return it.size() > 0 && match_filters(*pChunk, queryInfo);
 							else
@@ -543,7 +552,7 @@ namespace gaia {
 					return true;
 				}
 
-				template <bool UseFilters, typename Iter>
+				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
 
@@ -554,8 +563,11 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::count);
 
 						const auto& chunks = pArchetype->chunks();
+						TIter it;
+
 						for (auto* pChunk: chunks) {
-							Iter it(*pChunk);
+							it.set_chunk(pChunk);
+
 							const auto entityCnt = it.size();
 							if (entityCnt == 0)
 								continue;
@@ -574,7 +586,7 @@ namespace gaia {
 					return cnt;
 				}
 
-				template <bool UseFilters, typename Iter, typename ContainerOut>
+				template <bool UseFilters, typename TIter, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 
@@ -585,8 +597,10 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::arr);
 
 						const auto& chunks = pArchetype->chunks();
+						TIter it;
+
 						for (auto* pChunk: chunks) {
-							Iter it(*pChunk);
+							it.set_chunk(pChunk);
 							if (it.size() == 0)
 								continue;
 
@@ -865,8 +879,8 @@ namespace gaia {
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					run_query_on_chunks<Iter>(queryInfo, [&](Chunk& chunk) {
-						run_query_on_chunk<Iter>(chunk, func, InputArgs{});
+					run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
+						run_query_on_chunk(it, func, InputArgs{});
 					});
 				}
 
@@ -874,22 +888,19 @@ namespace gaia {
 				void each(Func func) {
 					auto& queryInfo = fetch();
 
-					if constexpr (std::is_invocable_v<Func, IterAll&>)
-						run_query_on_chunks<IterAll>(queryInfo, [&](Chunk& chunk) {
-							IterAll it(chunk);
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
 							func(it);
 						});
-					else if constexpr (std::is_invocable_v<Func, Iter&>)
-						run_query_on_chunks<Iter>(queryInfo, [&](Chunk& chunk) {
-							Iter it(chunk);
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
 							func(it);
 						});
-					else if constexpr (std::is_invocable_v<Func, IterDisabled&>)
-						run_query_on_chunks<IterDisabled>(queryInfo, [&](Chunk& chunk) {
-							IterDisabled it(chunk);
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_chunks<IterDisabled>(queryInfo, [&](IterDisabled& it) {
 							func(it);
 						});
-					else
+					} else
 						each(queryInfo, func);
 				}
 

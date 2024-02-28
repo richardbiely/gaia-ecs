@@ -16,13 +16,18 @@ namespace gaia {
 			template <Constraints IterConstraint>
 			class ChunkIterImpl {
 			protected:
-				Chunk& m_chunk;
+				Chunk* m_pChunk = nullptr;
 
 			public:
-				ChunkIterImpl(Chunk& chunk): m_chunk(chunk) {}
+				ChunkIterImpl() = default;
 				~ChunkIterImpl() = default;
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
+
+				void set_chunk(Chunk* pChunk) {
+					GAIA_ASSERT(pChunk != nullptr);
+					m_pChunk = pChunk;
+				}
 
 				//! Returns a read-only entity or component view.
 				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
@@ -30,7 +35,7 @@ namespace gaia {
 				//! \return Entity of component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view() const {
-					return m_chunk.view<T>(from(), to());
+					return m_pChunk->view<T>(from(), to());
 				}
 
 				//! Returns a mutable entity or component view.
@@ -39,7 +44,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
-					return m_chunk.view_mut<T>(from(), to());
+					return m_pChunk->view_mut<T>(from(), to());
 				}
 
 				//! Returns a mutable component view.
@@ -49,7 +54,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
-					return m_chunk.sview_mut<T>(from(), to());
+					return m_pChunk->sview_mut<T>(from(), to());
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -59,7 +64,7 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					return m_chunk.view_auto<T>(from(), to());
+					return m_pChunk->view_auto<T>(from(), to());
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -70,21 +75,21 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					return m_chunk.sview_auto<T>(from(), to());
+					return m_pChunk->sview_auto<T>(from(), to());
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool enabled(uint32_t index) const {
 					const auto row = (uint16_t)(from() + index);
-					return m_chunk.enabled(row);
+					return m_pChunk->enabled(row);
 				}
 
 				//! Checks if entity \param entity is present in the chunk.
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
-					return m_chunk.has(entity);
+					return m_pChunk->has(entity);
 				}
 
 				//! Checks if component \tparam T is present in the chunk.
@@ -92,24 +97,24 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
-					return m_chunk.has<T>();
+					return m_pChunk->has<T>();
 				}
 
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_chunk.size_enabled();
+						return m_pChunk->size_enabled();
 					else if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_chunk.size_disabled();
+						return m_pChunk->size_disabled();
 					else
-						return m_chunk.size();
+						return m_pChunk->size();
 				}
 
 			protected:
 				//! Returns the starting index of the iterator
 				GAIA_NODISCARD uint16_t from() const noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_chunk.size_disabled();
+						return m_pChunk->size_disabled();
 					else
 						return 0;
 				}
@@ -117,9 +122,9 @@ namespace gaia {
 				//! Returns the ending index of the iterator (one past the last valid index)
 				GAIA_NODISCARD uint16_t to() const noexcept {
 					if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_chunk.size_disabled();
+						return m_pChunk->size_disabled();
 					else
-						return m_chunk.size();
+						return m_pChunk->size();
 				}
 			};
 		} // namespace detail
@@ -133,17 +138,15 @@ namespace gaia {
 		//! Disabled entities always preceed enabled ones.
 		class IterAll: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
-			IterAll(Chunk& chunk): detail::ChunkIterImpl<Constraints::AcceptAll>(chunk) {}
-
 			//! Returns the number of enabled entities accessible via the iterator.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
-				return m_chunk.size_enabled();
+				return m_pChunk->size_enabled();
 			}
 
 			//! Returns the number of disabled entities accessible via the iterator.
 			//! Can be read also as "the index of the first enabled entity".
 			GAIA_NODISCARD uint16_t size_disabled() const noexcept {
-				return m_chunk.size_disabled();
+				return m_pChunk->size_disabled();
 			}
 		};
 	} // namespace ecs
