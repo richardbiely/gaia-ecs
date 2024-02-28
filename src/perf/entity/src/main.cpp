@@ -45,6 +45,7 @@ constexpr void Adds(ecs::World& w, uint32_t n) {
 	}
 }
 
+template <uint32_t NumberOfEntities>
 void BM_CreateEntity(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
@@ -56,10 +57,11 @@ void BM_CreateEntity(picobench::state& state) {
 		(void)w.add();
 		state.start_timer();
 
-		GAIA_FOR(NEntities)(void) w.add();
+		GAIA_FOR(NumberOfEntities)(void) w.add();
 	}
 }
 
+template <uint32_t NumberOfEntities>
 void BM_CreateEntity_Many(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
@@ -71,7 +73,7 @@ void BM_CreateEntity_Many(picobench::state& state) {
 		(void)w.add();
 		state.start_timer();
 
-		w.add_n(NEntities);
+		w.add_n(NumberOfEntities);
 	}
 }
 
@@ -156,7 +158,7 @@ void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 }
 
 #define PICO_SETTINGS() iterations({1024}).samples(3)
-#define PICO_SETTINGS_1() iterations({1024}).samples(1)
+#define PICO_SETTINGS_1() iterations({16}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
@@ -189,10 +191,12 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
 		} else {
 			PICOBENCH_SUITE_REG("Entity creation");
-			PICOBENCH_REG(BM_CreateEntity).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_CreateEntity<1000000>).PICO_SETTINGS_1().label("0 components, 1M entities");
 
 			PICOBENCH_SUITE_REG("Entity + N components - add_n");
-			PICOBENCH_REG(BM_CreateEntity_Many).PICO_SETTINGS().label("0 component");
+			PICOBENCH_REG(BM_CreateEntity_Many<NEntities>).PICO_SETTINGS().label("0 component");
+			PICOBENCH_REG(BM_CreateEntity_Many<1000000>).PICO_SETTINGS_1().label("0 component, 1M entities");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<2>).PICO_SETTINGS().label("2 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<4>).PICO_SETTINGS().label("4 components");

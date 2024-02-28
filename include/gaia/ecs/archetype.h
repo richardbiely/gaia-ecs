@@ -94,6 +94,8 @@ namespace gaia {
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
+			//! Index of the first chunk with enough space to add at least one entity
+			uint32_t m_firstFreeChunkidx = 0;
 			//! List of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -556,7 +558,7 @@ namespace gaia {
 						enable_entity(pDstChunk, newRow, wasEnabled, recs);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldRow, recs, chunksToDelete);
+						remove_entity(*pSrcChunk, oldRow, recs, chunksToDelete);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -576,51 +578,17 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created.
+			//! \warning Always used in tandem with try_update_free_chunk_idx() or remove_entity()
 			GAIA_NODISCARD Chunk* foc_free_chunk() {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
-					// Find first semi-empty chunk.
-					// Picking the first non-full would only support fragmentation.
-					Chunk* pEmptyChunk = nullptr;
-					for (auto* pChunk: m_chunks) {
-						GAIA_ASSERT(pChunk != nullptr);
-						const auto entityCnt = pChunk->size();
-						if GAIA_UNLIKELY (entityCnt == 0)
-							pEmptyChunk = pChunk;
-						else if (entityCnt < pChunk->capacity())
-							return pChunk;
-					}
-					if (pEmptyChunk != nullptr)
-						return pEmptyChunk;
-				}
-
-				// Make sure not too many chunks are allocated
-				GAIA_ASSERT(chunkCnt < UINT32_MAX);
-
-				// No free space found anywhere. Let's create a new chunk.
-				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
-						m_dataOffsets, m_ids, m_comps, m_compOffs);
-
-				m_chunks.push_back(pChunk);
-				return pChunk;
-			}
-
-			//! Tries to locate a chunk that has some space left for a new entity.
-			//! If not found a new chunk is created.
-			//! \note It is assumed to be used for operations that are going to fill the chunk with
-			//!       many entities. Therefore, unlike with foc_free_chunk(), any chunk is returned.
-			GAIA_NODISCARD Chunk* foc_free_chunk_bulk(uint32_t& from) {
-				const auto chunkCnt = m_chunks.size();
-
-				if (chunkCnt > 0) {
-					for (uint32_t i = from; i < m_chunks.size(); ++i) {
+					for (uint32_t i = m_firstFreeChunkidx; i < m_chunks.size(); ++i) {
 						auto* pChunk = m_chunks[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						const auto entityCnt = pChunk->size();
 						if (entityCnt < pChunk->capacity()) {
-							from = i;
+							m_firstFreeChunkidx = i;
 							return pChunk;
 						}
 					}
@@ -634,9 +602,48 @@ namespace gaia {
 						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
 						m_dataOffsets, m_ids, m_comps, m_compOffs);
 
-				from = m_chunks.size();
+				m_firstFreeChunkidx = m_chunks.size();
 				m_chunks.push_back(pChunk);
 				return pChunk;
+			}
+
+			//! Tries to update the index of the first chunk that has space left
+			//! for at least one entity.
+			//! \warning Always use in tandem with foc_free_chunk()
+			void try_update_free_chunk_idx() {
+				// This is expected to be called only if there are any chunks
+				GAIA_ASSERT(!m_chunks.empty());
+
+				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				if (pChunk->size() >= pChunk->capacity())
+					++m_firstFreeChunkidx;
+			}
+
+			//! Tries to update the index of the first chunk that has space left
+			//! for at least one entity.
+			//! \warning Always use in tandem with foc_free_chunk() and remove_entity()
+			void try_update_free_chunk_idx(Chunk& chunkThatRemovedEntity) {
+				// This is expected to be called only if there are any chunks
+				GAIA_ASSERT(!m_chunks.empty());
+
+				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkidx)
+					return;
+
+				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkidx) {
+					m_firstFreeChunkidx = chunkThatRemovedEntity.idx();
+					return;
+				}
+
+				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				if (pChunk->size() >= pChunk->capacity())
+					++m_firstFreeChunkidx;
+			}
+
+			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
+				chunk.remove_entity(row, recs, chunksToDelete);
+				chunk.update_versions();
+
+				try_update_free_chunk_idx(chunk);
 			}
 
 			GAIA_NODISCARD const Properties& props() const {

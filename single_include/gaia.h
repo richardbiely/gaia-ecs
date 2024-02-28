@@ -16037,6 +16037,8 @@ namespace gaia {
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void ctor_from(void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_move_ctor != nullptr)
 					func_move_ctor(pSrc, pDst);
 				else if (func_copy_ctor != nullptr)
@@ -16046,6 +16048,8 @@ namespace gaia {
 			}
 
 			void move(void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_move != nullptr)
 					func_move(pSrc, pDst);
 				else
@@ -16053,6 +16057,8 @@ namespace gaia {
 			}
 
 			void copy(const void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_copy != nullptr)
 					func_copy(pSrc, pDst);
 				else
@@ -16065,13 +16071,14 @@ namespace gaia {
 			}
 
 			void swap(void* pLeft, void* pRight) const {
-				// Function pointer is not provided only in 2 cases:
-				// 1) SoA component
+				// Function pointer is not provided only in one case: SoA component
 				GAIA_ASSERT(func_swap != nullptr);
 				func_swap(pLeft, pRight);
 			}
 
 			bool cmp(const void* pLeft, const void* pRight) const {
+				GAIA_ASSERT(pLeft != pRight);
+
 				// We only ever compare components during defragmentation when they are uni components.
 				// For those cases the comparison operator must be present.
 				// Correct setup should be ensured by a compile time check when adding a new component.
@@ -17869,6 +17876,8 @@ namespace gaia {
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
+			//! Index of the first chunk with enough space to add at least one entity
+			uint32_t m_firstFreeChunkidx = 0;
 			//! List of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -18331,7 +18340,7 @@ namespace gaia {
 						enable_entity(pDstChunk, newRow, wasEnabled, recs);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldRow, recs, chunksToDelete);
+						remove_entity(*pSrcChunk, oldRow, recs, chunksToDelete);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -18351,51 +18360,17 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created.
+			//! \warning Always used in tandem with try_update_free_chunk_idx() or remove_entity()
 			GAIA_NODISCARD Chunk* foc_free_chunk() {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
-					// Find first semi-empty chunk.
-					// Picking the first non-full would only support fragmentation.
-					Chunk* pEmptyChunk = nullptr;
-					for (auto* pChunk: m_chunks) {
-						GAIA_ASSERT(pChunk != nullptr);
-						const auto entityCnt = pChunk->size();
-						if GAIA_UNLIKELY (entityCnt == 0)
-							pEmptyChunk = pChunk;
-						else if (entityCnt < pChunk->capacity())
-							return pChunk;
-					}
-					if (pEmptyChunk != nullptr)
-						return pEmptyChunk;
-				}
-
-				// Make sure not too many chunks are allocated
-				GAIA_ASSERT(chunkCnt < UINT32_MAX);
-
-				// No free space found anywhere. Let's create a new chunk.
-				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
-						m_dataOffsets, m_ids, m_comps, m_compOffs);
-
-				m_chunks.push_back(pChunk);
-				return pChunk;
-			}
-
-			//! Tries to locate a chunk that has some space left for a new entity.
-			//! If not found a new chunk is created.
-			//! \note It is assumed to be used for operations that are going to fill the chunk with
-			//!       many entities. Therefore, unlike with foc_free_chunk(), any chunk is returned.
-			GAIA_NODISCARD Chunk* foc_free_chunk_bulk(uint32_t& from) {
-				const auto chunkCnt = m_chunks.size();
-
-				if (chunkCnt > 0) {
-					for (uint32_t i = from; i < m_chunks.size(); ++i) {
+					for (uint32_t i = m_firstFreeChunkidx; i < m_chunks.size(); ++i) {
 						auto* pChunk = m_chunks[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						const auto entityCnt = pChunk->size();
 						if (entityCnt < pChunk->capacity()) {
-							from = i;
+							m_firstFreeChunkidx = i;
 							return pChunk;
 						}
 					}
@@ -18409,9 +18384,48 @@ namespace gaia {
 						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
 						m_dataOffsets, m_ids, m_comps, m_compOffs);
 
-				from = m_chunks.size();
+				m_firstFreeChunkidx = m_chunks.size();
 				m_chunks.push_back(pChunk);
 				return pChunk;
+			}
+
+			//! Tries to update the index of the first chunk that has space left
+			//! for at least one entity.
+			//! \warning Always use in tandem with foc_free_chunk()
+			void try_update_free_chunk_idx() {
+				// This is expected to be called only if there are any chunks
+				GAIA_ASSERT(!m_chunks.empty());
+
+				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				if (pChunk->size() >= pChunk->capacity())
+					++m_firstFreeChunkidx;
+			}
+
+			//! Tries to update the index of the first chunk that has space left
+			//! for at least one entity.
+			//! \warning Always use in tandem with foc_free_chunk() and remove_entity()
+			void try_update_free_chunk_idx(Chunk& chunkThatRemovedEntity) {
+				// This is expected to be called only if there are any chunks
+				GAIA_ASSERT(!m_chunks.empty());
+
+				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkidx)
+					return;
+
+				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkidx) {
+					m_firstFreeChunkidx = chunkThatRemovedEntity.idx();
+					return;
+				}
+
+				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				if (pChunk->size() >= pChunk->capacity())
+					++m_firstFreeChunkidx;
+			}
+
+			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
+				chunk.remove_entity(row, recs, chunksToDelete);
+				chunk.update_versions();
+
+				try_update_free_chunk_idx(chunk);
 			}
 
 			GAIA_NODISCARD const Properties& props() const {
@@ -21870,13 +21884,13 @@ namespace gaia {
 			}
 
 			//! Remove an entity from its chunk.
-			//! \param pChunk Chunk we remove the entity from
+			//! \param archetype Archetype we remove the entity from
+			//! \param chunk Chunk we remove the entity from
 			//! \param row Index of entity within its chunk
-			void remove_entity(Chunk* pChunk, uint16_t row) {
+			void remove_entity(Archetype& archetype, Chunk& chunk, uint16_t row) {
 				GAIA_PROF_SCOPE(World::remove_entity);
 
-				pChunk->remove_entity(row, m_recs, m_chunksToDel);
-				pChunk->update_versions();
+				archetype.remove_entity(chunk, row, m_recs, m_chunksToDel);
 			}
 
 			//! Delete an empty chunk from its archetype
@@ -22384,15 +22398,17 @@ namespace gaia {
 					if (m_recs.entities.item_count() == 0)
 						return;
 
+#if GAIA_ASSERT_ENABLED
 					auto* pChunk = ec.pChunk;
 					GAIA_ASSERT(pChunk != nullptr);
+#endif
 
 					// Remove the entity from its chunk.
 					// We call del_name first because remove_entity calls component destructors.
 					// If the call was made inside invalidate_entity we would access a memory location
 					// which has already been destructed which is not nice.
 					del_name(entity);
-					remove_entity(pChunk, ec.row);
+					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
 				}
 
 				// Invalidate on-demand.
@@ -22493,14 +22509,12 @@ namespace gaia {
 					// TODO: If the header was of some fixed size, e.g. if we always acted as if we had
 					//       Chunk::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
 					//       E.g. when removing tags or pairs, we would simply replace the chunk pointer
-					//       with a pointer to another one. The some goes for archetypes. Component data
+					//       with a pointer to another one. The same goes for archetypes. Component data
 					//       would not have to move at all internal chunk header pointers would remain unchanged.
 
-					auto* pDstChunk = dstArchetype.foc_free_chunk();
 					int i = (int)(srcEnts.size() - 1);
 					while (i >= 0) {
-						if (pDstChunk->full())
-							pDstChunk = dstArchetype.foc_free_chunk();
+						auto* pDstChunk = dstArchetype.foc_free_chunk();
 						move_entity(srcEnts[(uint32_t)i], dstArchetype, *pDstChunk);
 
 						--i;
@@ -22946,6 +22960,8 @@ namespace gaia {
 				auto& ec = fetch(entity);
 				auto* pOldChunk = ec.pChunk;
 
+				GAIA_ASSERT(pNewChunk != pOldChunk);
+
 				const auto oldRow0 = ec.row;
 				const auto newRow = pNewChunk->add_entity(entity);
 				const bool wasEnabled = !ec.dis;
@@ -22959,13 +22975,17 @@ namespace gaia {
 				const auto oldRow = ec.row;
 
 				// Move data from the old chunk to the new one
-				if (newArchetype.id() == oldArchetype.id())
+				if (newArchetype.id() == oldArchetype.id()) {
 					pNewChunk->move_entity_data(entity, newRow, m_recs);
-				else
+				} else {
 					pNewChunk->move_foreign_entity_data(entity, newRow, m_recs);
+				}
 
 				// Remove the entity record from the old chunk
-				remove_entity(pOldChunk, oldRow);
+				remove_entity(oldArchetype, *pOldChunk, oldRow);
+
+				// An entity might have moved, try updating the free chunk index
+				newArchetype.try_update_free_chunk_idx();
 
 				// Bring the entity container record up-to-date
 				ec.pArchetype = &newArchetype;
@@ -23331,6 +23351,7 @@ namespace gaia {
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(m_recs.entities[entity.id()], entity, &archetype, pChunk);
+				archetype.try_update_free_chunk_idx();
 
 				// Call constructors for the generic components on the newly added entity if necessary
 				if (pChunk->has_custom_gen_ctor())
@@ -23367,6 +23388,8 @@ namespace gaia {
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(ec, entity, &archetype, pChunk);
+				archetype.try_update_free_chunk_idx();
+
 				m_recs.pairs.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
 
 				// Update pair mappings
@@ -23397,26 +23420,24 @@ namespace gaia {
 				return entity;
 			}
 
-			using TAddManyEntitiesFunc = void(Entity);
-			static void add_many_dummy_func([[maybe_unused]] Entity entity) {}
+			using TFunc_Void_With_Entity = void(Entity);
+			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
 
 			//! Creates multiple entity of a given archetype at once.
 			//! More efficient than creating entities individually.
 			//! \param archetype Archetype the entity should inherit
 			//! \param count Number of entities to create
-			//! \param out Output array with the entities
+			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
 			void add_many_entities(Archetype& archetype, uint32_t count, Func func) {
 				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
-				uint32_t from = 0;
 				uint32_t left = count;
 				do {
-					auto* pChunk = archetype.foc_free_chunk_bulk(from);
+					auto* pChunk = archetype.foc_free_chunk();
 					const uint32_t originalChunkSize = pChunk->size();
 					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
 					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
-					from += (uint32_t)(toCreate >= freeSlotsInChunk);
 
 					GAIA_FOR(toCreate) {
 						const auto entityNew = m_recs.entities.alloc(&ctx);
@@ -23429,6 +23450,9 @@ namespace gaia {
 						GAIA_ASSERT(entityExpected == entityNew);
 #endif
 					}
+
+					// New entities were added, try updating the free chunk index
+					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
 					if (pChunk->has_custom_gen_ctor())
@@ -23516,8 +23540,8 @@ namespace gaia {
 
 			//! Creates \param count new empty entities
 			//! \param func Functor to execute every time an entity is added
-			template <typename Func = TAddManyEntitiesFunc>
-			void add_n(uint32_t count, Func func = add_many_dummy_func) {
+			template <typename Func = TFunc_Void_With_Entity>
+			void add_n(uint32_t count, Func func = func_void_with_entity) {
 				add_many_entities(*m_pEntityArchetype, count, func);
 			}
 
@@ -23525,8 +23549,8 @@ namespace gaia {
 			//! \param func Functor to execute every time an entity is added
 			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
 			//!       if they provide a constructor
-			template <typename Func = TAddManyEntitiesFunc>
-			void add_n(Entity entity, uint32_t count, Func func = add_many_dummy_func) {
+			template <typename Func = TFunc_Void_With_Entity>
+			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
 
 				GAIA_ASSERT(ec.pChunk != nullptr);
@@ -23661,10 +23685,10 @@ namespace gaia {
 			//! Creates \param count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
-			//! \param func Functor to execute every time a copy is made
+			//! \param func void(Entity copy) functor executed every time a copy is created
 			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
-			template <typename Func = TAddManyEntitiesFunc>
-			void copy_n(Entity entity, uint32_t count, Func func = add_many_dummy_func) {
+			template <typename Func = TFunc_Void_With_Entity>
+			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 
@@ -23679,14 +23703,12 @@ namespace gaia {
 
 				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
-				uint32_t from = 0;
 				uint32_t left = count;
 				do {
-					auto* pChunk = archetype.foc_free_chunk_bulk(from);
+					auto* pChunk = archetype.foc_free_chunk();
 					const uint32_t originalChunkSize = pChunk->size();
 					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
 					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
-					from += (uint32_t)(toCreate >= freeSlotsInChunk);
 
 					GAIA_FOR(toCreate) {
 						const auto entityNew = m_recs.entities.alloc(&ctx);
@@ -23699,6 +23721,9 @@ namespace gaia {
 						GAIA_ASSERT(entityExpected == entityNew);
 #endif
 					}
+
+					// New entities were added, try updating the free chunk index
+					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
 					if (pChunk->has_custom_gen_ctor())
@@ -24232,6 +24257,7 @@ namespace gaia {
 
 			//! Returns the relationship relations for the \param target entity on \param entity.
 			//! Appends all relationship relations if any to \param out.
+			//! \param func void(Entity relation) functor executed for relationship relation found.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations(Entity entity, Entity target, Func func) const {
@@ -24341,6 +24367,7 @@ namespace gaia {
 
 			//! Returns the relationship targets for the \param relation entity on \param entity.
 			//! Appends all relationship targets if any to \param out.
+			//! \param func void(Entity target) functor executed for relationship target found.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {

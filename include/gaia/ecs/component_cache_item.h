@@ -64,6 +64,8 @@ namespace gaia {
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void ctor_from(void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_move_ctor != nullptr)
 					func_move_ctor(pSrc, pDst);
 				else if (func_copy_ctor != nullptr)
@@ -73,6 +75,8 @@ namespace gaia {
 			}
 
 			void move(void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_move != nullptr)
 					func_move(pSrc, pDst);
 				else
@@ -80,6 +84,8 @@ namespace gaia {
 			}
 
 			void copy(const void* pSrc, void* pDst) const {
+				GAIA_ASSERT(pSrc != pDst);
+
 				if (func_copy != nullptr)
 					func_copy(pSrc, pDst);
 				else
@@ -92,13 +98,14 @@ namespace gaia {
 			}
 
 			void swap(void* pLeft, void* pRight) const {
-				// Function pointer is not provided only in 2 cases:
-				// 1) SoA component
+				// Function pointer is not provided only in one case: SoA component
 				GAIA_ASSERT(func_swap != nullptr);
 				func_swap(pLeft, pRight);
 			}
 
 			bool cmp(const void* pLeft, const void* pRight) const {
+				GAIA_ASSERT(pLeft != pRight);
+
 				// We only ever compare components during defragmentation when they are uni components.
 				// For those cases the comparison operator must be present.
 				// Correct setup should be ensured by a compile time check when adding a new component.
