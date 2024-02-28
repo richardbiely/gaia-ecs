@@ -874,17 +874,20 @@ namespace gaia {
 				void each(Func func) {
 					auto& queryInfo = fetch();
 
-					if constexpr (std::is_invocable_v<Func, IterAll>)
+					if constexpr (std::is_invocable_v<Func, IterAll&>)
 						run_query_on_chunks<IterAll>(queryInfo, [&](Chunk& chunk) {
-							func(IterAll(chunk));
+							IterAll it(chunk);
+							func(it);
 						});
-					else if constexpr (std::is_invocable_v<Func, Iter>)
+					else if constexpr (std::is_invocable_v<Func, Iter&>)
 						run_query_on_chunks<Iter>(queryInfo, [&](Chunk& chunk) {
-							func(Iter(chunk));
+							Iter it(chunk);
+							func(it);
 						});
-					else if constexpr (std::is_invocable_v<Func, IterDisabled>)
+					else if constexpr (std::is_invocable_v<Func, IterDisabled&>)
 						run_query_on_chunks<IterDisabled>(queryInfo, [&](Chunk& chunk) {
-							func(IterDisabled(chunk));
+							IterDisabled it(chunk);
+							func(it);
 						});
 					else
 						each(queryInfo, func);

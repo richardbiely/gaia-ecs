@@ -20,6 +20,9 @@ namespace gaia {
 
 			public:
 				ChunkIterImpl(Chunk& chunk): m_chunk(chunk) {}
+				~ChunkIterImpl() = default;
+				ChunkIterImpl(const ChunkIterImpl&) = delete;
+				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
 				//! Returns a read-only entity or component view.
 				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
