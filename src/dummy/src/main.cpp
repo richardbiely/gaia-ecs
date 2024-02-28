@@ -49,17 +49,17 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IterAll iter) {
-			auto p = iter.view_mut<Position>();
-			auto v = iter.view<Velocity>();
+		m_q.each([](ecs::IterAll& it) {
+			auto p = it.view_mut<Position>();
+			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.enabled(0))
+			if (it.enabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -74,17 +74,17 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IterAll iter) {
-			auto p = iter.view_mut<Position>();
-			auto v = iter.view<Velocity>();
+		m_q.each([](ecs::IterAll& it) {
+			auto p = it.view_mut<Position>();
+			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.enabled(0))
+			if (it.enabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -99,11 +99,11 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.each([](ecs::IterDisabled iter) {
-			auto p = iter.view_mut<Position>();
-			auto v = iter.view<Velocity>();
+		m_q.each([](ecs::IterDisabled& it) {
+			auto p = it.view_mut<Position>();
+			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;

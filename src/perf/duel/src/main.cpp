@@ -294,11 +294,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto p = iter.view_mut<Position>();
-				auto v = iter.view<Velocity>();
+			m_q->each([](ecs::Iter& it) {
+				auto p = it.view_mut<Position>();
+				auto v = it.view<Velocity>();
 
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
@@ -310,11 +310,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto p = iter.view_mut<Position>();
-				auto v = iter.view_mut<Velocity>();
+			m_q->each([](ecs::Iter& it) {
+				auto p = it.view_mut<Position>();
+				auto v = it.view_mut<Velocity>();
 
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -326,9 +326,9 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto v = iter.view_mut<Velocity>();
-				GAIA_EACH(iter) v[i].y += 9.81f * dt;
+			m_q->each([](ecs::Iter& it) {
+				auto v = it.view_mut<Velocity>();
+				GAIA_EACH(it) v[i].y += 9.81f * dt;
 			});
 		}
 	};
@@ -336,11 +336,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iter iter) {
-				auto h = iter.view<Health>();
+			m_q->each([&](ecs::Iter& it) {
+				auto h = it.view<Health>();
 
 				uint32_t a = 0;
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -384,9 +384,9 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto p = iter.view_mut<PositionSoA>();
-				auto v = iter.view<VelocitySoA>();
+			m_q->each([](ecs::Iter& it) {
+				auto p = it.view_mut<PositionSoA>();
+				auto v = it.view<VelocitySoA>();
 
 				auto ppx = p.set<0>();
 				auto ppy = p.set<1>();
@@ -396,23 +396,23 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				GAIA_EACH(iter) ppx[i] += vvx[i] * dt;
-				GAIA_EACH(iter) ppy[i] += vvy[i] * dt;
-				GAIA_EACH(iter) ppz[i] += vvz[i] * dt;
+				GAIA_EACH(it) ppx[i] += vvx[i] * dt;
+				GAIA_EACH(it) ppy[i] += vvy[i] * dt;
+				GAIA_EACH(it) ppz[i] += vvz[i] * dt;
 			});
 		}
 	};
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto p = iter.view_mut<PositionSoA>();
-				auto v = iter.view_mut<VelocitySoA>();
+			m_q->each([](ecs::Iter& it) {
+				auto p = it.view_mut<PositionSoA>();
+				auto v = it.view_mut<VelocitySoA>();
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
@@ -424,11 +424,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter iter) {
-				auto v = iter.view_mut<VelocitySoA>();
+			m_q->each([](ecs::Iter& it) {
+				auto v = it.view_mut<VelocitySoA>();
 				auto vvy = v.set<1>();
 
-				GAIA_EACH(iter) vvy[i] += dt * 9.81f;
+				GAIA_EACH(it) vvy[i] += dt * 9.81f;
 			});
 		}
 	};
@@ -436,11 +436,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iter iter) {
-				auto h = iter.view<Health>();
+			m_q->each([&](ecs::Iter& it) {
+				auto h = it.view<Health>();
 
 				uint32_t a = 0;
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					if (h[i].value > 0)
 						++a;
 				}

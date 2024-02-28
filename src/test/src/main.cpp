@@ -2295,7 +2295,7 @@ void Test_Query_QueryResult() {
 		const auto cnt = q4.count();
 
 		uint32_t cnt2 = 0;
-		q4.each([&](ecs::Iter it /*, ecs::Src src*/) {
+		q4.each([&](ecs::Iter& it /*, ecs::Src src*/) {
 			auto pos_view = it.view<Position>();
 			// auto lvl_view = src.view<Level>();
 			GAIA_EACH(it) {
@@ -2932,10 +2932,10 @@ TEST_CASE("Enable") {
 	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 		{
 			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::IterAll iter) {
-				const uint32_t cExpected = iter.size();
+			q.each([&]([[maybe_unused]] ecs::IterAll& it) {
+				const uint32_t cExpected = it.size();
 				uint32_t c = 0;
-				GAIA_EACH(iter)++ c;
+				GAIA_EACH(it)++ c;
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -2946,11 +2946,11 @@ TEST_CASE("Enable") {
 		}
 		{
 			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::Iter iter) {
-				const uint32_t cExpected = iter.size();
+			q.each([&]([[maybe_unused]] ecs::Iter& it) {
+				const uint32_t cExpected = it.size();
 				uint32_t c = 0;
-				GAIA_EACH(iter) {
-					REQUIRE(iter.enabled(i));
+				GAIA_EACH(it) {
+					REQUIRE(it.enabled(i));
 					++c;
 				}
 				REQUIRE(c == cExpected);
@@ -2963,11 +2963,11 @@ TEST_CASE("Enable") {
 		}
 		{
 			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::IterDisabled iter) {
-				const uint32_t cExpected = iter.size();
+			q.each([&]([[maybe_unused]] ecs::IterDisabled& it) {
+				const uint32_t cExpected = it.size();
 				uint32_t c = 0;
-				GAIA_EACH(iter) {
-					REQUIRE(!iter.enabled(i));
+				GAIA_EACH(it) {
+					REQUIRE(!it.enabled(i));
 					++c;
 				}
 				REQUIRE(c == cExpected);
@@ -3959,7 +3959,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 	}
 	{
 		uint32_t cnt = 0;
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -3971,7 +3971,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 
 	{
 		uint32_t cnt = 0;
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -3981,7 +3981,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 
 	{
 		uint32_t cnt = 0;
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -3993,7 +3993,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 
 	{
 		uint32_t cnt = 0;
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -4068,12 +4068,12 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = wld.query().any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			const bool ok1 = iter.has<Position>() || iter.has<Acceleration>();
+			const bool ok1 = it.has<Position>() || it.has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<Acceleration>() || iter.has<Position>();
+			const bool ok2 = it.has<Acceleration>() || it.has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
@@ -4082,14 +4082,14 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = wld.query().any<Position, Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(iter.size() == 1);
+			REQUIRE(it.size() == 1);
 
-			const bool ok1 = iter.has<Position>() || iter.has<Acceleration>();
+			const bool ok1 = it.has<Position>() || it.has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<Acceleration>() || iter.has<Position>();
+			const bool ok2 = it.has<Acceleration>() || it.has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
@@ -4098,10 +4098,10 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = wld.query().any<Position, Acceleration>().no<Scale>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(iter.size() == 1);
+			REQUIRE(it.size() == 1);
 		});
 		REQUIRE(cnt == 1);
 	}
@@ -4126,7 +4126,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	{
 		uint32_t cnt = 0;
 		auto q = wld.query().all<ecs::uni<Position>>();
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -4134,7 +4134,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	{
 		uint32_t cnt = 0;
 		auto q = wld.query().all<ecs::uni<Acceleration>>();
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -4142,7 +4142,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	{
 		uint32_t cnt = 0;
 		auto q = wld.query().all<ecs::uni<Rotation>>();
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -4150,7 +4150,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	{
 		uint32_t cnt = 0;
 		auto q = wld.query().all<ecs::uni<Else>>();
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -4158,7 +4158,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	{
 		uint32_t cnt = 0;
 		auto q = wld.query().all<ecs::uni<Scale>>();
-		q.each([&]([[maybe_unused]] ecs::Iter iter) {
+		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -4167,12 +4167,12 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			const bool ok1 = iter.has<ecs::uni<Position>>() || iter.has<ecs::uni<Acceleration>>();
+			const bool ok1 = it.has<ecs::uni<Position>>() || it.has<ecs::uni<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<ecs::uni<Acceleration>>() || iter.has<ecs::uni<Position>>();
+			const bool ok2 = it.has<ecs::uni<Acceleration>>() || it.has<ecs::uni<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
@@ -4181,14 +4181,14 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(iter.size() == 1);
+			REQUIRE(it.size() == 1);
 
-			const bool ok1 = iter.has<ecs::uni<Position>>() || iter.has<ecs::uni<Acceleration>>();
+			const bool ok1 = it.has<ecs::uni<Position>>() || it.has<ecs::uni<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<ecs::uni<Acceleration>>() || iter.has<ecs::uni<Position>>();
+			const bool ok2 = it.has<ecs::uni<Acceleration>>() || it.has<ecs::uni<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
@@ -4197,10 +4197,10 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter iter) {
+		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(iter.size() == 1);
+			REQUIRE(it.size() == 1);
 		});
 		REQUIRE(cnt == 1);
 	}
@@ -4343,12 +4343,12 @@ TEST_CASE("Set - generic") {
 	{
 		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
 
-		q.each([&](ecs::Iter iter) {
-			auto rotationView = iter.view_mut<Rotation>();
-			auto scaleView = iter.view_mut<Scale>();
-			auto elseView = iter.view_mut<Else>();
+		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view_mut<Rotation>();
+			auto scaleView = it.view_mut<Scale>();
+			auto elseView = it.view_mut<Else>();
 
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -4434,12 +4434,12 @@ TEST_CASE("Set - generic & unique") {
 	{
 		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
 
-		q.each([&](ecs::Iter iter) {
-			auto rotationView = iter.view_mut<Rotation>();
-			auto scaleView = iter.view_mut<Scale>();
-			auto elseView = iter.view_mut<Else>();
+		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view_mut<Rotation>();
+			auto scaleView = it.view_mut<Scale>();
+			auto elseView = it.view_mut<Else>();
 
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -4518,12 +4518,12 @@ TEST_CASE("Components - non trivial") {
 	{
 		ecs::Query q = wld.query().all<StringComponent&, StringComponent2&, PositionNonTrivial&>();
 
-		q.each([&](ecs::Iter iter) {
-			auto strView = iter.view_mut<StringComponent>();
-			auto str2View = iter.view_mut<StringComponent2>();
-			auto posView = iter.view_mut<PositionNonTrivial>();
+		q.each([&](ecs::Iter& it) {
+			auto strView = it.view_mut<StringComponent>();
+			auto str2View = it.view_mut<StringComponent2>();
+			auto posView = it.view_mut<PositionNonTrivial>();
 
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				strView[i] = {StringComponentDefaultValue};
 				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
@@ -4935,8 +4935,8 @@ TEST_CASE("Query Filter - systems") {
 			m_q = world().query().all<Position&>();
 		}
 		void OnUpdate() override {
-			m_q.each([&](ecs::Iter iter) {
-				auto posRWView = iter.sview_mut<Position>();
+			m_q.each([&](ecs::Iter& it) {
+				auto posRWView = it.sview_mut<Position>();
 				(void)posRWView;
 			});
 		}
@@ -5013,12 +5013,12 @@ void TestDataLayoutSoA_ECS() {
 			REQUIRE(cnt == N);
 
 			uint32_t j = 0;
-			q.each([&](ecs::Iter iter) {
-				auto t = iter.view_mut<T>();
+			q.each([&](ecs::Iter& it) {
+				auto t = it.view_mut<T>();
 				auto tx = t.template set<0>();
 				auto ty = t.template set<1>();
 				auto tz = t.template set<2>();
-				GAIA_EACH(iter) {
+				GAIA_EACH(it) {
 					auto f = (float)j;
 					tx[i] = f;
 					ty[i] = f;
@@ -5041,8 +5041,8 @@ void TestDataLayoutSoA_ECS() {
 			const auto cnt = q.count();
 			REQUIRE(cnt == N - 1);
 			uint32_t cntCalculated = 0;
-			q.each([&](ecs::Iter iter) {
-				cntCalculated += iter.size();
+			q.each([&](ecs::Iter& it) {
+				cntCalculated += it.size();
 			});
 			REQUIRE(cnt == cntCalculated);
 		}

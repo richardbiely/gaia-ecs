@@ -76,8 +76,8 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	for (auto _: state) {
 		(void)_;
 		uint32_t cnt = 0;
-		query.each([&](TIter iter) {
-			GAIA_EACH(iter) {
+		query.each([&](TIter& it) {
+			GAIA_EACH(it) {
 				++cnt;
 			}
 		});

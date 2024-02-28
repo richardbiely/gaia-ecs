@@ -572,12 +572,12 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.each([&](ecs::Iter iter) {
-			auto ent = iter.view<ecs::Entity>();
-			auto vel = iter.view_mut<Velocity>();
-			auto pos = iter.view<Position>();
+		m_q.each([&](ecs::Iter& it) {
+			auto ent = it.view<ecs::Entity>();
+			auto vel = it.view_mut<Velocity>();
+			auto pos = it.view<Position>();
 
-			GAIA_EACH(iter) {
+			GAIA_EACH(it) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference

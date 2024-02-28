@@ -304,9 +304,9 @@ const bool hasWheel = w.has(car, wheel);
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.query().any<Position, Velocity>(); 
-q.each([&](ecs::Iter iter) {
-  const bool hasPosition = iter.has<Position>();
-  const bool hasVelocity = iter.has<Velocity>();
+q.each([&](ecs::Iter& it) {
+  const bool hasPosition = it.has<Position>();
+  const bool hasVelocity = it.has<Velocity>();
   ...
 });
 ```
@@ -319,9 +319,9 @@ auto v = w.add<Velocity>().entity;
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.query().any(p).any(v); 
-q.each([&](ecs::Iter iter) {
-  const bool hasPosition = iter.has(p);
-  const bool hasVelocity = iter.has(v);
+q.each([&](ecs::Iter& it) {
+  const bool hasPosition = it.has(p);
+  const bool hasVelocity = it.has(v);
   ...
 });
 ```
@@ -622,19 +622,19 @@ There are three types of iterators:
 ecs::Query q = w.query();
 q.all<Position&, Velocity>();
 
-q.each([](ecs::IterAll iter) {
-  auto p = iter.view_mut<Position>(); // Read-write access to Position
-  auto v = iter.view<Velocity>(); // Read-only access to Velocity
+q.each([](ecs::IterAll& it) {
+  auto p = it.view_mut<Position>(); // Read-write access to Position
+  auto v = it.view<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all enabled entities and update their x-axis position
-  GAIA_EACH(iter) {
-    if (!iter.enabled(i))
+  GAIA_EACH(it) {
+    if (!it.enabled(i))
       return;
     p[i].x += 1.f;
   }
 
   // Iterate over all entities and update their position based on their velocity
-  GAIA_EACH(iter) {
+  GAIA_EACH(it) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -642,13 +642,13 @@ q.each([](ecs::IterAll iter) {
 });
 ```
 
-***GAIA_EACH(iter)*** is simply a shortcut for
+***GAIA_EACH(it)*** is simply a shortcut for
 ```
-for (uint32_t i=0; i<iter.size(); ++i)
+for (uint32_t i=0; i<it.size(); ++i)
 ```
 A similar macro exists where you can specify the variable name. It is called ***GAIA_EACH_(iter,k)***
 ```
-for (uint32_t k=0; k<iter.size(); ++k)
+for (uint32_t k=0; k<it.size(); ++k)
 ```
 
 ### Constraints
@@ -685,21 +685,21 @@ q.arr(entities, ecs::Query::Constraint::AcceptAll);
 // Fills the array with only e1 because e1 is disabled.
 q.arr(entities, ecs::Query::Constraint::DisabledOnly);
 
-q.each([](ecs::Iter iter) {
-  auto p = iter.view_mut<Position>(); // Read-Write access to Position
+q.each([](ecs::Iter& it) {
+  auto p = it.view_mut<Position>(); // Read-Write access to Position
   // Iterates over enabled entities
-  GAIA_EACH(iter) p[i] = {}; // reset the position of each enabled entity
+  GAIA_EACH(it) p[i] = {}; // reset the position of each enabled entity
 });
-q.each([](ecs::IterDisabled iter) {
-  auto p = iter.view_mut<Position>(); // Read-Write access to Position
+q.each([](ecs::IterDisabled& it) {
+  auto p = it.view_mut<Position>(); // Read-Write access to Position
   // Iterates over disabled entities
-  GAIA_EACH(iter) p[i] = {}; // reset the position of each disabled entity
+  GAIA_EACH(it) p[i] = {}; // reset the position of each disabled entity
 });
-q.each([](ecs::IterAll iter) {
-  auto p = iter.view_mut<Position>(); // Read-Write access to Position
+q.each([](ecs::IterAll& it) {
+  auto p = it.view_mut<Position>(); // Read-Write access to Position
   // Iterates over all entities
-  GAIA_EACH(iter) {
-    if (iter.enabled(i)) {
+  GAIA_EACH(it) {
+    if (it.enabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
   }
@@ -716,7 +716,7 @@ struct Disabled {};
 e.add<Disabled>(); // disable entity
 
 ecs::Query q = w.query().all<Position, Disabled>; 
-q.each([&](ecs::Iter iter){
+q.each([&](ecs::Iter& it){
   // Processes all disabled entities
 });
 
@@ -1118,25 +1118,25 @@ struct VelocitySoA {
 ...
 
 ecs::Query q = w.query().all<PositionSoA&, VelocitySoA>;
-q.each([](ecs::Iter iter) {
+q.each([](ecs::Iter& it) {
   // Position
-  auto vp = iter.view_mut<PositionSoA>(); // read-write access to PositionSoA
+  auto vp = it.view_mut<PositionSoA>(); // read-write access to PositionSoA
   auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
   auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
   auto pz = vp.set<2>(); // continuous block of "z" from PositionSoA
 
   // Velocity
-  auto vv = iter.view<VelocitySoA>(); // read-only access to VelocitySoA
+  auto vv = it.view<VelocitySoA>(); // read-only access to VelocitySoA
   auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
   auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
   auto vz = vv.get<2>(); // continuous block of "z" from VelocitySoA
 
   // Handle x coordinates
-  GAIA_EACH(iter) px[i] += vx[i] * dt;
+  GAIA_EACH(it) px[i] += vx[i] * dt;
   // Handle y coordinates
-  GAIA_EACH(iter) py[i] += vy[i] * dt;
+  GAIA_EACH(it) py[i] += vy[i] * dt;
   // Handle z coordinates
-  GAIA_EACH(iter) pz[i] += vz[i] * dt;
+  GAIA_EACH(it) pz[i] += vz[i] * dt;
 
   /*
   You can even use SIMD intrinsics now without a worry.
@@ -1146,14 +1146,14 @@ q.each([](ecs::Iter iter) {
   The code bellow uses x86 SIMD intrinsics.
   uint32_t i = 0;
   // Process SSE-sized blocks first
-  for (; i < iter.size(); i+=4) {
+  for (; i < it.size(); i+=4) {
     const auto pVec = _mm_load_ps(px.data() + i);
     const auto vVec = _mm_load_ps(vx.data() + i);
     const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
     _mm_store_ps(px.data() + i, respVec);
   }
   // Process the rest of the elements
-  for (; i < iter.size(); ++i) {
+  for (; i < it.size(); ++i) {
     ...
   }
   */

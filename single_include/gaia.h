@@ -20747,8 +20747,8 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								Iter iter(*pChunk);
-								if (iter.size() == 0)
+								Iter it(*pChunk);
+								if (it.size() == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -20793,24 +20793,24 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
-						Iter iter(chunk);
+						Iter it(chunk);
 
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
 						// Translates to:
-						//  	auto p = iter.view_mut_inter<Position, true>();
-						//		auto v = iter.view_inter<Velocity>();
-						auto dataPointerTuple = std::make_tuple(iter.template view_auto<T>()...);
+						//  	auto p = it.view_mut_inter<Position, true>();
+						//		auto v = it.view_inter<Velocity>();
+						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
-						//		GAIA_EACH(iter) func(p[i], v[i]);
+						//		GAIA_EACH(it) func(p[i], v[i]);
 
-						GAIA_EACH(iter) func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
+						GAIA_EACH(it) func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						Iter iter(chunk);
-						GAIA_EACH(iter) func();
+						Iter it(chunk);
+						GAIA_EACH(it) func();
 					}
 				}
 
@@ -20829,11 +20829,11 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
-							Iter iter(*pChunk);
+							Iter it(*pChunk);
 							if constexpr (UseFilters)
-								return iter.size() > 0 && match_filters(*pChunk, queryInfo);
+								return it.size() > 0 && match_filters(*pChunk, queryInfo);
 							else
-								return iter.size() > 0;
+								return it.size() > 0;
 						});
 
 						if (isNotEmpty)
@@ -20855,8 +20855,8 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							Iter iter(*pChunk);
-							const auto entityCnt = iter.size();
+							Iter it(*pChunk);
+							const auto entityCnt = it.size();
 							if (entityCnt == 0)
 								continue;
 
@@ -20886,8 +20886,8 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							Iter iter(*pChunk);
-							if (iter.size() == 0)
+							Iter it(*pChunk);
+							if (it.size() == 0)
 								continue;
 
 							// Filters
@@ -20896,8 +20896,8 @@ namespace gaia {
 									continue;
 							}
 
-							const auto dataView = iter.template view<ContainerItemType>();
-							GAIA_EACH(iter) outArray.push_back(dataView[i]);
+							const auto dataView = it.template view<ContainerItemType>();
+							GAIA_EACH(it) outArray.push_back(dataView[i]);
 						}
 					}
 				}
