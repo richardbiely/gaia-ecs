@@ -341,7 +341,7 @@ w.add<Position>();
 
 // Add and remove multiple components. 
 // This does one archetype movement rather than 6 compared to doing these operations separate.
-w.bulk(e)
+w.build(e)
  // add Velocity to entity e
  .add<Velocity>()
  // remove Position from entity e
@@ -355,7 +355,7 @@ w.bulk(e)
 It is also possible to manually commit all changes by calling ***EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
-ecs::EntityBuilder builder = w.bulk(e);
+ecs::EntityBuilder builder = w.build(e);
 builder
   .add<Velocity>()
   .del<Position>()
@@ -372,15 +372,15 @@ builder.commit();
 
 ```cpp
 // Change Velocity's value.
-w.set<Velocity>(e, {0, 0, 2});
+w.set<Velocity>(e) = {0, 0, 2};
 // Same as above but the world version is not updated so nobody gets notified of this change.
-w.sset<Velocity>(e, {4, 2, 0});
+w.sset<Velocity>(e) = {4, 2, 0};
 ```
 
 When setting multiple component values at once it is more efficient doing it via chaining:
 
 ```cpp
-w.set(e)
+w.acc_mut(e)
 // Change Velocity's value on entity "e"
   .set<Velocity>({0, 0, 2})
 // Change Position's value on entity "e"
@@ -389,14 +389,18 @@ w.set(e)
   .set...;
 ```
 
-Similar to ***EntityBuilder::bulk*** you can also use the setter object in scenarios with complex logic.
+Similar to ***EntityBuilder::build*** you can also use the setter object in scenarios with complex logic.
 
 ```cpp
-ecs::ComponentSetter setter = w.set(e);
+ecs::ComponentSetter setter = w.acc_mut(e);
 setter.set<Velocity>({0, 0, 2});
 if (some_condition)
   setter.set<Position>({0, 100, 0});
-setter.set...;
+setter.set<Something>({ ... }).set<Else>({ ... });
+
+// You can also retrive a reference to data (for AoS) or the data accessor (for SoA)
+auto& vel = setter.mut<Velocity>();
+auto& pos = setter.mut<Positon>();
 ```
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
@@ -428,7 +432,7 @@ ecs::Entity e2 = w.copy(e);
 ```
 ### Batched creation
 
-Another way to create entities is by creating many of them at once. This is much more performant than creating entities one by one.
+Another way to create entities is by creating many of them at once. This is more performant than creating entities one by one.
 
 ```cpp
 // Create 1000 empty entities

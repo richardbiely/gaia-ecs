@@ -17529,8 +17529,8 @@ namespace gaia {
 			\param value Value to set for the component
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			*/
-			template <typename T, typename U = typename actual_type_t<T>::Type>
-			void set(uint16_t row, U&& value) {
+			template <typename T>
+			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
 
 				GAIA_ASSERT2(
@@ -17541,18 +17541,18 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
 			Sets the value of a generic entity \param type at the position \param row in the chunk.
 			\param row Row of entity in the chunk
 			\param type Component/entity/pair
-			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
-			otherwise.
+			\param value New component value
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			*/
 			template <typename T>
-			void set(uint16_t row, Entity type, T&& value) {
+			decltype(auto) set(uint16_t row, Entity type) {
 				verify_comp<T>();
 
 				GAIA_ASSERT2(
@@ -17565,14 +17565,14 @@ namespace gaia {
 
 				GAIA_ASSERT(row < m_header.capacity);
 
-				// TODO: This function work but is useless because it does the same job as
+				// TODO: This function works but is useless because it does the same job as
 				//       set(uint16_t row, U&& value).
 				//       This is because T needs to match U anyway so the component lookup can succeed.
 				(void)type;
 				// const uint32_t col = comp_idx(type);
 				//(void)col;
 
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
@@ -17583,34 +17583,42 @@ namespace gaia {
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
-			template <typename T, typename U = typename actual_type_t<T>::Type>
-			void sset(uint16_t row, U&& value) {
+			template <typename T>
+			decltype(auto) sset(uint16_t row) {
 				GAIA_ASSERT2(
 						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
-			Sets the value of a generic entity \param object at the position \param row in the chunk.
+			Sets the value of a generic entity \param type at the position \param row in the chunk.
 			\param row Row of entity in the chunk
-			\param object Component/entity/pair
-			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
-			otherwise.
+			\param type Component/entity/pair
+			\param value New component value
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
 			template <typename T>
-			void sset(uint16_t row, [[maybe_unused]] Entity object, T&& value) {
+			decltype(auto) sset(uint16_t row, Entity type) {
 				static_assert(core::is_raw_v<T>);
 
 				GAIA_ASSERT2(
-						object.kind() == EntityKind::EK_Gen || row == 0,
+						type.kind() == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+
+				// TODO: This function works but is useless because it does the same job as
+				//       sset(uint16_t row, U&& value).
+				//       This is because T needs to match U anyway so the component lookup can succeed.
+				(void)type;
+				// const uint32_t col = comp_idx(type);
+				//(void)col;
+
+				return view_mut<T>()[row];
 			}
 
 			//----------------------------------------------------------------------
@@ -19069,9 +19077,14 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct ComponentSetter {
-			Chunk* m_pChunk;
-			uint16_t m_row;
+		struct ComponentSetter: public ComponentGetter {
+			//! Returns a mutable reference to component.
+			//! \tparam T Component or pair
+			//! \return Reference to data for AoS, or mutable accessor for SoA types
+			template <typename T>
+			decltype(auto) mut() {
+				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row);
+			}
 
 			//! Sets the value of the component \tparam T.
 			//! \tparam T Component or pair
@@ -19079,8 +19092,16 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
-				m_pChunk->template set<T>(m_row, GAIA_FWD(value));
+				mut<T>() = GAIA_FWD(value);
 				return *this;
+			}
+
+			//! Returns a mutable reference to component.
+			//! \tparam T Component or pair
+			//! \return Reference to data for AoS, or mutable accessor for SoA types
+			template <typename T>
+			decltype(auto) mut(Entity type) {
+				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row, type);
 			}
 
 			//! Sets the value of the component \param type.
@@ -19090,28 +19111,44 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& set(Entity type, T&& value) {
-				m_pChunk->template set<T>(m_row, type, GAIA_FWD(value));
+				mut<T>(type) = GAIA_FWD(value);
 				return *this;
 			}
 
-			//! Sets the value of the component \tparam T without trigger a world version update.
+			//! Returns a mutable reference to component without triggering a world version update.
+			//! \tparam T Component or pair
+			//! \return Reference to data for AoS, or mutable accessor for SoA types
+			template <typename T>
+			decltype(auto) smut() {
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
+			}
+
+			//! Sets the value of the component without triggering a world version update.
 			//! \tparam T Component or pair
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& sset(U&& value) {
-				m_pChunk->template sset<T>(m_row, GAIA_FWD(value));
+				smut<T>() = GAIA_FWD(value);
 				return *this;
 			}
 
-			//! Sets the value of the component \param type without trigger a world version update.
+			//! Returns a mutable reference to component without triggering a world version update.
+			//! \tparam T Component or pair
+			//! \return Reference to data for AoS, or mutable accessor for SoA types
+			template <typename T>
+			decltype(auto) smut(Entity type) {
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(type);
+			}
+
+			//! Sets the value of the component without triggering a world version update.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T>
-			ComponentSetter& sset(Entity object, T&& value) {
-				m_pChunk->template sset<T>(m_row, object, GAIA_FWD(value));
+			ComponentSetter& sset(Entity type, T&& value) {
+				smut<T>(type) = GAIA_FWD(value);
 				return *this;
 			}
 		};
@@ -21373,6 +21410,9 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
+			using TFunc_Void_With_Entity = void(Entity);
+			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
+
 			using EntityNameLookupKey = core::StringLookupKey<256>;
 			using PairMap = cnt::map<EntityLookupKey, cnt::set<EntityLookupKey>>;
 
@@ -21804,6 +21844,1144 @@ namespace gaia {
 					handle_del(entity);
 				}
 			};
+
+			World() {
+				init();
+			}
+
+			~World() {
+				done();
+			}
+
+			World(World&&) = delete;
+			World(const World&) = delete;
+			World& operator=(World&&) = delete;
+			World& operator=(const World&) = delete;
+
+			//----------------------------------------------------------------------
+
+			GAIA_NODISCARD ComponentCache& comp_cache_mut() {
+				return m_compCache;
+			}
+			GAIA_NODISCARD const ComponentCache& comp_cache() const {
+				return m_compCache;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Checks if \param entity is valid.
+			//! \return True if the entity is valid. False otherwise.
+			GAIA_NODISCARD bool valid(Entity entity) const {
+				return entity.pair() //
+									 ? valid_pair(entity)
+									 : valid_entity(entity);
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns the entity located at the index \param id
+			//! \return Entity
+			GAIA_NODISCARD Entity get(EntityId id) const {
+				GAIA_ASSERT(valid_entity_id(id));
+
+				const auto& ec = m_recs.entities[id];
+				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Starts a bulk add/remove operation on \param entity.
+			//! \param entity Entity
+			//! \return EntityBuilder
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			EntityBuilder build(Entity entity) {
+				return EntityBuilder(*this, entity);
+			}
+
+			//! Creates a new empty entity
+			//! \param kind Entity kind
+			//! \return New entity
+			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
+				return add(*m_pEntityArchetype, true, false, kind);
+			}
+
+			//! Creates \param count new empty entities
+			//! \param func Functor to execute every time an entity is added
+			template <typename Func = TFunc_Void_With_Entity>
+			void add_n(uint32_t count, Func func = func_void_with_entity) {
+				add_many_entities(*m_pEntityArchetype, count, func);
+			}
+
+			//! Creates \param count of entities of the same archetype as \param entity.
+			//! \param func Functor to execute every time an entity is added
+			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
+			//!       if they provide a constructor
+			template <typename Func = TFunc_Void_With_Entity>
+			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				add_many_entities(*ec.pArchetype, count, func);
+			}
+
+			//! Creates a new component if not found already.
+			//! \param kind Component kind
+			//! \return Component cache item of the component
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem& add() {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
+				const auto* pItem = comp_cache().find<FT>();
+				if (pItem != nullptr)
+					return *pItem;
+
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				// Don't allow components to be deleted
+				EntityBuilder(*this, entity).add(Pair(OnDelete, Error));
+
+				const auto& item = comp_cache_mut().add<FT>(entity);
+				auto& ec = m_recs.entities[entity.id()];
+
+				// Following lines do the following but a bit faster:
+				// sset<Component>(item.entity, item.comp);
+				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(EntityKind::EK_Gen, 1);
+				auto& comp = pComps[ec.row];
+				comp = item.comp;
+
+				// Make sure the default component entity name points to the cache item name
+				name_raw(item.entity, item.name.str(), item.name.len());
+
+				// TODO: Implement entity locking. A locked entity can't change archtypes.
+				//       This way we can prevent anybody messing with the internal state of the component
+				//       entities created at compile-time data.
+
+				return item;
+			}
+
+			//! Attaches entity \param object to entity \param entity.
+			//! \param entity Source entity
+			//! \param object Added entity
+			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			void add(Entity entity, Entity object) {
+				EntityBuilder(*this, entity).add(object);
+			}
+
+			//! Creates a new entity relationship pair
+			//! \param entity Source entity
+			//! \param pair Pair
+			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//!          Undefined behavior otherwise.
+			void add(Entity entity, Pair pair) {
+				EntityBuilder(*this, entity).add(pair);
+			}
+
+			//! Attaches a new component \tparam T to \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			void add(Entity entity) {
+				EntityBuilder(*this, entity).add<T>();
+			}
+
+			//! Attaches \param object to \param entity. Also sets its value.
+			//! \param object Object
+			//! \param entity Entity
+			//! \param value Value to set for the object
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			template <typename T>
+			void add(Entity entity, Entity object, T&& value) {
+				static_assert(core::is_raw_v<T>);
+
+				EntityBuilder(*this, entity).add(object);
+
+				const auto& ec = fetch(entity);
+				// Make sure the idx is 0 for unique entities
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
+				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
+			}
+
+			//! Attaches a new component \tparam T to \param entity. Also sets its value.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename T, typename U = typename actual_type_t<T>::Type>
+			void add(Entity entity, U&& value) {
+				EntityBuilder(*this, entity).add<T>();
+
+				const auto& ec = m_recs.entities[entity.id()];
+				// Make sure the idx is 0 for unique entities
+				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
+				ComponentSetter{ec.pChunk, idx}.set<T>(GAIA_FWD(value));
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Creates a new entity by cloning an already existing one.
+			//! \param entity Entity to clone
+			//! \return New entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity copy(Entity entity) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				auto& archetype = *ec.pArchetype;
+				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
+				Chunk::copy_entity_data(entity, newEntity, m_recs);
+
+				return newEntity;
+			}
+
+			//! Creates \param count new entities by cloning an already existing one.
+			//! \param entity Entity to clone
+			//! \param count Number of clones to make
+			//! \param func void(Entity copy) functor executed every time a copy is created
+			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
+			template <typename Func = TFunc_Void_With_Entity>
+			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+
+				auto& archetype = *ec.pArchetype;
+				auto& oldEntityContainer = m_recs[entity];
+				auto* pOldChunk = oldEntityContainer.pChunk;
+
+				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+
+				uint32_t left = count;
+				do {
+					auto* pChunk = archetype.foc_free_chunk();
+					const uint32_t originalChunkSize = pChunk->size();
+					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
+					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
+
+					GAIA_FOR(toCreate) {
+						const auto entityNew = m_recs.entities.alloc(&ctx);
+						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
+
+#if GAIA_ASSERT_ENABLED
+						const auto& ecNew = m_recs.entities[entityNew.id()];
+						GAIA_ASSERT(ecNew.pChunk == pChunk);
+						auto entityExpected = pChunk->entity_view()[ecNew.row];
+						GAIA_ASSERT(entityExpected == entityNew);
+#endif
+					}
+
+					// New entities were added, try updating the free chunk index
+					archetype.try_update_free_chunk_idx();
+
+					// Call constructors for the generic components on the newly added entity if necessary
+					if (pChunk->has_custom_gen_ctor())
+						pChunk->call_gen_ctors(originalChunkSize, toCreate);
+
+					// Copy data
+					{
+						GAIA_PROF_SCOPE(copy_n::copy_entity_data);
+
+						auto oldRecs = pOldChunk->comp_rec_view();
+
+						// Copy generic component data from reference entity to our new entity
+						GAIA_FOR(pOldChunk->m_header.genEntities) {
+							const auto& rec = oldRecs[i];
+							if (rec.comp.size() == 0U)
+								continue;
+
+							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldEntityContainer.row);
+							GAIA_FOR_(toCreate, rowOffset) {
+								auto* pDst = (void*)pChunk->comp_ptr_mut(i, originalChunkSize + rowOffset);
+								rec.pDesc->copy(pSrc, pDst);
+							}
+						}
+					}
+
+					// Call functors
+					{
+						auto entities = pChunk->entity_view();
+						GAIA_FOR2(originalChunkSize, pChunk->size()) func(entities[i]);
+					}
+
+					left -= toCreate;
+				} while (left > 0);
+			}
+
+			//----------------------------------------------------------------------
+
+			void del_inter(Entity entity) {
+				auto on_delete = [this](Entity entityToDel) {
+					handle_del_entity(entityToDel);
+					req_del(entityToDel);
+				};
+
+				if (is_wildcard(entity)) {
+					const auto rel = get(entity.id());
+					const auto tgt = get(entity.gen());
+
+					// (*,*)
+					if (rel == All && tgt == All) {
+						GAIA_ASSERT2(false, "Not supported yet");
+					}
+					// (*,X)
+					else if (rel == All) {
+						if (const auto* pTargets = relations(tgt)) {
+							// handle_del might invalidate the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
+							for (auto key: *pTargets)
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								on_delete(Pair(e, tgt));
+						}
+					}
+					// (X,*)
+					else if (tgt == All) {
+						if (const auto* pRelations = targets(rel)) {
+							// handle_del might invalidate the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
+							for (auto key: *pRelations)
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								on_delete(Pair(rel, e));
+						}
+					}
+				} else {
+					on_delete(entity);
+				}
+			}
+
+			//! Finalize all queued delete operations
+			void del_finalize() {
+				// Force-delete all entities from the requested archetypes along with the archetype itself
+				for (auto& key: m_reqArchetypesToDel) {
+					auto* pArchetype = key.archetype();
+					if (pArchetype == nullptr)
+						continue;
+
+					del_entities(*pArchetype);
+
+					// Now that all entites are deleted, all their chunks are requestd to get deleted
+					// and in turn the archetype itself as well. Therefore, it is added to the archetype
+					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
+					// > del_empty_archetype(pArchetype);
+				}
+				m_reqArchetypesToDel.clear();
+
+				// Try to delete all requested entities
+				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
+					const auto e = it->entity();
+
+					// Entities that form archetypes need to stay until the archetype itself is gone
+					if (m_entityToArchetypeMap.contains(*it)) {
+						++it;
+						continue;
+					}
+
+					// Requested entities are partialy deleted. We only need to invalidate them.
+					invalidate_entity(e);
+
+					it = m_reqEntitiesToDel.erase(it);
+				}
+			}
+
+			//! Removes an entity along with all data associated with it.
+			//! \param entity Entity to delete
+			void del(Entity entity) {
+				if (!entity.pair()) {
+					// Delete all relationships associated with this entity (if any)
+					del_inter(Pair(entity, All));
+					del_inter(Pair(All, entity));
+				}
+
+				del_inter(entity);
+			}
+
+			//! Removes an \param object from \param entity if possible.
+			//! \param entity Entity to delete from
+			//! \param object Entity to delete
+			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			void del(Entity entity, Entity object) {
+				EntityBuilder(*this, entity).del(object);
+			}
+
+			//! Removes an existing entity relationship pair
+			//! \param entity Source entity
+			//! \param pair Pair
+			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//!          Undefined behavior otherwise.
+			void del(Entity entity, Pair pair) {
+				EntityBuilder(*this, entity).del(pair);
+			}
+
+			//! Removes a component \tparam T from \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename T>
+			void del(Entity entity) {
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				EntityBuilder(*this, entity).del<FT>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(Is, entityBase)
+			void as(Entity entity, Entity entityBase) {
+				add(entity, Pair(Is, entityBase));
+			}
+
+			//! Checks if \param entity inherits from \param entityBase.
+			//! True if entity inherits from entityBase. False otherwise.
+			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
+				return is_inter<true>(entity, entityBase);
+			}
+
+			//! Checks if \param entity is located in \param entityBase.
+			//! This is almost the same as "is" with the exception that false is returned
+			//! if \param entity matches \param entityBase
+			//! True if entity is located in entityBase. False otherwise.
+			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
+				return is_inter<false>(entity, entityBase);
+			}
+
+			GAIA_NODISCARD bool is_base(Entity target) const {
+				GAIA_ASSERT(valid_entity(target));
+
+				// Pairs are not supported
+				if (target.pair())
+					return false;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				return it != m_entityToAsRelations.end();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Shortcut for add(entity, Pair(ChildOf, parent)
+			void child(Entity entity, Entity parent) {
+				add(entity, Pair(ChildOf, parent));
+			}
+
+			//! Checks if \param entity is a child of \param parent
+			//! True if entity is a child of parent. False otherwise.
+			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
+				return has(entity, Pair(ChildOf, parent));
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Starts a bulk set operation on \param entity.
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			ComponentSetter acc_mut(Entity entity) {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				return ComponentSetter{ec.pChunk, ec.row};
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			decltype(auto) set(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				return acc_mut(entity).mut<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			decltype(auto) sset(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				return acc_mut(entity).smut<T>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Starts a bulk get operation on \param entity.
+			//! \param entity Entity
+			//! \return ComponentGetter
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			ComponentGetter acc(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				return ComponentGetter{ec.pChunk, ec.row};
+			}
+
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return Value stored in the component.
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
+				return acc(entity).get<T>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Checks if \param entity is currently used by the world.
+			//! \return True if the entity is used. False otherwise.
+			GAIA_NODISCARD bool has(Entity entity) const {
+				// Pair
+				if (entity.pair()) {
+					if (is_wildcard(entity)) {
+						if (!m_entityToArchetypeMap.contains(EntityLookupKey(entity)))
+							return false;
+
+						// If the pair is found, both entities forming it need to be found as well
+						GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
+
+						return true;
+					}
+
+					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
+					if (it == m_recs.pairs.end())
+						return false;
+
+					const auto& ec = it->second;
+					if (is_req_del(ec))
+						return false;
+
+#if GAIA_ASSERT_ENABLED
+					// If the pair is found, both entities forming it need to be found as well
+					GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
+
+					// Index of the entity must fit inside the chunk
+					auto* pChunk = ec.pChunk;
+					GAIA_ASSERT(pChunk != nullptr && ec.row < pChunk->size());
+#endif
+
+					return true;
+				}
+
+				// Regular entity
+				{
+					// Entity ID has to fit inside the entity array
+					if (entity.id() >= m_recs.entities.size())
+						return false;
+
+					// Index of the entity must fit inside the chunk
+					const auto& ec = m_recs.entities[entity.id()];
+					if (is_req_del(ec))
+						return false;
+
+					auto* pChunk = ec.pChunk;
+					return pChunk != nullptr && ec.row < pChunk->size();
+				}
+			}
+
+			//! Tells if \param entity contains the entity \param object.
+			//! \param entity Entity
+			//! \param object Tested entity
+			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
+				const auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return false;
+
+				if (object.pair()) {
+					const auto* pArchetype = ec.pArchetype;
+
+					// Early exit if there are no pairs on the archetype
+					if (pArchetype->pairs() == 0)
+						return false;
+
+					EntityId rel = object.id();
+					EntityId tgt = object.gen();
+
+					// (*,*)
+					if (rel == All.id() && tgt == All.id()) {
+						const auto& ids = pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							return true;
+						}
+
+						return false;
+					}
+
+					// (X,*)
+					if (rel != All.id() && tgt == All.id()) {
+						const auto& ids = pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							if (id.id() == rel)
+								return true;
+						}
+
+						return false;
+					}
+
+					// (*,X)
+					if (rel == All.id() && tgt != All.id()) {
+						const auto& ids = pArchetype->ids();
+						for (auto id: ids) {
+							if (!id.pair())
+								continue;
+							if (id.gen() == tgt)
+								return true;
+						}
+
+						return false;
+					}
+				}
+
+				return ComponentGetter{ec.pChunk, ec.row}.has(object);
+			}
+
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return True if the component is present on entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			GAIA_NODISCARD bool has(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				if (is_req_del(ec))
+					return false;
+
+				return ComponentGetter{ec.pChunk, ec.row}.has<T>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! The string is copied and kept internally.
+			//! \param entity Entity
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			void name(Entity entity, const char* name, uint32_t len = 0) {
+				name_inter<true>(entity, name, len);
+			}
+
+			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! The string is NOT copied. Your are responsible for its lifetime.
+			//! \param entity Entity
+			//! \param name Pointer to a stable null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
+			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
+			//!          the string to a different place you have to unset the name before it happens and set it anew
+			//!          after the move is done.
+			void name_raw(Entity entity, const char* name, uint32_t len = 0) {
+				name_inter<false>(entity, name, len);
+			}
+
+			//! Returns the name assigned to \param entity.
+			//! \param entity Entity
+			//! \return Name assigned to entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const char* name(Entity entity) const {
+				if (entity.pair())
+					return nullptr;
+
+				if (!has<EntityDesc>(entity))
+					return nullptr;
+
+				const auto& desc = get<EntityDesc>(entity);
+				return desc.name;
+			}
+
+			//! Returns the name assigned to \param entityId.
+			//! \param entityId EntityId
+			//! \return Name assigned to entity.
+			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const char* name(EntityId entityId) const {
+				auto entity = get(entityId);
+				return name(entity);
+			}
+
+			//! Returns the entity that is assigned with the \param name.
+			//! \param name Name
+			//! \return Entity assigned the given name. EntityBad if there is nothing to return.
+			GAIA_NODISCARD Entity get(const char* name) const {
+				if (name == nullptr)
+					return EntityBad;
+
+				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
+				if (it == m_nameToEntity.end())
+					return EntityBad;
+
+				return it->second;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns relations for \param target.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
+				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
+				if (it == m_targetsToRelations.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
+			//! Returns the first relationship relation for the \param target entity on \param entity.
+			//! \return Relationship target. EntityBad if there is nothing to return.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(target))
+					return EntityBad;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return EntityBad;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.gen() != target.id())
+						continue;
+
+					const auto& ecRel = m_recs.entities[e.id()];
+					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					return relation;
+				}
+
+				return EntityBad;
+			}
+
+			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Appends all relationship relations if any to \param out.
+			//! \param func void(Entity relation) functor executed for relationship relation found.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void relations(Entity entity, Entity target, Func func) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(target))
+					return;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.gen() != target.id())
+						continue;
+
+					const auto& ecRel = m_recs.entities[e.id()];
+					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					func(relation);
+				}
+			}
+
+			template <typename Func>
+			void as_relations_trav(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					func(relation.entity());
+					as_relations_trav(relation.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_relations_trav_if(Entity target, Func func) const {
+				GAIA_ASSERT(valid(target));
+				if (!valid(target))
+					return false;
+
+				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
+				if (it == m_entityToAsRelations.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto relation: set) {
+					if (func(relation.entity()))
+						return true;
+					if (as_relations_trav_if(relation.entity(), func))
+						return true;
+				}
+
+				return false;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns targets for \param relation.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
+				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
+				if (it == m_relationsToTargets.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
+			//! Returns the first relationship target for the \param relation entity on \param entity.
+			//! \return Relationship target. EntityBad if there is nothing to return.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return EntityBad;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return EntityBad;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.id() != relation.id())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					return target;
+				}
+
+				return EntityBad;
+			}
+
+			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Appends all relationship targets if any to \param out.
+			//! \param func void(Entity target) functor executed for relationship target found.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void targets(Entity entity, Entity relation, Func func) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
+
+				const auto& ids = pArchetype->ids();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.id() != relation.id())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					func(target);
+				}
+			}
+
+			template <typename Func>
+			void as_targets_trav(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					func(target.entity());
+					as_targets_trav(target.entity(), func);
+				}
+			}
+
+			template <typename Func>
+			bool as_targets_trav_if(Entity relation, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation))
+					return false;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
+				if (it == m_entityToAsTargets.end())
+					return false;
+
+				const auto& set = it->second;
+				for (auto target: set) {
+					if (func(target.entity()))
+						return true;
+					if (as_targets_trav(target.entity(), func))
+						return true;
+				}
+
+				return false;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Provides a query set up to work with the parent world.
+			//! \tparam UseCache If true, results of the query are cached
+			//! \return Valid query object
+			template <bool UseCache = true>
+			auto query() {
+				if constexpr (UseCache) {
+					Query q(
+							*const_cast<World*>(this), m_queryCache,
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					q.no(Core);
+					return q;
+				} else {
+					QueryUncached q(
+							*const_cast<World*>(this),
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					q.no(Core);
+					return q;
+				}
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Enables or disables an entire entity.
+			//! \param entity Entity
+			//! \param enable Enable or disable the entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			void enable(Entity entity, bool enable) {
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+
+				GAIA_ASSERT(
+						(ec.pChunk && !ec.pChunk->locked()) &&
+						"Entities can't be enabled/disabled while their chunk is being iterated "
+						"(structural changes are forbidden during this time!)");
+
+				auto& archetype = *ec.pArchetype;
+				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
+			}
+
+			//! Checks if an entity is enabled.
+			//! \param entity Entity
+			//! \return True it the entity is enabled. False otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			bool enabled(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const bool entityStateInContainer = !ec.dis;
+#if GAIA_ASSERT_ENABLED
+				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
+				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
+#endif
+				return entityStateInContainer;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Returns a chunk containing the \param entity.
+			//! \return Chunk or nullptr if not found.
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
+				return ec.pChunk;
+			}
+
+			//! Returns a chunk containing the \param entity.
+			//! Index of the entity is stored in \param indexInChunk
+			//! \return Chunk or nullptr if not found
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
+				indexInChunk = ec.row;
+				return ec.pChunk;
+			}
+
+			//! Returns the number of active entities
+			//! \return Entity
+			GAIA_NODISCARD uint32_t size() const {
+				return m_recs.entities.item_count();
+			}
+
+			//! Returns the current version of the world.
+			//! \return World version number.
+			GAIA_NODISCARD uint32_t& world_version() {
+				return m_worldVersion;
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Performs various internal operations related to the end of the frame such as
+			//! memory cleanup and other managment operations which keep the system healthy.
+			void update() {
+				// Finish deleting entities
+				del_finalize();
+
+				// Run garbage collector
+				gc();
+
+				// Signal the end of the frame
+				GAIA_PROF_FRAME();
+			}
+
+			//! Clears the world so that all its entities and components are released
+			void cleanup() {
+				// Clear entities
+				m_recs.entities = {};
+				m_recs.pairs = {};
+
+				// Clear archetypes
+				{
+					// Delete all allocated chunks and their parent archetypes
+					for (auto* pArchetype: m_archetypes)
+						delete pArchetype;
+
+					m_entityToAsRelations = {};
+					m_entityToAsTargets = {};
+					m_targetsToRelations = {};
+					m_relationsToTargets = {};
+
+					m_archetypes = {};
+					m_archetypesById = {};
+					m_archetypesByHash = {};
+
+					m_reqArchetypesToDel = {};
+					m_reqEntitiesToDel = {};
+
+					m_entitiesToDel = {};
+					m_chunksToDel = {};
+					m_archetypesToDel = {};
+				}
+
+				// Clear caches
+				{
+					m_entityToArchetypeMap = {};
+					m_queryCache.clear();
+				}
+
+				// Clear entity names
+				{
+					for (auto& pair: m_nameToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_nameToEntity = {};
+				}
+
+				// Clear component cache
+				m_compCache.clear();
+			}
+
+			//! Sets the maximum number of entites defragmented per world tick
+			//! \param value Number of entities to defragment
+			void defrag_entities_per_tick(uint32_t value) {
+				m_defragEntitesPerTick = value;
+			}
+
+			//--------------------------------------------------------------------------------
+
+			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
+			void diag_archetypes() const {
+				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
+				for (auto* pArchetype: m_archetypes)
+					Archetype::diag(*this, *pArchetype);
+			}
+
+			//! Performs diagnostics on registered components.
+			//! Prints basic info about them and reports and detected issues.
+			void diag_components() const {
+				comp_cache().diag();
+			}
+
+			//! Performs diagnostics on entites of the world.
+			//! Also performs validation of internal structures which hold the entities.
+			void diag_entities() const {
+				validate_entities();
+
+				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_recs.entities.get_free_items());
+				if (m_recs.entities.get_free_items() != 0U) {
+					GAIA_LOG_N("  --> %u", (uint32_t)m_recs.entities.get_next_free_item());
+
+					uint32_t iters = 0;
+					auto fe = m_recs.entities[m_recs.entities.get_next_free_item()].idx;
+					while (fe != IdentifierIdBad) {
+						GAIA_LOG_N("  --> %u", m_recs.entities[fe].idx);
+						fe = m_recs.entities[fe].idx;
+						++iters;
+						if (iters > m_recs.entities.get_free_items())
+							break;
+					}
+
+					if ((iters == 0U) || iters > m_recs.entities.get_free_items())
+						GAIA_LOG_E("  Entities recycle list contains inconsistent data!");
+				}
+			}
+
+			//! Performs all diagnostics.
+			void diag() const {
+				diag_archetypes();
+				diag_components();
+				diag_entities();
+			}
 
 		private:
 			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
@@ -23092,14 +24270,14 @@ namespace gaia {
 					res.first->swap(p);
 
 					// Update the entity string pointer
-					sset<EntityDesc>(entity, {entityStr, key.len()});
+					sset<EntityDesc>(entity) = {entityStr, key.len()};
 				} else {
 					// We tell the map the string is non-owned.
 					auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(key.str(), key.len(), 0, {key.hash()}), entity));
 					res.first->swap(p);
 
 					// Update the entity string pointer
-					sset<EntityDesc>(entity, {name, key.len()});
+					sset<EntityDesc>(entity) = {name, key.len()};
 				}
 			}
 
@@ -23166,7 +24344,7 @@ namespace gaia {
 					const auto& desc = comp_cache_mut().add<EntityDesc>(comp);
 					GAIA_ASSERT(desc.entity == id);
 					EntityBuilder(*this, comp).add(desc.entity);
-					sset<EntityDesc>(comp, {desc.name.str(), desc.name.len()});
+					sset<EntityDesc>(comp) = {desc.name.str(), desc.name.len()};
 					m_pEntityArchetype = m_recs.entities[comp.id()].pArchetype;
 				}
 
@@ -23177,7 +24355,7 @@ namespace gaia {
 					const auto& desc = comp_cache_mut().add<Component>(comp);
 					GAIA_ASSERT(desc.entity == id);
 					EntityBuilder(*this, comp).add(desc.entity);
-					set(comp)
+					acc_mut(comp)
 							// Entity descriptor
 							.sset<EntityDesc>({desc.name.str(), desc.name.len()})
 							// Component
@@ -23420,9 +24598,6 @@ namespace gaia {
 				return entity;
 			}
 
-			using TFunc_Void_With_Entity = void(Entity);
-			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
-
 			//! Creates multiple entity of a given archetype at once.
 			//! More efficient than creating entities individually.
 			//! \param archetype Archetype the entity should inherit
@@ -23475,1171 +24650,6 @@ namespace gaia {
 				del_empty_chunks();
 				defrag_chunks(m_defragEntitesPerTick);
 				del_empty_archetypes();
-			}
-
-		public:
-			World() {
-				init();
-			}
-
-			~World() {
-				done();
-			}
-
-			World(World&&) = delete;
-			World(const World&) = delete;
-			World& operator=(World&&) = delete;
-			World& operator=(const World&) = delete;
-
-			//----------------------------------------------------------------------
-
-			GAIA_NODISCARD ComponentCache& comp_cache_mut() {
-				return m_compCache;
-			}
-			GAIA_NODISCARD const ComponentCache& comp_cache() const {
-				return m_compCache;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Checks if \param entity is valid.
-			//! \return True if the entity is valid. False otherwise.
-			GAIA_NODISCARD bool valid(Entity entity) const {
-				return entity.pair() //
-									 ? valid_pair(entity)
-									 : valid_entity(entity);
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns the entity located at the index \param id
-			//! \return Entity
-			GAIA_NODISCARD Entity get(EntityId id) const {
-				GAIA_ASSERT(valid_entity_id(id));
-
-				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Starts a bulk add/remove operation on \param entity.
-			//! \param entity Entity
-			//! \return EntityBuilder
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			EntityBuilder bulk(Entity entity) {
-				return EntityBuilder(*this, entity);
-			}
-
-			//! Creates a new empty entity
-			//! \param kind Entity kind
-			//! \return New entity
-			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, true, false, kind);
-			}
-
-			//! Creates \param count new empty entities
-			//! \param func Functor to execute every time an entity is added
-			template <typename Func = TFunc_Void_With_Entity>
-			void add_n(uint32_t count, Func func = func_void_with_entity) {
-				add_many_entities(*m_pEntityArchetype, count, func);
-			}
-
-			//! Creates \param count of entities of the same archetype as \param entity.
-			//! \param func Functor to execute every time an entity is added
-			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
-			//!       if they provide a constructor
-			template <typename Func = TFunc_Void_With_Entity>
-			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(ec.pChunk != nullptr);
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-
-				add_many_entities(*ec.pArchetype, count, func);
-			}
-
-			//! Creates a new component if not found already.
-			//! \param kind Component kind
-			//! \return Component cache item of the component
-			template <typename T>
-			GAIA_NODISCARD const ComponentCacheItem& add() {
-				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
-
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
-
-				const auto* pItem = comp_cache().find<FT>();
-				if (pItem != nullptr)
-					return *pItem;
-
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
-				// Don't allow components to be deleted
-				EntityBuilder(*this, entity).add(Pair(OnDelete, Error));
-
-				const auto& item = comp_cache_mut().add<FT>(entity);
-				auto& ec = m_recs.entities[entity.id()];
-
-				// Following lines do the following but a bit faster:
-				// sset<Component>(item.entity, item.comp);
-				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(EntityKind::EK_Gen, 1);
-				auto& comp = pComps[ec.row];
-				comp = item.comp;
-
-				// Make sure the default component entity name points to the cache item name
-				name_raw(item.entity, item.name.str(), item.name.len());
-
-				// TODO: Implement entity locking. A locked entity can't change archtypes.
-				//       This way we can prevent anybody messing with the internal state of the component
-				//       entities created at compile-time data.
-
-				return item;
-			}
-
-			//! Attaches entity \param object to entity \param entity.
-			//! \param entity Source entity
-			//! \param object Added entity
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
-			void add(Entity entity, Entity object) {
-				EntityBuilder(*this, entity).add(object);
-			}
-
-			//! Creates a new entity relationship pair
-			//! \param entity Source entity
-			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
-			//!          Undefined behavior otherwise.
-			void add(Entity entity, Pair pair) {
-				EntityBuilder(*this, entity).add(pair);
-			}
-
-			//! Attaches a new component \tparam T to \param entity.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T>
-			void add(Entity entity) {
-				EntityBuilder(*this, entity).add<T>();
-			}
-
-			//! Attaches \param object to \param entity. Also sets its value.
-			//! \param object Object
-			//! \param entity Entity
-			//! \param value Value to set for the object
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
-			template <typename T>
-			void add(Entity entity, Entity object, T&& value) {
-				static_assert(core::is_raw_v<T>);
-
-				EntityBuilder(*this, entity).add(object);
-
-				const auto& ec = fetch(entity);
-				// Make sure the idx is 0 for unique entities
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
-			}
-
-			//! Attaches a new component \tparam T to \param entity. Also sets its value.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \param value Value to set for the component
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename actual_type_t<T>::Type>
-			void add(Entity entity, U&& value) {
-				EntityBuilder(*this, entity).add<T>();
-
-				const auto& ec = m_recs.entities[entity.id()];
-				// Make sure the idx is 0 for unique entities
-				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
-				ComponentSetter{ec.pChunk, idx}.set<T>(GAIA_FWD(value));
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Creates a new entity by cloning an already existing one.
-			//! \param entity Entity to clone
-			//! \return New entity
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity copy(Entity entity) {
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(valid(entity));
-
-				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(ec.pChunk != nullptr);
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-
-				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
-				Chunk::copy_entity_data(entity, newEntity, m_recs);
-
-				return newEntity;
-			}
-
-			//! Creates \param count new entities by cloning an already existing one.
-			//! \param entity Entity to clone
-			//! \param count Number of clones to make
-			//! \param func void(Entity copy) functor executed every time a copy is created
-			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
-			template <typename Func = TFunc_Void_With_Entity>
-			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(valid(entity));
-
-				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(ec.pChunk != nullptr);
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-
-				auto& archetype = *ec.pArchetype;
-				auto& oldEntityContainer = m_recs[entity];
-				auto* pOldChunk = oldEntityContainer.pChunk;
-
-				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
-
-				uint32_t left = count;
-				do {
-					auto* pChunk = archetype.foc_free_chunk();
-					const uint32_t originalChunkSize = pChunk->size();
-					const uint32_t freeSlotsInChunk = pChunk->capacity() - originalChunkSize;
-					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
-
-					GAIA_FOR(toCreate) {
-						const auto entityNew = m_recs.entities.alloc(&ctx);
-						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
-
-#if GAIA_ASSERT_ENABLED
-						const auto& ecNew = m_recs.entities[entityNew.id()];
-						GAIA_ASSERT(ecNew.pChunk == pChunk);
-						auto entityExpected = pChunk->entity_view()[ecNew.row];
-						GAIA_ASSERT(entityExpected == entityNew);
-#endif
-					}
-
-					// New entities were added, try updating the free chunk index
-					archetype.try_update_free_chunk_idx();
-
-					// Call constructors for the generic components on the newly added entity if necessary
-					if (pChunk->has_custom_gen_ctor())
-						pChunk->call_gen_ctors(originalChunkSize, toCreate);
-
-					// Copy data
-					{
-						GAIA_PROF_SCOPE(copy_n::copy_entity_data);
-
-						auto oldRecs = pOldChunk->comp_rec_view();
-
-						// Copy generic component data from reference entity to our new entity
-						GAIA_FOR(pOldChunk->m_header.genEntities) {
-							const auto& rec = oldRecs[i];
-							if (rec.comp.size() == 0U)
-								continue;
-
-							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldEntityContainer.row);
-							GAIA_FOR_(toCreate, rowOffset) {
-								auto* pDst = (void*)pChunk->comp_ptr_mut(i, originalChunkSize + rowOffset);
-								rec.pDesc->copy(pSrc, pDst);
-							}
-						}
-					}
-
-					// Call functors
-					{
-						auto entities = pChunk->entity_view();
-						GAIA_FOR2(originalChunkSize, pChunk->size()) func(entities[i]);
-					}
-
-					left -= toCreate;
-				} while (left > 0);
-			}
-
-			//----------------------------------------------------------------------
-
-			void del_inter(Entity entity) {
-				auto on_delete = [this](Entity entityToDel) {
-					handle_del_entity(entityToDel);
-					req_del(entityToDel);
-				};
-
-				if (is_wildcard(entity)) {
-					const auto rel = get(entity.id());
-					const auto tgt = get(entity.gen());
-
-					// (*,*)
-					if (rel == All && tgt == All) {
-						GAIA_ASSERT2(false, "Not supported yet");
-					}
-					// (*,X)
-					else if (rel == All) {
-						if (const auto* pTargets = relations(tgt)) {
-							// handle_del might invalidate the targets map so we need to make a copy
-							// TODO: this is suboptimal at best, needs to be optimized
-							cnt::darray_ext<Entity, 64> tmp;
-							for (auto key: *pTargets)
-								tmp.push_back(key.entity());
-							for (auto e: tmp)
-								on_delete(Pair(e, tgt));
-						}
-					}
-					// (X,*)
-					else if (tgt == All) {
-						if (const auto* pRelations = targets(rel)) {
-							// handle_del might invalidate the targets map so we need to make a copy
-							// TODO: this is suboptimal at best, needs to be optimized
-							cnt::darray_ext<Entity, 64> tmp;
-							for (auto key: *pRelations)
-								tmp.push_back(key.entity());
-							for (auto e: tmp)
-								on_delete(Pair(rel, e));
-						}
-					}
-				} else {
-					on_delete(entity);
-				}
-			}
-
-			//! Finalize all queued delete operations
-			void del_finalize() {
-				// Force-delete all entities from the requested archetypes along with the archetype itself
-				for (auto& key: m_reqArchetypesToDel) {
-					auto* pArchetype = key.archetype();
-					if (pArchetype == nullptr)
-						continue;
-
-					del_entities(*pArchetype);
-
-					// Now that all entites are deleted, all their chunks are requestd to get deleted
-					// and in turn the archetype itself as well. Therefore, it is added to the archetype
-					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
-					// > del_empty_archetype(pArchetype);
-				}
-				m_reqArchetypesToDel.clear();
-
-				// Try to delete all requested entities
-				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
-					const auto e = it->entity();
-
-					// Entities that form archetypes need to stay until the archetype itself is gone
-					if (m_entityToArchetypeMap.contains(*it)) {
-						++it;
-						continue;
-					}
-
-					// Requested entities are partialy deleted. We only need to invalidate them.
-					invalidate_entity(e);
-
-					it = m_reqEntitiesToDel.erase(it);
-				}
-			}
-
-			//! Removes an entity along with all data associated with it.
-			//! \param entity Entity to delete
-			void del(Entity entity) {
-				if (!entity.pair()) {
-					// Delete all relationships associated with this entity (if any)
-					del_inter(Pair(entity, All));
-					del_inter(Pair(All, entity));
-				}
-
-				del_inter(entity);
-			}
-
-			//! Removes an \param object from \param entity if possible.
-			//! \param entity Entity to delete from
-			//! \param object Entity to delete
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
-			void del(Entity entity, Entity object) {
-				EntityBuilder(*this, entity).del(object);
-			}
-
-			//! Removes an existing entity relationship pair
-			//! \param entity Source entity
-			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
-			//!          Undefined behavior otherwise.
-			void del(Entity entity, Pair pair) {
-				EntityBuilder(*this, entity).del(pair);
-			}
-
-			//! Removes a component \tparam T from \param entity.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T>
-			void del(Entity entity) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-				EntityBuilder(*this, entity).del<FT>();
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Shortcut for add(entity, Pair(Is, entityBase)
-			void as(Entity entity, Entity entityBase) {
-				add(entity, Pair(Is, entityBase));
-			}
-
-			//! Checks if \param entity inherits from \param entityBase.
-			//! True if entity inherits from entityBase. False otherwise.
-			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
-				return is_inter<true>(entity, entityBase);
-			}
-
-			//! Checks if \param entity is located in \param entityBase.
-			//! This is almost the same as "is" with the exception that false is returned
-			//! if \param entity matches \param entityBase
-			//! True if entity is located in entityBase. False otherwise.
-			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
-				return is_inter<false>(entity, entityBase);
-			}
-
-			GAIA_NODISCARD bool is_base(Entity target) const {
-				GAIA_ASSERT(valid_entity(target));
-
-				// Pairs are not supported
-				if (target.pair())
-					return false;
-
-				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
-				return it != m_entityToAsRelations.end();
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Shortcut for add(entity, Pair(ChildOf, parent)
-			void child(Entity entity, Entity parent) {
-				add(entity, Pair(ChildOf, parent));
-			}
-
-			//! Checks if \param entity is a child of \param parent
-			//! True if entity is a child of parent. False otherwise.
-			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
-				return has(entity, Pair(ChildOf, parent));
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Starts a bulk set operation on \param entity.
-			//! \param entity Entity
-			//! \return ComponentSetter
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			ComponentSetter set(Entity entity) {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{ec.pChunk, ec.row};
-			}
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \param value Value to set for the component
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T>
-			void set(Entity entity, typename component_type_t<T>::Type&& value) {
-				static_assert(!is_pair<T>::value);
-
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				ComponentSetter{ec.pChunk, ec.row}.set<FT>(GAIA_FWD(value));
-			}
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \param value Value to set for the component
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T>
-			void set(Entity entity, typename T::type&& value) {
-				static_assert(is_pair<T>::value);
-
-				using U = typename T::type;
-				using CT = component_type_t<U>;
-				using FT = typename CT::TypeFull;
-
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				ComponentSetter{ec.pChunk, ec.row}.set<FT>(GAIA_FWD(value));
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \param value Value to set for the component
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			void sset(Entity entity, U&& value) {
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				ComponentSetter{ec.pChunk, ec.row}.sset<FT>(GAIA_FWD(value));
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns the value stored in the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \return Value stored in the component.
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T>
-			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{ec.pChunk, ec.row}.get<T>();
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Checks if \param entity is currently used by the world.
-			//! \return True if the entity is used. False otherwise.
-			GAIA_NODISCARD bool has(Entity entity) const {
-				// Pair
-				if (entity.pair()) {
-					if (is_wildcard(entity)) {
-						if (!m_entityToArchetypeMap.contains(EntityLookupKey(entity)))
-							return false;
-
-						// If the pair is found, both entities forming it need to be found as well
-						GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
-
-						return true;
-					}
-
-					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
-					if (it == m_recs.pairs.end())
-						return false;
-
-					const auto& ec = it->second;
-					if (is_req_del(ec))
-						return false;
-
-#if GAIA_ASSERT_ENABLED
-					// If the pair is found, both entities forming it need to be found as well
-					GAIA_ASSERT(has(get(entity.id())) && has(get(entity.gen())));
-
-					// Index of the entity must fit inside the chunk
-					auto* pChunk = ec.pChunk;
-					GAIA_ASSERT(pChunk != nullptr && ec.row < pChunk->size());
-#endif
-
-					return true;
-				}
-
-				// Regular entity
-				{
-					// Entity ID has to fit inside the entity array
-					if (entity.id() >= m_recs.entities.size())
-						return false;
-
-					// Index of the entity must fit inside the chunk
-					const auto& ec = m_recs.entities[entity.id()];
-					if (is_req_del(ec))
-						return false;
-
-					auto* pChunk = ec.pChunk;
-					return pChunk != nullptr && ec.row < pChunk->size();
-				}
-			}
-
-			//! Tells if \param entity contains the entity \param object.
-			//! \param entity Entity
-			//! \param object Tested entity
-			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
-				const auto& ec = fetch(entity);
-				if (is_req_del(ec))
-					return false;
-
-				if (object.pair()) {
-					const auto* pArchetype = ec.pArchetype;
-
-					// Early exit if there are no pairs on the archetype
-					if (pArchetype->pairs() == 0)
-						return false;
-
-					EntityId rel = object.id();
-					EntityId tgt = object.gen();
-
-					// (*,*)
-					if (rel == All.id() && tgt == All.id()) {
-						const auto& ids = pArchetype->ids();
-						for (auto id: ids) {
-							if (!id.pair())
-								continue;
-							return true;
-						}
-
-						return false;
-					}
-
-					// (X,*)
-					if (rel != All.id() && tgt == All.id()) {
-						const auto& ids = pArchetype->ids();
-						for (auto id: ids) {
-							if (!id.pair())
-								continue;
-							if (id.id() == rel)
-								return true;
-						}
-
-						return false;
-					}
-
-					// (*,X)
-					if (rel == All.id() && tgt != All.id()) {
-						const auto& ids = pArchetype->ids();
-						for (auto id: ids) {
-							if (!id.pair())
-								continue;
-							if (id.gen() == tgt)
-								return true;
-						}
-
-						return false;
-					}
-				}
-
-				return ComponentGetter{ec.pChunk, ec.row}.has(object);
-			}
-
-			//! Tells if \param entity contains the component \tparam T.
-			//! \tparam T Component
-			//! \param entity Entity
-			//! \return True if the component is present on entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			template <typename T>
-			GAIA_NODISCARD bool has(Entity entity) const {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				if (is_req_del(ec))
-					return false;
-
-				return ComponentGetter{ec.pChunk, ec.row}.has<T>();
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
-			//! The string is copied and kept internally.
-			//! \param entity Entity
-			//! \param name A null-terminated string
-			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Name is expected to be unique. If it is not this function does nothing.
-			void name(Entity entity, const char* name, uint32_t len = 0) {
-				name_inter<true>(entity, name, len);
-			}
-
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
-			//! The string is NOT copied. Your are responsible for its lifetime.
-			//! \param entity Entity
-			//! \param name Pointer to a stable null-terminated string
-			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Name is expected to be unique. If it is not this function does nothing.
-			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
-			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
-			//!          the string to a different place you have to unset the name before it happens and set it anew
-			//!          after the move is done.
-			void name_raw(Entity entity, const char* name, uint32_t len = 0) {
-				name_inter<false>(entity, name, len);
-			}
-
-			//! Returns the name assigned to \param entity.
-			//! \param entity Entity
-			//! \return Name assigned to entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(Entity entity) const {
-				if (entity.pair())
-					return nullptr;
-
-				if (!has<EntityDesc>(entity))
-					return nullptr;
-
-				const auto& desc = get<EntityDesc>(entity);
-				return desc.name;
-			}
-
-			//! Returns the name assigned to \param entityId.
-			//! \param entityId EntityId
-			//! \return Name assigned to entity.
-			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(EntityId entityId) const {
-				auto entity = get(entityId);
-				return name(entity);
-			}
-
-			//! Returns the entity that is assigned with the \param name.
-			//! \param name Name
-			//! \return Entity assigned the given name. EntityBad if there is nothing to return.
-			GAIA_NODISCARD Entity get(const char* name) const {
-				if (name == nullptr)
-					return EntityBad;
-
-				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
-				if (it == m_nameToEntity.end())
-					return EntityBad;
-
-				return it->second;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns relations for \param target.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
-				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
-				if (it == m_targetsToRelations.end())
-					return nullptr;
-
-				return &it->second;
-			}
-
-			//! Returns the first relationship relation for the \param target entity on \param entity.
-			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(target))
-					return EntityBad;
-
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
-
-				// Early exit if there are no pairs on the archetype
-				if (pArchetype->pairs() == 0)
-					return EntityBad;
-
-				const auto& ids = pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.gen() != target.id())
-						continue;
-
-					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
-					return relation;
-				}
-
-				return EntityBad;
-			}
-
-			//! Returns the relationship relations for the \param target entity on \param entity.
-			//! Appends all relationship relations if any to \param out.
-			//! \param func void(Entity relation) functor executed for relationship relation found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename Func>
-			void relations(Entity entity, Entity target, Func func) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(target))
-					return;
-
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
-
-				// Early exit if there are no pairs on the archetype
-				if (pArchetype->pairs() == 0)
-					return;
-
-				const auto& ids = pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.gen() != target.id())
-						continue;
-
-					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
-					func(relation);
-				}
-			}
-
-			template <typename Func>
-			void as_relations_trav(Entity target, Func func) const {
-				GAIA_ASSERT(valid(target));
-				if (!valid(target))
-					return;
-
-				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
-				if (it == m_entityToAsRelations.end())
-					return;
-
-				const auto& set = it->second;
-				for (auto relation: set) {
-					func(relation.entity());
-					as_relations_trav(relation.entity(), func);
-				}
-			}
-
-			template <typename Func>
-			bool as_relations_trav_if(Entity target, Func func) const {
-				GAIA_ASSERT(valid(target));
-				if (!valid(target))
-					return false;
-
-				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
-				if (it == m_entityToAsRelations.end())
-					return false;
-
-				const auto& set = it->second;
-				for (auto relation: set) {
-					if (func(relation.entity()))
-						return true;
-					if (as_relations_trav_if(relation.entity(), func))
-						return true;
-				}
-
-				return false;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns targets for \param relation.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
-				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
-				if (it == m_relationsToTargets.end())
-					return nullptr;
-
-				return &it->second;
-			}
-
-			//! Returns the first relationship target for the \param relation entity on \param entity.
-			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
-					return EntityBad;
-
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
-
-				// Early exit if there are no pairs on the archetype
-				if (pArchetype->pairs() == 0)
-					return EntityBad;
-
-				const auto& ids = pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.id() != relation.id())
-						continue;
-
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					return target;
-				}
-
-				return EntityBad;
-			}
-
-			//! Returns the relationship targets for the \param relation entity on \param entity.
-			//! Appends all relationship targets if any to \param out.
-			//! \param func void(Entity target) functor executed for relationship target found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename Func>
-			void targets(Entity entity, Entity relation, Func func) const {
-				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
-					return;
-
-				const auto& ec = fetch(entity);
-				const auto* pArchetype = ec.pArchetype;
-
-				// Early exit if there are no pairs on the archetype
-				if (pArchetype->pairs() == 0)
-					return;
-
-				const auto& ids = pArchetype->ids();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.id() != relation.id())
-						continue;
-
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					func(target);
-				}
-			}
-
-			template <typename Func>
-			void as_targets_trav(Entity relation, Func func) const {
-				GAIA_ASSERT(valid(relation));
-				if (!valid(relation))
-					return;
-
-				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
-				if (it == m_entityToAsTargets.end())
-					return;
-
-				const auto& set = it->second;
-				for (auto target: set) {
-					func(target.entity());
-					as_targets_trav(target.entity(), func);
-				}
-			}
-
-			template <typename Func>
-			bool as_targets_trav_if(Entity relation, Func func) const {
-				GAIA_ASSERT(valid(relation));
-				if (!valid(relation))
-					return false;
-
-				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
-				if (it == m_entityToAsTargets.end())
-					return false;
-
-				const auto& set = it->second;
-				for (auto target: set) {
-					if (func(target.entity()))
-						return true;
-					if (as_targets_trav(target.entity(), func))
-						return true;
-				}
-
-				return false;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, results of the query are cached
-			//! \return Valid query object
-			template <bool UseCache = true>
-			auto query() {
-				if constexpr (UseCache) {
-					Query q(
-							*const_cast<World*>(this), m_queryCache,
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
-					return q;
-				} else {
-					QueryUncached q(
-							*const_cast<World*>(this),
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
-					return q;
-				}
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Enables or disables an entire entity.
-			//! \param entity Entity
-			//! \param enable Enable or disable the entity
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			void enable(Entity entity, bool enable) {
-				GAIA_ASSERT(valid(entity));
-
-				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(
-						(ec.pChunk && !ec.pChunk->locked()) &&
-						"Entities can't be enabled/disabled while their chunk is being iterated "
-						"(structural changes are forbidden during this time!)");
-
-				auto& archetype = *ec.pArchetype;
-				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
-			}
-
-			//! Checks if an entity is enabled.
-			//! \param entity Entity
-			//! \return True it the entity is enabled. False otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			bool enabled(Entity entity) const {
-				GAIA_ASSERT(valid(entity));
-
-				const auto& ec = m_recs.entities[entity.id()];
-				const bool entityStateInContainer = !ec.dis;
-#if GAIA_ASSERT_ENABLED
-				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
-				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
-#endif
-				return entityStateInContainer;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Returns a chunk containing the \param entity.
-			//! \return Chunk or nullptr if not found.
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
-				GAIA_ASSERT(entity.id() < m_recs.entities.size());
-				const auto& ec = m_recs.entities[entity.id()];
-				return ec.pChunk;
-			}
-
-			//! Returns a chunk containing the \param entity.
-			//! Index of the entity is stored in \param indexInChunk
-			//! \return Chunk or nullptr if not found
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
-				GAIA_ASSERT(entity.id() < m_recs.entities.size());
-				const auto& ec = m_recs.entities[entity.id()];
-				indexInChunk = ec.row;
-				return ec.pChunk;
-			}
-
-			//! Returns the number of active entities
-			//! \return Entity
-			GAIA_NODISCARD uint32_t size() const {
-				return m_recs.entities.item_count();
-			}
-
-			//! Returns the current version of the world.
-			//! \return World version number.
-			GAIA_NODISCARD uint32_t& world_version() {
-				return m_worldVersion;
-			}
-
-			//----------------------------------------------------------------------
-
-			//! Performs various internal operations related to the end of the frame such as
-			//! memory cleanup and other managment operations which keep the system healthy.
-			void update() {
-				// Finish deleting entities
-				del_finalize();
-
-				// Run garbage collector
-				gc();
-
-				// Signal the end of the frame
-				GAIA_PROF_FRAME();
-			}
-
-			//! Clears the world so that all its entities and components are released
-			void cleanup() {
-				// Clear entities
-				m_recs.entities = {};
-				m_recs.pairs = {};
-
-				// Clear archetypes
-				{
-					// Delete all allocated chunks and their parent archetypes
-					for (auto* pArchetype: m_archetypes)
-						delete pArchetype;
-
-					m_entityToAsRelations = {};
-					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
-
-					m_archetypes = {};
-					m_archetypesById = {};
-					m_archetypesByHash = {};
-
-					m_reqArchetypesToDel = {};
-					m_reqEntitiesToDel = {};
-
-					m_entitiesToDel = {};
-					m_chunksToDel = {};
-					m_archetypesToDel = {};
-				}
-
-				// Clear caches
-				{
-					m_entityToArchetypeMap = {};
-					m_queryCache.clear();
-				}
-
-				// Clear entity names
-				{
-					for (auto& pair: m_nameToEntity) {
-						if (!pair.first.owned())
-							continue;
-						// Release any memory allocated for owned names
-						mem::mem_free((void*)pair.first.str());
-					}
-					m_nameToEntity = {};
-				}
-
-				// Clear component cache
-				m_compCache.clear();
-			}
-
-			//! Sets the maximum number of entites defragmented per world tick
-			//! \param value Number of entities to defragment
-			void defrag_entities_per_tick(uint32_t value) {
-				m_defragEntitesPerTick = value;
-			}
-
-			//--------------------------------------------------------------------------------
-
-			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
-			void diag_archetypes() const {
-				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
-				for (auto* pArchetype: m_archetypes)
-					Archetype::diag(*this, *pArchetype);
-			}
-
-			//! Performs diagnostics on registered components.
-			//! Prints basic info about them and reports and detected issues.
-			void diag_components() const {
-				comp_cache().diag();
-			}
-
-			//! Performs diagnostics on entites of the world.
-			//! Also performs validation of internal structures which hold the entities.
-			void diag_entities() const {
-				validate_entities();
-
-				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_recs.entities.get_free_items());
-				if (m_recs.entities.get_free_items() != 0U) {
-					GAIA_LOG_N("  --> %u", (uint32_t)m_recs.entities.get_next_free_item());
-
-					uint32_t iters = 0;
-					auto fe = m_recs.entities[m_recs.entities.get_next_free_item()].idx;
-					while (fe != IdentifierIdBad) {
-						GAIA_LOG_N("  --> %u", m_recs.entities[fe].idx);
-						fe = m_recs.entities[fe].idx;
-						++iters;
-						if (iters > m_recs.entities.get_free_items())
-							break;
-					}
-
-					if ((iters == 0U) || iters > m_recs.entities.get_free_items())
-						GAIA_LOG_E("  Entities recycle list contains inconsistent data!");
-				}
-			}
-
-			//! Performs all diagnostics.
-			void diag() const {
-				diag_archetypes();
-				diag_components();
-				diag_entities();
 			}
 		};
 

@@ -1748,20 +1748,21 @@ TEST_CASE("Add - many components, bulk") {
 	auto create = [&]() {
 		auto e = wld.add();
 
-		wld.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
+		wld.build(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
 
-		wld.set(e)
+		REQUIRE(wld.has<Int3>(e));
+		REQUIRE(wld.has<Position>(e));
+		REQUIRE(wld.has<Empty>(e));
+		REQUIRE(wld.has<Else>(e));
+		REQUIRE(wld.has<Rotation>(e));
+		REQUIRE(wld.has<Scale>(e));
+
+		wld.acc_mut(e)
 				.set<Int3>({3, 3, 3})
 				.set<Position>({1, 1, 1})
 				.set<Else>({true})
 				.set<Rotation>({2, 2, 2, 2})
 				.set<Scale>({4, 4, 4});
-
-		REQUIRE(wld.has<Int3>(e));
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Empty>(e));
-		REQUIRE(wld.has<Rotation>(e));
-		REQUIRE(wld.has<Scale>(e));
 
 		{
 			auto val = wld.get<Int3>(e);
@@ -1787,6 +1788,24 @@ TEST_CASE("Add - many components, bulk") {
 			REQUIRE(val.x == 4.f);
 			REQUIRE(val.y == 4.f);
 			REQUIRE(val.z == 4.f);
+		}
+
+		{
+			auto setter = wld.acc_mut(e);
+			auto& pos = setter.mut<Int3>();
+			pos = {30, 30, 30};
+
+			{
+				auto val = wld.get<Int3>(e);
+				REQUIRE(val.x == 30);
+				REQUIRE(val.y == 30);
+				REQUIRE(val.z == 30);
+
+				val = setter.get<Int3>();
+				REQUIRE(val.x == 30);
+				REQUIRE(val.y == 30);
+				REQUIRE(val.z == 30);
+			}
 		}
 	};
 
@@ -2322,7 +2341,7 @@ TEST_CASE("Query - QueryResult") {
 		TestWorld twld;
 
 		const auto player = wld.add();
-		wld.bulk(player).add<Player>().add<Health>();
+		wld.build(player).add<Player>().add<Health>();
 
 		uint32_t matches = 0;
 		auto qp = wld.query().all<Health, Player>();
@@ -2370,7 +2389,7 @@ void Test_Query_QueryResult_Complex() {
 	auto create = [&](uint32_t i) {
 		auto e = wld.add();
 
-		auto b = wld.bulk(e);
+		auto b = wld.build(e);
 		b.add<Position, Scale>();
 		if (i % 2 == 0)
 			b.add<Something>();
@@ -2379,7 +2398,7 @@ void Test_Query_QueryResult_Complex() {
 		auto p1 = Position{(float)i, (float)i, (float)i};
 		auto s1 = Scale{(float)i * 2, (float)i * 2, (float)i * 2};
 
-		auto s = wld.set(e);
+		auto s = wld.acc_mut(e);
 		s.set<Position>(p1).set<Scale>(s1);
 		if (i % 2 == 0)
 			s.set<Something>({true});
@@ -2619,8 +2638,8 @@ TEST_CASE("Relationship") {
 		auto carrot = wld.add();
 		auto eats = wld.add();
 
-		wld.bulk(rabbit).add(ecs::Pair(eats, carrot));
-		wld.bulk(wolf).add(ecs::Pair(eats, rabbit));
+		wld.build(rabbit).add(ecs::Pair(eats, carrot));
+		wld.build(wolf).add(ecs::Pair(eats, rabbit));
 
 		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
 		REQUIRE(wld.has(wolf, ecs::Pair(eats, rabbit)));
@@ -3158,6 +3177,21 @@ TEST_CASE("Add - unique") {
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
+		{
+			auto setter = wld.acc_mut(e);
+			auto& upos = setter.mut<ecs::uni<Position>>();
+			upos = {10, 20, 30};
+
+			auto p = wld.get<ecs::uni<Position>>(e);
+			REQUIRE(p.x == 10.f);
+			REQUIRE(p.y == 20.f);
+			REQUIRE(p.z == 30.f);
+
+			p = setter.get<ecs::uni<Position>>();
+			REQUIRE(p.x == 10.f);
+			REQUIRE(p.y == 20.f);
+			REQUIRE(p.z == 30.f);
+		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
 		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
@@ -3376,7 +3410,7 @@ TEST_CASE("Add - mixed") {
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
 		}
-		wld.set<ecs::uni<Position>>(e, {100.0f, 200.0f, 300.0f});
+		wld.set<ecs::uni<Position>>(e) = {100.0f, 200.0f, 300.0f};
 		{
 			auto p = wld.get<Position>(e);
 			REQUIRE(p.x == 10.f);
@@ -4446,7 +4480,7 @@ TEST_CASE("Set - generic & unique") {
 			}
 		});
 
-		wld.set<ecs::uni<Position>>(arr[0], {111, 222, 333});
+		wld.set<ecs::uni<Position>>(arr[0]) = {111, 222, 333};
 
 		{
 			Position p = wld.get<ecs::uni<Position>>(arr[0]);
@@ -4873,7 +4907,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
-	{ wld.set<Position>(e, {}); }
+	{ wld.set<Position>(e) = {}; }
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
@@ -4888,7 +4922,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
-	{ wld.sset<Position>(e, {}); }
+	{ wld.sset<Position>(e) = {}; }
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {

@@ -1010,8 +1010,8 @@ namespace gaia {
 			\param value Value to set for the component
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			*/
-			template <typename T, typename U = typename actual_type_t<T>::Type>
-			void set(uint16_t row, U&& value) {
+			template <typename T>
+			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
 
 				GAIA_ASSERT2(
@@ -1022,18 +1022,18 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
 			Sets the value of a generic entity \param type at the position \param row in the chunk.
 			\param row Row of entity in the chunk
 			\param type Component/entity/pair
-			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
-			otherwise.
+			\param value New component value
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			*/
 			template <typename T>
-			void set(uint16_t row, Entity type, T&& value) {
+			decltype(auto) set(uint16_t row, Entity type) {
 				verify_comp<T>();
 
 				GAIA_ASSERT2(
@@ -1046,14 +1046,14 @@ namespace gaia {
 
 				GAIA_ASSERT(row < m_header.capacity);
 
-				// TODO: This function work but is useless because it does the same job as
+				// TODO: This function works but is useless because it does the same job as
 				//       set(uint16_t row, U&& value).
 				//       This is because T needs to match U anyway so the component lookup can succeed.
 				(void)type;
 				// const uint32_t col = comp_idx(type);
 				//(void)col;
 
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
@@ -1064,34 +1064,42 @@ namespace gaia {
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
-			template <typename T, typename U = typename actual_type_t<T>::Type>
-			void sset(uint16_t row, U&& value) {
+			template <typename T>
+			decltype(auto) sset(uint16_t row) {
 				GAIA_ASSERT2(
 						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+				return view_mut<T>()[row];
 			}
 
 			/*!
-			Sets the value of a generic entity \param object at the position \param row in the chunk.
+			Sets the value of a generic entity \param type at the position \param row in the chunk.
 			\param row Row of entity in the chunk
-			\param object Component/entity/pair
-			\param value New component value\warning It is expected the component \tparam T is present. Undefined behavior
-			otherwise.
+			\param type Component/entity/pair
+			\param value New component value
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			*/
 			template <typename T>
-			void sset(uint16_t row, [[maybe_unused]] Entity object, T&& value) {
+			decltype(auto) sset(uint16_t row, Entity type) {
 				static_assert(core::is_raw_v<T>);
 
 				GAIA_ASSERT2(
-						object.kind() == EntityKind::EK_Gen || row == 0,
+						type.kind() == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
-				view_mut<T>()[row] = GAIA_FWD(value);
+
+				// TODO: This function works but is useless because it does the same job as
+				//       sset(uint16_t row, U&& value).
+				//       This is because T needs to match U anyway so the component lookup can succeed.
+				(void)type;
+				// const uint32_t col = comp_idx(type);
+				//(void)col;
+
+				return view_mut<T>()[row];
 			}
 
 			//----------------------------------------------------------------------

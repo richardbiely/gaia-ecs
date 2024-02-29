@@ -19,7 +19,7 @@ namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount, bool BulkCreate>
 	void Adds(ecs::World& w, ecs::Entity e) {
 		if constexpr (BulkCreate) {
-			auto builder = w.bulk(e);
+			auto builder = w.build(e);
 			core::each<ComponentCount>([&builder](auto i) {
 				builder.add<Component<i, T, ValuesCount>>();
 			});
