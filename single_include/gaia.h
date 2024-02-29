@@ -22007,7 +22007,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{ec.pChunk, idx}.set(object, GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
 			}
 
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
@@ -22024,7 +22024,7 @@ namespace gaia {
 				// Make sure the idx is 0 for unique entities
 				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
-				ComponentSetter{ec.pChunk, idx}.set<T>(GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -22302,7 +22302,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{ec.pChunk, ec.row};
+				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
 			//! Sets the value of the component \tparam T on \param entity.
