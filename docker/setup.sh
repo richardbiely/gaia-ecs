@@ -21,4 +21,4 @@ fi
 
 # start the container
 docker volume create ${imagename_tmp}
-docker run --rm --interactive --tty --privileged --name ${imagename} --mount type=volume,source=${imagename_tmp},target=/work-output --mount type=bind,source=$(pwd)/..,target=/gaia-ecs --workdir /gaia-ecs/docker ${imagename} bash
+docker run -p 2022:22 --rm --interactive --tty --privileged --name ${imagename} --mount type=volume,source=${imagename_tmp},target=/work-output --mount type=bind,source=$(pwd)/..,target=/gaia-ecs --workdir /gaia-ecs/docker ${imagename} bash
