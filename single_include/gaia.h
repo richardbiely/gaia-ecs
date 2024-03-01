@@ -13607,6 +13607,7 @@ namespace gaia {
 				// Stop all threads first
 				reset();
 				m_workers.resize(workersCnt);
+				GAIA_EACH(m_workers) m_workers[i] = {};
 
 				// Create a new set of high and low priority threads (if any)
 				set_workers_high_prio(countHighPrio);
@@ -14039,7 +14040,8 @@ namespace gaia {
 				if (t.joinable())
 					t.join();
 #else
-				pthread_join(m_workers[workerIdx], nullptr);
+				auto& t = m_workers[workerIdx];
+				pthread_join(t, nullptr);
 #endif
 			}
 
