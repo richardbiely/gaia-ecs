@@ -282,17 +282,36 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
+		namespace detail {
+			template <class Default, class AlwaysVoid, template <class...> class Op, class... Args>
+			struct detector {
+				using value_t = std::false_type;
+				using type = Default;
+			};
+
+			template <class Default, template <class...> class Op, class... Args>
+			struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+				using value_t = std::true_type;
+				using type = Op<Args...>;
+			};
+
+			struct nonesuch {
+				~nonesuch() = delete;
+				nonesuch(nonesuch const&) = delete;
+				void operator=(nonesuch const&) = delete;
+			};
+		} // namespace detail
+
+		template <template <class...> class Op, class... Args>
+		using is_detected = typename detail::detector<detail::nonesuch, void, Op, Args...>::value_t;
+
 #define GAIA_DEFINE_HAS_FUNCTION(function_name)                                                                        \
 	template <typename T, typename... Args>                                                                              \
-	constexpr auto has_##function_name##_check(int)                                                                      \
-			-> decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                         \
-                                                                                                                       \
-	template <typename T, typename... Args>                                                                              \
-	constexpr std::false_type has_##function_name##_check(...);                                                          \
+	using has_##function_name##_check = decltype(std::declval<T>().function_name(std::declval<Args>()...));              \
                                                                                                                        \
 	template <typename T, typename... Args>                                                                              \
 	struct has_##function_name {                                                                                         \
-		static constexpr bool value = decltype(has_##function_name##_check<T, Args...>(0))::value;                         \
+		static constexpr bool value = gaia::core::is_detected<has_##function_name##_check, T, Args...>::value;             \
 	};
 
 		GAIA_DEFINE_HAS_FUNCTION(find)
