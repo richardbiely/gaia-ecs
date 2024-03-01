@@ -119,9 +119,13 @@ struct StringComponent2 {
 	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
 GAIA_DEFINE_HAS_FUNCTION(foo)
+GAIA_DEFINE_HAS_FUNCTION(food)
 struct Dummy0 {
 	Dummy0* foo(const Dummy0&) const {
 		return nullptr;
+	}
+	void foo(int dummy) {
+		(void)dummy;
 	}
 };
 inline bool operator==(const Dummy0&, const Dummy0&) {
@@ -150,18 +154,22 @@ TEST_CASE("has_XYZ_equals_check") {
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy0>::value;
 		constexpr auto hasGlobal = core::has_global_equals<Dummy0>::value;
-		// constexpr auto hasFoo = has_foo<Dummy0>::value;
+		constexpr auto hasFoo1 = has_foo<Dummy0, const Dummy0&>::value;
+		constexpr auto hasFoo2 = has_foo<Dummy0, int>::value;
+		constexpr auto hasFood = has_food<Dummy0>::value;
 		REQUIRE_FALSE(hasMember);
 		REQUIRE(hasGlobal);
-		// REQUIRE(hasFoo);
+		REQUIRE(hasFoo1);
+		REQUIRE(hasFoo2);
+		REQUIRE(!hasFood);
 	}
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
 		constexpr auto hasGlobal = core::has_global_equals<Dummy1>::value;
-		// constexpr auto hasFoo = has_foo<Dummy1>::value;
+		constexpr auto hasFoo = has_foo<Dummy1>::value;
 		REQUIRE(hasMember);
 		REQUIRE_FALSE(hasGlobal);
-		// REQUIRE_FALSE(hasFoo);
+		REQUIRE_FALSE(hasFoo);
 	}
 }
 
@@ -450,6 +458,53 @@ TEST_CASE("Containers - darr_ext") {
 	using arr1 = cnt::darr_ext<uint32_t, 100>;
 	resizable_arr_test<arr1>(100);
 	resizable_arr_test<arr1>(10000);
+}
+
+TEST_CASE("Containers - alignment check") {
+	using tarrinter = cnt::sarr<ecs::QueryEntityOpPair, 3>;
+	struct TFoo {
+		uint8_t b;
+		tarrinter arr;
+
+		bool operator==(const TFoo& other) const {
+			return b == other.b && arr == other.arr;
+		}
+	};
+	using tarr = cnt::sarr_ext<TFoo, 100>;
+	tarr arr;
+	arr.resize(2);
+	{
+		auto& a = arr[0];
+		a.b = 16;
+		a.arr = {{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
+	}
+	{
+		auto& a = arr[1];
+		a.b = 214;
+		a.arr = {{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
+	}
+	{
+		auto& a = arr[0];
+		REQUIRE(a.b == 16);
+		REQUIRE(a.arr[0].id == ecs::Entity(1, 2));
+		REQUIRE(a.arr[1].id == ecs::Entity(2, 30));
+		REQUIRE(a.arr[2].id == ecs::Entity(3, 400));
+
+		tarrinter test = {
+				{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
+		REQUIRE(test == a.arr);
+	}
+	{
+		auto& a = arr[1];
+		REQUIRE(a.b == 214);
+		REQUIRE(a.arr[0].id == ecs::Entity(10, 2));
+		REQUIRE(a.arr[1].id == ecs::Entity(20, 90));
+		REQUIRE(a.arr[2].id == ecs::Entity(30, 421));
+
+		tarrinter test = {
+				{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
+		REQUIRE(test == a.arr);
+	}
 }
 
 TEST_CASE("Containers - sringbuffer") {
@@ -1587,9 +1642,9 @@ TEST_CASE("Add - no components") {
 		auto e = wld.add();
 		ents.push_back(e);
 	};
-	auto verify = [&](uint32_t i) {
-		REQUIRE(arr[i + 3] == ents[i]);
-	};
+	// auto verify = [&](uint32_t i) {
+	//	REQUIRE(arr[i + 3] == ents[i]);
+	// };
 
 	GAIA_FOR(N) create();
 
@@ -1657,6 +1712,7 @@ TEST_CASE("Add - namespaces") {
 	auto a3 = wld.add();
 	wld.add<dummy::Position>(a3);
 	auto a4 = wld.copy(a3);
+	(void)a4;
 
 	REQUIRE(wld.has<Position>(e));
 	REQUIRE(wld.has<dummy::Position>(e));
@@ -2207,18 +2263,18 @@ void Test_Query_QueryResult() {
 
 	{
 		const auto cnt = q1.count();
-		GAIA_ASSERT(cnt == N);
+		REQUIRE(cnt == N);
 	}
 	{
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
-		GAIA_ASSERT(arr.size() == N);
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
 	}
 	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
-		GAIA_ASSERT(arr.size() == N);
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
@@ -2278,18 +2334,18 @@ void Test_Query_QueryResult() {
 
 	{
 		const auto cnt = q4.count();
-		GAIA_ASSERT(cnt == N);
+		REQUIRE(cnt == N);
 	}
 	{
 		cnt::darr<ecs::Entity> arr;
 		q4.arr(arr);
-		GAIA_ASSERT(arr.size() == N);
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
 	}
 	{
 		cnt::darr<Position> arr;
 		q4.arr(arr);
-		GAIA_ASSERT(arr.size() == N);
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
@@ -2315,7 +2371,7 @@ void Test_Query_QueryResult() {
 
 		uint32_t cnt2 = 0;
 		q4.each([&](ecs::Iter& it /*, ecs::Src src*/) {
-			auto pos_view = it.view<Position>();
+			// auto pos_view = it.view<Position>();
 			// auto lvl_view = src.view<Level>();
 			GAIA_EACH(it) {
 				++cnt2;
@@ -5259,14 +5315,20 @@ TEST_CASE("Multiple worlds") {
 
 template <typename T>
 bool CompareSerializableType(const T& a, const T& b) {
-	if constexpr (std::is_trivially_copyable_v<T>)
-		return !std::memcmp((const void*)&a, (const void*)&b, sizeof(b));
-	else
+	if constexpr (
+			!std::is_trivially_copyable_v<T> || core::has_member_equals<T>::value || core::has_global_equals<T>::value) {
 		return a == b;
+	} else {
+		return !std::memcmp((const void*)&a, (const void*)&b, sizeof(a));
+	}
 }
 
 template <typename T>
 bool CompareSerializableTypes(const T& a, const T& b) {
+	if constexpr (core::has_member_equals<T>::value || core::has_global_equals<T>::value) {
+		return a == b;
+	}
+
 	// Convert inputs into tuples where each struct member is an element of the tuple
 	auto ta = meta::struct_to_tuple(a);
 	auto tb = meta::struct_to_tuple(b);
@@ -5275,7 +5337,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 	bool ret = true;
 	core::each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
 		const auto& aa = std::get<i>(ta);
-		const auto& bb = std::get<i>(ta);
+		const auto& bb = std::get<i>(tb);
 		ret = ret && CompareSerializableType(aa, bb);
 	});
 	return ret;
@@ -5317,11 +5379,15 @@ struct CustomStruct {
 	uint32_t size;
 };
 
+bool operator==(const CustomStruct& a, const CustomStruct& b) {
+	return a.size == b.size && !memcmp(a.ptr, b.ptr, a.size);
+}
 namespace gaia::ser {
 	template <>
 	uint32_t bytes(const CustomStruct& data) {
 		return data.size + sizeof(data.size);
 	}
+
 	template <typename Serializer>
 	void save(Serializer& s, const CustomStruct& data) {
 		s.save(data.size);
@@ -5341,7 +5407,7 @@ struct CustomStructInternal {
 	uint32_t size;
 
 	bool operator==(const CustomStructInternal& other) const {
-		return ptr == other.ptr && size == other.size;
+		return size == other.size && !memcmp(ptr, other.ptr, other.size);
 	}
 
 	constexpr uint32_t bytes() const noexcept {
@@ -5588,8 +5654,6 @@ static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
 	auto& tp = mt::ThreadPool::get();
-
-	std::atomic_uint32_t sum = 0;
 
 	GAIA_FOR(Jobs) {
 		mt::Job job;

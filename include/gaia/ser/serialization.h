@@ -216,22 +216,28 @@ namespace gaia {
 				// Types which have data() and size() member functions
 				else if constexpr (has_data_and_size<U>::value) {
 					if constexpr (Write) {
-						if constexpr (has_resize<U>::value) {
-							const auto size = arg.size();
-							s.save(size);
-						}
+						const auto size = arg.size();
+						s.save(size);
 
 						for (const auto& e: arg)
 							ser_data_one<Write>(s, e);
 					} else {
-						if constexpr (has_resize<U>::value) {
-							auto size = arg.size();
-							s.load(size);
+						auto size = arg.size();
+						s.load(size);
+
+						if constexpr (has_resize<U, size_t>::value) {
+							// If resize is presnet, use it
 							arg.resize(size);
+							for (auto& e: arg)
+								ser_data_one<Write>(s, e);
+						} else {
+							// With no resize present, write directly into memory
+							GAIA_FOR(size) {
+								using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
+								auto& e_ref = (arg_type&)arg[i];
+								ser_data_one<Write>(s, e_ref);
+							}
 						}
-						
-						for (auto& e: arg)
-							ser_data_one<Write>(s, e);
 					}
 				}
 				// Classes
