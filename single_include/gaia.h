@@ -16202,6 +16202,8 @@ namespace gaia {
 					mem::mem_free((void*)item->name.str());
 					item->name = {};
 				}
+
+				delete item;
 			}
 		};
 	} // namespace ecs
@@ -16916,7 +16918,7 @@ namespace gaia {
 #else
 				pChunk->~Chunk();
 				auto* pChunkMem = (uint8_t*)pChunk;
-				delete pChunkMem;
+				delete[] pChunkMem;
 #endif
 			}
 
@@ -22092,8 +22094,12 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				auto& oldEntityContainer = m_recs[entity];
-				auto* pOldChunk = oldEntityContainer.pChunk;
+				auto* pOldChunk = ec.pChunk;
+
+				// Entities array might get reallocated after m_recs.entities.alloc
+				// so insted of fetching the container again we simply cache the row
+				// of our source entity.
+				const auto oldRow = ec.row;
 
 				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
@@ -22106,10 +22112,10 @@ namespace gaia {
 
 					GAIA_FOR(toCreate) {
 						const auto entityNew = m_recs.entities.alloc(&ctx);
-						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
+						auto& ecNew = m_recs.entities[entityNew.id()];
+						store_entity(ecNew, entityNew, &archetype, pChunk);
 
 #if GAIA_ASSERT_ENABLED
-						const auto& ecNew = m_recs.entities[entityNew.id()];
 						GAIA_ASSERT(ecNew.pChunk == pChunk);
 						auto entityExpected = pChunk->entity_view()[ecNew.row];
 						GAIA_ASSERT(entityExpected == entityNew);
@@ -22135,7 +22141,7 @@ namespace gaia {
 							if (rec.comp.size() == 0U)
 								continue;
 
-							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldEntityContainer.row);
+							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldRow);
 							GAIA_FOR_(toCreate, rowOffset) {
 								auto* pDst = (void*)pChunk->comp_ptr_mut(i, originalChunkSize + rowOffset);
 								rec.pDesc->copy(pSrc, pDst);
@@ -24643,10 +24649,10 @@ namespace gaia {
 
 					GAIA_FOR(toCreate) {
 						const auto entityNew = m_recs.entities.alloc(&ctx);
-						store_entity(m_recs.entities[entityNew.id()], entityNew, &archetype, pChunk);
+						auto& ecNew = m_recs.entities[entityNew.id()];
+						store_entity(ecNew, entityNew, &archetype, pChunk);
 
 #if GAIA_ASSERT_ENABLED
-						const auto& ecNew = m_recs.entities[entityNew.id()];
 						GAIA_ASSERT(ecNew.pChunk == pChunk);
 						auto entityExpected = pChunk->entity_view()[ecNew.row];
 						GAIA_ASSERT(entityExpected == entityNew);
