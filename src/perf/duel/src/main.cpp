@@ -1190,6 +1190,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 #define PICO_SETTINGS() iterations({1024}).samples(3)
 #define PICO_SETTINGS_1() iterations({1024}).samples(1)
+#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
@@ -1207,12 +1208,17 @@ int main(int argc, char* argv[]) {
 	// for us to isolate the results.
 	{
 		bool profilingMode = false;
+		bool sanitizerMode = false;
 		bool dodMode = false;
 
 		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
 		for (const auto& arg: args) {
 			if (arg == "-p") {
 				profilingMode = true;
+				continue;
+			}
+			if (arg == "-s") {
+				sanitizerMode = true;
 				continue;
 			}
 			if (arg == "-dod") {
@@ -1222,6 +1228,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
+		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
 		GAIA_LOG_N("DOD mode       = %s", dodMode ? "ON" : "OFF");
 
 		if (profilingMode) {
@@ -1232,6 +1239,11 @@ int main(int argc, char* argv[]) {
 				// PICOBENCH_SUITE_REG("ECS");
 				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().label("Systems_Iter");
 			}
+		} else if (sanitizerMode) {
+			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");
 		} else {
 			PICOBENCH_SUITE_REG("OOP");
 			//  Ordinary coding style.

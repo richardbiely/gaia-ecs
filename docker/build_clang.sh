@@ -39,8 +39,14 @@ PATH_DEBUG="./${PATH_BASE}/debug"
 PATH_DEBUG_SYSA="./${PATH_BASE}/debug-sysa"
 PATH_DEBUG_PROF="${PATH_DEBUG}-prof"
 PATH_RELEASE="./${PATH_BASE}/release"
+PATH_DEBUG_ADDR="${PATH_DEBUG}-addr"
+PATH_DEBUG_MEM="${PATH_DEBUG}-mem"
 PATH_RELEASE_ADDR="${PATH_RELEASE}-addr"
 PATH_RELEASE_MEM="${PATH_RELEASE}-mem"
+
+# Sanitizer settings
+SANI_ADDR="'Address;Undefined'"
+SANI_MEM="'MemoryWithOrigins'"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
@@ -74,9 +80,25 @@ if ! cmake --build ${PATH_RELEASE} --config Release; then
     exit 1
 fi
 
-# Release mode - adress sanitizers
+# Debug mode - address sanitizers
+cmake -E make_directory ${PATH_DEBUG_ADDR}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_DEBUG_ADDR}
+if ! cmake --build ${PATH_DEBUG_ADDR} --config Debug; then
+    echo "${PATH_DEBUG_ADDR} build failed"
+    exit 1
+fi
+
+# Debug mode - memory sanitizers
+cmake -E make_directory ${PATH_DEBUG_MEM}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_DEBUG_MEM}
+if ! cmake --build ${PATH_DEBUG_MEM} --config Debug; then
+    echo "${PATH_DEBUG_MEM} build failed"
+    exit 1
+fi
+
+# Release mode - address sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_RELEASE_ADDR}
 if ! cmake --build ${PATH_RELEASE_ADDR} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_ADDR} build failed"
     exit 1
@@ -84,7 +106,7 @@ fi
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_RELEASE_MEM}
 if ! cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_MEM} build failed"
     exit 1
@@ -94,16 +116,48 @@ fi
 # Run unit tests
 ####################################################################
 
-UNIT_TEST_PATH="src/test/gaia_test"
+PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
+PERF_ITER_PATH="src/perf/entity/gaia_perf_iter"
+PERF_DUEL_PATH="src/perf/entity/gaia_perf_duel"
 
-echo "Debug mode"
-chmod +x ${PATH_DEBUG}/${UNIT_TEST_PATH}
-${PATH_DEBUG}/${UNIT_TEST_PATH}
+echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
+echo "Debug mode + addr sanitizer"
+chmod +x ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
+${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH} -s
+echo "Debug mode + mem sanitizer"
+chmod +x ${PATH_DEBUG_MEM}/${PERF_ENTITY_PATH}
+${PATH_DEBUG_MEM}/${PERF_ENTITY_PATH} -s
+echo "Release mode + addr sanitizer"
+chmod +x ${PATH_RELEASE_ADDR}/${PERF_ENTITY_PATH}
+${PATH_RELEASE_ADDR}/${PERF_ENTITY_PATH} -s
+echo "Release mode + mem sanitizer"
+chmod +x ${PATH_RELEASE_MEM}/${PERF_ENTITY_PATH}
+${PATH_RELEASE_MEM}/${PERF_ENTITY_PATH} -s
 
-echo "Debug mode + system allocator"
-chmod +x ${PATH_DEBUG_SYSA}/${UNIT_TEST_PATH}
-${PATH_DEBUG_SYSA}/${UNIT_TEST_PATH}
+echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
+echo "Debug mode + addr sanitizer"
+chmod +x ${PATH_DEBUG_ADDR}/${PERF_ITER_PATH}
+${PATH_DEBUG_ADDR}/${PERF_ITER_PATH} -s
+echo "Debug mode + mem sanitizer"
+chmod +x ${PATH_DEBUG_MEM}/${PERF_ITER_PATH}
+${PATH_DEBUG_MEM}/${PERF_ITER_PATH} -s
+echo "Release mode + addr sanitizer"
+chmod +x ${PATH_RELEASE_ADDR}/${PERF_ITER_PATH}
+${PATH_RELEASE_ADDR}/${PERF_ITER_PATH} -s
+echo "Release mode + mem sanitizer"
+chmod +x ${PATH_RELEASE_MEM}/${PERF_ITER_PATH}
+${PATH_RELEASE_MEM}/${PERF_ITER_PATH} -s
 
-echo "Release mode"
-chmod +x ${PATH_RELEASE}/${UNIT_TEST_PATH}
-${PATH_RELEASE}/${UNIT_TEST_PATH}
+echo ${PATH_DEBUG_ADDR}/${PERF_DUEL_PATH}
+echo "Debug mode + addr sanitizer"
+chmod +x ${PATH_DEBUG_ADDR}/${PERF_DUEL_PATH}
+${PATH_DEBUG_ADDR}/${PERF_DUEL_PATH} -s
+echo "Debug mode + mem sanitizer"
+chmod +x ${PATH_DEBUG_MEM}/${PERF_DUEL_PATH}
+${PATH_DEBUG_MEM}/${PERF_DUEL_PATH} -s
+echo "Release mode + addr sanitizer"
+chmod +x ${PATH_RELEASE_ADDR}/${PERF_DUEL_PATH}
+${PATH_RELEASE_ADDR}/${PERF_DUEL_PATH} -s
+echo "Release mode + mem sanitizer"
+chmod +x ${PATH_RELEASE_MEM}/${PERF_DUEL_PATH}
+${PATH_RELEASE_MEM}/${PERF_DUEL_PATH} -s

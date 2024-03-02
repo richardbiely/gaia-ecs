@@ -370,7 +370,7 @@ namespace gaia {
 #else
 				pChunk->~Chunk();
 				auto* pChunkMem = (uint8_t*)pChunk;
-				delete pChunkMem;
+				delete[] pChunkMem;
 #endif
 			}
 

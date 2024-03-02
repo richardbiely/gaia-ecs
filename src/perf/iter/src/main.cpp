@@ -181,6 +181,7 @@ DEFINE_EACH_U_ITER(Iter, 1000, 10, 7);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
+#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
@@ -198,6 +199,7 @@ int main(int argc, char* argv[]) {
 	// for us to isolate the results.
 	{
 		bool profilingMode = false;
+		bool sanitizerMode = false;
 
 		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
 		for (const auto& arg: args) {
@@ -205,13 +207,22 @@ int main(int argc, char* argv[]) {
 				profilingMode = true;
 				continue;
 			}
+			if (arg == "-s") {
+				sanitizerMode = true;
+				continue;
+			}
 		}
 
 		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
+		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
 
 		if (profilingMode) {
 			PICOBENCH_SUITE_REG("1000 archetypes");
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("Iter, 7 comps");
+		} else if (profilingMode) {
+			PICOBENCH_SUITE_REG("1000 archetypes");
+			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS_SANI().label("Iter, 7 comps");
+			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS_SANI().label("(u) 7 comps"); // uncached
 		} else {
 			PICOBENCH_SUITE_REG("1 archetype");
 			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");

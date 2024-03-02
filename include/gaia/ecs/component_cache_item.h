@@ -202,6 +202,8 @@ namespace gaia {
 					mem::mem_free((void*)item->name.str());
 					item->name = {};
 				}
+
+				delete item;
 			}
 		};
 	} // namespace ecs
