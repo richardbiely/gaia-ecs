@@ -437,7 +437,7 @@ namespace gaia {
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					ChunkBatchedList chunkBatch;
-					TIter* pLastIter = nullptr;
+					TIter it;
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -446,9 +446,7 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
 						const auto& chunks = pArchetype->chunks();
-						TIter it;
-						pLastIter = &it;
-
+						
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
@@ -479,8 +477,7 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatch.empty()) {
-						GAIA_ASSERT(pLastIter != nullptr);
-						run_func_batched(func, *pLastIter, chunkBatch);
+						run_func_batched(func, it, chunkBatch);
 					}
 				}
 
