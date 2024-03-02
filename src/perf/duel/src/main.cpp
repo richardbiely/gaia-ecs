@@ -1244,6 +1244,8 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");
+			r.run_benchmarks();
+			return 0;
 		} else {
 			PICOBENCH_SUITE_REG("OOP");
 			//  Ordinary coding style.

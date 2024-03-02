@@ -203,6 +203,8 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
+			r.run_benchmarks();
+			return 0;
 		} else {
 			PICOBENCH_SUITE_REG("Entity creation");
 			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS().label("0 components");

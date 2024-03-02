@@ -219,10 +219,11 @@ int main(int argc, char* argv[]) {
 		if (profilingMode) {
 			PICOBENCH_SUITE_REG("1000 archetypes");
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("Iter, 7 comps");
-		} else if (profilingMode) {
-			PICOBENCH_SUITE_REG("1000 archetypes");
+		} else if (sanitizerMode) {
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS_SANI().label("Iter, 7 comps");
 			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS_SANI().label("(u) 7 comps"); // uncached
+			r.run_benchmarks();
+			return 0;
 		} else {
 			PICOBENCH_SUITE_REG("1 archetype");
 			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");
