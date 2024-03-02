@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 #ifndef TCB_SPAN_NO_CONTRACT_CHECKING
-	#define TCB_SPAN_NO_CONTRACT_CHECKING
+	// #define TCB_SPAN_NO_CONTRACT_CHECKING
 #endif
 
 //------------------------------------------------------------------------------

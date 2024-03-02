@@ -507,6 +507,46 @@ TEST_CASE("Containers - alignment check") {
 	}
 }
 
+TEST_CASE("Containers - alignment check 2") {
+	ecs::QueryEntityOpPairArray arr;
+
+	{
+		arr.resize(6);
+		arr[0] = {ecs::Entity(1, 2), {}, {}, {}};
+		arr[1] = {ecs::Entity(2, 30), {}, {}, {}};
+		arr[2] = {ecs::Entity(3, 400), {}, {}, {}};
+		arr[3] = {ecs::Entity(10, 2), {}, {}, {}};
+		arr[4] = {ecs::Entity(20, 90), {}, {}, {}};
+		arr[5] = {ecs::Entity(30, 421), {}, {}, {}};
+	}
+
+	{
+		REQUIRE(arr[0].id == ecs::Entity(1, 2));
+		REQUIRE(arr[1].id == ecs::Entity(2, 30));
+		REQUIRE(arr[2].id == ecs::Entity(3, 400));
+		REQUIRE(arr[3].id == ecs::Entity(10, 2));
+		REQUIRE(arr[4].id == ecs::Entity(20, 90));
+		REQUIRE(arr[5].id == ecs::Entity(30, 421));
+	}
+
+	ecs::QueryEntityOpPairSpan ops_ids{arr.data(), arr.size()};
+
+	{
+		ecs::QueryEntityOpPairSpan sub = ops_ids.subspan(0, 3);
+		REQUIRE(sub[0].id == ecs::Entity(1, 2));
+		REQUIRE(sub[1].id == ecs::Entity(2, 30));
+		bool b = sub[2].id == ecs::Entity(3, 400);
+		REQUIRE(b);
+	}
+
+	{
+		ecs::QueryEntityOpPairSpan sub = ops_ids.subspan(3, 3);
+		REQUIRE(sub[0].id == ecs::Entity(10, 2));
+		REQUIRE(sub[1].id == ecs::Entity(20, 90));
+		REQUIRE(sub[2].id == ecs::Entity(30, 421));
+	}
+}
+
 TEST_CASE("Containers - sringbuffer") {
 	{
 		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};

@@ -11,7 +11,7 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 
 #pragma once
 
-#include "../config/config_core.h"
+#include "../config/config.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -76,8 +76,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 #elif defined(TCB_SPAN_TERMINATE_ON_CONTRACT_VIOLATION)
-	[[noreturn]] inline void contract_violation(const char* /*unused*/) {
-		std::terminate();
+	inline void contract_violation(const char* str) {
+		GAIA_ASSERT(false && str);
 	}
 #endif
 

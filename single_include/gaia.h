@@ -655,7 +655,7 @@ namespace gaia {
 //------------------------------------------------------------------------------
 
 #ifndef TCB_SPAN_NO_CONTRACT_CHECKING
-	#define TCB_SPAN_NO_CONTRACT_CHECKING
+	// #define TCB_SPAN_NO_CONTRACT_CHECKING
 #endif
 
 //------------------------------------------------------------------------------
@@ -1127,8 +1127,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 #elif defined(TCB_SPAN_TERMINATE_ON_CONTRACT_VIOLATION)
-	[[noreturn]] inline void contract_violation(const char* /*unused*/) {
-		std::terminate();
+	inline void contract_violation(const char* str) {
+		GAIA_ASSERT(false && str);
 	}
 #endif
 
