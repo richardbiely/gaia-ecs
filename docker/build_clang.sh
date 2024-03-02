@@ -113,7 +113,7 @@ if ! cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo; then
 fi
 
 ####################################################################
-# Run unit tests
+# Run analysis
 ####################################################################
 
 PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
