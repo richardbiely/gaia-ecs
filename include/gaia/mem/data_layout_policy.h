@@ -58,29 +58,33 @@ namespace gaia {
 			// Data storage
 			//----------------------------------------------------------------------
 
-			template <uint32_t Size, uint32_t Aligment>
+			template <uint32_t Size, uint32_t Alignment>
 			struct raw_data_holder {
-				alignas(Aligment) uint8_t data[Size];
+				static_assert(Size > 0);
+
+				GAIA_ALIGNAS(Alignment) uint8_t data[Size];
 
 				constexpr operator uint8_t*() noexcept {
-					return data;
+					return &data[0];
 				}
 
 				constexpr operator const uint8_t*() const noexcept {
-					return data;
+					return &data[0];
 				}
 			};
 
 			template <uint32_t Size>
 			struct raw_data_holder<Size, 0> {
+				static_assert(Size > 0);
+
 				uint8_t data[Size];
 
 				constexpr operator uint8_t*() noexcept {
-					return data;
+					return &data[0];
 				}
 
 				constexpr operator const uint8_t*() const noexcept {
-					return data;
+					return &data[0];
 				}
 			};
 		} // namespace detail
@@ -92,7 +96,7 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t PackSize = 1;
 			constexpr static size_t Alignment = detail::get_alignment<TItem>();
-			constexpr static size_t ArrayAlignment = 0;
+			constexpr static size_t ArrayAlignment = Alignment;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA, TItem> {
