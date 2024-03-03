@@ -9,6 +9,7 @@ Checks:
     -readability-magic-numbers,
     -readability-function-cognitive-complexity,
     -readability-uppercase-*,
+    -readability-static-accessed-through-instance,
   bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-lambda-function-name,
