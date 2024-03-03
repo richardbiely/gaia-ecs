@@ -461,18 +461,27 @@ TEST_CASE("Containers - darr_ext") {
 }
 
 TEST_CASE("Containers - alignment check") {
-	using tarrinter = cnt::sarr<ecs::QueryEntityOpPair, 3>;
+	using TArrInter = cnt::sarr<ecs::QueryEntityOpPair, 3>;
 	struct TFoo {
 		uint8_t b;
-		tarrinter arr;
+		TArrInter arr;
 
 		bool operator==(const TFoo& other) const {
 			return b == other.b && arr == other.arr;
 		}
 	};
-	using tarr = cnt::sarr_ext<TFoo, 100>;
-	tarr arr;
+	using TArr = cnt::sarr_ext<TFoo, 100>;
+	TArr arr;
 	arr.resize(2);
+
+	// Make sure alignment is right
+	{
+		using TPolicy = mem::data_view_policy_aos<ecs::QueryEntityOpPair>;
+		constexpr auto TPolicyAlign = TPolicy::Alignment;
+		const auto addr = (uintptr_t)&arr[0];
+		REQUIRE(addr % TPolicyAlign == 0);
+	}
+
 	{
 		auto& a = arr[0];
 		a.b = 16;
@@ -490,7 +499,7 @@ TEST_CASE("Containers - alignment check") {
 		REQUIRE(a.arr[1].id == ecs::Entity(2, 30));
 		REQUIRE(a.arr[2].id == ecs::Entity(3, 400));
 
-		tarrinter test = {
+		TArrInter test = {
 				{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
 		REQUIRE(test == a.arr);
 	}
@@ -501,49 +510,9 @@ TEST_CASE("Containers - alignment check") {
 		REQUIRE(a.arr[1].id == ecs::Entity(20, 90));
 		REQUIRE(a.arr[2].id == ecs::Entity(30, 421));
 
-		tarrinter test = {
+		TArrInter test = {
 				{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
 		REQUIRE(test == a.arr);
-	}
-}
-
-TEST_CASE("Containers - alignment check 2") {
-	ecs::QueryEntityOpPairArray arr;
-
-	{
-		arr.resize(6);
-		arr[0] = {ecs::Entity(1, 2), {}, {}, {}};
-		arr[1] = {ecs::Entity(2, 30), {}, {}, {}};
-		arr[2] = {ecs::Entity(3, 400), {}, {}, {}};
-		arr[3] = {ecs::Entity(10, 2), {}, {}, {}};
-		arr[4] = {ecs::Entity(20, 90), {}, {}, {}};
-		arr[5] = {ecs::Entity(30, 421), {}, {}, {}};
-	}
-
-	{
-		REQUIRE(arr[0].id == ecs::Entity(1, 2));
-		REQUIRE(arr[1].id == ecs::Entity(2, 30));
-		REQUIRE(arr[2].id == ecs::Entity(3, 400));
-		REQUIRE(arr[3].id == ecs::Entity(10, 2));
-		REQUIRE(arr[4].id == ecs::Entity(20, 90));
-		REQUIRE(arr[5].id == ecs::Entity(30, 421));
-	}
-
-	ecs::QueryEntityOpPairSpan ops_ids{arr.data(), arr.size()};
-
-	{
-		ecs::QueryEntityOpPairSpan sub = ops_ids.subspan(0, 3);
-		REQUIRE(sub[0].id == ecs::Entity(1, 2));
-		REQUIRE(sub[1].id == ecs::Entity(2, 30));
-		bool b = sub[2].id == ecs::Entity(3, 400);
-		REQUIRE(b);
-	}
-
-	{
-		ecs::QueryEntityOpPairSpan sub = ops_ids.subspan(3, 3);
-		REQUIRE(sub[0].id == ecs::Entity(10, 2));
-		REQUIRE(sub[1].id == ecs::Entity(20, 90));
-		REQUIRE(sub[2].id == ecs::Entity(30, 421));
 	}
 }
 

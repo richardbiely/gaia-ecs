@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -291,7 +292,8 @@ namespace gaia {
 					core::call_ctor_n(data(), extent);
 				resize(other.size());
 				mem::copy_elements<T>(
-						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), 0, other.size(), extent,
+						other.extent);
 
 				return *this;
 			}
@@ -303,7 +305,8 @@ namespace gaia {
 					core::call_ctor_n(data(), extent);
 				resize(other.m_cnt);
 				mem::move_elements<T>(
-						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), 0, other.size(), extent,
+						other.extent);
 
 				other.m_cnt = size_type(0);
 
@@ -315,21 +318,21 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			GAIA_NODISCARD constexpr pointer data() noexcept {
-				return (pointer)&m_data[0];
+				return GAIA_ACC((pointer)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
-				return (const_pointer)&m_data[0];
+				return GAIA_ACC((const_pointer)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::set({(typename view_policy::TargetCastType) & m_data[0], extent}, pos);
+				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::get({(typename view_policy::TargetCastType) & m_data[0], extent}, pos);
+				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -510,16 +513,16 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto end() const noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_data, size(), size());
+					return iterator_soa(GAIA_ACC(&m_data[0]), size(), size());
 				else
-					return iterator(data() + size());
+					return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_data, size(), -1);
+					return iterator_soa(GAIA_ACC(&m_data[0]), size(), -1);
 				else
-					return iterator((pointer)m_data - 1);
+					return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const sarr_ext& other) const {
@@ -539,13 +542,13 @@ namespace gaia {
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
 				return mem::data_view_policy<T::Layout, T>::template get<Item>(
-						std::span<uint8_t>{(uint8_t*)&m_data[0], extent});
+						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
 				return mem::data_view_policy<T::Layout, T>::template get<Item>(
-						std::span<const uint8_t>{(const uint8_t*)&m_data[0], extent});
+						std::span<const uint8_t>{GAIA_ACC((const uint8_t*)&m_data[0]), extent});
 			}
 		};
 

@@ -201,6 +201,8 @@ namespace gaia {
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
 #define GAIA_FWD(x) decltype(x)(x)
+//! Wrapper around std::launder.
+#define GAIA_ACC(x) std::launder(x)
 
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
 	#define GAIA_RESTRICT __restrict
