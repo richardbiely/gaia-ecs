@@ -4455,6 +4455,49 @@ TEST_CASE("Set - generic") {
 		});
 
 		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view<Rotation>();
+			auto scaleView = it.view<Scale>();
+			auto elseView = it.view<Else>();
+
+			GAIA_EACH(it) {
+				auto r = rotationView[i];
+				REQUIRE(r.x == 1.f);
+				REQUIRE(r.y == 2.f);
+				REQUIRE(r.z == 3.f);
+				REQUIRE(r.w == 4.f);
+
+				auto s = scaleView[i];
+				REQUIRE(s.x == 11.f);
+				REQUIRE(s.y == 22.f);
+				REQUIRE(s.z == 33.f);
+
+				auto e = elseView[i];
+				REQUIRE(e.value == true);
+			}
+		});
+
+		for (const auto ent: arr) {
+			auto r = wld.get<Rotation>(ent);
+			REQUIRE(r.x == 1.f);
+			REQUIRE(r.y == 2.f);
+			REQUIRE(r.z == 3.f);
+			REQUIRE(r.w == 4.f);
+
+			auto s = wld.get<Scale>(ent);
+			REQUIRE(s.x == 11.f);
+			REQUIRE(s.y == 22.f);
+			REQUIRE(s.z == 33.f);
+
+			auto e = wld.get<Else>(ent);
+			REQUIRE(e.value == true);
+		}
+	}
+
+	// Modify values + view idx
+	{
+		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
+
+		q.each([&](ecs::Iter& it) {
 			auto rotationView = it.view_mut<Rotation>(0);
 			auto scaleView = it.view_mut<Scale>(1);
 			auto elseView = it.view_mut<Else>(2);
@@ -4463,6 +4506,28 @@ TEST_CASE("Set - generic") {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
+			}
+		});
+
+		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view<Rotation>(0);
+			auto scaleView = it.view<Scale>(1);
+			auto elseView = it.view<Else>(2);
+
+			GAIA_EACH(it) {
+				auto r = rotationView[i];
+				REQUIRE(r.x == 1.f);
+				REQUIRE(r.y == 2.f);
+				REQUIRE(r.z == 3.f);
+				REQUIRE(r.w == 4.f);
+
+				auto s = scaleView[i];
+				REQUIRE(s.x == 11.f);
+				REQUIRE(s.y == 22.f);
+				REQUIRE(s.z == 33.f);
+
+				auto e = elseView[i];
+				REQUIRE(e.value == true);
 			}
 		});
 
@@ -4549,18 +4614,6 @@ TEST_CASE("Set - generic & unique") {
 			auto rotationView = it.view_mut<Rotation>();
 			auto scaleView = it.view_mut<Scale>();
 			auto elseView = it.view_mut<Else>();
-
-			GAIA_EACH(it) {
-				rotationView[i] = {1, 2, 3, 4};
-				scaleView[i] = {11, 22, 33};
-				elseView[i] = {true};
-			}
-		});
-
-		q.each([&](ecs::Iter& it) {
-			auto rotationView = it.view_mut<Rotation>(0);
-			auto scaleView = it.view_mut<Scale>(1);
-			auto elseView = it.view_mut<Else>(2);
 
 			GAIA_EACH(it) {
 				rotationView[i] = {1, 2, 3, 4};

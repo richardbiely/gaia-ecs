@@ -835,19 +835,21 @@ namespace gaia {
 				CompIndicesBitSet compIndicesStorage;
 				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
 				CompIndicesBitView bv{{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
-				GAIA_EACH(ids()) {
+				const auto& queryIds = ids();
+				GAIA_EACH(queryIds) {
 					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
 					// Doing it here is faster than doing it in ChunkIterImpl::view.
 					uint32_t termIdx = (i + 1);
-					if (termIdx >= ids().size())
+					if (termIdx >= queryIds.size())
 						termIdx = 0;
 
-					auto compIdx = bv.get(termIdx);
-					if (compIdx == (uint8_t)-1) {
-						const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
-						compIdx = (uint8_t)core::get_index_unsafe(pArchetype->ids(), ids()[idxBeforeRemapping]);
-						bv.set((uint8_t)termIdx, compIdx);
-					}
+					const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
+					const auto queryId = queryIds[idxBeforeRemapping];
+					// compIdx can be -1. We are fine with it because the user should never ask for something
+					// that is not presnet on the archetype. If they do, they made a mistake.
+					const auto compIdx = core::get_index_unsafe(pArchetype->ids(), queryId);
+
+					bv.set(i * Chunk::MAX_COMPONENTS_BITS, (uint8_t)compIdx);
 				}
 				m_compIndiciesMappings.push_back(compIndicesStorage);
 			}

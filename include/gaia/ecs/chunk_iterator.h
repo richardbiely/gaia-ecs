@@ -68,7 +68,8 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
+					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
 					return m_pChunk->view_raw<T>((void*)&m_pChunk->data(dataOffset));
 				}
@@ -84,7 +85,8 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
+					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
 					m_pChunk->update_world_version(compIdx);
 					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
@@ -102,7 +104,8 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
+					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
 					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
 				}
