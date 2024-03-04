@@ -70,7 +70,7 @@ namespace gaia {
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
 					const auto compIdx = m_compIdxMapping.get(termIdx);
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
+					return m_pChunk->view_raw<T>((void*)&m_pChunk->data(dataOffset));
 				}
 
 				//! Returns a mutable entity or component view.
@@ -86,7 +86,8 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
 					const auto compIdx = m_compIdxMapping.get(termIdx);
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
+					m_pChunk->update_world_version(compIdx);
+					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
 				}
 
 				//! Returns a mutable component view.
@@ -103,7 +104,7 @@ namespace gaia {
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
 					const auto compIdx = m_compIdxMapping.get(termIdx);
 					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
+					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.

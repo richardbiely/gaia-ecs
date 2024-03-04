@@ -432,7 +432,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) view(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) view_raw(void* ptr) const {
 				using U = typename actual_type_t<T>::Type;
 				return mem::auto_view_policy_get<U>{std::span{(const uint8_t*)ptr, size()}};
 			}
@@ -460,7 +460,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) view_mut(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) view_mut_raw(void* ptr) const {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
@@ -485,7 +485,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) sview_mut(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) sview_mut_raw(void* ptr) const {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
