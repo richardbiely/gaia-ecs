@@ -4918,18 +4918,17 @@ namespace gaia {
 				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
 			};
 
+		public:
 			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
 			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
+
 			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
+
+		private:
 			static constexpr bool HasTrailingBits = (NBits % BitsPerItem) != 0;
 			static constexpr size_type LastItemMask = ((size_type)1 << (NBits % BitsPerItem)) - 1;
 
 			size_type m_data[Items]{};
-
-			//! Returns the number of words used by the bitset internally
-			GAIA_NODISCARD constexpr uint32_t items() const {
-				return Items;
-			}
 
 			//! Returns the word stored at the index \param wordIdx
 			size_type data(uint32_t wordIdx) const {
@@ -4941,6 +4940,19 @@ namespace gaia {
 			friend const_iterator;
 			using const_iterator_inverse = bitset_const_iterator<bitset<NBits>, true>;
 			friend const_iterator_inverse;
+
+			size_type* data() {
+				return &m_data[0];
+			}
+
+			const size_type* data() const {
+				return &m_data[0];
+			}
+
+			//! Returns the number of words used by the bitset internally
+			GAIA_NODISCARD constexpr uint32_t items() const {
+				return Items;
+			}
 
 			const_iterator begin() const {
 				return const_iterator(*this, 0, true);
@@ -16991,6 +17003,12 @@ namespace gaia {
 				return view<T>(0, size());
 			}
 
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) view(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				return mem::auto_view_policy_get<U>{std::span{(const uint8_t*)ptr, size()}};
+			}
+
 			/*!
 			Returns a mutable entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
@@ -17013,6 +17031,14 @@ namespace gaia {
 				return view_mut<TT>(0, size());
 			}
 
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) view_mut(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
+			}
+
 			/*!
 			Returns a mutable component view.
 			Doesn't update the world version when the access is aquired.
@@ -17028,6 +17054,14 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sview_mut(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
 			}
 
 			template <typename T>
@@ -18772,11 +18806,278 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cinttypes>
 #include <cstdint>
+#include <type_traits>
+
 #include <type_traits>
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		class Archetype;
+
+		ComponentCache& comp_cache_mut(World& world);
+
+		//! Number of items that can be a part of Query
+		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
+
+		GAIA_GCC_WARNING_PUSH()
+		// GCC is unnecessarily too strict about shadowing.
+		// We have a globally defined entity All and thinks QueryOp::All shadows it.
+		GAIA_GCC_WARNING_DISABLE("-Wshadow")
+
+		//! Operation type
+		enum class QueryOp : uint8_t { All, Any, Not, Count };
+		//! Access type
+		enum class QueryAccess : uint8_t { None, Read, Write };
+
+		GAIA_GCC_WARNING_POP()
+
+		using QueryId = uint32_t;
+		using QueryLookupHash = core::direct_hash_key<uint64_t>;
+		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
+		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
+
+		static constexpr QueryId QueryIdBad = (QueryId)-1;
+
+		struct QueryItem {
+			//! Entity/Component/Pair to query
+			Entity id;
+			//! Operation to perform with the query item
+			QueryOp op = QueryOp::All;
+			//! Access type
+			QueryAccess access = QueryAccess::Read;
+			//! Source entity to query the id on.
+			//! If id==EntityBad the source is fixed.
+			//! If id!=src the source is variable.
+			Entity src = EntityBad;
+		};
+
+		struct QueryEntityOpPair {
+			//! Queried id
+			Entity id;
+			//! Source of where the queried id if looked up at
+			Entity src;
+			//! Archetype of the src entity
+			Archetype* srcArchetype;
+			//! Operation to perform with the query item
+			QueryOp op;
+
+			bool operator==(const QueryEntityOpPair& other) const {
+				return id == other.id && src == other.src && op == other.op;
+			}
+			bool operator!=(const QueryEntityOpPair& other) const {
+				return !operator==(other);
+			}
+		};
+
+		using QueryEntityOpPairArray = cnt::sarray_ext<QueryEntityOpPair, MAX_ITEMS_IN_QUERY>;
+		using QueryEntityOpPairSpan = std::span<QueryEntityOpPair>;
+		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
+
+		struct QueryCtx {
+			// World
+			const World* w{};
+			//! Component cache
+			ComponentCache* cc{};
+			//! Lookup hash for this query
+			QueryLookupHash hashLookup{};
+			//! Query id
+			QueryId queryId = QueryIdBad;
+
+			struct Data {
+				//! List of querried ids
+				QueryEntityArray ids;
+				//! List of [op,id] pairs
+				QueryEntityOpPairArray pairs;
+				//! Index of the last checked archetype in the component-to-archetype map
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
+				//! Mapping of the original indices to the new ones after sorting
+				QueryRemappingArray remapping;
+				//! List of filtered components
+				QueryEntityArray withChanged;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the first part (id) is written here.
+				uint32_t as_mask;
+				//! Mask for items with Is relationship pair.
+				//! If the id is a pair, the second part (gen) is written here.
+				uint32_t as_mask_2;
+				//! First NOT record in pairs/ids/ops
+				uint8_t firstNot;
+				//! First ANY record in pairs/ids/ops
+				uint8_t firstAny;
+				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
+				//! A set bit means write access is requested.
+				uint8_t readWriteMask;
+			} data{};
+			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
+			static_assert(MAX_ITEMS_IN_QUERY == 8);
+
+			void init(World* pWorld) {
+				w = pWorld;
+				cc = &comp_cache_mut(*pWorld);
+			}
+
+			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
+				// Comparison expected to be done only the first time the query is set up
+				GAIA_ASSERT(queryId == QueryIdBad);
+				// Fast path when cache ids are set
+				// if (queryId != QueryIdBad && queryId == other.queryId)
+				// 	return true;
+
+				// Lookup hash must match
+				if (hashLookup != other.hashLookup)
+					return false;
+
+				const auto& left = data;
+				const auto& right = other.data;
+
+				// Check array sizes first
+				if (left.pairs.size() != right.pairs.size())
+					return false;
+				if (left.withChanged.size() != right.withChanged.size())
+					return false;
+				if (left.readWriteMask != right.readWriteMask)
+					return false;
+
+				// Components need to be the same
+				if (left.pairs != right.pairs)
+					return false;
+
+				// Filters need to be the same
+				if (left.withChanged != right.withChanged)
+					return false;
+
+				return true;
+			}
+
+			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
+				return !operator==(other);
+			};
+		};
+
+		//! Smaller ops first. Smaller ids second.
+		struct query_sort_cond {
+			constexpr bool operator()(const QueryEntityOpPair& lhs, const QueryEntityOpPair& rhs) const {
+				if (lhs.op != rhs.op)
+					return lhs.op < rhs.op;
+
+				return lhs.id < rhs.id;
+			}
+		};
+
+		//! Sorts internal component arrays
+		inline void sort(QueryCtx& ctx) {
+			auto& data = ctx.data;
+
+			auto remappingCopy = data.remapping;
+
+			// Sort data. Necessary for correct hash calculation.
+			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
+			// Also makes sure data is in optimal order for query processing.
+			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
+				core::swap(data.ids[left], data.ids[right]);
+				core::swap(data.pairs[left], data.pairs[right]);
+				core::swap(remappingCopy[left], remappingCopy[right]);
+
+				// Make sure masks remains correct after sorting
+				core::swap_bits(data.readWriteMask, left, right);
+				core::swap_bits(data.as_mask, left, right);
+				core::swap_bits(data.as_mask_2, left, right);
+			});
+
+			// Update remapping indices.
+			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
+			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
+			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
+			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
+			// Therefore, if we want to see where 15 was located originaly (curr index 1), we do look at index 2 and get 1.
+			GAIA_EACH(data.pairs) {
+				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
+				data.remapping[i] = idxBeforeRemapping;
+			}
+
+			auto& pairs = data.pairs;
+			if (!pairs.empty()) {
+				uint32_t i = 0;
+				while (i < pairs.size() && pairs[i].op == QueryOp::All)
+					++i;
+				data.firstAny = (uint8_t)i;
+				while (i < pairs.size() && pairs[i].op == QueryOp::Any)
+					++i;
+				data.firstNot = (uint8_t)i;
+			}
+		}
+
+		inline void calc_lookup_hash(QueryCtx& ctx) {
+			GAIA_ASSERT(ctx.cc != nullptr);
+			// Make sure we don't calculate the hash twice
+			GAIA_ASSERT(ctx.hashLookup.hash == 0);
+
+			QueryLookupHash::Type hashLookup = 0;
+
+			auto& data = ctx.data;
+
+			// Ids & ops
+			{
+				QueryLookupHash::Type hash = 0;
+
+				const auto& pairs = data.pairs;
+				for (auto pair: pairs) {
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
+				}
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)pairs.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
+
+				hashLookup = hash;
+			}
+
+			// Filters
+			{
+				QueryLookupHash::Type hash = 0;
+
+				const auto& withChanged = data.withChanged;
+				for (auto id: withChanged)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
+
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
+
+			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
+		}
+
+		//! Located the index at which the provided component id is located in the component array
+		//! \param pComps Pointer to the start of the component array
+		//! \param entity Entity we search for
+		//! \return Index of the component id in the array
+		//! \warning The component id must be present in the array
+		template <uint32_t MAX_COMPONENTS>
+		GAIA_NODISCARD inline uint32_t comp_idx(const QueryEntityOpPair* pComps, Entity entity, Entity src) {
+			// We let the compiler know the upper iteration bound at compile-time.
+			// This way it can optimize better (e.g. loop unrolling, vectorization).
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pComps[i].id == entity && pComps[i].src == src)
+					return i;
+			}
+
+			GAIA_ASSERT(false);
+			return BadIndex;
+		}
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		class World;
+
+		template <typename T>
+		const ComponentCacheItem& comp_cache_add(World& world);
+
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
@@ -18784,13 +19085,30 @@ namespace gaia {
 			template <Constraints IterConstraint>
 			class ChunkIterImpl {
 			protected:
+				using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
+
+				Archetype* m_pArchetype = nullptr;
 				Chunk* m_pChunk = nullptr;
+
+				//! uint8_t m_compIdxMapping[MAX_ITEMS_IN_QUERY] compressed.
+				CompIndicesBitView m_compIdxMapping;
 
 			public:
 				ChunkIterImpl() = default;
 				~ChunkIterImpl() = default;
+				ChunkIterImpl(ChunkIterImpl&&) noexcept = default;
+				ChunkIterImpl& operator=(ChunkIterImpl&&) noexcept = default;
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
+
+				void set_remapping_indices(CompIndicesBitView compIndicesMapping) {
+					m_compIdxMapping = compIndicesMapping;
+				}
+
+				void set_archetype(Archetype* pArchetype) {
+					GAIA_ASSERT(pArchetype != nullptr);
+					m_pArchetype = pArchetype;
+				}
 
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
@@ -18806,6 +19124,13 @@ namespace gaia {
 					return m_pChunk->view<T>(from(), to());
 				}
 
+				template <typename T>
+				GAIA_NODISCARD auto view(uint32_t termIdx) {
+					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
+					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
+				}
+
 				//! Returns a mutable entity or component view.
 				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
@@ -18813,6 +19138,13 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
 					return m_pChunk->view_mut<T>(from(), to());
+				}
+
+				template <typename T>
+				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
+					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
+					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
 				}
 
 				//! Returns a mutable component view.
@@ -18823,6 +19155,13 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
 					return m_pChunk->sview_mut<T>(from(), to());
+				}
+
+				template <typename T>
+				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
+					const auto compIdx = m_compIdxMapping.get(termIdx);
+					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
+					return m_pChunk->view_mut<T>((void*)&m_pChunk->data(dataOffset));
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -19201,260 +19540,14 @@ namespace gaia {
 #include <cstdarg>
 #include <type_traits>
 
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		class World;
-		class Archetype;
-
-		ComponentCache& comp_cache_mut(World& world);
-
-		//! Number of items that can be a part of Query
-		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
-
-		GAIA_GCC_WARNING_PUSH()
-		// GCC is unnecessarily too strict about shadowing.
-		// We have a globally defined entity All and thinks QueryOp::All shadows it.
-		GAIA_GCC_WARNING_DISABLE("-Wshadow")
-
-		//! Operation type
-		enum class QueryOp : uint8_t { All, Any, Not, Count };
-		//! Access type
-		enum class QueryAccess : uint8_t { None, Read, Write };
-
-		GAIA_GCC_WARNING_POP()
-
-		using QueryId = uint32_t;
-		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
-		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
-		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
-
-		static constexpr QueryId QueryIdBad = (QueryId)-1;
-
-		struct QueryItem {
-			//! Entity/Component/Pair to query
-			Entity id;
-			//! Operation to perform with the query item
-			QueryOp op = QueryOp::All;
-			//! Access type
-			QueryAccess access = QueryAccess::Read;
-			//! Source entity to query the id on.
-			//! If id==EntityBad the source is fixed.
-			//! If id!=src the source is variable.
-			Entity src = EntityBad;
-		};
-
-		struct QueryEntityOpPair {
-			//! Queried id
-			Entity id;
-			//! Source of where the queried id if looked up at
-			Entity src;
-			//! Archetype of the src entity
-			Archetype* srcArchetype;
-			//! Operation to perform with the query item
-			QueryOp op;
-
-			bool operator==(const QueryEntityOpPair& other) const {
-				return id == other.id && src == other.src && op == other.op;
-			}
-			bool operator!=(const QueryEntityOpPair& other) const {
-				return !operator==(other);
-			}
-		};
-
-		using QueryEntityOpPairArray = cnt::sarray_ext<QueryEntityOpPair, MAX_ITEMS_IN_QUERY>;
-		using QueryEntityOpPairSpan = std::span<QueryEntityOpPair>;
-		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
-
-		struct QueryCtx {
-			// World
-			const World* w{};
-			//! Component cache
-			ComponentCache* cc{};
-			//! Lookup hash for this query
-			QueryLookupHash hashLookup{};
-			//! Query id
-			QueryId queryId = QueryIdBad;
-
-			struct Data {
-				//! List of querried ids
-				QueryEntityArray ids;
-				//! List of [op,id] pairs
-				QueryEntityOpPairArray pairs;
-				//! Index of the last checked archetype in the component-to-archetype map
-				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
-				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
-				//! Mapping of the original indices to the new ones after sorting
-				QueryRemappingArray remapping;
-				//! List of filtered components
-				QueryEntityArray withChanged;
-				//! Mask for items with Is relationship pair.
-				//! If the id is a pair, the first part (id) is written here.
-				uint32_t as_mask;
-				//! Mask for items with Is relationship pair.
-				//! If the id is a pair, the second part (gen) is written here.
-				uint32_t as_mask_2;
-				//! First NOT record in pairs/ids/ops
-				uint8_t firstNot;
-				//! First ANY record in pairs/ids/ops
-				uint8_t firstAny;
-				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
-				//! A set bit means write access is requested.
-				uint8_t readWriteMask;
-			} data{};
-			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
-			static_assert(MAX_ITEMS_IN_QUERY == 8);
-
-			void init(World* pWorld) {
-				w = pWorld;
-				cc = &comp_cache_mut(*pWorld);
-			}
-
-			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
-				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(queryId == QueryIdBad);
-				// Fast path when cache ids are set
-				// if (queryId != QueryIdBad && queryId == other.queryId)
-				// 	return true;
-
-				// Lookup hash must match
-				if (hashLookup != other.hashLookup)
-					return false;
-
-				const auto& left = data;
-				const auto& right = other.data;
-
-				// Check array sizes first
-				if (left.pairs.size() != right.pairs.size())
-					return false;
-				if (left.withChanged.size() != right.withChanged.size())
-					return false;
-				if (left.readWriteMask != right.readWriteMask)
-					return false;
-
-				// Components need to be the same
-				if (left.pairs != right.pairs)
-					return false;
-
-				// Filters need to be the same
-				if (left.withChanged != right.withChanged)
-					return false;
-
-				return true;
-			}
-
-			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
-				return !operator==(other);
-			};
-		};
-
-		//! Smaller ops first. Smaller ids second.
-		struct query_sort_cond {
-			constexpr bool operator()(const QueryEntityOpPair& lhs, const QueryEntityOpPair& rhs) const {
-				if (lhs.op != rhs.op)
-					return lhs.op < rhs.op;
-
-				return lhs.id < rhs.id;
-			}
-		};
-
-		//! Sorts internal component arrays
-		inline void sort(QueryCtx& ctx) {
-			auto& data = ctx.data;
-
-			// Sort data. Necessary for correct hash calculation.
-			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
-			// Also makes sure data is in optimal order for query processing.
-			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
-				core::swap(data.ids[left], data.ids[right]);
-				core::swap(data.pairs[left], data.pairs[right]);
-				core::swap(data.remapping[left], data.remapping[right]);
-
-				// Make sure masks remains correct after sorting
-				core::swap_bits(data.readWriteMask, left, right);
-				core::swap_bits(data.as_mask, left, right);
-				core::swap_bits(data.as_mask_2, left, right);
-			});
-
-			auto& pairs = data.pairs;
-			if (!pairs.empty()) {
-				uint32_t i = 0;
-				while (i < pairs.size() && pairs[i].op == QueryOp::All)
-					++i;
-				data.firstAny = (uint8_t)i;
-				while (i < pairs.size() && pairs[i].op == QueryOp::Any)
-					++i;
-				data.firstNot = (uint8_t)i;
-			}
-		}
-
-		inline void calc_lookup_hash(QueryCtx& ctx) {
-			GAIA_ASSERT(ctx.cc != nullptr);
-			// Make sure we don't calculate the hash twice
-			GAIA_ASSERT(ctx.hashLookup.hash == 0);
-
-			QueryLookupHash::Type hashLookup = 0;
-
-			auto& data = ctx.data;
-
-			// Ids & ops
-			{
-				QueryLookupHash::Type hash = 0;
-
-				const auto& pairs = data.pairs;
-				for (auto pair: pairs) {
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
-				}
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)pairs.size());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
-
-				hashLookup = hash;
-			}
-
-			// Filters
-			{
-				QueryLookupHash::Type hash = 0;
-
-				const auto& withChanged = data.withChanged;
-				for (auto id: withChanged)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
-
-				hashLookup = core::hash_combine(hashLookup, hash);
-			}
-
-			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
-		}
-
-		//! Located the index at which the provided component id is located in the component array
-		//! \param pComps Pointer to the start of the component array
-		//! \param entity Entity we search for
-		//! \return Index of the component id in the array
-		//! \warning The component id must be present in the array
-		template <uint32_t MAX_COMPONENTS>
-		GAIA_NODISCARD inline uint32_t comp_idx(const QueryEntityOpPair* pComps, Entity entity, Entity src) {
-			// We let the compiler know the upper iteration bound at compile-time.
-			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			GAIA_FOR(MAX_COMPONENTS) {
-				if (pComps[i].id == entity && pComps[i].src == src)
-					return i;
-			}
-
-			GAIA_ASSERT(false);
-			return BadIndex;
-		}
-	} // namespace ecs
-} // namespace gaia
-
 namespace gaia {
 	namespace ecs {
 		struct Entity;
 		class World;
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
+		using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
+		using CompIndicesBitSet = cnt::bitset<Chunk::MAX_COMPONENTS_BITS * MAX_ITEMS_IN_QUERY>;
 
 		Archetype* archetype_from_entity(const World& world, Entity entity);
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -19473,6 +19566,7 @@ namespace gaia {
 			QueryCtx m_lookupCtx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
+			cnt::darray<CompIndicesBitSet> m_compIndiciesMappings;
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
@@ -20246,14 +20340,44 @@ namespace gaia {
 							if (match_one(*pArchetype, std::span{ids_none.data(), ids_none.size()}))
 								continue;
 
-							m_archetypeCache.push_back(pArchetype);
+							add_archetype_to_cache(pArchetype);
 						}
 					}
 				} else {
 					// Write the temporary matches to cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr)
-						m_archetypeCache.push_back(pArchetype);
+						add_archetype_to_cache(pArchetype);
 				}
+			}
+
+			void add_archetype_to_cache(Archetype* pArchetype) {
+				// Add archetype to cache
+				m_archetypeCache.push_back(pArchetype);
+
+				// Update id mappings
+				CompIndicesBitSet compIndicesStorage;
+				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
+				CompIndicesBitView bv{{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
+				GAIA_EACH(ids()) {
+					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
+					// Doing it here is faster than doing it in ChunkIterImpl::view.
+					uint32_t termIdx = (i + 1);
+					if (termIdx >= ids().size())
+						termIdx = 0;
+
+					auto compIdx = bv.get(termIdx);
+					if (compIdx == (uint8_t)-1) {
+						const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
+						compIdx = (uint8_t)core::get_index_unsafe(pArchetype->ids(), ids()[idxBeforeRemapping]);
+						bv.set((uint8_t)termIdx, compIdx);
+					}
+				}
+				m_compIndiciesMappings.push_back(compIndicesStorage);
+			}
+
+			void del_archetype_from_cache(uint32_t idx) {
+				core::erase_fast(m_archetypeCache, idx);
+				core::erase_fast(m_compIndiciesMappings, idx);
 			}
 
 			GAIA_NODISCARD QueryId id() const {
@@ -20299,7 +20423,8 @@ namespace gaia {
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)
 					return;
-				core::erase_fast(m_archetypeCache, idx);
+
+				del_archetype_from_cache(idx);
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
@@ -20312,6 +20437,12 @@ namespace gaia {
 				};
 				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_All);
 				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_Any);
+			}
+
+			CompIndicesBitView indices_mapping(uint32_t idx) const {
+				const auto& compIndicesStorage = m_compIndiciesMappings[idx];
+				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
+				return {{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -20839,14 +20970,20 @@ namespace gaia {
 					ChunkBatchedList chunkBatch;
 					TIter it;
 
+					uint32_t aid = 0;
 					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype)) {
+							++aid;
 							continue;
+						}
 
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
+						it.set_remapping_indices(queryInfo.indices_mapping(aid));
+						it.set_archetype(pArchetype);
+
 						const auto& chunks = pArchetype->chunks();
-						
+
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
@@ -20873,6 +21010,8 @@ namespace gaia {
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
 						}
+
+						++aid;
 					}
 
 					// Take care of any leftovers not processed during run_query

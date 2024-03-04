@@ -431,6 +431,12 @@ namespace gaia {
 				return view<T>(0, size());
 			}
 
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) view(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				return mem::auto_view_policy_get<U>{std::span{(const uint8_t*)ptr, size()}};
+			}
+
 			/*!
 			Returns a mutable entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
@@ -453,6 +459,14 @@ namespace gaia {
 				return view_mut<TT>(0, size());
 			}
 
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) view_mut(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
+			}
+
 			/*!
 			Returns a mutable component view.
 			Doesn't update the world version when the access is aquired.
@@ -468,6 +482,14 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sview_mut(void* ptr) const {
+				using U = typename actual_type_t<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
 			}
 
 			template <typename T>

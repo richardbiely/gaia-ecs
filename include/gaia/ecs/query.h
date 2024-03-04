@@ -439,14 +439,20 @@ namespace gaia {
 					ChunkBatchedList chunkBatch;
 					TIter it;
 
+					uint32_t aid = 0;
 					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype)) {
+							++aid;
 							continue;
+						}
 
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
+						it.set_remapping_indices(queryInfo.indices_mapping(aid));
+						it.set_archetype(pArchetype);
+
 						const auto& chunks = pArchetype->chunks();
-						
+
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
@@ -473,6 +479,8 @@ namespace gaia {
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
 						}
+
+						++aid;
 					}
 
 					// Take care of any leftovers not processed during run_query

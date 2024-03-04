@@ -478,7 +478,7 @@ TEST_CASE("Containers - alignment check") {
 	{
 		using TPolicy = mem::data_view_policy_aos<ecs::QueryEntityOpPair>;
 		constexpr auto TPolicyAlign = TPolicy::Alignment;
-		const auto addr = (uintptr_t)&arr[0];
+		const auto addr = (uintptr_t)arr.data();
 		REQUIRE(addr % TPolicyAlign == 0);
 	}
 
@@ -4454,6 +4454,18 @@ TEST_CASE("Set - generic") {
 			}
 		});
 
+		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view_mut<Rotation>(0);
+			auto scaleView = it.view_mut<Scale>(1);
+			auto elseView = it.view_mut<Else>(2);
+
+			GAIA_EACH(it) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+			}
+		});
+
 		for (const auto ent: arr) {
 			auto r = wld.get<Rotation>(ent);
 			REQUIRE(r.x == 1.f);
@@ -4545,6 +4557,18 @@ TEST_CASE("Set - generic & unique") {
 			}
 		});
 
+		q.each([&](ecs::Iter& it) {
+			auto rotationView = it.view_mut<Rotation>(0);
+			auto scaleView = it.view_mut<Scale>(1);
+			auto elseView = it.view_mut<Else>(2);
+
+			GAIA_EACH(it) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+			}
+		});
+
 		wld.set<ecs::uni<Position>>(arr[0]) = {111, 222, 333};
 
 		{
@@ -4621,6 +4645,18 @@ TEST_CASE("Components - non trivial") {
 			auto strView = it.view_mut<StringComponent>();
 			auto str2View = it.view_mut<StringComponent2>();
 			auto posView = it.view_mut<PositionNonTrivial>();
+
+			GAIA_EACH(it) {
+				strView[i] = {StringComponentDefaultValue};
+				str2View[i].value = StringComponent2DefaultValue_2;
+				posView[i] = {111, 222, 333};
+			}
+		});
+
+		q.each([&](ecs::Iter& it) {
+			auto strView = it.view_mut<StringComponent>(0);
+			auto str2View = it.view_mut<StringComponent2>(1);
+			auto posView = it.view_mut<PositionNonTrivial>(2);
 
 			GAIA_EACH(it) {
 				strView[i] = {StringComponentDefaultValue};

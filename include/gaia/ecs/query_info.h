@@ -1,10 +1,12 @@
 #pragma once
 #include "../config/config.h"
 
+#include "../cnt/bitset.h"
 #include "../cnt/darray.h"
 #include "../cnt/sarray_ext.h"
 #include "../cnt/set.h"
 #include "../config/profiler.h"
+#include "../core/bit_utils.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "archetype.h"
@@ -21,6 +23,8 @@ namespace gaia {
 		class World;
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
+		using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
+		using CompIndicesBitSet = cnt::bitset<Chunk::MAX_COMPONENTS_BITS * MAX_ITEMS_IN_QUERY>;
 
 		Archetype* archetype_from_entity(const World& world, Entity entity);
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -39,6 +43,7 @@ namespace gaia {
 			QueryCtx m_lookupCtx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
+			cnt::darray<CompIndicesBitSet> m_compIndiciesMappings;
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
@@ -812,14 +817,44 @@ namespace gaia {
 							if (match_one(*pArchetype, std::span{ids_none.data(), ids_none.size()}))
 								continue;
 
-							m_archetypeCache.push_back(pArchetype);
+							add_archetype_to_cache(pArchetype);
 						}
 					}
 				} else {
 					// Write the temporary matches to cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr)
-						m_archetypeCache.push_back(pArchetype);
+						add_archetype_to_cache(pArchetype);
 				}
+			}
+
+			void add_archetype_to_cache(Archetype* pArchetype) {
+				// Add archetype to cache
+				m_archetypeCache.push_back(pArchetype);
+
+				// Update id mappings
+				CompIndicesBitSet compIndicesStorage;
+				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
+				CompIndicesBitView bv{{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
+				GAIA_EACH(ids()) {
+					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
+					// Doing it here is faster than doing it in ChunkIterImpl::view.
+					uint32_t termIdx = (i + 1);
+					if (termIdx >= ids().size())
+						termIdx = 0;
+
+					auto compIdx = bv.get(termIdx);
+					if (compIdx == (uint8_t)-1) {
+						const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
+						compIdx = (uint8_t)core::get_index_unsafe(pArchetype->ids(), ids()[idxBeforeRemapping]);
+						bv.set((uint8_t)termIdx, compIdx);
+					}
+				}
+				m_compIndiciesMappings.push_back(compIndicesStorage);
+			}
+
+			void del_archetype_from_cache(uint32_t idx) {
+				core::erase_fast(m_archetypeCache, idx);
+				core::erase_fast(m_compIndiciesMappings, idx);
 			}
 
 			GAIA_NODISCARD QueryId id() const {
@@ -865,7 +900,8 @@ namespace gaia {
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)
 					return;
-				core::erase_fast(m_archetypeCache, idx);
+
+				del_archetype_from_cache(idx);
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
@@ -878,6 +914,12 @@ namespace gaia {
 				};
 				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_All);
 				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_Any);
+			}
+
+			CompIndicesBitView indices_mapping(uint32_t idx) const {
+				const auto& compIndicesStorage = m_compIndiciesMappings[idx];
+				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
+				return {{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {

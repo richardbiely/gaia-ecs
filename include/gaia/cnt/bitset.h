@@ -21,18 +21,17 @@ namespace gaia {
 				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
 			};
 
+		public:
 			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
 			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
+
 			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
+
+		private:
 			static constexpr bool HasTrailingBits = (NBits % BitsPerItem) != 0;
 			static constexpr size_type LastItemMask = ((size_type)1 << (NBits % BitsPerItem)) - 1;
 
 			size_type m_data[Items]{};
-
-			//! Returns the number of words used by the bitset internally
-			GAIA_NODISCARD constexpr uint32_t items() const {
-				return Items;
-			}
 
 			//! Returns the word stored at the index \param wordIdx
 			size_type data(uint32_t wordIdx) const {
@@ -44,6 +43,19 @@ namespace gaia {
 			friend const_iterator;
 			using const_iterator_inverse = bitset_const_iterator<bitset<NBits>, true>;
 			friend const_iterator_inverse;
+
+			size_type* data() {
+				return &m_data[0];
+			}
+
+			const size_type* data() const {
+				return &m_data[0];
+			}
+
+			//! Returns the number of words used by the bitset internally
+			GAIA_NODISCARD constexpr uint32_t items() const {
+				return Items;
+			}
 
 			const_iterator begin() const {
 				return const_iterator(*this, 0, true);

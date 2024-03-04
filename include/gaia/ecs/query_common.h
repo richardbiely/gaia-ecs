@@ -7,6 +7,7 @@
 #include "../cnt/sarray_ext.h"
 #include "../core/bit_utils.h"
 #include "../core/hashing_policy.h"
+#include "../core/utility.h"
 #include "component.h"
 #include "component_utils.h"
 #include "id.h"
@@ -172,19 +173,32 @@ namespace gaia {
 		inline void sort(QueryCtx& ctx) {
 			auto& data = ctx.data;
 
+			auto remappingCopy = data.remapping;
+
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
 			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
 				core::swap(data.pairs[left], data.pairs[right]);
-				core::swap(data.remapping[left], data.remapping[right]);
+				core::swap(remappingCopy[left], remappingCopy[right]);
 
 				// Make sure masks remains correct after sorting
 				core::swap_bits(data.readWriteMask, left, right);
 				core::swap_bits(data.as_mask, left, right);
 				core::swap_bits(data.as_mask_2, left, right);
 			});
+
+			// Update remapping indices.
+			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
+			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
+			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
+			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
+			// Therefore, if we want to see where 15 was located originaly (curr index 1), we do look at index 2 and get 1.
+			GAIA_EACH(data.pairs) {
+				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
+				data.remapping[i] = idxBeforeRemapping;
+			}
 
 			auto& pairs = data.pairs;
 			if (!pairs.empty()) {

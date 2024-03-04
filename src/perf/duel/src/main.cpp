@@ -3,6 +3,8 @@
 #include <picobench/picobench.hpp>
 #include <string_view>
 
+#define ECS_ITER_COMPIDX_CACHING 0
+
 using namespace gaia;
 
 float dt;
@@ -41,7 +43,9 @@ struct Dummy {
 	int value[24];
 };
 
-constexpr uint32_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
+constexpr uint32_t NFew = 100'000; // kept a multiple of 32 to keep it simple even for SIMD code
+constexpr uint32_t NMany = 1'000'000; // kept a multiple of 32 to keep it simple even for SIMD code
+
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
@@ -54,7 +58,23 @@ float CalculateDelta(picobench::state& state) {
 }
 
 template <bool SoA>
-void CreateECSEntities_Static(ecs::World& w) {
+void Register_ESC_Components(ecs::World& w) {
+	if constexpr (SoA) {
+		(void)w.add<PositionSoA>();
+		(void)w.add<VelocitySoA>();
+	} else {
+		(void)w.add<Position>();
+		(void)w.add<Velocity>();
+	}
+	(void)w.add<Rotation>();
+	(void)w.add<Scale>();
+	(void)w.add<Direction>();
+	(void)w.add<Health>();
+	(void)w.add<IsEnemy>();
+}
+
+template <bool SoA>
+void CreateECSEntities_Static(ecs::World& w, uint32_t N) {
 	{
 		auto e = w.add();
 		if constexpr (SoA)
@@ -63,14 +83,12 @@ void CreateECSEntities_Static(ecs::World& w) {
 			w.add<Position>(e, {0, 100, 0});
 		w.add<Rotation>(e, {1, 2, 3, 4});
 		w.add<Scale>(e, {1, 1, 1});
-		GAIA_FOR(N) {
-			[[maybe_unused]] auto newentity = w.copy(e);
-		}
+		w.copy_n(e, N - 1);
 	}
 }
 
 template <bool SoA>
-void CreateECSEntities_Dynamic(ecs::World& w) {
+void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 	{
 		auto e = w.add();
 		if constexpr (SoA)
@@ -83,9 +101,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
 			w.add<Velocity>(e, {0, 0, 1});
-		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.copy(e);
-		}
+		w.copy_n(e, N / 4 - 1);
 	}
 	{
 		auto e = w.add();
@@ -100,9 +116,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
-		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.copy(e);
-		}
+		w.copy_n(e, N / 4 - 1);
 	}
 	{
 		auto e = w.add();
@@ -118,9 +132,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
-		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.copy(e);
-		}
+		w.copy_n(e, N / 4 - 1);
 	}
 	{
 		auto e = w.add();
@@ -137,16 +149,15 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
 		w.add<IsEnemy>(e, {false});
-		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.copy(e);
-		}
+		w.copy_n(e, N / 4 - 1);
 	}
 }
 
 void BM_ECS(picobench::state& state) {
 	ecs::World w;
-	CreateECSEntities_Static<false>(w);
-	CreateECSEntities_Dynamic<false>(w);
+	Register_ESC_Components<false>(w);
+	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
 
 	auto queryPosCVel = w.query().all<Position&, Velocity>();
 	auto queryPosVel = w.query().all<Position&, Velocity&>();
@@ -205,8 +216,9 @@ public:
 
 void BM_ECS_WithSystems(picobench::state& state) {
 	ecs::World w;
-	CreateECSEntities_Static<false>(w);
-	CreateECSEntities_Dynamic<false>(w);
+	Register_ESC_Components<false>(w);
+	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
 
 	auto queryPosCVel = w.query().all<Position&, Velocity>();
 	auto queryPosVel = w.query().all<Position&, Velocity&>();
@@ -277,8 +289,9 @@ void BM_ECS_WithSystems(picobench::state& state) {
 
 void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	ecs::World w;
-	CreateECSEntities_Static<false>(w);
-	CreateECSEntities_Dynamic<false>(w);
+	Register_ESC_Components<false>(w);
+	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
 
 	auto queryPosCVel = w.query().all<Position&, Velocity>();
 	auto queryPosVel = w.query().all<Position&, Velocity&>();
@@ -295,8 +308,13 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto p = it.view_mut<Position>(0);
+				auto v = it.view<Velocity>(1);
+#else
 				auto p = it.view_mut<Position>();
 				auto v = it.view<Velocity>();
+#endif
 
 				GAIA_EACH(it) {
 					p[i].x += v[i].x * dt;
@@ -311,8 +329,14 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+
+#if ECS_ITER_COMPIDX_CACHING
+				auto p = it.view_mut<Position>(0);
+				auto v = it.view_mut<Velocity>(1);
+#else
 				auto p = it.view_mut<Position>();
 				auto v = it.view_mut<Velocity>();
+#endif
 
 				GAIA_EACH(it) {
 					if (p[i].y < 0.0f) {
@@ -327,7 +351,12 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto v = it.view_mut<Velocity>(0);
+#else
 				auto v = it.view_mut<Velocity>();
+#endif
+
 				GAIA_EACH(it) v[i].y += 9.81f * dt;
 			});
 		}
@@ -337,7 +366,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
 			m_q->each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto h = it.view<Health>(0);
+#else
 				auto h = it.view<Health>();
+#endif
 
 				uint32_t a = 0;
 				GAIA_EACH(it) {
@@ -367,8 +400,9 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 
 void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	ecs::World w;
-	CreateECSEntities_Static<true>(w);
-	CreateECSEntities_Dynamic<true>(w);
+	Register_ESC_Components<true>(w);
+	CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
+	CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
 
 	auto queryPosCVel = w.query().all<PositionSoA&, VelocitySoA>();
 	auto queryPosVel = w.query().all<PositionSoA&, VelocitySoA&>();
@@ -385,8 +419,13 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto p = it.view_mut<PositionSoA>(0);
+				auto v = it.view<VelocitySoA>(1);
+#else
 				auto p = it.view_mut<PositionSoA>();
 				auto v = it.view<VelocitySoA>();
+#endif
 
 				auto ppx = p.set<0>();
 				auto ppy = p.set<1>();
@@ -406,8 +445,13 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto p = it.view_mut<PositionSoA>(0);
+				auto v = it.view_mut<VelocitySoA>(1);
+#else
 				auto p = it.view_mut<PositionSoA>();
 				auto v = it.view_mut<VelocitySoA>();
+#endif
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
@@ -425,7 +469,12 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			m_q->each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto v = it.view_mut<VelocitySoA>(0);
+#else
 				auto v = it.view_mut<VelocitySoA>();
+#endif
+
 				auto vvy = v.set<1>();
 
 				GAIA_EACH(it) vvy[i] += dt * 9.81f;
@@ -437,7 +486,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
 			m_q->each([&](ecs::Iter& it) {
-				auto h = it.view<Health>();
+#if ECS_ITER_COMPIDX_CACHING
+				auto h = it.view<Health>(0);
+#else
+				auto h = it.view<Health>(0);
+#endif
 
 				uint32_t a = 0;
 				GAIA_EACH(it) {
@@ -659,16 +712,17 @@ void BM_NonECS(picobench::state& state) {
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
-	cnt::darray<IUnit*> units(N * 2);
+	const auto N = (uint32_t)state.user_data();
+	cnt::darray<IUnit*> units(N);
 	{
-		GAIA_FOR(N) {
+		GAIA_FOR(N / 2) {
 			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
 			units[i] = u;
 		}
-		uint32_t j = N;
+		uint32_t j = N / 2;
 		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
@@ -837,6 +891,8 @@ template <bool AlternativeExecOrder>
 void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	using namespace NonECS_BetterMemoryLayout;
 
+	const auto N = (uint32_t)state.user_data() / 2;
+
 	// Create entities.
 	cnt::darray<UnitStatic> units_static(N);
 	GAIA_FOR(N) {
@@ -984,15 +1040,20 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N / Groups;
+	const auto N = (uint32_t)state.user_data() / 2;
+	const uint32_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
-		cnt::darray<Position> units_p{NGroup};
-		cnt::darray<Rotation> units_r{NGroup};
-		cnt::darray<Scale> units_s{NGroup};
+		cnt::darray<Position> units_p;
+		cnt::darray<Rotation> units_r;
+		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
+		g.units_p.resize(NGroup);
+		g.units_r.resize(NGroup);
+		g.units_s.resize(NGroup);
+
 		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1002,15 +1063,23 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 	// Create dynamic entities.
 	struct dynamic_units_group {
-		cnt::darray<Position> units_p{NGroup};
-		cnt::darray<Rotation> units_r{NGroup};
-		cnt::darray<Scale> units_s{NGroup};
-		cnt::darray<Velocity> units_v{NGroup};
-		cnt::darray<Direction> units_d{NGroup};
-		cnt::darray<Health> units_h{NGroup};
-		cnt::darray<IsEnemy> units_e{NGroup};
+		cnt::darray<Position> units_p;
+		cnt::darray<Rotation> units_r;
+		cnt::darray<Scale> units_s;
+		cnt::darray<Velocity> units_v;
+		cnt::darray<Direction> units_d;
+		cnt::darray<Health> units_h;
+		cnt::darray<IsEnemy> units_e;
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
+		g.units_p.resize(NGroup);
+		g.units_r.resize(NGroup);
+		g.units_s.resize(NGroup);
+		g.units_v.resize(NGroup);
+		g.units_d.resize(NGroup);
+		g.units_h.resize(NGroup);
+		g.units_e.resize(NGroup);
+
 		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1127,15 +1196,20 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N / Groups;
+	const auto N = (uint32_t)state.user_data() / 2;
+	const uint32_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
-		cnt::darray<PositionSoA> units_p{NGroup};
-		cnt::darray<Rotation> units_r{NGroup};
-		cnt::darray<Scale> units_s{NGroup};
+		cnt::darray<PositionSoA> units_p;
+		cnt::darray<Rotation> units_r;
+		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
+		g.units_p.resize(NGroup);
+		g.units_r.resize(NGroup);
+		g.units_s.resize(NGroup);
+
 		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1145,15 +1219,23 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 	// Create dynamic entities.
 	struct dynamic_units_group {
-		cnt::darray<PositionSoA> units_p{NGroup};
-		cnt::darray<Rotation> units_r{NGroup};
-		cnt::darray<Scale> units_s{NGroup};
-		cnt::darray<VelocitySoA> units_v{NGroup};
-		cnt::darray<Direction> units_d{NGroup};
-		cnt::darray<Health> units_h{NGroup};
-		cnt::darray<IsEnemy> units_e{NGroup};
+		cnt::darray<PositionSoA> units_p;
+		cnt::darray<Rotation> units_r;
+		cnt::darray<Scale> units_s;
+		cnt::darray<VelocitySoA> units_v;
+		cnt::darray<Direction> units_d;
+		cnt::darray<Health> units_h;
+		cnt::darray<IsEnemy> units_e;
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
+		g.units_p.resize(NGroup);
+		g.units_r.resize(NGroup);
+		g.units_s.resize(NGroup);
+		g.units_v.resize(NGroup);
+		g.units_d.resize(NGroup);
+		g.units_h.resize(NGroup);
+		g.units_e.resize(NGroup);
+
 		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1188,9 +1270,9 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({1024}).samples(3)
-#define PICO_SETTINGS_1() iterations({1024}).samples(1)
-#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
+#define PICO_SETTINGS() iterations({1024}).samples(3).user_data(NFew)
+#define PICO_SETTINGS_1() iterations({1024}).samples(1).user_data(NFew)
+#define PICO_SETTINGS_SANI() iterations({8}).samples(1).user_data(NFew)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
@@ -1237,7 +1319,7 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS_1().label("DOD_Chunks_80");
 			} else {
 				// PICOBENCH_SUITE_REG("ECS");
-				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().label("Systems_Iter");
+				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().user_data(NMany).label("Systems_Iter");
 			}
 		} else if (sanitizerMode) {
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
@@ -1268,6 +1350,7 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
 			PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
 			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
+			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().user_data(NMany).label("Chunks_320 Many");
 
 			// Best possible performance with no manual SIMD optimization.
 			// Performance target for BM_ECS_WithSystems_Iter_SoA.
@@ -1280,13 +1363,16 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().user_data(NMany).label("Chunks_320 Many");
 
 			// GaiaECS performance.
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().user_data(NMany).label("Systems_Iter Many");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().user_data(NMany).label("Systems_Iter_SoA Many");
 		}
 	}
 
