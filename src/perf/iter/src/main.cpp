@@ -8,6 +8,32 @@ constexpr uint32_t EntitiesPerArchetype = 1'000;
 
 using TBenchmarkTypes = cnt::darray<ecs::Entity>;
 
+struct Position {
+	float x, y, z;
+};
+struct Velocity {
+	float x, y, z;
+};
+struct Rotation {
+	float x, y, z, w;
+};
+struct Scale {
+	float x, y, z;
+};
+struct Direction {
+	float x, y, z;
+};
+struct Health {
+	int value;
+	int max;
+};
+struct IsEnemy {
+	bool value;
+};
+struct Dummy {
+	int value[24];
+};
+
 auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArchetype) {
 	GAIA_ASSERT(archetypes > 0);
 	GAIA_ASSERT(maxIdsPerArchetype > 0);
@@ -85,6 +111,77 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	}
 }
 
+template <uint32_t NViews, bool ViewWithIndex>
+void bench_query_each_view(picobench::state& state, ecs::World& w) {
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+	auto q = w.query().all<Position>();
+	if constexpr (NViews > 1)
+		q.all<Velocity>();
+	if constexpr (NViews > 2)
+		q.all<Scale>();
+	if constexpr (NViews > 3)
+		q.all<Direction>();
+	if constexpr (NViews > 4)
+		q.all<Health>();
+
+	[[maybe_unused]] bool isEmpty = q.empty();
+	gaia::dont_optimize(isEmpty);
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+
+		state.stop_timer();
+		q.each([&](ecs::Iter& it) {
+			GAIA_EACH(it) {
+				state.start_timer();
+
+				if constexpr (ViewWithIndex) {
+					auto v1 = it.template view<Position>(0);
+					gaia::dont_optimize(v1);
+					if constexpr (NViews > 2) {
+						auto v2 = it.template view<Velocity>(1);
+						gaia::dont_optimize(v2);
+					}
+					if constexpr (NViews > 2) {
+						auto v3 = it.template view<Scale>(2);
+						gaia::dont_optimize(v3);
+					}
+					if constexpr (NViews > 3) {
+						auto v4 = it.template view<Direction>(3);
+						gaia::dont_optimize(v4);
+					}
+					if constexpr (NViews > 4) {
+						auto v5 = it.template view<Health>(4);
+						gaia::dont_optimize(v5);
+					}
+				} else {
+					auto v1 = it.template view<Position>();
+					gaia::dont_optimize(v1);
+					if constexpr (NViews > 2) {
+						auto v2 = it.template view<Velocity>();
+						gaia::dont_optimize(v2);
+					}
+					if constexpr (NViews > 2) {
+						auto v3 = it.template view<Scale>();
+						gaia::dont_optimize(v3);
+					}
+					if constexpr (NViews > 3) {
+						auto v4 = it.template view<Direction>();
+						gaia::dont_optimize(v4);
+					}
+					if constexpr (NViews > 4) {
+						auto v5 = it.template view<Health>();
+						gaia::dont_optimize(v5);
+					}
+				}
+
+				state.stop_timer();
+			}
+		});
+	}
+}
+
 template <bool UseCachedQuery, uint32_t QueryComponents>
 void BM_BuildQuery(picobench::state& state) {
 	ecs::World w;
@@ -150,6 +247,88 @@ void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t Max
 	bench_query_each_iter<IterKind>(state, query);
 }
 
+template <uint32_t NViews, bool ViewWithIndex>
+void BM_Each_View(picobench::state& state) {
+	ecs::World w;
+
+	// Create some archetypes for a good measure
+	create_archetypes(w, 1000, 10);
+
+	// Register our components. The order is random so it does not match
+	// the order in queries.
+	{
+		(void)w.add<Scale>();
+		(void)w.add<Position>();
+		(void)w.add<Direction>();
+		(void)w.add<Health>();
+		(void)w.add<IsEnemy>();
+		(void)w.add<Velocity>();
+		(void)w.add<Rotation>();
+	}
+
+	// Create our native component archetypes
+	constexpr uint32_t NEntities = 1000;
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>();
+		w.copy_n(e, NEntities - 1);
+	}
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>()
+				.add<Rotation>();
+		w.copy_n(e, NEntities - 1);
+	}
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>()
+				.add<Rotation>()
+				.add<Scale>();
+		w.copy_n(e, NEntities - 1);
+	}
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>()
+				.add<Rotation>()
+				.add<Scale>()
+				.add<Direction>();
+		w.copy_n(e, NEntities - 1);
+	}
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>()
+				.add<Rotation>()
+				.add<Scale>()
+				.add<Direction>()
+				.add<Health>();
+		w.copy_n(e, NEntities - 1);
+	}
+	{
+		auto e = w.add();
+		w.build(e) //
+				.add<Position>()
+				.add<Velocity>()
+				.add<Rotation>()
+				.add<Scale>()
+				.add<Direction>()
+				.add<Health>()
+				.add<IsEnemy>();
+		w.copy_n(e, NEntities - 1);
+	}
+
+	bench_query_each_view<NViews, ViewWithIndex>(state, w);
+}
+
 #define DEFINE_EACH_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                \
 	void BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                            \
 		BM_Each_Iter<true, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                     \
@@ -157,6 +336,11 @@ void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t Max
 #define DEFINE_EACH_U_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                              \
 	void BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                          \
 		BM_Each_Iter<false, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                    \
+	}
+
+#define DEFINE_EACH_VIEW(NViews, ViewWithIndex)                                                                        \
+	void BM_Each_View_##NViews##_##ViewWithIndex(picobench::state& state) {                                              \
+		BM_Each_View<NViews, ViewWithIndex>(state);                                                                        \
 	}
 
 DEFINE_EACH_ITER(IterAll, 1, 1, 1)
@@ -178,6 +362,17 @@ DEFINE_EACH_ITER(Iter, 1000, 10, 7);
 DEFINE_EACH_U_ITER(Iter, 1000, 10, 3);
 DEFINE_EACH_U_ITER(Iter, 1000, 10, 5);
 DEFINE_EACH_U_ITER(Iter, 1000, 10, 7);
+
+DEFINE_EACH_VIEW(1, false);
+DEFINE_EACH_VIEW(1, true);
+DEFINE_EACH_VIEW(2, false);
+DEFINE_EACH_VIEW(2, true);
+DEFINE_EACH_VIEW(3, false);
+DEFINE_EACH_VIEW(3, true);
+DEFINE_EACH_VIEW(4, false);
+DEFINE_EACH_VIEW(4, true);
+DEFINE_EACH_VIEW(5, false);
+DEFINE_EACH_VIEW(5, true);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
@@ -260,6 +455,18 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
 			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS().label("7 comps");
 			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
+
+			PICOBENCH_SUITE_REG("Iter view");
+			PICOBENCH_REG(BM_Each_View_1_false).PICO_SETTINGS().label("view 1 comp");
+			PICOBENCH_REG(BM_Each_View_1_true).PICO_SETTINGS().label("view 1 comp, idx");
+			PICOBENCH_REG(BM_Each_View_2_false).PICO_SETTINGS().label("view 2 comp");
+			PICOBENCH_REG(BM_Each_View_2_true).PICO_SETTINGS().label("view 2 comp, idx");
+			PICOBENCH_REG(BM_Each_View_3_false).PICO_SETTINGS().label("view 3 comp");
+			PICOBENCH_REG(BM_Each_View_3_true).PICO_SETTINGS().label("view 3 comp, idx");
+			PICOBENCH_REG(BM_Each_View_4_false).PICO_SETTINGS().label("view 4 comp");
+			PICOBENCH_REG(BM_Each_View_4_true).PICO_SETTINGS().label("view 4 comp, idx");
+			PICOBENCH_REG(BM_Each_View_5_false).PICO_SETTINGS().label("view 5 comp");
+			PICOBENCH_REG(BM_Each_View_5_true).PICO_SETTINGS().label("view 5 comp, idx");
 		}
 	}
 
