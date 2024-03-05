@@ -51,7 +51,7 @@ namespace gaia {
 
 			template <bool UseCaching = true>
 			class QueryImpl final {
-				static constexpr uint32_t ChunkBatchSize = 16;
+				static constexpr uint32_t ChunkBatchSize = 32;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
@@ -373,15 +373,21 @@ namespace gaia {
 
 				//! Execute functors in batches
 				template <typename Func, typename TIter>
-				static void run_func_batched(Func func, TIter& it, ChunkBatchedList& chunks) {
-					GAIA_PROF_SCOPE(query::run_func_batched);
+				static void run_query_func(Func func, TIter& it, ChunkBatchedList& chunks) {
+					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = chunks.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
 					auto runFunc = [&](Chunk* pChunk) {
+#if GAIA_ASSERT_ENABLED
+						pChunk->lock(true);
+#endif
 						it.set_chunk(pChunk);
 						func(it);
+#if GAIA_ASSERT_ENABLED
+						pChunk->lock(false);
+#endif
 					};
 
 					// This is what the function is doing:
@@ -394,9 +400,7 @@ namespace gaia {
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						chunks[0]->lock(true);
 						runFunc(chunks[0]);
-						chunks[0]->lock(false);
 						chunks.clear();
 						return;
 					}
@@ -410,21 +414,15 @@ namespace gaia {
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
 					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
-					chunks[0]->lock(true);
 					runFunc(chunks[0]);
-					chunks[0]->lock(false);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
-						chunks[chunkIdx]->lock(true);
 						runFunc(chunks[chunkIdx]);
-						chunks[chunkIdx]->lock(false);
 					}
 
-					chunks[chunkIdx]->lock(true);
 					runFunc(chunks[chunkIdx]);
-					chunks[chunkIdx]->lock(false);
 
 					chunks.clear();
 				}
@@ -473,7 +471,7 @@ namespace gaia {
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_func_batched(func, it, chunkBatch);
+								run_query_func(func, it, chunkBatch);
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
@@ -483,9 +481,8 @@ namespace gaia {
 					}
 
 					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty()) {
-						run_func_batched(func, it, chunkBatch);
-					}
+					if (!chunkBatch.empty())
+						run_query_func(func, it, chunkBatch);
 				}
 
 				template <typename TIter, typename Func>
