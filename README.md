@@ -630,14 +630,15 @@ q.each([](ecs::IterAll& it) {
   auto p = it.view_mut<Position>(); // Read-write access to Position
   auto v = it.view<Velocity>(); // Read-only access to Velocity
 
-  // Iterate over all enabled entities and update their x-axis position
+  // Iterate over all enabled entities and update their x-axis position.
+  // GAIA_EACH(it) translates to: for (uint32_t i=0; i<it.size(); ++i)
   GAIA_EACH(it) {
     if (!it.enabled(i))
       return;
     p[i].x += 1.f;
   }
 
-  // Iterate over all entities and update their position based on their velocity
+  // Iterate over all entities and update their position based on their velocity.
   GAIA_EACH(it) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
@@ -646,13 +647,18 @@ q.each([](ecs::IterAll& it) {
 });
 ```
 
-***GAIA_EACH(it)*** is simply a shortcut for
-```
-for (uint32_t i=0; i<it.size(); ++i)
-```
-A similar macro exists where you can specify the variable name. It is called ***GAIA_EACH_(iter,k)***
-```
-for (uint32_t k=0; k<it.size(); ++k)
+Performance of views can be improved slightly by explicitely providing the index of the component in the query.
+
+```cpp
+ecs::Query q = w.query();
+q.any<Something>().all<Position&, Velocity>();
+
+q.each([](ecs::IterAll& it) {
+  auto s = it.view<Somehting>(0); // Something is fhe first defined component in the query
+  auto p = it.view_mut<Position>(1); // Position is the second defined component in the query
+  auto v = it.view<Velocity>(2); // Velocity is the third defined component in the query
+  ....
+}
 ```
 
 ### Constraints

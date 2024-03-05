@@ -438,6 +438,11 @@ namespace gaia {
 					TIter it;
 
 					uint32_t aid = 0;
+					// TODO: Have archetype cache as double-linked list with pointers only.
+					//       Have chunk cache as double-linked list with pointers only.
+					//       Make it so only valid pointers are linked together.
+					//       This means one less indirection + we won't need to call can_process_archetype()
+					//       and pChunk.size()==0 here.
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype)) {
 							++aid;
@@ -459,7 +464,7 @@ namespace gaia {
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
 								it.set_chunk(pChunk);
-								if (it.size() == 0)
+								if GAIA_UNLIKELY (it.size() == 0)
 									continue;
 
 								if constexpr (HasFilters) {
