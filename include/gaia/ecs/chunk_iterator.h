@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "../core/bit_utils.h"
 #include "../core/iterator.h"
 #include "archetype.h"
 #include "chunk.h"
@@ -29,11 +28,10 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
 
-				Archetype* m_pArchetype = nullptr;
+				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
-
-				//! uint8_t m_compIdxMapping[MAX_ITEMS_IN_QUERY] compressed.
-				CompIndicesBitView m_compIdxMapping;
+				//! Chunk::MAX_COMPONENTS values for component indices mapping for the parent archetype
+				const uint8_t* m_pCompIdxMapping = nullptr;
 
 			public:
 				ChunkIterImpl() = default;
@@ -43,13 +41,8 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
-				void set_remapping_indices(CompIndicesBitView compIndicesMapping) {
-					m_compIdxMapping = compIndicesMapping;
-				}
-
-				void set_archetype(Archetype* pArchetype) {
-					GAIA_ASSERT(pArchetype != nullptr);
-					m_pArchetype = pArchetype;
+				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
+					m_pCompIdxMapping = pCompIndicesMapping;
 				}
 
 				void set_chunk(Chunk* pChunk) {
@@ -68,10 +61,10 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_raw<T>((void*)&m_pChunk->data(dataOffset));
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
+					return m_pChunk->view_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns a mutable entity or component view.
@@ -85,11 +78,11 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
 					m_pChunk->update_world_version(compIdx);
-					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
+					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns a mutable component view.
@@ -104,10 +97,10 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
+					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.

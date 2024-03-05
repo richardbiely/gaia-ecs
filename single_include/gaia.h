@@ -4675,7 +4675,7 @@ namespace gaia {
 						s.load(size);
 
 						if constexpr (has_resize<U, size_t>::value) {
-							// If resize is presnet, use it
+							// If resize is present, use it
 							arg.resize(size);
 							for (auto& e: arg)
 								ser_data_one<Write>(s, e);
@@ -17004,9 +17004,9 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) view_raw(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) view_raw(const void* ptr, uint32_t size) const {
 				using U = typename actual_type_t<T>::Type;
-				return mem::auto_view_policy_get<U>{std::span{(const uint8_t*)ptr, size()}};
+				return mem::auto_view_policy_get<U>{std::span{(const uint8_t*)ptr, size}};
 			}
 
 			/*!
@@ -17032,11 +17032,11 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) view_mut_raw(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) view_mut_raw(void* ptr, uint32_t size) const {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
-				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size}};
 			}
 
 			/*!
@@ -17057,11 +17057,11 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) sview_mut_raw(void* ptr) const {
+			GAIA_NODISCARD decltype(auto) sview_mut_raw(void* ptr, uint32_t size) const {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
-				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size()}};
+				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size}};
 			}
 
 			template <typename T>
@@ -19087,11 +19087,10 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
 
-				Archetype* m_pArchetype = nullptr;
+				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
-
-				//! uint8_t m_compIdxMapping[MAX_ITEMS_IN_QUERY] compressed.
-				CompIndicesBitView m_compIdxMapping;
+				//! Chunk::MAX_COMPONENTS values for component indices mapping for the parent archetype
+				const uint8_t* m_pCompIdxMapping = nullptr;
 
 			public:
 				ChunkIterImpl() = default;
@@ -19101,13 +19100,8 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
-				void set_remapping_indices(CompIndicesBitView compIndicesMapping) {
-					m_compIdxMapping = compIndicesMapping;
-				}
-
-				void set_archetype(Archetype* pArchetype) {
-					GAIA_ASSERT(pArchetype != nullptr);
-					m_pArchetype = pArchetype;
+				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
+					m_pCompIdxMapping = pCompIndicesMapping;
 				}
 
 				void set_chunk(Chunk* pChunk) {
@@ -19126,10 +19120,10 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_raw<T>((void*)&m_pChunk->data(dataOffset));
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
+					return m_pChunk->view_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns a mutable entity or component view.
@@ -19143,11 +19137,11 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
 					m_pChunk->update_world_version(compIdx);
-					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
+					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns a mutable component view.
@@ -19162,10 +19156,10 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
-					const auto compIdx = m_compIdxMapping.get(termIdx * Chunk::MAX_COMPONENTS_BITS);
-					GAIA_ASSERT(compIdx < m_pArchetype->comp_offs().size());
-					const auto dataOffset = m_pArchetype->comp_offs()[compIdx];
-					return m_pChunk->view_mut_raw<T>((void*)&m_pChunk->data(dataOffset));
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
+					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -19550,8 +19544,9 @@ namespace gaia {
 		class World;
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
-		using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
-		using CompIndicesBitSet = cnt::bitset<Chunk::MAX_COMPONENTS_BITS * MAX_ITEMS_IN_QUERY>;
+		struct ArchetypeCacheData {
+			uint8_t indices[Chunk::MAX_COMPONENTS];
+		};
 
 		Archetype* archetype_from_entity(const World& world, Entity entity);
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -19570,7 +19565,7 @@ namespace gaia {
 			QueryCtx m_lookupCtx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
-			cnt::darray<CompIndicesBitSet> m_compIndiciesMappings;
+			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
@@ -20359,9 +20354,7 @@ namespace gaia {
 				m_archetypeCache.push_back(pArchetype);
 
 				// Update id mappings
-				CompIndicesBitSet compIndicesStorage;
-				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
-				CompIndicesBitView bv{{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
+				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
 				GAIA_EACH(queryIds) {
 					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
@@ -20373,17 +20366,17 @@ namespace gaia {
 					const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
-					// that is not presnet on the archetype. If they do, they made a mistake.
+					// that is not present on the archetype. If they do, they made a mistake.
 					const auto compIdx = core::get_index_unsafe(pArchetype->ids(), queryId);
 
-					bv.set(i * Chunk::MAX_COMPONENTS_BITS, (uint8_t)compIdx);
+					cacheData.indices[i] = (uint8_t)compIdx;
 				}
-				m_compIndiciesMappings.push_back(compIndicesStorage);
+				m_archetypeCacheData.push_back(std::move(cacheData));
 			}
 
 			void del_archetype_from_cache(uint32_t idx) {
 				core::erase_fast(m_archetypeCache, idx);
-				core::erase_fast(m_compIndiciesMappings, idx);
+				core::erase_fast(m_archetypeCacheData, idx);
 			}
 
 			GAIA_NODISCARD QueryId id() const {
@@ -20445,10 +20438,10 @@ namespace gaia {
 				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_Any);
 			}
 
-			CompIndicesBitView indices_mapping(uint32_t idx) const {
-				const auto& compIndicesStorage = m_compIndiciesMappings[idx];
-				constexpr auto CompIndicesBitSetBytes = CompIndicesBitSet::Items * sizeof(CompIndicesBitSet::size_type);
-				return {{(uint8_t*)compIndicesStorage.data(), CompIndicesBitSetBytes}};
+			//! Returns a view of indices mapping for component entities in a given archetype
+			std::span<const uint8_t> indices_mapping_view(uint32_t idx) const {
+				const auto& data = m_archetypeCacheData[idx];
+				return {(const uint8_t*)&data.indices[0], Chunk::MAX_COMPONENTS};
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -20985,8 +20978,7 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
-						it.set_remapping_indices(queryInfo.indices_mapping(aid));
-						it.set_archetype(pArchetype);
+						it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
 						const auto& chunks = pArchetype->chunks();
 

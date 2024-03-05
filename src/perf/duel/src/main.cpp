@@ -3,7 +3,7 @@
 #include <picobench/picobench.hpp>
 #include <string_view>
 
-#define ECS_ITER_COMPIDX_CACHING 0
+#define ECS_ITER_COMPIDX_CACHING 1
 
 using namespace gaia;
 
@@ -1330,7 +1330,7 @@ int main(int argc, char* argv[]) {
 			return 0;
 		} else {
 			PICOBENCH_SUITE_REG("OOP");
-			//  Ordinary coding style.
+			// Ordinary coding style.
 			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
 			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
 

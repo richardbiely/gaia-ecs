@@ -448,8 +448,7 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
-						it.set_remapping_indices(queryInfo.indices_mapping(aid));
-						it.set_archetype(pArchetype);
+						it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
 						const auto& chunks = pArchetype->chunks();
 

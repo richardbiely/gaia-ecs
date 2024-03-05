@@ -226,7 +226,7 @@ namespace gaia {
 						s.load(size);
 
 						if constexpr (has_resize<U, size_t>::value) {
-							// If resize is presnet, use it
+							// If resize is present, use it
 							arg.resize(size);
 							for (auto& e: arg)
 								ser_data_one<Write>(s, e);
