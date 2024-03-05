@@ -111,6 +111,19 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	}
 }
 
+template <typename T>
+void acc_view(ecs::Iter& it, uint32_t idx) {
+	auto v = it.template view<T>(idx);
+	const auto* d = v.data();
+	gaia::dont_optimize(d);
+};
+template <typename T>
+void acc_view(ecs::Iter& it) {
+	auto v = it.template view<T>();
+	const auto* d = v.data();
+	gaia::dont_optimize(d);
+};
+
 template <uint32_t NViews, bool ViewWithIndex>
 void bench_query_each_view(picobench::state& state, ecs::World& w) {
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
@@ -137,43 +150,25 @@ void bench_query_each_view(picobench::state& state, ecs::World& w) {
 				state.start_timer();
 
 				if constexpr (ViewWithIndex) {
-					auto v1 = it.template view<Position>(0);
-					gaia::dont_optimize(v1);
-					if constexpr (NViews > 2) {
-						auto v2 = it.template view<Velocity>(1);
-						gaia::dont_optimize(v2);
-					}
-					if constexpr (NViews > 2) {
-						auto v3 = it.template view<Scale>(2);
-						gaia::dont_optimize(v3);
-					}
-					if constexpr (NViews > 3) {
-						auto v4 = it.template view<Direction>(3);
-						gaia::dont_optimize(v4);
-					}
-					if constexpr (NViews > 4) {
-						auto v5 = it.template view<Health>(4);
-						gaia::dont_optimize(v5);
-					}
+					acc_view<Position>(it, 0);
+					if constexpr (NViews > 1)
+						acc_view<Velocity>(it, 1);
+					if constexpr (NViews > 2)
+						acc_view<Scale>(it, 2);
+					if constexpr (NViews > 3)
+						acc_view<Direction>(it, 3);
+					if constexpr (NViews > 4)
+						acc_view<Health>(it, 4);
 				} else {
-					auto v1 = it.template view<Position>();
-					gaia::dont_optimize(v1);
-					if constexpr (NViews > 2) {
-						auto v2 = it.template view<Velocity>();
-						gaia::dont_optimize(v2);
-					}
-					if constexpr (NViews > 2) {
-						auto v3 = it.template view<Scale>();
-						gaia::dont_optimize(v3);
-					}
-					if constexpr (NViews > 3) {
-						auto v4 = it.template view<Direction>();
-						gaia::dont_optimize(v4);
-					}
-					if constexpr (NViews > 4) {
-						auto v5 = it.template view<Health>();
-						gaia::dont_optimize(v5);
-					}
+					acc_view<Position>(it);
+					if constexpr (NViews > 1)
+						acc_view<Velocity>(it);
+					if constexpr (NViews > 2)
+						acc_view<Scale>(it);
+					if constexpr (NViews > 3)
+						acc_view<Direction>(it);
+					if constexpr (NViews > 4)
+						acc_view<Health>(it);
 				}
 
 				state.stop_timer();
