@@ -2816,7 +2816,7 @@ TEST_CASE("Relationship") {
 		{
 			auto q = wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 5); // 3 +2 for internal relationhsip
+			REQUIRE(cnt == 5); // 3 +2 for internal relationships
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
@@ -5291,80 +5291,85 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 // Component cache
 //------------------------------------------------------------------------------
 
+template <typename T>
+void comp_cache_verify(ecs::World& w, const ecs::ComponentCacheItem& other) {
+	const auto& d = w.add<const Position>();
+	REQUIRE(other.entity == d.entity);
+	REQUIRE(other.comp == d.comp);
+}
+
 TEST_CASE("Component cache") {
-	TestWorld twld;
-	auto& cc = wld.comp_cache_mut();
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<Position>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<const Position>().comp);
-		REQUIRE(comp == wld.add<Position&>().comp);
-		REQUIRE(comp == wld.add<const Position&>().comp);
-		REQUIRE(comp == wld.add<Position*>().comp);
-		REQUIRE(comp == wld.add<const Position*>().comp);
+
+		comp_cache_verify<const Position>(wld, desc);
+		comp_cache_verify<Position&>(wld, desc);
+		comp_cache_verify<const Position&>(wld, desc);
+		comp_cache_verify<Position*>(wld, desc);
+		comp_cache_verify<const Position*>(wld, desc);
 	}
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<const Position>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<Position>().comp);
-		REQUIRE(comp == wld.add<Position&>().comp);
-		REQUIRE(comp == wld.add<const Position&>().comp);
-		REQUIRE(comp == wld.add<Position*>().comp);
-		REQUIRE(comp == wld.add<const Position*>().comp);
+
+		comp_cache_verify<Position>(wld, desc);
+		comp_cache_verify<Position&>(wld, desc);
+		comp_cache_verify<const Position&>(wld, desc);
+		comp_cache_verify<Position*>(wld, desc);
+		comp_cache_verify<const Position*>(wld, desc);
 	}
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<Position&>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<Position>().comp);
-		REQUIRE(comp == wld.add<const Position>().comp);
-		REQUIRE(comp == wld.add<const Position&>().comp);
-		REQUIRE(comp == wld.add<Position*>().comp);
-		REQUIRE(comp == wld.add<const Position*>().comp);
+
+		comp_cache_verify<Position>(wld, desc);
+		comp_cache_verify<const Position>(wld, desc);
+		comp_cache_verify<const Position&>(wld, desc);
+		comp_cache_verify<Position*>(wld, desc);
+		comp_cache_verify<const Position*>(wld, desc);
 	}
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<const Position&>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<Position>().comp);
-		REQUIRE(comp == wld.add<const Position>().comp);
-		REQUIRE(comp == wld.add<Position&>().comp);
-		REQUIRE(comp == wld.add<Position*>().comp);
-		REQUIRE(comp == wld.add<const Position*>().comp);
+
+		comp_cache_verify<Position>(wld, desc);
+		comp_cache_verify<const Position>(wld, desc);
+		comp_cache_verify<Position&>(wld, desc);
+		comp_cache_verify<Position*>(wld, desc);
+		comp_cache_verify<const Position*>(wld, desc);
 	}
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<Position*>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<Position>().comp);
-		REQUIRE(comp == wld.add<const Position>().comp);
-		REQUIRE(comp == wld.add<Position&>().comp);
-		REQUIRE(comp == wld.add<const Position&>().comp);
-		REQUIRE(comp == wld.add<const Position*>().comp);
+
+		comp_cache_verify<Position>(wld, desc);
+		comp_cache_verify<const Position>(wld, desc);
+		comp_cache_verify<Position&>(wld, desc);
+		comp_cache_verify<const Position&>(wld, desc);
+		comp_cache_verify<const Position*>(wld, desc);
 	}
 	{
-		cc.clear();
+		TestWorld twld;
 		const auto& desc = wld.add<const Position*>();
 		auto ent = desc.entity;
 		REQUIRE_FALSE(ent.entity());
-		auto comp = desc.comp;
-		REQUIRE(comp == wld.add<Position>().comp);
-		REQUIRE(comp == wld.add<const Position>().comp);
-		REQUIRE(comp == wld.add<Position&>().comp);
-		REQUIRE(comp == wld.add<const Position&>().comp);
-		REQUIRE(comp == wld.add<Position*>().comp);
+
+		comp_cache_verify<Position>(wld, desc);
+		comp_cache_verify<const Position>(wld, desc);
+		comp_cache_verify<Position&>(wld, desc);
+		comp_cache_verify<const Position&>(wld, desc);
+		comp_cache_verify<Position*>(wld, desc);
 	}
 }
 
@@ -5844,7 +5849,7 @@ TEST_CASE("Multithreading - complete") {
 	res.resize(Jobs);
 
 	auto work = [&]() {
-		GAIA_EACH(res) res[i] = (uint32_t)-1;
+		GAIA_EACH(res) res[i] = BadIndex;
 
 		GAIA_FOR(Jobs) {
 			mt::Job job;
@@ -5880,7 +5885,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 
 	auto work = [&]() {
 		srand(0);
-		uint32_t res = (uint32_t)-1;
+		uint32_t res = BadIndex;
 
 		GAIA_FOR(Iters) {
 			mt::Job job0{[&res, i]() {

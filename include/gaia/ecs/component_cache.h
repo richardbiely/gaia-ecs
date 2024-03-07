@@ -17,8 +17,12 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
+
 		//! Cache for compile-time defined components
 		class ComponentCache {
+			friend class World;
+
 			static constexpr uint32_t FastComponentCacheSize = 512;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
@@ -30,6 +34,24 @@ namespace gaia {
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
+
+			//! Clears the contents of the component cache
+			//! \warning Should be used only after worlds are cleared because it invalidates all currently
+			//!          existing component ids. Any cached content would stop working.
+			//! \note Hidden from users because clearing the cache means that all existing component entities
+			//!       would lose connection to it and effectively become dangling. This means that a new
+			//!       component of type T could be added with a new entity id.
+			void clear() {
+				for (const auto* pDesc: m_descIdArr)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+				for (auto [componentId, pDesc]: m_descByDescId)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+
+				m_descIdArr.clear();
+				m_descByDescId.clear();
+				m_compByString.clear();
+				m_compByEntity.clear();
+			}
 
 		public:
 			ComponentCache() {
@@ -45,21 +67,6 @@ namespace gaia {
 			ComponentCache(const ComponentCache&) = delete;
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
-
-			//! Clears the contents of the component cache
-			//! \warning Should be used only after worlds are cleared because it invalidates all currently
-			//!          existing component ids. Any cached content would stop working.
-			void clear() {
-				for (const auto* pDesc: m_descIdArr)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-				for (auto [componentId, pDesc]: m_descByDescId)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-
-				m_descIdArr.clear();
-				m_descByDescId.clear();
-				m_compByString.clear();
-				m_compByEntity.clear();
-			}
 
 			//! Registers the component item for \tparam T. If it already exists it is returned.
 			//! \return Component info
