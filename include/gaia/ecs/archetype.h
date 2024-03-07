@@ -125,6 +125,9 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Archetype list index
+			uint32_t m_listIdx;
+
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
 			//! Remaining lifespan of the archetype
@@ -138,7 +141,7 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion),
+					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex),
 					//
 					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
@@ -258,6 +261,14 @@ namespace gaia {
 				// Delete all archetype chunks
 				for (auto* pChunk: m_chunks)
 					Chunk::free(pChunk);
+			}
+
+			void list_idx(uint32_t idx) {
+				m_listIdx = idx;
+			}
+
+			uint32_t list_idx() const {
+				return m_listIdx;
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {

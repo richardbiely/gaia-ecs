@@ -13218,7 +13218,7 @@ namespace gaia {
 					return;
 
 				uint32_t depIdx = job.dependencyIdx;
-				while (depIdx != (uint32_t)-1) {
+				while (depIdx != BadIndex) {
 					auto& dep = m_deps[depIdx];
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
 					// const uint32_t depPrio = dep.;
@@ -13240,7 +13240,7 @@ namespace gaia {
 				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
-				j.dependencyIdx = (uint32_t)-1;
+				j.dependencyIdx = BadIndex;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
 				return handle;
@@ -13309,7 +13309,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobManager::handle_deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == (uint32_t)-1)
+				if (job.dependencyIdx == BadIndex)
 					return true;
 
 				uint32_t depsId = job.dependencyIdx;
@@ -13328,7 +13328,7 @@ namespace gaia {
 						}
 
 						depsId = dep.dependencyIdxNext;
-					} while (depsId != (uint32_t)-1);
+					} while (depsId != BadIndex);
 				}
 
 				// No need to update the index because once we return true we execute the job.
@@ -13358,9 +13358,9 @@ namespace gaia {
 					auto& dep = m_deps[depHandle.id()];
 					dep.dependsOn = dependsOn;
 
-					if (job.dependencyIdx == (uint32_t)-1)
+					if (job.dependencyIdx == BadIndex)
 						// First time adding a dependency to this job. Point it to the first allocated handle
-						dep.dependencyIdxNext = (uint32_t)-1;
+						dep.dependencyIdxNext = BadIndex;
 					else
 						// We have existing dependencies. Point the last known one to the first allocated handle
 						dep.dependencyIdxNext = job.dependencyIdx;
@@ -13397,9 +13397,9 @@ namespace gaia {
 						auto& dep = m_deps[depHandle.id()];
 						dep.dependsOn = dependsOn;
 
-						if (job.dependencyIdx == (uint32_t)-1)
+						if (job.dependencyIdx == BadIndex)
 							// First time adding a dependency to this job. Point it to the first allocated handle
-							dep.dependencyIdxNext = (uint32_t)-1;
+							dep.dependencyIdxNext = BadIndex;
 						else
 							// We have existing dependencies. Point the last known one to the first allocated handle
 							dep.dependencyIdxNext = job.dependencyIdx;
@@ -14850,7 +14850,7 @@ namespace gaia {
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
-		struct AliasOf_ {};
+		struct Is_ {};
 
 		//----------------------------------------------------------------------
 		// Core component entities
@@ -14873,7 +14873,8 @@ namespace gaia {
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
 		//! Wildcard query entity
 		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		//! Entity representing a physical hierarchy
+		//! Entity representing a physical hierarchy.
+		//! When the relationship target is deleted all children are deleted as well.
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
 		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
@@ -16236,8 +16237,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class World;
+
 		//! Cache for compile-time defined components
 		class ComponentCache {
+			friend class World;
+
 			static constexpr uint32_t FastComponentCacheSize = 512;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
@@ -16249,6 +16254,24 @@ namespace gaia {
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
+
+			//! Clears the contents of the component cache
+			//! \warning Should be used only after worlds are cleared because it invalidates all currently
+			//!          existing component ids. Any cached content would stop working.
+			//! \note Hidden from users because clearing the cache means that all existing component entities
+			//!       would lose connection to it and effectively become dangling. This means that a new
+			//!       component of type T could be added with a new entity id.
+			void clear() {
+				for (const auto* pDesc: m_descIdArr)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+				for (auto [componentId, pDesc]: m_descByDescId)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+
+				m_descIdArr.clear();
+				m_descByDescId.clear();
+				m_compByString.clear();
+				m_compByEntity.clear();
+			}
 
 		public:
 			ComponentCache() {
@@ -16264,21 +16287,6 @@ namespace gaia {
 			ComponentCache(const ComponentCache&) = delete;
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
-
-			//! Clears the contents of the component cache
-			//! \warning Should be used only after worlds are cleared because it invalidates all currently
-			//!          existing component ids. Any cached content would stop working.
-			void clear() {
-				for (const auto* pDesc: m_descIdArr)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-				for (auto [componentId, pDesc]: m_descByDescId)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-
-				m_descIdArr.clear();
-				m_descByDescId.clear();
-				m_compByString.clear();
-				m_compByEntity.clear();
-			}
 
 			//! Registers the component item for \tparam T. If it already exists it is returned.
 			//! \return Component info
@@ -17992,6 +18000,9 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
+			//! Archetype list index
+			uint32_t m_listIdx;
+
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
 			//! Remaining lifespan of the archetype
@@ -18005,7 +18016,7 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion),
+					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex),
 					//
 					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
@@ -18125,6 +18136,14 @@ namespace gaia {
 				// Delete all archetype chunks
 				for (auto* pChunk: m_chunks)
 					Chunk::free(pChunk);
+			}
+
+			void list_idx(uint32_t idx) {
+				m_listIdx = idx;
+			}
+
+			uint32_t list_idx() const {
+				return m_listIdx;
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
@@ -18758,8 +18777,8 @@ namespace gaia {
 			*/
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);
-				diag_graph_info(world, archetype);
-				diag_chunk_info(archetype);
+				// diag_graph_info(world, archetype);
+				// diag_chunk_info(archetype);
 				diag_entity_info(world, archetype);
 			}
 		};
@@ -21665,7 +21684,7 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 		public:
-			EntityContainer& fetch(Entity entity) {
+			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
 				// Valid entity
 				GAIA_ASSERT(valid(entity));
 				// Wildcard pairs are not a real entity so we can't accept them
@@ -21673,7 +21692,7 @@ namespace gaia {
 				return m_recs[entity];
 			}
 
-			const EntityContainer& fetch(Entity entity) const {
+			GAIA_NODISCARD const EntityContainer& fetch(Entity entity) const {
 				// Valid entity
 				GAIA_ASSERT(valid(entity));
 				// Wildcard pairs are not a real entity so we can't accept them
@@ -23124,7 +23143,7 @@ namespace gaia {
 
 			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			void diag_archetypes() const {
-				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
+				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
 				for (auto* pArchetype: m_archetypes)
 					Archetype::diag(*this, *pArchetype);
 			}
@@ -23242,6 +23261,25 @@ namespace gaia {
 					return false;
 
 				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+			}
+
+			//! Sorts archetypes in the archetype list with their ids in ascending order
+			void sort_archetypes() {
+				struct sort_cond {
+					constexpr bool operator()(const Archetype* a, const Archetype* b) const {
+						return a->id() < b->id();
+					}
+				};
+
+				core::sort(m_archetypes, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					Archetype* tmp = m_archetypes[left];
+
+					m_archetypes[right]->list_idx(left);
+					m_archetypes[left]->list_idx(right);
+
+					m_archetypes.data()[left] = (Archetype*)m_archetypes[right];
+					m_archetypes.data()[right] = tmp;
+				});
 			}
 
 			//! Remove an entity from its chunk.
@@ -23533,12 +23571,31 @@ namespace gaia {
 				// 		(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
+				GAIA_ASSERT(pArchetype->list_idx() == BadIndex);
 
 				// Register the archetype
 				m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
 				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+
+				pArchetype->list_idx(m_archetypes.size());
 				m_archetypes.emplace_back(pArchetype);
+			}
+
+			void unreg_archetype_raw(Archetype* pArchetype) {
+				// Make sure the archetype was registered already
+				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
+
+				const auto& ids = pArchetype->ids();
+				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
+				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
+				m_archetypesByHash.erase(key);
+				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+
+				const auto idx = pArchetype->list_idx();
+				GAIA_ASSERT(idx == core::get_index(m_archetypes, pArchetype));
+				core::erase_fast(m_archetypes, idx);
+				if (!m_archetypes.empty() && idx != m_archetypes.size())
+					m_archetypes[idx]->list_idx(idx);
 			}
 
 			//! Unregisters the archetype in the world.
@@ -23550,20 +23607,7 @@ namespace gaia {
 				GAIA_ASSERT(
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || (pArchetype->lookup_hash().hash != 0));
 
-				// Make sure the archetype was registered already
-				GAIA_ASSERT(m_archetypesById.contains(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash())));
-
-				const auto& ids = pArchetype->ids();
-				auto tmpArchetype = ArchetypeLookupChecker({ids.data(), ids.size()});
-				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
-				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
-
-				// TODO: This can be thousands or archetypes. We need a better way.
-				//       E.g., hash maps could contain indices to this array or something else.
-				//       Ideally this needs to be O(1).
-				const auto idx = core::get_index(m_archetypes, pArchetype);
-				core::erase_fast(m_archetypes, idx);
+				unreg_archetype_raw(pArchetype);
 			}
 
 #if GAIA_DEBUG
@@ -23885,7 +23929,7 @@ namespace gaia {
 
 			//! Find the destination archetype \param pArchetype as if removing \param entity.
 			//! \return Destination archetype of nullptr if no match is found
-			Archetype* calc_dst_archetype_ent(Archetype* pArchetype, Entity entity) {
+			GAIA_NODISCARD Archetype* calc_dst_archetype_ent(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(!is_wildcard(entity));
 
 				const auto& ids = pArchetype->ids();
@@ -23902,7 +23946,7 @@ namespace gaia {
 			//! Find the destination archetype \param pArchetype as if removing all entities
 			//! matching (All, entity) from the archetype.
 			//! \return Destination archetype of nullptr if no match is found
-			Archetype* calc_dst_archetype_all_ent(Archetype* pArchetype, Entity entity) {
+			GAIA_NODISCARD Archetype* calc_dst_archetype_all_ent(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
@@ -23921,7 +23965,7 @@ namespace gaia {
 			//! Find the destination archetype \param pArchetype as if removing all entities
 			//! matching (entity, All) from the archetype.
 			//! \return Destination archetype of nullptr if no match is found
-			Archetype* calc_dst_archetype_ent_all(Archetype* pArchetype, Entity entity) {
+			GAIA_NODISCARD Archetype* calc_dst_archetype_ent_all(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
@@ -23940,7 +23984,7 @@ namespace gaia {
 			//! Find the destination archetype \param pArchetype as if removing all entities
 			//! matching (All, All) from the archetype.
 			//! \return Destination archetype of nullptr if no match is found
-			Archetype* calc_dst_archetype_all_all(Archetype* pArchetype, [[maybe_unused]] Entity entity) {
+			GAIA_NODISCARD Archetype* calc_dst_archetype_all_all(Archetype* pArchetype, [[maybe_unused]] Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
 				Archetype* pDstArchetype = pArchetype;
@@ -23961,7 +24005,7 @@ namespace gaia {
 			//! Find the destination archetype \param pArchetype as if removing \param entity.
 			//! Wildcard pair entities are supported as well.
 			//! \return Destination archetype of nullptr if no match is found
-			Archetype* calc_dst_archetype(Archetype* pArchetype, Entity entity) {
+			GAIA_NODISCARD Archetype* calc_dst_archetype(Archetype* pArchetype, Entity entity) {
 				if (entity.pair()) {
 					auto rel = entity.id();
 					auto tgt = entity.gen();
@@ -24502,6 +24546,16 @@ namespace gaia {
 				return false;
 			}
 
+			template <typename T>
+			void reg_core_entity(Entity id) {
+				auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
+				const auto& desc = comp_cache_mut().add<T>(id);
+				GAIA_ASSERT(desc.entity == id);
+				GAIA_ASSERT(comp == id);
+				(void)comp;
+				(void)desc;
+			}
+
 			void init() {
 				// Register the root archetype
 				{
@@ -24510,15 +24564,7 @@ namespace gaia {
 					reg_archetype(m_pRootArchetype);
 				}
 
-				// Register the core component
-				{
-					const auto& id = Core;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Core_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
+				reg_core_entity<Core_>(Core);
 
 				// Register the entity archetype (entity + EntityDesc component)
 				{
@@ -24546,154 +24592,91 @@ namespace gaia {
 					m_pCompArchetype = m_recs.entities[comp.id()].pArchetype;
 				}
 
-				// Register OnDelete/OnDeleteTarget/Remove/Delete components.
-				// Used to set up how deleting an entity/pair is handled.
+				reg_core_entity<OnDelete_>(OnDelete);
+				reg_core_entity<OnDeleteTarget_>(OnDeleteTarget);
+				reg_core_entity<Remove_>(Remove);
+				reg_core_entity<Delete_>(Delete);
+				reg_core_entity<Error_>(Error);
+				reg_core_entity<DependsOn_>(DependsOn);
+				reg_core_entity<CantCombine_>(CantCombine);
+				reg_core_entity<Acyclic_>(Acyclic);
+				reg_core_entity<All_>(All);
+				reg_core_entity<ChildOf_>(ChildOf);
+				reg_core_entity<Is_>(Is);
+
+				// Add special properites for core components
 				{
-					const auto& id = OnDelete;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<OnDelete_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-				{
-					const auto& id = OnDeleteTarget;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<OnDeleteTarget_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-				{
-					const auto& id = Remove;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Remove_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-				{
-					const auto& id = Delete;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Delete_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-				{
-					const auto& id = Error;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Error_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
+					EntityBuilder(*this, Core) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, GAIA_ID(EntityDesc)) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, GAIA_ID(Component)) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, OnDelete) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, OnDeleteTarget) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, Remove) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, Delete) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, Error) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, All) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, DependsOn) //
+							.add(Core)
+							.add(Pair(OnDelete, Error))
+							.add(Acyclic);
+					EntityBuilder(*this, CantCombine) //
+							.add(Core)
+							.add(Pair(OnDelete, Error))
+							.add(Acyclic);
+					EntityBuilder(*this, Acyclic) //
+							.add(Core)
+							.add(Pair(OnDelete, Error));
+					EntityBuilder(*this, ChildOf) //
+							.add(Core)
+							.add(Acyclic)
+							.add(Pair(OnDelete, Error))
+							.add(Pair(OnDeleteTarget, Delete));
+					EntityBuilder(*this, Is) //
+							.add(Core)
+							.add(Acyclic)
+							.add(Pair(OnDelete, Error));
 				}
 
-				// Dependencies
+				// Remove all archetypes with no chunks. We don't want any leftovers after
+				// archetype movemements.
 				{
-					const auto& id = DependsOn;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<DependsOn_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-				{
-					const auto& id = CantCombine;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<CantCombine_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
+					for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
+						auto* pArchetype = m_archetypes[i];
+						if (!pArchetype->chunks().empty())
+							continue;
+						m_archetypesToDel.push_back(pArchetype);
+					}
+
+					for (auto* pArchetype: m_archetypesToDel) {
+						unreg_archetype_raw(pArchetype);
+						delete pArchetype;
+					}
+
+					m_archetypesToDel.clear();
+					sort_archetypes();
 				}
 
-				// Graph restrictions
-				{
-					const auto& id = Acyclic;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<Acyclic_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Register All component. Used with relationship queries.
-				{
-					const auto& id = All;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<All_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Register ChildOf component. Used with relationship queries.
-				// When the relationship target is deleted all children are deleted as well.
-				{
-					const auto& id = ChildOf;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<ChildOf_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Base entity is.
-				{
-					const auto& id = Is;
-					auto comp = add(*m_pRootArchetype, id.entity(), id.pair(), id.kind());
-					const auto& desc = comp_cache_mut().add<AliasOf_>(id);
-					GAIA_ASSERT(desc.entity == id);
-					(void)comp;
-					(void)desc;
-				}
-
-				// Special properites for core components
-				EntityBuilder(*this, Core) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(EntityDesc)) //
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(Component)) //
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, OnDelete) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, OnDeleteTarget) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, Remove) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, Delete) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, Error) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, All) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, DependsOn) //
-						.add(Core)
-						.add(Pair(OnDelete, Error))
-						.add(Acyclic);
-				EntityBuilder(*this, CantCombine) //
-						.add(Core)
-						.add(Pair(OnDelete, Error))
-						.add(Acyclic);
-				EntityBuilder(*this, Acyclic) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, ChildOf) //
-						.add(Core)
-						.add(Acyclic)
-						.add(Pair(OnDelete, Error))
-						.add(Pair(OnDeleteTarget, Delete));
-				EntityBuilder(*this, Is) //
-						.add(Core)
-						.add(Acyclic)
-						.add(Pair(OnDelete, Error));
+				// Make sure archetype pointers are up-to-date
+				// m_pEntityArchetype = m_recs.entities[GAIA_ID(EntityDesc).id()].pArchetype;
+				// m_pCompArchetype = m_recs.entities[GAIA_ID(Component).id()].pArchetype;
 			}
 
 			void done() {

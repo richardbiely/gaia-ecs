@@ -105,7 +105,7 @@ namespace gaia {
 					return;
 
 				uint32_t depIdx = job.dependencyIdx;
-				while (depIdx != (uint32_t)-1) {
+				while (depIdx != BadIndex) {
 					auto& dep = m_deps[depIdx];
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
 					// const uint32_t depPrio = dep.;
@@ -127,7 +127,7 @@ namespace gaia {
 				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
-				j.dependencyIdx = (uint32_t)-1;
+				j.dependencyIdx = BadIndex;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
 				return handle;
@@ -196,7 +196,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobManager::handle_deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == (uint32_t)-1)
+				if (job.dependencyIdx == BadIndex)
 					return true;
 
 				uint32_t depsId = job.dependencyIdx;
@@ -215,7 +215,7 @@ namespace gaia {
 						}
 
 						depsId = dep.dependencyIdxNext;
-					} while (depsId != (uint32_t)-1);
+					} while (depsId != BadIndex);
 				}
 
 				// No need to update the index because once we return true we execute the job.
@@ -245,9 +245,9 @@ namespace gaia {
 					auto& dep = m_deps[depHandle.id()];
 					dep.dependsOn = dependsOn;
 
-					if (job.dependencyIdx == (uint32_t)-1)
+					if (job.dependencyIdx == BadIndex)
 						// First time adding a dependency to this job. Point it to the first allocated handle
-						dep.dependencyIdxNext = (uint32_t)-1;
+						dep.dependencyIdxNext = BadIndex;
 					else
 						// We have existing dependencies. Point the last known one to the first allocated handle
 						dep.dependencyIdxNext = job.dependencyIdx;
@@ -284,9 +284,9 @@ namespace gaia {
 						auto& dep = m_deps[depHandle.id()];
 						dep.dependsOn = dependsOn;
 
-						if (job.dependencyIdx == (uint32_t)-1)
+						if (job.dependencyIdx == BadIndex)
 							// First time adding a dependency to this job. Point it to the first allocated handle
-							dep.dependencyIdxNext = (uint32_t)-1;
+							dep.dependencyIdxNext = BadIndex;
 						else
 							// We have existing dependencies. Point the last known one to the first allocated handle
 							dep.dependencyIdxNext = job.dependencyIdx;

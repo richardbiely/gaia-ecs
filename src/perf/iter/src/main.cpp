@@ -44,7 +44,7 @@ auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArc
 	// Each archetype can contain only so many components.
 	// Therefore, we will be creating archetypes with up to "maxIdsPerArchetype" ones.
 
-	auto group = (uint32_t)-1;
+	auto group = BadIndex;
 	ecs::Entity e;
 	GAIA_FOR(archetypes) {
 		if (i % maxIdsPerArchetype == 0) {

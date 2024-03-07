@@ -450,7 +450,7 @@ namespace gaia {
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
-		struct AliasOf_ {};
+		struct Is_ {};
 
 		//----------------------------------------------------------------------
 		// Core component entities
@@ -473,7 +473,8 @@ namespace gaia {
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
 		//! Wildcard query entity
 		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		//! Entity representing a physical hierarchy
+		//! Entity representing a physical hierarchy.
+		//! When the relationship target is deleted all children are deleted as well.
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
 		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
