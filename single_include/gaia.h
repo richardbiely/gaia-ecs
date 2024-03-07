@@ -18777,8 +18777,8 @@ namespace gaia {
 			*/
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);
-				// diag_graph_info(world, archetype);
-				// diag_chunk_info(archetype);
+				diag_graph_info(world, archetype);
+				diag_chunk_info(archetype);
 				diag_entity_info(world, archetype);
 			}
 		};
@@ -24610,10 +24610,8 @@ namespace gaia {
 							.add(Core)
 							.add(Pair(OnDelete, Error));
 					EntityBuilder(*this, GAIA_ID(EntityDesc)) //
-							.add(Core)
 							.add(Pair(OnDelete, Error));
 					EntityBuilder(*this, GAIA_ID(Component)) //
-							.add(Core)
 							.add(Pair(OnDelete, Error));
 					EntityBuilder(*this, OnDelete) //
 							.add(Core)
