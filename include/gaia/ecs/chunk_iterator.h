@@ -79,7 +79,7 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 					auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
 					m_pChunk->update_world_version(compIdx);
 					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());

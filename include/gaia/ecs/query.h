@@ -561,16 +561,18 @@ namespace gaia {
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
+					TIter it;
 
-					for (const auto* pArchetype: queryInfo) {
+					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
 
-						const auto& chunks = pArchetype->chunks();
-						TIter it;
+						// No mapping for count(). It doesn't need to access data cache.
+						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
+						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 
@@ -595,6 +597,7 @@ namespace gaia {
 				template <bool UseFilters, typename TIter, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
+					TIter it;
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -602,9 +605,10 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::arr);
 
-						const auto& chunks = pArchetype->chunks();
-						TIter it;
+						// No mapping for arr(). It doesn't need to access data cache.
+						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
+						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 							if (it.size() == 0)

@@ -1704,7 +1704,7 @@ namespace gaia {
 			//! Sorts archetypes in the archetype list with their ids in ascending order
 			void sort_archetypes() {
 				struct sort_cond {
-					constexpr bool operator()(const Archetype* a, const Archetype* b) const {
+					bool operator()(const Archetype* a, const Archetype* b) const {
 						return a->id() < b->id();
 					}
 				};

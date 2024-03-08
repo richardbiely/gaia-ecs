@@ -7990,7 +7990,8 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(
+							tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -7998,7 +7999,8 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(
+							t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -8948,7 +8950,7 @@ namespace robin_hood {
 
 			GAIA_NODISCARD float max_load_factor() const noexcept {
 				ROBIN_HOOD_TRACE(this)
-				return MaxLoadFactor100 / 100.0F;
+				return MaxLoadFactor100 / 100.0f;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
@@ -11363,7 +11365,8 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<uint8_t const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<uint8_t*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(
+							tgt, src, 0, (uint32_t)target.calcNumBytesTotal(numElementsWithBuffer), 0, 0);
 				}
 			};
 
@@ -11371,7 +11374,8 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					gaia::mem::copy_elements<uint8_t>(t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
+					gaia::mem::copy_elements<uint8_t>(
+							t.mInfo, s.mInfo, 0, (uint32_t)t.calcNumBytesInfo(numElementsWithBuffer), 0, 0);
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -12321,7 +12325,7 @@ namespace robin_hood {
 
 			GAIA_NODISCARD float max_load_factor() const noexcept {
 				ROBIN_HOOD_TRACE(this)
-				return MaxLoadFactor100 / 100.0F;
+				return MaxLoadFactor100 / 100.0f;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
@@ -19157,7 +19161,7 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 					auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
 					m_pChunk->update_world_version(compIdx);
 					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
@@ -21110,16 +21114,18 @@ namespace gaia {
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
+					TIter it;
 
-					for (const auto* pArchetype: queryInfo) {
+					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
 
-						const auto& chunks = pArchetype->chunks();
-						TIter it;
+						// No mapping for count(). It doesn't need to access data cache.
+						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
+						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 
@@ -21144,6 +21150,7 @@ namespace gaia {
 				template <bool UseFilters, typename TIter, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
+					TIter it;
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -21151,9 +21158,10 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::arr);
 
-						const auto& chunks = pArchetype->chunks();
-						TIter it;
+						// No mapping for arr(). It doesn't need to access data cache.
+						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
+						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 							if (it.size() == 0)

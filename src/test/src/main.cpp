@@ -5430,20 +5430,20 @@ template <typename T>
 bool CompareSerializableTypes(const T& a, const T& b) {
 	if constexpr (core::has_member_equals<T>::value || core::has_global_equals<T>::value) {
 		return a == b;
+	} else {
+		// Convert inputs into tuples where each struct member is an element of the tuple
+		auto ta = meta::struct_to_tuple(a);
+		auto tb = meta::struct_to_tuple(b);
+
+		// Do element-wise comparison
+		bool ret = true;
+		core::each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
+			const auto& aa = std::get<i>(ta);
+			const auto& bb = std::get<i>(tb);
+			ret = ret && CompareSerializableType(aa, bb);
+		});
+		return ret;
 	}
-
-	// Convert inputs into tuples where each struct member is an element of the tuple
-	auto ta = meta::struct_to_tuple(a);
-	auto tb = meta::struct_to_tuple(b);
-
-	// Do element-wise comparison
-	bool ret = true;
-	core::each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
-		const auto& aa = std::get<i>(ta);
-		const auto& bb = std::get<i>(tb);
-		ret = ret && CompareSerializableType(aa, bb);
-	});
-	return ret;
 }
 
 struct FooNonTrivial {
