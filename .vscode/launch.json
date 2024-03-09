@@ -87,6 +87,14 @@
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/mt/gaia_perf_mt",
       "args": [],
       "cwd": "${workspaceFolder}",
+    },
+    {
+      "name": "(lldb) perf - app",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/app/gaia_perf_app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
     }
   ]
 }
