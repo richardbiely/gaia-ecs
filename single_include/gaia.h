@@ -18386,25 +18386,37 @@ namespace gaia {
 				// Therefore, we won't defragment them unless their uni components contain matching
 				// values.
 
-				if (m_chunks.empty())
+				if (maxEntities == 0)
+					return;
+				if (m_chunks.size() < 2)
 					return;
 
 				uint32_t front = 0;
 				uint32_t back = m_chunks.size() - 1;
 
-				// Find the first semi-empty chunk in the front
-				while (front < back && !m_chunks[front++]->is_semi())
-					;
-
 				auto* pDstChunk = m_chunks[front];
+				auto* pSrcChunk = m_chunks[back];
+
+				// Find the first semi-full chunk in the front
+				while (front < back && (pDstChunk->full() || !pDstChunk->is_semi()))
+					pDstChunk = m_chunks[++front];
+				// Find the last semi-full chunk in the back
+				while (front < back && (pSrcChunk->empty() || !pSrcChunk->is_semi()))
+					pSrcChunk = m_chunks[--back];
 
 				const bool hasUniEnts = !m_ids.empty() && m_ids.back().kind() == EntityKind::EK_Uni;
 
 				// Find the first semi-empty chunk in the back
-				while (front < back && m_chunks[--back]->is_semi()) {
-					auto* pSrcChunk = m_chunks[back];
+				while (front < back) {
+					pDstChunk = m_chunks[front];
+					pSrcChunk = m_chunks[back];
 
-					// Make sure chunk components have matching values
+					const uint32_t entitiesInSrcChunk = pSrcChunk->size();
+					const uint32_t spaceInDstChunk = pDstChunk->capacity() - pDstChunk->size();
+					const uint32_t entitiesToMoveSrc = core::get_min(entitiesInSrcChunk, maxEntities);
+					const uint32_t entitiesToMove = core::get_min(entitiesToMoveSrc, spaceInDstChunk);
+
+					// Make sure uni components have matching values
 					if (hasUniEnts) {
 						auto rec = pSrcChunk->comp_rec_view();
 						bool res = true;
@@ -18419,21 +18431,16 @@ namespace gaia {
 
 						// When there is not a match we move to the next chunk
 						if (!res) {
-							++front;
-
-							// We reached the source chunk which means this archetype has been defragmented
-							if (front >= back)
-								return;
+							pDstChunk = m_chunks[++front];
+							goto next_iteration;
 						}
 					}
 
-					const uint32_t entitiesInChunk = pSrcChunk->size();
-					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
 					GAIA_FOR(entitiesToMove) {
-						const auto lastEntityIdx = entitiesInChunk - i - 1;
-						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
+						const auto lastSrcEntityIdx = entitiesInSrcChunk - i - 1;
+						const auto entity = pSrcChunk->entity_view()[lastSrcEntityIdx];
 
-						const auto& ec = recs[entity];
+						auto& ec = recs[entity];
 
 						const auto oldRow = ec.row;
 						const auto newRow = pDstChunk->add_entity(entity);
@@ -18444,25 +18451,35 @@ namespace gaia {
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
 						GAIA_ASSERT(oldRow == ec.row);
 
-						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newRow, wasEnabled, recs);
+						// Move data from the old chunk to the new one
+						pDstChunk->move_entity_data(entity, newRow, recs);
 
 						// Remove the entity record from the old chunk
 						remove_entity(*pSrcChunk, oldRow, recs, chunksToDelete);
 
-						// The destination chunk is full, we need to move to the next one
-						if (pDstChunk->size() == m_properties.capacity) {
-							++front;
+						// Bring the entity container record up-to-date
+						ec.pChunk = pDstChunk;
+						ec.row = (uint16_t)newRow;
 
-							// We reached the source chunk which means this archetype has been defragmented
-							if (front >= back) {
-								maxEntities -= i + 1;
-								return;
-							}
-						}
+						// Transfer the original enabled state to the new chunk
+						enable_entity(pDstChunk, newRow, wasEnabled, recs);
 					}
 
 					maxEntities -= entitiesToMove;
+					if (maxEntities == 0)
+						return;
+
+					// The source is empty, find another semi-empty source
+					if (pSrcChunk->empty()) {
+						while (front < back && !m_chunks[--back]->is_semi())
+							;
+					}
+
+				next_iteration:
+					// The destination chunk is full, we need to move to the next one.
+					// The idea is to fill the destination as much as possible.
+					while (front < back && pDstChunk->full())
+						pDstChunk = m_chunks[++front];
 				}
 			}
 
@@ -21682,9 +21699,8 @@ namespace gaia {
 			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
 			ArchetypeList m_archetypesToDel;
-			//! ID of the last defragmented archetype
-			uint32_t m_defragLastArchetypeID = 0;
-			ArchetypeIdLookupKey::LookupHash m_defragLastArchetypeIDHash = {0};
+			//! Index of the last defragmented archetype in the archetype list
+			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
 			uint32_t m_defragEntitesPerTick = 100;
 
@@ -23274,7 +23290,7 @@ namespace gaia {
 			//! Sorts archetypes in the archetype list with their ids in ascending order
 			void sort_archetypes() {
 				struct sort_cond {
-					constexpr bool operator()(const Archetype* a, const Archetype* b) const {
+					bool operator()(const Archetype* a, const Archetype* b) const {
 						return a->id() < b->id();
 					}
 				};
@@ -23356,26 +23372,6 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying() || pArchetype->is_req_del());
 
-				// If the deleted archetype is the last one we defragmented
-				// make sure to point to the next one.
-				// Some archetypes are never deleted so the iterator is always going to contain
-				// a valid next archtype.
-				if (m_defragLastArchetypeID == pArchetype->id()) {
-					auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
-					++it;
-
-					// Handle the wrap-around.
-					if (it == m_archetypesById.end()) {
-						auto* pArch = m_archetypesById.begin()->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					} else {
-						auto* pArch = it->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					}
-				}
-
 				unreg_archetype(pArchetype);
 			}
 
@@ -23446,32 +23442,18 @@ namespace gaia {
 			void defrag_chunks(uint32_t maxEntities) {
 				GAIA_PROF_SCOPE(World::defrag_chunks);
 
-				const auto maxIters = (uint32_t)m_archetypesById.size();
+				const auto maxIters = m_archetypes.size();
 				// There has to be at least the root archetype present
 				GAIA_ASSERT(maxIters > 0);
 
-				auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
-				// Every time we delete an archetype we mamke sure the defrag ID is updated.
-				// Therefore, it should always be valid.
-				GAIA_ASSERT(it != m_archetypesById.end());
-
 				GAIA_FOR(maxIters) {
-					auto* pArchetype =
-							m_archetypesById[ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash)];
+					const auto idx = (m_defragLastArchetypeIdx + 1) % maxIters;
+					auto* pArchetype = m_archetypes[idx];
 					pArchetype->defrag(maxEntities, m_chunksToDel, m_recs);
 					if (maxEntities == 0)
 						return;
 
-					++it;
-					if (it == m_archetypesById.end()) {
-						auto* pArch = m_archetypesById.begin()->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					} else {
-						auto* pArch = it->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					}
+					m_defragLastArchetypeIdx = idx;
 				}
 			}
 
@@ -24819,9 +24801,9 @@ namespace gaia {
 			void gc() {
 				GAIA_PROF_SCOPE(World::gc);
 
-				del_empty_chunks();
+				// del_empty_chunks();
 				defrag_chunks(m_defragEntitesPerTick);
-				del_empty_archetypes();
+				// del_empty_archetypes();
 			}
 		};
 

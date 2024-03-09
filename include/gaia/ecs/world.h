@@ -112,9 +112,8 @@ namespace gaia {
 			cnt::darray<Chunk*> m_chunksToDel;
 			//! List of archetypes to delete
 			ArchetypeList m_archetypesToDel;
-			//! ID of the last defragmented archetype
-			uint32_t m_defragLastArchetypeID = 0;
-			ArchetypeIdLookupKey::LookupHash m_defragLastArchetypeIDHash = {0};
+			//! Index of the last defragmented archetype in the archetype list
+			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
 			uint32_t m_defragEntitesPerTick = 100;
 
@@ -1786,26 +1785,6 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying() || pArchetype->is_req_del());
 
-				// If the deleted archetype is the last one we defragmented
-				// make sure to point to the next one.
-				// Some archetypes are never deleted so the iterator is always going to contain
-				// a valid next archtype.
-				if (m_defragLastArchetypeID == pArchetype->id()) {
-					auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
-					++it;
-
-					// Handle the wrap-around.
-					if (it == m_archetypesById.end()) {
-						auto* pArch = m_archetypesById.begin()->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					} else {
-						auto* pArch = it->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					}
-				}
-
 				unreg_archetype(pArchetype);
 			}
 
@@ -1876,32 +1855,18 @@ namespace gaia {
 			void defrag_chunks(uint32_t maxEntities) {
 				GAIA_PROF_SCOPE(World::defrag_chunks);
 
-				const auto maxIters = (uint32_t)m_archetypesById.size();
+				const auto maxIters = m_archetypes.size();
 				// There has to be at least the root archetype present
 				GAIA_ASSERT(maxIters > 0);
 
-				auto it = m_archetypesById.find(ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash));
-				// Every time we delete an archetype we mamke sure the defrag ID is updated.
-				// Therefore, it should always be valid.
-				GAIA_ASSERT(it != m_archetypesById.end());
-
 				GAIA_FOR(maxIters) {
-					auto* pArchetype =
-							m_archetypesById[ArchetypeIdLookupKey(m_defragLastArchetypeID, m_defragLastArchetypeIDHash)];
+					const auto idx = (m_defragLastArchetypeIdx + 1) % maxIters;
+					auto* pArchetype = m_archetypes[idx];
 					pArchetype->defrag(maxEntities, m_chunksToDel, m_recs);
 					if (maxEntities == 0)
 						return;
 
-					++it;
-					if (it == m_archetypesById.end()) {
-						auto* pArch = m_archetypesById.begin()->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					} else {
-						auto* pArch = it->second;
-						m_defragLastArchetypeID = pArch->id();
-						m_defragLastArchetypeIDHash = pArch->id_hash();
-					}
+					m_defragLastArchetypeIdx = idx;
 				}
 			}
 
@@ -3249,9 +3214,9 @@ namespace gaia {
 			void gc() {
 				GAIA_PROF_SCOPE(World::gc);
 
-				del_empty_chunks();
+				// del_empty_chunks();
 				defrag_chunks(m_defragEntitesPerTick);
-				del_empty_archetypes();
+				// del_empty_archetypes();
 			}
 		};
 
