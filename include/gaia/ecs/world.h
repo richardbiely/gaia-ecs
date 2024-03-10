@@ -1568,6 +1568,15 @@ namespace gaia {
 
 				// Clear component cache
 				m_compCache.clear();
+
+				// Reinit
+				m_pRootArchetype = nullptr;
+				m_pEntityArchetype = nullptr;
+				m_pCompArchetype = nullptr;
+				m_nextArchetypeId = 0;
+				m_defragLastArchetypeIdx = 0;
+				m_worldVersion = 0;
+				init();
 			}
 
 			//! Sets the maximum number of entites defragmented per world tick
