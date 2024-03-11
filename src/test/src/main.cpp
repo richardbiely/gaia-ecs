@@ -3031,85 +3031,87 @@ TEST_CASE("Enable") {
 		REQUIRE(wld.enabled(arr[0]));
 	}
 
-	ecs::Query q = wld.query().all<Position>();
+	{
+		ecs::Query q = wld.query().all<Position>();
 
-	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
-		{
-			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::IterAll& it) {
-				const uint32_t cExpected = it.size();
-				uint32_t c = 0;
-				GAIA_EACH(it)++ c;
-				REQUIRE(c == cExpected);
-				cnt += c;
-			});
-			REQUIRE(cnt == expectedCountAll);
+		auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
+			{
+				uint32_t cnt = 0;
+				q.each([&]([[maybe_unused]] ecs::IterAll& it) {
+					const uint32_t cExpected = it.size();
+					uint32_t c = 0;
+					GAIA_EACH(it)++ c;
+					REQUIRE(c == cExpected);
+					cnt += c;
+				});
+				REQUIRE(cnt == expectedCountAll);
 
-			cnt = q.count(ecs::Constraints::AcceptAll);
-			REQUIRE(cnt == expectedCountAll);
-		}
-		{
-			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::Iter& it) {
-				const uint32_t cExpected = it.size();
-				uint32_t c = 0;
-				GAIA_EACH(it) {
-					REQUIRE(it.enabled(i));
-					++c;
-				}
-				REQUIRE(c == cExpected);
-				cnt += c;
-			});
-			REQUIRE(cnt == expectedCountEnabled);
+				cnt = q.count(ecs::Constraints::AcceptAll);
+				REQUIRE(cnt == expectedCountAll);
+			}
+			{
+				uint32_t cnt = 0;
+				q.each([&]([[maybe_unused]] ecs::Iter& it) {
+					const uint32_t cExpected = it.size();
+					uint32_t c = 0;
+					GAIA_EACH(it) {
+						REQUIRE(it.enabled(i));
+						++c;
+					}
+					REQUIRE(c == cExpected);
+					cnt += c;
+				});
+				REQUIRE(cnt == expectedCountEnabled);
 
-			cnt = q.count();
-			REQUIRE(cnt == expectedCountEnabled);
-		}
-		{
-			uint32_t cnt = 0;
-			q.each([&]([[maybe_unused]] ecs::IterDisabled& it) {
-				const uint32_t cExpected = it.size();
-				uint32_t c = 0;
-				GAIA_EACH(it) {
-					REQUIRE(!it.enabled(i));
-					++c;
-				}
-				REQUIRE(c == cExpected);
-				cnt += c;
-			});
-			REQUIRE(cnt == expectedCountDisabled);
+				cnt = q.count();
+				REQUIRE(cnt == expectedCountEnabled);
+			}
+			{
+				uint32_t cnt = 0;
+				q.each([&]([[maybe_unused]] ecs::IterDisabled& it) {
+					const uint32_t cExpected = it.size();
+					uint32_t c = 0;
+					GAIA_EACH(it) {
+						REQUIRE(!it.enabled(i));
+						++c;
+					}
+					REQUIRE(c == cExpected);
+					cnt += c;
+				});
+				REQUIRE(cnt == expectedCountDisabled);
 
-			cnt = q.count(ecs::Constraints::DisabledOnly);
-			REQUIRE(cnt == expectedCountDisabled);
-		}
-	};
+				cnt = q.count(ecs::Constraints::DisabledOnly);
+				REQUIRE(cnt == expectedCountDisabled);
+			}
+		};
 
-	checkQuery(N, N, 0);
-
-	SECTION("Disable vs query") {
-		wld.enable(arr[1000], false);
-		checkQuery(N, N - 1, 1);
-	}
-
-	SECTION("Enable vs query") {
-		wld.enable(arr[1000], true);
 		checkQuery(N, N, 0);
-	}
 
-	SECTION("Disable vs query") {
-		wld.enable(arr[1], false);
-		wld.enable(arr[100], false);
-		wld.enable(arr[999], false);
-		wld.enable(arr[1400], false);
-		checkQuery(N, N - 4, 4);
-	}
+		SECTION("Disable vs query") {
+			wld.enable(arr[1000], false);
+			checkQuery(N, N - 1, 1);
+		}
 
-	SECTION("Enable vs query") {
-		wld.enable(arr[1], true);
-		wld.enable(arr[100], true);
-		wld.enable(arr[999], true);
-		wld.enable(arr[1400], true);
-		checkQuery(N, N, 0);
+		SECTION("Enable vs query") {
+			wld.enable(arr[1000], true);
+			checkQuery(N, N, 0);
+		}
+
+		SECTION("Disable vs query") {
+			wld.enable(arr[1], false);
+			wld.enable(arr[100], false);
+			wld.enable(arr[999], false);
+			wld.enable(arr[1400], false);
+			checkQuery(N, N - 4, 4);
+		}
+
+		SECTION("Enable vs query") {
+			wld.enable(arr[1], true);
+			wld.enable(arr[100], true);
+			wld.enable(arr[999], true);
+			wld.enable(arr[1400], true);
+			checkQuery(N, N, 0);
+		}
 	}
 
 	SECTION("AoS") {
@@ -3117,40 +3119,77 @@ TEST_CASE("Enable") {
 		auto e0 = wld.add();
 		auto e1 = wld.add();
 		auto e2 = wld.add();
-		wld.add<Position>(e0, {1.f, 2.f, 3.f});
-		wld.add<Position>(e1, {10.f, 20.f, 30.f});
-		wld.add<Position>(e2, {100.f, 200.f, 300.f});
+		float vals[3] = {1.f, 2.f, 3.f};
+		wld.add<Position>(e0, {vals[0], vals[1], vals[2]});
+		wld.add<Position>(e1, {vals[0] * 10.f, vals[1] * 10.f, vals[2] * 10.f});
+		wld.add<Position>(e2, {vals[0] * 100.f, vals[1] * 100.f, vals[2] * 100.f});
 
 		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<Position>();
+			uint32_t cnt = 0;
+			q.each([&](const Position& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 2) {
+					REQUIRE(pos.x == vals[0] * 100.f);
+					REQUIRE(pos.y == vals[1] * 100.f);
+					REQUIRE(pos.z == vals[2] * 100.f);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 3);
 		}
 
-		{
-			wld.enable(e2, false);
+		wld.enable(e2, false);
 
+		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<Position>();
+			uint32_t cnt = 0;
+			q.each([&](const Position& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 2);
 		}
 	}
 
@@ -3159,40 +3198,77 @@ TEST_CASE("Enable") {
 		auto e0 = wld.add();
 		auto e1 = wld.add();
 		auto e2 = wld.add();
-		wld.add<PositionSoA>(e0, {1.f, 2.f, 3.f});
-		wld.add<PositionSoA>(e1, {10.f, 20.f, 30.f});
-		wld.add<PositionSoA>(e2, {100.f, 200.f, 300.f});
+		float vals[3] = {1.f, 2.f, 3.f};
+		wld.add<PositionSoA>(e0, {vals[0], vals[1], vals[2]});
+		wld.add<PositionSoA>(e1, {vals[0] * 10.f, vals[1] * 10.f, vals[2] * 10.f});
+		wld.add<PositionSoA>(e2, {vals[0] * 100.f, vals[1] * 100.f, vals[2] * 100.f});
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<PositionSoA>();
+			uint32_t cnt = 0;
+			q.each([&](const PositionSoA& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 2) {
+					REQUIRE(pos.x == vals[0] * 100.f);
+					REQUIRE(pos.y == vals[1] * 100.f);
+					REQUIRE(pos.z == vals[2] * 100.f);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 3);
 		}
 
 		wld.enable(e2, false);
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<PositionSoA>();
+			uint32_t cnt = 0;
+			q.each([&](const PositionSoA& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 2);
 		}
 	}
 
@@ -3201,73 +3277,146 @@ TEST_CASE("Enable") {
 		auto e0 = wld.add();
 		auto e1 = wld.add();
 		auto e2 = wld.add();
-		wld.add<PositionSoA>(e0, {1.f, 2.f, 3.f});
-		wld.add<PositionSoA>(e1, {10.f, 20.f, 30.f});
-		wld.add<PositionSoA>(e2, {100.f, 200.f, 300.f});
-
-		wld.add<Position>(e0, {1.f, 2.f, 3.f});
-		wld.add<Position>(e1, {10.f, 20.f, 30.f});
-		wld.add<Position>(e2, {100.f, 200.f, 300.f});
+		float vals[3] = {1.f, 2.f, 3.f};
+		wld.add<PositionSoA>(e0, {vals[0], vals[1], vals[2]});
+		wld.add<PositionSoA>(e1, {vals[0] * 10.f, vals[1] * 10.f, vals[2] * 10.f});
+		wld.add<PositionSoA>(e2, {vals[0] * 100.f, vals[1] * 100.f, vals[2] * 100.f});
+		wld.add<Position>(e0, {vals[0], vals[1], vals[2]});
+		wld.add<Position>(e1, {vals[0] * 10.f, vals[1] * 10.f, vals[2] * 10.f});
+		wld.add<Position>(e2, {vals[0] * 100.f, vals[1] * 100.f, vals[2] * 100.f});
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<PositionSoA>();
+			uint32_t cnt = 0;
+			q.each([&](const PositionSoA& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 2) {
+					REQUIRE(pos.x == vals[0] * 100.f);
+					REQUIRE(pos.y == vals[1] * 100.f);
+					REQUIRE(pos.z == vals[2] * 100.f);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 3);
 		}
 		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<Position>();
+			uint32_t cnt = 0;
+			q.each([&](const Position& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 2) {
+					REQUIRE(pos.x == vals[0] * 100.f);
+					REQUIRE(pos.y == vals[1] * 100.f);
+					REQUIRE(pos.z == vals[2] * 100.f);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 3);
 		}
 
 		wld.enable(e2, false);
 
 		{
-			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
-			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
-			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
-		}
-
-		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == 1.f);
-			REQUIRE(p0.y == 2.f);
-			REQUIRE(p0.z == 3.f);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == 10.f);
-			REQUIRE(p1.y == 20.f);
-			REQUIRE(p1.z == 30.f);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == 100.f);
-			REQUIRE(p2.y == 200.f);
-			REQUIRE(p2.z == 300.f);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<PositionSoA>();
+			uint32_t cnt = 0;
+			q.each([&](const PositionSoA& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 2);
+		}
+		{
+			wld.enable(e2, false);
+
+			auto p0 = wld.get<Position>(e0);
+			REQUIRE(p0.x == vals[0]);
+			REQUIRE(p0.y == vals[1]);
+			REQUIRE(p0.z == vals[2]);
+			auto p1 = wld.get<Position>(e1);
+			REQUIRE(p1.x == vals[0] * 10.f);
+			REQUIRE(p1.y == vals[1] * 10.f);
+			REQUIRE(p1.z == vals[2] * 10.f);
+			auto p2 = wld.get<Position>(e2);
+			REQUIRE(p2.x == vals[0] * 100.f);
+			REQUIRE(p2.y == vals[1] * 100.f);
+			REQUIRE(p2.z == vals[2] * 100.f);
+
+			ecs::Query q = wld.query().all<Position>();
+			uint32_t cnt = 0;
+			q.each([&](const Position& pos) {
+				if (cnt == 0) {
+					REQUIRE(pos.x == vals[0] * 10.f);
+					REQUIRE(pos.y == vals[1] * 10.f);
+					REQUIRE(pos.z == vals[2] * 10.f);
+				} else if (cnt == 1) {
+					REQUIRE(pos.x == vals[0]);
+					REQUIRE(pos.y == vals[1]);
+					REQUIRE(pos.z == vals[2]);
+				}
+				++cnt;
+			});
+			REQUIRE(cnt == 2);
 		}
 	}
 }
