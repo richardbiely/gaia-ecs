@@ -750,7 +750,8 @@ namespace gaia {
 							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
 								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
-								rec.pDesc->copy(pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
+								rec.pDesc->copy(
+										pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
 							}
 						}
 					}
@@ -1522,52 +1523,7 @@ namespace gaia {
 
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
-				// Clear entities
-				m_recs.entities = {};
-				m_recs.pairs = {};
-
-				// Clear archetypes
-				{
-					// Delete all allocated chunks and their parent archetypes
-					for (auto* pArchetype: m_archetypes)
-						delete pArchetype;
-
-					m_entityToAsRelations = {};
-					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
-
-					m_archetypes = {};
-					m_archetypesById = {};
-					m_archetypesByHash = {};
-
-					m_reqArchetypesToDel = {};
-					m_reqEntitiesToDel = {};
-
-					m_entitiesToDel = {};
-					m_chunksToDel = {};
-					m_archetypesToDel = {};
-				}
-
-				// Clear caches
-				{
-					m_entityToArchetypeMap = {};
-					m_queryCache.clear();
-				}
-
-				// Clear entity names
-				{
-					for (auto& pair: m_nameToEntity) {
-						if (!pair.first.owned())
-							continue;
-						// Release any memory allocated for owned names
-						mem::mem_free((void*)pair.first.str());
-					}
-					m_nameToEntity = {};
-				}
-
-				// Clear component cache
-				m_compCache.clear();
+				cleanup_internal();
 
 				// Reinit
 				m_pRootArchetype = nullptr;
@@ -1632,6 +1588,56 @@ namespace gaia {
 			}
 
 		private:
+			//! Clears the world so that all its entities and components are released
+			void cleanup_internal() {
+				// Clear entities
+				m_recs.entities = {};
+				m_recs.pairs = {};
+
+				// Clear archetypes
+				{
+					// Delete all allocated chunks and their parent archetypes
+					for (auto* pArchetype: m_archetypes)
+						delete pArchetype;
+
+					m_entityToAsRelations = {};
+					m_entityToAsTargets = {};
+					m_targetsToRelations = {};
+					m_relationsToTargets = {};
+
+					m_archetypes = {};
+					m_archetypesById = {};
+					m_archetypesByHash = {};
+
+					m_reqArchetypesToDel = {};
+					m_reqEntitiesToDel = {};
+
+					m_entitiesToDel = {};
+					m_chunksToDel = {};
+					m_archetypesToDel = {};
+				}
+
+				// Clear caches
+				{
+					m_entityToArchetypeMap = {};
+					m_queryCache.clear();
+				}
+
+				// Clear entity names
+				{
+					for (auto& pair: m_nameToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_nameToEntity = {};
+				}
+
+				// Clear component cache
+				m_compCache.clear();
+			}
+
 			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
 				if (is_req_del(ec))
 					return false;
@@ -3090,7 +3096,7 @@ namespace gaia {
 			}
 
 			void done() {
-				cleanup();
+				cleanup_internal();
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
