@@ -96,28 +96,24 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t PackSize = 1;
 			constexpr static size_t Alignment = detail::get_alignment<TItem>();
-			constexpr static size_t ArrayAlignment = Alignment;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA, TItem> {
 			constexpr static DataLayout Layout = DataLayout::SoA;
 			constexpr static size_t PackSize = 4;
 			constexpr static size_t Alignment = PackSize * 4;
-			constexpr static size_t ArrayAlignment = Alignment;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA8, TItem> {
 			constexpr static DataLayout Layout = DataLayout::SoA8;
 			constexpr static size_t PackSize = 8;
 			constexpr static size_t Alignment = PackSize * 4;
-			constexpr static size_t ArrayAlignment = Alignment;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA16, TItem> {
 			constexpr static DataLayout Layout = DataLayout::SoA16;
 			constexpr static size_t PackSize = 16;
 			constexpr static size_t Alignment = PackSize * 4;
-			constexpr static size_t ArrayAlignment = Alignment;
 		};
 
 		template <DataLayout TDataLayout, typename TItem>
@@ -149,8 +145,7 @@ namespace gaia {
 
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
-			constexpr static size_t ArrayAlignment = data_layout_properties<DataLayout::AoS, ValueType>::ArrayAlignment;
-
+			
 			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, cnt);
 				return (uint32_t)(offset - addr);
@@ -180,10 +175,6 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr static ValueType& set(std::span<ValueType> s, size_t idx) noexcept {
 				return s[idx];
-			}
-
-			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
-				s[idx] = GAIA_FWD(val);
 			}
 		};
 
@@ -276,7 +267,6 @@ namespace gaia {
 
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
-			constexpr static size_t ArrayAlignment = data_layout_properties<TDataLayout, ValueType>::ArrayAlignment;
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
 			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
 			static_assert(sizeof(ValueType) > 0U, "SoA data can't be zero-size");
@@ -553,7 +543,7 @@ namespace gaia {
 		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
 
 		template <typename T, uint32_t N>
-		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::ArrayAlignment>;
+		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::Alignment>;
 
 	} // namespace mem
 } // namespace gaia

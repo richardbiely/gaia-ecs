@@ -9,6 +9,7 @@
 #include "../config/logging.h"
 #include "../core/hashing_string.h"
 #include "../mem/mem_alloc.h"
+#include "../mem/mem_utils.h"
 #include "../meta/type_info.h"
 #include "component.h"
 #include "component_desc.h"
@@ -20,9 +21,10 @@ namespace gaia {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
-			using FuncCopy = void(const void*, void*);
-			using FuncMove = void(void*, void*);
-			using FuncSwap = void(void*, void*);
+			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
 			//! Component entity
@@ -63,33 +65,10 @@ namespace gaia {
 			ComponentCacheItem& operator=(const ComponentCacheItem&) = delete;
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
-			void ctor_from(void* pSrc, void* pDst) const {
-				GAIA_ASSERT(pSrc != pDst);
-
-				if (func_move_ctor != nullptr)
-					func_move_ctor(pSrc, pDst);
-				else if (func_copy_ctor != nullptr)
-					func_copy_ctor(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, comp.size());
-			}
-
-			void move(void* pSrc, void* pDst) const {
-				GAIA_ASSERT(pSrc != pDst);
-
-				if (func_move != nullptr)
-					func_move(pSrc, pDst);
-				else
-					copy(pSrc, pDst);
-			}
-
-			void copy(const void* pSrc, void* pDst) const {
-				GAIA_ASSERT(pSrc != pDst);
-
-				if (func_copy != nullptr)
-					func_copy(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, comp.size());
+			void
+			ctor_from(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				func_move_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 
 			void dtor(void* pSrc) const {
@@ -97,18 +76,25 @@ namespace gaia {
 					func_dtor(pSrc, 1);
 			}
 
-			void swap(void* pLeft, void* pRight) const {
-				// Function pointer is not provided only in one case: SoA component
+			void
+			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				func_copy(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+			}
+
+			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				func_move(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+			}
+
+			void
+			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, int32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(func_swap != nullptr);
-				func_swap(pLeft, pRight);
+				func_swap(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
 			}
 
 			bool cmp(const void* pLeft, const void* pRight) const {
 				GAIA_ASSERT(pLeft != pRight);
-
-				// We only ever compare components during defragmentation when they are uni components.
-				// For those cases the comparison operator must be present.
-				// Correct setup should be ensured by a compile time check when adding a new component.
 				GAIA_ASSERT(func_cmp != nullptr);
 				return func_cmp(pLeft, pRight);
 			}

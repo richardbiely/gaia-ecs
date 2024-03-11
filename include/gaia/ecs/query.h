@@ -337,7 +337,7 @@ namespace gaia {
 				template <typename... T>
 				void unpack_args_into_query_all(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
-					query.all<T...>();
+					query.template all<T...>();
 				}
 
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
@@ -345,7 +345,7 @@ namespace gaia {
 				GAIA_NODISCARD bool unpack_args_into_query_has_all(
 						const QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...> types) const {
 					if constexpr (sizeof...(T) > 0)
-						return queryInfo.has_all<T...>();
+						return queryInfo.template has_all<T...>();
 					else
 						return true;
 				}
@@ -520,7 +520,9 @@ namespace gaia {
 						// Translates to:
 						//		GAIA_EACH(it) func(p[i], v[i]);
 
-						GAIA_EACH(it) func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[i]...);
+						GAIA_EACH(it) {
+							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+						}
 					} else {
 						// No functor parameters. Do an empty loop.
 						GAIA_EACH(it) func();
@@ -621,7 +623,9 @@ namespace gaia {
 							}
 
 							const auto dataView = it.template view<ContainerItemType>();
-							GAIA_EACH(it) outArray.push_back(dataView[i]);
+							GAIA_EACH(it) {
+								outArray.push_back(dataView[it.template acc_index<ContainerItemType>(i)]);
+							}
 						}
 					}
 				}

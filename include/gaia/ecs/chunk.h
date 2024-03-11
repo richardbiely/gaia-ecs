@@ -10,6 +10,7 @@
 #include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
 #include "../core/utility.h"
+#include "../mem/data_layout_policy.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
@@ -153,9 +154,9 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
 					-> decltype(std::span<const uint8_t>{}) {
-				GAIA_ASSERT(to <= size());
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
+					GAIA_ASSERT(to <= size());
 					return {(const uint8_t*)&m_records.pEntities[from], to - from};
 				} else if constexpr (is_pair<T>::value) {
 					using TT = typename T::type;
@@ -167,9 +168,15 @@ namespace gaia {
 					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
 					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
 
-					if constexpr (kind == EntityKind::EK_Gen) {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						GAIA_ASSERT(from == 0);
+						GAIA_ASSERT(to == capacity());
+						return {comp_ptr(compIdx), to};
+					} else if constexpr (kind == EntityKind::EK_Gen) {
+						GAIA_ASSERT(to <= size());
 						return {comp_ptr(compIdx, from), to - from};
 					} else {
+						GAIA_ASSERT(to <= size());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr(compIdx), 1};
 					}
@@ -182,9 +189,15 @@ namespace gaia {
 					GAIA_ASSERT(comp.kind() == kind);
 					const auto compIdx = comp_idx(comp);
 
-					if constexpr (kind == EntityKind::EK_Gen) {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						GAIA_ASSERT(from == 0);
+						GAIA_ASSERT(to == capacity());
+						return {comp_ptr(compIdx), to};
+					} else if constexpr (kind == EntityKind::EK_Gen) {
+						GAIA_ASSERT(to <= size());
 						return {comp_ptr(compIdx, from), to - from};
 					} else {
+						GAIA_ASSERT(to <= size());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr(compIdx), 1};
 					}
@@ -201,8 +214,6 @@ namespace gaia {
 			template <typename T, bool WorldVersionUpdateWanted>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
 					-> decltype(std::span<uint8_t>{}) {
-				GAIA_ASSERT(to <= size());
-
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "view_mut can't be used to modify Entity");
 
 				if constexpr (is_pair<T>::value) {
@@ -219,9 +230,15 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted)
 						update_world_version(compIdx);
 
-					if constexpr (kind == EntityKind::EK_Gen) {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						GAIA_ASSERT(from == 0);
+						GAIA_ASSERT(to == capacity());
+						return {comp_ptr_mut(compIdx), to};
+					} else if constexpr (kind == EntityKind::EK_Gen) {
+						GAIA_ASSERT(to <= size());
 						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
+						GAIA_ASSERT(to <= size());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr_mut(compIdx), 1};
 					}
@@ -238,9 +255,15 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted)
 						update_world_version(compIdx);
 
-					if constexpr (kind == EntityKind::EK_Gen) {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						GAIA_ASSERT(from == 0);
+						GAIA_ASSERT(to == capacity());
+						return {comp_ptr_mut(compIdx), to};
+					} else if constexpr (kind == EntityKind::EK_Gen) {
+						GAIA_ASSERT(to <= size());
 						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
+						GAIA_ASSERT(to <= size());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr_mut(compIdx), 1};
 					}
@@ -261,10 +284,12 @@ namespace gaia {
 				using RetValueType = decltype(view<T>()[0]);
 
 				GAIA_ASSERT(row < m_header.count);
-				if constexpr (sizeof(RetValueType) > 8)
-					return (const U&)view<T>()[row];
-				else
+				if constexpr (mem::is_soa_layout_v<U>)
+					return view<T>(0, capacity())[row];
+				else if constexpr (sizeof(RetValueType) <= 8)
 					return view<T>()[row];
+				else
+					return (const U&)view<T>()[row];
 			}
 
 			/*!
@@ -423,7 +448,12 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view(uint16_t from, uint16_t to) const {
 				using U = typename actual_type_t<T>::Type;
-				return mem::auto_view_policy_get<U>{view_inter<T>(from, to)};
+
+				// Always consider full range for SoA
+				if constexpr (mem::is_soa_layout_v<U>)
+					return mem::auto_view_policy_get<U>{view_inter<T>(0, capacity())};
+				else
+					return mem::auto_view_policy_get<U>{view_inter<T>(from, to)};
 			}
 
 			template <typename T>
@@ -450,13 +480,16 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(from, to)};
+				// Always consider full range for SoA
+				if constexpr (mem::is_soa_layout_v<U>)
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(0, capacity())};
+				else
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(from, to)};
 			}
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_mut() {
-				using TT = core::raw_t<T>;
-				return view_mut<TT>(0, size());
+				return view_mut<T>(0, size());
 			}
 
 			template <typename T>
@@ -481,7 +514,11 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
+				// Always consider full range for SoA
+				if constexpr (mem::is_soa_layout_v<U>)
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(0, capacity())};
+				else
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
 			}
 
 			template <typename T>
@@ -617,9 +654,10 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldEntityContainer.row);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i, newEntityContainer.row);
-					rec.pDesc->copy(pSrc, pDst);
+					const auto* pSrc = (const void*)pOldChunk->comp_ptr_mut(i);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i);
+					rec.pDesc->copy(
+							pDst, pSrc, newEntityContainer.row, oldEntityContainer.row, pNewChunk->capacity(), pOldChunk->capacity());
 				}
 			}
 
@@ -639,9 +677,9 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, ec.row);
-					auto* pDst = (void*)comp_ptr_mut(i, row);
-					rec.pDesc->ctor_from(pSrc, pDst);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
+					auto* pDst = (void*)comp_ptr_mut(i);
+					rec.pDesc->ctor_from(pDst, pSrc, row, ec.row, capacity(), pOldChunk->capacity());
 				}
 			}
 
@@ -671,9 +709,9 @@ namespace gaia {
 							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i, oldRow);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
-								rec.pDesc->ctor_from(pSrc, pDst);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j);
+								rec.pDesc->ctor_from(pDst, pSrc, newRow, oldRow, pNewChunk->capacity(), pOldChunk->capacity());
 							}
 
 							++i;
@@ -728,7 +766,7 @@ namespace gaia {
 				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB"
 				GAIA_ASSERT(rowA <= rowB);
 
-				// There must be at least 2 entities inside to swap
+				// To move anything, we need at least 2 entities
 				if GAIA_LIKELY (rowA < rowB) {
 					GAIA_ASSERT(m_header.count > 1);
 
@@ -754,9 +792,8 @@ namespace gaia {
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(i, rowB);
-						auto* pDst = (void*)comp_ptr_mut(i, rowA);
-						rec.pDesc->move(pSrc, pDst);
+						auto* pSrc = (void*)comp_ptr_mut(i);
+						rec.pDesc->move(pSrc, pSrc, rowA, rowB, capacity(), capacity());
 						rec.pDesc->dtor(pSrc);
 					}
 
@@ -850,9 +887,8 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(i, rowA);
-					auto* pDst = (void*)comp_ptr_mut(i, rowB);
-					rec.pDesc->swap(pSrc, pDst);
+					GAIA_ASSERT(rec.pData == comp_ptr_mut(i));
+					rec.pDesc->swap(rec.pData, rec.pData, rowA, rowB, capacity(), capacity());
 				}
 
 				// Update indices in entity container.
@@ -1252,7 +1288,8 @@ namespace gaia {
 
 			//! Checks is the chunk is semi-full.
 			GAIA_NODISCARD bool is_semi() const {
-				constexpr float Threshold = 0.7f;
+				// We want the chunk filled to at least 75% before considering it semi-full
+				constexpr float Threshold = 0.75f;
 				return ((float)m_header.count / (float)m_header.capacity) < Threshold;
 			}
 

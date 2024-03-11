@@ -247,12 +247,12 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::alloc_mem(m_cap);
-					mem::move_elements<T>(m_pDataHeap, m_data, 0, cnt, m_cap, cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::alloc_mem(m_cap);
-					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, cnt, m_cap, cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
 					view_policy::free_mem(pDataOld, cnt);
 				}
 
@@ -303,7 +303,7 @@ namespace gaia {
 					m_pData = m_pDataHeap;
 				} else {
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
+					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}
@@ -327,7 +327,7 @@ namespace gaia {
 
 				resize(other.size());
 				mem::copy_elements<T>(
-						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
+						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -346,7 +346,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				{
 					resize(other.size());
-					mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
+					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				}
@@ -396,11 +396,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::alloc_mem(count);
-					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				} else {
 					m_pDataHeap = view_policy::alloc_mem(count);
-					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}
 
 				m_cap = count;
@@ -431,13 +431,13 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::alloc_mem(count);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
 					// Default-construct new items
 					core::call_ctor_n(&data()[size()], count - size());
 					// Release old memory
 					view_policy::free_mem(pDataOld, size());
 				} else {
-					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}
 
 				m_cap = count;
@@ -502,7 +502,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst, m_cap);
+				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor(&data()[m_cnt - 1]);
@@ -528,7 +528,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = last - first;
 
-				mem::shift_elements_left_n<T>(m_pData, idxSrc, idxDst, cnt, m_cap);
+				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
@@ -550,11 +550,11 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (size() < extent) {
-						mem::move_elements<T>(m_data, pDataOld, 0, size());
+						mem::move_elements<T>(m_data, pDataOld, size(), 0);
 						m_pData = m_data;
 					} else {
 						m_pDataHeap = view_policy::mem_alloc(m_cap = size());
-						mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size());
+						mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0);
 						m_pData = m_pDataHeap;
 					}
 

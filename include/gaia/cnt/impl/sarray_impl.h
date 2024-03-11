@@ -259,7 +259,7 @@ namespace gaia {
 
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
-				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
+				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			sarr& operator=(std::initializer_list<T> il) {
@@ -273,7 +273,7 @@ namespace gaia {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				mem::copy_elements<T>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), 0, other.size(), extent,
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
 				return *this;
@@ -285,7 +285,7 @@ namespace gaia {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), 0, other.size(), extent,
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
 				return *this;

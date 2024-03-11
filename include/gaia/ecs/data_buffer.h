@@ -5,6 +5,7 @@
 
 #include "../cnt/darray_ext.h"
 #include "component_cache.h"
+#include "gaia/mem/mem_utils.h"
 
 namespace gaia {
 	namespace ecs {
@@ -101,14 +102,15 @@ namespace gaia {
 				save(isManualDestroyNeeded);
 				m_data.resize(m_dataPos + sizeof(T));
 
-				auto* pSrc = (void*)&value;
+				auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
 				auto* pDst = (void*)&m_data[m_dataPos];
-				if (isRValue && desc.func_move_ctor != nullptr)
-					desc.func_move_ctor(pSrc, pDst);
-				else if (desc.func_copy_ctor != nullptr)
-					desc.func_copy_ctor(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, sizeof(T));
+				if (isRValue && desc.func_move_ctor != nullptr) {
+					if constexpr (mem::is_movable<T>())
+						mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+					else
+						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+				} else
+					mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
 
 				m_dataPos += sizeof(T);
 			}
@@ -143,7 +145,7 @@ namespace gaia {
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
 				const auto& cdata = std::as_const(m_data);
 				auto* pSrc = (void*)&cdata[m_dataPos];
-				desc.move(pSrc, pDst);
+				desc.move(pDst, pSrc, 0, 0, 1, 1);
 				if (isManualDestroyNeeded)
 					desc.dtor(pSrc);
 

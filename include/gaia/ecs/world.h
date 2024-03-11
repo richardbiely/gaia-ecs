@@ -747,10 +747,10 @@ namespace gaia {
 							if (rec.comp.size() == 0U)
 								continue;
 
-							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i, oldRow);
+							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
-								auto* pDst = (void*)pChunk->comp_ptr_mut(i, originalChunkSize + rowOffset);
-								rec.pDesc->copy(pSrc, pDst);
+								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
+								rec.pDesc->copy(pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
 							}
 						}
 					}
@@ -2075,7 +2075,7 @@ namespace gaia {
 				// // Compared to an ordinary lookup this path is stripped as much as possible.
 				// if (pArchetypeLeft == m_pRootArchetype) {
 				// 	Archetype* pArchetypeRight = nullptr;
-
+				//
 				// 	const auto hashLookup = calc_lookup_hash(EntitySpan{&entity, 1}).hash;
 				// 	pArchetypeRight = find_archetype({hashLookup}, EntitySpan{&entity, 1});
 				// 	if (pArchetypeRight == nullptr) {
@@ -2084,7 +2084,7 @@ namespace gaia {
 				// 		pArchetypeRight->build_graph_edges_left(pArchetypeLeft, entity);
 				// 		reg_archetype(pArchetypeRight);
 				// 	}
-
+				//
 				// 	return pArchetypeRight;
 				// }
 

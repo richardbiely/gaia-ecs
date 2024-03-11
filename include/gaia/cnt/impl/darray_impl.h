@@ -232,12 +232,12 @@ namespace gaia {
 				}
 
 				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
-				// This means we prefer more frequent allocations over memory fragmentation.
+				// This effectively means we prefer more frequent allocations over memory fragmentation.
 				m_cap = (cap * 3 + 1) / 2;
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(m_cap);
-				mem::move_elements<T>(m_pData, pDataOld, 0, cnt, m_cap, cap);
+				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::free_mem(pDataOld, cnt);
 			}
 
@@ -292,7 +292,7 @@ namespace gaia {
 
 				resize(other.size());
 				mem::copy_elements<T>(
-						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
+						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -347,7 +347,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(count);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				}
 
@@ -389,7 +389,7 @@ namespace gaia {
 				m_pData = view_policy::alloc_mem(count);
 				{
 					// Move old data to the new location
-					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
 					// Default-construct new items
 					core::call_ctor_n(&data()[size()], count - size());
 				}
@@ -457,7 +457,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst, m_cap);
+				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor(&data()[m_cnt - 1]);
@@ -483,7 +483,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = last - first;
 
-				mem::shift_elements_left_n<T>(m_pData, idxSrc, idxDst, cnt, m_cap);
+				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
@@ -503,7 +503,7 @@ namespace gaia {
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::mem_alloc(m_cap = size());
-				mem::move_elements<T>(m_pData, pDataOld, 0, size());
+				mem::move_elements<T>(m_pData, pDataOld, size(), 0);
 				view_policy::mem_free(pDataOld);
 			}
 

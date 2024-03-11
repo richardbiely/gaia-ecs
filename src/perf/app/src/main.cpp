@@ -109,10 +109,12 @@ public:
 		return m_height;
 	}
 
-	void draw(uint32_t x, uint32_t y, char c) {
+	void draw(int x, int y, char c) {
 		if (y >= 0 && y < m_height) {
 			if (x >= 0 && x < m_width) {
-				m_buffer[x + y * m_width] = c;
+				const auto xx = (uint32_t)x;
+				const auto yy = (uint32_t)y;
+				m_buffer[xx + yy * m_width] = c;
 			}
 		}
 	}
@@ -142,7 +144,7 @@ namespace sysbase {
 	}
 
 	void renderSprite(FrameBuffer& fb, float x, float y, const SpriteComponent& spr) {
-		fb.draw((int)(x), (int)(y), spr.character);
+		fb.draw((int)x, (int)y, spr.character);
 	}
 
 	void updateSprite(::components::SpriteComponent& spr, const PlayerComponent& player, const HealthComponent& health) {

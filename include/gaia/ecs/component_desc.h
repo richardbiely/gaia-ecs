@@ -98,112 +98,42 @@ namespace gaia {
 				}
 
 				static constexpr auto func_copy_ctor() {
-					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
-					} else if constexpr (std::is_copy_assignable_v<U>) {
-						return [](const void* from, void* to) {
-							const auto* src = (const U*)from;
-							auto* dst = (U*)to;
-							core::call_ctor(dst);
-							*dst = *src;
-						};
-					} else if constexpr (std::is_copy_constructible_v<U>) {
-						return [](const void* from, void* to) {
-							const auto* src = (const U*)from;
-							auto* dst = (U*)to;
-							core::call_ctor(dst, U(GAIA_MOV(*src)));
-						};
-					} else {
-						return nullptr;
-					}
-				}
-
-				static constexpr auto func_copy() {
-					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
-					} else if constexpr (std::is_copy_assignable_v<U>) {
-						return [](const void* from, void* to) {
-							const auto* src = (const U*)from;
-							auto* dst = (U*)to;
-							*dst = *src;
-						};
-					} else if constexpr (std::is_copy_constructible_v<U>) {
-						return [](const void* from, void* to) {
-							const auto* src = (const U*)from;
-							auto* dst = (U*)to;
-							*dst = U(*src);
-						};
-					} else {
-						return nullptr;
-					}
+					return [](void* dst, const void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+						mem::copy_ctor_element<U>((uint8_t*)dst, (const uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
+					};
 				}
 
 				static constexpr auto func_move_ctor() {
-					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
-					} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
-							auto* dst = (U*)to;
-							core::call_ctor(dst);
-							*dst = GAIA_MOV(*src);
-						};
-					} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
-							auto* dst = (U*)to;
-							core::call_ctor(dst, GAIA_MOV(*src));
-						};
-					} else {
-						return nullptr;
-					}
+					return [](void* dst, void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+						mem::move_ctor_element<U>((uint8_t*)dst, (uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
+					};
+				}
+
+				static constexpr auto func_copy() {
+					return [](void* dst, const void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+						mem::copy_element<U>((uint8_t*)dst, (const uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
+					};
 				}
 
 				static constexpr auto func_move() {
-					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
-					} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
-							auto* dst = (U*)to;
-							*dst = GAIA_MOV(*src);
-						};
-					} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-						return [](void* from, void* to) {
-							auto* src = (U*)from;
-							auto* dst = (U*)to;
-							*dst = U(GAIA_MOV(*src));
-						};
-					} else {
-						return nullptr;
-					}
+					return [](void* dst, void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+						mem::move_element<U>((uint8_t*)dst, (uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
+					};
 				}
 
 				static constexpr auto func_swap() {
-					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
-					} else if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
-						return [](void* left, void* right) {
-							auto* l = (U*)left;
-							auto* r = (U*)right;
-							U tmp = GAIA_MOV(*r);
-							*r = GAIA_MOV(*l);
-							*l = GAIA_MOV(tmp);
-						};
-					} else {
-						return [](void* left, void* right) {
-							auto* l = (U*)left;
-							auto* r = (U*)right;
-							U tmp = *r;
-							*r = *l;
-							*l = tmp;
-						};
-					}
+					return [](void* GAIA_RESTRICT left, void* GAIA_RESTRICT right, uint32_t idxLeft, uint32_t idxRight,
+										uint32_t sizeLeft, uint32_t sizeRight) {
+						mem::swap_elements<U>((uint8_t*)left, (uint8_t*)right, idxLeft, idxRight, sizeLeft, sizeRight);
+					};
 				}
 
 				static constexpr auto func_cmp() {
 					if constexpr (mem::is_soa_layout_v<U>) {
-						return nullptr;
+						return []([[maybe_unused]] const void* left, [[maybe_unused]] const void* right) {
+							GAIA_ASSERT(false && "func_cmp for SoA not implemented yet");
+							return false;
+						};
 					} else {
 						constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
 						constexpr bool hasMemberCmp = core::has_member_equals<U>::value;

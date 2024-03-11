@@ -1513,12 +1513,7 @@ TEST_CASE("DataLayout AoS") {
 template <typename T>
 void TestDataLayoutSoA() {
 	constexpr uint32_t N = 100;
-	cnt::sarray<T, N> data;
-
-	GAIA_FOR(N) {
-		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-		data[i] = {f[0], f[1], f[2]};
-
+	auto test = [](const auto& data, auto* f, uint32_t i) {
 		T val = data[i];
 		REQUIRE(val.x == f[0]);
 		REQUIRE(val.y == f[1]);
@@ -1528,32 +1523,44 @@ void TestDataLayoutSoA() {
 		REQUIRE(ff[0] == f[0]);
 		REQUIRE(ff[1] == f[1]);
 		REQUIRE(ff[2] == f[2]);
+	};
+
+	{
+		cnt::sarray<T, N> data;
+
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			data[i] = {f[0], f[1], f[2]};
+			test(data, f, i);
+		}
+
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			test(data, f, i);
+		}
 	}
+	{
+		cnt::darray<T> data;
 
-	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
-	GAIA_FOR(N) {
-		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-		T val = data[i];
-		REQUIRE(val.x == f[0]);
-		REQUIRE(val.y == f[1]);
-		REQUIRE(val.z == f[2]);
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			data.push_back({f[0], f[1], f[2]});
+			test(data, f, i);
+		}
 
-		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<2>()[i]};
-		REQUIRE(ff[0] == f[0]);
-		REQUIRE(ff[1] == f[1]);
-		REQUIRE(ff[2] == f[2]);
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			test(data, f, i);
+		}
 	}
 }
 
 template <>
 void TestDataLayoutSoA<DummySoA>() {
 	constexpr uint32_t N = 100;
-	cnt::sarray<DummySoA, N> data{};
-
-	GAIA_FOR(N) {
-		float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-		data[i] = {f[0], f[1], true, f[2]};
-
+	auto test = [](const auto& data, auto* f, uint32_t i) {
 		DummySoA val = data[i];
 		REQUIRE(val.x == f[0]);
 		REQUIRE(val.y == f[1]);
@@ -1566,24 +1573,37 @@ void TestDataLayoutSoA<DummySoA>() {
 		REQUIRE(ff[1] == f[1]);
 		REQUIRE(b == true);
 		REQUIRE(ff[2] == f[2]);
+	};
+
+	{
+		cnt::sarray<DummySoA, N> data{};
+
+		GAIA_FOR(N) {
+			float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			data[i] = {f[0], f[1], true, f[2]};
+			test(data, f, i);
+		}
+
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			test(data, f, i);
+		}
 	}
+	{
+		cnt::darray<DummySoA> data;
 
-	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
-	GAIA_FOR(N) {
-		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+		GAIA_FOR(N) {
+			float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			data.push_back({f[0], f[1], true, f[2]});
+			test(data, f, i);
+		}
 
-		DummySoA val = data[i];
-		REQUIRE(val.x == f[0]);
-		REQUIRE(val.y == f[1]);
-		REQUIRE(val.b == true);
-		REQUIRE(val.w == f[2]);
-
-		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<3>()[i]};
-		const bool b = data.template soa_view<2>()[i];
-		REQUIRE(ff[0] == f[0]);
-		REQUIRE(ff[1] == f[1]);
-		REQUIRE(b == true);
-		REQUIRE(ff[2] == f[2]);
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		GAIA_FOR(N) {
+			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+			test(data, f, i);
+		}
 	}
 }
 
@@ -3090,6 +3110,165 @@ TEST_CASE("Enable") {
 		wld.enable(arr[999], true);
 		wld.enable(arr[1400], true);
 		checkQuery(N, N, 0);
+	}
+
+	SECTION("AoS") {
+		wld.cleanup();
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto e2 = wld.add();
+		wld.add<Position>(e0, {1.f, 2.f, 3.f});
+		wld.add<Position>(e1, {10.f, 20.f, 30.f});
+		wld.add<Position>(e2, {100.f, 200.f, 300.f});
+
+		{
+			auto p0 = wld.get<Position>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<Position>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<Position>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+
+		{
+			wld.enable(e2, false);
+
+			auto p0 = wld.get<Position>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<Position>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<Position>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+	}
+
+	SECTION("SoA") {
+		wld.cleanup();
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto e2 = wld.add();
+		wld.add<PositionSoA>(e0, {1.f, 2.f, 3.f});
+		wld.add<PositionSoA>(e1, {10.f, 20.f, 30.f});
+		wld.add<PositionSoA>(e2, {100.f, 200.f, 300.f});
+
+		{
+			auto p0 = wld.get<PositionSoA>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<PositionSoA>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<PositionSoA>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+
+		wld.enable(e2, false);
+
+		{
+			auto p0 = wld.get<PositionSoA>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<PositionSoA>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<PositionSoA>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+	}
+
+	SECTION("AoS + SoA") {
+		wld.cleanup();
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto e2 = wld.add();
+		wld.add<PositionSoA>(e0, {1.f, 2.f, 3.f});
+		wld.add<PositionSoA>(e1, {10.f, 20.f, 30.f});
+		wld.add<PositionSoA>(e2, {100.f, 200.f, 300.f});
+
+		wld.add<Position>(e0, {1.f, 2.f, 3.f});
+		wld.add<Position>(e1, {10.f, 20.f, 30.f});
+		wld.add<Position>(e2, {100.f, 200.f, 300.f});
+
+		{
+			auto p0 = wld.get<PositionSoA>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<PositionSoA>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<PositionSoA>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+		{
+			auto p0 = wld.get<Position>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<Position>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<Position>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+
+		wld.enable(e2, false);
+
+		{
+			auto p0 = wld.get<Position>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<Position>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<Position>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
+
+		{
+			auto p0 = wld.get<PositionSoA>(e0);
+			REQUIRE(p0.x == 1.f);
+			REQUIRE(p0.y == 2.f);
+			REQUIRE(p0.z == 3.f);
+			auto p1 = wld.get<PositionSoA>(e1);
+			REQUIRE(p1.x == 10.f);
+			REQUIRE(p1.y == 20.f);
+			REQUIRE(p1.z == 30.f);
+			auto p2 = wld.get<PositionSoA>(e2);
+			REQUIRE(p2.x == 100.f);
+			REQUIRE(p2.y == 200.f);
+			REQUIRE(p2.z == 300.f);
+		}
 	}
 }
 
@@ -4782,25 +4961,111 @@ TEST_CASE("CommandBuffer") {
 	}
 
 	SECTION("Entity creation from another entity with a component") {
-		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		{
+			TestWorld twld;
+			ecs::CommandBuffer cb(wld);
+			auto mainEntity = wld.add();
 
-		auto mainEntity = wld.add();
-		wld.add<Position>(mainEntity, {1, 2, 3});
+			wld.add<Position>(mainEntity, {1, 2, 3});
 
-		[[maybe_unused]] auto tmp = cb.copy(mainEntity);
-		cb.commit();
+			auto q = wld.query().all<Position>();
+			REQUIRE(q.count() == 1);
+			uint32_t i = 0;
+			q.each([&](const Position& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 1);
 
-		auto q = wld.query().all<Position>();
-		REQUIRE(q.count() == 2);
-		uint32_t i = 0;
-		q.each([&](const Position& p) {
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
-			++i;
-		});
-		REQUIRE(i == 2);
+			(void)wld.copy(mainEntity);
+			REQUIRE(q.count() == 2);
+			i = 0;
+			q.each([&](const Position& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+
+		{
+			TestWorld twld;
+			ecs::CommandBuffer cb(wld);
+			auto mainEntity = wld.add();
+
+			wld.add<Position>(mainEntity, {1, 2, 3});
+
+			[[maybe_unused]] auto tmp = cb.copy(mainEntity);
+			cb.commit();
+
+			auto q = wld.query().all<Position>();
+			REQUIRE(q.count() == 2);
+			uint32_t i = 0;
+			q.each([&](const Position& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+	}
+
+	SECTION("Entity creation from another entity with a SoA component") {
+		{
+			TestWorld twld;
+			ecs::CommandBuffer cb(wld);
+			auto mainEntity = wld.add();
+
+			wld.add<PositionSoA>(mainEntity, {1, 2, 3});
+
+			auto q = wld.query().all<PositionSoA>();
+			REQUIRE(q.count() == 1);
+			uint32_t i = 0;
+			q.each([&](const PositionSoA& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 1);
+
+			(void)wld.copy(mainEntity);
+			REQUIRE(q.count() == 2);
+			i = 0;
+			q.each([&](const PositionSoA& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+
+		{
+			TestWorld twld;
+			ecs::CommandBuffer cb(wld);
+			auto mainEntity = wld.add();
+
+			wld.add<PositionSoA>(mainEntity, {1, 2, 3});
+
+			(void)cb.copy(mainEntity);
+			cb.commit();
+
+			auto q = wld.query().all<PositionSoA>();
+			REQUIRE(q.count() == 2);
+			uint32_t i = 0;
+			q.each([&](const PositionSoA& p) {
+				REQUIRE(p.x == 1.f);
+				REQUIRE(p.y == 2.f);
+				REQUIRE(p.z == 3.f);
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
 	}
 
 	SECTION("Delayed component addition to an existing entity") {

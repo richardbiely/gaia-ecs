@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "../core/iterator.h"
+#include "../mem/data_layout_policy.h"
 #include "archetype.h"
 #include "chunk.h"
 #include "component.h"
@@ -61,10 +62,18 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
+					using U = typename actual_type_t<T>::Type;
+
 					const auto compIdx = m_pCompIdxMapping[termIdx];
 					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
-					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
-					return m_pChunk->view_raw<T>(pData, m_pChunk->size());
+
+					if constexpr (mem::is_soa_layout_v<U>) {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
+						return m_pChunk->view_raw<T>(pData, m_pChunk->capacity());
+					} else {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
+						return m_pChunk->view_raw<T>(pData, from() - to());
+					}
 				}
 
 				//! Returns a mutable entity or component view.
@@ -78,11 +87,20 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
+					using U = typename actual_type_t<T>::Type;
+
 					const auto compIdx = m_pCompIdxMapping[termIdx];
 					GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
-					auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
+
 					m_pChunk->update_world_version(compIdx);
-					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
+
+					if constexpr (mem::is_soa_layout_v<U>) {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
+						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+					} else {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
+						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+					}
 				}
 
 				//! Returns a mutable component view.
@@ -97,10 +115,18 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
+					using U = typename actual_type_t<T>::Type;
+
 					const auto compIdx = m_pCompIdxMapping[termIdx];
 					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
-					const auto* pData = m_pChunk->comp_rec_view()[compIdx].pData;
-					return m_pChunk->view_mut_raw<T>(pData, m_pChunk->size());
+
+					if constexpr (mem::is_soa_layout_v<U>) {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
+						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+					} else {
+						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
+						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+					}
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -154,6 +180,19 @@ namespace gaia {
 						return m_pChunk->size_disabled();
 					else
 						return m_pChunk->size();
+				}
+
+				//! Returns the absolute index that should be used to access an item in the chunk.
+				//! AoS indices map directly, SoA indices need some adjustments because the view is
+				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
+				template <typename T>
+				uint32_t acc_index(uint32_t idx) const noexcept {
+					using U = typename actual_type_t<T>::Type;
+
+					if constexpr (mem::is_soa_layout_v<U>)
+						return idx + from();
+					else
+						return idx;
 				}
 
 			protected:
