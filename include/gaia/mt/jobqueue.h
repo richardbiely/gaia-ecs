@@ -24,7 +24,7 @@ namespace gaia {
 #endif
 
 #if JOB_QUEUE_USE_LOCKS
-			std::mutex m_bufferLock;
+			GAIA_PROF_MUTEX(std::mutex, m_bufferLock);
 			cnt::sringbuffer<JobHandle, N> m_buffer;
 #else
 			cnt::sarray<JobHandle, N> m_buffer;
@@ -39,7 +39,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::try_push);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
 				m_buffer.push_back(jobHandle);
@@ -66,7 +66,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
@@ -117,7 +117,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::try_steal);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 

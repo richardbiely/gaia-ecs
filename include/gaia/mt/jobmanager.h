@@ -87,11 +87,11 @@ namespace gaia {
 		};
 
 		class JobManager {
-			std::mutex m_jobsLock;
+			GAIA_PROF_MUTEX(std::mutex, m_jobsLock);
 			//! Implicit list of jobs
 			cnt::ilist<JobContainer, JobHandle> m_jobs;
 
-			std::mutex m_depsLock;
+			GAIA_PROF_MUTEX(std::mutex, m_depsLock);
 			//! List of job dependencies
 			cnt::ilist<JobDependency, DepHandle> m_deps;
 
@@ -123,7 +123,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				JobAllocCtx ctx{job.priority};
-				std::scoped_lock<std::mutex> lock(m_jobsLock);
+				std::scoped_lock lock(m_jobsLock);
 				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
@@ -138,7 +138,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
+				// --> std::scoped_lock lock(m_jobsLock);
 				auto& job = m_jobs.free(jobHandle);
 				job.state = JobInternalState::Released;
 			}
@@ -162,12 +162,12 @@ namespace gaia {
 			void reset() {
 				{
 					// No need to lock. Called from the main thread only when all jobs have finished already.
-					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
+					// --> std::scoped_lock lock(m_jobsLock);
 					m_jobs.clear();
 				}
 				{
 					// No need to lock. Called from the main thread only when all jobs must have ended already.
-					// --> std::scoped_lock<std::mutex> lock(m_depsLock);
+					// --> std::scoped_lock lock(m_depsLock);
 					m_deps.clear();
 				}
 			}
@@ -176,7 +176,7 @@ namespace gaia {
 				std::function<void()> func;
 
 				{
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					std::scoped_lock lock(m_jobsLock);
 					auto& job = m_jobs[jobHandle.id()];
 					job.state = JobInternalState::Running;
 					func = job.func;
@@ -184,7 +184,7 @@ namespace gaia {
 				if (func.operator bool())
 					func();
 				{
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					std::scoped_lock lock(m_jobsLock);
 					auto& job = m_jobs[jobHandle.id()];
 					job.state = JobInternalState::Done;
 				}
@@ -194,14 +194,14 @@ namespace gaia {
 			//! \return True if job dependencies are met. False otherwise
 			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobManager::handle_deps);
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				std::scoped_lock lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 				if (job.dependencyIdx == BadIndex)
 					return true;
 
 				uint32_t depsId = job.dependencyIdx;
 				{
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+					std::scoped_lock lockDeps(m_depsLock);
 
 					// Iterate over all dependencies.
 					// The first busy dependency breaks the loop. At this point we also update
@@ -228,7 +228,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobHandle, JobHandle dependsOn) {
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				std::scoped_lock lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 
 #if GAIA_ASSERT_ENABLED
@@ -239,7 +239,7 @@ namespace gaia {
 
 				{
 					GAIA_PROF_SCOPE(JobManager::dep);
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+					std::scoped_lock lockDeps(m_depsLock);
 
 					auto depHandle = alloc_dep();
 					auto& dep = m_deps[depHandle.id()];
@@ -275,9 +275,9 @@ namespace gaia {
 #endif
 
 				GAIA_PROF_SCOPE(JobManager::deps);
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				std::scoped_lock lockJobs(m_jobsLock);
 				{
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+					std::scoped_lock lockDeps(m_depsLock);
 
 					for (auto dependsOn: dependsOnSpan) {
 						auto depHandle = alloc_dep();

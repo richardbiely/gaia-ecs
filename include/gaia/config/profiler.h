@@ -118,26 +118,57 @@ namespace tracy {
 	#if !defined(GAIA_PROF_STOP)
 		#define GAIA_PROF_STOP() GAIA_PROF_STOP_IMPL()
 	#endif
+	//! Profiling zone for mutex
+	#if !defined(GAIA_PROF_MUTEX_BASE)
+	//! Extracts reference to m_lockable from tracy::Lockable<T> because
+	//! they don't provide a getter for the internal mutex object.
+	//! Therefore, we would not be able to use conditional variables easily.
+template <class TLockable, class T>
+inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
+	// Assuming TLockable is non-virtual and the memory layout is as follows:
+	// 	T m_lockable;
+	// 	LockableCtx m_ctx;
+	//  ...
+	//
+	// m_lockable is the first member. We simply cast to it.
+	T* ptr_lockable = reinterpret_cast<T*>(&lockable);
+	return (T&)*(ptr_lockable + 0);
+	// return (T&)lockable;
+}
+		#define GAIA_PROF_EXTRACT_MUTEX(type, name) gaia_extract_lock_from_tracy_lockable<decltype(name), type>(name)
+		#define GAIA_PROF_MUTEX_BASE(type) LockableBase<type>
+	#endif
+	#if !defined(GAIA_PROF_MUTEX)
+		#define GAIA_PROF_MUTEX(type, name) TracyLockable(type, name)
+	#endif
 #else
-	//! Marks the end of frame
+//! Marks the end of frame
 	#if !defined(GAIA_PROF_FRAME)
 		#define GAIA_PROF_FRAME()
 	#endif
-	//! Profiling zone bounded by the scope. The zone is named after a unique compile-time string
+//! Profiling zone bounded by the scope. The zone is named after a unique compile-time string
 	#if !defined(GAIA_PROF_SCOPE)
 		#define GAIA_PROF_SCOPE(zoneName)
 	#endif
-	//! Profiling zone bounded by the scope. The zone is named after a run-time string
+//! Profiling zone bounded by the scope. The zone is named after a run-time string
 	#if !defined(GAIA_PROF_SCOPE2)
 		#define GAIA_PROF_SCOPE2(zoneName)
 	#endif
-	//! Profiling zone with user-defined scope - start. The zone is named after a unique compile-time string
+//! Profiling zone with user-defined scope - start. The zone is named after a unique compile-time string
 	#if !defined(GAIA_PROF_START)
 		#define GAIA_PROF_START(zoneName)
 	#endif
-	//! Profiling zone with user-defined scope - stop.
+//! Profiling zone with user-defined scope - stop.
 	#if !defined(GAIA_PROF_STOP)
 		#define GAIA_PROF_STOP()
+	#endif
+//! Profiling zone for mutex
+	#if !defined(GAIA_PROF_MUTEX_BASE)
+		#define GAIA_PROF_MUTEX_BASE(type) type
+	#endif
+	#if !defined(GAIA_PROF_MUTEX)
+		#define GAIA_PROF_EXTRACT_MUTEX(type, name) name
+		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
 #endif
 
@@ -159,19 +190,19 @@ namespace tracy {
 		#define GAIA_PROF_FREE2(ptr, name) TracyFreeN(ptr, name)
 	#endif
 #else
-	//! Marks a memory allocation event. The event is named after a unique compile-time string
+//! Marks a memory allocation event. The event is named after a unique compile-time string
 	#if !defined(GAIA_PROF_ALLOC)
 		#define GAIA_PROF_ALLOC(ptr, size)
 	#endif
-	//! Marks a memory allocation event. The event is named after a run-time string
+//! Marks a memory allocation event. The event is named after a run-time string
 	#if !defined(GAIA_PROF_ALLOC2)
 		#define GAIA_PROF_ALLOC2(ptr, size, name)
 	#endif
-	//! Marks a memory release event. The event is named after a unique compile-time string
+//! Marks a memory release event. The event is named after a unique compile-time string
 	#if !defined(GAIA_PROF_FREE)
 		#define GAIA_PROF_FREE(ptr)
 	#endif
-	//! Marks a memory release event. The event is named after a run-time string
+//! Marks a memory release event. The event is named after a run-time string
 	#if !defined(GAIA_PROF_FREE2)
 		#define GAIA_PROF_FREE2(ptr, name)
 	#endif
