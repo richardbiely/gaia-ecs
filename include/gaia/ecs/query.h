@@ -436,8 +436,10 @@ namespace gaia {
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					ChunkBatchedList chunkBatch;
 					TIter it;
-
 					uint32_t aid = 0;
+
+					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+
 					// TODO: Have archetype cache as double-linked list with pointers only.
 					//       Have chunk cache as double-linked list with pointers only.
 					//       Make it so only valid pointers are linked together.
@@ -448,8 +450,6 @@ namespace gaia {
 							++aid;
 							continue;
 						}
-
-						GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
 						it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
 
@@ -894,6 +894,7 @@ namespace gaia {
 #endif
 
 					run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
 						run_query_on_chunk(it, func, InputArgs{});
 					});
 				}
@@ -903,15 +904,19 @@ namespace gaia {
 					auto& queryInfo = fetch();
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						GAIA_PROF_SCOPE(query_func);
 						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func);
 							func(it);
 						});
 					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
 						run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
 							func(it);
 						});
 					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
 						run_query_on_chunks<IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func);
 							func(it);
 						});
 					} else
