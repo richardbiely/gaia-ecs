@@ -13874,6 +13874,19 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+#if GAIA_PLATFORM_WINDOWS
+		extern "C" typedef HRESULT(WINAPI* TOSApiFunc_SetThreadDescription)(HANDLE, PCWSTR);
+
+	#pragma pack(push, 8)
+		typedef struct tagTHREADNAME_INFO {
+			DWORD dwType; // Must be 0x1000.
+			LPCSTR szName; // Pointer to name (in user addr space).
+			DWORD dwThreadID; // Thread ID (-1=caller thread).
+			DWORD dwFlags; // Reserved for future use, must be zero.
+		} THREADNAME_INFO;
+	#pragma pack(pop)
+#endif
+
 		class ThreadPool final {
 			static constexpr uint32_t MaxWorkers = 31;
 
@@ -14483,11 +14496,34 @@ namespace gaia {
 #elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
-				wchar_t threadName[16]{};
-				swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", workerIdx);
-				auto hr = SetThreadDescription(nativeHandle, threadName);
-				if (FAILED(hr))
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				TOSApiFunc_SetThreadDescription pSetThreadDescFunc = nullptr;
+				if (auto* pModule = GetModuleHandleA("kernel32.dll"))
+					pSetThreadDescFunc = (TOSApiFunc_SetThreadDescription)GetProcAddress(pModule, "SetThreadDescription");
+				if (pSetThreadDescFunc != nullptr) {
+					wchar_t threadName[16]{};
+					swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", workerIdx);
+
+					auto hr = pSetThreadDescFunc(nativeHandle, threadName);
+					if (FAILED(hr)) {
+						GAIA_LOG_W(
+								"Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					}
+				} else {
+	#if defined _MSC_VER
+					char threadName[16]{};
+					snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+
+					THREADNAME_INFO info{};
+					info.dwType = 0x1000;
+					info.szName = threadName;
+					info.dwThreadID = GetThreadId(nativeHandle);
+
+					__try {
+						RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+					} __except (EXCEPTION_EXECUTE_HANDLER) {
+					}
+	#endif
+				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
 				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
