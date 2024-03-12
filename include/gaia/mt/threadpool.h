@@ -635,7 +635,11 @@ namespace gaia {
 			//! \param workerIdx Index of the worker
 			//! \param prio Worker priority
 			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
-#if GAIA_PLATFORM_WINDOWS
+#if GAIA_PROF_USE_PROFILER_THREAD_NAME
+				char threadName[16]{};
+				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_PROF_THREAD_NAME(threadName);
+#elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
 				wchar_t threadName[16]{};
@@ -654,6 +658,7 @@ namespace gaia {
 
 				char threadName[16]{};
 				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_PROF_THREAD_NAME(threadName);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
@@ -699,7 +704,7 @@ namespace gaia {
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
 				auto& cv = m_cv[prio];
-				auto& cvLock = prio==0 ? m_cvLock0 : m_cvLock1;
+				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
 
 				while (!m_stop) {
 					JobHandle jobHandle;

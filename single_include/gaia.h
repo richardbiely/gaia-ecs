@@ -1023,6 +1023,14 @@ inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
 	#if !defined(GAIA_PROF_MUTEX)
 		#define GAIA_PROF_MUTEX(type, name) TracyLockable(type, name)
 	#endif
+	//! If set to 1 thread name will be set using the profiler's thread name setter function
+	#if !defined(GAIA_PROF_USE_PROFILER_THREAD_NAME)
+		#define GAIA_PROF_USE_PROFILER_THREAD_NAME 1
+	#endif
+	//! Sets the name of the thread for the profiler
+	#if !defined(GAIA_PROF_THREAD_NAME)
+		#define GAIA_PROF_THREAD_NAME(name) tracy::SetThreadName(name)
+	#endif
 #else
 //! Marks the end of frame
 	#if !defined(GAIA_PROF_FRAME)
@@ -1052,22 +1060,30 @@ inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
 		#define GAIA_PROF_EXTRACT_MUTEX(type, name) name
 		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
+	//! If set to 1 thread name will be set using the profiler's thread name setter function
+	#if !defined(GAIA_PROF_USE_PROFILER_THREAD_NAME)
+		#define GAIA_PROF_USE_PROFILER_THREAD_NAME 0
+	#endif
+	//! Sets the name of the thread for the profiler
+	#if !defined(GAIA_PROF_THREAD_NAME)
+		#define GAIA_PROF_THREAD_NAME(name)
+	#endif
 #endif
 
 #if GAIA_PROFILER_MEM
-	//! Marks a memory allocation event. The event is named after a unique compile-time string
+//! Marks a memory allocation event. The event is named after a unique compile-time string
 	#if !defined(GAIA_PROF_ALLOC)
 		#define GAIA_PROF_ALLOC(ptr, size) TracyAlloc(ptr, size)
 	#endif
-	//! Marks a memory allocation event. The event is named after a run-time string
+//! Marks a memory allocation event. The event is named after a run-time string
 	#if !defined(GAIA_PROF_ALLOC2)
 		#define GAIA_PROF_ALLOC2(ptr, size, name) TracyAllocN(ptr, size, name)
 	#endif
-	//! Marks a memory release event. The event is named after a unique compile-time string
+//! Marks a memory release event. The event is named after a unique compile-time string
 	#if !defined(GAIA_PROF_FREE)
 		#define GAIA_PROF_FREE(ptr) TracyFree(ptr)
 	#endif
-	//! Marks a memory release event. The event is named after a run-time string
+//! Marks a memory release event. The event is named after a run-time string
 	#if !defined(GAIA_PROF_FREE2)
 		#define GAIA_PROF_FREE2(ptr, name) TracyFreeN(ptr, name)
 	#endif
@@ -14460,7 +14476,11 @@ namespace gaia {
 			//! \param workerIdx Index of the worker
 			//! \param prio Worker priority
 			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
-#if GAIA_PLATFORM_WINDOWS
+#if GAIA_PROF_USE_PROFILER_THREAD_NAME
+				char threadName[16]{};
+				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_PROF_THREAD_NAME(threadName);
+#elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
 
 				wchar_t threadName[16]{};
@@ -14479,6 +14499,7 @@ namespace gaia {
 
 				char threadName[16]{};
 				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_PROF_THREAD_NAME(threadName);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
@@ -14524,7 +14545,7 @@ namespace gaia {
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
 				auto& cv = m_cv[prio];
-				auto& cvLock = prio==0 ? m_cvLock0 : m_cvLock1;
+				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
 
 				while (!m_stop) {
 					JobHandle jobHandle;
