@@ -883,6 +883,13 @@ namespace gaia {
 		}
 #endif
 
+#ifndef GAIA_PROFILER_CPU
+	#define GAIA_PROFILER_CPU 0
+#endif
+#ifndef GAIA_PROFILER_MEM
+	#define GAIA_PROFILER_MEM 0
+#endif
+
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
@@ -973,7 +980,7 @@ namespace tracy {
 // Tracy profiler GAIA implementation
 //------------------------------------------------------------------------
 
-	//! Marks the end of frame
+//! Marks the end of frame
 	#if !defined(GAIA_PROF_FRAME)
 		#define GAIA_PROF_FRAME() FrameMark
 	#endif
@@ -23849,7 +23856,7 @@ namespace gaia {
 				unreg_archetype_raw(pArchetype);
 			}
 
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 			static void print_archetype_entities(const World& world, const Archetype& archetype, Entity entity, bool adding) {
 				const auto& ids = archetype.ids();
 
@@ -25827,9 +25834,9 @@ namespace gaia {
 				if (name == nullptr) {
 					constexpr auto ct_name = meta::type_info::name<T>();
 					const size_t len = ct_name.size() >= MaxSystemNameLength ? MaxSystemNameLength : ct_name.size() + 1;
-					GAIA_SETSTR(pSystem->m_name, ct_name.data(), len);
+					GAIA_STRCPY(pSystem->m_name, len, ct_name.data());
 				} else {
-					GAIA_SETSTR(pSystem->m_name, name, MaxSystemNameLength);
+					GAIA_STRCPY(pSystem->m_name, MaxSystemNameLength, name);
 				}
 #endif
 

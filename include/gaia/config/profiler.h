@@ -1,6 +1,13 @@
 #pragma once
 #include "config.h"
 
+#ifndef GAIA_PROFILER_CPU
+	#define GAIA_PROFILER_CPU 0
+#endif
+#ifndef GAIA_PROFILER_MEM
+	#define GAIA_PROFILER_MEM 0
+#endif
+
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
@@ -91,7 +98,7 @@ namespace tracy {
 // Tracy profiler GAIA implementation
 //------------------------------------------------------------------------
 
-	//! Marks the end of frame
+//! Marks the end of frame
 	#if !defined(GAIA_PROF_FRAME)
 		#define GAIA_PROF_FRAME() FrameMark
 	#endif

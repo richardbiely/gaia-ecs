@@ -255,7 +255,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
       set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
       set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
-
+      
       FetchContent_MakeAvailable(tracy)
     endif()
   else()

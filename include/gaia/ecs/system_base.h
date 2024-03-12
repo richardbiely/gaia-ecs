@@ -222,9 +222,9 @@ namespace gaia {
 				if (name == nullptr) {
 					constexpr auto ct_name = meta::type_info::name<T>();
 					const size_t len = ct_name.size() >= MaxSystemNameLength ? MaxSystemNameLength : ct_name.size() + 1;
-					GAIA_SETSTR(pSystem->m_name, ct_name.data(), len);
+					GAIA_STRCPY(pSystem->m_name, len, ct_name.data());
 				} else {
-					GAIA_SETSTR(pSystem->m_name, name, MaxSystemNameLength);
+					GAIA_STRCPY(pSystem->m_name, MaxSystemNameLength, name);
 				}
 #endif
 

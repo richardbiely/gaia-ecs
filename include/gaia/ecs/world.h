@@ -2028,7 +2028,7 @@ namespace gaia {
 				unreg_archetype_raw(pArchetype);
 			}
 
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 			static void print_archetype_entities(const World& world, const Archetype& archetype, Entity entity, bool adding) {
 				const auto& ids = archetype.ids();
 
