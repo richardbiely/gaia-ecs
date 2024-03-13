@@ -1,5 +1,7 @@
 #include <gaia.h>
 
+#include "gaia/mem/stack_allocator.h"
+
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
@@ -6342,6 +6344,69 @@ TEST_CASE("Multithreading - CompleteMany") {
 		tp.set_max_workers(0, 0);
 
 		work();
+	}
+}
+
+//------------------------------------------------------------------------------
+// Allocators
+//------------------------------------------------------------------------------
+
+TEST_CASE("StackAllocator") {
+	struct TFoo {
+		int a;
+		bool b;
+	};
+
+	mem::StackAllocator a;
+	{
+		auto* pPosN = a.alloc<PositionNonTrivial>(3);
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1);
+			REQUIRE(pPosN[i].y == 2);
+			REQUIRE(pPosN[i].z == 3);
+		}
+	}
+	a.reset();
+	{
+		auto* pInt = a.alloc<int>(1);
+		*pInt = 10;
+		a.free(pInt, 1);
+		pInt = a.alloc<int>(1);
+		REQUIRE(*pInt == 10);
+
+		auto* pPos = a.alloc<Position>(10);
+		GAIA_FOR(10) {
+			pPos[i].x = i;
+			pPos[i].y = i + 1;
+			pPos[i].z = i + 2;
+		}
+		a.free(pPos, 10);
+		pPos = a.alloc<Position>(10);
+		GAIA_FOR(10) {
+			REQUIRE(pPos[i].x == i);
+			REQUIRE(pPos[i].y == i + 1);
+			REQUIRE(pPos[i].z == i + 2);
+		}
+
+		auto* pPosN = a.alloc<PositionNonTrivial>(3);
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1);
+			REQUIRE(pPosN[i].y == 2);
+			REQUIRE(pPosN[i].z == 3);
+		}
+
+		// Alloc and release some more objects
+		auto* pFoo = a.alloc<TFoo>(1);
+		auto* pInt5 = a.alloc<int>(5);
+		a.free(pInt5, 5);
+		a.free(pFoo, 1);
+
+		// Make sure the previously stored positions are still intact
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1);
+			REQUIRE(pPosN[i].y == 2);
+			REQUIRE(pPosN[i].z == 3);
+		}
 	}
 }
 

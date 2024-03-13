@@ -11,6 +11,7 @@
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
+#include "gaia/mem/raw_data_holder.h"
 
 #include "gaia/meta/reflection.h"
 #include "gaia/meta/type_info.h"

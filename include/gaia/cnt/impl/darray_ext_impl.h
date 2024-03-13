@@ -8,7 +8,7 @@
 
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
-#include "../../mem/data_layout_policy.h"
+#include "../../mem/raw_data_holder.h"
 #include "../../mem/mem_utils.h"
 
 namespace gaia {

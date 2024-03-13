@@ -10,8 +10,8 @@
 
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
-#include "../../mem/data_layout_policy.h"
 #include "../../mem/mem_utils.h"
+#include "../../mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace cnt {
