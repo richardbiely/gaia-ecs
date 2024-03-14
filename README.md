@@ -1639,12 +1639,23 @@ Project name | Description
 ## Profiling
 It is possible to measure the performance and memory usage of the framework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.
 
+![tracy_1](docs/img/tracy_1.png)
+![tracy_2](docs/img/tracy_2.png)
+
 CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default).
 
 Memory part can be controlled via -DGAIA_PROF_MEM=ON/OFF (OFF by default).
 
 Building the profiler server can be controlled via -DGAIA_PROF_CPU=ON (OFF by default).
 >**NOTE:<br/>** This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
+
+Custom profiler support can be added by overriding GAIA_PROF_* preprocessor definitions:
+```cpp
+#define GAIA_PROF_FRAME my_profilers_frame_function
+#define GAIA_PROF_SCOPE my_profilers_zone_function
+...
+#include <gaia.h>
+```
 
 ## Unit testing
 The project is thoroughly unit-tested and includes thousands of unit tests covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
