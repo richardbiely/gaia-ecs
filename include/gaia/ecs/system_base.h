@@ -148,7 +148,7 @@ namespace gaia {
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systems) {
 					pSystem->~BaseSystem();
-					mem::AllocHelper::free(pSystem);
+					mem::AllocHelper::free("System", pSystem);
 				}
 
 				m_systems.clear();
@@ -178,7 +178,7 @@ namespace gaia {
 				}
 				for (auto* pSystem: m_systemsToDelete) {
 					pSystem->~BaseSystem();
-					mem::AllocHelper::free(pSystem);
+					mem::AllocHelper::free("System", pSystem);
 				}
 				m_systemsToDelete.clear();
 
@@ -220,7 +220,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
-				auto* pSystem = mem::AllocHelper::alloc<T>();
+				auto* pSystem = mem::AllocHelper::alloc<T>("System");
 				(void)new (pSystem) T();
 				pSystem->m_world = &m_world;
 

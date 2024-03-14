@@ -3604,6 +3604,15 @@ namespace gaia {
 				return ptr;
 			}
 
+			void* alloc(const char* name, size_t size) {
+				GAIA_ASSERT(size > 0);
+
+				void* ptr = GAIA_MEM_ALLC(size);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC2(ptr, size, name);
+				return ptr;
+			}
+
 			void* alloc_alig(size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
@@ -3616,6 +3625,18 @@ namespace gaia {
 				return ptr;
 			}
 
+			void* alloc_alig(const char* name, size_t size, size_t alig) {
+				GAIA_ASSERT(size > 0);
+				GAIA_ASSERT(alig > 0);
+
+				// Make sure size is a multiple of the alignment
+				size = (size + alig - 1) & ~(alig - 1);
+				void* ptr = GAIA_MEM_ALLC_A(size, alig);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC2(ptr, size, name);
+				return ptr;
+			}
+
 			void free(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -3623,11 +3644,25 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
+			void free(const char* name, void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE(ptr);
+				GAIA_PROF_FREE2(ptr, name);
+			}
+
 			void free_alig(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE_A(ptr);
 				GAIA_PROF_FREE(ptr);
+			}
+
+			void free_alig(const char* name, void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE_A(ptr);
+				GAIA_PROF_FREE2(ptr, name);
 			}
 		};
 
@@ -3644,16 +3679,32 @@ namespace gaia {
 				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
 			}
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc(const char* name, uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc(name, sizeof(T) * cnt);
+			}
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
+			}
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc_alig(const char* name, size_t alig, uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc_alig(name, sizeof(T) * cnt, alig);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free(void* ptr) {
 				Adaptor::get().free(ptr);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free(const char* name, void* ptr) {
+				Adaptor::get().free(name, ptr);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free_alig(void* ptr) {
 				Adaptor::get().free_alig(ptr);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free_alig(const char* name, void* ptr) {
+				Adaptor::get().free_alig(name, ptr);
 			}
 		};
 
@@ -3663,9 +3714,20 @@ namespace gaia {
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
+		inline void* mem_alloc(const char* name, size_t size) {
+			return DefaultAllocatorAdaptor::get().alloc(name, size);
+		}
+
+		//! Allocate \param size bytes of memory using the default allocator.
 		//! The memory is alligned to \param alig boundary.
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
+		}
+
+		//! Allocate \param size bytes of memory using the default allocator.
+		//! The memory is alligned to \param alig boundary.
+		inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
+			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
 
 		//! Release memory allocated by the default allocator.
@@ -3673,9 +3735,19 @@ namespace gaia {
 			return DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
+		//! Release memory allocated by the default allocator.
+		inline void mem_free(const char* name, void* ptr) {
+			return DefaultAllocatorAdaptor::get().free(name, ptr);
+		}
+
 		//! Release aligned memory allocated by the default allocator.
 		inline void mem_free_alig(void* ptr) {
 			return DefaultAllocatorAdaptor::get().free_alig(ptr);
+		}
+
+		//! Release aligned memory allocated by the default allocator.
+		inline void mem_free_alig(const char* name, void* ptr) {
+			return DefaultAllocatorAdaptor::get().free_alig(name, ptr);
 		}
 
 		//! Align a number to the requested byte alignment
@@ -15964,15 +16036,15 @@ namespace gaia {
 			private:
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(16U, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>();
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>("Chunk", 16U, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>("MemoryPage");
 					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
 
 				static void free_page(MemoryPage* pMemoryPage) {
-					mem::AllocHelper::free_alig(pMemoryPage->m_data);
+					mem::AllocHelper::free_alig("Chunk", pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free(pMemoryPage);
+					mem::AllocHelper::free("MemoryPage", pMemoryPage);
 				}
 
 				void done() {
@@ -16480,7 +16552,7 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>();
+				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(
@@ -16553,7 +16625,7 @@ namespace gaia {
 				}
 
 				pItem->~ComponentCacheItem();
-				mem::AllocHelper::free(pItem);
+				mem::AllocHelper::free("ComponentCacheItem", pItem);
 			}
 		};
 	} // namespace ecs
@@ -18512,7 +18584,7 @@ namespace gaia {
 			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
 				const auto& cc = comp_cache(world);
 
-				auto* newArch = mem::AllocHelper::alloc<Archetype>();
+				auto* newArch = mem::AllocHelper::alloc<Archetype>("Archetype");
 				(void)new (newArch) Archetype(cc, worldVersion);
 
 				newArch->m_archetypeId = archetypeId;
@@ -18648,7 +18720,7 @@ namespace gaia {
 			void static destroy(Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				pArchetype->~Archetype();
-				mem::AllocHelper::free(pArchetype);
+				mem::AllocHelper::free("Archetype", pArchetype);
 			}
 
 			ArchetypeIdLookupKey::LookupHash id_hash() const {
@@ -25930,7 +26002,7 @@ namespace gaia {
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systems) {
 					pSystem->~BaseSystem();
-					mem::AllocHelper::free(pSystem);
+					mem::AllocHelper::free("System", pSystem);
 				}
 
 				m_systems.clear();
@@ -25960,7 +26032,7 @@ namespace gaia {
 				}
 				for (auto* pSystem: m_systemsToDelete) {
 					pSystem->~BaseSystem();
-					mem::AllocHelper::free(pSystem);
+					mem::AllocHelper::free("System", pSystem);
 				}
 				m_systemsToDelete.clear();
 
@@ -26002,7 +26074,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
-				auto* pSystem = mem::AllocHelper::alloc<T>();
+				auto* pSystem = mem::AllocHelper::alloc<T>("System");
 				(void)new (pSystem) T();
 				pSystem->m_world = &m_world;
 

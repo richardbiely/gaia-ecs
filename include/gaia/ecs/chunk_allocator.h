@@ -383,15 +383,15 @@ namespace gaia {
 			private:
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(16U, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>();
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>("Chunk", 16U, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>("MemoryPage");
 					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
 
 				static void free_page(MemoryPage* pMemoryPage) {
-					mem::AllocHelper::free_alig(pMemoryPage->m_data);
+					mem::AllocHelper::free_alig("Chunk", pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free(pMemoryPage);
+					mem::AllocHelper::free("MemoryPage", pMemoryPage);
 				}
 
 				void done() {

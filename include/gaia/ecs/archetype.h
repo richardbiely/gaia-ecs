@@ -280,7 +280,7 @@ namespace gaia {
 			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
 				const auto& cc = comp_cache(world);
 
-				auto* newArch = mem::AllocHelper::alloc<Archetype>();
+				auto* newArch = mem::AllocHelper::alloc<Archetype>("Archetype");
 				(void)new (newArch) Archetype(cc, worldVersion);
 
 				newArch->m_archetypeId = archetypeId;
@@ -416,7 +416,7 @@ namespace gaia {
 			void static destroy(Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				pArchetype->~Archetype();
-				mem::AllocHelper::free(pArchetype);
+				mem::AllocHelper::free("Archetype", pArchetype);
 			}
 
 			ArchetypeIdLookupKey::LookupHash id_hash() const {

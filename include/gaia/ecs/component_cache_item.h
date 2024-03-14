@@ -118,7 +118,7 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>();
+				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(
@@ -191,7 +191,7 @@ namespace gaia {
 				}
 
 				pItem->~ComponentCacheItem();
-				mem::AllocHelper::free(pItem);
+				mem::AllocHelper::free("ComponentCacheItem", pItem);
 			}
 		};
 	} // namespace ecs
