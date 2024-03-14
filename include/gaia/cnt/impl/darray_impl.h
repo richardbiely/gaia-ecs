@@ -197,7 +197,7 @@ namespace gaia {
 
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
-		template <typename T>
+		template <typename T, typename Allocator = mem::DefaultAllocatorAdaptor>
 		class darr {
 		public:
 			using value_type = T;
@@ -227,7 +227,7 @@ namespace gaia {
 
 				// If no data is allocated go with at least 4 elements
 				if GAIA_UNLIKELY (m_pData == nullptr) {
-					m_pData = view_policy::alloc_mem(m_cap = 4);
+					m_pData = view_policy::template alloc<Allocator>(m_cap = 4);
 					return;
 				}
 
@@ -236,9 +236,9 @@ namespace gaia {
 				m_cap = (cap * 3 + 1) / 2;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(m_cap);
+				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
-				view_policy::free_mem(pDataOld, cnt);
+				view_policy::template free<Allocator>(pDataOld, cnt);
 			}
 
 		public:
@@ -300,7 +300,7 @@ namespace gaia {
 			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				view_policy::free_mem(m_pData, size());
+				view_policy::template free<Allocator>(m_pData, size());
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -313,7 +313,7 @@ namespace gaia {
 			}
 
 			~darr() {
-				view_policy::free_mem(m_pData, size());
+				view_policy::template free<Allocator>(m_pData, size());
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -345,10 +345,10 @@ namespace gaia {
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(count);
+				m_pData = view_policy::template alloc<Allocator>(count);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				}
 
 				m_cap = count;
@@ -358,7 +358,7 @@ namespace gaia {
 				// Fresh allocation
 				if (m_pData == nullptr) {
 					if (count > 0) {
-						m_pData = view_policy::alloc_mem(count);
+						m_pData = view_policy::template alloc<Allocator>(count);
 						m_cap = count;
 						m_cnt = count;
 					}
@@ -386,7 +386,7 @@ namespace gaia {
 				}
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(count);
+				m_pData = view_policy::template alloc<Allocator>(count);
 				{
 					// Move old data to the new location
 					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
@@ -394,7 +394,7 @@ namespace gaia {
 					core::call_ctor_n(&data()[size()], count - size());
 				}
 				// Release old memory
-				view_policy::free_mem(pDataOld, size());
+				view_policy::template free<Allocator>(pDataOld, size());
 
 				m_cap = count;
 				m_cnt = count;

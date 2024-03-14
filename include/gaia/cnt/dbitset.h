@@ -4,11 +4,14 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "../core/utility.h"
+#include "../mem/mem_alloc.h"
 #include "../mem/mem_utils.h"
 #include "bitset_iterator.h"
 
 namespace gaia {
 	namespace cnt {
+		template <typename Allocator = mem::DefaultAllocatorAdaptor>
 		class dbitset {
 		private:
 			struct size_type_selector {
@@ -24,7 +27,7 @@ namespace gaia {
 			using pointer = size_type*;
 			using const_pointer = size_type*;
 
-			static constexpr uint32_t BitsPerItem = sizeof(size_type_selector::type) * 8;
+			static constexpr uint32_t BitsPerItem = sizeof(typename size_type_selector::type) * 8;
 
 			pointer m_pData = nullptr;
 			uint32_t m_cnt = uint32_t(0);
@@ -56,7 +59,8 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 
 				pointer pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
@@ -66,7 +70,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release the old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>((void*)pDataOld);
 				}
 			}
 
@@ -91,7 +95,7 @@ namespace gaia {
 			}
 
 			~dbitset() {
-				delete[] m_pData;
+				mem::AllocHelper::free<Allocator>((void*)m_pData);
 			}
 
 			dbitset(const dbitset& other) {
@@ -135,7 +139,8 @@ namespace gaia {
 
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
 				auto* pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR(itemsNew) m_pData[i] = 0;
@@ -146,7 +151,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>(pDataOld);
 				}
 
 				m_cap = itemsNew * BitsPerItem;
@@ -168,7 +173,8 @@ namespace gaia {
 
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
 				auto* pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR(itemsNew) m_pData[i] = 0;
@@ -178,7 +184,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>((void*)pDataOld);
 				}
 
 				m_cnt = bitsWanted;

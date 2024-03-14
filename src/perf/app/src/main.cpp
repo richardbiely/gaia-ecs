@@ -732,8 +732,8 @@ int main(int argc, char* argv[]) {
 		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
 		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
 
-		constexpr uint32_t NFew = 1000;
-		constexpr uint32_t NMany = 100'000;
+		constexpr uint32_t NFew = 1'000;
+		constexpr uint32_t NMany = 10'000;
 
 		if (profilingMode) {
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NMany).label("1M");

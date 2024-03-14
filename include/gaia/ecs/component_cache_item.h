@@ -118,7 +118,8 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
-				auto* cci = new ComponentCacheItem();
+				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>();
+				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(
 						// component id
@@ -162,7 +163,7 @@ namespace gaia {
 				}
 
 				// Allocate the final string
-				char* name = (char*)mem::mem_alloc(nameTmpLen + 1);
+				char* name = mem::AllocHelper::alloc<char>(nameTmpLen + 1);
 				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
 				name[nameTmpLen] = 0;
 
@@ -180,16 +181,17 @@ namespace gaia {
 				return cci;
 			}
 
-			static void destroy(ComponentCacheItem* item) {
-				if (item == nullptr)
+			static void destroy(ComponentCacheItem* pItem) {
+				if (pItem == nullptr)
 					return;
 
-				if (item->name.str() != nullptr && item->name.owned()) {
-					mem::mem_free((void*)item->name.str());
-					item->name = {};
+				if (pItem->name.str() != nullptr && pItem->name.owned()) {
+					mem::AllocHelper::free((void*)pItem->name.str());
+					pItem->name = {};
 				}
 
-				delete item;
+				pItem->~ComponentCacheItem();
+				mem::AllocHelper::free(pItem);
 			}
 		};
 	} // namespace ecs

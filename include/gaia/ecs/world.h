@@ -1590,6 +1590,8 @@ namespace gaia {
 		private:
 			//! Clears the world so that all its entities and components are released
 			void cleanup_internal() {
+				GAIA_PROF_SCOPE(World::cleanup_internal);
+
 				// Clear entities
 				m_recs.entities = {};
 				m_recs.pairs = {};
@@ -1598,7 +1600,7 @@ namespace gaia {
 				{
 					// Delete all allocated chunks and their parent archetypes
 					for (auto* pArchetype: m_archetypes)
-						delete pArchetype;
+						Archetype::destroy(pArchetype);
 
 					m_entityToAsRelations = {};
 					m_entityToAsTargets = {};
@@ -1831,7 +1833,7 @@ namespace gaia {
 					// Remove the unused archetypes
 					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
-					delete pArchetype;
+					Archetype::destroy(pArchetype);
 				}
 
 				// Remove all dead archetypes from query caches.
@@ -3083,7 +3085,7 @@ namespace gaia {
 
 					for (auto* pArchetype: m_archetypesToDel) {
 						unreg_archetype_raw(pArchetype);
-						delete pArchetype;
+						Archetype::destroy(pArchetype);
 					}
 
 					m_archetypesToDel.clear();

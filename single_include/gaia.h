@@ -3573,59 +3573,109 @@ namespace gaia {
 #include <utility>
 
 #if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_ALLC(size) ::malloc(size)
+	#define GAIA_MEM_FREE(ptr) ::free(ptr)
 
 	// Clang with MSVC codegen needs some remapping
 	#if !defined(aligned_alloc)
-		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
-		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+		#define GAIA_MEM_ALLC_A(size, alig) ::_aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) ::_aligned_free(ptr)
 	#else
-		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+		#define GAIA_MEM_ALLC_A(size, alig) ::aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) ::aligned_free(ptr)
 	#endif
 #else
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-	#define GAIA_MEM_FREE_A(ptr) free(ptr)
+	#define GAIA_MEM_ALLC(size) ::malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) ::aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) ::free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) ::free(ptr)
 #endif
 
 namespace gaia {
 	namespace mem {
+		class DefaultAllocator {
+		public:
+			void* alloc(size_t size) {
+				GAIA_ASSERT(size > 0);
+
+				void* ptr = GAIA_MEM_ALLC(size);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC(ptr, size);
+				return ptr;
+			}
+
+			void* alloc_alig(size_t size, size_t alig) {
+				GAIA_ASSERT(size > 0);
+				GAIA_ASSERT(alig > 0);
+
+				// Make sure size is a multiple of the alignment
+				size = (size + alig - 1) & ~(alig - 1);
+				void* ptr = GAIA_MEM_ALLC_A(size, alig);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC(ptr, size);
+				return ptr;
+			}
+
+			void free(void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE(ptr);
+				GAIA_PROF_FREE(ptr);
+			}
+
+			void free_alig(void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE_A(ptr);
+				GAIA_PROF_FREE(ptr);
+			}
+		};
+
+		struct DefaultAllocatorAdaptor {
+			static DefaultAllocator& get() {
+				static DefaultAllocator s_allocator;
+				return s_allocator;
+			}
+		};
+
+		struct AllocHelper {
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc(uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
+			}
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free(void* ptr) {
+				Adaptor::get().free(ptr);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free_alig(void* ptr) {
+				Adaptor::get().free_alig(ptr);
+			}
+		};
+
+		//! Allocate \param size bytes of memory using the default allocator.
 		inline void* mem_alloc(size_t size) {
-			GAIA_ASSERT(size > 0);
-
-			void* ptr = GAIA_MEM_ALLC(size);
-			GAIA_ASSERT(ptr != nullptr);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
+			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
+		//! Allocate \param size bytes of memory using the default allocator.
+		//! The memory is alligned to \param alig boundary.
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
-			GAIA_ASSERT(size > 0);
-			GAIA_ASSERT(alig > 0);
-
-			// Make sure size is a multiple of the alignment
-			size = (size + alig - 1) & ~(alig - 1);
-			void* ptr = GAIA_MEM_ALLC_A(size, alig);
-			GAIA_ASSERT(ptr != nullptr);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
+			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
+		//! Release memory allocated by the default allocator.
 		inline void mem_free(void* ptr) {
-			GAIA_ASSERT(ptr != nullptr);
-
-			GAIA_MEM_FREE(ptr);
-			GAIA_PROF_FREE(ptr);
+			return DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
+		//! Release aligned memory allocated by the default allocator.
 		inline void mem_free_alig(void* ptr) {
-			GAIA_ASSERT(ptr != nullptr);
-			
-			GAIA_MEM_FREE_A(ptr);
-			GAIA_PROF_FREE(ptr);
+			return DefaultAllocatorAdaptor::get().free_alig(ptr);
 		}
 
 		//! Align a number to the requested byte alignment
@@ -3802,24 +3852,26 @@ namespace gaia {
 
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
-			
+
 			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, cnt);
 				return (uint32_t)(offset - addr);
 			}
 
-			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
+			template <typename Allocator>
+			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (ValueType*)mem::mem_alloc(bytes);
+				auto* pData = (ValueType*)mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
 				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
 
-			static void free_mem(void* pData, size_t cnt) noexcept {
+			template <typename Allocator>
+			static void free(void* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				core::call_dtor_n((ValueType*)pData, cnt);
-				return mem::mem_free(pData);
+				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get_value(std::span<const ValueType> s, size_t idx) noexcept {
@@ -3938,15 +3990,17 @@ namespace gaia {
 				return (uint32_t)(offset - addr);
 			}
 
-			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
+			template <typename Allocator>
+			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
+				return mem::AllocHelper::alloc_alig<uint8_t, Allocator>(Alignment, bytes);
 			}
 
-			static void free_mem(void* pData, [[maybe_unused]] size_t cnt) noexcept {
+			template <typename Allocator>
+			static void free(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return mem::mem_free_alig(pData);
+				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
@@ -5628,7 +5682,7 @@ namespace gaia {
 
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
-		template <typename T>
+		template <typename T, typename Allocator = mem::DefaultAllocatorAdaptor>
 		class darr {
 		public:
 			using value_type = T;
@@ -5658,7 +5712,7 @@ namespace gaia {
 
 				// If no data is allocated go with at least 4 elements
 				if GAIA_UNLIKELY (m_pData == nullptr) {
-					m_pData = view_policy::alloc_mem(m_cap = 4);
+					m_pData = view_policy::template alloc<Allocator>(m_cap = 4);
 					return;
 				}
 
@@ -5667,9 +5721,9 @@ namespace gaia {
 				m_cap = (cap * 3 + 1) / 2;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(m_cap);
+				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
-				view_policy::free_mem(pDataOld, cnt);
+				view_policy::template free<Allocator>(pDataOld, cnt);
 			}
 
 		public:
@@ -5731,7 +5785,7 @@ namespace gaia {
 			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				view_policy::free_mem(m_pData, size());
+				view_policy::template free<Allocator>(m_pData, size());
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -5744,7 +5798,7 @@ namespace gaia {
 			}
 
 			~darr() {
-				view_policy::free_mem(m_pData, size());
+				view_policy::template free<Allocator>(m_pData, size());
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -5776,10 +5830,10 @@ namespace gaia {
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(count);
+				m_pData = view_policy::template alloc<Allocator>(count);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				}
 
 				m_cap = count;
@@ -5789,7 +5843,7 @@ namespace gaia {
 				// Fresh allocation
 				if (m_pData == nullptr) {
 					if (count > 0) {
-						m_pData = view_policy::alloc_mem(count);
+						m_pData = view_policy::template alloc<Allocator>(count);
 						m_cap = count;
 						m_cnt = count;
 					}
@@ -5817,7 +5871,7 @@ namespace gaia {
 				}
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(count);
+				m_pData = view_policy::template alloc<Allocator>(count);
 				{
 					// Move old data to the new location
 					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
@@ -5825,7 +5879,7 @@ namespace gaia {
 					core::call_ctor_n(&data()[size()], count - size());
 				}
 				// Release old memory
-				view_policy::free_mem(pDataOld, size());
+				view_policy::template free<Allocator>(pDataOld, size());
 
 				m_cap = count;
 				m_cnt = count;
@@ -6244,7 +6298,7 @@ namespace gaia {
 		//! If the number of elements is bellow \tparam N the stack storage is used.
 		//! If the number of elements is above \tparam N the heap storage is used.
 		//! Interface compatiblity with std::vector and std::array where it matters.
-		template <typename T, darr_ext_detail::size_type N>
+		template <typename T, darr_ext_detail::size_type N, typename Allocator = mem::DefaultAllocatorAdaptor>
 		class darr_ext {
 		public:
 			static_assert(N > 0);
@@ -6291,14 +6345,14 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
-					m_pDataHeap = view_policy::alloc_mem(m_cap);
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::alloc_mem(m_cap);
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
-					view_policy::free_mem(pDataOld, cnt);
+					view_policy::template free<Allocator>(pDataOld, cnt);
 				}
 
 				m_pData = m_pDataHeap;
@@ -6384,7 +6438,7 @@ namespace gaia {
 				if (other.m_pDataHeap != nullptr) {
 					// Release current heap memory and replace it with the source
 					if (m_pDataHeap != nullptr)
-						view_policy::free_mem(m_pDataHeap, size());
+						view_policy::template free<Allocator>(m_pDataHeap, size());
 					m_pDataHeap = other.m_pDataHeap;
 					m_pData = m_pDataHeap;
 				} else
@@ -6407,7 +6461,7 @@ namespace gaia {
 			}
 
 			~darr_ext() {
-				view_policy::free_mem(m_pDataHeap, size());
+				view_policy::template free<Allocator>(m_pDataHeap, size());
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -6440,11 +6494,11 @@ namespace gaia {
 
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::alloc_mem(count);
+					m_pDataHeap = view_policy::template alloc<Allocator>(count);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				} else {
-					m_pDataHeap = view_policy::alloc_mem(count);
+					m_pDataHeap = view_policy::template alloc<Allocator>(count);
 					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}
 
@@ -6474,13 +6528,13 @@ namespace gaia {
 				}
 
 				auto* pDataOld = m_pDataHeap;
-				m_pDataHeap = view_policy::alloc_mem(count);
+				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
 					// Default-construct new items
 					core::call_ctor_n(&data()[size()], count - size());
 					// Release old memory
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				} else {
 					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}
@@ -6739,6 +6793,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		template <typename Allocator = mem::DefaultAllocatorAdaptor>
 		class dbitset {
 		private:
 			struct size_type_selector {
@@ -6754,7 +6809,7 @@ namespace gaia {
 			using pointer = size_type*;
 			using const_pointer = size_type*;
 
-			static constexpr uint32_t BitsPerItem = sizeof(size_type_selector::type) * 8;
+			static constexpr uint32_t BitsPerItem = sizeof(typename size_type_selector::type) * 8;
 
 			pointer m_pData = nullptr;
 			uint32_t m_cnt = uint32_t(0);
@@ -6786,7 +6841,8 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 
 				pointer pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
@@ -6796,7 +6852,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release the old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>((void*)pDataOld);
 				}
 			}
 
@@ -6821,7 +6877,7 @@ namespace gaia {
 			}
 
 			~dbitset() {
-				delete[] m_pData;
+				mem::AllocHelper::free<Allocator>((void*)m_pData);
 			}
 
 			dbitset(const dbitset& other) {
@@ -6865,7 +6921,8 @@ namespace gaia {
 
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
 				auto* pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR(itemsNew) m_pData[i] = 0;
@@ -6876,7 +6933,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>(pDataOld);
 				}
 
 				m_cap = itemsNew * BitsPerItem;
@@ -6898,7 +6955,8 @@ namespace gaia {
 
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
 				auto* pDataOld = m_pData;
-				m_pData = new size_type[itemsNew];
+				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
 					GAIA_FOR(itemsNew) m_pData[i] = 0;
@@ -6908,7 +6966,7 @@ namespace gaia {
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
-					delete[] pDataOld;
+					mem::AllocHelper::free<Allocator>((void*)pDataOld);
 				}
 
 				m_cnt = bitsWanted;
@@ -14283,7 +14341,8 @@ namespace gaia {
 
 #if !GAIA_PLATFORM_WINDOWS
 				// Other platforms allocate the context dynamically
-				delete &ctx;
+				ctx.~ThreadFuncCtx();
+				mem::AllocHelper::free(pCtx);
 #endif
 				return nullptr;
 			}
@@ -14381,7 +14440,8 @@ namespace gaia {
 				}
 
 				// Create the thread with given attributes
-				auto* ctx = new ThreadFuncCtx{this, workerIdx, prio};
+				auto* ctx = mem::AllocHelper::alloc<ThreadFuncCtx>();
+				(void)new (ctx) ThreadFuncCtx{this, workerIdx, prio};
 				ret = pthread_create(&m_workers[workerIdx], &attr, thread_func, ctx);
 				if (ret != 0) {
 					GAIA_LOG_W("pthread_create failed for worker thread %u. ErrCode = %d", workerIdx, ret);
@@ -15904,13 +15964,15 @@ namespace gaia {
 			private:
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::mem_alloc_alig(size, 16U);
-					return new MemoryPage(pPageData, sizeType);
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(16U, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>();
+					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
 
-				static void free_page(MemoryPage* page) {
-					mem::mem_free_alig(page->m_data);
-					delete page;
+				static void free_page(MemoryPage* pMemoryPage) {
+					mem::AllocHelper::free_alig(pMemoryPage->m_data);
+					pMemoryPage->~MemoryPage();
+					mem::AllocHelper::free(pMemoryPage);
 				}
 
 				void done() {
@@ -16418,7 +16480,8 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
-				auto* cci = new ComponentCacheItem();
+				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>();
+				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(
 						// component id
@@ -16462,7 +16525,7 @@ namespace gaia {
 				}
 
 				// Allocate the final string
-				char* name = (char*)mem::mem_alloc(nameTmpLen + 1);
+				char* name = mem::AllocHelper::alloc<char>(nameTmpLen + 1);
 				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
 				name[nameTmpLen] = 0;
 
@@ -16480,16 +16543,17 @@ namespace gaia {
 				return cci;
 			}
 
-			static void destroy(ComponentCacheItem* item) {
-				if (item == nullptr)
+			static void destroy(ComponentCacheItem* pItem) {
+				if (pItem == nullptr)
 					return;
 
-				if (item->name.str() != nullptr && item->name.owned()) {
-					mem::mem_free((void*)item->name.str());
-					item->name = {};
+				if (pItem->name.str() != nullptr && pItem->name.owned()) {
+					mem::AllocHelper::free((void*)pItem->name.str());
+					pItem->name = {};
 				}
 
-				delete item;
+				pItem->~ComponentCacheItem();
+				mem::AllocHelper::free(pItem);
 			}
 		};
 	} // namespace ecs
@@ -17202,11 +17266,11 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				(void)new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
-				auto* pChunkMem = new uint8_t[allocSize];
+				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
@@ -17230,13 +17294,11 @@ namespace gaia {
 				if (pChunk->has_custom_gen_dtor() || pChunk->has_custom_uni_dtor())
 					pChunk->call_all_dtors();
 
-#if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().free(pChunk);
 #else
-				pChunk->~Chunk();
-				auto* pChunkMem = (uint8_t*)pChunk;
-				delete[] pChunkMem;
+				mem::AllocHelper::free((uint8_t*)pChunk);
 #endif
 			}
 
@@ -18316,6 +18378,12 @@ namespace gaia {
 					//
 					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
+			~Archetype() {
+				// Delete all archetype chunks
+				for (auto* pChunk: m_chunks)
+					Chunk::free(pChunk);
+			}
+
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
@@ -18428,12 +18496,6 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
-			~Archetype() {
-				// Delete all archetype chunks
-				for (auto* pChunk: m_chunks)
-					Chunk::free(pChunk);
-			}
-
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
 			}
@@ -18450,7 +18512,9 @@ namespace gaia {
 			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
 				const auto& cc = comp_cache(world);
 
-				auto* newArch = new Archetype(cc, worldVersion);
+				auto* newArch = mem::AllocHelper::alloc<Archetype>();
+				(void)new (newArch) Archetype(cc, worldVersion);
+
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
@@ -18579,6 +18643,12 @@ namespace gaia {
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
 
 				return newArch;
+			}
+
+			void static destroy(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				pArchetype->~Archetype();
+				mem::AllocHelper::free(pArchetype);
 			}
 
 			ArchetypeIdLookupKey::LookupHash id_hash() const {
@@ -23517,6 +23587,8 @@ namespace gaia {
 		private:
 			//! Clears the world so that all its entities and components are released
 			void cleanup_internal() {
+				GAIA_PROF_SCOPE(World::cleanup_internal);
+
 				// Clear entities
 				m_recs.entities = {};
 				m_recs.pairs = {};
@@ -23525,7 +23597,7 @@ namespace gaia {
 				{
 					// Delete all allocated chunks and their parent archetypes
 					for (auto* pArchetype: m_archetypes)
-						delete pArchetype;
+						Archetype::destroy(pArchetype);
 
 					m_entityToAsRelations = {};
 					m_entityToAsTargets = {};
@@ -23758,7 +23830,7 @@ namespace gaia {
 					// Remove the unused archetypes
 					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
-					delete pArchetype;
+					Archetype::destroy(pArchetype);
 				}
 
 				// Remove all dead archetypes from query caches.
@@ -25010,7 +25082,7 @@ namespace gaia {
 
 					for (auto* pArchetype: m_archetypesToDel) {
 						unreg_archetype_raw(pArchetype);
-						delete pArchetype;
+						Archetype::destroy(pArchetype);
 					}
 
 					m_archetypesToDel.clear();
@@ -25856,8 +25928,10 @@ namespace gaia {
 					pSystem->OnCleanup();
 				for (auto* pSystem: m_systems)
 					pSystem->OnDestroyed();
-				for (auto* pSystem: m_systems)
-					delete pSystem;
+				for (auto* pSystem: m_systems) {
+					pSystem->~BaseSystem();
+					mem::AllocHelper::free(pSystem);
+				}
 
 				m_systems.clear();
 				m_systemsMap.clear();
@@ -25884,8 +25958,10 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToDelete) {
 					m_systems.erase(core::find(m_systems, pSystem));
 				}
-				for (auto* pSystem: m_systemsToDelete)
-					delete pSystem;
+				for (auto* pSystem: m_systemsToDelete) {
+					pSystem->~BaseSystem();
+					mem::AllocHelper::free(pSystem);
+				}
 				m_systemsToDelete.clear();
 
 				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
@@ -25926,7 +26002,8 @@ namespace gaia {
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
-				BaseSystem* pSystem = new T();
+				auto* pSystem = mem::AllocHelper::alloc<T>();
+				(void)new (pSystem) T();
 				pSystem->m_world = &m_world;
 
 #if GAIA_PROFILER_CPU

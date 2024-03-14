@@ -111,24 +111,26 @@ namespace gaia {
 
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
-			
+
 			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, cnt);
 				return (uint32_t)(offset - addr);
 			}
 
-			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
+			template <typename Allocator>
+			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (ValueType*)mem::mem_alloc(bytes);
+				auto* pData = (ValueType*)mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
 				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
 			}
 
-			static void free_mem(void* pData, size_t cnt) noexcept {
+			template <typename Allocator>
+			static void free(void* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				core::call_dtor_n((ValueType*)pData, cnt);
-				return mem::mem_free(pData);
+				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get_value(std::span<const ValueType> s, size_t idx) noexcept {
@@ -247,15 +249,17 @@ namespace gaia {
 				return (uint32_t)(offset - addr);
 			}
 
-			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
+			template <typename Allocator>
+			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
+				return mem::AllocHelper::alloc_alig<uint8_t, Allocator>(Alignment, bytes);
 			}
 
-			static void free_mem(void* pData, [[maybe_unused]] size_t cnt) noexcept {
+			template <typename Allocator>
+			static void free(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return mem::mem_free_alig(pData);
+				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {

@@ -11,6 +11,7 @@
 #include "../config/profiler.h"
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
+#include "../mem/mem_alloc.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
@@ -363,11 +364,11 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				(void)new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
-				auto* pChunkMem = new uint8_t[allocSize];
+				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
@@ -391,13 +392,11 @@ namespace gaia {
 				if (pChunk->has_custom_gen_dtor() || pChunk->has_custom_uni_dtor())
 					pChunk->call_all_dtors();
 
-#if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().free(pChunk);
 #else
-				pChunk->~Chunk();
-				auto* pChunkMem = (uint8_t*)pChunk;
-				delete[] pChunkMem;
+				mem::AllocHelper::free((uint8_t*)pChunk);
 #endif
 			}
 

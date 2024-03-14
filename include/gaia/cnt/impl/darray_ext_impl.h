@@ -8,8 +8,9 @@
 
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
-#include "../../mem/raw_data_holder.h"
+#include "../../mem/mem_alloc.h"
 #include "../../mem/mem_utils.h"
+#include "../../mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace cnt {
@@ -199,7 +200,7 @@ namespace gaia {
 		//! If the number of elements is bellow \tparam N the stack storage is used.
 		//! If the number of elements is above \tparam N the heap storage is used.
 		//! Interface compatiblity with std::vector and std::array where it matters.
-		template <typename T, darr_ext_detail::size_type N>
+		template <typename T, darr_ext_detail::size_type N, typename Allocator = mem::DefaultAllocatorAdaptor>
 		class darr_ext {
 		public:
 			static_assert(N > 0);
@@ -246,14 +247,14 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
-					m_pDataHeap = view_policy::alloc_mem(m_cap);
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::alloc_mem(m_cap);
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
-					view_policy::free_mem(pDataOld, cnt);
+					view_policy::template free<Allocator>(pDataOld, cnt);
 				}
 
 				m_pData = m_pDataHeap;
@@ -339,7 +340,7 @@ namespace gaia {
 				if (other.m_pDataHeap != nullptr) {
 					// Release current heap memory and replace it with the source
 					if (m_pDataHeap != nullptr)
-						view_policy::free_mem(m_pDataHeap, size());
+						view_policy::template free<Allocator>(m_pDataHeap, size());
 					m_pDataHeap = other.m_pDataHeap;
 					m_pData = m_pDataHeap;
 				} else
@@ -362,7 +363,7 @@ namespace gaia {
 			}
 
 			~darr_ext() {
-				view_policy::free_mem(m_pDataHeap, size());
+				view_policy::template free<Allocator>(m_pDataHeap, size());
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -395,11 +396,11 @@ namespace gaia {
 
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::alloc_mem(count);
+					m_pDataHeap = view_policy::template alloc<Allocator>(count);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				} else {
-					m_pDataHeap = view_policy::alloc_mem(count);
+					m_pDataHeap = view_policy::template alloc<Allocator>(count);
 					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}
 
@@ -429,13 +430,13 @@ namespace gaia {
 				}
 
 				auto* pDataOld = m_pDataHeap;
-				m_pDataHeap = view_policy::alloc_mem(count);
+				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pDataHeap, pDataOld, size(), 0, count, m_cap);
 					// Default-construct new items
 					core::call_ctor_n(&data()[size()], count - size());
 					// Release old memory
-					view_policy::free_mem(pDataOld, size());
+					view_policy::template free<Allocator>(pDataOld, size());
 				} else {
 					mem::move_elements<T>(m_pDataHeap, m_data, size(), 0, count, m_cap);
 				}

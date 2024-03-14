@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "../config/profiler.h"
+#include "../mem/mem_alloc.h"
 #if GAIA_DEBUG
 	#include "../config/logging.h"
 #endif
@@ -145,8 +146,10 @@ namespace gaia {
 					pSystem->OnCleanup();
 				for (auto* pSystem: m_systems)
 					pSystem->OnDestroyed();
-				for (auto* pSystem: m_systems)
-					delete pSystem;
+				for (auto* pSystem: m_systems) {
+					pSystem->~BaseSystem();
+					mem::AllocHelper::free(pSystem);
+				}
 
 				m_systems.clear();
 				m_systemsMap.clear();
@@ -173,8 +176,10 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToDelete) {
 					m_systems.erase(core::find(m_systems, pSystem));
 				}
-				for (auto* pSystem: m_systemsToDelete)
-					delete pSystem;
+				for (auto* pSystem: m_systemsToDelete) {
+					pSystem->~BaseSystem();
+					mem::AllocHelper::free(pSystem);
+				}
 				m_systemsToDelete.clear();
 
 				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
@@ -215,7 +220,8 @@ namespace gaia {
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
-				BaseSystem* pSystem = new T();
+				auto* pSystem = mem::AllocHelper::alloc<T>();
+				(void)new (pSystem) T();
 				pSystem->m_world = &m_world;
 
 #if GAIA_PROFILER_CPU

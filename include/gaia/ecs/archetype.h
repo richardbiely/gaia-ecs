@@ -9,6 +9,7 @@
 #include "../cnt/sarray.h"
 #include "../cnt/sarray_ext.h"
 #include "../core/hashing_policy.h"
+#include "../mem/mem_alloc.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
 #include "chunk.h"
@@ -145,6 +146,12 @@ namespace gaia {
 					//
 					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
 
+			~Archetype() {
+				// Delete all archetype chunks
+				for (auto* pChunk: m_chunks)
+					Chunk::free(pChunk);
+			}
+
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
@@ -257,12 +264,6 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
-			~Archetype() {
-				// Delete all archetype chunks
-				for (auto* pChunk: m_chunks)
-					Chunk::free(pChunk);
-			}
-
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
 			}
@@ -279,7 +280,9 @@ namespace gaia {
 			create(const World& world, ArchetypeId archetypeId, uint32_t& worldVersion, EntitySpan ids) {
 				const auto& cc = comp_cache(world);
 
-				auto* newArch = new Archetype(cc, worldVersion);
+				auto* newArch = mem::AllocHelper::alloc<Archetype>();
+				(void)new (newArch) Archetype(cc, worldVersion);
+
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
@@ -408,6 +411,12 @@ namespace gaia {
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
 
 				return newArch;
+			}
+
+			void static destroy(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				pArchetype->~Archetype();
+				mem::AllocHelper::free(pArchetype);
 			}
 
 			ArchetypeIdLookupKey::LookupHash id_hash() const {

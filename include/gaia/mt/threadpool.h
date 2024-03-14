@@ -25,6 +25,7 @@
 #include "../config/logging.h"
 #include "../core/span.h"
 #include "../core/utility.h"
+#include "../mem/mem_alloc.h"
 
 #include "jobcommon.h"
 #include "jobhandle.h"
@@ -438,7 +439,8 @@ namespace gaia {
 
 #if !GAIA_PLATFORM_WINDOWS
 				// Other platforms allocate the context dynamically
-				delete &ctx;
+				ctx.~ThreadFuncCtx();
+				mem::AllocHelper::free(pCtx);
 #endif
 				return nullptr;
 			}
@@ -536,7 +538,8 @@ namespace gaia {
 				}
 
 				// Create the thread with given attributes
-				auto* ctx = new ThreadFuncCtx{this, workerIdx, prio};
+				auto* ctx = mem::AllocHelper::alloc<ThreadFuncCtx>();
+				(void)new (ctx) ThreadFuncCtx{this, workerIdx, prio};
 				ret = pthread_create(&m_workers[workerIdx], &attr, thread_func, ctx);
 				if (ret != 0) {
 					GAIA_LOG_W("pthread_create failed for worker thread %u. ErrCode = %d", workerIdx, ret);

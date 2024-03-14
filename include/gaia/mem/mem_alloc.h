@@ -10,59 +10,109 @@
 #include "../config/profiler.h"
 
 #if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_ALLC(size) ::malloc(size)
+	#define GAIA_MEM_FREE(ptr) ::free(ptr)
 
 	// Clang with MSVC codegen needs some remapping
 	#if !defined(aligned_alloc)
-		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
-		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+		#define GAIA_MEM_ALLC_A(size, alig) ::_aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) ::_aligned_free(ptr)
 	#else
-		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+		#define GAIA_MEM_ALLC_A(size, alig) ::aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) ::aligned_free(ptr)
 	#endif
 #else
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-	#define GAIA_MEM_FREE_A(ptr) free(ptr)
+	#define GAIA_MEM_ALLC(size) ::malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) ::aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) ::free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) ::free(ptr)
 #endif
 
 namespace gaia {
 	namespace mem {
+		class DefaultAllocator {
+		public:
+			void* alloc(size_t size) {
+				GAIA_ASSERT(size > 0);
+
+				void* ptr = GAIA_MEM_ALLC(size);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC(ptr, size);
+				return ptr;
+			}
+
+			void* alloc_alig(size_t size, size_t alig) {
+				GAIA_ASSERT(size > 0);
+				GAIA_ASSERT(alig > 0);
+
+				// Make sure size is a multiple of the alignment
+				size = (size + alig - 1) & ~(alig - 1);
+				void* ptr = GAIA_MEM_ALLC_A(size, alig);
+				GAIA_ASSERT(ptr != nullptr);
+				GAIA_PROF_ALLOC(ptr, size);
+				return ptr;
+			}
+
+			void free(void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE(ptr);
+				GAIA_PROF_FREE(ptr);
+			}
+
+			void free_alig(void* ptr) {
+				GAIA_ASSERT(ptr != nullptr);
+
+				GAIA_MEM_FREE_A(ptr);
+				GAIA_PROF_FREE(ptr);
+			}
+		};
+
+		struct DefaultAllocatorAdaptor {
+			static DefaultAllocator& get() {
+				static DefaultAllocator s_allocator;
+				return s_allocator;
+			}
+		};
+
+		struct AllocHelper {
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc(uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
+			}
+			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
+			static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
+				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free(void* ptr) {
+				Adaptor::get().free(ptr);
+			}
+			template <typename Adaptor = DefaultAllocatorAdaptor>
+			static void free_alig(void* ptr) {
+				Adaptor::get().free_alig(ptr);
+			}
+		};
+
+		//! Allocate \param size bytes of memory using the default allocator.
 		inline void* mem_alloc(size_t size) {
-			GAIA_ASSERT(size > 0);
-
-			void* ptr = GAIA_MEM_ALLC(size);
-			GAIA_ASSERT(ptr != nullptr);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
+			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
+		//! Allocate \param size bytes of memory using the default allocator.
+		//! The memory is alligned to \param alig boundary.
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
-			GAIA_ASSERT(size > 0);
-			GAIA_ASSERT(alig > 0);
-
-			// Make sure size is a multiple of the alignment
-			size = (size + alig - 1) & ~(alig - 1);
-			void* ptr = GAIA_MEM_ALLC_A(size, alig);
-			GAIA_ASSERT(ptr != nullptr);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
+			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
+		//! Release memory allocated by the default allocator.
 		inline void mem_free(void* ptr) {
-			GAIA_ASSERT(ptr != nullptr);
-
-			GAIA_MEM_FREE(ptr);
-			GAIA_PROF_FREE(ptr);
+			return DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
+		//! Release aligned memory allocated by the default allocator.
 		inline void mem_free_alig(void* ptr) {
-			GAIA_ASSERT(ptr != nullptr);
-			
-			GAIA_MEM_FREE_A(ptr);
-			GAIA_PROF_FREE(ptr);
+			return DefaultAllocatorAdaptor::get().free_alig(ptr);
 		}
 
 		//! Align a number to the requested byte alignment
