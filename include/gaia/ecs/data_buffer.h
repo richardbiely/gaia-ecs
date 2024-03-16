@@ -4,8 +4,8 @@
 #include <type_traits>
 
 #include "../cnt/darray_ext.h"
+#include "../mem/mem_utils.h"
 #include "component_cache.h"
-#include "gaia/mem/mem_utils.h"
 
 namespace gaia {
 	namespace ecs {
