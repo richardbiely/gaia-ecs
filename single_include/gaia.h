@@ -3604,7 +3604,7 @@ namespace gaia {
 				return ptr;
 			}
 
-			void* alloc(const char* name, size_t size) {
+			void* alloc([[maybe_unused]] const char* name, size_t size) {
 				GAIA_ASSERT(size > 0);
 
 				void* ptr = GAIA_MEM_ALLC(size);
@@ -3625,7 +3625,7 @@ namespace gaia {
 				return ptr;
 			}
 
-			void* alloc_alig(const char* name, size_t size, size_t alig) {
+			void* alloc_alig([[maybe_unused]] const char* name, size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
 
@@ -3644,7 +3644,7 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
-			void free(const char* name, void* ptr) {
+			void free([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE(ptr);
@@ -3658,7 +3658,7 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
-			void free_alig(const char* name, void* ptr) {
+			void free_alig([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE_A(ptr);
