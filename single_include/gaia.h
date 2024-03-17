@@ -18393,6 +18393,9 @@ namespace gaia {
 			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
 
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
+			//! Hash of components within this archetype - used for lookups
+			LookupHash m_hashLookup = {0};
+
 			Properties m_properties{};
 			//! Component cache reference
 			const ComponentCache& m_cc;
@@ -18412,16 +18415,12 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
 			Chunk::EntityArray m_ids;
-			//! List of indices to Is relationship pairs in m_ids.
-			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
+			//! List of indices to Is relationship pairs in m_ids
 			AsPairsIndexBuffer m_pairs_as_index_buffer;
 			//! List of component ids
 			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
 			Chunk::ComponentOffsetArray m_compOffs;
-
-			//! Hash of components within this archetype - used for lookups
-			LookupHash m_hashLookup = {0};
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
@@ -20075,7 +20074,7 @@ namespace gaia {
 
 		private:
 			//! Lookup context
-			QueryCtx m_lookupCtx;
+			QueryCtx m_ctx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
@@ -20099,14 +20098,14 @@ namespace gaia {
 					Entity id;
 
 					if constexpr (is_pair<T>::value) {
-						const auto rel = m_lookupCtx.cc->get<typename T::rel>().entity;
-						const auto tgt = m_lookupCtx.cc->get<typename T::tgt>().entity;
+						const auto rel = m_ctx.cc->get<typename T::rel>().entity;
+						const auto tgt = m_ctx.cc->get<typename T::tgt>().entity;
 						id = (Entity)Pair(rel, tgt);
 					} else {
-						id = m_lookupCtx.cc->get<T>().entity;
+						id = m_ctx.cc->get<T>().entity;
 					}
 
-					const auto& data = m_lookupCtx.data;
+					const auto& data = m_ctx.data;
 					const auto& pairs = data.pairs;
 					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(pairs.data(), id, EntityBad);
 
@@ -20165,11 +20164,11 @@ namespace gaia {
 				return is(w, ae, qe);
 			};
 
-			GAIA_NODISCARD bool cmp_ids(Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD static bool cmp_ids(Entity idInArchetype, Entity idInQuery) {
 				return idInQuery == idInArchetype;
 			}
 
-			GAIA_NODISCARD bool cmp_ids_pairs(Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD static bool cmp_ids_pairs(Entity idInArchetype, Entity idInQuery) {
 				if (idInQuery.pair()) {
 					// all(Pair<All, All>) aka "any pair"
 					if (idInQuery == Pair(All, All))
@@ -20199,7 +20198,7 @@ namespace gaia {
 				const auto& archetypeIds = archetype.ids();
 
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
-					return as_relations_trav_if(*m_lookupCtx.w, idInQuery, [&](Entity relation) {
+					return as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
 						const auto idx = core::get_index(archetypeIds, relation);
 						// Stop at the first match
 						return idx != BadIndex;
@@ -20223,19 +20222,19 @@ namespace gaia {
 						if (idInArchetype == idInQuery)
 							return true;
 
-						const auto e = entity_from_id(*m_lookupCtx.w, idInQuery.gen());
+						const auto e = entity_from_id(*m_ctx.w, idInQuery.gen());
 
 						// If the archetype entity is an (Is, X) pair treat is as X and try matching it with
 						// entities inheriting from e.
 						if (idInArchetype.id() == Is.id()) {
-							const auto e2 = entity_from_id(*m_lookupCtx.w, idInArchetype.gen());
-							return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+							const auto e2 = entity_from_id(*m_ctx.w, idInArchetype.gen());
+							return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 								return e2 == relation;
 							});
 						}
 
 						// Archetype entity is generic, try matching it with entites inheriting from e.
-						return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+						return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 							// Relation does not necessary match the sorted order of components in the archetype
 							// so we need to search through all of its ids.
 							const auto idx = core::get_index(archetypeIds, relation);
@@ -20255,8 +20254,8 @@ namespace gaia {
 
 						// If there are any Is pairs on the archetype we need to check if we match them
 						if (archetype.pairs_is() > 0) {
-							const auto e = entity_from_id(*m_lookupCtx.w, idInQuery.gen());
-							return as_relations_trav_if(*m_lookupCtx.w, e, [&](Entity relation) {
+							const auto e = entity_from_id(*m_ctx.w, idInQuery.gen());
+							return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 								// Relation does not necessary match the sorted order of components in the archetype
 								// so we need to search through all of its ids.
 								const auto idx = core::get_index(archetypeIds, relation);
@@ -20356,8 +20355,8 @@ namespace gaia {
 				sort(ctx);
 
 				QueryInfo info;
-				info.m_lookupCtx = GAIA_MOV(ctx);
-				info.m_lookupCtx.queryId = id;
+				info.m_ctx = GAIA_MOV(ctx);
+				info.m_ctx.queryId = id;
 				return info;
 			}
 
@@ -20370,7 +20369,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
-				return m_lookupCtx == other;
+				return m_ctx == other;
 			}
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
@@ -20386,7 +20385,7 @@ namespace gaia {
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
@@ -20437,7 +20436,7 @@ namespace gaia {
 					pSrcArchetypes = &it->second;
 				}
 
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
@@ -20483,7 +20482,7 @@ namespace gaia {
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
 				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
@@ -20538,7 +20537,7 @@ namespace gaia {
 					pSrcArchetypes = &it->second;
 				}
 
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
 				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
@@ -20579,7 +20578,7 @@ namespace gaia {
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
 				uint32_t lastMatchedIdx = 0;
@@ -20606,7 +20605,7 @@ namespace gaia {
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 
 				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
 				uint32_t lastMatchedIdx = 0;
@@ -20709,7 +20708,7 @@ namespace gaia {
 
 				GAIA_PROF_SCOPE(queryinfo::match);
 
-				auto& data = m_lookupCtx.data;
+				auto& data = m_ctx.data;
 				const auto& pairs = data.pairs;
 				if (pairs.empty())
 					return;
@@ -20735,7 +20734,7 @@ namespace gaia {
 						}
 
 						if (p.srcArchetype == nullptr) {
-							p.srcArchetype = archetype_from_entity(*m_lookupCtx.w, p.src);
+							p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
 
 							// Archetype needs to exist. If it does not we have nothing to do here.
 							if (p.srcArchetype == nullptr)
@@ -20779,7 +20778,7 @@ namespace gaia {
 						auto& p = ops_ids_any[i];
 						if (p.src != EntityBad) {
 							if (p.srcArchetype == nullptr)
-								p.srcArchetype = archetype_from_entity(*m_lookupCtx.w, p.src);
+								p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
 							if (p.srcArchetype == nullptr)
 								continue;
 						}
@@ -20872,11 +20871,11 @@ namespace gaia {
 				GAIA_EACH(queryIds) {
 					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
 					// Doing it here is faster than doing it in ChunkIterImpl::view.
-					uint32_t termIdx = (i + 1);
+					uint32_t termIdx = (i + 1); // (i+1) % queryIds.size()
 					if (termIdx >= queryIds.size())
 						termIdx = 0;
 
-					const auto idxBeforeRemapping = m_lookupCtx.data.remapping[termIdx];
+					const auto idxBeforeRemapping = m_ctx.data.remapping[termIdx];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -20893,23 +20892,23 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD QueryId id() const {
-				return m_lookupCtx.queryId;
+				return m_ctx.queryId;
 			}
 
 			GAIA_NODISCARD const QueryCtx::Data& data() const {
-				return m_lookupCtx.data;
+				return m_ctx.data;
 			}
 
 			GAIA_NODISCARD const QueryEntityArray& ids() const {
-				return m_lookupCtx.data.ids;
+				return m_ctx.data.ids;
 			}
 
 			GAIA_NODISCARD const QueryEntityArray& filters() const {
-				return m_lookupCtx.data.withChanged;
+				return m_ctx.data.withChanged;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_lookupCtx.data.withChanged.empty();
+				return !m_ctx.data.withChanged.empty();
 			}
 
 			template <typename... T>
@@ -20947,8 +20946,8 @@ namespace gaia {
 							--lastMatchedArchetypeIdx;
 					}
 				};
-				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_All);
-				clearMatches(m_lookupCtx.data.lastMatchedArchetypeIdx_Any);
+				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_All);
+				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Any);
 			}
 
 			//! Returns a view of indices mapping for component entities in a given archetype

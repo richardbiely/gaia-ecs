@@ -89,6 +89,9 @@ namespace gaia {
 			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
 
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
+			//! Hash of components within this archetype - used for lookups
+			LookupHash m_hashLookup = {0};
+
 			Properties m_properties{};
 			//! Component cache reference
 			const ComponentCache& m_cc;
@@ -108,16 +111,12 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
 			Chunk::EntityArray m_ids;
-			//! List of indices to Is relationship pairs in m_ids.
-			//! Compressed as Chunk::MAX_COMPONENTS_BITS per item.
+			//! List of indices to Is relationship pairs in m_ids
 			AsPairsIndexBuffer m_pairs_as_index_buffer;
 			//! List of component ids
 			Chunk::ComponentArray m_comps;
 			//! List of components offset indices
 			Chunk::ComponentOffsetArray m_compOffs;
-
-			//! Hash of components within this archetype - used for lookups
-			LookupHash m_hashLookup = {0};
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
