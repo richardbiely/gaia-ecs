@@ -578,7 +578,7 @@ ecs::Query q2 = w.query()
 ```
 
 ### Uncached query
-From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. As a result, if there are duplicates, more memory and performance is be wasted.
+From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. As a result, if there are duplicates, more memory and performance will be wasted.
 
 On the other hand, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute for the query and matching is faster because no query cache lookups are involved.
 

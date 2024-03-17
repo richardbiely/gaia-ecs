@@ -847,9 +847,9 @@ namespace gaia {
 #ifndef GAIA_LOG_D
 	#define GAIA_LOG_D(...)                                                                                              \
 		{                                                                                                                  \
-			fprintf(stdout, "%s %s, D: ", __DATE__, __TIME__);                                                               \
+			fprintf(stdout, "\033[1;32m%s %s, D: ", __DATE__, __TIME__);                                                     \
 			fprintf(stdout, __VA_ARGS__);                                                                                    \
-			fprintf(stdout, "\n");                                                                                           \
+			fprintf(stdout, "\033[0m\n");                                                                                    \
 		}
 #endif
 
@@ -867,9 +867,9 @@ namespace gaia {
 #ifndef GAIA_LOG_W
 	#define GAIA_LOG_W(...)                                                                                              \
 		{                                                                                                                  \
-			fprintf(stdout, "%s %s, W: ", __DATE__, __TIME__);                                                               \
+			fprintf(stderr, "\033[1;33m%s %s, W: ", __DATE__, __TIME__);                                                     \
 			fprintf(stderr, __VA_ARGS__);                                                                                    \
-			fprintf(stderr, "\n");                                                                                           \
+			fprintf(stderr, "\033[0m\n");                                                                                    \
 		}
 #endif
 
@@ -877,9 +877,9 @@ namespace gaia {
 #ifndef GAIA_LOG_E
 	#define GAIA_LOG_E(...)                                                                                              \
 		{                                                                                                                  \
-			fprintf(stdout, "%s %s, E: ", __DATE__, __TIME__);                                                               \
+			fprintf(stderr, "\033[1;31m%s %s, E: ", __DATE__, __TIME__);                                                     \
 			fprintf(stderr, __VA_ARGS__);                                                                                    \
-			fprintf(stderr, "\n");                                                                                           \
+			fprintf(stderr, "\033[0m\n");                                                                                    \
 		}
 #endif
 
