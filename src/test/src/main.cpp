@@ -5512,6 +5512,22 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
+	auto e2 = wld.copy(e);
+	(void)e2;
+	{
+		uint32_t cnt = 0;
+		q.each([&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 2); // adding an entity triggers the change
+	}
+	{
+		uint32_t cnt = 0;
+		q.each([&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0); // no new change since the last time
+	}
 }
 
 TEST_CASE("Query Filter - systems") {
