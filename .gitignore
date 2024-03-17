@@ -1,7 +1,7 @@
 build*
 ninja
 out
-*.out*
+cachegrind.*
 .vs
 .cache
 CMakeCache.txt

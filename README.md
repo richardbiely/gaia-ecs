@@ -137,7 +137,7 @@ The main strengths of an ECS done right could be sumarized as:
 
 Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs. Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator.
 
-Components of the same type are group together and laid out linearily in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
+Components of the same type are grouped together and laid out linearily in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
 The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize.
 

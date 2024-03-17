@@ -70,12 +70,19 @@ else
     # properly and we have to simulate at least the efficiency cores.
 
     # M1 performance core (won't run because L1 cache is not a power of 2):
-    # VALGRIND_ARGS_CUSTOM="--I1=196608,8,128 --D1=131072,8,128 --L2=12582912,16,128"
+    # VALGRIND_ARGS_CUSTOM="--I1=196608,8,128 --D1=131072,8,128 --L2=12582912,16,128 --cache-sim=yes"
     # M1 efficiency core:
-    VALGRIND_ARGS_CUSTOM="--I1=131072,8,128 --D1=65536,8,128 --L2=4194304,16,128"
+    VALGRIND_ARGS_CUSTOM="--I1=131072,8,128 --D1=65536,8,128 --L2=4194304,16,128 --cache-sim=yes"
 fi
 
 echo "Cachegrind - measuring DOD performance"
-valgrind ${VALGRIND_ARGS} "${VALGRIND_ARGS_CUSTOM}" --cachegrind-out-file=cachegrind.out.dod "${PATH_RELEASE}/${OUTPUT_BASE}" "${OUTPUT_ARGS_DOD}"
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.dod --branch-sim=yes "${PATH_RELEASE}/${OUTPUT_BASE}" ${OUTPUT_ARGS_DOD}
+cg_annotate --show=Dr,D1mr,DLmr --sort=Dr,D1mr,DLmr cachegrind.out.dod > cachegrind.r.dod # cache reads
+cg_annotate --show=Dw,D1mw,DLmw --sort=Dw,D1mw,DLmw cachegrind.out.dod > cachegrind.w.dod # cache writes
+cg_annotate --show=Bc,Bcm,Bi,Bim --sort=Bc,Bcm,Bi,Bim cachegrind.out.dod > cachegrind.b.dod # branch hits
+
 echo "Cachegrind - measuring ECS performance"
-valgrind ${VALGRIND_ARGS} "${VALGRIND_ARGS_CUSTOM}" --cachegrind-out-file=cachegrind.out.ecs "${PATH_RELEASE}/${OUTPUT_BASE}" "${OUTPUT_ARGS_ECS}"
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.ecs --branch-sim=yes "${PATH_RELEASE}/${OUTPUT_BASE}" ${OUTPUT_ARGS_ECS}
+cg_annotate --show=Dr,D1mr,DLmr --sort=Dr,D1mr,DLmr cachegrind.out.ecs > cachegrind.r.ecs
+cg_annotate --show=Dw,D1mw,DLmw --sort=Dw,D1mw,DLmw cachegrind.out.ecs > cachegrind.w.ecs
+cg_annotate --show=Bc,Bcm,Bi,Bim --sort=Bc,Bcm,Bi,Bim cachegrind.out.ecs > cachegrind.b.ecs

@@ -20073,7 +20073,7 @@ namespace gaia {
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 
 		private:
-			//! Lookup context
+			//! Query context
 			QueryCtx m_ctx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
