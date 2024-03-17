@@ -600,7 +600,7 @@ template <bool SoA>
 void createEntitiesWithMixedComponents(ecs::World& w, uint32_t nentities, cnt::darray<ecs::Entity>& out) {
 	out.clear();
 	out.reserve(nentities);
-	// inspired from EnTT benchmark "pathological",
+	// Inspired by EnTT benchmark "pathological",
 	// https://github.com/skypjack/entt/blob/de0e5862dd02fa669325a0a06b7936af4d2a841d/test/benchmark/benchmark.cpp#L44
 	for (uint32_t i = 0, j = 0; i < nentities; i++) {
 		auto e = w.add();
@@ -737,6 +737,8 @@ int main(int argc, char* argv[]) {
 
 		if (profilingMode) {
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NMany).label("1M");
+			r.run_benchmarks();
+			return 0;
 		} else if (sanitizerMode) {
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NFew).label("1K");
 			PICOBENCH_REG(BM_Run<true>).PICO_SETTINGS().user_data(NFew).label("1K");

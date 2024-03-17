@@ -197,6 +197,8 @@ int main(int argc, char* argv[]) {
 
 		if (profilingMode) {
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
+			r.run_benchmarks();
+			return 0;
 		} else if (sanitizerMode) {
 			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS_SANI().label("0 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");

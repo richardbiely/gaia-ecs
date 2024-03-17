@@ -1319,8 +1319,10 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS_1().label("DOD_Chunks_80");
 			} else {
 				// PICOBENCH_SUITE_REG("ECS");
-				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().user_data(NMany).label("Systems_Iter");
+				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().label("Systems_Iter");
 			}
+			r.run_benchmarks();
+			return 0;
 		} else if (sanitizerMode) {
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
