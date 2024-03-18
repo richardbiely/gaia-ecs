@@ -342,11 +342,17 @@ void fixed_arr_test() {
 	REQUIRE(cnt == N);
 	REQUIRE(cnt == arr.size());
 
+	std::span<const typename Container::value_type> view{arr.data(), arr.size()};
+
 	REQUIRE(core::find(arr, 0U) == arr.begin());
 	REQUIRE(core::find(arr, N) == arr.end());
+	REQUIRE(core::find(view, 0U) == view.begin());
+	REQUIRE(core::find(view, N) == view.end());
 
 	REQUIRE(core::has(arr, 0U));
+	REQUIRE(core::has(view, 0U));
 	REQUIRE_FALSE(core::has(arr, N));
+	REQUIRE_FALSE(core::has(view, N));
 }
 
 TEST_CASE("Containers - sarr") {
@@ -408,11 +414,17 @@ void resizable_arr_test(uint32_t N) {
 	REQUIRE(cnt == N);
 	REQUIRE(cnt == arr.size());
 
+	std::span<const typename Container::value_type> view{arr.data(), arr.size()};
+
 	REQUIRE(core::find(arr, 0U) == arr.begin());
 	REQUIRE(core::find(arr, N) == arr.end());
+	REQUIRE(core::find(view, 0U) == view.begin());
+	REQUIRE(core::find(view, N) == view.end());
 
 	REQUIRE(core::has(arr, 0U));
+	REQUIRE(core::has(view, 0U));
 	REQUIRE_FALSE(core::has(arr, N));
+	REQUIRE_FALSE(core::has(view, N));
 
 	arr.erase(arr.begin());
 	REQUIRE(arr.size() == (N - 1));
