@@ -1506,6 +1506,17 @@ namespace gaia {
 				return m_worldVersion;
 			}
 
+			//! Sets maximal lifespan of an archetype \param entity belongs to.
+			//! \param lifespan How many world updates an empty archetype is kept.
+			//!                 If zero, the archetype it kept indefinitely.
+			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {
+				if (!valid(entity))
+					return;
+
+				auto& ec = fetch(entity);
+				ec.pArchetype->set_max_lifespan(lifespan);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
@@ -1782,13 +1793,13 @@ namespace gaia {
 						continue;
 					}
 
-					// Skip chunks which still have some lifetime left
+					// Skip chunks which still have some lifespan left
 					if (pChunk->progress_death()) {
 						++i;
 						continue;
 					}
 
-					// Delete unused chunks that are past their lifetime
+					// Delete unused chunks that are past their lifespan
 					del_empty_chunk(pChunk);
 					core::erase_fast(m_chunksToDel, i);
 				}
@@ -1821,7 +1832,7 @@ namespace gaia {
 						continue;
 					}
 
-					// Skip archetypes which still has some lifetime left unless
+					// Skip archetypes which still has some lifespan left unless
 					// they are force-deleted.
 					if (!pArchetype->is_req_del() && pArchetype->progress_death()) {
 						++i;

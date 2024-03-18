@@ -396,7 +396,7 @@ namespace gaia {
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
-				//       any states realted to its lifetime.
+				//       any states related to its lifespan.
 				if (!dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
 					// rowB away and need to wait for world::gc() to be called.
@@ -1182,7 +1182,7 @@ namespace gaia {
 				m_header.lifespanCountdown = 0;
 			}
 
-			//! Updates internal lifetime
+			//! Updates internal lifespan
 			//! \return True if there is some lifespan rowA, false otherwise.
 			bool progress_death() {
 				GAIA_ASSERT(dying());

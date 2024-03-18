@@ -17362,7 +17362,7 @@ namespace gaia {
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
-				//       any states realted to its lifetime.
+				//       any states related to its lifespan.
 				if (!dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
 					// rowB away and need to wait for world::gc() to be called.
@@ -18148,7 +18148,7 @@ namespace gaia {
 				m_header.lifespanCountdown = 0;
 			}
 
-			//! Updates internal lifetime
+			//! Updates internal lifespan
 			//! \return True if there is some lifespan rowA, false otherwise.
 			bool progress_death() {
 				GAIA_ASSERT(dying());
@@ -18300,6 +18300,13 @@ namespace gaia {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
+			//! Number of bits representing archetype lifespan
+			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
+			//! Archetype lifespan must be at least as long as chunk lifespan
+			static_assert(ARCHETYPE_LIFESPAN_BITS >= ChunkHeader::CHUNK_LIFESPAN_BITS);
+			//! Number of ticks before empty chunks are removed
+			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
+
 			struct Properties {
 				//! The number of data entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
@@ -18344,32 +18351,31 @@ namespace gaia {
 			//! List of components offset indices
 			ChunkDataOffset m_compOffs[Chunk::MAX_COMPONENTS];
 
-			//! Number of bits representing archetype lifespan
-			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
-			//! Archetype lifespan must be at least as long as chunk lifespan
-			static_assert(ARCHETYPE_LIFESPAN_BITS >= ChunkHeader::CHUNK_LIFESPAN_BITS);
-			//! Number of ticks before empty chunks are removed
-			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
-
 			//! Archetype list index
 			uint32_t m_listIdx;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
-			//! Remaining lifespan of the archetype
-			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			//! If set the archetype is to be deleted
 			uint32_t m_dead : 1;
+			//! Max lifespan of the archetype
+			uint32_t m_lifespanCountdownMax: ARCHETYPE_LIFESPAN_BITS;
+			//! Remaining lifespan of the archetype
+			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			//! Number of relationship pairs on the archetype
 			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
 			//! Number of Is relationship pairs on the archetype
 			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
+			//! Unused bits
+			uint32_t m_unused : 6;
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex),
-					//
-					m_deleteReq(0), m_lifespanCountdown(0), m_dead(0), m_pairCnt(0), m_pairCnt_is(0) {}
+					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
+					m_deleteReq(0), m_dead(0), //
+					m_lifespanCountdown(0), m_lifespanCountdownMax(0), //
+					m_pairCnt(0), m_pairCnt_is(0), //
+					m_unused(0) {}
 
 			~Archetype() {
 				// Delete all archetype chunks
@@ -18685,8 +18691,8 @@ namespace gaia {
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
-				//       any states realted to its lifetime.
-				if (!dying() && empty()) {
+				//       any states related to its lifespan.
+				if (m_lifespanCountdownMax > 0 && !dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
 					// right away and need to wait for world::gc() to be called.
 					//
@@ -18992,17 +18998,27 @@ namespace gaia {
 				return m_graph.find_edge_left(entity);
 			}
 
-			//! Checks is there are no chunk in the archetype
+			//! Checks is there are no chunk in the archetype.
 			GAIA_NODISCARD bool empty() const {
 				return m_chunks.empty();
 			}
 
+			//! Request deleting the archetype.
 			void req_del() {
 				m_deleteReq = 1;
 			}
 
+			//! Returns true if this archetype is requested to be deleted.
 			GAIA_NODISCARD bool is_req_del() const {
 				return m_deleteReq;
+			}
+
+			//! Sets maximal lifespan of an archetype
+			//! \param lifespan How many world updates an empty archetype is kept.
+			//!                 If zero, the archetype it kept indefinitely.
+			void set_max_lifespan(uint32_t lifespan) {
+				GAIA_ASSERT(lifespan < MAX_ARCHETYPE_LIFESPAN);
+				m_lifespanCountdownMax = lifespan;
 			}
 
 			//! Checks is this chunk is dying
@@ -19023,7 +19039,7 @@ namespace gaia {
 			//! Starts the process of dying
 			void start_dying() {
 				GAIA_ASSERT(!dead());
-				m_lifespanCountdown = MAX_ARCHETYPE_LIFESPAN;
+				m_lifespanCountdown = m_lifespanCountdownMax;
 			}
 
 			//! Makes the archetype alive again
@@ -19033,7 +19049,7 @@ namespace gaia {
 				m_deleteReq = 0;
 			}
 
-			//! Updates internal lifetime
+			//! Updates internal lifespan
 			//! \return True if there is some lifespan left, false otherwise.
 			bool progress_death() {
 				GAIA_ASSERT(dying());
@@ -23480,6 +23496,17 @@ namespace gaia {
 				return m_worldVersion;
 			}
 
+			//! Sets maximal lifespan of an archetype \param entity belongs to.
+			//! \param lifespan How many world updates an empty archetype is kept.
+			//!                 If zero, the archetype it kept indefinitely.
+			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {
+				if (!valid(entity))
+					return;
+
+				auto& ec = fetch(entity);
+				ec.pArchetype->set_max_lifespan(lifespan);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
@@ -23756,13 +23783,13 @@ namespace gaia {
 						continue;
 					}
 
-					// Skip chunks which still have some lifetime left
+					// Skip chunks which still have some lifespan left
 					if (pChunk->progress_death()) {
 						++i;
 						continue;
 					}
 
-					// Delete unused chunks that are past their lifetime
+					// Delete unused chunks that are past their lifespan
 					del_empty_chunk(pChunk);
 					core::erase_fast(m_chunksToDel, i);
 				}
@@ -23795,7 +23822,7 @@ namespace gaia {
 						continue;
 					}
 
-					// Skip archetypes which still has some lifetime left unless
+					// Skip archetypes which still has some lifespan left unless
 					// they are force-deleted.
 					if (!pArchetype->is_req_del() && pArchetype->progress_death()) {
 						++i;
