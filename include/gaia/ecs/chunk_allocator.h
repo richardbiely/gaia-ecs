@@ -57,9 +57,7 @@ namespace gaia {
 
 		namespace detail {
 
-			/*!
-			Allocator for ECS Chunks. Memory is organized in pages of chunks.
-			*/
+			//! Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			class ChunkAllocatorImpl {
 				friend gaia::ecs::ChunkAllocator;
 
@@ -226,9 +224,7 @@ namespace gaia {
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
 
-				/*!
-				Allocates memory
-				*/
+				//! Allocates memory
 				void* alloc(uint32_t bytesWanted) {
 					GAIA_ASSERT(bytesWanted <= MaxMemoryBlockSize);
 
@@ -272,9 +268,7 @@ namespace gaia {
 				// Memory is aligned so we can silence this warning
 				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-				/*!
-				Releases memory allocated for pointer
-				*/
+				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
@@ -327,9 +321,7 @@ namespace gaia {
 
 				GAIA_CLANG_WARNING_POP()
 
-				/*!
-				Returns allocator statistics
-				*/
+				//! Returns allocator statistics
 				ChunkAllocatorStats stats() const {
 					ChunkAllocatorStats stats;
 					stats.stats[0] = page_stats(0);
@@ -337,9 +329,7 @@ namespace gaia {
 					return stats;
 				}
 
-				/*!
-				Flushes unused memory
-				*/
+				//! Flushes unused memory
 				void flush() {
 					auto flushPages = [](MemoryPageContainer& container) {
 						for (uint32_t i = 0; i < container.pagesFree.size();) {
@@ -362,9 +352,7 @@ namespace gaia {
 						flushPages(c);
 				}
 
-				/*!
-				Performs diagnostics of the memory used.
-				*/
+				//! Performs diagnostics of the memory used.
 				void diag() const {
 					auto diagPage = [](const ChunkAllocatorPageStats& memstats) {
 						GAIA_LOG_N("ChunkAllocator stats");

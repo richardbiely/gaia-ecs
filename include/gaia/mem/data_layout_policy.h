@@ -95,16 +95,18 @@ namespace gaia {
 		template <DataLayout TDataLayout, typename TItem, size_t Ids>
 		struct data_view_policy_set_idx;
 
-		/*!
-		 * data_view_policy for accessing and storing data in the AoS way
-		 *	Good for random access and when acessing data together.
-		 *
-		 * struct Foo { int x; int y; int z; };
-		 * using fooViewPolicy = data_view_policy<DataLayout::AoS, Foo>;
-		 *
-		 * Memory is going be be organized as:
-		 *		xyz xyz xyz xyz
-		 */
+		//! View policy for accessing and storing data in the AoS way.
+		//! Good for random access and when acessing data that needs to be
+		//! close together.
+		//!
+		//! struct Foo {
+		//!   int x;
+		//!   int y;
+		//!   int z;
+		//! };
+		//! using fooViewPolicy = data_view_policy<DataLayout::AoS, Foo>;
+		//!
+		//! Memory organized as: xyz xyz xyz xyz
 		template <typename ValueType>
 		struct data_view_policy_aos {
 			using TargetCastType = std::add_pointer_t<ValueType>;
@@ -216,16 +218,17 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
 
-		/*!
-		 * data_view_policy for accessing and storing data in the SoA way
-		 *	Good for SIMD processing.
-		 *
-		 * struct Foo { int x; int y; int z; };
-		 * using fooViewPolicy = data_view_policy<DataLayout::SoA, Foo>;
-		 *
-		 * Memory is going be be organized as:
-		 *		xxxx yyyy zzzz
-		 */
+		//! View policy for accessing and storing data in the SoA way.
+		//! Good for SIMD processing.
+		//!
+		//! struct Foo {
+		//!   int x;
+		//!   int y;
+		//!   int z;
+		//! };
+		//! using fooViewPolicy = data_view_policy<DataLayout::SoA, Foo>;
+		//!
+		//! Memory organized as: xxxx yyyy zzzz
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);

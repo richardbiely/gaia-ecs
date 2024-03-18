@@ -21,13 +21,11 @@ namespace gaia {
 			uint32_t id;
 		};
 
-		/*!
-		Buffer for deferred execution of some operations on entities.
-
-		Adding and removing components and entities inside World::each or can result
-		in changes of archetypes or chunk structure. This would lead to undefined behavior.
-		Therefore, such operations have to be executed after the loop is done.
-		*/
+		//! Buffer for deferred execution of some operations on entities.
+		//!
+		//! Adding and removing components and entities inside World::each or can result
+		//! in changes of archetypes or chunk structure. This would lead to undefined behavior.
+		//! Therefore, such operations have to be executed after the loop is done.
 		class CommandBuffer final {
 			struct CommandBufferCtx: SerializationBuffer {
 				ecs::World& world;
@@ -222,11 +220,9 @@ namespace gaia {
 			CommandBufferCtx m_ctx;
 			uint32_t m_entities;
 
-			/*!
-			Requests a new entity to be created from archetype
-			\return Entity that will be created. The id is not usable right away. It
-			will be filled with proper data after commit()
-			*/
+			//! Requests a new entity to be created from archetype
+			//! \return Entity that will be created. The id is not usable right away. It
+			//!         will be filled with proper data after commit(),
 			GAIA_NODISCARD TempEntity add(Archetype& archetype) {
 				m_ctx.save(CREATE_ENTITY_FROM_ARCHETYPE);
 
@@ -246,22 +242,18 @@ namespace gaia {
 			CommandBuffer& operator=(CommandBuffer&&) = delete;
 			CommandBuffer& operator=(const CommandBuffer&) = delete;
 
-			/*!
-			Requests a new entity to be created
-			\return Entity that will be created. The id is not usable right away. It
-			will be filled with proper data after commit()
-			*/
+			//! Requests a new entity to be created
+			//! \return Entity that will be created. The id is not usable right away. It
+			//!         will be filled with proper data after commit().
 			GAIA_NODISCARD TempEntity add() {
 				m_ctx.save(CREATE_ENTITY);
 
 				return {m_entities++};
 			}
 
-			/*!
-			Requests a new entity to be created by cloning an already existing
-			entity \return Entity that will be created. The id is not usable right
-			away. It will be filled with proper data after commit()
-			*/
+			//! Requests a new entity to be created by cloning an already existing entity
+			//! \return Entity that will be created. The id is not usable right away. It
+			//!         will be filled with proper data after commit()
 			GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
 				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
@@ -272,9 +264,7 @@ namespace gaia {
 				return {m_entities++};
 			}
 
-			/*!
-			Requests an existing \param entity to be removed.
-			*/
+			//! Requests an existing \param entity to be removed.
 			void del(Entity entity) {
 				m_ctx.save(DELETE_ENTITY);
 
@@ -283,9 +273,7 @@ namespace gaia {
 				ser::save(m_ctx, cmd);
 			}
 
-			/*!
-			Requests a component to be added to entity.
-			*/
+			//! Requests a component \tparam T to be added to \param entity.
 			template <typename T>
 			void add(Entity entity) {
 				verify_comp<T>();
@@ -301,9 +289,7 @@ namespace gaia {
 				ser::save(m_ctx, cmd);
 			}
 
-			/*!
-			Requests a component to be added to temporary entity.
-			*/
+			//! Requests a component \tparam T to be added to a temporary entity.
 			template <typename T>
 			void add(TempEntity entity) {
 				verify_comp<T>();
@@ -319,9 +305,7 @@ namespace gaia {
 				ser::save(m_ctx, cmd);
 			}
 
-			/*!
-			Requests a component to be added to entity.
-			*/
+			//! Requests a component \tparam T to be added to entity. Also sets its value.
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				verify_comp<T>();
@@ -338,9 +322,7 @@ namespace gaia {
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
-			/*!
-			Requests a component to be added to temporary entity.
-			*/
+			//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				verify_comp<T>();
@@ -357,9 +339,7 @@ namespace gaia {
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
-			/*!
-			Requests component data to be set to given values for a given entity.
-			*/
+			//! Requests component data to be set to given values for a given entity.
 			template <typename T>
 			void set(Entity entity, T&& value) {
 				verify_comp<T>();
@@ -376,10 +356,7 @@ namespace gaia {
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
-			/*!
-			Requests component data to be set to given values for a given temp
-			entity.
-			*/
+			//! Requests component data to be set to given values for a given temp entity.
 			template <typename T>
 			void set(TempEntity entity, T&& value) {
 				verify_comp<T>();
@@ -396,9 +373,7 @@ namespace gaia {
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
-			/*!
-			Requests removal of a component from entity
-			*/
+			//! Requests removal of component \tparam T from \param entity
 			template <typename T>
 			void del(Entity entity) {
 				verify_comp<T>();
@@ -484,9 +459,7 @@ namespace gaia {
 					}};
 
 		public:
-			/*!
-			Commits all queued changes.
-			*/
+			//! Commits all queued changes.
 			void commit() {
 				if (m_ctx.empty())
 					return;

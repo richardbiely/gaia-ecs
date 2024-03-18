@@ -423,29 +423,23 @@ namespace gaia {
 				return m_archetypeIdHash;
 			}
 
-			/*!
-			Sets hashes for each component type and lookup.
-			\param hashLookup Hash used for archetype lookup purposes
-			*/
+			//! Sets hashes for each component type and lookup.
+			//! \param hashLookup Hash used for archetype lookup purposes
 			void set_hashes(LookupHash hashLookup) {
 				m_hashLookup = hashLookup;
 			}
 
-			/*!
-			Enables or disables the entity on a given row in the chunk.
-			\param pChunk Chunk the entity belongs to
-			\param row Row of the entity
-			\param enableEntity Enables the entity
-			*/
+			//! Enables or disables the entity on a given row in the chunk.
+			//! \param pChunk Chunk the entity belongs to
+			//! \param row Row of the entity
+			//! \param enableEntity Enables the entity
 			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, EntityContainers& recs) {
 				pChunk->enable_entity(row, enableEntity, recs);
 				// m_disabledMask.set(pChunk->idx(), enableEntity ? true : pChunk->has_disabled_entities());
 			}
 
-			/*!
-			Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
-			\param pChunk Chunk to remove from the list of managed archetypes
-			*/
+			//! Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
+			//! \param pChunk Chunk to remove from the list of managed archetypes
 			void del(Chunk* pChunk, ArchetypeList& archetypesToDelete) {
 				// Make sure there are any chunks to delete
 				GAIA_ASSERT(!m_chunks.empty());
@@ -723,25 +717,13 @@ namespace gaia {
 				return m_ids[ids_idx];
 			}
 
-			/*!
-			Checks if an entity is a part of the archetype.
-			\param entity Entity
-			\return True if found. False otherwise.
-			*/
+			//! Checks if an entity is a part of the archetype.
+			//! \param entity Entity
+			//! \return True if found. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				return core::has_if(ids_view(), [&](Entity e) {
 					return e == entity;
 				});
-			}
-
-			/*!
-			Checks if a component \tparam T a part of the archetype.
-			\return True if found. False otherwise.
-			*/
-			template <typename T>
-			GAIA_NODISCARD bool has() const {
-				const auto* pItem = m_cc.find<T>();
-				return pItem != nullptr && has(pItem->entity);
 			}
 
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
@@ -925,10 +907,8 @@ namespace gaia {
 					GAIA_LOG_N("    N/A");
 			}
 
-			/*!
-			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
-			\param archetype Archetype to run diagnostics on
-			*/
+			//! Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
+			//! \param archetype Archetype to run diagnostics on
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);
 				diag_graph_info(world, archetype);
