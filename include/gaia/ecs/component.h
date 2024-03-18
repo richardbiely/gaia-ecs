@@ -24,6 +24,7 @@ namespace gaia {
 		using EntitySpan = std::span<const Entity>;
 		using EntitySpanMut = std::span<Entity>;
 		using ComponentSpan = std::span<const Component>;
+		using ChunkDataOffsetSpan = std::span<const ChunkDataOffset>;
 
 		//----------------------------------------------------------------------
 		// Component verification

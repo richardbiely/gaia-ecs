@@ -24,8 +24,8 @@ BraceWrapping:
   AfterNamespace: false
   AfterControlStatement: Never
   BeforeElse: false
-  BeforeWhile: false
-  BeforeLambdaBody: false
+  #BeforeWhile: false
+  #BeforeLambdaBody: false
   BeforeCatch: false
   SplitEmptyFunction: false
   SplitEmptyRecord: false
@@ -41,11 +41,11 @@ CompactNamespaces: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 FixNamespaceComments: true
 IndentCaseLabels: true
-IndentExternBlock: true
+#IndentExternBlock: true
 IndentGotoLabels: true
 IndentPPDirectives: BeforeHash
 IndentWrappedFunctionNames: false
-InsertTrailingCommas: None
+#InsertTrailingCommas: None
 NamespaceIndentation: All
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false

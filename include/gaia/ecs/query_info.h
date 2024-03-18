@@ -96,12 +96,14 @@ namespace gaia {
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool match_inter(const Archetype& archetype, EntitySpan queryIds, Func func) const {
-				const auto& archetypeIds = archetype.ids();
+				auto archetypeIds = archetype.ids_view();
+				const auto archetypeIdsCnt = (uint32_t)archetypeIds.size();
+				const auto queryIdsCnt = queryIds.size();
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
 				uint32_t j = 0;
-				while (i < archetypeIds.size() && j < queryIds.size()) {
+				while (i < archetypeIdsCnt && j < queryIdsCnt) {
 					const auto idInArchetype = archetypeIds[i];
 					const auto idInQuery = queryIds[j];
 
@@ -160,7 +162,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_ids_is(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
-				const auto& archetypeIds = archetype.ids();
+				auto archetypeIds = archetype.ids_view();
 
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
 					return as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
@@ -174,7 +176,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_ids_is_pairs(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
-				const auto& archetypeIds = archetype.ids();
+				auto archetypeIds = archetype.ids_view();
 
 				if (idInQuery.pair()) {
 					// all(Pair<All, All>) aka "any pair"
@@ -844,7 +846,7 @@ namespace gaia {
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
-					const auto compIdx = core::get_index_unsafe(pArchetype->ids(), queryId);
+					const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}

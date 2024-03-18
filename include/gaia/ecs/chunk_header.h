@@ -97,7 +97,7 @@ namespace gaia {
 			//! Number of generic entities/components
 			uint8_t genEntities;
 			//! Number of components on the archetype
-			uint8_t componentCount;
+			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
@@ -113,7 +113,7 @@ namespace gaia {
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
 					//
-					genEntities(genEntitiesCnt), componentCount(0), worldVersion(version) {
+					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

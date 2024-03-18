@@ -83,6 +83,8 @@ namespace gaia {
 				ChunkDataOffset chunkDataBytes;
 				//! The number of generic entities/components
 				uint8_t genEntities;
+				//! Total number of entities/components
+				uint8_t cntEntities;
 			};
 
 		private:
@@ -110,13 +112,13 @@ namespace gaia {
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
 			//! List of entities used to identify the archetype
-			Chunk::EntityArray m_ids;
+			Entity m_ids[Chunk::MAX_COMPONENTS];
 			//! List of indices to Is relationship pairs in m_ids
-			AsPairsIndexBuffer m_pairs_as_index_buffer;
+			uint8_t m_pairs_as_index_buffer[Chunk::MAX_COMPONENTS];
 			//! List of component ids
-			Chunk::ComponentArray m_comps;
+			Component m_comps[Chunk::MAX_COMPONENTS];
 			//! List of components offset indices
-			Chunk::ComponentOffsetArray m_compOffs;
+			ChunkDataOffset m_compOffs[Chunk::MAX_COMPONENTS];
 
 			//! Number of bits representing archetype lifespan
 			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
@@ -159,11 +161,11 @@ namespace gaia {
 
 				// Versions
 				// We expect versions to fit in the first 256 bytes.
-				// With 64 components per archetype (32 generic + 32 unique) this gives us some headroom.
+				// With 32 components per archetype this gives us some headroom.
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 
-					const auto cnt = comps().size();
+					const auto cnt = comps_view().size();
 					if (cnt != 0) {
 						GAIA_ASSERT(offset < 256);
 						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
@@ -175,7 +177,7 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(Entity)>(offset);
 
-					const auto cnt = comps().size();
+					const auto cnt = comps_view().size();
 					if (cnt != 0) {
 						m_dataOffsets.firstByte_CompEntities = (ChunkDataOffset)offset;
 
@@ -188,7 +190,7 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentRecord)>(offset);
 
-					const auto cnt = comps().size();
+					const auto cnt = comps_view().size();
 					if (cnt != 0) {
 
 						m_dataOffsets.firstByte_Records = (ChunkDataOffset)offset;
@@ -272,7 +274,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				return ecs::cmp_comps({m_ids.data(), m_ids.size()}, other.m_comps);
+				return ecs::cmp_comps(ids_view(), other.m_comps);
 			}
 
 			GAIA_NODISCARD static Archetype*
@@ -286,9 +288,8 @@ namespace gaia {
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
-				newArch->m_ids.resize((uint32_t)ids.size());
-				newArch->m_comps.resize((uint32_t)ids.size());
-				newArch->m_compOffs.resize((uint32_t)ids.size());
+				const auto cnt = (uint32_t)ids.size();
+				newArch->m_properties.cntEntities = (uint8_t)ids.size();
 
 				auto as_comp = [&](Entity entity) {
 					const auto* pDesc = cc.find(entity);
@@ -298,7 +299,7 @@ namespace gaia {
 				};
 
 				// Prepare m_comps array
-				auto comps = std::span(newArch->m_comps.data(), newArch->m_comps.size());
+				auto comps = std::span(&newArch->m_comps[0], cnt);
 				GAIA_EACH(ids) {
 					if (ids[i].pair()) {
 						// When using pairs we need to decode the storage type from them.
@@ -351,7 +352,7 @@ namespace gaia {
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
 				GAIA_FOR(entsGeneric) genCompsSize += newArch->m_comps[i].size();
-				GAIA_FOR2(entsGeneric, ids.size()) uniCompsSize += newArch->m_comps[i].size();
+				GAIA_FOR2(entsGeneric, cnt) uniCompsSize += newArch->m_comps[i].size();
 
 				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
 				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
@@ -533,7 +534,8 @@ namespace gaia {
 				while (front < back && (pSrcChunk->empty() || !pSrcChunk->is_semi()))
 					pSrcChunk = m_chunks[--back];
 
-				const bool hasUniEnts = !m_ids.empty() && m_ids.back().kind() == EntityKind::EK_Uni;
+				const bool hasUniEnts =
+						m_properties.cntEntities > 0 && m_ids[m_properties.cntEntities - 1].kind() == EntityKind::EK_Uni;
 
 				// Find the first semi-empty chunk in the back
 				while (front < back) {
@@ -549,7 +551,7 @@ namespace gaia {
 					if (hasUniEnts) {
 						auto rec = pSrcChunk->comp_rec_view();
 						bool res = true;
-						GAIA_FOR2(m_properties.genEntities, m_ids.size()) {
+						GAIA_FOR2(m_properties.genEntities, m_properties.cntEntities) {
 							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
 							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
 							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
@@ -635,8 +637,10 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, props().capacity, props().genEntities, m_properties.chunkDataBytes, m_worldVersion,
-						m_dataOffsets, m_ids, m_comps, m_compOffs);
+						m_cc, chunkCnt, //
+						m_properties.capacity, m_properties.cntEntities, //
+						m_properties.genEntities, m_properties.chunkDataBytes, //
+						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
 
 				m_firstFreeChunkidx = m_chunks.size();
 				m_chunks.push_back(pChunk);
@@ -694,16 +698,16 @@ namespace gaia {
 				return m_hashLookup;
 			}
 
-			GAIA_NODISCARD const Chunk::EntityArray& ids() const {
-				return m_ids;
+			GAIA_NODISCARD EntitySpan ids_view() const {
+				return {&m_ids[0], m_properties.cntEntities};
 			}
 
-			GAIA_NODISCARD const Chunk::ComponentArray& comps() const {
-				return m_comps;
+			GAIA_NODISCARD ComponentSpan comps_view() const {
+				return {&m_comps[0], m_properties.cntEntities};
 			}
 
-			GAIA_NODISCARD const Chunk::ComponentOffsetArray& comp_offs() const {
-				return m_compOffs;
+			GAIA_NODISCARD ChunkDataOffsetSpan comp_offs_view() const {
+				return {&m_compOffs[0], m_properties.cntEntities};
 			}
 
 			GAIA_NODISCARD uint32_t pairs() const {
@@ -725,7 +729,7 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-				return core::has_if(m_ids, [&](Entity e) {
+				return core::has_if(ids_view(), [&](Entity e) {
 					return e == entity;
 				});
 			}
@@ -851,8 +855,8 @@ namespace gaia {
 			}
 
 			static void diag_basic_info(const World& world, const Archetype& archetype) {
-				const auto& ids = archetype.ids();
-				const auto& comps = archetype.comps();
+				auto ids = archetype.ids_view();
+				auto comps = archetype.comps_view();
 
 				// Caclulate the number of entites in archetype
 				uint32_t entCnt = 0;
@@ -881,7 +885,7 @@ namespace gaia {
 						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
 				if (!ids.empty()) {
-					GAIA_LOG_N("  Components - count:%u", ids.size());
+					GAIA_LOG_N("  Components - count:%u", (uint32_t)ids.size());
 					for (const auto ent: ids)
 						diag_entity(world, ent);
 				}

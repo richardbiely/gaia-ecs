@@ -76,32 +76,32 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					const EntityArray& ids, const ComponentArray& comps, const ChunkDataOffsets& headerOffsets,
-					const ComponentOffsetArray& compOffs) {
-				m_header.componentCount = (uint8_t)ids.size();
+					uint32_t cntEntities, const Entity* ids, const Component* comps, const ChunkDataOffsets& headerOffsets,
+					const ChunkDataOffset* compOffs) {
+				m_header.cntEntities = (uint8_t)cntEntities;
 
 				// Cache pointers to versions
-				if (!ids.empty()) {
+				if (cntEntities > 0) {
 					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 				}
 
 				// Cache entity ids
-				if (!ids.empty()) {
+				if (cntEntities > 0) {
 					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
 
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
-					for (; j < ids.size(); ++j)
+					for (; j < cntEntities; ++j)
 						dst[j] = ids[j];
 					for (; j < MAX_COMPONENTS; ++j)
 						dst[j] = EntityBad;
 				}
 
 				// Cache component records
-				if (!ids.empty()) {
+				if (cntEntities > 0) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
-					GAIA_EACH_(comps, j) {
+					GAIA_FOR_(cntEntities, j) {
 						dst[j].entity = ids[j];
 						dst[j].comp = comps[j];
 						dst[j].pData = &data(compOffs[j]);
@@ -135,15 +135,15 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
-				return {(const ComponentVersion*)m_records.pVersions, m_header.componentCount};
+				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
-				return {m_records.pVersions, m_header.componentCount};
+				return {m_records.pVersions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
-				return {m_records.pEntities, size()};
+				return {m_records.pEntities, m_header.count};
 			}
 
 			/*!
@@ -157,7 +157,7 @@ namespace gaia {
 					-> decltype(std::span<const uint8_t>{}) {
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
-					GAIA_ASSERT(to <= size());
+					GAIA_ASSERT(to <= m_header.count);
 					return {(const uint8_t*)&m_records.pEntities[from], to - from};
 				} else if constexpr (is_pair<T>::value) {
 					using TT = typename T::type;
@@ -174,10 +174,10 @@ namespace gaia {
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr(compIdx), to};
 					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						return {comp_ptr(compIdx, from), to - from};
 					} else {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr(compIdx), 1};
 					}
@@ -195,10 +195,10 @@ namespace gaia {
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr(compIdx), to};
 					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						return {comp_ptr(compIdx, from), to - from};
 					} else {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr(compIdx), 1};
 					}
@@ -236,10 +236,10 @@ namespace gaia {
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr_mut(compIdx), to};
 					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr_mut(compIdx), 1};
 					}
@@ -261,10 +261,10 @@ namespace gaia {
 						GAIA_ASSERT(to == capacity());
 						return {comp_ptr_mut(compIdx), to};
 					} else if constexpr (kind == EntityKind::EK_Gen) {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						return {comp_ptr_mut(compIdx, from), to - from};
 					} else {
-						GAIA_ASSERT(to <= size());
+						GAIA_ASSERT(to <= m_header.count);
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr_mut(compIdx), 1};
 					}
@@ -350,16 +350,16 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t dataBytes,
-					uint32_t& worldVersion,
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities,
+					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
 					// component entities
-					const EntityArray& ids,
+					const Entity* ids,
 					// component
-					const ComponentArray& comps,
+					const Component* comps,
 					// component offsets
-					const ComponentOffsetArray& compOffs) {
+					const ChunkDataOffset* compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -373,7 +373,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
-				pChunk->init(ids, comps, offsets, compOffs);
+				pChunk->init((uint32_t)cntEntities, ids, comps, offsets, compOffs);
 				return pChunk;
 			}
 
@@ -457,7 +457,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view() const {
-				return view<T>(0, size());
+				return view<T>(0, m_header.count);
 			}
 
 			template <typename T>
@@ -488,7 +488,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_mut() {
-				return view_mut<T>(0, size());
+				return view_mut<T>(0, m_header.count);
 			}
 
 			template <typename T>
@@ -530,7 +530,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_mut() {
-				return sview_mut<T>(0, size());
+				return sview_mut<T>(0, m_header.count);
 			}
 
 			/*!
@@ -553,7 +553,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_auto() {
-				return view_auto<T>(0, size());
+				return view_auto<T>(0, m_header.count);
 			}
 
 			/*!
@@ -577,19 +577,19 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_auto() {
-				return sview_auto<T>(0, size());
+				return sview_auto<T>(0, m_header.count);
 			}
 
 			GAIA_NODISCARD EntitySpan entity_view() const {
-				return {(const Entity*)m_records.pEntities, size()};
+				return {(const Entity*)m_records.pEntities, m_header.count};
 			}
 
 			GAIA_NODISCARD EntitySpan ents_id_view() const {
-				return {(const Entity*)m_records.pCompEntities, m_header.componentCount};
+				return {(const Entity*)m_records.pCompEntities, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view() const {
-				return {m_records.pRecords, m_header.componentCount};
+				return {m_records.pRecords, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx) {
@@ -660,9 +660,7 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
-			*/
+			//! Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			void move_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
@@ -682,6 +680,7 @@ namespace gaia {
 				}
 			}
 
+			//! Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			static void move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow) {
 				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
@@ -739,16 +738,6 @@ namespace gaia {
 						}
 					}
 				}
-			}
-
-			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
-			*/
-			void move_foreign_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
-				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
-
-				auto& ec = recs[entity];
-				move_foreign_entity_data(ec.pChunk, ec.row, this, row);
 			}
 
 			/*!
@@ -823,8 +812,7 @@ namespace gaia {
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
 
-				const auto chunkEntityCount = size();
-				if GAIA_UNLIKELY (chunkEntityCount == 0)
+				if GAIA_UNLIKELY (m_header.count == 0)
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::remove_entity);
@@ -1299,7 +1287,7 @@ namespace gaia {
 
 			//! Checks is there are any entities in the chunk
 			GAIA_NODISCARD bool empty() const {
-				return size() == 0;
+				return m_header.count == 0;
 			}
 
 			//! Return the number of entities in the chunk which are enabled
