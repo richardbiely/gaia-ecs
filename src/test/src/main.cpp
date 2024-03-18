@@ -1685,17 +1685,19 @@ TEST_CASE("Add - no components") {
 		auto e = wld.add();
 		ents.push_back(e);
 	};
-	// auto verify = [&](uint32_t i) {
-	//	REQUIRE(arr[i + 3] == ents[i]);
-	// };
+	auto verify = [&](uint32_t i) {
+		const auto a = arr[i + 2];
+		const auto e = ents[i];
+		REQUIRE(a == e);
+	};
 
 	GAIA_FOR(N) create();
 
-	auto q = wld.query().all<ecs::EntityDesc>().no<ecs::Component>();
+	auto q = wld.query().no<ecs::Component>();
 	q.arr(arr);
 	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
-	// GAIA_FOR(N) verify(i);
+	GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {

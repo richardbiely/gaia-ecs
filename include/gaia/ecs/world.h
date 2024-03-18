@@ -2200,6 +2200,9 @@ namespace gaia {
 					return;
 
 				auto& ec = fetch(entity);
+				if (!ec.pChunk->has<EntityDesc>())
+					return;
+
 				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];
 				if (entityDesc.name == nullptr)
 					return;
@@ -2901,8 +2904,7 @@ namespace gaia {
 					return;
 				}
 
-				if (!has<EntityDesc>(entity))
-					return;
+				add<EntityDesc>(entity);
 
 				auto res =
 						m_nameToEntity.try_emplace(len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len), entity);
@@ -3001,39 +3003,46 @@ namespace gaia {
 
 				(void)reg_core_entity<Core_>(Core);
 
-				// Register the entity archetype (entity + EntityDesc component)
-				{
-					const auto id = GAIA_ID(EntityDesc);
-					const auto& ci = reg_core_entity<EntityDesc>(id);
-					EntityBuilder(*this, id).add(ci.entity);
-					sset<EntityDesc>(id) = {ci.name.str(), ci.name.len()};
-					m_pEntityArchetype = m_recs.entities[id.id()].pArchetype;
-				}
+				// Entity archetype matches the root archetype for now
+				m_pEntityArchetype = m_pRootArchetype;
 
 				// Register the component archetype (entity + EntityDesc + Component)
 				{
-					const auto id = GAIA_ID(Component);
-					const auto& ci = reg_core_entity<Component>(id, m_pEntityArchetype);
-					EntityBuilder(*this, id).add(ci.entity);
-					acc_mut(id)
-							// Entity descriptor
-							.sset<EntityDesc>({ci.name.str(), ci.name.len()})
-							// Component
-							.sset<Component>(ci.comp);
-					m_pCompArchetype = m_recs.entities[id.id()].pArchetype;
+					Archetype* pCompArchetype{};
+					{
+						const auto id = GAIA_ID(EntityDesc);
+						const auto& ci = reg_core_entity<EntityDesc>(id);
+						EntityBuilder(*this, id).add(ci.entity);
+						sset<EntityDesc>(id) = {ci.name.str(), ci.name.len()};
+						pCompArchetype = m_recs.entities[id.id()].pArchetype;
+					}
+					{
+						const auto id = GAIA_ID(Component);
+						const auto& ci = reg_core_entity<Component>(id, pCompArchetype);
+						EntityBuilder(*this, id).add(ci.entity);
+						acc_mut(id)
+								// Entity descriptor
+								.sset<EntityDesc>({ci.name.str(), ci.name.len()})
+								// Component
+								.sset<Component>(ci.comp);
+						m_pCompArchetype = m_recs.entities[id.id()].pArchetype;
+					}
 				}
 
-				(void)reg_core_entity<OnDelete_>(OnDelete);
-				(void)reg_core_entity<OnDeleteTarget_>(OnDeleteTarget);
-				(void)reg_core_entity<Remove_>(Remove);
-				(void)reg_core_entity<Delete_>(Delete);
-				(void)reg_core_entity<Error_>(Error);
-				(void)reg_core_entity<DependsOn_>(DependsOn);
-				(void)reg_core_entity<CantCombine_>(CantCombine);
-				(void)reg_core_entity<Acyclic_>(Acyclic);
-				(void)reg_core_entity<All_>(All);
-				(void)reg_core_entity<ChildOf_>(ChildOf);
-				(void)reg_core_entity<Is_>(Is);
+				// Core components
+				{
+					(void)reg_core_entity<OnDelete_>(OnDelete);
+					(void)reg_core_entity<OnDeleteTarget_>(OnDeleteTarget);
+					(void)reg_core_entity<Remove_>(Remove);
+					(void)reg_core_entity<Delete_>(Delete);
+					(void)reg_core_entity<Error_>(Error);
+					(void)reg_core_entity<DependsOn_>(DependsOn);
+					(void)reg_core_entity<CantCombine_>(CantCombine);
+					(void)reg_core_entity<Acyclic_>(Acyclic);
+					(void)reg_core_entity<All_>(All);
+					(void)reg_core_entity<ChildOf_>(ChildOf);
+					(void)reg_core_entity<Is_>(Is);
+				}
 
 				// Add special properites for core components
 				{
@@ -3104,8 +3113,7 @@ namespace gaia {
 				}
 
 				// Make sure archetype pointers are up-to-date
-				// m_pEntityArchetype = m_recs.entities[GAIA_ID(EntityDesc).id()].pArchetype;
-				// m_pCompArchetype = m_recs.entities[GAIA_ID(Component).id()].pArchetype;
+				m_pCompArchetype = m_recs.entities[GAIA_ID(Component).id()].pArchetype;
 			}
 
 			void done() {
