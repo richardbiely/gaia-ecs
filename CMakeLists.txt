@@ -51,19 +51,19 @@ if(IsClangCompiler)
     set(GAIA_USE_LIBCPP ON)
 endif()
 
-option(GAIA_BUILD_UNITTEST "Build unit test." ON)
-option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
-option(GAIA_BUILD_EXAMPLES "Build examples." ON)
+option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
+option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
+option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
-option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." ON)
+option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
 
 # Profiling settings
-option(GAIA_PROFILER_CPU "Enable CPU profiling." ON)
-option(GAIA_PROFILER_MEM "Enable memory profiling." ON)
-option(GAIA_PROFILER_BUILD "Build profiler if possible." ON)
+option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
+option(GAIA_PROFILER_MEM "Enable memory profiling." OFF)
+option(GAIA_PROFILER_BUILD "Build profiler if possible." OFF)
 
 # Library configuration
-option(GAIA_DEVMODE "Enables various verification checks. Only useful for library maintainers." ON)
+option(GAIA_DEVMODE "Enables various verification checks. Only useful for library maintainers." OFF)
 option(GAIA_ECS_CHUNK_ALLOCATOR "If enabled, custom allocator is used for allocating archetype chunks." ON)
 option(GAIA_FORCE_DEBUG "If enabled, GAIA_DEBUG will be defined despite using the optimized build configuration." OFF)
 option(GAIA_DISABLE_ASSERTS "If enabled, no asserts will be thrown even in debug builds." OFF)
