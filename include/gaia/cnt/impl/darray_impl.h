@@ -423,7 +423,7 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			auto emplace_back(Args&&... args) {
+			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {

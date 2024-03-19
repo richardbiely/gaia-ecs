@@ -360,7 +360,7 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			constexpr auto emplace_back(Args&&... args) {
+			constexpr decltype(auto) emplace_back(Args&&... args) {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {

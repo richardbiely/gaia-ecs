@@ -150,7 +150,10 @@ namespace gaia {
 		template <typename T, typename... Args>
 		void call_ctor(T* pData, Args&&... args) {
 			GAIA_ASSERT(pData != nullptr);
-			(void)::new (pData) T(GAIA_FWD(args)...);
+			if constexpr (std::is_constructible_v<T, Args...>)
+				(void)::new (pData) T(GAIA_FWD(args)...);
+			else
+				(void)::new (pData) T{GAIA_FWD(args)...};
 		}
 
 		//! Constructs an object of type \tparam T at the memory address \param pData.
