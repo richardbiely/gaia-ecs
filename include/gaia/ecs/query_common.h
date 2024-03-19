@@ -58,7 +58,7 @@ namespace gaia {
 		struct QueryEntityOpPair {
 			//! Queried id
 			Entity id;
-			//! Source of where the queried id if looked up at
+			//! Source of where the queried id is looked up at
 			Entity src;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;

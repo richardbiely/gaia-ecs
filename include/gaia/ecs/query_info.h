@@ -38,8 +38,15 @@ namespace gaia {
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 
 		private:
+			struct Instruction {
+				Entity id;
+				QueryOp op;
+			};
+
 			//! Query context
 			QueryCtx m_ctx;
+			//! Compiled instructions for the query engine
+			cnt::darray<Instruction> m_instructions;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
@@ -317,14 +324,91 @@ namespace gaia {
 			}
 
 		public:
-			GAIA_NODISCARD static QueryInfo create(QueryId id, QueryCtx&& ctx) {
+			GAIA_NODISCARD static QueryInfo
+			create(QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				// Make sure query items are sorted
 				sort(ctx);
 
 				QueryInfo info;
 				info.m_ctx = GAIA_MOV(ctx);
 				info.m_ctx.queryId = id;
+
+				// Compile the query
+				info.compile(entityToArchetypeMap);
+
 				return info;
+			}
+
+			//! Compile the query terms into a form we can easily process
+			void compile(const EntityToArchetypeMap& entityToArchetypeMap) {
+				GAIA_PROF_SCOPE(QueryInfo::compile);
+
+				auto& data = m_ctx.data;
+				const auto& pairs = data.pairs;
+
+				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
+				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
+				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
+				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
+
+				// ALL
+				{
+					GAIA_EACH(ops_ids_all) {
+						auto& p = ops_ids_all[i];
+						if (p.src == EntityBad) {
+							m_instructions.emplace_back(p.id, QueryOp::All);
+							continue;
+						}
+
+						// Match static fixed sources
+						p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
+
+						// Archetype needs to exist. If it does not we have nothing to do here.
+						if (p.srcArchetype == nullptr) {
+							m_instructions.clear();
+							return;
+						}
+					}
+				}
+
+				// ANY
+				if (!ops_ids_any.empty()) {
+					cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+					GAIA_EACH(ops_ids_any) {
+						auto& p = ops_ids_any[i];
+						if (p.src != EntityBad) {
+							p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
+							if (p.srcArchetype == nullptr)
+								continue;
+						}
+
+						// Check if any archetype is associated with the entity id.
+						// All ids must be registered in the world.
+						const auto it = entityToArchetypeMap.find(EntityLookupKey(p.id));
+						if (it == entityToArchetypeMap.end() || it->second.empty())
+							continue;
+
+						archetypesWithId.push_back(&it->second);
+						m_instructions.emplace_back(p.id, QueryOp::Any);
+					}
+
+					// No archetypes with "any" entities exist. We can quit right away.
+					if (archetypesWithId.empty()) {
+						m_instructions.clear();
+						return;
+					}
+				}
+
+				// NOT
+				{
+					GAIA_EACH(ops_ids_not) {
+						auto& p = ops_ids_not[i];
+						if (p.src != EntityBad)
+							continue;
+
+						m_instructions.emplace_back(p.id, QueryOp::Not);
+					}
+				}
 			}
 
 			void set_world_version(uint32_t version) {
@@ -669,7 +753,7 @@ namespace gaia {
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (m_lastArchetypeId == archetypeLastId)
+				if (m_lastArchetypeId == archetypeLastId || m_instructions.empty())
 					return;
 				m_lastArchetypeId = archetypeLastId;
 
@@ -677,60 +761,37 @@ namespace gaia {
 
 				auto& data = m_ctx.data;
 				const auto& pairs = data.pairs;
-				if (pairs.empty())
-					return;
 
 				// Array of archetypes containing the given entity/component/pair
 				cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
-				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_none;
+				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 
 				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
 				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
 				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 
-				if (!ops_ids_all.empty()) {
-					// Match static fixed sources
-					GAIA_EACH(ops_ids_all) {
-						auto& p = ops_ids_all[i];
-						if (p.src == EntityBad) {
-							ids_all.push_back(p.id);
-							continue;
-						}
-
-						if (p.srcArchetype == nullptr) {
-							p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
-
-							// Archetype needs to exist. If it does not we have nothing to do here.
-							if (p.srcArchetype == nullptr)
-								return;
-						}
+				for (const auto& inst: m_instructions) {
+					switch (inst.op) {
+						case QueryOp::All:
+							ids_all.push_back(inst.id);
+							break;
+						case QueryOp::Any:
+							ids_any.push_back(inst.id);
+							break;
+						default:
+							ids_not.push_back(inst.id);
+							break;
 					}
+				}
 
-					// Match variable fixed sources
-					GAIA_EACH(ops_ids_all) {
-						const auto& p = ops_ids_all[i];
-						if (p.src != EntityBad)
-							continue;
-
-						// Pick the entity that we use to evalute archetypes.
-						// TODO: Ideally we would pick the entity associated with the least amount of archetypes
-						//       so we do not unnecessarily check too many of them.
-						//       However, we would need to take into account all the possible permutations
-						//       of "base" -> "descendant".
-						//       In order to do this efficiently the query would have to be notified by the world
-						//       that a new Is relationship exists / component was added. We definitelly evaluate
-						//       such a thing every time a query runs.
-						const auto e = ops_ids_all[i].id;
-
-						do_match_all(
-								entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr,
-								//
-								e, std::span{ids_all.data(), ids_all.size()}, data.as_mask, data.as_mask_2);
-						break;
-					}
+				if (!ids_all.empty()) {
+					do_match_all(
+							entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, //
+							ids_all[0], std::span{ids_all.data(), ids_all.size()}, //
+							data.as_mask, data.as_mask_2);
 
 					// No ALL matches were found. We can quit right away.
 					if (s_tmpArchetypeMatchesArr.empty())
@@ -738,43 +799,16 @@ namespace gaia {
 				}
 
 				if (!ops_ids_any.empty()) {
-					archetypesWithId.clear();
-
-					// Match static fixed sources
-					GAIA_EACH(ops_ids_any) {
-						auto& p = ops_ids_any[i];
-						if (p.src != EntityBad) {
-							if (p.srcArchetype == nullptr)
-								p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
-							if (p.srcArchetype == nullptr)
-								continue;
-						}
-
-						// Check if any archetype is associated with the entity id.
-						// All ids must be registered in the world.
-						const auto it = entityToArchetypeMap.find(EntityLookupKey(ops_ids_any[i].id));
-						if (it == entityToArchetypeMap.end() || it->second.empty())
-							continue;
-
-						archetypesWithId.push_back(&it->second);
-						ids_any.push_back(p.id);
-					}
-
-					// No archetypes with "any" entities exist. We can quit right away.
-					if (archetypesWithId.empty())
-						return;
-				}
-
-				if (!ids_any.empty()) {
-					if (ops_ids_all.empty()) {
+					if (ids_all.empty()) {
 						// We didn't try to match any ALL items.
 						// We need to search among all archetypes.
 
 						// Try find matches with optional components.
 						GAIA_EACH(ids_any) {
 							do_match_one(
-									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, ids_any[i],
-									std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2);
+									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, //
+									ids_any[i], std::span{ids_any.data(), ids_any.size()}, //
+									data.as_mask, data.as_mask_2);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -784,7 +818,10 @@ namespace gaia {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
 							GAIA_FOR_((uint32_t)ids_any.size(), j) {
-								if (do_match_one(*pArchetype, std::span{ids_any.data(), ids_any.size()}, data.as_mask, data.as_mask_2))
+								if (do_match_one(
+												*pArchetype, //
+												std::span{ids_any.data(), ids_any.size()}, //
+												data.as_mask, data.as_mask_2))
 									goto checkNextArchetype;
 							}
 
@@ -800,22 +837,18 @@ namespace gaia {
 
 				// Make sure there is no match with NOT items.
 				if (!ops_ids_not.empty()) {
-					GAIA_EACH(ops_ids_not) {
-						const auto& p = ops_ids_not[i];
-						if (p.src == EntityBad)
-							ids_none.push_back(p.id);
-					}
-
-					// We searched for nothing more than NO matches
-					if (ops_ids_all.empty() && ops_ids_any.empty()) {
+					// We searched for nothing more than NOT matches
+					if (s_tmpArchetypeMatchesArr.empty()) {
 						do_match_no(
-								allArchetypes, s_tmpArchetypeMatches, m_archetypeCache,
-								//
-								std::span{ids_none.data(), ids_none.size()}, data.as_mask, data.as_mask_2);
+								allArchetypes, s_tmpArchetypeMatches, m_archetypeCache, //
+								std::span{ids_not.data(), ids_not.size()}, //
+								data.as_mask, data.as_mask_2);
 					} else {
 						// Write the temporary matches to cache if no match with NO is found
 						for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-							if (match_one(*pArchetype, std::span{ids_none.data(), ids_none.size()}))
+							if (match_one(
+											*pArchetype, //
+											std::span{ids_not.data(), ids_not.size()}))
 								continue;
 
 							add_archetype_to_cache(pArchetype);

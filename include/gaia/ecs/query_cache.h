@@ -73,7 +73,7 @@ namespace gaia {
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
 			//! \return Query id
-			QueryInfo& add(QueryCtx&& ctx) {
+			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
@@ -83,7 +83,7 @@ namespace gaia {
 
 				const auto queryId = (QueryId)m_queryArr.size();
 				ret.first->second = queryId;
-				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx)));
+				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx), entityToArchetypeMap));
 				return get(queryId);
 			};
 
