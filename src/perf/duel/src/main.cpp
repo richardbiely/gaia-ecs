@@ -1,3 +1,4 @@
+#include "gaia/config/profiler.h"
 #define PICOBENCH_IMPLEMENT
 #include <gaia.h>
 #include <picobench/picobench.hpp>
@@ -154,21 +155,27 @@ void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 }
 
 void BM_ECS(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS);
+
 	ecs::World w;
-	Register_ESC_Components<false>(w);
-	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
 
 	auto queryPosCVel = w.query().all<Position&, Velocity>();
 	auto queryPosVel = w.query().all<Position&, Velocity&>();
 	auto queryVel = w.query().all<Velocity&>();
 	auto queryCHealth = w.query().all<Health>();
 
-	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	gaia::dont_optimize(queryPosCVel.empty());
-	gaia::dont_optimize(queryPosVel.empty());
-	gaia::dont_optimize(queryVel.empty());
-	gaia::dont_optimize(queryCHealth.empty());
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+		gaia::dont_optimize(queryPosCVel.empty());
+		gaia::dont_optimize(queryPosVel.empty());
+		gaia::dont_optimize(queryVel.empty());
+		gaia::dont_optimize(queryCHealth.empty());
+	}
 
 	srand(0);
 	for (auto _: state) {
@@ -176,29 +183,41 @@ void BM_ECS(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		// Update position
-		queryPosCVel.each([&](Position& p, const Velocity& v) {
-			p.x += v.x * dt;
-			p.y += v.y * dt;
-			p.z += v.z * dt;
-		});
+		{
+			GAIA_PROF_SCOPE(update_pos);
+			queryPosCVel.each([&](Position& p, const Velocity& v) {
+				p.x += v.x * dt;
+				p.y += v.y * dt;
+				p.z += v.z * dt;
+			});
+		}
 		// Handle ground collision
-		queryPosVel.each([&](Position& p, Velocity& v) {
-			if (p.y < 0.0f) {
-				p.y = 0.0f;
-				v.y = 0.0f;
-			}
-		});
+		{
+			GAIA_PROF_SCOPE(handle_collision);
+			queryPosVel.each([&](Position& p, Velocity& v) {
+				if (p.y < 0.0f) {
+					p.y = 0.0f;
+					v.y = 0.0f;
+				}
+			});
+		}
 		// Apply gravity
-		queryVel.each([&](Velocity& v) {
-			v.y += 9.81f * dt;
-		});
+		{
+			GAIA_PROF_SCOPE(apply_gravity);
+			queryVel.each([&](Velocity& v) {
+				v.y += 9.81f * dt;
+			});
+		}
 		// Calculate the number of units alive
-		uint32_t aliveUnits = 0;
-		queryCHealth.each([&](const Health& h) {
-			if (h.value > 0)
-				++aliveUnits;
-		});
-		gaia::dont_optimize(aliveUnits);
+		{
+			GAIA_PROF_SCOPE(calc_alive);
+			uint32_t aliveUnits = 0;
+			queryCHealth.each([&](const Health& h) {
+				if (h.value > 0)
+					++aliveUnits;
+			});
+			gaia::dont_optimize(aliveUnits);
+		}
 
 		GAIA_PROF_FRAME();
 	}
@@ -215,21 +234,10 @@ public:
 };
 
 void BM_ECS_WithSystems(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WithSystems);
+
 	ecs::World w;
-	Register_ESC_Components<false>(w);
-	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
-
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
-	auto queryVel = w.query().all<Velocity&>();
-	auto queryCHealth = w.query().all<Health>();
-
-	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	gaia::dont_optimize(queryPosCVel.empty());
-	gaia::dont_optimize(queryPosVel.empty());
-	gaia::dont_optimize(queryVel.empty());
-	gaia::dont_optimize(queryCHealth.empty());
+	ecs::SystemManager sm(w);
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -272,11 +280,28 @@ void BM_ECS_WithSystems(picobench::state& state) {
 		}
 	};
 
-	ecs::SystemManager sm(w);
-	sm.add<PositionSystem>()->init(&queryPosCVel);
-	sm.add<CollisionSystem>()->init(&queryPosVel);
-	sm.add<GravitySystem>()->init(&queryVel);
-	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+		gaia::dont_optimize(queryPosCVel.empty());
+		gaia::dont_optimize(queryPosVel.empty());
+		gaia::dont_optimize(queryVel.empty());
+		gaia::dont_optimize(queryCHealth.empty());
+
+		sm.add<PositionSystem>()->init(&queryPosCVel);
+		sm.add<CollisionSystem>()->init(&queryPosVel);
+		sm.add<GravitySystem>()->init(&queryVel);
+		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	}
 
 	srand(0);
 	for (auto _: state) {
@@ -284,25 +309,15 @@ void BM_ECS_WithSystems(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		sm.update();
+		w.update();
 	}
 }
 
 void BM_ECS_WithSystems_Iter(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WithSystems_Iter);
+
 	ecs::World w;
-	Register_ESC_Components<false>(w);
-	CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-	CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
-
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
-	auto queryVel = w.query().all<Velocity&>();
-	auto queryCHealth = w.query().all<Health>();
-
-	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	gaia::dont_optimize(queryPosCVel.empty());
-	gaia::dont_optimize(queryPosVel.empty());
-	gaia::dont_optimize(queryVel.empty());
-	gaia::dont_optimize(queryCHealth.empty());
+	ecs::SystemManager sm(w);
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -324,7 +339,6 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 			});
 		}
 	};
-
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
@@ -383,11 +397,29 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		}
 	};
 
-	ecs::SystemManager sm(w);
-	sm.add<PositionSystem>()->init(&queryPosCVel);
-	sm.add<CollisionSystem>()->init(&queryPosVel);
-	sm.add<GravitySystem>()->init(&queryVel);
-	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+		gaia::dont_optimize(queryPosCVel.empty());
+		gaia::dont_optimize(queryPosVel.empty());
+		gaia::dont_optimize(queryVel.empty());
+		gaia::dont_optimize(queryCHealth.empty());
+
+		sm.add<PositionSystem>()->init(&queryPosCVel);
+		sm.add<CollisionSystem>()->init(&queryPosVel);
+		sm.add<GravitySystem>()->init(&queryVel);
+		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	}
 
 	srand(0);
 	for (auto _: state) {
@@ -395,25 +427,15 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		sm.update();
+		w.update();
 	}
 }
 
 void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WithSystems_Iter_SoA);
+
 	ecs::World w;
-	Register_ESC_Components<true>(w);
-	CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
-	CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
-
-	auto queryPosCVel = w.query().all<PositionSoA&, VelocitySoA>();
-	auto queryPosVel = w.query().all<PositionSoA&, VelocitySoA&>();
-	auto queryVel = w.query().all<VelocitySoA&>();
-	auto queryCHealth = w.query().all<Health>();
-
-	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	gaia::dont_optimize(queryPosCVel.empty());
-	gaia::dont_optimize(queryPosVel.empty());
-	gaia::dont_optimize(queryVel.empty());
-	gaia::dont_optimize(queryCHealth.empty());
+	ecs::SystemManager sm(w);
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -503,11 +525,28 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		}
 	};
 
-	ecs::SystemManager sm(w);
-	sm.add<PositionSystem>()->init(&queryPosCVel);
-	sm.add<CollisionSystem>()->init(&queryPosVel);
-	sm.add<GravitySystem>()->init(&queryVel);
-	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	auto queryPosCVel = w.query().all<PositionSoA&, VelocitySoA>();
+	auto queryPosVel = w.query().all<PositionSoA&, VelocitySoA&>();
+	auto queryVel = w.query().all<VelocitySoA&>();
+	auto queryCHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<true>(w);
+		CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
+
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+		gaia::dont_optimize(queryPosCVel.empty());
+		gaia::dont_optimize(queryPosVel.empty());
+		gaia::dont_optimize(queryVel.empty());
+		gaia::dont_optimize(queryCHealth.empty());
+
+		sm.add<PositionSystem>()->init(&queryPosCVel);
+		sm.add<CollisionSystem>()->init(&queryPosVel);
+		sm.add<GravitySystem>()->init(&queryVel);
+		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+	}
 
 	srand(0);
 	for (auto _: state) {
@@ -515,6 +554,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		sm.update();
+		w.update();
 	}
 }
 
@@ -708,6 +748,8 @@ namespace NonECS {
 
 template <bool AlternativeExecOrder>
 void BM_NonECS(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_NonECS);
+
 	using namespace NonECS;
 
 	// Create entities.
@@ -715,6 +757,8 @@ void BM_NonECS(picobench::state& state) {
 	const auto N = (uint32_t)state.user_data();
 	cnt::darray<IUnit*> units(N);
 	{
+		GAIA_PROF_SCOPE(setup);
+
 		GAIA_FOR(N / 2) {
 			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
@@ -769,32 +813,51 @@ void BM_NonECS(picobench::state& state) {
 
 		// Process entities
 		if constexpr (AlternativeExecOrder) {
-			for (auto& u: units)
-				u->update_pos(dt);
-			units[0]->updatePosition_verify();
-			for (auto& u: units)
-				u->handle_collision(dt);
-			units[0]->handleGroundCollision_verify();
-			for (auto& u: units)
-				u->apply_gravity(dt);
-			units[0]->applyGravity_verify();
-			for (auto& u: units) {
-				if (u->isAlive())
-					++aliveUnits;
+			{
+				GAIA_PROF_SCOPE(update_pos);
+				for (auto& u: units)
+					u->update_pos(dt);
+			}
+			{
+				GAIA_PROF_SCOPE(handle_collision);
+				for (auto& u: units)
+					u->handle_collision(dt);
+			}
+			{
+				GAIA_PROF_SCOPE(apply_gravity);
+				for (auto& u: units)
+					u->apply_gravity(dt);
+			}
+			{
+				GAIA_PROF_SCOPE(calc_alive);
+				for (auto& u: units) {
+					if (u->isAlive())
+						++aliveUnits;
+				}
 			}
 		} else {
-			for (auto& u: units) {
-				u->update_pos(dt);
-				u->handle_collision(dt);
-				u->apply_gravity(dt);
-				if (u->isAlive())
-					++aliveUnits;
+			{
+				GAIA_PROF_SCOPE(calc_main);
+				for (auto& u: units) {
+					u->update_pos(dt);
+					u->handle_collision(dt);
+					u->apply_gravity(dt);
+				}
 			}
-			units[0]->updatePosition_verify();
-			units[0]->handleGroundCollision_verify();
-			units[0]->applyGravity_verify();
+			{
+				GAIA_PROF_SCOPE(calc_alive);
+				uint32_t aliveUnits = 0;
+				for (auto& u: units) {
+					if (u->isAlive())
+						++aliveUnits;
+				}
+			}
 		}
-		gaia::dont_optimize(aliveUnits);
+
+		units[0]->updatePosition_verify();
+		units[0]->handleGroundCollision_verify();
+		units[0]->applyGravity_verify();
+		units[0]->isAlive_verify();
 
 		GAIA_PROF_FRAME();
 	}
@@ -889,87 +952,97 @@ namespace NonECS_BetterMemoryLayout {
 
 template <bool AlternativeExecOrder>
 void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_NonECS_BetterMemoryLayout);
+
 	using namespace NonECS_BetterMemoryLayout;
 
 	const auto N = (uint32_t)state.user_data() / 2;
-
-	// Create entities.
 	cnt::darray<UnitStatic> units_static(N);
-	GAIA_FOR(N) {
-		UnitStatic u;
-		u.p = {0, 100, 0};
-		u.r = {1, 2, 3, 4};
-		u.s = {1, 1, 1};
-		units_static[i] = GAIA_MOV(u);
-	}
-
 	cnt::darray<UnitDynamic1> units_dynamic1(N / 4);
 	cnt::darray<UnitDynamic2> units_dynamic2(N / 4);
 	cnt::darray<UnitDynamic3> units_dynamic3(N / 4);
 	cnt::darray<UnitDynamic4> units_dynamic4(N / 4);
 
-	GAIA_FOR(N / 4) {
-		UnitDynamic1 u;
-		u.p = {0, 100, 0};
-		u.r = {1, 2, 3, 4};
-		u.s = {1, 1, 1};
-		u.v = {0, 0, 1};
-		units_dynamic1[i] = GAIA_MOV(u);
-	}
-	GAIA_FOR(N / 4) {
-		UnitDynamic2 u;
-		u.p = {0, 100, 0};
-		u.r = {1, 2, 3, 4};
-		u.s = {1, 1, 1};
-		u.v = {0, 0, 1};
-		u.d = {0, 0, 1};
-		units_dynamic2[i] = GAIA_MOV(u);
-	}
-	GAIA_FOR(N / 4) {
-		UnitDynamic3 u;
-		u.p = {0, 100, 0};
-		u.r = {1, 2, 3, 4};
-		u.v = {0, 0, 1};
-		u.s = {1, 1, 1};
-		u.d = {0, 0, 1};
-		u.h = {100, 100};
-		units_dynamic3[i] = GAIA_MOV(u);
-	}
-	GAIA_FOR(N / 4) {
-		UnitDynamic4 u;
-		u.p = {0, 100, 0};
-		u.r = {1, 2, 3, 4};
-		u.s = {1, 1, 1};
-		u.v = {0, 0, 1};
-		u.d = {0, 0, 1};
-		u.h = {100, 100};
-		u.e = {false};
-		units_dynamic4[i] = GAIA_MOV(u);
+	// Create entities
+	{
+		GAIA_PROF_SCOPE(setup);
+
+		GAIA_FOR(N) {
+			UnitStatic u;
+			u.p = {0, 100, 0};
+			u.r = {1, 2, 3, 4};
+			u.s = {1, 1, 1};
+			units_static[i] = GAIA_MOV(u);
+		}
+		GAIA_FOR(N / 4) {
+			UnitDynamic1 u;
+			u.p = {0, 100, 0};
+			u.r = {1, 2, 3, 4};
+			u.s = {1, 1, 1};
+			u.v = {0, 0, 1};
+			units_dynamic1[i] = GAIA_MOV(u);
+		}
+		GAIA_FOR(N / 4) {
+			UnitDynamic2 u;
+			u.p = {0, 100, 0};
+			u.r = {1, 2, 3, 4};
+			u.s = {1, 1, 1};
+			u.v = {0, 0, 1};
+			u.d = {0, 0, 1};
+			units_dynamic2[i] = GAIA_MOV(u);
+		}
+		GAIA_FOR(N / 4) {
+			UnitDynamic3 u;
+			u.p = {0, 100, 0};
+			u.r = {1, 2, 3, 4};
+			u.v = {0, 0, 1};
+			u.s = {1, 1, 1};
+			u.d = {0, 0, 1};
+			u.h = {100, 100};
+			units_dynamic3[i] = GAIA_MOV(u);
+		}
+		GAIA_FOR(N / 4) {
+			UnitDynamic4 u;
+			u.p = {0, 100, 0};
+			u.r = {1, 2, 3, 4};
+			u.s = {1, 1, 1};
+			u.v = {0, 0, 1};
+			u.d = {0, 0, 1};
+			u.h = {100, 100};
+			u.e = {false};
+			units_dynamic4[i] = GAIA_MOV(u);
+		}
 	}
 
 	auto exec = [](auto& arr) {
 		if constexpr (AlternativeExecOrder) {
-			for (auto& u: arr)
-				u.update_pos(dt);
-			arr[0].updatePosition_verify();
-
-			for (auto& u: arr)
-				u.handle_collision(dt);
-			arr[0].handleGroundCollision_verify();
-
-			for (auto& u: arr)
-				u.apply_gravity(dt);
-			arr[0].applyGravity_verify();
+			{
+				GAIA_PROF_SCOPE(update_pos);
+				for (auto& u: arr)
+					u.update_pos(dt);
+			}
+			{
+				GAIA_PROF_SCOPE(handle_collision);
+				for (auto& u: arr)
+					u.handle_collision(dt);
+			}
+			{
+				GAIA_PROF_SCOPE(apply_gravity);
+				for (auto& u: arr)
+					u.apply_gravity(dt);
+			}
 		} else {
+			GAIA_PROF_SCOPE(calc_main);
 			for (auto& u: arr) {
 				u.update_pos(dt);
 				u.handle_collision(dt);
 				u.apply_gravity(dt);
 			}
-			arr[0].updatePosition_verify();
-			arr[0].handleGroundCollision_verify();
-			arr[0].applyGravity_verify();
 		}
+
+		arr[0].updatePosition_verify();
+		arr[0].handleGroundCollision_verify();
+		arr[0].applyGravity_verify();
 	};
 
 	srand(0);
@@ -983,23 +1056,29 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		exec(units_dynamic3);
 		exec(units_dynamic4);
 
-		uint32_t aliveUnits = 0;
-		for (auto& u: units_dynamic3) {
-			if (u.isAlive())
-				++aliveUnits;
+		{
+			GAIA_PROF_SCOPE(calc_alive);
+			uint32_t aliveUnits = 0;
+			for (auto& u: units_dynamic3) {
+				if (u.isAlive())
+					++aliveUnits;
+			}
+			for (auto& u: units_dynamic4) {
+				if (u.isAlive())
+					++aliveUnits;
+			}
+			units_dynamic3[0].isAlive_verify();
+			units_dynamic4[0].isAlive_verify();
 		}
-		for (auto& u: units_dynamic4) {
-			if (u.isAlive())
-				++aliveUnits;
-		}
-		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
-} // namespace BM_NonECS_BetterMemoryLayout(picobench::state
+}
 
 template <uint32_t Groups>
 void BM_NonECS_DOD(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_NonECS_DOD);
+
 	struct UnitDynamic {
 		static void update_pos(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
 			GAIA_EACH(p) {
@@ -1043,25 +1122,11 @@ void BM_NonECS_DOD(picobench::state& state) {
 	const auto N = (uint32_t)state.user_data() / 2;
 	const uint32_t NGroup = N / Groups;
 
-	// Create static entities.
 	struct static_units_group {
 		cnt::darray<Position> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
-	for (auto& g: static_groups) {
-		g.units_p.resize(NGroup);
-		g.units_r.resize(NGroup);
-		g.units_s.resize(NGroup);
-
-		GAIA_FOR(NGroup) {
-			g.units_p[i] = {0, 100, 0};
-			g.units_r[i] = {1, 2, 3, 4};
-			g.units_s[i] = {1, 1, 1};
-		}
-	}
-
-	// Create dynamic entities.
 	struct dynamic_units_group {
 		cnt::darray<Position> units_p;
 		cnt::darray<Rotation> units_r;
@@ -1071,23 +1136,42 @@ void BM_NonECS_DOD(picobench::state& state) {
 		cnt::darray<Health> units_h;
 		cnt::darray<IsEnemy> units_e;
 	} dynamic_groups[Groups];
-	for (auto& g: dynamic_groups) {
-		g.units_p.resize(NGroup);
-		g.units_r.resize(NGroup);
-		g.units_s.resize(NGroup);
-		g.units_v.resize(NGroup);
-		g.units_d.resize(NGroup);
-		g.units_h.resize(NGroup);
-		g.units_e.resize(NGroup);
 
-		GAIA_FOR(NGroup) {
-			g.units_p[i] = {0, 100, 0};
-			g.units_r[i] = {1, 2, 3, 4};
-			g.units_s[i] = {1, 1, 1};
-			g.units_v[i] = {0, 0, 1};
-			g.units_d[i] = {0, 0, 1};
-			g.units_h[i] = {100, 100};
-			g.units_e[i] = {false};
+	{
+		GAIA_PROF_SCOPE(setup);
+
+		// Create static entities
+		for (auto& g: static_groups) {
+			g.units_p.resize(NGroup);
+			g.units_r.resize(NGroup);
+			g.units_s.resize(NGroup);
+
+			GAIA_FOR(NGroup) {
+				g.units_p[i] = {0, 100, 0};
+				g.units_r[i] = {1, 2, 3, 4};
+				g.units_s[i] = {1, 1, 1};
+			}
+		}
+
+		// Create dynamic entities
+		for (auto& g: dynamic_groups) {
+			g.units_p.resize(NGroup);
+			g.units_r.resize(NGroup);
+			g.units_s.resize(NGroup);
+			g.units_v.resize(NGroup);
+			g.units_d.resize(NGroup);
+			g.units_h.resize(NGroup);
+			g.units_e.resize(NGroup);
+
+			GAIA_FOR(NGroup) {
+				g.units_p[i] = {0, 100, 0};
+				g.units_r[i] = {1, 2, 3, 4};
+				g.units_s[i] = {1, 1, 1};
+				g.units_v[i] = {0, 0, 1};
+				g.units_d[i] = {0, 0, 1};
+				g.units_h[i] = {100, 100};
+				g.units_e[i] = {false};
+			}
 		}
 	}
 
@@ -1117,10 +1201,14 @@ void BM_NonECS_DOD(picobench::state& state) {
 				UnitDynamic::apply_gravity(g.units_v, dt);
 		}
 
-		uint32_t aliveUnits = 0;
-		for (auto& g: dynamic_groups)
-			aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
-		gaia::dont_optimize(aliveUnits);
+		{
+			GAIA_PROF_SCOPE(calc_alive);
+
+			uint32_t aliveUnits = 0;
+			for (auto& g: dynamic_groups)
+				aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
+			gaia::dont_optimize(aliveUnits);
+		}
 
 		GAIA_PROF_FRAME();
 	}
@@ -1128,6 +1216,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_NonECS_DOD_SoA);
+
 	struct UnitDynamic {
 		static void update_pos(cnt::darray<PositionSoA>& p, const cnt::darray<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(update_pos);
@@ -1198,26 +1288,11 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 	const auto N = (uint32_t)state.user_data() / 2;
 	const uint32_t NGroup = N / Groups;
-
-	// Create static entities.
 	struct static_units_group {
 		cnt::darray<PositionSoA> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
-	for (auto& g: static_groups) {
-		g.units_p.resize(NGroup);
-		g.units_r.resize(NGroup);
-		g.units_s.resize(NGroup);
-
-		GAIA_FOR(NGroup) {
-			g.units_p[i] = {0, 100, 0};
-			g.units_r[i] = {1, 2, 3, 4};
-			g.units_s[i] = {1, 1, 1};
-		}
-	}
-
-	// Create dynamic entities.
 	struct dynamic_units_group {
 		cnt::darray<PositionSoA> units_p;
 		cnt::darray<Rotation> units_r;
@@ -1227,23 +1302,42 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		cnt::darray<Health> units_h;
 		cnt::darray<IsEnemy> units_e;
 	} dynamic_groups[Groups];
-	for (auto& g: dynamic_groups) {
-		g.units_p.resize(NGroup);
-		g.units_r.resize(NGroup);
-		g.units_s.resize(NGroup);
-		g.units_v.resize(NGroup);
-		g.units_d.resize(NGroup);
-		g.units_h.resize(NGroup);
-		g.units_e.resize(NGroup);
 
-		GAIA_FOR(NGroup) {
-			g.units_p[i] = {0, 100, 0};
-			g.units_r[i] = {1, 2, 3, 4};
-			g.units_s[i] = {1, 1, 1};
-			g.units_v[i] = {0, 0, 1};
-			g.units_d[i] = {0, 0, 1};
-			g.units_h[i] = {100, 100};
-			g.units_e[i] = {false};
+	{
+		GAIA_PROF_SCOPE(setup);
+
+		// Create static entities
+		for (auto& g: static_groups) {
+			g.units_p.resize(NGroup);
+			g.units_r.resize(NGroup);
+			g.units_s.resize(NGroup);
+
+			GAIA_FOR(NGroup) {
+				g.units_p[i] = {0, 100, 0};
+				g.units_r[i] = {1, 2, 3, 4};
+				g.units_s[i] = {1, 1, 1};
+			}
+		}
+
+		// Create dynamic entities
+		for (auto& g: dynamic_groups) {
+			g.units_p.resize(NGroup);
+			g.units_r.resize(NGroup);
+			g.units_s.resize(NGroup);
+			g.units_v.resize(NGroup);
+			g.units_d.resize(NGroup);
+			g.units_h.resize(NGroup);
+			g.units_e.resize(NGroup);
+
+			GAIA_FOR(NGroup) {
+				g.units_p[i] = {0, 100, 0};
+				g.units_r[i] = {1, 2, 3, 4};
+				g.units_s[i] = {1, 1, 1};
+				g.units_v[i] = {0, 0, 1};
+				g.units_d[i] = {0, 0, 1};
+				g.units_h[i] = {100, 100};
+				g.units_e[i] = {false};
+			}
 		}
 	}
 
@@ -1261,10 +1355,14 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		for (auto& g: dynamic_groups)
 			UnitDynamic::apply_gravity(g.units_v);
 
-		uint32_t aliveUnits = 0;
-		for (auto& g: dynamic_groups)
-			aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
-		gaia::dont_optimize(aliveUnits);
+		{
+			GAIA_PROF_SCOPE(calc_alive);
+
+			uint32_t aliveUnits = 0;
+			for (auto& g: dynamic_groups)
+				aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
+			gaia::dont_optimize(aliveUnits);
+		}
 
 		GAIA_PROF_FRAME();
 	}

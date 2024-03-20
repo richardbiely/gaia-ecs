@@ -677,22 +677,30 @@ void BM_Run(picobench::state& state) {
 	ecs::World w;
 	ecs::SystemManager sm(w);
 	FrameBuffer fb(FrameBufferWidth, FrameBufferHeight);
-	init_systems<SoA>(sm, fb);
-	init_entities<SoA>(w, (uint32_t)state.user_data());
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		init_systems<SoA>(sm, fb);
+		init_entities<SoA>(w, (uint32_t)state.user_data());
+	}
 
 	srand(0);
 
-	state.stop_timer();
-	for (auto _: state) {
-		state.stop_timer();
-		(void)_;
-		dt = CalculateDelta(state);
+	{
+		GAIA_PROF_SCOPE(update);
 
-		state.start_timer();
-		sm.update();
 		state.stop_timer();
+		for (auto _: state) {
+			state.stop_timer();
+			(void)_;
+			dt = CalculateDelta(state);
 
-		w.update();
+			state.start_timer();
+			sm.update();
+			state.stop_timer();
+
+			w.update();
+		}
 	}
 }
 

@@ -35,6 +35,8 @@ struct Dummy {
 };
 
 auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArchetype) {
+	GAIA_PROF_SCOPE(create_archetypes);
+
 	GAIA_ASSERT(archetypes > 0);
 	GAIA_ASSERT(maxIdsPerArchetype > 0);
 
@@ -70,6 +72,8 @@ void prepare_query_types(ecs::EntitySpan in, std::span<ecs::Entity> out) {
 
 template <bool UseCachedQuery>
 auto create_query(ecs::World& w, ecs::EntitySpan queryTypes) {
+	GAIA_PROF_SCOPE(create_query);
+
 	GAIA_ASSERT(!queryTypes.empty());
 
 	auto query = w.query<UseCachedQuery>();
@@ -80,27 +84,43 @@ auto create_query(ecs::World& w, ecs::EntitySpan queryTypes) {
 }
 
 void bench_query_each(picobench::state& state, ecs::Query& query) {
+	GAIA_PROF_SCOPE(bench_query_each);
+
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	gaia::dont_optimize(query.empty());
 
+	state.stop_timer();
 	for (auto _: state) {
+		GAIA_PROF_SCOPE(update);
 		(void)_;
+
+		state.start_timer();
+
 		uint32_t cnt = 0;
 		query.each([&]() {
 			++cnt;
 		});
 		gaia::dont_optimize(cnt);
+
+		state.stop_timer();
 	}
 }
 
 template <typename TIter, typename TQuery>
 void bench_query_each_iter(picobench::state& state, TQuery& query) {
+	GAIA_PROF_SCOPE(bench_query_each_iter);
+
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	[[maybe_unused]] bool isEmpty = query.empty();
 	gaia::dont_optimize(isEmpty);
 
+	state.stop_timer();
 	for (auto _: state) {
+		GAIA_PROF_SCOPE(update);
 		(void)_;
+
+		state.start_timer();
+
 		uint32_t cnt = 0;
 		query.each([&](TIter& it) {
 			GAIA_EACH(it) {
@@ -108,6 +128,8 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 			}
 		});
 		gaia::dont_optimize(cnt);
+
+		state.stop_timer();
 	}
 }
 
@@ -126,6 +148,8 @@ void acc_view(ecs::Iter& it) {
 
 template <uint32_t NViews, bool ViewWithIndex>
 void bench_query_each_view(picobench::state& state, ecs::World& w) {
+	GAIA_PROF_SCOPE(bench_query_each_view);
+
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	auto q = w.query().all<Position>();
 	if constexpr (NViews > 1)
@@ -142,6 +166,7 @@ void bench_query_each_view(picobench::state& state, ecs::World& w) {
 
 	state.stop_timer();
 	for (auto _: state) {
+		GAIA_PROF_SCOPE(update);
 		(void)_;
 
 		state.stop_timer();
@@ -178,18 +203,17 @@ void bench_query_each_view(picobench::state& state, ecs::World& w) {
 }
 
 template <bool UseCachedQuery, uint32_t QueryComponents>
-void BM_BuildQuery(picobench::state& state) {
-	ecs::World w;
-	// Create some archetypes for a good measure
-	create_archetypes(w, 1000, 10);
+void bench_build_query(picobench::state& state, ecs::World& w) {
+	GAIA_PROF_SCOPE(bench_build_query);
 
 	ecs::Entity tmp[QueryComponents];
-	GAIA_FOR(QueryComponents)
-	tmp[i] = w.add();
+	GAIA_FOR(QueryComponents) tmp[i] = w.add();
 
 	state.stop_timer();
 	for (auto _: state) {
+		GAIA_PROF_SCOPE(update);
 		(void)_;
+
 		auto query = create_query<UseCachedQuery>(w, tmp);
 
 		// Measure the time to build the query
@@ -199,13 +223,24 @@ void BM_BuildQuery(picobench::state& state) {
 	}
 }
 
+template <bool UseCachedQuery, uint32_t QueryComponents>
+void BM_BuildQuery(picobench::state& state) {
+	ecs::World w;
+	// Create some archetypes for a good measure
+	create_archetypes(w, 1000, 10);
+	// Build queries
+	bench_build_query<UseCachedQuery, QueryComponents>(state, w);
+}
+
 #define DEFINE_BUILD_QUERY(QueryComponents)                                                                            \
 	void BM_BuildQuery_##QueryComponents(picobench::state& state) {                                                      \
+		GAIA_PROF_SCOPE(BM_BuildQuery_##QueryComponents);                                                                  \
 		BM_BuildQuery<true, QueryComponents>(state);                                                                       \
 	}
 
 #define DEFINE_BUILD_QUERY_U(QueryComponents)                                                                          \
 	void BM_BuildQuery_U_##QueryComponents(picobench::state& state) {                                                    \
+		GAIA_PROF_SCOPE(BM_BuildQuery_U_##QueryComponents);                                                                \
 		BM_BuildQuery<false, QueryComponents>(state);                                                                      \
 	}
 
@@ -220,6 +255,7 @@ DEFINE_BUILD_QUERY_U(7)
 
 #define DEFINE_EACH(ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                               \
 	void BM_Each_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                                         \
+		GAIA_PROF_SCOPE(BM_Each_##ArchetypeCount##_##QueryComponents);                                                     \
 		ecs::World w;                                                                                                      \
 		auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);                                             \
 		ecs::Entity tmp[QueryComponents];                                                                                  \
@@ -326,15 +362,18 @@ void BM_Each_View(picobench::state& state) {
 
 #define DEFINE_EACH_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                \
 	void BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                            \
+		GAIA_PROF_SCOPE(BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents);                                        \
 		BM_Each_Iter<true, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                     \
 	}
 #define DEFINE_EACH_U_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                              \
 	void BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                          \
+		GAIA_PROF_SCOPE(BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents);                                      \
 		BM_Each_Iter<false, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                    \
 	}
 
 #define DEFINE_EACH_VIEW(NViews, ViewWithIndex)                                                                        \
 	void BM_Each_View_##NViews##_##ViewWithIndex(picobench::state& state) {                                              \
+		GAIA_PROF_SCOPE(BM_Each_View_##NViews##_##ViewWithIndex);                                                          \
 		BM_Each_View<NViews, ViewWithIndex>(state);                                                                        \
 	}
 
@@ -371,6 +410,7 @@ DEFINE_EACH_VIEW(5, true);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
+#define PICO_SETTINGS_2() iterations({32768}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
@@ -444,26 +484,27 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
 
 			PICOBENCH_SUITE_REG("build query");
-			PICOBENCH_REG(BM_BuildQuery_1).PICO_SETTINGS().label("1 comp");
-			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS().label("(u) 1 comp"); // uncached
-			PICOBENCH_REG(BM_BuildQuery_3).PICO_SETTINGS().label(" 3 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS().label("(u) 3 comps"); // uncached
-			PICOBENCH_REG(BM_BuildQuery_5).PICO_SETTINGS().label("5 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
-			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS().label("7 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_1).PICO_SETTINGS_2().label("1 comp ");
+			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS_2().label("(u) 1 comp "); // uncached
+			PICOBENCH_REG(BM_BuildQuery_3).PICO_SETTINGS_2().label(" 3 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS_2().label("(u) 3 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_5).PICO_SETTINGS_2().label("5 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS_2().label("(u) 5 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS_2().label("7 comps");
+			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS_2().label("(u) 7 comps"); // uncached
 
-			PICOBENCH_SUITE_REG("Iter view");
-			PICOBENCH_REG(BM_Each_View_1_false).PICO_SETTINGS().label("view 1 comp");
-			PICOBENCH_REG(BM_Each_View_1_true).PICO_SETTINGS().label("view 1 comp, idx");
-			PICOBENCH_REG(BM_Each_View_2_false).PICO_SETTINGS().label("view 2 comp");
-			PICOBENCH_REG(BM_Each_View_2_true).PICO_SETTINGS().label("view 2 comp, idx");
-			PICOBENCH_REG(BM_Each_View_3_false).PICO_SETTINGS().label("view 3 comp");
-			PICOBENCH_REG(BM_Each_View_3_true).PICO_SETTINGS().label("view 3 comp, idx");
-			PICOBENCH_REG(BM_Each_View_4_false).PICO_SETTINGS().label("view 4 comp");
-			PICOBENCH_REG(BM_Each_View_4_true).PICO_SETTINGS().label("view 4 comp, idx");
-			PICOBENCH_REG(BM_Each_View_5_false).PICO_SETTINGS().label("view 5 comp");
-			PICOBENCH_REG(BM_Each_View_5_true).PICO_SETTINGS().label("view 5 comp, idx");
+			// These are super fast to the point it doesn't really make sense measuring them
+			// PICOBENCH_SUITE_REG("Iter view");
+			// PICOBENCH_REG(BM_Each_View_1_false).PICO_SETTINGS_2().label("1 comp ");
+			// PICOBENCH_REG(BM_Each_View_1_true).PICO_SETTINGS_2().label("(idx) 1 comp ");
+			// PICOBENCH_REG(BM_Each_View_2_false).PICO_SETTINGS_2().label("2 comps");
+			// PICOBENCH_REG(BM_Each_View_2_true).PICO_SETTINGS_2().label("(idx) 2 comps");
+			// PICOBENCH_REG(BM_Each_View_3_false).PICO_SETTINGS_2().label("3 comps");
+			// PICOBENCH_REG(BM_Each_View_3_true).PICO_SETTINGS_2().label("(idx) view 3 comps");
+			// PICOBENCH_REG(BM_Each_View_4_false).PICO_SETTINGS_2().label("4 comps");
+			// PICOBENCH_REG(BM_Each_View_4_true).PICO_SETTINGS_2().label("(idx) view 4 comps");
+			// PICOBENCH_REG(BM_Each_View_5_false).PICO_SETTINGS_2().label("5 comps");
+			// PICOBENCH_REG(BM_Each_View_5_true).PICO_SETTINGS_2().label("(idx) 5 comps");
 		}
 	}
 
