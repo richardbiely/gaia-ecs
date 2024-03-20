@@ -218,7 +218,7 @@ namespace gaia {
 
 		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {
-			using LookupHash = core::direct_hash_key<uint32_t>;
+			using LookupHash = core::direct_hash_key<uint64_t>;
 
 		private:
 			//! Entity
@@ -227,7 +227,7 @@ namespace gaia {
 			LookupHash m_hash;
 
 			static LookupHash calc(Entity entity) {
-				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
+				return {core::calculate_hash64(entity.value())};
 			}
 
 		public:
@@ -240,8 +240,8 @@ namespace gaia {
 				return m_entity;
 			}
 
-			auto hash() const {
-				return m_hash.hash;
+			size_t hash() const {
+				return (size_t)m_hash.hash;
 			}
 
 			bool operator==(const EntityLookupKey& other) const {

@@ -15101,7 +15101,7 @@ namespace gaia {
 
 		//! Hashmap lookup structure used for Entity
 		struct EntityLookupKey {
-			using LookupHash = core::direct_hash_key<uint32_t>;
+			using LookupHash = core::direct_hash_key<uint64_t>;
 
 		private:
 			//! Entity
@@ -15110,7 +15110,7 @@ namespace gaia {
 			LookupHash m_hash;
 
 			static LookupHash calc(Entity entity) {
-				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
+				return {core::calculate_hash64(entity.value())};
 			}
 
 		public:
@@ -15123,8 +15123,8 @@ namespace gaia {
 				return m_entity;
 			}
 
-			auto hash() const {
-				return m_hash.hash;
+			size_t hash() const {
+				return (size_t)m_hash.hash;
 			}
 
 			bool operator==(const EntityLookupKey& other) const {
@@ -20299,7 +20299,7 @@ namespace gaia {
 
 			//! Compile the query terms into a form we can easily process
 			void compile(const EntityToArchetypeMap& entityToArchetypeMap) {
-				GAIA_PROF_SCOPE(QueryInfo::compile);
+				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				auto& data = m_ctx.data;
 				const auto& pairs = data.pairs;
@@ -20310,7 +20310,9 @@ namespace gaia {
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 
 				// ALL
-				{
+				if (!ops_ids_all.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_all);
+
 					GAIA_EACH(ops_ids_all) {
 						auto& p = ops_ids_all[i];
 						if (p.src == EntityBad) {
@@ -20331,6 +20333,8 @@ namespace gaia {
 
 				// ANY
 				if (!ops_ids_any.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_any);
+
 					cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 					GAIA_EACH(ops_ids_any) {
 						auto& p = ops_ids_any[i];
@@ -20358,7 +20362,9 @@ namespace gaia {
 				}
 
 				// NOT
-				{
+				if (!ops_ids_not.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_not);
+
 					GAIA_EACH(ops_ids_not) {
 						auto& p = ops_ids_not[i];
 						if (p.src != EntityBad)
@@ -21205,9 +21211,9 @@ namespace gaia {
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
-					GAIA_PROF_SCOPE(query::fetch);
-
 					if constexpr (UseCaching) {
+						GAIA_PROF_SCOPE(query::fetch);
+
 						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_queryCache != nullptr);
 
@@ -21228,6 +21234,8 @@ namespace gaia {
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
+						GAIA_PROF_SCOPE(query::fetchu);
+
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
 							ctx.init(m_world);
