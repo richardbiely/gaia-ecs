@@ -205,9 +205,9 @@ namespace gaia {
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
-					GAIA_PROF_SCOPE(query::fetch);
-
 					if constexpr (UseCaching) {
+						GAIA_PROF_SCOPE(query::fetch);
+
 						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_queryCache != nullptr);
 
@@ -228,6 +228,8 @@ namespace gaia {
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
+						GAIA_PROF_SCOPE(query::fetchu);
+
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
 							ctx.init(m_world);

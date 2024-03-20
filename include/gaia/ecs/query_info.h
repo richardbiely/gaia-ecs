@@ -341,7 +341,7 @@ namespace gaia {
 
 			//! Compile the query terms into a form we can easily process
 			void compile(const EntityToArchetypeMap& entityToArchetypeMap) {
-				GAIA_PROF_SCOPE(QueryInfo::compile);
+				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				auto& data = m_ctx.data;
 				const auto& pairs = data.pairs;
@@ -352,7 +352,9 @@ namespace gaia {
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 
 				// ALL
-				{
+				if (!ops_ids_all.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_all);
+
 					GAIA_EACH(ops_ids_all) {
 						auto& p = ops_ids_all[i];
 						if (p.src == EntityBad) {
@@ -373,6 +375,8 @@ namespace gaia {
 
 				// ANY
 				if (!ops_ids_any.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_any);
+
 					cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 					GAIA_EACH(ops_ids_any) {
 						auto& p = ops_ids_any[i];
@@ -400,7 +404,9 @@ namespace gaia {
 				}
 
 				// NOT
-				{
+				if (!ops_ids_not.empty()) {
+					GAIA_PROF_SCOPE(queryinfo::compile_not);
+
 					GAIA_EACH(ops_ids_not) {
 						auto& p = ops_ids_not[i];
 						if (p.src != EntityBad)
