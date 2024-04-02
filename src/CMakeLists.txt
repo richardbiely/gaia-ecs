@@ -207,13 +207,13 @@ endif()
 
 if(GAIA_BUILD_BENCHMARK)
   if(IS_FETCH_AVAILABLE)
-    find_package(picobench CONFIG QUIET 2.06)
+    find_package(picobench CONFIG QUIET 2.07)
 
     if(NOT picobench_FOUND)
       FetchContent_Declare(
         picobench
         GIT_REPOSITORY https://github.com/iboB/picobench.git
-        GIT_TAG v2.06
+        GIT_TAG v2.07
       )
 
       FetchContent_MakeAvailable(picobench)
@@ -223,13 +223,13 @@ endif()
 
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    find_package(Catch2 CONFIG QUIET 3.5.0)
+    find_package(Catch2 CONFIG QUIET 3.5.3)
 
     if(NOT Catch2_FOUND)
       FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.0
+        GIT_TAG v3.5.3
       )
 
       set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON CACHE BOOL "CATCH_CONFIG_DISABLE_STRINGIFICATION override")
@@ -239,7 +239,7 @@ if(GAIA_BUILD_UNITTEST)
       list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
     endif()
   else()
-    find_package(Catch2 CONFIG REQUIRED 3.5.0)
+    find_package(Catch2 CONFIG REQUIRED 3.5.3)
   endif()
 endif()
 
@@ -256,7 +256,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
       set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
       set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
-      
+
       FetchContent_MakeAvailable(tracy)
     endif()
   else()
