@@ -14034,7 +14034,7 @@ namespace gaia {
 			std::thread::id m_mainThreadId;
 			//! When true the pool is supposed to finish all work and terminate all threads
 			bool m_stop{};
-			//! List of worker threads
+			//! Array of worker threads
 			cnt::sarr_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! The number of workers dedicated for a given level of job priority
 			uint32_t m_workerCnt[JobPriorityCnt]{};
@@ -14049,7 +14049,7 @@ namespace gaia {
 			GAIA_PROF_MUTEX(std::mutex, m_cvLock1);
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
-			//! List of pending user jobs
+			//! Array of pending user jobs
 			JobQueue m_jobQueue[JobPriorityCnt];
 
 		private:
@@ -14830,7 +14830,7 @@ namespace gaia {
 		class Archetype;
 
 		using ArchetypeId = uint32_t;
-		using ArchetypeList = cnt::darray<Archetype*>;
+		using ArchetypeDArray = cnt::darray<Archetype*>;
 		using ArchetypeIdHash = core::direct_hash_key<uint32_t>;
 
 		struct ArchetypeIdHashPair {
@@ -15841,9 +15841,9 @@ namespace gaia {
 				};
 
 				struct MemoryPageContainer {
-					//! List of available pages
+					//! Array of available pages
 					cnt::darray<MemoryPage*> pagesFree;
-					//! List of full pages
+					//! Array of full pages
 					cnt::darray<MemoryPage*> pagesFull;
 
 					GAIA_NODISCARD bool empty() const {
@@ -18288,7 +18288,7 @@ namespace gaia {
 		class ArchetypeLookupChecker: public ArchetypeBase {
 			friend class Archetype;
 
-			//! List of component indices
+			//! Span of component indices
 			EntitySpan m_comps;
 
 		public:
@@ -18336,7 +18336,7 @@ namespace gaia {
 
 			//! Index of the first chunk with enough space to add at least one entity
 			uint32_t m_firstFreeChunkidx = 0;
-			//! List of chunks allocated by this archetype
+			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
 			// cnt::dbitset m_disabledMask;
@@ -18345,13 +18345,13 @@ namespace gaia {
 
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
-			//! List of entities used to identify the archetype
+			//! Array of entities used to identify the archetype
 			Entity m_ids[Chunk::MAX_COMPONENTS];
-			//! List of indices to Is relationship pairs in m_ids
+			//! Array of indices to Is relationship pairs in m_ids
 			uint8_t m_pairs_as_index_buffer[Chunk::MAX_COMPONENTS];
-			//! List of component ids
+			//! Array of component ids
 			Component m_comps[Chunk::MAX_COMPONENTS];
-			//! List of components offset indices
+			//! Array of components offset indices
 			ChunkDataOffset m_compOffs[Chunk::MAX_COMPONENTS];
 
 			//! Archetype list index
@@ -18564,7 +18564,7 @@ namespace gaia {
 
 					++newArch->m_pairCnt;
 
-					// If it is a Is relationship, count it separately
+					// If it is an Is relationship, count it separately
 					if (ids[i].id() == Is.id())
 						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_is++] = (uint8_t)i;
 				}
@@ -18673,7 +18673,7 @@ namespace gaia {
 
 			//! Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			//! \param pChunk Chunk to remove from the list of managed archetypes
-			void del(Chunk* pChunk, ArchetypeList& archetypesToDelete) {
+			void del(Chunk* pChunk, ArchetypeDArray& archetypesToDelete) {
 				// Make sure there are any chunks to delete
 				GAIA_ASSERT(!m_chunks.empty());
 
@@ -19284,16 +19284,16 @@ namespace gaia {
 			QueryId queryId = QueryIdBad;
 
 			struct Data {
-				//! List of querried ids
+				//! Array of querried ids
 				QueryEntityArray ids;
-				//! List of [op,id] pairs
+				//! Array of [op,id] pairs
 				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
-				//! List of filtered components
+				//! Array of filtered components
 				QueryEntityArray withChanged;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
@@ -19978,7 +19978,7 @@ namespace gaia {
 		struct Entity;
 		class World;
 
-		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
+		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
 			uint8_t indices[Chunk::MAX_COMPONENTS];
 		};
@@ -20005,8 +20005,9 @@ namespace gaia {
 			QueryCtx m_ctx;
 			//! Compiled instructions for the query engine
 			cnt::darray<Instruction> m_instructions;
-			//! List of archetypes matching the query
-			ArchetypeList m_archetypeCache;
+			//! Cached array of archetypes matching the query
+			ArchetypeDArray m_archetypeCache;
+			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
@@ -20129,6 +20130,7 @@ namespace gaia {
 			GAIA_NODISCARD bool cmp_ids_is(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
 				auto archetypeIds = archetype.ids_view();
 
+				// all(Pair<Is, X>)
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
 					return as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
 						const auto idx = core::get_index(archetypeIds, relation);
@@ -20171,7 +20173,7 @@ namespace gaia {
 							// so we need to search through all of its ids.
 							const auto idx = core::get_index(archetypeIds, relation);
 							// Stop at the first match
-							return (idx != BadIndex);
+							return idx != BadIndex;
 						});
 					}
 
@@ -20335,7 +20337,7 @@ namespace gaia {
 				if (!ops_ids_any.empty()) {
 					GAIA_PROF_SCOPE(queryinfo::compile_any);
 
-					cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+					cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 					GAIA_EACH(ops_ids_any) {
 						auto& p = ops_ids_any[i];
 						if (p.src != EntityBad) {
@@ -20388,12 +20390,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
-				return !operator==(other);
+				return m_ctx != other;
 			}
 
 			void match_archetype_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
@@ -20434,12 +20436,12 @@ namespace gaia {
 			}
 
 			void match_archetype_all_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 
-				const ArchetypeList* pSrcArchetypes = nullptr;
+				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
 				if (ent.id() == Is.id()) {
 					ent = EntityBad;
@@ -20488,8 +20490,8 @@ namespace gaia {
 			}
 
 			void match_archetype_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
@@ -20534,13 +20536,13 @@ namespace gaia {
 			}
 
 			void match_archetype_one_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
 
-				const ArchetypeList* pSrcArchetypes = nullptr;
+				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
 				if (ent.id() == Is.id()) {
 					ent = EntityBad;
@@ -20589,7 +20591,7 @@ namespace gaia {
 			}
 
 			void match_archetype_no(
-					const ArchetypeList& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
@@ -20616,7 +20618,7 @@ namespace gaia {
 			}
 
 			void match_archetype_no_as(
-					const ArchetypeList& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
@@ -20644,8 +20646,8 @@ namespace gaia {
 			}
 
 			void do_match_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -20659,8 +20661,8 @@ namespace gaia {
 			}
 
 			void do_match_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -20686,7 +20688,7 @@ namespace gaia {
 			}
 
 			void do_match_no(
-					const ArchetypeList& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				matchesSet.clear();
 
@@ -20702,11 +20704,11 @@ namespace gaia {
 					// entity -> archetypes mapping
 					const EntityToArchetypeMap& entityToArchetypeMap,
 					// all archetypes in the world
-					const ArchetypeList& allArchetypes,
+					const ArchetypeDArray& allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
-				static ArchetypeList s_tmpArchetypeMatchesArr;
+				static ArchetypeDArray s_tmpArchetypeMatchesArr;
 
 				struct CleanUpTmpArchetypeMatches {
 					~CleanUpTmpArchetypeMatches() {
@@ -20727,7 +20729,7 @@ namespace gaia {
 				const auto& pairs = data.pairs;
 
 				// Array of archetypes containing the given entity/component/pair
-				cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+				cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
@@ -20847,7 +20849,7 @@ namespace gaia {
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}
-				m_archetypeCacheData.push_back(std::move(cacheData));
+				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
 			void del_archetype_from_cache(uint32_t idx) {
@@ -20920,19 +20922,19 @@ namespace gaia {
 				return {(const uint8_t*)&data.indices[0], Chunk::MAX_COMPONENTS};
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator begin() {
+			GAIA_NODISCARD ArchetypeDArray::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator begin() const {
+			GAIA_NODISCARD ArchetypeDArray::iterator begin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator end() {
+			GAIA_NODISCARD ArchetypeDArray::iterator end() {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator end() const {
+			GAIA_NODISCARD ArchetypeDArray::iterator end() const {
 				return m_archetypeCache.end();
 			}
 		};
@@ -21060,7 +21062,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 32;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
-				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
+				using ChunkBatchedArray = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
 
 			private:
@@ -21199,12 +21201,12 @@ namespace gaia {
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
-				//! List of archetypes (stable pointer to parent world's archetype array)
+				//! Map of archetypes (stable pointer to parent world's archetype array)
 				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
-				const ArchetypeList* m_allArchetypes{};
+				const ArchetypeDArray* m_allArchetypes{};
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -21381,7 +21383,7 @@ namespace gaia {
 
 				//! Execute functors in batches
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchedList& chunks) {
+				static void run_query_func(Func func, TIter& it, ChunkBatchedArray& chunks) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = chunks.size();
@@ -21442,7 +21444,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
-					ChunkBatchedList chunkBatch;
+					ChunkBatchedArray chunkBatch;
 					TIter it;
 					uint32_t aid = 0;
 
@@ -21707,7 +21709,7 @@ namespace gaia {
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
@@ -21718,7 +21720,7 @@ namespace gaia {
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
@@ -22115,8 +22117,8 @@ namespace gaia {
 			//! Map of target -> relations
 			PairMap m_targetsToRelations;
 
-			//! List of all archetypes
-			ArchetypeList m_archetypes;
+			//! Array of all archetypes
+			ArchetypeDArray m_archetypes;
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
@@ -22142,10 +22144,10 @@ namespace gaia {
 
 			//! Local set of entites to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
-			//! List of chunks to delete
+			//! Array of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
-			//! List of archetypes to delete
-			ArchetypeList m_archetypesToDel;
+			//! Array of archetypes to delete
+			ArchetypeDArray m_archetypesToDel;
 			//! Index of the last defragmented archetype in the archetype list
 			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
@@ -23955,7 +23957,7 @@ namespace gaia {
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
-					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
+					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeDArray{pArchetype});
 				else if (!core::has(it->second, pArchetype))
 					it->second.push_back(pArchetype);
 			}
@@ -25932,11 +25934,11 @@ namespace gaia {
 			World& m_world;
 			//! Map of all systems - used for look-ups only
 			cnt::map<SystemHash, BaseSystem*> m_systemsMap;
-			//! List of systems - used for iteration
+			//! Array of systems - used for iteration
 			cnt::darray<BaseSystem*> m_systems;
-			//! List of new systems which need to be initialised
+			//! Array of new systems which need to be initialised
 			cnt::darray<BaseSystem*> m_systemsToCreate;
-			//! List of systems which need to be deleted
+			//! Array of systems which need to be deleted
 			cnt::darray<BaseSystem*> m_systemsToDelete;
 
 		public:

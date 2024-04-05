@@ -11,7 +11,7 @@ namespace gaia {
 		class Archetype;
 
 		using ArchetypeId = uint32_t;
-		using ArchetypeList = cnt::darray<Archetype*>;
+		using ArchetypeDArray = cnt::darray<Archetype*>;
 		using ArchetypeIdHash = core::direct_hash_key<uint32_t>;
 
 		struct ArchetypeIdHashPair {

@@ -81,8 +81,8 @@ namespace gaia {
 			//! Map of target -> relations
 			PairMap m_targetsToRelations;
 
-			//! List of all archetypes
-			ArchetypeList m_archetypes;
+			//! Array of all archetypes
+			ArchetypeDArray m_archetypes;
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
@@ -108,10 +108,10 @@ namespace gaia {
 
 			//! Local set of entites to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
-			//! List of chunks to delete
+			//! Array of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
-			//! List of archetypes to delete
-			ArchetypeList m_archetypesToDel;
+			//! Array of archetypes to delete
+			ArchetypeDArray m_archetypesToDel;
 			//! Index of the last defragmented archetype in the archetype list
 			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
@@ -1921,7 +1921,7 @@ namespace gaia {
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
-					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeList{pArchetype});
+					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeDArray{pArchetype});
 				else if (!core::has(it->second, pArchetype))
 					it->second.push_back(pArchetype);
 			}

@@ -88,16 +88,16 @@ namespace gaia {
 			QueryId queryId = QueryIdBad;
 
 			struct Data {
-				//! List of querried ids
+				//! Array of querried ids
 				QueryEntityArray ids;
-				//! List of [op,id] pairs
+				//! Array of [op,id] pairs
 				QueryEntityOpPairArray pairs;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
-				//! List of filtered components
+				//! Array of filtered components
 				QueryEntityArray withChanged;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.

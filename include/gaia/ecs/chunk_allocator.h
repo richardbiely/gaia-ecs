@@ -181,9 +181,9 @@ namespace gaia {
 				};
 
 				struct MemoryPageContainer {
-					//! List of available pages
+					//! Array of available pages
 					cnt::darray<MemoryPage*> pagesFree;
-					//! List of full pages
+					//! Array of full pages
 					cnt::darray<MemoryPage*> pagesFull;
 
 					GAIA_NODISCARD bool empty() const {

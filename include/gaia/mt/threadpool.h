@@ -54,7 +54,7 @@ namespace gaia {
 			std::thread::id m_mainThreadId;
 			//! When true the pool is supposed to finish all work and terminate all threads
 			bool m_stop{};
-			//! List of worker threads
+			//! Array of worker threads
 			cnt::sarr_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! The number of workers dedicated for a given level of job priority
 			uint32_t m_workerCnt[JobPriorityCnt]{};
@@ -69,7 +69,7 @@ namespace gaia {
 			GAIA_PROF_MUTEX(std::mutex, m_cvLock1);
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
-			//! List of pending user jobs
+			//! Array of pending user jobs
 			JobQueue m_jobQueue[JobPriorityCnt];
 
 		private:

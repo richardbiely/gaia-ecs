@@ -20,7 +20,7 @@ namespace gaia {
 		struct Entity;
 		class World;
 
-		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeList>;
+		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
 			uint8_t indices[Chunk::MAX_COMPONENTS];
 		};
@@ -47,8 +47,9 @@ namespace gaia {
 			QueryCtx m_ctx;
 			//! Compiled instructions for the query engine
 			cnt::darray<Instruction> m_instructions;
-			//! List of archetypes matching the query
-			ArchetypeList m_archetypeCache;
+			//! Cached array of archetypes matching the query
+			ArchetypeDArray m_archetypeCache;
+			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
@@ -171,6 +172,7 @@ namespace gaia {
 			GAIA_NODISCARD bool cmp_ids_is(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
 				auto archetypeIds = archetype.ids_view();
 
+				// all(Pair<Is, X>)
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
 					return as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
 						const auto idx = core::get_index(archetypeIds, relation);
@@ -213,7 +215,7 @@ namespace gaia {
 							// so we need to search through all of its ids.
 							const auto idx = core::get_index(archetypeIds, relation);
 							// Stop at the first match
-							return (idx != BadIndex);
+							return idx != BadIndex;
 						});
 					}
 
@@ -377,7 +379,7 @@ namespace gaia {
 				if (!ops_ids_any.empty()) {
 					GAIA_PROF_SCOPE(queryinfo::compile_any);
 
-					cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+					cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 					GAIA_EACH(ops_ids_any) {
 						auto& p = ops_ids_any[i];
 						if (p.src != EntityBad) {
@@ -430,12 +432,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
-				return !operator==(other);
+				return m_ctx != other;
 			}
 
 			void match_archetype_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
@@ -476,12 +478,12 @@ namespace gaia {
 			}
 
 			void match_archetype_all_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
 
-				const ArchetypeList* pSrcArchetypes = nullptr;
+				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
 				if (ent.id() == Is.id()) {
 					ent = EntityBad;
@@ -530,8 +532,8 @@ namespace gaia {
 			}
 
 			void match_archetype_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
-					Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
+					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
@@ -576,13 +578,13 @@ namespace gaia {
 			}
 
 			void match_archetype_one_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch) {
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
 
-				const ArchetypeList* pSrcArchetypes = nullptr;
+				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
 				if (ent.id() == Is.id()) {
 					ent = EntityBad;
@@ -631,7 +633,7 @@ namespace gaia {
 			}
 
 			void match_archetype_no(
-					const ArchetypeList& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
@@ -658,7 +660,7 @@ namespace gaia {
 			}
 
 			void match_archetype_no_as(
-					const ArchetypeList& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch) {
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
@@ -686,8 +688,8 @@ namespace gaia {
 			}
 
 			void do_match_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -701,8 +703,8 @@ namespace gaia {
 			}
 
 			void do_match_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr, Entity ent, EntitySpan idsToMatch,
+					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
 					uint32_t as_mask_0, uint32_t as_mask_1) {
 				// First viable item is not related to an Is relationship
 				if (as_mask_0 + as_mask_1 == 0U) {
@@ -728,7 +730,7 @@ namespace gaia {
 			}
 
 			void do_match_no(
-					const ArchetypeList& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeList& matchesArr,
+					const ArchetypeDArray& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
 					EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
 				matchesSet.clear();
 
@@ -744,11 +746,11 @@ namespace gaia {
 					// entity -> archetypes mapping
 					const EntityToArchetypeMap& entityToArchetypeMap,
 					// all archetypes in the world
-					const ArchetypeList& allArchetypes,
+					const ArchetypeDArray& allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
-				static ArchetypeList s_tmpArchetypeMatchesArr;
+				static ArchetypeDArray s_tmpArchetypeMatchesArr;
 
 				struct CleanUpTmpArchetypeMatches {
 					~CleanUpTmpArchetypeMatches() {
@@ -769,7 +771,7 @@ namespace gaia {
 				const auto& pairs = data.pairs;
 
 				// Array of archetypes containing the given entity/component/pair
-				cnt::sarr_ext<const ArchetypeList*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+				cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
@@ -889,7 +891,7 @@ namespace gaia {
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}
-				m_archetypeCacheData.push_back(std::move(cacheData));
+				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
 			void del_archetype_from_cache(uint32_t idx) {
@@ -962,19 +964,19 @@ namespace gaia {
 				return {(const uint8_t*)&data.indices[0], Chunk::MAX_COMPONENTS};
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator begin() {
+			GAIA_NODISCARD ArchetypeDArray::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator begin() const {
+			GAIA_NODISCARD ArchetypeDArray::iterator begin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator end() {
+			GAIA_NODISCARD ArchetypeDArray::iterator end() {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeList::iterator end() const {
+			GAIA_NODISCARD ArchetypeDArray::iterator end() const {
 				return m_archetypeCache.end();
 			}
 		};

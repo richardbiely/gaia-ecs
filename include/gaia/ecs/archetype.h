@@ -61,7 +61,7 @@ namespace gaia {
 		class ArchetypeLookupChecker: public ArchetypeBase {
 			friend class Archetype;
 
-			//! List of component indices
+			//! Span of component indices
 			EntitySpan m_comps;
 
 		public:
@@ -109,7 +109,7 @@ namespace gaia {
 
 			//! Index of the first chunk with enough space to add at least one entity
 			uint32_t m_firstFreeChunkidx = 0;
-			//! List of chunks allocated by this archetype
+			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
 			// cnt::dbitset m_disabledMask;
@@ -118,13 +118,13 @@ namespace gaia {
 
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
-			//! List of entities used to identify the archetype
+			//! Array of entities used to identify the archetype
 			Entity m_ids[Chunk::MAX_COMPONENTS];
-			//! List of indices to Is relationship pairs in m_ids
+			//! Array of indices to Is relationship pairs in m_ids
 			uint8_t m_pairs_as_index_buffer[Chunk::MAX_COMPONENTS];
-			//! List of component ids
+			//! Array of component ids
 			Component m_comps[Chunk::MAX_COMPONENTS];
-			//! List of components offset indices
+			//! Array of components offset indices
 			ChunkDataOffset m_compOffs[Chunk::MAX_COMPONENTS];
 
 			//! Archetype list index
@@ -337,7 +337,7 @@ namespace gaia {
 
 					++newArch->m_pairCnt;
 
-					// If it is a Is relationship, count it separately
+					// If it is an Is relationship, count it separately
 					if (ids[i].id() == Is.id())
 						newArch->m_pairs_as_index_buffer[newArch->m_pairCnt_is++] = (uint8_t)i;
 				}
@@ -446,7 +446,7 @@ namespace gaia {
 
 			//! Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			//! \param pChunk Chunk to remove from the list of managed archetypes
-			void del(Chunk* pChunk, ArchetypeList& archetypesToDelete) {
+			void del(Chunk* pChunk, ArchetypeDArray& archetypesToDelete) {
 				// Make sure there are any chunks to delete
 				GAIA_ASSERT(!m_chunks.empty());
 

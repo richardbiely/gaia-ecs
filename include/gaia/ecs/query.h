@@ -54,7 +54,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 32;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
-				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
+				using ChunkBatchedArray = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
 
 			private:
@@ -193,12 +193,12 @@ namespace gaia {
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
-				//! List of archetypes (stable pointer to parent world's archetype array)
+				//! Map of archetypes (stable pointer to parent world's archetype array)
 				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
-				const ArchetypeList* m_allArchetypes{};
+				const ArchetypeDArray* m_allArchetypes{};
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -375,7 +375,7 @@ namespace gaia {
 
 				//! Execute functors in batches
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchedList& chunks) {
+				static void run_query_func(Func func, TIter& it, ChunkBatchedArray& chunks) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = chunks.size();
@@ -436,7 +436,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
-					ChunkBatchedList chunkBatch;
+					ChunkBatchedArray chunkBatch;
 					TIter it;
 					uint32_t aid = 0;
 
@@ -701,7 +701,7 @@ namespace gaia {
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
@@ -712,7 +712,7 @@ namespace gaia {
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeList& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
 						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
