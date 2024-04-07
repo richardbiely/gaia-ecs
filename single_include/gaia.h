@@ -19526,7 +19526,7 @@ namespace gaia {
 						return m_pChunk->view_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_raw<T>(pData, from() - to());
+						return m_pChunk->view_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -19553,7 +19553,7 @@ namespace gaia {
 						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -19579,7 +19579,7 @@ namespace gaia {
 						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -20835,13 +20835,7 @@ namespace gaia {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
 				GAIA_EACH(queryIds) {
-					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
-					// Doing it here is faster than doing it in ChunkIterImpl::view.
-					uint32_t termIdx = (i + 1); // (i+1) % queryIds.size()
-					if (termIdx >= queryIds.size())
-						termIdx = 0;
-
-					const auto idxBeforeRemapping = m_ctx.data.remapping[termIdx];
+					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -20888,7 +20882,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			bool has_none() const {
+			bool has_no() const {
 				return (!has_inter<T>(QueryOp::Not) && ...);
 			}
 
@@ -21060,9 +21054,15 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 32;
+
+				struct ChunkBatch {
+					Chunk* pChunk;
+					const uint8_t* pIndicesMapping;
+				};
+
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
-				using ChunkBatchedArray = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
+				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
 
 			private:
@@ -21383,16 +21383,20 @@ namespace gaia {
 
 				//! Execute functors in batches
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchedArray& chunks) {
+				static void run_query_func(Func func, TIter& it, ChunkBatchArray& chunks) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = chunks.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
-					auto runFunc = [&](Chunk* pChunk) {
+					auto runFunc = [&](ChunkBatch& batch) {
+						auto* pChunk = batch.pChunk;
+						const auto* pMappings = batch.pIndicesMapping;
+
 #if GAIA_ASSERT_ENABLED
 						pChunk->lock(true);
 #endif
+						it.set_remapping_indices(pMappings);
 						it.set_chunk(pChunk);
 						func(it);
 #if GAIA_ASSERT_ENABLED
@@ -21423,12 +21427,12 @@ namespace gaia {
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
-					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+					gaia::prefetch(&chunks[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
 					runFunc(chunks[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
-						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+						gaia::prefetch(&chunks[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
 						runFunc(chunks[chunkIdx]);
 					}
 
@@ -21444,7 +21448,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
-					ChunkBatchedArray chunkBatch;
+					ChunkBatchArray chunkBatch;
 					TIter it;
 					uint32_t aid = 0;
 
@@ -21461,8 +21465,7 @@ namespace gaia {
 							continue;
 						}
 
-						it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
-
+						auto indices_view = queryInfo.indices_mapping_view(aid);
 						const auto& chunks = pArchetype->chunks();
 
 						uint32_t chunkOffset = 0;
@@ -21482,7 +21485,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back(pChunk);
+								chunkBatch.push_back({pChunk, indices_view.data()});
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -21582,7 +21585,7 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::count);
 
 						// No mapping for count(). It doesn't need to access data cache.
-						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
+						// auto indices_view = queryInfo.indices_mapping_view(aid);
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -21618,7 +21621,7 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::arr);
 
 						// No mapping for arr(). It doesn't need to access data cache.
-						// it.set_remapping_indices(queryInfo.indices_mapping_view(aid).data());
+						// auto indices_view = queryInfo.indices_mapping_view(aid);
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -23462,14 +23465,12 @@ namespace gaia {
 							*const_cast<World*>(this), m_queryCache,
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
 					return q;
 				} else {
 					QueryUncached q(
 							*const_cast<World*>(this),
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
 					return q;
 				}
 			}
