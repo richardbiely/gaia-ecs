@@ -877,13 +877,7 @@ namespace gaia {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
 				GAIA_EACH(queryIds) {
-					// We add 1 from the given index because there is a hidden .add<Core>(no) for each query.
-					// Doing it here is faster than doing it in ChunkIterImpl::view.
-					uint32_t termIdx = (i + 1); // (i+1) % queryIds.size()
-					if (termIdx >= queryIds.size())
-						termIdx = 0;
-
-					const auto idxBeforeRemapping = m_ctx.data.remapping[termIdx];
+					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -930,7 +924,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			bool has_none() const {
+			bool has_no() const {
 				return (!has_inter<T>(QueryOp::Not) && ...);
 			}
 

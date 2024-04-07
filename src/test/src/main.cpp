@@ -1693,7 +1693,7 @@ TEST_CASE("Add - no components") {
 
 	GAIA_FOR(N) create();
 
-	auto q = wld.query().no<ecs::Component>();
+	auto q = wld.query().no<ecs::Component>().no<ecs::Core_>();
 	q.arr(arr);
 	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
 
@@ -2850,7 +2850,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None}).no<ecs::Core_>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 5); // 3 +2 for internal relationships
 
@@ -4754,15 +4754,29 @@ TEST_CASE("Set - generic") {
 	TestWorld twld;
 
 	constexpr uint32_t N = 100;
+	constexpr uint32_t NE = 10;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
+	cnt::darr<ecs::Entity> arre;
+	arr.reserve(NE);
+
+	GAIA_FOR(NE) {
+		auto e = wld.add();
+		arre.push_back(e);
+	}
 
 	GAIA_FOR(N) {
 		const auto ent = wld.add();
 		arr.push_back(ent);
+		wld.add<Position>(ent, {});
 		wld.add<Rotation>(ent, {});
 		wld.add<Scale>(ent, {});
+		wld.add<Acceleration>(ent, {});
 		wld.add<Else>(ent, {});
+		GAIA_FOR_(NE, j) {
+			auto e = arre[j];
+			wld.add(ent, e);
+		}
 	}
 
 	// Default values

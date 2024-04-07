@@ -1426,14 +1426,12 @@ namespace gaia {
 							*const_cast<World*>(this), m_queryCache,
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
 					return q;
 				} else {
 					QueryUncached q(
 							*const_cast<World*>(this),
 							//
 							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					q.no(Core);
 					return q;
 				}
 			}
