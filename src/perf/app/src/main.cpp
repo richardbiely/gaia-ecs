@@ -188,8 +188,8 @@ namespace sys {
 				auto health = it.view_mut<HealthComponent>(0);
 				auto damage = it.view<DamageComponent>(1);
 				auto update = [](HealthComponent& health, const DamageComponent& damage) {
-					const int totalDamage = damage.atk - damage.def;
-					health.hp = core::get_max(health.hp - totalDamage, 0);
+					const int totalDamage = core::get_max(damage.atk - damage.def, 0);
+					health.hp -= totalDamage;
 				};
 				GAIA_EACH(it) update(health[i], damage[i]);
 			});
