@@ -72,7 +72,7 @@ namespace gaia {
 						return m_pChunk->view_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_raw<T>(pData, from() - to());
+						return m_pChunk->view_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -99,7 +99,7 @@ namespace gaia {
 						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -125,7 +125,7 @@ namespace gaia {
 						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
 					} else {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, from() - to());
+						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
