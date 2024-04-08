@@ -1710,7 +1710,7 @@ To see what the future holds for this project navigate [here](https://github.com
 
 Requests for features, PRs, suggestions, and feedback are highly appreciated.
 
-Make sure to visit the project's [discord](https://discord.gg/YdWV84GG) or the [discussions section](https://github.com/richardbiely/gaia-ecs/discussions) here on GitHub. If necessary, you can contact me directly either via the e-mail (you can find it on my [profile page](https://github.com/richardbiely)) or you can visit my [X](https://www.x.com/richardbiely).
+Make sure to visit the project's [discord](https://discord.gg/wJjK72yze2) or the [discussions section](https://github.com/richardbiely/gaia-ecs/discussions) here on GitHub. If necessary, you can contact me directly either via the e-mail (you can find it on my [profile page](https://github.com/richardbiely)) or you can visit my [X](https://www.x.com/richardbiely).
 
 If you find the project helpful, do not forget to leave a star or [sponsor](https://www.github.com/sponsors/richardbiely) its development.
 
