@@ -15733,6 +15733,7 @@ namespace gaia {
 					void* m_data;
 					//! Index in the list of pages
 					uint32_t m_idx;
+					
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
@@ -15744,13 +15745,14 @@ namespace gaia {
 					//! Number of blocks to recycle
 					uint32_t m_freeBlocks: NBlocks_Bits;
 					//! Free bits to use in the future
-					uint32_t m_unused : 7;
+					// uint32_t m_unused : 7;
+
 					//! Implicit list of blocks
 					BlockArray m_blocks;
 
 					MemoryPage(void* ptr, uint8_t sizeType):
 							m_data(ptr), m_idx(0), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
-							m_freeBlocks(0), m_unused(0) {
+							m_freeBlocks(0) {
 						// One cacheline long on x86. The point is for this to be as small as possible
 						static_assert(sizeof(MemoryPage) <= 64);
 					}
@@ -18370,15 +18372,14 @@ namespace gaia {
 			//! Number of Is relationship pairs on the archetype
 			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 			//! Unused bits
-			uint32_t m_unused : 6;
+			// uint32_t m_unused : 6;
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
 					m_deleteReq(0), m_dead(0), //
-					m_lifespanCountdown(0), m_lifespanCountdownMax(0), //
-					m_pairCnt(0), m_pairCnt_is(0), //
-					m_unused(0) {}
+					m_lifespanCountdownMax(0), m_lifespanCountdown(0), //
+					m_pairCnt(0), m_pairCnt_is(0) {}
 
 			~Archetype() {
 				// Delete all archetype chunks
@@ -20735,7 +20736,7 @@ namespace gaia {
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 
 				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
-				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
+				// QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
 				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 

@@ -143,15 +143,14 @@ namespace gaia {
 			//! Number of Is relationship pairs on the archetype
 			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
 			//! Unused bits
-			uint32_t m_unused : 6;
+			// uint32_t m_unused : 6;
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
 					m_deleteReq(0), m_dead(0), //
-					m_lifespanCountdown(0), m_lifespanCountdownMax(0), //
-					m_pairCnt(0), m_pairCnt_is(0), //
-					m_unused(0) {}
+					m_lifespanCountdownMax(0), m_lifespanCountdown(0), //
+					m_pairCnt(0), m_pairCnt_is(0) {}
 
 			~Archetype() {
 				// Delete all archetype chunks

@@ -777,7 +777,7 @@ namespace gaia {
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 
 				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
-				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
+				// QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
 				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
 				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
 

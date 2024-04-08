@@ -73,6 +73,7 @@ namespace gaia {
 					void* m_data;
 					//! Index in the list of pages
 					uint32_t m_idx;
+					
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
@@ -84,13 +85,14 @@ namespace gaia {
 					//! Number of blocks to recycle
 					uint32_t m_freeBlocks: NBlocks_Bits;
 					//! Free bits to use in the future
-					uint32_t m_unused : 7;
+					// uint32_t m_unused : 7;
+
 					//! Implicit list of blocks
 					BlockArray m_blocks;
 
 					MemoryPage(void* ptr, uint8_t sizeType):
 							m_data(ptr), m_idx(0), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
-							m_freeBlocks(0), m_unused(0) {
+							m_freeBlocks(0) {
 						// One cacheline long on x86. The point is for this to be as small as possible
 						static_assert(sizeof(MemoryPage) <= 64);
 					}
