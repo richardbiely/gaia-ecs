@@ -23124,16 +23124,8 @@ namespace gaia {
 					EntityId tgt = object.gen();
 
 					// (*,*)
-					if (rel == All.id() && tgt == All.id()) {
-						auto ids = pArchetype->ids_view();
-						for (auto id: ids) {
-							if (!id.pair())
-								continue;
-							return true;
-						}
-
-						return false;
-					}
+					if (rel == All.id() && tgt == All.id())
+						return true;
 
 					// (X,*)
 					if (rel != All.id() && tgt == All.id()) {
