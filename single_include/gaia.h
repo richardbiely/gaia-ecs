@@ -14981,9 +14981,9 @@ namespace gaia {
 			}
 		};
 
-		// ------------------------------------------------------------------------------------
-		// Entity
-		// ------------------------------------------------------------------------------------
+		//----------------------------------------------------------------------
+		// Entity kind
+		//----------------------------------------------------------------------
 
 		enum EntityKind : uint8_t {
 			// Generic entity, one per entity
@@ -14995,6 +14995,123 @@ namespace gaia {
 		};
 
 		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
+
+		//----------------------------------------------------------------------
+		// Id type deduction
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct uni {
+			static_assert(core::is_raw_v<T>);
+			static_assert(
+					std::is_trivial_v<T> ||
+							// For non-trivial T the comparison operator must be implemented because
+							// defragmentation needs it to figure out if entities can be moved around.
+							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+					"Non-trivial Uni component must implement operator==");
+
+			//! Component kind
+			static constexpr EntityKind Kind = EntityKind::EK_Uni;
+
+			//! Raw type with no additional sugar
+			using TType = T;
+			//! uni<TType>
+			using TTypeFull = uni<TType>;
+			//! Original template type
+			using TTypeOriginal = T;
+		};
+
+		namespace detail {
+			template <typename, typename = void>
+			struct has_entity_kind: std::false_type {};
+			template <typename T>
+			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
+
+			template <typename T>
+			struct ExtractComponentType_NoEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = EntityKind::EK_Gen;
+
+				//! Raw type with no additional sugar
+				using Type = core::raw_t<T>;
+				//! Same as Type
+				using TypeFull = Type;
+				//! Original template type
+				using TypeOriginal = T;
+			};
+
+			template <typename T>
+			struct ExtractComponentType_WithEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = T::Kind;
+
+				//! Raw type with no additional sugar
+				using Type = typename T::TType;
+				//! T or uni<T> depending on entity kind specified
+				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
+				//! Original template type
+				using TypeOriginal = typename T::TTypeOriginal;
+			};
+
+			template <typename, typename = void>
+			struct is_gen_component: std::true_type {};
+			template <typename T>
+			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
+
+			template <typename T, typename = void>
+			struct component_type {
+				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
+			};
+			template <typename T>
+			struct component_type<T, std::void_t<decltype(T::Kind)>> {
+				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
+			};
+		} // namespace detail
+
+		template <typename T>
+		using component_type_t = typename detail::component_type<T>::type;
+
+		template <typename T>
+		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
+
+		//----------------------------------------------------------------------
+		// Pair helpers
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			struct pair_base {};
+		} // namespace detail
+
+		//! Wrapper for two types forming a relationship pair.
+		//! Depending on what types are used to form a pair it can contain a value.
+		//! To determine the storage type the following logic is applied:
+		//! If \tparam Rel is non-empty, the storage type is Rel.
+		//! If \tparam Rel is empty and \tparam Tgt is non-empty, the storage type is Tgt.
+		//! \tparam Rel relation part of the relationship
+		//! \tparam Tgt target part of the relationship
+		template <typename Rel, typename Tgt>
+		class pair: public detail::pair_base {
+			using rel_comp_type = component_type_t<Rel>;
+			using tgt_comp_type = component_type_t<Tgt>;
+
+		public:
+			using rel = typename rel_comp_type::TypeFull;
+			using tgt = typename tgt_comp_type::TypeFull;
+			using rel_type = typename rel_comp_type::Type;
+			using tgt_type = typename tgt_comp_type::Type;
+			using rel_original = typename rel_comp_type::TypeOriginal;
+			using tgt_original = typename tgt_comp_type::TypeOriginal;
+			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
+		};
+
+		template <typename T>
+		struct is_pair {
+			static constexpr bool value = std::is_base_of<detail::pair_base, core::raw_t<T>>::value;
+		};
+
+		// ------------------------------------------------------------------------------------
+		// Entity
+		// ------------------------------------------------------------------------------------
 
 		struct Entity final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -15146,112 +15263,8 @@ namespace gaia {
 		};
 
 		//----------------------------------------------------------------------
-		// Id type deduction
-		//----------------------------------------------------------------------
-
-		template <typename T>
-		struct uni {
-			static_assert(core::is_raw_v<T>);
-			static_assert(
-					std::is_trivial_v<T> ||
-							// For non-trivial T the comparison operator must be implemented because
-							// defragmentation needs it to figure out if entities can be moved around.
-							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
-					"Non-trivial Uni component must implement operator==");
-
-			//! Component kind
-			static constexpr EntityKind Kind = EntityKind::EK_Uni;
-
-			//! Raw type with no additional sugar
-			using TType = T;
-			//! uni<TType>
-			using TTypeFull = uni<TType>;
-			//! Original template type
-			using TTypeOriginal = T;
-		};
-
-		namespace detail {
-			template <typename, typename = void>
-			struct has_entity_kind: std::false_type {};
-			template <typename T>
-			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
-
-			template <typename T>
-			struct ExtractComponentType_NoEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = EntityKind::EK_Gen;
-
-				//! Raw type with no additional sugar
-				using Type = core::raw_t<T>;
-				//! Same as Type
-				using TypeFull = Type;
-				//! Original template type
-				using TypeOriginal = T;
-			};
-
-			template <typename T>
-			struct ExtractComponentType_WithEntityKind {
-				//! Component kind
-				static constexpr EntityKind Kind = T::Kind;
-
-				//! Raw type with no additional sugar
-				using Type = typename T::TType;
-				//! T or uni<T> depending on entity kind specified
-				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
-				//! Original template type
-				using TypeOriginal = typename T::TTypeOriginal;
-			};
-
-			template <typename, typename = void>
-			struct is_gen_component: std::true_type {};
-			template <typename T>
-			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
-
-			template <typename T, typename = void>
-			struct component_type {
-				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
-			};
-			template <typename T>
-			struct component_type<T, std::void_t<decltype(T::Kind)>> {
-				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
-			};
-		} // namespace detail
-
-		template <typename T>
-		using component_type_t = typename detail::component_type<T>::type;
-
-		template <typename T>
-		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
-
-		//----------------------------------------------------------------------
 		// Pair
 		//----------------------------------------------------------------------
-
-		namespace detail {
-			struct pair_base {};
-		} // namespace detail
-
-		//! Wrapper for two types forming a relationship pair.
-		//! Depending on what types are used to form a pair it can contain a value.
-		//! To determine the storage type the following logic is applied:
-		//! If \tparam Rel is non-empty, the storage type is Rel.
-		//! If \tparam Rel is empty and \tparam Tgt is non-empty, the storage type is Tgt.
-		//! \tparam Rel relation part of the relationship
-		//! \tparam Tgt target part of the relationship
-		template <typename Rel, typename Tgt>
-		class pair: public detail::pair_base {
-			using rel_comp_type = component_type_t<Rel>;
-			using tgt_comp_type = component_type_t<Tgt>;
-
-		public:
-			using rel = typename rel_comp_type::TypeFull;
-			using tgt = typename tgt_comp_type::TypeFull;
-			using rel_type = typename rel_comp_type::Type;
-			using tgt_type = typename tgt_comp_type::Type;
-			using rel_original = typename rel_comp_type::TypeOriginal;
-			using tgt_original = typename tgt_comp_type::TypeOriginal;
-			using type = std::conditional_t<!std::is_empty_v<rel_type> || std::is_empty_v<tgt_type>, rel, tgt>;
-		};
 
 		//! Wrapper for two Entities forming a relationship pair.
 		template <>
@@ -15291,11 +15304,6 @@ namespace gaia {
 		};
 
 		using Pair = pair<Entity, Entity>;
-
-		template <typename T>
-		struct is_pair {
-			static constexpr bool value = std::is_base_of<detail::pair_base, core::raw_t<T>>::value;
-		};
 
 		//----------------------------------------------------------------------
 		// Core components
@@ -23088,6 +23096,12 @@ namespace gaia {
 				}
 			}
 
+			//! Checks if \param pair is currently used by the world.
+			//! \return True if the entity is used. False otherwise.
+			GAIA_NODISCARD bool has(Pair pair) const {
+				return has((Entity)pair);
+			}
+
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
@@ -23149,6 +23163,16 @@ namespace gaia {
 				}
 
 				return ComponentGetter{ec.pChunk, ec.row}.has(object);
+			}
+
+			//! Tells if \param entity contains \param pair.
+			//! \param entity Entity
+			//! \param pair Tested pair
+			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
+				return has(entity, (Entity)pair);
 			}
 
 			//! Tells if \param entity contains the component \tparam T.

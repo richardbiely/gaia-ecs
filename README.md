@@ -816,6 +816,9 @@ ecs::Entity eats = w.add();
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(hare, ecs::Pair(eats, carrot));
 
+// You can brace-initialize the pair as well
+// w.add(hare, {eats, carrot});
+
 ecs::Query q = w.query().all(ecs::Pair(eats, carrot));
 q.each([](ecs::Entity entity)) {
   // Called for each entity implementing (eats, carrot) relationship.
@@ -955,7 +958,7 @@ ecs::Entity carrot = w.add();
 w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
 w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
 
-// carrot depends on herbivore so the later is added as well.
+// Carrot depends on herbivore so the later is added as well.
 // At the same time, herbivore depends on animal so animal is added, too.
 w.add(rabbit, carrot);
 const bool isHerbivore = w.has(rabbit, herbivore)); // true
@@ -1071,7 +1074,7 @@ w.del(rabbit);
 w.del(eats); 
 ```
 
-Creating custom rules is just a matter of adding the relationship to an entity.
+Creating custom rules is just a matter of adding a relationship to an entity.
 
 ```cpp
 ecs::Entity bomb_exploding_on_del = w.add();
@@ -1080,11 +1083,11 @@ w.add(bomb_exploding_on_del, ecs::Pair(OnDelete, Delete));
 // Attach a bomb to our rabbit
 w.add(rabbit, bomb_exploding_on_del);
 
-// Deleting the bomb will take out all entities associated with it along. Rabbit included.
+// Deleting the bomb will take out all entities associated with it. Rabbit included.
 w.del(bomb_exploding_on_del); 
 ```
 
-A core ***ChildOf*** entity is defined that can be used to express a physical hierarchy. It is defined as (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
+A core entity ***ChildOf*** can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
 
 ```cpp
 ecs::Entity parent = w.add();
@@ -1104,7 +1107,7 @@ Unique component is a special kind of data that exists at most once per chunk. I
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
 
 For instance, imagine you have a grid with fields of 100 meters squared.
-Now if you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
+If you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
 
 ```cpp
 w.add<Position>(e1, {10,1});
@@ -1126,7 +1129,7 @@ Performing an unprotected structural change is undefined behavior and most likel
 ecs::CommandBuffer cb;
 q.each([&](Entity e, const Position& p) {
   if (p.y < 0.0f) {
-    // Queue entity e for deletion if its position falls below zero
+    // Queue entity e for deletion if its Y position falls below zero
     cb.del(e);
   }
 });

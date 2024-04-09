@@ -1975,8 +1975,8 @@ TEST_CASE("Pair") {
 		auto e = wld.add();
 
 		wld.add<Position>(e, {5, 5, 5});
-		wld.add(e, ecs::Pair(eStart, ePos));
-		wld.add(e, ecs::Pair(eStop, ePos));
+		wld.add(e, {eStart, ePos});
+		wld.add(e, {eStop, ePos});
 		auto p = wld.get<Position>(e);
 		REQUIRE(p.x == 5);
 		REQUIRE(p.y == 5);
@@ -2021,7 +2021,7 @@ TEST_CASE("CantCombine") {
 	TestWorld twld;
 	auto weak = wld.add();
 	auto strong = wld.add();
-	wld.add(weak, ecs::Pair(ecs::CantCombine, strong));
+	wld.add(weak, {ecs::CantCombine, strong});
 
 	auto dummy = wld.add();
 	wld.add(dummy, strong);
@@ -2039,8 +2039,8 @@ TEST_CASE("DependsOn") {
 	auto animal = wld.add();
 	auto herbivore = wld.add();
 	auto carrot = wld.add();
-	wld.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
-	wld.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+	wld.add(carrot, {ecs::DependsOn, herbivore});
+	wld.add(herbivore, {ecs::DependsOn, animal});
 
 	wld.add(rabbit, carrot);
 	REQUIRE(wld.has(rabbit, herbivore));
@@ -2067,10 +2067,10 @@ TEST_CASE("Inheritance (Is)") {
 	ecs::Entity wolf = wld.add();
 
 	wld.add(wolf, wolf); // make wolf an archetype
-	wld.as(herbivore, animal); // wld.add(herbivore, ecs::Pair(ecs::Is, animal));
-	wld.as(rabbit, herbivore); // wld.add(rabbit, ecs::Pair(ecs::Is, herbivore));
-	wld.as(hare, herbivore); // wld.add(hare, ecs::Pair(ecs::Is, herbivore));
-	wld.as(wolf, animal); // wld.add(wolf, ecs::Pair(ecs::Is, animal))
+	wld.as(herbivore, animal); // wld.add(herbivore, {ecs::Is, animal});
+	wld.as(rabbit, herbivore); // wld.add(rabbit, {ecs::Is, herbivore});
+	wld.as(hare, herbivore); // wld.add(hare, {ecs::Is, herbivore});
+	wld.as(wolf, animal); // wld.add(wolf, {ecs::Is, animal})
 
 	REQUIRE(wld.is(herbivore, animal));
 	REQUIRE(wld.is(rabbit, herbivore));
@@ -2684,13 +2684,13 @@ TEST_CASE("Relationship") {
 		auto carrot = wld.add();
 		auto eats = wld.add();
 
-		wld.add(rabbit, ecs::Pair(eats, carrot));
-		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, {eats, carrot});
+		wld.add(wolf, {eats, rabbit});
 
-		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(wld.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE_FALSE(wld.has(wolf, ecs::Pair(eats, carrot)));
-		REQUIRE_FALSE(wld.has(rabbit, ecs::Pair(eats, wolf)));
+		REQUIRE(wld.has(rabbit, {eats, carrot}));
+		REQUIRE(wld.has(wolf, {eats, rabbit}));
+		REQUIRE_FALSE(wld.has(wolf, {eats, carrot}));
+		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
 			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -2739,13 +2739,13 @@ TEST_CASE("Relationship") {
 		auto carrot = wld.add();
 		auto eats = wld.add();
 
-		wld.build(rabbit).add(ecs::Pair(eats, carrot));
-		wld.build(wolf).add(ecs::Pair(eats, rabbit));
+		wld.build(rabbit).add({eats, carrot});
+		wld.build(wolf).add({eats, rabbit});
 
-		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(wld.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE_FALSE(wld.has(wolf, ecs::Pair(eats, carrot)));
-		REQUIRE_FALSE(wld.has(rabbit, ecs::Pair(eats, wolf)));
+		REQUIRE(wld.has(rabbit, {eats, carrot}));
+		REQUIRE(wld.has(wolf, {eats, rabbit}));
+		REQUIRE_FALSE(wld.has(wolf, {eats, carrot}));
+		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
 			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -2783,9 +2783,9 @@ TEST_CASE("Relationship") {
 		auto carrot = wld.add();
 		auto eats = wld.add();
 
-		wld.add(rabbit, ecs::Pair(eats, carrot));
-		wld.add(hare, ecs::Pair(eats, carrot));
-		wld.add(wolf, ecs::Pair(eats, rabbit));
+		wld.add(rabbit, {eats, carrot});
+		wld.add(hare, {eats, carrot});
+		wld.add(wolf, {eats, rabbit});
 
 		{
 			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -2850,7 +2850,8 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None}).no<ecs::Core_>();
+			auto q =
+					wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None}).no<ecs::Core_>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 5); // 3 +2 for internal relationships
 
@@ -2880,9 +2881,9 @@ TEST_CASE("Relationship target/relation") {
 	auto salad = wld.add();
 	auto eats = wld.add();
 
-	wld.add(rabbit, ecs::Pair(eats, carrot));
-	wld.add(rabbit, ecs::Pair(eats, salad));
-	wld.add(rabbit, ecs::Pair(hates, wolf));
+	wld.add(rabbit, {eats, carrot});
+	wld.add(rabbit, {eats, salad});
+	wld.add(rabbit, {hates, wolf});
 
 	auto e = wld.target(rabbit, eats);
 	const bool ret_e = e == carrot || e == salad;
@@ -3963,8 +3964,8 @@ TEST_CASE("Del - cleanup rules") {
 		auto eats = wld.add();
 		auto hungry = wld.add();
 		wld.add(wolf, hungry);
-		wld.add(wolf, ecs::Pair(eats, rabbit));
-		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(wolf, {eats, rabbit});
+		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
 		REQUIRE(!wld.has(wolf));
@@ -3973,17 +3974,17 @@ TEST_CASE("Del - cleanup rules") {
 		REQUIRE(wld.has(carrot));
 		REQUIRE(wld.has(hungry));
 		// global relationships
-		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
-		REQUIRE(wld.has(ecs::Pair(eats, ecs::All)));
-		REQUIRE(wld.has(ecs::Pair(ecs::All, carrot)));
-		REQUIRE(wld.has(ecs::Pair(ecs::All, rabbit)));
-		REQUIRE(wld.has(ecs::Pair(ecs::All, ecs::All)));
+		REQUIRE(wld.has({eats, rabbit}));
+		REQUIRE(wld.has({eats, carrot}));
+		REQUIRE(wld.has({eats, ecs::All}));
+		REQUIRE(wld.has({ecs::All, carrot}));
+		REQUIRE(wld.has({ecs::All, rabbit}));
+		REQUIRE(wld.has({ecs::All, ecs::All}));
 		// rabbit relationships
-		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
-		REQUIRE(wld.has(rabbit, ecs::Pair(eats, ecs::All)));
-		REQUIRE(wld.has(rabbit, ecs::Pair(ecs::All, carrot)));
-		REQUIRE(wld.has(rabbit, ecs::Pair(ecs::All, ecs::All)));
+		REQUIRE(wld.has(rabbit, {eats, carrot}));
+		REQUIRE(wld.has(rabbit, {eats, ecs::All}));
+		REQUIRE(wld.has(rabbit, {ecs::All, carrot}));
+		REQUIRE(wld.has(rabbit, {ecs::All, ecs::All}));
 	}
 	SECTION("default, relationship source") {
 		TestWorld twld;
@@ -3993,8 +3994,8 @@ TEST_CASE("Del - cleanup rules") {
 		auto eats = wld.add();
 		auto hungry = wld.add();
 		wld.add(wolf, hungry);
-		wld.add(wolf, ecs::Pair(eats, rabbit));
-		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(wolf, {eats, rabbit});
+		wld.add(rabbit, {eats, carrot});
 
 		wld.del(eats);
 		REQUIRE(wld.has(wolf));
@@ -4002,8 +4003,8 @@ TEST_CASE("Del - cleanup rules") {
 		REQUIRE(!wld.has(eats));
 		REQUIRE(wld.has(carrot));
 		REQUIRE(wld.has(hungry));
-		REQUIRE(!wld.has(wolf, ecs::Pair(eats, rabbit)));
-		REQUIRE(!wld.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(!wld.has(wolf, {eats, rabbit}));
+		REQUIRE(!wld.has(rabbit, {eats, carrot}));
 	}
 	SECTION("(OnDelete,Remove)") {
 		TestWorld twld;
@@ -4013,9 +4014,9 @@ TEST_CASE("Del - cleanup rules") {
 		auto eats = wld.add();
 		auto hungry = wld.add();
 		wld.add(wolf, hungry);
-		wld.add(wolf, ecs::Pair(ecs::OnDelete, ecs::Remove));
-		wld.add(wolf, ecs::Pair(eats, rabbit));
-		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(wolf, {ecs::OnDelete, ecs::Remove});
+		wld.add(wolf, {eats, rabbit});
+		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
 		REQUIRE(!wld.has(wolf));
@@ -4023,9 +4024,9 @@ TEST_CASE("Del - cleanup rules") {
 		REQUIRE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
 		REQUIRE(wld.has(hungry));
-		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
-		REQUIRE(wld.has(rabbit, ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has({eats, rabbit}));
+		REQUIRE(wld.has({eats, carrot}));
+		REQUIRE(wld.has(rabbit, {eats, carrot}));
 	}
 	SECTION("(OnDelete,Delete)") {
 		TestWorld twld;
@@ -4035,9 +4036,9 @@ TEST_CASE("Del - cleanup rules") {
 		auto eats = wld.add();
 		auto hungry = wld.add();
 		wld.add(wolf, hungry);
-		wld.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
-		wld.add(wolf, ecs::Pair(eats, rabbit));
-		wld.add(rabbit, ecs::Pair(eats, carrot));
+		wld.add(hungry, {ecs::OnDelete, ecs::Delete});
+		wld.add(wolf, {eats, rabbit});
+		wld.add(rabbit, {eats, carrot});
 
 		wld.del(hungry);
 		REQUIRE(!wld.has(wolf));
@@ -4045,16 +4046,16 @@ TEST_CASE("Del - cleanup rules") {
 		REQUIRE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
 		REQUIRE(!wld.has(hungry));
-		REQUIRE(wld.has(ecs::Pair(eats, rabbit)));
-		REQUIRE(wld.has(ecs::Pair(eats, carrot)));
+		REQUIRE(wld.has({eats, rabbit}));
+		REQUIRE(wld.has({eats, carrot}));
 	}
 	SECTION("(OnDeleteTarget,Delete)") {
 		TestWorld twld;
 		auto parent = wld.add();
 		auto child = wld.add();
 		auto child_of = wld.add();
-		wld.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
-		wld.add(child, ecs::Pair(child_of, parent));
+		wld.add(child_of, {ecs::OnDeleteTarget, ecs::Delete});
+		wld.add(child, {child_of, parent});
 
 		wld.del(parent);
 		REQUIRE(!wld.has(child));

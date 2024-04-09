@@ -1048,6 +1048,12 @@ namespace gaia {
 				}
 			}
 
+			//! Checks if \param pair is currently used by the world.
+			//! \return True if the entity is used. False otherwise.
+			GAIA_NODISCARD bool has(Pair pair) const {
+				return has((Entity)pair);
+			}
+
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
@@ -1109,6 +1115,16 @@ namespace gaia {
 				}
 
 				return ComponentGetter{ec.pChunk, ec.row}.has(object);
+			}
+
+			//! Tells if \param entity contains \param pair.
+			//! \param entity Entity
+			//! \param pair Tested pair
+			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
+				return has(entity, (Entity)pair);
 			}
 
 			//! Tells if \param entity contains the component \tparam T.

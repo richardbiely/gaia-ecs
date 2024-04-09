@@ -1,5 +1,4 @@
 #include <gaia.h>
-#include <type_traits>
 
 using namespace gaia;
 
@@ -347,9 +346,9 @@ void test1() {
 	auto carrot = w.add();
 	auto eats = w.add();
 
-	w.add(rabbit, ecs::Pair(eats, carrot));
-	w.add(hare, ecs::Pair(eats, carrot));
-	w.add(wolf, ecs::Pair(eats, rabbit));
+	w.add(rabbit, {eats, carrot});
+	w.add(hare, {eats, carrot});
+	w.add(wolf, {eats, rabbit});
 
 	{
 		auto q = w.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
@@ -427,9 +426,9 @@ void test3() {
 	auto eats = w.add(); // 17
 	auto hungry = w.add(); // 18
 	w.add(wolf, hungry);
-	w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
-	w.add(wolf, ecs::Pair(eats, rabbit));
-	w.add(rabbit, ecs::Pair(eats, carrot));
+	w.add(hungry, {ecs::OnDelete, ecs::Delete});
+	w.add(wolf, {eats, rabbit});
+	w.add(rabbit, {eats, carrot});
 
 	w.diag_archetypes();
 
@@ -509,9 +508,9 @@ void test7() {
 	auto eats = w.add(); // 17
 	auto hungry = w.add(); // 18
 	w.add(wolf, hungry);
-	w.add(hungry, ecs::Pair(ecs::OnDelete, ecs::Delete));
-	w.add(wolf, ecs::Pair(eats, rabbit));
-	w.add(rabbit, ecs::Pair(eats, carrot));
+	w.add(hungry, {ecs::OnDelete, ecs::Delete});
+	w.add(wolf, {eats, rabbit});
+	w.add(rabbit, {eats, carrot});
 
 	w.diag_archetypes();
 	w.del(hungry);
@@ -532,8 +531,8 @@ void test8() {
 	auto parent = w.add(); // 14
 	auto child = w.add(); // 15
 	auto child_of = w.add(); // 16
-	w.add(child_of, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete)); // 4:6
-	w.add(child, ecs::Pair(child_of, parent)); // 16:14
+	w.add(child_of, {ecs::OnDeleteTarget, ecs::Delete}); // 4:6
+	w.add(child, {child_of, parent}); // 16:14
 
 	w.diag_archetypes();
 	w.del(parent);
