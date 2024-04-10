@@ -1926,27 +1926,41 @@ namespace gaia {
 			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
-				if (it == m_entityToArchetypeMap.end())
+				if (it == m_entityToArchetypeMap.end()) {
 					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeDArray{pArchetype});
-				else if (!core::has(it->second, pArchetype))
-					it->second.push_back(pArchetype);
+					return;
+				}
+
+				auto& archetypes = it->second;
+				if (!core::has(archetypes, pArchetype))
+					archetypes.push_back(pArchetype);
 			}
 
-			//! Deletes an archetype to <entity, archetype> record
-			//! \param entity Entity getting deleted
-			void del_entity_archetype_pair(Entity entity) {
-				auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+			//! Deletes an archetype from the <pairEntity, archetype> map
+			//! \param pairKey Pair entity used as a key in the map
+			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
+			void del_entity_archetype_pair(Pair pairKey, Entity entityToRemove) {
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pairKey));
 				auto& archetypes = it->second;
+
+				// Remove any reference to the found archetype from the array.
+				// We don't know the archetype so we remove any archetype that contains our entity.
 				for (int i = (int)archetypes.size() - 1; i >= 0; --i) {
 					const auto* pArchetype = archetypes[(uint32_t)i];
-					if (pArchetype->has(entity))
+					if (!pArchetype->has(entityToRemove))
 						continue;
 
 					core::erase_fast_unsafe(archetypes, i);
 				}
+
+				// NOTE: No need to delete keys with empty archetype arrays.
+				//       There are only 3 such keys: (*, tgt), (src, *), (*, *)
+				// If no more items are present in the array, remove the map key.
+				// if (archetypes.empty())
+				// 	m_entityToArchetypeMap.erase(it); DON'T
 			}
 
-			//! Deletes an archetype to <entity, archetype> record
+			//! Deletes an archetype from the <entity, archetype> map
 			//! \param entity Entity getting deleted
 			void del_entity_archetype_pairs(Entity entity) {
 				// TODO: Optimize. Either switch to an array or add an index to the map value.
@@ -1956,16 +1970,16 @@ namespace gaia {
 
 				if (entity.pair()) {
 					// Fake entities instantiated for both ids.
-					// We are find with it because to build a pair all we need are valid entity ids.
+					// We are fine with it because to build a pair all we need are valid entity ids.
 					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
 					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
 					// (*, tgt)
-					del_entity_archetype_pair(Pair(All, second));
+					del_entity_archetype_pair(Pair(All, second), entity);
 					// (src, *)
-					del_entity_archetype_pair(Pair(first, All));
+					del_entity_archetype_pair(Pair(first, All), entity);
 					// (*, *)
-					del_entity_archetype_pair(Pair(All, All));
+					del_entity_archetype_pair(Pair(All, All), entity);
 				}
 			}
 
@@ -1982,7 +1996,7 @@ namespace gaia {
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
 						// Fake entities instantiated for both ids.
-						// We are find with it because to build a pair all we need are valid entity ids.
+						// We are fine with it because to build a pair all we need are valid entity ids.
 						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
 						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
