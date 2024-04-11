@@ -2693,7 +2693,7 @@ TEST_CASE("Relationship") {
 		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2719,7 +2719,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2748,7 +2748,7 @@ TEST_CASE("Relationship") {
 		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2762,7 +2762,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2788,7 +2788,7 @@ TEST_CASE("Relationship") {
 		wld.add(wolf, {eats, rabbit});
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -2804,7 +2804,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, rabbit), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -2817,7 +2817,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 3);
 
@@ -2834,7 +2834,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::Pair(ecs::All, carrot), ecs::QueryOp::All, ecs::QueryAccess::None});
+			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, carrot)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -2851,7 +2851,7 @@ TEST_CASE("Relationship") {
 
 		{
 			auto q =
-					wld.query().add({ecs::Pair(ecs::All, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None}).no<ecs::Core_>();
+					wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)}).no<ecs::Core_>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 5); // 3 +2 for internal relationships
 

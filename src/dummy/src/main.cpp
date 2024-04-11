@@ -351,7 +351,7 @@ void test1() {
 	w.add(wolf, {eats, rabbit});
 
 	{
-		auto q = w.query().add({ecs::Pair(eats, ecs::All), ecs::QueryOp::All, ecs::QueryAccess::None});
+		auto q = w.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 		const auto cnt = q.count();
 		GAIA_ASSERT(cnt == 3);
 

@@ -288,7 +288,7 @@ namespace gaia {
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
 
-					add_inter({e, op, access});
+					add_inter({op, access, e});
 				}
 
 				//--------------------------------------------------------------------------------
@@ -827,17 +827,17 @@ namespace gaia {
 
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
-						add({entity, QueryOp::All, QueryAccess::None});
+						add({QueryOp::All, QueryAccess::None, entity});
 					else
-						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+						add({QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
 					return *this;
 				}
 
 				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
 					if (entity.pair())
-						add({entity, QueryOp::All, QueryAccess::None, src});
+						add({QueryOp::All, QueryAccess::None, entity, src});
 					else
-						add({entity, QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, src});
+						add({QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity, src});
 					return *this;
 				}
 
@@ -850,9 +850,9 @@ namespace gaia {
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
-						add({entity, QueryOp::Any, QueryAccess::None});
+						add({QueryOp::Any, QueryAccess::None, entity});
 					else
-						add({entity, QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read});
+						add({QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
 					return *this;
 				}
 
@@ -864,7 +864,7 @@ namespace gaia {
 				}
 
 				QueryImpl& no(Entity entity) {
-					add({entity, QueryOp::Not, QueryAccess::None});
+					add({QueryOp::Not, QueryAccess::None, entity});
 					return *this;
 				}
 

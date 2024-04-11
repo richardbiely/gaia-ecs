@@ -44,12 +44,12 @@ namespace gaia {
 
 		//! User-provided query input
 		struct QueryInput {
-			//! Entity/Component/Pair to query
-			Entity id;
-			//! Operation to perform with the query item
+			//! Operation to perform with the input
 			QueryOp op = QueryOp::All;
 			//! Access type
 			QueryAccess access = QueryAccess::Read;
+			//! Entity/Component/Pair to query
+			Entity id;
 			//! Source entity to query the id on.
 			//! If id==EntityBad the source is fixed.
 			//! If id!=src the source is variable.
@@ -64,7 +64,7 @@ namespace gaia {
 			Entity src;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
-			//! Operation to perform with the query item
+			//! Operation to perform with the term
 			QueryOp op;
 
 			bool operator==(const QueryTerm& other) const {
