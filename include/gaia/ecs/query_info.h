@@ -79,10 +79,10 @@ namespace gaia {
 					}
 
 					const auto& data = m_ctx.data;
-					const auto& pairs = data.pairs;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(pairs.data(), id, EntityBad);
+					const auto& terms = data.terms;
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(terms.data(), id, EntityBad);
 
-					if (op != data.pairs[compIdx].op)
+					if (op != data.terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
@@ -346,19 +346,18 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				auto& data = m_ctx.data;
-				const auto& pairs = data.pairs;
 
-				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
-				QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
-				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
-				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
+				QueryTermSpan terms{data.terms.data(), data.terms.size()};
+				QueryTermSpan terms_all = terms.subspan(0, data.firstAny);
+				QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
+				QueryTermSpan terms_not = terms.subspan(data.firstNot);
 
 				// ALL
-				if (!ops_ids_all.empty()) {
+				if (!terms_all.empty()) {
 					GAIA_PROF_SCOPE(queryinfo::compile_all);
 
-					GAIA_EACH(ops_ids_all) {
-						auto& p = ops_ids_all[i];
+					GAIA_EACH(terms_all) {
+						auto& p = terms_all[i];
 						if (p.src == EntityBad) {
 							m_instructions.emplace_back(p.id, QueryOp::All);
 							continue;
@@ -376,12 +375,12 @@ namespace gaia {
 				}
 
 				// ANY
-				if (!ops_ids_any.empty()) {
+				if (!terms_any.empty()) {
 					GAIA_PROF_SCOPE(queryinfo::compile_any);
 
 					cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
-					GAIA_EACH(ops_ids_any) {
-						auto& p = ops_ids_any[i];
+					GAIA_EACH(terms_any) {
+						auto& p = terms_any[i];
 						if (p.src != EntityBad) {
 							p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
 							if (p.srcArchetype == nullptr)
@@ -406,11 +405,11 @@ namespace gaia {
 				}
 
 				// NOT
-				if (!ops_ids_not.empty()) {
+				if (!terms_not.empty()) {
 					GAIA_PROF_SCOPE(queryinfo::compile_not);
 
-					GAIA_EACH(ops_ids_not) {
-						auto& p = ops_ids_not[i];
+					GAIA_EACH(terms_not) {
+						auto& p = terms_not[i];
 						if (p.src != EntityBad)
 							continue;
 
@@ -768,7 +767,6 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& data = m_ctx.data;
-				const auto& pairs = data.pairs;
 
 				// Array of archetypes containing the given entity/component/pair
 				cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
@@ -776,10 +774,10 @@ namespace gaia {
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 				cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 
-				QueryEntityOpPairSpan ops_ids{pairs.data(), pairs.size()};
-				// QueryEntityOpPairSpan ops_ids_all = ops_ids.subspan(0, data.firstAny);
-				QueryEntityOpPairSpan ops_ids_any = ops_ids.subspan(data.firstAny, data.firstNot - data.firstAny);
-				QueryEntityOpPairSpan ops_ids_not = ops_ids.subspan(data.firstNot);
+				QueryTermSpan terms{data.terms.data(), data.terms.size()};
+				// QueryTermSpan terms_all = terms.subspan(0, data.firstAny);
+				QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
+				QueryTermSpan terms_not = terms.subspan(data.firstNot);
 
 				for (const auto& inst: m_instructions) {
 					switch (inst.op) {
@@ -806,7 +804,7 @@ namespace gaia {
 						return;
 				}
 
-				if (!ops_ids_any.empty()) {
+				if (!terms_any.empty()) {
 					if (ids_all.empty()) {
 						// We didn't try to match any ALL items.
 						// We need to search among all archetypes.
@@ -844,7 +842,7 @@ namespace gaia {
 				}
 
 				// Make sure there is no match with NOT items.
-				if (!ops_ids_not.empty()) {
+				if (!terms_not.empty()) {
 					// We searched for nothing more than NOT matches
 					if (s_tmpArchetypeMatchesArr.empty()) {
 						do_match_no(

@@ -475,7 +475,7 @@ TEST_CASE("Containers - darr_ext") {
 }
 
 TEST_CASE("Containers - alignment check") {
-	using TArrInter = cnt::sarr<ecs::QueryEntityOpPair, 3>;
+	using TArrInter = cnt::sarr<ecs::QueryTerm, 3>;
 	struct TFoo {
 		uint8_t b;
 		TArrInter arr;
@@ -490,7 +490,7 @@ TEST_CASE("Containers - alignment check") {
 
 	// Make sure alignment is right
 	{
-		using TPolicy = mem::data_view_policy_aos<ecs::QueryEntityOpPair>;
+		using TPolicy = mem::data_view_policy_aos<ecs::QueryTerm>;
 		constexpr auto TPolicyAlign = TPolicy::Alignment;
 		const auto addr = (uintptr_t)arr.data();
 		REQUIRE(addr % TPolicyAlign == 0);

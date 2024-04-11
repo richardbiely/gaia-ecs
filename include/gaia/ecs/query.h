@@ -70,12 +70,12 @@ namespace gaia {
 				struct Command_AddItem {
 					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_ITEM;
 
-					QueryItem item;
+					QueryInput item;
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& pairs = data.pairs;
+						auto& terms = data.terms;
 
 						// Unique component ids only
 						GAIA_ASSERT(!core::has(ids, item.id));
@@ -123,7 +123,7 @@ namespace gaia {
 						data.remapping.push_back((uint8_t)data.remapping.size());
 
 						ids.push_back(item.id);
-						pairs.push_back({item.id, item.src, nullptr, item.op});
+						terms.push_back({item.id, item.src, nullptr, item.op});
 					}
 				};
 
@@ -136,7 +136,7 @@ namespace gaia {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
 						auto& withChanged = data.withChanged;
-						const auto& pair = data.pairs;
+						const auto& terms = data.terms;
 
 						GAIA_ASSERT(core::has(ids, comp));
 						GAIA_ASSERT(!core::has(withChanged, comp));
@@ -163,7 +163,7 @@ namespace gaia {
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (pair[compIdx].op != QueryOp::Not) {
+						if (terms[compIdx].op != QueryOp::Not) {
 							withChanged.push_back(comp);
 							return;
 						}
@@ -253,7 +253,7 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
-				void add_inter(QueryItem item) {
+				void add_inter(QueryInput item) {
 					// Adding new query items invalidates the query
 					invalidate();
 
@@ -819,7 +819,7 @@ namespace gaia {
 					return *this;
 				}
 
-				QueryImpl& add(QueryItem item) {
+				QueryImpl& add(QueryInput item) {
 					// Add commands to the command buffer
 					add_inter(item);
 					return *this;

@@ -42,7 +42,8 @@ namespace gaia {
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
-		struct QueryItem {
+		//! User-provided query input
+		struct QueryInput {
 			//! Entity/Component/Pair to query
 			Entity id;
 			//! Operation to perform with the query item
@@ -55,7 +56,8 @@ namespace gaia {
 			Entity src = EntityBad;
 		};
 
-		struct QueryEntityOpPair {
+		//! Internal representation of QueryInput
+		struct QueryTerm {
 			//! Queried id
 			Entity id;
 			//! Source of where the queried id is looked up at
@@ -65,16 +67,16 @@ namespace gaia {
 			//! Operation to perform with the query item
 			QueryOp op;
 
-			bool operator==(const QueryEntityOpPair& other) const {
+			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && op == other.op;
 			}
-			bool operator!=(const QueryEntityOpPair& other) const {
+			bool operator!=(const QueryTerm& other) const {
 				return !operator==(other);
 			}
 		};
 
-		using QueryEntityOpPairArray = cnt::sarray_ext<QueryEntityOpPair, MAX_ITEMS_IN_QUERY>;
-		using QueryEntityOpPairSpan = std::span<QueryEntityOpPair>;
+		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
+		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
 		struct QueryCtx {
@@ -90,8 +92,8 @@ namespace gaia {
 			struct Data {
 				//! Array of querried ids
 				QueryEntityArray ids;
-				//! Array of [op,id] pairs
-				QueryEntityOpPairArray pairs;
+				//! Array of terms
+				QueryTermArray terms;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
@@ -136,7 +138,7 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.pairs.size() != right.pairs.size())
+				if (left.terms.size() != right.terms.size())
 					return false;
 				if (left.withChanged.size() != right.withChanged.size())
 					return false;
@@ -144,7 +146,7 @@ namespace gaia {
 					return false;
 
 				// Components need to be the same
-				if (left.pairs != right.pairs)
+				if (left.terms != right.terms)
 					return false;
 
 				// Filters need to be the same
@@ -161,7 +163,7 @@ namespace gaia {
 
 		//! Smaller ops first. Smaller ids second.
 		struct query_sort_cond {
-			constexpr bool operator()(const QueryEntityOpPair& lhs, const QueryEntityOpPair& rhs) const {
+			constexpr bool operator()(const QueryTerm& lhs, const QueryTerm& rhs) const {
 				if (lhs.op != rhs.op)
 					return lhs.op < rhs.op;
 
@@ -178,9 +180,9 @@ namespace gaia {
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
-			core::sort(data.pairs, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
+			core::sort(data.terms, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
 				core::swap(data.ids[left], data.ids[right]);
-				core::swap(data.pairs[left], data.pairs[right]);
+				core::swap(data.terms[left], data.terms[right]);
 				core::swap(remappingCopy[left], remappingCopy[right]);
 
 				// Make sure masks remains correct after sorting
@@ -195,18 +197,18 @@ namespace gaia {
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
 			// Therefore, if we want to see where 15 was located originaly (curr index 1), we do look at index 2 and get 1.
-			GAIA_EACH(data.pairs) {
+			GAIA_EACH(data.terms) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
 				data.remapping[i] = idxBeforeRemapping;
 			}
 
-			auto& pairs = data.pairs;
-			if (!pairs.empty()) {
+			auto& terms = data.terms;
+			if (!terms.empty()) {
 				uint32_t i = 0;
-				while (i < pairs.size() && pairs[i].op == QueryOp::All)
+				while (i < terms.size() && terms[i].op == QueryOp::All)
 					++i;
 				data.firstAny = (uint8_t)i;
-				while (i < pairs.size() && pairs[i].op == QueryOp::Any)
+				while (i < terms.size() && terms[i].op == QueryOp::Any)
 					++i;
 				data.firstNot = (uint8_t)i;
 			}
@@ -225,12 +227,12 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& pairs = data.pairs;
-				for (auto pair: pairs) {
+				const auto& terms = data.terms;
+				for (auto pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 				}
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)pairs.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
 
 				hashLookup = hash;
@@ -257,11 +259,11 @@ namespace gaia {
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
-		GAIA_NODISCARD inline uint32_t comp_idx(const QueryEntityOpPair* pComps, Entity entity, Entity src) {
+		GAIA_NODISCARD inline uint32_t comp_idx(const QueryTerm* pTerms, Entity entity, Entity src) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
 			GAIA_FOR(MAX_COMPONENTS) {
-				if (pComps[i].id == entity && pComps[i].src == src)
+				if (pTerms[i].id == entity && pTerms[i].src == src)
 					return i;
 			}
 

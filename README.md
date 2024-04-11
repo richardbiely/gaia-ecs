@@ -971,7 +971,7 @@ w.del(rabbit, animal); // does nothing
 // Carrot depends on herbivore.
 w.del(rabbit, herbivore); // does nothing
 
-// Carrot can be deleted. It requires herbivore is present which is true.
+// Carrot can be deleted. It requires that herbivore is present which is true.
 w.del(rabbit, carrot); // removes carrot from rabbit
 ```
 
