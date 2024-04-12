@@ -21886,6 +21886,11 @@ namespace gaia {
 					return *this;
 				}
 
+				QueryImpl& changed(Entity entity) {
+					changed_inter(entity);
+					return *this;
+				}
+
 				template <typename... T>
 				QueryImpl& changed() {
 					// Add commands to the command buffer
