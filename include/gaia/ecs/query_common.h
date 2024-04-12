@@ -100,7 +100,7 @@ namespace gaia {
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! Array of filtered components
-				QueryEntityArray withChanged;
+				QueryEntityArray changed;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask;
@@ -140,7 +140,7 @@ namespace gaia {
 				// Check array sizes first
 				if (left.terms.size() != right.terms.size())
 					return false;
-				if (left.withChanged.size() != right.withChanged.size())
+				if (left.changed.size() != right.changed.size())
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
@@ -150,7 +150,7 @@ namespace gaia {
 					return false;
 
 				// Filters need to be the same
-				if (left.withChanged != right.withChanged)
+				if (left.changed != right.changed)
 					return false;
 
 				return true;
@@ -242,10 +242,10 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& withChanged = data.withChanged;
-				for (auto id: withChanged)
+				const auto& changed = data.changed;
+				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}

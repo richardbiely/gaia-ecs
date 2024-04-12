@@ -135,15 +135,15 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& withChanged = data.withChanged;
+						auto& changed = data.changed;
 						const auto& terms = data.terms;
 
 						GAIA_ASSERT(core::has(ids, comp));
-						GAIA_ASSERT(!core::has(withChanged, comp));
+						GAIA_ASSERT(!core::has(changed, comp));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (withChanged.size() >= MAX_ITEMS_IN_QUERY) {
+						if (changed.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->get(comp).name.str();
@@ -164,7 +164,7 @@ namespace gaia {
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
 						if (terms[compIdx].op != QueryOp::Not) {
-							withChanged.push_back(comp);
+							changed.push_back(comp);
 							return;
 						}
 

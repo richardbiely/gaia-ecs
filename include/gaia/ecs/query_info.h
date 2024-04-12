@@ -904,11 +904,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD const QueryEntityArray& filters() const {
-				return m_ctx.data.withChanged;
+				return m_ctx.data.changed;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_ctx.data.withChanged.empty();
+				return !m_ctx.data.changed.empty();
 			}
 
 			template <typename... T>

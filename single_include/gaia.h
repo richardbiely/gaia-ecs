@@ -19305,7 +19305,7 @@ namespace gaia {
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! Array of filtered components
-				QueryEntityArray withChanged;
+				QueryEntityArray changed;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask;
@@ -19345,7 +19345,7 @@ namespace gaia {
 				// Check array sizes first
 				if (left.terms.size() != right.terms.size())
 					return false;
-				if (left.withChanged.size() != right.withChanged.size())
+				if (left.changed.size() != right.changed.size())
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
@@ -19355,7 +19355,7 @@ namespace gaia {
 					return false;
 
 				// Filters need to be the same
-				if (left.withChanged != right.withChanged)
+				if (left.changed != right.changed)
 					return false;
 
 				return true;
@@ -19447,10 +19447,10 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& withChanged = data.withChanged;
-				for (auto id: withChanged)
+				const auto& changed = data.changed;
+				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -20873,11 +20873,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD const QueryEntityArray& filters() const {
-				return m_ctx.data.withChanged;
+				return m_ctx.data.changed;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_ctx.data.withChanged.empty();
+				return !m_ctx.data.changed.empty();
 			}
 
 			template <typename... T>
@@ -21146,15 +21146,15 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data;
 						auto& ids = data.ids;
-						auto& withChanged = data.withChanged;
+						auto& changed = data.changed;
 						const auto& terms = data.terms;
 
 						GAIA_ASSERT(core::has(ids, comp));
-						GAIA_ASSERT(!core::has(withChanged, comp));
+						GAIA_ASSERT(!core::has(changed, comp));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (withChanged.size() >= MAX_ITEMS_IN_QUERY) {
+						if (changed.size() >= MAX_ITEMS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->get(comp).name.str();
@@ -21175,7 +21175,7 @@ namespace gaia {
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
 						if (terms[compIdx].op != QueryOp::Not) {
-							withChanged.push_back(comp);
+							changed.push_back(comp);
 							return;
 						}
 
