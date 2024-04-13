@@ -19709,149 +19709,148 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class SerializationBuffer {
-			// Increase the capacity by multiples of CapacityIncreaseSize
-			static constexpr uint32_t CapacityIncreaseSize = 128U;
-			// TODO: Replace with some memory allocator
-			using DataContainer = cnt::darray_ext<uint8_t, CapacityIncreaseSize>;
+		namespace detail {
+			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
 
-			const ComponentCache* m_cc;
-			//! Buffer holding raw data
-			DataContainer m_data;
-			//! Current position in the buffer
-			uint32_t m_dataPos = 0;
+			template <typename DataContainer>
+			class SerializationBufferImpl {
+				// Increase the capacity by multiples of CapacityIncreaseSize
+				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
 
-		public:
-			SerializationBuffer() = default;
-			SerializationBuffer(const ComponentCache* cc): m_cc(cc) {}
-			~SerializationBuffer() = default;
+				//! Buffer holding raw data
+				DataContainer m_data;
+				//! Current position in the buffer
+				uint32_t m_dataPos = 0;
 
-			SerializationBuffer(const SerializationBuffer&) = default;
-			SerializationBuffer(SerializationBuffer&&) = default;
-			SerializationBuffer& operator=(const SerializationBuffer&) = default;
-			SerializationBuffer& operator=(SerializationBuffer&&) = default;
+			public:
+				void reset() {
+					m_dataPos = 0;
+					m_data.clear();
+				}
 
-			void reset() {
-				m_dataPos = 0;
-				m_data.clear();
-			}
+				//! Returns the number of bytes written in the buffer
+				GAIA_NODISCARD uint32_t bytes() const {
+					return (uint32_t)m_data.size();
+				}
 
-			//! Returns the number of bytes written in the buffer
-			GAIA_NODISCARD uint32_t bytes() const {
-				return (uint32_t)m_data.size();
-			}
+				//! Returns true if there is no data written in the buffer
+				GAIA_NODISCARD bool empty() const {
+					return m_data.empty();
+				}
 
-			//! Returns true if there is no data written in the buffer
-			GAIA_NODISCARD bool empty() const {
-				return m_data.empty();
-			}
+				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				void reserve(uint32_t size) {
+					const auto nextSize = m_dataPos + size;
+					if (nextSize <= bytes())
+						return;
 
-			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void reserve(uint32_t size) {
-				const auto nextSize = m_dataPos + size;
-				if (nextSize <= bytes())
-					return;
+					// Make sure there is enough capacity to hold our data
+					const auto newSize = bytes() + size;
+					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+					m_data.reserve(newCapacity);
+				}
 
-				// Make sure there is enough capacity to hold our data
-				const auto newSize = bytes() + size;
-				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-				m_data.reserve(newCapacity);
-			}
+				//! Changes the current position in the buffer
+				void seek(uint32_t pos) {
+					m_dataPos = pos;
+				}
 
-			//! Changes the current position in the buffer
-			void seek(uint32_t pos) {
-				m_dataPos = pos;
-			}
+				//! Returns the current position in the buffer
+				GAIA_NODISCARD uint32_t tell() const {
+					return m_dataPos;
+				}
 
-			//! Returns the current position in the buffer
-			GAIA_NODISCARD uint32_t tell() const {
-				return m_dataPos;
-			}
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save(T&& value) {
+					reserve(sizeof(T));
 
-			//! Writes \param value to the buffer
-			template <typename T>
-			void save(T&& value) {
-				reserve(sizeof(T));
+					m_data.resize(m_dataPos + sizeof(T));
+					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
+					mem = GAIA_FWD(value);
 
-				m_data.resize(m_dataPos + sizeof(T));
-				mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
-				mem = GAIA_FWD(value);
+					m_dataPos += sizeof(T);
+				}
 
-				m_dataPos += sizeof(T);
-			}
+				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				void save(const void* pSrc, uint32_t size) {
+					reserve(size);
 
-			//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-			void save(const void* pSrc, uint32_t size) {
-				reserve(size);
+					// Copy "size" bytes of raw data starting at pSrc
+					m_data.resize(m_dataPos + size);
+					memcpy((void*)&m_data[m_dataPos], pSrc, size);
 
-				// Copy "size" bytes of raw data starting at pSrc
-				m_data.resize(m_dataPos + size);
-				memcpy((void*)&m_data[m_dataPos], pSrc, size);
+					m_dataPos += size;
+				}
 
-				m_dataPos += size;
-			}
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save_comp(const ComponentCache& cc, T&& value) {
+					const auto& desc = cc.get<T>();
+					const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
+					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
-			//! Writes \param value to the buffer
-			template <typename T>
-			void save_comp(T&& value) {
-				const auto& desc = m_cc->get<T>();
-				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
-				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
+					save(isManualDestroyNeeded);
+					m_data.resize(m_dataPos + sizeof(T));
 
-				reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-				save(isManualDestroyNeeded);
-				m_data.resize(m_dataPos + sizeof(T));
-
-				auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
-				auto* pDst = (void*)&m_data[m_dataPos];
-				if (isRValue && desc.func_move_ctor != nullptr) {
-					if constexpr (mem::is_movable<T>())
-						mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-					else
+					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
+					auto* pDst = (void*)&m_data[m_dataPos];
+					if (isRValue && desc.func_move_ctor != nullptr) {
+						if constexpr (mem::is_movable<T>())
+							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+						else
+							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+					} else
 						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-				} else
-					mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
 
-				m_dataPos += sizeof(T);
-			}
+					m_dataPos += sizeof(T);
+				}
 
-			//! Loads \param value from the buffer
-			template <typename T>
-			void load(T& value) {
-				GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
+				//! Loads \param value from the buffer
+				template <typename T>
+				void load(T& value) {
+					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
 
-				const auto& cdata = std::as_const(m_data);
-				value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
+					const auto& cdata = std::as_const(m_data);
+					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
 
-				m_dataPos += sizeof(T);
-			}
+					m_dataPos += sizeof(T);
+				}
 
-			//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-			void load(void* pDst, uint32_t size) {
-				GAIA_ASSERT(m_dataPos + size <= bytes());
+				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				void load(void* pDst, uint32_t size) {
+					GAIA_ASSERT(m_dataPos + size <= bytes());
 
-				const auto& cdata = std::as_const(m_data);
-				memmove(pDst, (const void*)&cdata[m_dataPos], size);
+					const auto& cdata = std::as_const(m_data);
+					memmove(pDst, (const void*)&cdata[m_dataPos], size);
 
-				m_dataPos += size;
-			}
+					m_dataPos += size;
+				}
 
-			//! Loads \param value from the buffer
-			void load_comp(void* pDst, Entity entity) {
-				bool isManualDestroyNeeded = false;
-				load(isManualDestroyNeeded);
+				//! Loads \param value from the buffer
+				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
+					bool isManualDestroyNeeded = false;
+					load(isManualDestroyNeeded);
 
-				const auto& desc = m_cc->get(entity);
-				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
-				const auto& cdata = std::as_const(m_data);
-				auto* pSrc = (void*)&cdata[m_dataPos];
-				desc.move(pDst, pSrc, 0, 0, 1, 1);
-				if (isManualDestroyNeeded)
-					desc.dtor(pSrc);
+					const auto& desc = cc.get(entity);
+					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
+					const auto& cdata = std::as_const(m_data);
+					auto* pSrc = (void*)&cdata[m_dataPos];
+					desc.move(pDst, pSrc, 0, 0, 1, 1);
+					if (isManualDestroyNeeded)
+						desc.dtor(pSrc);
 
-				m_dataPos += desc.comp.size();
-			}
-		};
+					m_dataPos += desc.comp.size();
+				}
+			};
+		} // namespace detail
+
+		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
+
+		using SerializationBuffer = detail::SerializationBufferImpl<SerializationBuffer_DArrExt>;
+		using SerializationBufferDyn = detail::SerializationBufferImpl<SerializationBuffer_DArr>;
 	} // namespace ecs
 } // namespace gaia
 
@@ -21069,10 +21068,11 @@ namespace gaia {
 					const uint8_t* pIndicesMapping;
 				};
 
+				using CmdBuffer = SerializationBufferDyn;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
+				using CmdBufferCmdFunc = void (*)(CmdBuffer& buffer, QueryCtx& ctx);
 
 			private:
 				//! Command buffer command type
@@ -21189,13 +21189,13 @@ namespace gaia {
 
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
-						[](SerializationBuffer& buffer, QueryCtx& ctx) {
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](SerializationBuffer& buffer, QueryCtx& ctx) {
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_Filter cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
@@ -21204,8 +21204,6 @@ namespace gaia {
 				World* m_world{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
-				//! Buffer with commands used to fetch the QueryInfo
-				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's m_nextArchetypeId)
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
@@ -21216,6 +21214,9 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+
+				//! Buffer with commands used to fetch the QueryInfo
+				CmdBuffer m_serBuffer;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -21723,8 +21724,8 @@ namespace gaia {
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
-						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.m_queryCache = &queryCache;
 				}
 
@@ -21734,8 +21735,8 @@ namespace gaia {
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
-						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
@@ -25409,7 +25410,7 @@ namespace gaia {
 				uint32_t entities;
 				cnt::map<uint32_t, Entity> entityMap;
 
-				CommandBufferCtx(ecs::World& w): SerializationBuffer(&w.comp_cache()), world(w), entities(0) {}
+				CommandBufferCtx(ecs::World& w): world(w), entities(0) {}
 
 				using SerializationBuffer::reset;
 				void reset() {
@@ -25494,7 +25495,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct AddComponentToTempEntityCmd: CommandBufferCmd {
@@ -25542,7 +25543,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct SetComponentCmd: CommandBufferCmd {
@@ -25557,7 +25558,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct SetComponentOnTempEntityCmd: CommandBufferCmd {
@@ -25580,7 +25581,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct RemoveComponentCmd: CommandBufferCmd {
@@ -25696,7 +25697,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
@@ -25713,7 +25714,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests component data to be set to given values for a given entity.
@@ -25730,7 +25731,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests component data to be set to given values for a given temp entity.
@@ -25747,7 +25748,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests removal of component \tparam T from \param entity

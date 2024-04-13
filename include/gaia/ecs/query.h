@@ -58,10 +58,11 @@ namespace gaia {
 					const uint8_t* pIndicesMapping;
 				};
 
+				using CmdBuffer = SerializationBufferDyn;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
+				using CmdBufferCmdFunc = void (*)(CmdBuffer& buffer, QueryCtx& ctx);
 
 			private:
 				//! Command buffer command type
@@ -178,13 +179,13 @@ namespace gaia {
 
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
-						[](SerializationBuffer& buffer, QueryCtx& ctx) {
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](SerializationBuffer& buffer, QueryCtx& ctx) {
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_Filter cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
@@ -193,8 +194,6 @@ namespace gaia {
 				World* m_world{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
-				//! Buffer with commands used to fetch the QueryInfo
-				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's m_nextArchetypeId)
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
@@ -205,6 +204,9 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+
+				//! Buffer with commands used to fetch the QueryInfo
+				CmdBuffer m_serBuffer;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -712,8 +714,8 @@ namespace gaia {
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
-						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.m_queryCache = &queryCache;
 				}
 
@@ -723,8 +725,8 @@ namespace gaia {
 						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_world(&world),
-						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");

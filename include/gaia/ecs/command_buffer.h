@@ -32,7 +32,7 @@ namespace gaia {
 				uint32_t entities;
 				cnt::map<uint32_t, Entity> entityMap;
 
-				CommandBufferCtx(ecs::World& w): SerializationBuffer(&w.comp_cache()), world(w), entities(0) {}
+				CommandBufferCtx(ecs::World& w): world(w), entities(0) {}
 
 				using SerializationBuffer::reset;
 				void reset() {
@@ -117,7 +117,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct AddComponentToTempEntityCmd: CommandBufferCmd {
@@ -165,7 +165,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct SetComponentCmd: CommandBufferCmd {
@@ -180,7 +180,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct SetComponentOnTempEntityCmd: CommandBufferCmd {
@@ -203,7 +203,7 @@ namespace gaia {
 					// Component data
 					const auto compIdx = pChunk->comp_idx(object);
 					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, object);
+					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
 			struct RemoveComponentCmd: CommandBufferCmd {
@@ -319,7 +319,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
@@ -336,7 +336,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests component data to be set to given values for a given entity.
@@ -353,7 +353,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests component data to be set to given values for a given temp entity.
@@ -370,7 +370,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(GAIA_FWD(value));
+				m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
 			}
 
 			//! Requests removal of component \tparam T from \param entity
