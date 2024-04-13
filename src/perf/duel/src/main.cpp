@@ -1,4 +1,3 @@
-#include "gaia/config/profiler.h"
 #define PICOBENCH_IMPLEMENT
 #include <gaia.h>
 #include <picobench/picobench.hpp>

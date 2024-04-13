@@ -14880,6 +14880,8 @@ namespace gaia {
 				return m_id == other.m_id;
 			}
 		};
+
+		using ArchetypeMapById = cnt::map<ArchetypeIdLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia
 
@@ -19208,6 +19210,8 @@ namespace gaia {
 				return m_pArchetypeBase == other.m_pArchetypeBase;
 			}
 		};
+
+		using ArchetypeMapByHash = cnt::map<ArchetypeLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia
 
@@ -19217,12 +19221,159 @@ namespace gaia {
 
 #include <type_traits>
 
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		namespace detail {
+			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
+
+			template <typename DataContainer>
+			class SerializationBufferImpl {
+				// Increase the capacity by multiples of CapacityIncreaseSize
+				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
+
+				//! Buffer holding raw data
+				DataContainer m_data;
+				//! Current position in the buffer
+				uint32_t m_dataPos = 0;
+
+			public:
+				void reset() {
+					m_dataPos = 0;
+					m_data.clear();
+				}
+
+				//! Returns the number of bytes written in the buffer
+				GAIA_NODISCARD uint32_t bytes() const {
+					return (uint32_t)m_data.size();
+				}
+
+				//! Returns true if there is no data written in the buffer
+				GAIA_NODISCARD bool empty() const {
+					return m_data.empty();
+				}
+
+				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				void reserve(uint32_t size) {
+					const auto nextSize = m_dataPos + size;
+					if (nextSize <= bytes())
+						return;
+
+					// Make sure there is enough capacity to hold our data
+					const auto newSize = bytes() + size;
+					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+					m_data.reserve(newCapacity);
+				}
+
+				//! Changes the current position in the buffer
+				void seek(uint32_t pos) {
+					m_dataPos = pos;
+				}
+
+				//! Returns the current position in the buffer
+				GAIA_NODISCARD uint32_t tell() const {
+					return m_dataPos;
+				}
+
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save(T&& value) {
+					reserve(sizeof(T));
+
+					m_data.resize(m_dataPos + sizeof(T));
+					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
+					mem = GAIA_FWD(value);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				void save(const void* pSrc, uint32_t size) {
+					reserve(size);
+
+					// Copy "size" bytes of raw data starting at pSrc
+					m_data.resize(m_dataPos + size);
+					memcpy((void*)&m_data[m_dataPos], pSrc, size);
+
+					m_dataPos += size;
+				}
+
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save_comp(const ComponentCache& cc, T&& value) {
+					const auto& desc = cc.get<T>();
+					const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
+					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+
+					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
+					save(isManualDestroyNeeded);
+					m_data.resize(m_dataPos + sizeof(T));
+
+					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
+					auto* pDst = (void*)&m_data[m_dataPos];
+					if (isRValue && desc.func_move_ctor != nullptr) {
+						if constexpr (mem::is_movable<T>())
+							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+						else
+							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+					} else
+						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param value from the buffer
+				template <typename T>
+				void load(T& value) {
+					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				void load(void* pDst, uint32_t size) {
+					GAIA_ASSERT(m_dataPos + size <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					memmove(pDst, (const void*)&cdata[m_dataPos], size);
+
+					m_dataPos += size;
+				}
+
+				//! Loads \param value from the buffer
+				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
+					bool isManualDestroyNeeded = false;
+					load(isManualDestroyNeeded);
+
+					const auto& desc = cc.get(entity);
+					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
+					const auto& cdata = std::as_const(m_data);
+					auto* pSrc = (void*)&cdata[m_dataPos];
+					desc.move(pDst, pSrc, 0, 0, 1, 1);
+					if (isManualDestroyNeeded)
+						desc.dtor(pSrc);
+
+					m_dataPos += desc.comp.size();
+				}
+			};
+		} // namespace detail
+
+		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
+
+		using SerializationBuffer = detail::SerializationBufferImpl<SerializationBuffer_DArrExt>;
+		using SerializationBufferDyn = detail::SerializationBufferImpl<SerializationBuffer_DArr>;
+	} // namespace ecs
+} // namespace gaia
+
 namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
-
-		ComponentCache& comp_cache_mut(World& world);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
@@ -19244,6 +19395,8 @@ namespace gaia {
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
+		using QuerySerBuffer = SerializationBufferDyn;
+		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -19284,6 +19437,24 @@ namespace gaia {
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
+		QuerySerBuffer& query_buffer(World& world, QueryId& serId);
+		void query_buffer_reset(World& world, QueryId& serId);
+		ComponentCache& comp_cache_mut(World& world);
+
+		struct QueryIdentity {
+			//! Query id
+			QueryId queryId = QueryIdBad;
+			//! Serialization id
+			QueryId serId = QueryIdBad;
+
+			GAIA_NODISCARD QuerySerBuffer& ser_buffer(World* world) {
+				return query_buffer(*world, serId);
+			}
+			void ser_buffer_reset(World* world) {
+				query_buffer_reset(*world, serId);
+			}
+		};
+
 		struct QueryCtx {
 			// World
 			const World* w{};
@@ -19291,8 +19462,8 @@ namespace gaia {
 			ComponentCache* cc{};
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
-			//! Query id
-			QueryId queryId = QueryIdBad;
+			//! Query identity
+			QueryIdentity q;
 
 			struct Data {
 				//! Array of querried ids
@@ -19330,7 +19501,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(queryId == QueryIdBad);
+				GAIA_ASSERT(q.queryId == QueryIdBad);
 				// Fast path when cache ids are set
 				// if (queryId != QueryIdBad && queryId == other.queryId)
 				// 	return true;
@@ -19704,155 +19875,6 @@ namespace gaia {
 
 #include <cstdint>
 #include <type_traits>
-
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		namespace detail {
-			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
-
-			template <typename DataContainer>
-			class SerializationBufferImpl {
-				// Increase the capacity by multiples of CapacityIncreaseSize
-				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
-
-				//! Buffer holding raw data
-				DataContainer m_data;
-				//! Current position in the buffer
-				uint32_t m_dataPos = 0;
-
-			public:
-				void reset() {
-					m_dataPos = 0;
-					m_data.clear();
-				}
-
-				//! Returns the number of bytes written in the buffer
-				GAIA_NODISCARD uint32_t bytes() const {
-					return (uint32_t)m_data.size();
-				}
-
-				//! Returns true if there is no data written in the buffer
-				GAIA_NODISCARD bool empty() const {
-					return m_data.empty();
-				}
-
-				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-				void reserve(uint32_t size) {
-					const auto nextSize = m_dataPos + size;
-					if (nextSize <= bytes())
-						return;
-
-					// Make sure there is enough capacity to hold our data
-					const auto newSize = bytes() + size;
-					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-					m_data.reserve(newCapacity);
-				}
-
-				//! Changes the current position in the buffer
-				void seek(uint32_t pos) {
-					m_dataPos = pos;
-				}
-
-				//! Returns the current position in the buffer
-				GAIA_NODISCARD uint32_t tell() const {
-					return m_dataPos;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save(T&& value) {
-					reserve(sizeof(T));
-
-					m_data.resize(m_dataPos + sizeof(T));
-					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
-					mem = GAIA_FWD(value);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-				void save(const void* pSrc, uint32_t size) {
-					reserve(size);
-
-					// Copy "size" bytes of raw data starting at pSrc
-					m_data.resize(m_dataPos + size);
-					memcpy((void*)&m_data[m_dataPos], pSrc, size);
-
-					m_dataPos += size;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save_comp(const ComponentCache& cc, T&& value) {
-					const auto& desc = cc.get<T>();
-					const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && desc.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param value from the buffer
-				template <typename T>
-				void load(T& value) {
-					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-				void load(void* pDst, uint32_t size) {
-					GAIA_ASSERT(m_dataPos + size <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					memmove(pDst, (const void*)&cdata[m_dataPos], size);
-
-					m_dataPos += size;
-				}
-
-				//! Loads \param value from the buffer
-				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					const auto& desc = cc.get(entity);
-					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					desc.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						desc.dtor(pSrc);
-
-					m_dataPos += desc.comp.size();
-				}
-			};
-		} // namespace detail
-
-		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
-		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
-
-		using SerializationBuffer = detail::SerializationBufferImpl<SerializationBuffer_DArrExt>;
-		using SerializationBufferDyn = detail::SerializationBufferImpl<SerializationBuffer_DArr>;
-	} // namespace ecs
-} // namespace gaia
 
 #include <cstdint>
 #include <type_traits>
@@ -20294,6 +20316,10 @@ namespace gaia {
 			}
 
 		public:
+			void init(World* world) {
+				m_ctx.w = world;
+			}
+
 			GAIA_NODISCARD static QueryInfo
 			create(QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				// Make sure query items are sorted
@@ -20301,7 +20327,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.m_ctx = GAIA_MOV(ctx);
-				info.m_ctx.queryId = id;
+				info.m_ctx.q.queryId = id;
 
 				// Compile the query
 				info.compile(entityToArchetypeMap);
@@ -20859,8 +20885,22 @@ namespace gaia {
 				core::erase_fast(m_archetypeCacheData, idx);
 			}
 
+			GAIA_NODISCARD World* world() {
+				return const_cast<World*>(m_ctx.w);
+			}
+			GAIA_NODISCARD const World* world() const {
+				return m_ctx.w;
+			}
+
 			GAIA_NODISCARD QueryId id() const {
-				return m_ctx.queryId;
+				return m_ctx.q.queryId;
+			}
+
+			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+				return m_ctx.q.ser_buffer(world());
+			}
+			void ser_buffer_reset() {
+				m_ctx.q.ser_buffer_reset(world());
 			}
 
 			GAIA_NODISCARD const QueryCtx::Data& data() const {
@@ -20965,7 +21005,7 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->queryId;
+				const auto id = m_pCtx->q.queryId;
 
 				// Temporary key is given. Do full context comparison.
 				if (id == QueryIdBad)
@@ -21039,6 +21079,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
+		QuerySerBuffer& query_buffer(World& world);
 		const ComponentCache& comp_cache(const World& world);
 		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
@@ -21048,19 +21089,49 @@ namespace gaia {
 		namespace detail {
 			template <bool Cached>
 			struct QueryImplStorage {
-				//! QueryImpl cache id
-				QueryId m_queryId = QueryIdBad;
+				World* m_world{};
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_queryCache{};
+				//! Query identity
+				QueryIdentity m_q;
+
+				GAIA_NODISCARD World* world() {
+					return m_world;
+				}
+				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+					return m_q.ser_buffer(m_world);
+				}
+				void ser_buffer_reset() {
+					return m_q.ser_buffer_reset(m_world);
+				}
+
+				void init(World* world, QueryCache* queryCache) {
+					m_world = world;
+					m_queryCache = queryCache;
+				}
 			};
 
 			template <>
 			struct QueryImplStorage<false> {
 				QueryInfo m_queryInfo;
+
+				GAIA_NODISCARD World* world() {
+					return m_queryInfo.world();
+				}
+				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+					return m_queryInfo.ser_buffer();
+				}
+				void ser_buffer_reset() {
+					return m_queryInfo.ser_buffer_reset();
+				}
+
+				void init(World* world) {
+					m_queryInfo.init(world);
+				}
 			};
 
 			template <bool UseCaching = true>
-			class QueryImpl final {
+			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
 
 				struct ChunkBatch {
@@ -21187,8 +21258,7 @@ namespace gaia {
 					}
 				};
 
-				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
-						// Add component
+				static constexpr CmdBufferCmdFunc CommandBufferRead[] = { // Add component
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
@@ -21201,7 +21271,6 @@ namespace gaia {
 							cmd.exec(ctx);
 						}};
 
-				World* m_world{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! World version (stable pointer to parent world's m_nextArchetypeId)
@@ -21209,14 +21278,11 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! Map of archetypes (stable pointer to parent world's archetype array)
-				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
+				const ArchetypeMapById* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
-
-				//! Buffer with commands used to fetch the QueryInfo
-				CmdBuffer m_serBuffer;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -21231,18 +21297,18 @@ namespace gaia {
 
 						// If queryId is set it means QueryInfo was already created.
 						// Because caching is used, we expect this to be the common case.
-						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
-							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_queryId);
+						if GAIA_LIKELY (m_storage.m_q.queryId != QueryIdBad) {
+							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_q.queryId);
 							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 							return queryInfo;
 						}
 
 						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
-						ctx.init(m_world);
+						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap);
-						m_storage.m_queryId = queryInfo.id();
+						m_storage.m_q.queryId = queryInfo.id();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
@@ -21250,7 +21316,7 @@ namespace gaia {
 
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
-							ctx.init(m_world);
+							ctx.init(m_storage.world());
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap);
 						}
@@ -21272,9 +21338,11 @@ namespace gaia {
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					Command_AddItem cmd{item};
-					ser::save(m_serBuffer, Command_AddItem::Id);
-					ser::save(m_serBuffer, cmd);
+					ser::save(serBuffer, Command_AddItem::Id);
+					ser::save(serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -21283,13 +21351,13 @@ namespace gaia {
 
 					if constexpr (is_pair<T>::value) {
 						// Make sure the components are always registered
-						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_world);
-						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_world);
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_storage.world());
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_storage.world());
 
 						e = Pair(desc_rel.entity, desc_tgt.entity);
 					} else {
 						// Make sure the component is always registered
-						const auto& desc = comp_cache_add<T>(*m_world);
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
 						e = desc.entity;
 					}
 
@@ -21309,9 +21377,11 @@ namespace gaia {
 					// Adding new changed items invalidates the query
 					invalidate();
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					Command_Filter cmd{entity};
-					ser::save(m_serBuffer, Command_Filter::Id);
-					ser::save(m_serBuffer, cmd);
+					ser::save(serBuffer, Command_Filter::Id);
+					ser::save(serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -21320,7 +21390,7 @@ namespace gaia {
 					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
 
 					// Make sure the component is always registered
-					const auto& desc = comp_cache_add<T>(*m_world);
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
 					changed_inter(desc.entity);
 				}
 
@@ -21329,18 +21399,20 @@ namespace gaia {
 				void commit(QueryCtx& ctx) {
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_queryId == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_q.queryId == QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.id() == QueryIdBad);
 					}
 #endif
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					// Read data from buffer and execute the command stored in it
-					m_serBuffer.seek(0);
-					while (m_serBuffer.tell() < m_serBuffer.bytes()) {
+					serBuffer.seek(0);
+					while (serBuffer.tell() < serBuffer.bytes()) {
 						CommandBufferCmdType id{};
-						ser::load(m_serBuffer, id);
-						CommandBufferRead[id](m_serBuffer, ctx);
+						ser::load(serBuffer, id);
+						CommandBufferRead[id](serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
@@ -21348,7 +21420,7 @@ namespace gaia {
 						calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
-					m_serBuffer.reset();
+					m_storage.ser_buffer_reset();
 				}
 
 				//--------------------------------------------------------------------------------
@@ -21554,7 +21626,7 @@ namespace gaia {
 
 				void invalidate() {
 					if constexpr (UseCaching)
-						m_storage.m_queryId = QueryIdBad;
+						m_storage.m_q.queryId = QueryIdBad;
 				}
 
 				template <bool UseFilters, typename TIter>
@@ -21703,7 +21775,7 @@ namespace gaia {
 							return All;
 
 						// Anything else is a component name
-						const auto& cc = comp_cache(*m_world);
+						const auto& cc = comp_cache(*m_storage.world());
 						const auto* pItem = cc.find(idStr.data(), (uint32_t)idStr.size());
 						if (pItem == nullptr) {
 							GAIA_ASSERT2(false, "Type not found");
@@ -21721,26 +21793,36 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_world(&world),
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
-					m_storage.m_queryCache = &queryCache;
+						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
+						const ArchetypeDArray& allArchetypes):
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
+						m_allArchetypes(&allArchetypes) {
+					m_storage.init(&world, &queryCache);
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_world(&world),
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
+						m_allArchetypes(&allArchetypes) {
+					m_storage.init(&world);
+				}
+
+				// TODO: We might want to allways invalidate the serialization buffer just in case.
+				//       However, ref-counting would have to be introduced for QueryImpl first.
+				//       Otherwise, any copy of the query would invalidate the serialization buffer
+				//       if its lifetime ended.
+				// ~QueryImpl() {
+				// 	// Make sure to invalidate the serialization buffer record just in case.
+				// 	m_storage.ser_buffer_reset();
+				// }
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
-					return m_storage.m_queryId;
+					return m_storage.m_q.queryId;
 				}
 
 				//! Creates a query from a null-terminated expression string.
@@ -22080,7 +22162,7 @@ namespace gaia {
 					auto& info = fetch();
 					GAIA_LOG_N("DIAG Query %u [%c]", id(), UseCaching ? 'C' : 'U');
 					for (const auto* pArchetype: info)
-						Archetype::diag_basic_info(*m_world, *pArchetype);
+						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
 					GAIA_LOG_N("END DIAG Query");
 				}
 			};
@@ -22110,6 +22192,12 @@ namespace gaia {
 			ComponentCache m_compCache;
 			//! Cache of queries
 			QueryCache m_queryCache;
+			//! A map of [Query*, Buffer].
+			//! Contains serialization buffers used by queries during their initialization.
+			//! Kept here because it's only necessary for query initilization and would just
+			//! take space on a query almost 100% of the time with no purpose at all.
+			//! Records removed as soon as the query is compiled.
+			QuerySerMap m_querySerMap;
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
@@ -22138,9 +22226,9 @@ namespace gaia {
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
 			//! Map of archetypes identified by their component hash code
-			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
+			ArchetypeMapByHash m_archetypesByHash;
 			//! Map of archetypes identified by their ID
-			cnt::map<ArchetypeIdLookupKey, Archetype*> m_archetypesById;
+			ArchetypeMapById m_archetypesById;
 
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
@@ -22554,6 +22642,10 @@ namespace gaia {
 			}
 			GAIA_NODISCARD const ComponentCache& comp_cache() const {
 				return m_compCache;
+			}
+
+			GAIA_NODISCARD QuerySerMap& query_ser_map() {
+				return m_querySerMap;
 			}
 
 			//----------------------------------------------------------------------
@@ -25329,6 +25421,49 @@ namespace gaia {
 				// del_empty_archetypes();
 			}
 		};
+
+		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
+			static QueryId s_querySerId = QueryIdBad;
+
+			auto& queryBuffers = world.query_ser_map();
+			// No serialization id set on the query, try creating a new record
+			if GAIA_UNLIKELY (serId == QueryIdBad) {
+#if GAIA_ASSERT_ENABLED
+				uint32_t safetyCounter = 0;
+#endif
+
+				while (true) {
+#if GAIA_ASSERT_ENABLED
+					// Make sure we don't cross some safety threshold
+					++safetyCounter;
+					GAIA_ASSERT(safetyCounter < 100000);
+#endif
+
+					serId = ++s_querySerId;
+
+					// If the id is already found, try again.
+					// Note, this is essentialy never going to repeat. We would have to prepare millions if
+					// not billions of queries for which we only added inputs but never queried them.
+					auto ret = queryBuffers.try_emplace(serId);
+					if (!ret.second)
+						continue;
+
+					return ret.first->second;
+				};
+			}
+
+			return queryBuffers[serId];
+		}
+
+		inline void query_buffer_reset(World& world, QueryId& serId) {
+			auto& queryBuffers = world.query_ser_map();
+			auto it = queryBuffers.find(serId);
+			if (it == queryBuffers.end())
+				return;
+
+			queryBuffers.erase(it);
+			serId = QueryIdBad;
+		}
 
 		GAIA_NODISCARD inline const ComponentCache& comp_cache(const World& world) {
 			return world.comp_cache();

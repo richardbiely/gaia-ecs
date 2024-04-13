@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "../cnt/darray.h"
+#include "../cnt/map.h"
 #include "../core/hashing_policy.h"
 
 namespace gaia {
@@ -61,5 +62,7 @@ namespace gaia {
 				return m_id == other.m_id;
 			}
 		};
+
+		using ArchetypeMapById = cnt::map<ArchetypeIdLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia

@@ -29,6 +29,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
+		QuerySerBuffer& query_buffer(World& world);
 		const ComponentCache& comp_cache(const World& world);
 		ComponentCache& comp_cache_mut(World& world);
 		template <typename T>
@@ -38,19 +39,49 @@ namespace gaia {
 		namespace detail {
 			template <bool Cached>
 			struct QueryImplStorage {
-				//! QueryImpl cache id
-				QueryId m_queryId = QueryIdBad;
+				World* m_world{};
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_queryCache{};
+				//! Query identity
+				QueryIdentity m_q;
+
+				GAIA_NODISCARD World* world() {
+					return m_world;
+				}
+				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+					return m_q.ser_buffer(m_world);
+				}
+				void ser_buffer_reset() {
+					return m_q.ser_buffer_reset(m_world);
+				}
+
+				void init(World* world, QueryCache* queryCache) {
+					m_world = world;
+					m_queryCache = queryCache;
+				}
 			};
 
 			template <>
 			struct QueryImplStorage<false> {
 				QueryInfo m_queryInfo;
+
+				GAIA_NODISCARD World* world() {
+					return m_queryInfo.world();
+				}
+				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+					return m_queryInfo.ser_buffer();
+				}
+				void ser_buffer_reset() {
+					return m_queryInfo.ser_buffer_reset();
+				}
+
+				void init(World* world) {
+					m_queryInfo.init(world);
+				}
 			};
 
 			template <bool UseCaching = true>
-			class QueryImpl final {
+			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
 
 				struct ChunkBatch {
@@ -177,8 +208,7 @@ namespace gaia {
 					}
 				};
 
-				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
-						// Add component
+				static constexpr CmdBufferCmdFunc CommandBufferRead[] = { // Add component
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
@@ -191,7 +221,6 @@ namespace gaia {
 							cmd.exec(ctx);
 						}};
 
-				World* m_world{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! World version (stable pointer to parent world's m_nextArchetypeId)
@@ -199,14 +228,11 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! Map of archetypes (stable pointer to parent world's archetype array)
-				const cnt::map<ArchetypeIdLookupKey, Archetype*>* m_archetypes{};
+				const ArchetypeMapById* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
-
-				//! Buffer with commands used to fetch the QueryInfo
-				CmdBuffer m_serBuffer;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -221,18 +247,18 @@ namespace gaia {
 
 						// If queryId is set it means QueryInfo was already created.
 						// Because caching is used, we expect this to be the common case.
-						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
-							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_queryId);
+						if GAIA_LIKELY (m_storage.m_q.queryId != QueryIdBad) {
+							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_q.queryId);
 							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 							return queryInfo;
 						}
 
 						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
-						ctx.init(m_world);
+						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap);
-						m_storage.m_queryId = queryInfo.id();
+						m_storage.m_q.queryId = queryInfo.id();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
@@ -240,7 +266,7 @@ namespace gaia {
 
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
-							ctx.init(m_world);
+							ctx.init(m_storage.world());
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap);
 						}
@@ -262,9 +288,11 @@ namespace gaia {
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					Command_AddItem cmd{item};
-					ser::save(m_serBuffer, Command_AddItem::Id);
-					ser::save(m_serBuffer, cmd);
+					ser::save(serBuffer, Command_AddItem::Id);
+					ser::save(serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -273,13 +301,13 @@ namespace gaia {
 
 					if constexpr (is_pair<T>::value) {
 						// Make sure the components are always registered
-						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_world);
-						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_world);
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_storage.world());
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_storage.world());
 
 						e = Pair(desc_rel.entity, desc_tgt.entity);
 					} else {
 						// Make sure the component is always registered
-						const auto& desc = comp_cache_add<T>(*m_world);
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
 						e = desc.entity;
 					}
 
@@ -299,9 +327,11 @@ namespace gaia {
 					// Adding new changed items invalidates the query
 					invalidate();
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					Command_Filter cmd{entity};
-					ser::save(m_serBuffer, Command_Filter::Id);
-					ser::save(m_serBuffer, cmd);
+					ser::save(serBuffer, Command_Filter::Id);
+					ser::save(serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -310,7 +340,7 @@ namespace gaia {
 					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
 
 					// Make sure the component is always registered
-					const auto& desc = comp_cache_add<T>(*m_world);
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
 					changed_inter(desc.entity);
 				}
 
@@ -319,18 +349,20 @@ namespace gaia {
 				void commit(QueryCtx& ctx) {
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_queryId == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_q.queryId == QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.id() == QueryIdBad);
 					}
 #endif
 
+					auto& serBuffer = m_storage.ser_buffer();
+
 					// Read data from buffer and execute the command stored in it
-					m_serBuffer.seek(0);
-					while (m_serBuffer.tell() < m_serBuffer.bytes()) {
+					serBuffer.seek(0);
+					while (serBuffer.tell() < serBuffer.bytes()) {
 						CommandBufferCmdType id{};
-						ser::load(m_serBuffer, id);
-						CommandBufferRead[id](m_serBuffer, ctx);
+						ser::load(serBuffer, id);
+						CommandBufferRead[id](serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
@@ -338,7 +370,7 @@ namespace gaia {
 						calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
-					m_serBuffer.reset();
+					m_storage.ser_buffer_reset();
 				}
 
 				//--------------------------------------------------------------------------------
@@ -544,7 +576,7 @@ namespace gaia {
 
 				void invalidate() {
 					if constexpr (UseCaching)
-						m_storage.m_queryId = QueryIdBad;
+						m_storage.m_q.queryId = QueryIdBad;
 				}
 
 				template <bool UseFilters, typename TIter>
@@ -693,7 +725,7 @@ namespace gaia {
 							return All;
 
 						// Anything else is a component name
-						const auto& cc = comp_cache(*m_world);
+						const auto& cc = comp_cache(*m_storage.world());
 						const auto* pItem = cc.find(idStr.data(), (uint32_t)idStr.size());
 						if (pItem == nullptr) {
 							GAIA_ASSERT2(false, "Type not found");
@@ -711,26 +743,36 @@ namespace gaia {
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_world(&world),
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
-					m_storage.m_queryCache = &queryCache;
+						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
+						const ArchetypeDArray& allArchetypes):
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
+						m_allArchetypes(&allArchetypes) {
+					m_storage.init(&world, &queryCache);
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const cnt::map<ArchetypeIdLookupKey, Archetype*>& archetypes,
+						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_world(&world),
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {}
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
+						m_allArchetypes(&allArchetypes) {
+					m_storage.init(&world);
+				}
+
+				// TODO: We might want to allways invalidate the serialization buffer just in case.
+				//       However, ref-counting would have to be introduced for QueryImpl first.
+				//       Otherwise, any copy of the query would invalidate the serialization buffer
+				//       if its lifetime ended.
+				// ~QueryImpl() {
+				// 	// Make sure to invalidate the serialization buffer record just in case.
+				// 	m_storage.ser_buffer_reset();
+				// }
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
-					return m_storage.m_queryId;
+					return m_storage.m_q.queryId;
 				}
 
 				//! Creates a query from a null-terminated expression string.
@@ -1070,7 +1112,7 @@ namespace gaia {
 					auto& info = fetch();
 					GAIA_LOG_N("DIAG Query %u [%c]", id(), UseCaching ? 'C' : 'U');
 					for (const auto* pArchetype: info)
-						Archetype::diag_basic_info(*m_world, *pArchetype);
+						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
 					GAIA_LOG_N("END DIAG Query");
 				}
 			};

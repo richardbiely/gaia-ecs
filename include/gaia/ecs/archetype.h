@@ -971,5 +971,7 @@ namespace gaia {
 				return m_pArchetypeBase == other.m_pArchetypeBase;
 			}
 		};
+
+		using ArchetypeMapByHash = cnt::map<ArchetypeLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia

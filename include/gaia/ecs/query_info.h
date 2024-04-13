@@ -326,6 +326,10 @@ namespace gaia {
 			}
 
 		public:
+			void init(World* world) {
+				m_ctx.w = world;
+			}
+
 			GAIA_NODISCARD static QueryInfo
 			create(QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				// Make sure query items are sorted
@@ -333,7 +337,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.m_ctx = GAIA_MOV(ctx);
-				info.m_ctx.queryId = id;
+				info.m_ctx.q.queryId = id;
 
 				// Compile the query
 				info.compile(entityToArchetypeMap);
@@ -891,8 +895,22 @@ namespace gaia {
 				core::erase_fast(m_archetypeCacheData, idx);
 			}
 
+			GAIA_NODISCARD World* world() {
+				return const_cast<World*>(m_ctx.w);
+			}
+			GAIA_NODISCARD const World* world() const {
+				return m_ctx.w;
+			}
+
 			GAIA_NODISCARD QueryId id() const {
-				return m_ctx.queryId;
+				return m_ctx.q.queryId;
+			}
+
+			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
+				return m_ctx.q.ser_buffer(world());
+			}
+			void ser_buffer_reset() {
+				m_ctx.q.ser_buffer_reset(world());
 			}
 
 			GAIA_NODISCARD const QueryCtx::Data& data() const {

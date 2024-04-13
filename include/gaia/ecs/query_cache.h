@@ -28,7 +28,7 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->queryId;
+				const auto id = m_pCtx->q.queryId;
 
 				// Temporary key is given. Do full context comparison.
 				if (id == QueryIdBad)

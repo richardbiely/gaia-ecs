@@ -30,6 +30,7 @@
 #include "component_getter.h"
 #include "component_setter.h"
 #include "component_utils.h"
+#include "data_buffer.h"
 #include "entity_container.h"
 #include "id.h"
 #include "query.h"
@@ -56,6 +57,12 @@ namespace gaia {
 			ComponentCache m_compCache;
 			//! Cache of queries
 			QueryCache m_queryCache;
+			//! A map of [Query*, Buffer].
+			//! Contains serialization buffers used by queries during their initialization.
+			//! Kept here because it's only necessary for query initilization and would just
+			//! take space on a query almost 100% of the time with no purpose at all.
+			//! Records removed as soon as the query is compiled.
+			QuerySerMap m_querySerMap;
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
@@ -84,9 +91,9 @@ namespace gaia {
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
 			//! Map of archetypes identified by their component hash code
-			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
+			ArchetypeMapByHash m_archetypesByHash;
 			//! Map of archetypes identified by their ID
-			cnt::map<ArchetypeIdLookupKey, Archetype*> m_archetypesById;
+			ArchetypeMapById m_archetypesById;
 
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
@@ -500,6 +507,10 @@ namespace gaia {
 			}
 			GAIA_NODISCARD const ComponentCache& comp_cache() const {
 				return m_compCache;
+			}
+
+			GAIA_NODISCARD QuerySerMap& query_ser_map() {
+				return m_querySerMap;
 			}
 
 			//----------------------------------------------------------------------
@@ -3275,6 +3286,49 @@ namespace gaia {
 				// del_empty_archetypes();
 			}
 		};
+
+		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
+			static QueryId s_querySerId = QueryIdBad;
+
+			auto& queryBuffers = world.query_ser_map();
+			// No serialization id set on the query, try creating a new record
+			if GAIA_UNLIKELY (serId == QueryIdBad) {
+#if GAIA_ASSERT_ENABLED
+				uint32_t safetyCounter = 0;
+#endif
+
+				while (true) {
+#if GAIA_ASSERT_ENABLED
+					// Make sure we don't cross some safety threshold
+					++safetyCounter;
+					GAIA_ASSERT(safetyCounter < 100000);
+#endif
+
+					serId = ++s_querySerId;
+
+					// If the id is already found, try again.
+					// Note, this is essentialy never going to repeat. We would have to prepare millions if
+					// not billions of queries for which we only added inputs but never queried them.
+					auto ret = queryBuffers.try_emplace(serId);
+					if (!ret.second)
+						continue;
+
+					return ret.first->second;
+				};
+			}
+
+			return queryBuffers[serId];
+		}
+
+		inline void query_buffer_reset(World& world, QueryId& serId) {
+			auto& queryBuffers = world.query_ser_map();
+			auto it = queryBuffers.find(serId);
+			if (it == queryBuffers.end())
+				return;
+
+			queryBuffers.erase(it);
+			serId = QueryIdBad;
+		}
 
 		GAIA_NODISCARD inline const ComponentCache& comp_cache(const World& world) {
 			return world.comp_cache();

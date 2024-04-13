@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "../cnt/darray.h"
+#include "../cnt/map.h"
 #include "../cnt/sarray.h"
 #include "../cnt/sarray_ext.h"
 #include "../core/bit_utils.h"
@@ -10,14 +11,13 @@
 #include "../core/utility.h"
 #include "component.h"
 #include "component_utils.h"
+#include "data_buffer.h"
 #include "id.h"
 
 namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
-
-		ComponentCache& comp_cache_mut(World& world);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
@@ -39,6 +39,8 @@ namespace gaia {
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
+		using QuerySerBuffer = SerializationBufferDyn;
+		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -79,6 +81,24 @@ namespace gaia {
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
+		QuerySerBuffer& query_buffer(World& world, QueryId& serId);
+		void query_buffer_reset(World& world, QueryId& serId);
+		ComponentCache& comp_cache_mut(World& world);
+
+		struct QueryIdentity {
+			//! Query id
+			QueryId queryId = QueryIdBad;
+			//! Serialization id
+			QueryId serId = QueryIdBad;
+
+			GAIA_NODISCARD QuerySerBuffer& ser_buffer(World* world) {
+				return query_buffer(*world, serId);
+			}
+			void ser_buffer_reset(World* world) {
+				query_buffer_reset(*world, serId);
+			}
+		};
+
 		struct QueryCtx {
 			// World
 			const World* w{};
@@ -86,8 +106,8 @@ namespace gaia {
 			ComponentCache* cc{};
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
-			//! Query id
-			QueryId queryId = QueryIdBad;
+			//! Query identity
+			QueryIdentity q;
 
 			struct Data {
 				//! Array of querried ids
@@ -125,7 +145,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(queryId == QueryIdBad);
+				GAIA_ASSERT(q.queryId == QueryIdBad);
 				// Fast path when cache ids are set
 				// if (queryId != QueryIdBad && queryId == other.queryId)
 				// 	return true;
