@@ -394,7 +394,7 @@ namespace gaia {
 				}
 
 				void handle_add(Entity entity) {
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
@@ -424,7 +424,7 @@ namespace gaia {
 				}
 
 				void handle_del(Entity entity) {
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 

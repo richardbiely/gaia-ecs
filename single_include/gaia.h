@@ -21425,13 +21425,7 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				//! Unpacks the parameter list \param types into query \param query and performs All for each of them
-				template <typename... T>
-				void unpack_args_into_query_all(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
-					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
-					query.template all<T...>();
-				}
-
+#if GAIA_ASSERT_ENABLED
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
 				template <typename... T>
 				GAIA_NODISCARD bool unpack_args_into_query_has_all(
@@ -21441,6 +21435,7 @@ namespace gaia {
 					else
 						return true;
 				}
+#endif
 
 				//--------------------------------------------------------------------------------
 
@@ -21985,7 +21980,7 @@ namespace gaia {
 				void each(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 					// Make sure we only use components specified in the query.
 					// Constness is respected. Therefore, if a type is const when registered to query,
 					// it has to be const (or immutable) also in each().
@@ -22529,7 +22524,7 @@ namespace gaia {
 				}
 
 				void handle_add(Entity entity) {
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
@@ -22559,7 +22554,7 @@ namespace gaia {
 				}
 
 				void handle_del(Entity entity) {
-#if GAIA_DEBUG
+#if GAIA_ASSERT_ENABLED
 					World::verify_del(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
