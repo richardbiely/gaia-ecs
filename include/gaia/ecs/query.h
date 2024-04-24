@@ -276,7 +276,7 @@ namespace gaia {
 				}
 
 				//--------------------------------------------------------------------------------
-			private:
+			protected:
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
@@ -959,7 +959,6 @@ namespace gaia {
 					auto& queryInfo = fetch();
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						GAIA_PROF_SCOPE(query_func);
 						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
 							GAIA_PROF_SCOPE(query_func);
 							func(it);

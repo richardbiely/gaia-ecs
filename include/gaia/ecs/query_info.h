@@ -59,7 +59,7 @@ namespace gaia {
 			enum QueryCmdType : uint8_t { ALL, ANY, NOT };
 
 			template <typename TType>
-			bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
+			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
 				using T = core::raw_t<TType>;
 
 				if constexpr (std::is_same_v<T, Entity>) {
@@ -93,7 +93,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			bool has_inter(QueryOp op) const {
+			GAIA_NODISCARD bool has_inter(QueryOp op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
 				constexpr bool isReadWrite = core::is_mut_v<T>;
 				return has_inter<T>(op, isReadWrite);

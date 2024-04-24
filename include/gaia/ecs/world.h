@@ -302,7 +302,7 @@ namespace gaia {
 					// Handle dependencies
 					{
 						targets.clear();
-						m_world.targets(entity, DependsOn, [&targets](Entity target) {
+						m_world.targets(entity, Requires, [&targets](Entity target) {
 							targets.push_back(target);
 						});
 
@@ -317,11 +317,11 @@ namespace gaia {
 					return true;
 				}
 
-				bool has_DependsOn_deps(Entity entity) const {
-					// Don't allow to delete entity if something in the archetype depends on it
+				bool has_Requires_deps(Entity entity) const {
+					// Don't allow to delete entity if something in the archetype requires it
 					auto ids = m_pArchetype->ids_view();
 					for (auto e: ids) {
-						if (m_world.has(e, Pair(DependsOn, entity)))
+						if (m_world.has(e, Pair(Requires, entity)))
 							return true;
 					}
 
@@ -480,7 +480,7 @@ namespace gaia {
 				}
 
 				void del_inter(Entity entity) {
-					if (has_DependsOn_deps(entity))
+					if (has_Requires_deps(entity))
 						return;
 
 					handle_del(entity);
@@ -3067,7 +3067,7 @@ namespace gaia {
 					(void)reg_core_entity<Remove_>(Remove);
 					(void)reg_core_entity<Delete_>(Delete);
 					(void)reg_core_entity<Error_>(Error);
-					(void)reg_core_entity<DependsOn_>(DependsOn);
+					(void)reg_core_entity<Requires_>(Requires);
 					(void)reg_core_entity<CantCombine_>(CantCombine);
 					(void)reg_core_entity<Acyclic_>(Acyclic);
 					(void)reg_core_entity<All_>(All);
@@ -3102,7 +3102,7 @@ namespace gaia {
 					EntityBuilder(*this, All) //
 							.add(Core)
 							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, DependsOn) //
+					EntityBuilder(*this, Requires) //
 							.add(Core)
 							.add(Pair(OnDelete, Error))
 							.add(Acyclic);

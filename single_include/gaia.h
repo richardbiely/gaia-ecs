@@ -15338,7 +15338,7 @@ namespace gaia {
 		struct Remove_ {};
 		struct Delete_ {};
 		struct Error_ {};
-		struct DependsOn_ {};
+		struct Requires_ {};
 		struct CantCombine_ {};
 		struct Acyclic_ {};
 		struct All_ {};
@@ -15360,7 +15360,7 @@ namespace gaia {
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
-		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
 		//! Graph restrictions
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
@@ -20049,7 +20049,7 @@ namespace gaia {
 			enum QueryCmdType : uint8_t { ALL, ANY, NOT };
 
 			template <typename TType>
-			bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
+			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOp op, bool isReadWrite) const {
 				using T = core::raw_t<TType>;
 
 				if constexpr (std::is_same_v<T, Entity>) {
@@ -20083,7 +20083,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			bool has_inter(QueryOp op) const {
+			GAIA_NODISCARD bool has_inter(QueryOp op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
 				constexpr bool isReadWrite = core::is_mut_v<T>;
 				return has_inter<T>(op, isReadWrite);
@@ -21326,7 +21326,7 @@ namespace gaia {
 				}
 
 				//--------------------------------------------------------------------------------
-			private:
+			protected:
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
@@ -22009,7 +22009,6 @@ namespace gaia {
 					auto& queryInfo = fetch();
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						GAIA_PROF_SCOPE(query_func);
 						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
 							GAIA_PROF_SCOPE(query_func);
 							func(it);
@@ -22432,7 +22431,7 @@ namespace gaia {
 					// Handle dependencies
 					{
 						targets.clear();
-						m_world.targets(entity, DependsOn, [&targets](Entity target) {
+						m_world.targets(entity, Requires, [&targets](Entity target) {
 							targets.push_back(target);
 						});
 
@@ -22447,11 +22446,11 @@ namespace gaia {
 					return true;
 				}
 
-				bool has_DependsOn_deps(Entity entity) const {
-					// Don't allow to delete entity if something in the archetype depends on it
+				bool has_Requires_deps(Entity entity) const {
+					// Don't allow to delete entity if something in the archetype requires it
 					auto ids = m_pArchetype->ids_view();
 					for (auto e: ids) {
-						if (m_world.has(e, Pair(DependsOn, entity)))
+						if (m_world.has(e, Pair(Requires, entity)))
 							return true;
 					}
 
@@ -22610,7 +22609,7 @@ namespace gaia {
 				}
 
 				void del_inter(Entity entity) {
-					if (has_DependsOn_deps(entity))
+					if (has_Requires_deps(entity))
 						return;
 
 					handle_del(entity);
@@ -25197,7 +25196,7 @@ namespace gaia {
 					(void)reg_core_entity<Remove_>(Remove);
 					(void)reg_core_entity<Delete_>(Delete);
 					(void)reg_core_entity<Error_>(Error);
-					(void)reg_core_entity<DependsOn_>(DependsOn);
+					(void)reg_core_entity<Requires_>(Requires);
 					(void)reg_core_entity<CantCombine_>(CantCombine);
 					(void)reg_core_entity<Acyclic_>(Acyclic);
 					(void)reg_core_entity<All_>(All);
@@ -25232,7 +25231,7 @@ namespace gaia {
 					EntityBuilder(*this, All) //
 							.add(Core)
 							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, DependsOn) //
+					EntityBuilder(*this, Requires) //
 							.add(Core)
 							.add(Pair(OnDelete, Error))
 							.add(Acyclic);

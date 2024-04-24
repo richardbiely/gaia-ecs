@@ -453,7 +453,7 @@ namespace gaia {
 		struct Remove_ {};
 		struct Delete_ {};
 		struct Error_ {};
-		struct DependsOn_ {};
+		struct Requires_ {};
 		struct CantCombine_ {};
 		struct Acyclic_ {};
 		struct All_ {};
@@ -475,7 +475,7 @@ namespace gaia {
 		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
-		inline Entity DependsOn = Entity(8, false, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
 		//! Graph restrictions
 		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);

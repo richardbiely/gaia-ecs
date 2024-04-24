@@ -945,7 +945,7 @@ w.relations(rabbit, salad, related_to_salad);
 ```
 
 ### Entity dependencies
-Defining dependencies among entities is made possible via the (DependsOn, target) relationship.
+Defining dependencies among entities is made possible via the (Requires, target) relationship.
 
 When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.
 
@@ -955,8 +955,8 @@ ecs::Entity rabbit = w.add();
 ecs::Entity animal = w.add();
 ecs::Entity herbivore = w.add();
 ecs::Entity carrot = w.add();
-w.add(carrot, ecs::Pair(ecs::DependsOn, herbivore));
-w.add(herbivore, ecs::Pair(ecs::DependsOn, animal));
+w.add(carrot, ecs::Pair(ecs::Requires, herbivore));
+w.add(herbivore, ecs::Pair(ecs::Requires, animal));
 
 // Carrot depends on herbivore so the later is added as well.
 // At the same time, herbivore depends on animal so animal is added, too.
