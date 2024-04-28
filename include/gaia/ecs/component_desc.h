@@ -98,25 +98,29 @@ namespace gaia {
 				}
 
 				static constexpr auto func_copy_ctor() {
-					return [](void* dst, const void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+					return [](void* GAIA_RESTRICT dst, const void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+										uint32_t sizeDst, uint32_t sizeSrc) {
 						mem::copy_ctor_element<U>((uint8_t*)dst, (const uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
 					};
 				}
 
 				static constexpr auto func_move_ctor() {
-					return [](void* dst, void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+					return [](void* GAIA_RESTRICT dst, void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+										uint32_t sizeDst, uint32_t sizeSrc) {
 						mem::move_ctor_element<U>((uint8_t*)dst, (uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
 					};
 				}
 
 				static constexpr auto func_copy() {
-					return [](void* dst, const void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+					return [](void* GAIA_RESTRICT dst, const void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+										uint32_t sizeDst, uint32_t sizeSrc) {
 						mem::copy_element<U>((uint8_t*)dst, (const uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
 					};
 				}
 
 				static constexpr auto func_move() {
-					return [](void* dst, void* src, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) {
+					return [](void* GAIA_RESTRICT dst, void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+										uint32_t sizeDst, uint32_t sizeSrc) {
 						mem::move_element<U>((uint8_t*)dst, (uint8_t*)src, idxDst, idxSrc, sizeDst, sizeSrc);
 					};
 				}
