@@ -40,6 +40,8 @@
 
 namespace gaia {
 	namespace ecs {
+		struct SystemBuilder;
+
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
@@ -113,6 +115,9 @@ namespace gaia {
 			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
+			//! Query used to iterate systems
+			ecs::Query m_systemsQuery;
+
 			//! Local set of entites to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! Array of chunks to delete
@@ -128,6 +133,28 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 		public:
+			//! Provides a query set up to work with the parent world.
+			//! \tparam UseCache If true, results of the query are cached
+			//! \return Valid query object
+			template <bool UseCache = true>
+			auto query() {
+				if constexpr (UseCache) {
+					Query q(
+							*const_cast<World*>(this), m_queryCache,
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					return q;
+				} else {
+					QueryUncached q(
+							*const_cast<World*>(this),
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+					return q;
+				}
+			}
+
+			//----------------------------------------------------------------------
+
 			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
 				// Valid entity
 				GAIA_ASSERT(valid(entity));
@@ -157,13 +184,11 @@ namespace gaia {
 				friend class World;
 
 				World& m_world;
-				Entity m_entity;
 				Archetype* m_pArchetype;
+				Entity m_entity;
 
-				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
-					auto& ec = world.fetch(entity);
-					m_pArchetype = ec.pArchetype;
-				}
+				EntityBuilder(World& world, Entity entity):
+						m_world(world), m_pArchetype(world.fetch(entity).pArchetype), m_entity(entity) {}
 
 				EntityBuilder(const EntityBuilder&) = default;
 				EntityBuilder(EntityBuilder&&) = delete;
@@ -277,7 +302,7 @@ namespace gaia {
 				}
 
 			private:
-				bool handle_add_deps(Entity entity) {
+				bool handle_add_entity(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
 
 					// Handle entity combination that can't be together
@@ -299,7 +324,7 @@ namespace gaia {
 						}
 					}
 
-					// Handle dependencies
+					// Handle requirements
 					{
 						targets.clear();
 						m_world.targets(entity, Requires, [&targets](Entity target) {
@@ -310,14 +335,14 @@ namespace gaia {
 							auto* pArchetype = m_pArchetype;
 							handle_add(e);
 							if (m_pArchetype != pArchetype)
-								handle_add_deps(e);
+								handle_add_entity(e);
 						}
 					}
 
 					return true;
 				}
 
-				bool has_Requires_deps(Entity entity) const {
+				bool has_Requires_tgt(Entity entity) const {
 					// Don't allow to delete entity if something in the archetype requires it
 					auto ids = m_pArchetype->ids_view();
 					for (auto e: ids) {
@@ -341,25 +366,30 @@ namespace gaia {
 				};
 
 				void try_set_flags(Entity entity, bool enable) {
-					try_set_Is(entity, enable);
-					try_set_CantCombine(entity, enable);
+					auto& ec = m_world.fetch(entity);
+					auto& ecMain = m_world.fetch(m_entity);
+
+					try_set_Is(ec, entity, enable);
+					try_set_CantCombine(ec, entity, enable);
+
+					try_set_IsSingleton(ecMain, entity, enable);
+					try_set_OnDelete(ecMain, entity, enable);
+
 					try_set_OnDeleteTarget(entity, enable);
-					try_set_OnDelete(entity, enable);
-					try_set_IsSingleton(entity, enable);
 				}
 
-				void try_set_Is(Entity entity, bool enable) {
+				void try_set_Is(EntityContainer& ec, Entity entity, bool enable) {
 					if (!entity.pair() || entity.id() != Is.id())
 						return;
 
-					updateFlag(m_entity, EntityContainerFlags::HasAliasOf, enable);
+					updateFlag(ec.flags, EntityContainerFlags::HasAliasOf, enable);
 				}
 
-				void try_set_CantCombine(Entity entity, bool enable) {
+				void try_set_CantCombine(EntityContainer& ec, Entity entity, bool enable) {
 					if (!entity.pair() || entity.id() != CantCombine.id())
 						return;
 
-					updateFlag(m_entity, EntityContainerFlags::HasCantCombine, enable);
+					updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, enable);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -379,20 +409,61 @@ namespace gaia {
 						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Error, enable);
 				}
 
-				void try_set_OnDelete(Entity entity, bool enable) {
+				void try_set_OnDelete(EntityContainer& ec, Entity entity, bool enable) {
 					if (entity == Pair(OnDelete, Delete))
-						updateFlag(m_entity, EntityContainerFlags::OnDelete_Delete, enable);
+						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Delete, enable);
 					else if (entity == Pair(OnDelete, Remove))
-						updateFlag(m_entity, EntityContainerFlags::OnDelete_Remove, enable);
+						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Remove, enable);
 					else if (entity == Pair(OnDelete, Error))
-						updateFlag(m_entity, EntityContainerFlags::OnDelete_Error, enable);
+						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Error, enable);
 				}
 
-				void try_set_IsSingleton(Entity entity, bool enable) {
-					const bool isSingleton = m_entity == entity;
-					updateFlag(m_entity, EntityContainerFlags::IsSingleton, isSingleton && enable);
+				void try_set_IsSingleton(EntityContainer& ec, Entity entity, bool enable) {
+					const bool isSingleton = enable && m_entity == entity;
+					updateFlag(ec.flags, EntityContainerFlags::IsSingleton, isSingleton);
 				}
 
+				void handle_DependsOn(Entity entity, bool enable) {
+					auto& ec = m_world.fetch(entity);
+					if (enable) {
+						// Calculate the depth in the dependency tree
+						uint32_t depth = 1;
+
+						auto e = entity;
+						if (m_world.valid(e)) {
+							while (true) {
+								auto tgt = m_world.target(e, DependsOn);
+								if (tgt == EntityBad)
+									break;
+
+								++depth;
+								e = tgt;
+							}
+						}
+						ec.depthDependsOn = (uint8_t)depth;
+
+						// Update depth for all entities depending on this one
+						auto q = m_world.query<false>();
+						q.all(ecs::Pair(DependsOn, m_entity)) //
+								.each([&](Entity dependingEntity) {
+									auto& ecDependingEntity = m_world.fetch(dependingEntity);
+									ecDependingEntity.depthDependsOn += depth;
+								});
+					} else {
+						// Update depth for all entities depending on this one
+						auto q = m_world.query<false>();
+						q.all(ecs::Pair(DependsOn, m_entity)) //
+								.each([&](Entity dependingEntity) {
+									auto& ecDependingEntity = m_world.fetch(dependingEntity);
+									ecDependingEntity.depthDependsOn -= ec.depthDependsOn;
+								});
+
+						// Reset the depth
+						ec.depthDependsOn = 0;
+					}
+				}
+
+				template <bool IsBootstrap = false>
 				void handle_add(Entity entity) {
 #if GAIA_ASSERT_ENABLED
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
@@ -421,6 +492,10 @@ namespace gaia {
 					}
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
+
+					if constexpr (!IsBootstrap) {
+						handle_DependsOn(entity, true);
+					}
 				}
 
 				void handle_del(Entity entity) {
@@ -433,6 +508,7 @@ namespace gaia {
 						return;
 
 					try_set_flags(entity, false);
+					handle_DependsOn(entity, false);
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
@@ -473,14 +549,28 @@ namespace gaia {
 						m_world.assign_pair(entity, *m_world.m_pEntityArchetype);
 					}
 
-					if (!handle_add_deps(entity))
+					if (!handle_add_entity(entity))
 						return;
 
 					handle_add(entity);
 				}
 
+				void add_inter_init(Entity entity) {
+					GAIA_ASSERT(!is_wildcard(entity));
+
+					if (entity.pair()) {
+						// Make sure the entity container record exists if it is a pair
+						m_world.assign_pair(entity, *m_world.m_pEntityArchetype);
+					}
+
+					if (!handle_add_entity(entity))
+						return;
+
+					handle_add<true>(entity);
+				}
+
 				void del_inter(Entity entity) {
-					if (has_Requires_deps(entity))
+					if (has_Requires_tgt(entity))
 						return;
 
 					handle_del(entity);
@@ -1256,7 +1346,6 @@ namespace gaia {
 			}
 
 			//! Returns the relationship relations for the \param target entity on \param entity.
-			//! Appends all relationship relations if any to \param out.
 			//! \param func void(Entity relation) functor executed for relationship relation found.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename Func>
@@ -1282,6 +1371,37 @@ namespace gaia {
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
 					func(relation);
+				}
+			}
+
+			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! \param func bool(Entity relation) functor executed for relationship relation found.
+			//!             Stops if false is returned.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void relations_if(Entity entity, Entity target, Func func) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(target))
+					return;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
+
+				auto ids = pArchetype->ids_view();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.gen() != target.id())
+						continue;
+
+					const auto& ecRel = m_recs.entities[e.id()];
+					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					if (!func(relation))
+						return;
 				}
 			}
 
@@ -1366,11 +1486,40 @@ namespace gaia {
 			}
 
 			//! Returns the relationship targets for the \param relation entity on \param entity.
-			//! Appends all relationship targets if any to \param out.
 			//! \param func void(Entity target) functor executed for relationship target found.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
+				GAIA_ASSERT(valid(entity));
+				if (!valid(relation))
+					return;
+
+				const auto& ec = fetch(entity);
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no pairs on the archetype
+				if (pArchetype->pairs() == 0)
+					return;
+
+				auto ids = pArchetype->ids_view();
+				for (auto e: ids) {
+					if (!e.pair())
+						continue;
+					if (e.id() != relation.id())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					func(target);
+				}
+			}
+
+			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! \param func bool(Entity target) functor executed for relationship target found.
+			//!             Stops if false is returned.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename Func>
+			void targets_if(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
 					return;
@@ -1435,25 +1584,16 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, results of the query are cached
-			//! \return Valid query object
-			template <bool UseCache = true>
-			auto query() {
-				if constexpr (UseCache) {
-					Query q(
-							*const_cast<World*>(this), m_queryCache,
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					return q;
-				} else {
-					QueryUncached q(
-							*const_cast<World*>(this),
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-					return q;
-				}
-			}
+#if GAIA_SYSTEMS_ENABLED
+
+			void systems_init();
+			void systems_run();
+
+			//! Provides a system set up to work with the parent world.
+			//! \return Entity holding the system
+			SystemBuilder system();
+
+#endif
 
 			//----------------------------------------------------------------------
 
@@ -1539,6 +1679,8 @@ namespace gaia {
 			//! Performs various internal operations related to the end of the frame such as
 			//! memory cleanup and other managment operations which keep the system healthy.
 			void update() {
+				systems_run();
+
 				// Finish deleting entities
 				del_finalize();
 
@@ -3024,128 +3166,7 @@ namespace gaia {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
 
-			void init() {
-				// Register the root archetype
-				{
-					m_pRootArchetype = create_archetype({});
-					m_pRootArchetype->set_hashes({calc_lookup_hash({})});
-					reg_archetype(m_pRootArchetype);
-				}
-
-				(void)reg_core_entity<Core_>(Core);
-
-				// Entity archetype matches the root archetype for now
-				m_pEntityArchetype = m_pRootArchetype;
-
-				// Register the component archetype (entity + EntityDesc + Component)
-				{
-					Archetype* pCompArchetype{};
-					{
-						const auto id = GAIA_ID(EntityDesc);
-						const auto& ci = reg_core_entity<EntityDesc>(id);
-						EntityBuilder(*this, id).add(ci.entity);
-						sset<EntityDesc>(id) = {ci.name.str(), ci.name.len()};
-						pCompArchetype = m_recs.entities[id.id()].pArchetype;
-					}
-					{
-						const auto id = GAIA_ID(Component);
-						const auto& ci = reg_core_entity<Component>(id, pCompArchetype);
-						EntityBuilder(*this, id).add(ci.entity);
-						acc_mut(id)
-								// Entity descriptor
-								.sset<EntityDesc>({ci.name.str(), ci.name.len()})
-								// Component
-								.sset<Component>(ci.comp);
-						m_pCompArchetype = m_recs.entities[id.id()].pArchetype;
-					}
-				}
-
-				// Core components
-				{
-					(void)reg_core_entity<OnDelete_>(OnDelete);
-					(void)reg_core_entity<OnDeleteTarget_>(OnDeleteTarget);
-					(void)reg_core_entity<Remove_>(Remove);
-					(void)reg_core_entity<Delete_>(Delete);
-					(void)reg_core_entity<Error_>(Error);
-					(void)reg_core_entity<Requires_>(Requires);
-					(void)reg_core_entity<CantCombine_>(CantCombine);
-					(void)reg_core_entity<Acyclic_>(Acyclic);
-					(void)reg_core_entity<All_>(All);
-					(void)reg_core_entity<ChildOf_>(ChildOf);
-					(void)reg_core_entity<Is_>(Is);
-				}
-
-				// Add special properites for core components
-				{
-					EntityBuilder(*this, Core) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, GAIA_ID(EntityDesc)) //
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, GAIA_ID(Component)) //
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, OnDelete) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, OnDeleteTarget) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, Remove) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, Delete) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, Error) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, All) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, Requires) //
-							.add(Core)
-							.add(Pair(OnDelete, Error))
-							.add(Acyclic);
-					EntityBuilder(*this, CantCombine) //
-							.add(Core)
-							.add(Pair(OnDelete, Error))
-							.add(Acyclic);
-					EntityBuilder(*this, Acyclic) //
-							.add(Core)
-							.add(Pair(OnDelete, Error));
-					EntityBuilder(*this, ChildOf) //
-							.add(Core)
-							.add(Acyclic)
-							.add(Pair(OnDelete, Error))
-							.add(Pair(OnDeleteTarget, Delete));
-					EntityBuilder(*this, Is) //
-							.add(Core)
-							.add(Acyclic)
-							.add(Pair(OnDelete, Error));
-				}
-
-				// Remove all archetypes with no chunks. We don't want any leftovers after
-				// archetype movemements.
-				{
-					for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
-						auto* pArchetype = m_archetypes[i];
-						if (!pArchetype->chunks().empty())
-							continue;
-						m_archetypesToDel.push_back(pArchetype);
-					}
-
-					for (auto* pArchetype: m_archetypesToDel) {
-						unreg_archetype_raw(pArchetype);
-						Archetype::destroy(pArchetype);
-					}
-
-					m_archetypesToDel.clear();
-					sort_archetypes();
-				}
-
-				// Make sure archetype pointers are up-to-date
-				m_pCompArchetype = m_recs.entities[GAIA_ID(Component).id()].pArchetype;
-			}
+			void init();
 
 			void done() {
 				cleanup_internal();
@@ -3347,6 +3368,10 @@ namespace gaia {
 			return world.get(id);
 		}
 
+		GAIA_NODISCARD inline bool valid(const World& world, Entity entity) {
+			return world.valid(entity);
+		}
+
 		GAIA_NODISCARD inline bool is(const World& world, Entity entity, Entity baseEntity) {
 			return world.is(entity, baseEntity);
 		}
@@ -3392,3 +3417,184 @@ namespace gaia {
 		}
 	} // namespace ecs
 } // namespace gaia
+
+#include "system.inl"
+
+namespace gaia {
+	namespace ecs {
+		inline void World::init() {
+			// Register the root archetype
+			{
+				m_pRootArchetype = create_archetype({});
+				m_pRootArchetype->set_hashes({calc_lookup_hash({})});
+				reg_archetype(m_pRootArchetype);
+			}
+
+			(void)reg_core_entity<Core_>(Core);
+
+			// Entity archetype matches the root archetype for now
+			m_pEntityArchetype = m_pRootArchetype;
+
+			// Register the component archetype (entity + EntityDesc + Component)
+			{
+				Archetype* pCompArchetype{};
+				{
+					const auto id = GAIA_ID(EntityDesc);
+					const auto& ci = reg_core_entity<EntityDesc>(id);
+					EntityBuilder(*this, id).add_inter_init(ci.entity);
+					sset<EntityDesc>(id) = {ci.name.str(), ci.name.len()};
+					pCompArchetype = m_recs.entities[id.id()].pArchetype;
+				}
+				{
+					const auto id = GAIA_ID(Component);
+					const auto& ci = reg_core_entity<Component>(id, pCompArchetype);
+					EntityBuilder(*this, id).add_inter_init(ci.entity);
+					acc_mut(id)
+							// Entity descriptor
+							.sset<EntityDesc>({ci.name.str(), ci.name.len()})
+							// Component
+							.sset<Component>(ci.comp);
+					m_pCompArchetype = m_recs.entities[id.id()].pArchetype;
+				}
+			}
+
+			// Core components.
+			// Their order must correspond to the value sequence in id.h.
+			{
+				(void)reg_core_entity<OnDelete_>(OnDelete);
+				(void)reg_core_entity<OnDeleteTarget_>(OnDeleteTarget);
+				(void)reg_core_entity<Remove_>(Remove);
+				(void)reg_core_entity<Delete_>(Delete);
+				(void)reg_core_entity<Error_>(Error);
+				(void)reg_core_entity<Requires_>(Requires);
+				(void)reg_core_entity<CantCombine_>(CantCombine);
+				(void)reg_core_entity<Acyclic_>(Acyclic);
+				(void)reg_core_entity<All_>(All);
+				(void)reg_core_entity<ChildOf_>(ChildOf);
+				(void)reg_core_entity<Is_>(Is);
+				(void)reg_core_entity<System2_>(System2);
+				(void)reg_core_entity<DependsOn_>(DependsOn);
+			}
+
+			// Add special properites for core components.
+			// Their order must correspond to the value sequence in id.h.
+			{
+				EntityBuilder(*this, Core) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, GAIA_ID(EntityDesc)) //
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, GAIA_ID(Component)) //
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, OnDelete) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, OnDeleteTarget) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Remove) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Delete) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Error) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, All) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Requires) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, CantCombine) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, Acyclic) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, ChildOf) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error))
+						.add(Pair(OnDeleteTarget, Delete));
+				EntityBuilder(*this, Is) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, System2) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, DependsOn) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+			}
+
+			// Remove all archetypes with no chunks. We don't want any leftovers after
+			// archetype movemements.
+			{
+				for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
+					auto* pArchetype = m_archetypes[i];
+					if (!pArchetype->chunks().empty())
+						continue;
+					m_archetypesToDel.push_back(pArchetype);
+				}
+
+				for (auto* pArchetype: m_archetypesToDel) {
+					unreg_archetype_raw(pArchetype);
+					Archetype::destroy(pArchetype);
+				}
+
+				m_archetypesToDel.clear();
+				sort_archetypes();
+			}
+
+			// Make sure archetype pointers are up-to-date
+			m_pCompArchetype = m_recs.entities[GAIA_ID(Component).id()].pArchetype;
+
+#if GAIA_SYSTEMS_ENABLED
+			// Initialize the systems query
+			systems_init();
+#endif
+		}
+	} // namespace ecs
+} // namespace gaia
+
+#if GAIA_SYSTEMS_ENABLED
+namespace gaia {
+	namespace ecs {
+		inline void World::systems_init() {
+			m_systemsQuery = query().all<System2_&>();
+		}
+
+		inline void World::systems_run() {
+			m_systemsQuery.each([](ecs::Iter& it) {
+				auto se_view = it.sview_mut<ecs::System2_>(0);
+				GAIA_EACH(it) {
+					auto& sys = se_view[i];
+					sys.exec();
+				}
+			});
+		}
+
+		inline SystemBuilder World::system() {
+			// Create the system
+			auto sysEntity = add();
+			EntityBuilder(*this, sysEntity) //
+					.add<System2_>();
+
+			auto ss = acc_mut(sysEntity);
+			auto& sys = ss.smut<System2_>();
+			{
+				sys.entity = sysEntity;
+				sys.query = query();
+			}
+			return SystemBuilder(*this, sysEntity);
+		}
+	} // namespace ecs
+} // namespace gaia
+#endif

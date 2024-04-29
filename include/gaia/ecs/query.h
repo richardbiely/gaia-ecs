@@ -276,7 +276,7 @@ namespace gaia {
 				}
 
 				//--------------------------------------------------------------------------------
-			protected:
+			private:
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
@@ -374,7 +374,7 @@ namespace gaia {
 				}
 
 				//--------------------------------------------------------------------------------
-
+public:
 #if GAIA_ASSERT_ENABLED
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
 				template <typename... T>
@@ -530,6 +530,7 @@ namespace gaia {
 						run_query_func(func, it, chunkBatch);
 				}
 
+			public:
 				template <typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
@@ -545,6 +546,7 @@ namespace gaia {
 					queryInfo.set_world_version(*m_worldVersion);
 				}
 
+			public:
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {

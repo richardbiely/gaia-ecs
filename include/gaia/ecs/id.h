@@ -455,6 +455,7 @@ namespace gaia {
 		struct Error_ {};
 		struct Requires_ {};
 		struct CantCombine_ {};
+		struct DependsOn_ {};
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
@@ -486,9 +487,12 @@ namespace gaia {
 		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
 		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		//! Systems
+		inline Entity System2 = Entity(14, false, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(15, false, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = Is;
+		inline Entity GAIA_ID(LastCoreComponent) = DependsOn;
 
 		//----------------------------------------------------------------------
 		// Helper functions

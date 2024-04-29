@@ -38,6 +38,10 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
+#ifndef GAIA_SYSTEMS_ENABLED
+	#define GAIA_SYSTEMS_ENABLED 1
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

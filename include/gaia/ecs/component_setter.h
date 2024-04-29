@@ -67,6 +67,7 @@ namespace gaia {
 
 			//! Returns a mutable reference to component without triggering a world version update.
 			//! \tparam T Component or pair
+			//! \param type Entity associated with the type
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut(Entity type) {

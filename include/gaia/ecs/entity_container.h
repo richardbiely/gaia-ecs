@@ -66,6 +66,8 @@ namespace gaia {
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 
+			uint8_t depthDependsOn = 0;
+
 			EntityContainer() = default;
 
 			static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {

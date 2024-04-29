@@ -608,9 +608,13 @@ void createEntitiesWithMixedComponents(ecs::World& w, uint32_t nentities, cnt::d
 			auto builder = w.build(e);
 
 			if constexpr (SoA)
-				builder.add<components::SoAPositionComponent, components::SoAVelocityComponent, components::DataComponent>();
+				builder.add<components::SoAPositionComponent>()
+						.add<components::SoAVelocityComponent>()
+						.add<components::DataComponent>();
 			else
-				builder.add<components::PositionComponent, components::VelocityComponent, components::DataComponent>();
+				builder.add<components::PositionComponent>()
+						.add<components::VelocityComponent>()
+						.add<components::DataComponent>();
 			builder.commit();
 		}
 

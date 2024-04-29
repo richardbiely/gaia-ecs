@@ -1929,7 +1929,7 @@ TEST_CASE("Pair") {
 	{
 		TestWorld twld;
 		auto a = wld.add<Position>().entity;
-		auto b = wld.add<ecs::DependsOn_>().entity;
+		auto b = wld.add<ecs::Requires_>().entity;
 		auto p = ecs::Pair(a, b);
 		REQUIRE(ecs::is_pair<decltype(p)>::value);
 		REQUIRE(p.first() == a);
@@ -2033,14 +2033,14 @@ TEST_CASE("CantCombine") {
 #endif
 }
 
-TEST_CASE("DependsOn") {
+TEST_CASE("Requires") {
 	TestWorld twld;
 	auto rabbit = wld.add();
 	auto animal = wld.add();
 	auto herbivore = wld.add();
 	auto carrot = wld.add();
-	wld.add(carrot, {ecs::DependsOn, herbivore});
-	wld.add(herbivore, {ecs::DependsOn, animal});
+	wld.add(carrot, {ecs::Requires, herbivore});
+	wld.add(herbivore, {ecs::Requires, animal});
 
 	wld.add(rabbit, carrot);
 	REQUIRE(wld.has(rabbit, herbivore));
@@ -2850,8 +2850,10 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q =
-					wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)}).no<ecs::Core_>();
+			auto q = wld.query()
+									 .add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)})
+									 .no<ecs::Core_>()
+									 .no<ecs::System2_>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 5); // 3 +2 for internal relationships
 
@@ -5637,6 +5639,75 @@ TEST_CASE("Query Filter - systems") {
 	rs->SetExpectedCount(0);
 	sm.update();
 }
+
+#if GAIA_SYSTEMS_ENABLED
+
+TEST_CASE("System - simple") {
+	TestWorld twld;
+
+	constexpr uint32_t N = 10;
+	{
+		auto e = wld.add();
+		wld.add<Position>(e, {0, 100, 0});
+		wld.add<Acceleration>(e, {1, 0, 0});
+		GAIA_FOR(N - 1) {
+			[[maybe_unused]] auto newentity = wld.copy(e);
+		}
+	}
+
+	int sys1_cnt = 0;
+	int sys2_cnt = 0;
+	int sys3_cnt = 0;
+	bool sys3_run_before_sys1 = false;
+	bool sys3_run_before_sys2 = false;
+
+	auto testRun = [&]() {
+		GAIA_FOR(100) {
+			sys3_run_before_sys1 = false;
+			sys3_run_before_sys2 = false;
+			wld.update();
+			REQUIRE(sys1_cnt == N);
+			REQUIRE(sys2_cnt == N);
+			REQUIRE(sys3_cnt == N);
+			sys1_cnt = 0;
+			sys2_cnt = 0;
+			sys3_cnt = 0;
+		}
+	};
+
+	// Our systems
+	auto sys1 = wld.system()
+									.all<Position, Acceleration>() //
+									.on_each([&](Position, Acceleration) {
+										if (sys1_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys1 = true;
+										++sys1_cnt;
+									});
+	auto sys2 = wld.system()
+									.all<Position>() //
+									.on_each([&](ecs::Iter& it) {
+										if (sys2_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys2 = true;
+										GAIA_EACH(it)++ sys2_cnt;
+									});
+	auto sys3 = wld.system()
+									.all<Acceleration>() //
+									.on_each([&](ecs::Iter& it) {
+										GAIA_EACH(it)++ sys3_cnt;
+									});
+
+	testRun();
+
+	// Make sure to execute sys2 before sys1
+	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
+	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
+
+	testRun();
+	REQUIRE(sys3_run_before_sys1);
+	REQUIRE(sys3_run_before_sys2);
+}
+
+#endif
 
 template <typename T>
 void TestDataLayoutSoA_ECS() {
