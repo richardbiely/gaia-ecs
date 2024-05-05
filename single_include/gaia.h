@@ -26571,13 +26571,15 @@ namespace gaia {
 
 		inline GroupId
 		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
-			auto ids = archetype.ids_view();
-			for (auto id: ids) {
-				if (!id.pair() || id.id() != groupBy.id())
-					continue;
+			if (archetype.pairs() > 0) {
+				auto ids = archetype.ids_view();
+				for (auto id: ids) {
+					if (!id.pair() || id.id() != groupBy.id())
+						continue;
 
-				// Consider the pair's target the groupId
-				return id.gen();
+					// Consider the pair's target the groupId
+					return id.gen();
+				}
 			}
 
 			// No group

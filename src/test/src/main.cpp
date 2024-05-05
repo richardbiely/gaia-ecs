@@ -5780,7 +5780,7 @@ TEST_CASE("System - group") {
 		wld.build(ents[5]).add<Position>().add({eats, carrot}).add<Healthy>();
 	}
 	// This query is going to group entities by what they eat.
-	// The query cache is going to contains following 6 archetypes in 3 groups as follows:
+	// The query cache is going to contain following 6 archetypes in 3 groups as follows:
 	//  - Eats:carrot:
 	//     - Position, (Eats, carrot)
 	//     - Position, (Eats, carrot), Healthy

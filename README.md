@@ -802,7 +802,7 @@ q.each([&](Position& p, const Velocity& v) {
 
 Grouping is a feature that allows you to assign an id to each archetype and group them together or filter them based on this id. Archetypes are sorted by their groupId in ascending order. If descending order is needed, you can change your groupIds (e.g. instead of 100 you use ecs::GroupIdMax - 100).
 
-Grouping is triggered by calling ***group_by*** before the first call to ***each*** or other functions that build the query.
+Grouping is best used with [relationships](#relationships). It can be triggered by calling ***group_by*** before the first call to ***each*** or other functions that build the query (***count***, ***empty***, ***arr***).
 
 ```cpp
 ecs::Entity eats = wld.add();
@@ -813,6 +813,7 @@ ecs::Entity apple = wld.add();
 ecs::Entity ents[6];
 GAIA_FOR(6) ents[i] = wld.add();
 {
+  // Add Position and ecs::Pair(eats, salad) to our entity
   wld.build(ents[0]).add<Position>().add({eats, salad});
   wld.build(ents[1]).add<Position>().add({eats, carrot});
   wld.build(ents[2]).add<Position>().add({eats, apple});
@@ -825,7 +826,7 @@ GAIA_FOR(6) ents[i] = wld.add();
 // This query is going to group entities by what they eat.
 auto qq = wld.query().all<Position>().group_by(eats);
 
-// The query cache is going to contains following 6 archetypes in 3 groups as follows:
+// The query cache is going to contain following 6 archetypes in 3 groups as follows:
 //  - Eats:carrot:
 //     - Position, (Eats, carrot)
 //     - Position, (Eats, carrot), Healthy
@@ -866,13 +867,15 @@ Custom sorting function can be provided if needed.
 
 ```cpp
 ecs::GroupId my_group_sort_func(const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
-  auto ids = archetype.ids_view();
-  for (auto id: ids) {
-    if (!id.pair() || id.id() != groupBy.id())
-      continue;
+  if (archetype.pairs() > 0) {
+    auto ids = archetype.ids_view();
+    for (auto id: ids) {
+      if (!id.pair() || id.id() != groupBy.id())
+        continue;
 
-    // Consider the pair's target the groupId
-    return id.gen();
+      // Consider the pair's target the groupId
+      return id.gen();
+    }
   }
 
   // No group
@@ -901,7 +904,7 @@ ecs::Entity eats = w.add();
 w.add(rabbit, ecs::Pair(eats, carrot));
 w.add(hare, ecs::Pair(eats, carrot));
 
-// You can brace-initialize the pair as well
+// You can brace-initialize the pair as well which is shorter.
 // w.add(hare, {eats, carrot});
 
 ecs::Query q = w.query().all(ecs::Pair(eats, carrot));
