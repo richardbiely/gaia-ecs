@@ -119,7 +119,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
-				m_data[head] = GAIA_FWD(arg);
+				m_data[head] = GAIA_MOV(arg);
 				++m_size;
 			}
 

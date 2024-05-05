@@ -4526,7 +4526,7 @@ namespace gaia {
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(dst[i + n]));
 				}
-				// Try copies if moves are not possible
+				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = dst[i + n];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -4556,7 +4556,7 @@ namespace gaia {
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = T(GAIA_MOV(dst[idxSrc + i + n]));
 				}
-				// Try copies if moves are not possible
+				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = dst[idxSrc + i + n];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -4582,6 +4582,84 @@ namespace gaia {
 				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
 							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(!mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				const auto max = idxDst - idxSrc + 1;
+				// Move first if possible
+				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(GAIA_MOV(dst[idxDst - i]));
+				}
+				// Try to copy if moves are not possible
+				else if constexpr (std::is_copy_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+				} else {
+					// Fallback to raw memory copy
+					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(!mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				const auto max = idxDst - idxSrc + 1;
+				// Move first if possible
+				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - +n] = T(GAIA_MOV(dst[idxDst - i]));
+				}
+				// Try to copy if moves are not possible
+				else if constexpr (std::is_copy_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - +n] = T(dst[idxDst - i]);
+				} else {
+					// Fallback to raw memory copy
+					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				GAIA_FOR2(idxSrc, idxDst) {
+					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
+							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -4743,6 +4821,33 @@ namespace gaia {
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxDst, idxSrc, n);
+		}
+
+		//! Shift elements at the address pointed to by \param dst to the right by one
+		template <typename T>
+		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if GAIA_UNLIKELY (idxSrc == idxDst)
+				return;
+
+			if constexpr (mem::is_soa_layout_v<T>)
+				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, 1, size);
+			else
+				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
+		}
+
+		//! Shift elements at the address pointed to by \param dst to the right by one
+		template <typename T>
+		void
+		shift_elements_right_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if GAIA_UNLIKELY (idxSrc == idxDst)
+				return;
+
+			if constexpr (mem::is_soa_layout_v<T>)
+				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, n, size);
+			else
+				detail::shift_elements_right_aos_n<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
 		GAIA_CLANG_WARNING_POP()
@@ -5982,10 +6087,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = GAIA_FWD(arg);
+					operator[](m_cnt++) = GAIA_MOV(arg);
 				} else {
 					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, GAIA_FWD(arg));
+					core::call_ctor(ptr, GAIA_MOV(arg));
 				}
 			}
 
@@ -6010,6 +6115,54 @@ namespace gaia {
 					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, const T& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = arg;
+				} else {
+					auto* ptr = &data()[m_cnt];
+					core::call_ctor(ptr, arg);
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, T&& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = GAIA_MOV(arg);
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, GAIA_MOV(arg));
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the element at pos
@@ -6641,10 +6794,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = GAIA_FWD(arg);
+					operator[](m_cnt++) = GAIA_MOV(arg);
 				} else {
 					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, GAIA_FWD(arg));
+					core::call_ctor(ptr, GAIA_MOV(arg));
 				}
 			}
 
@@ -6669,6 +6822,54 @@ namespace gaia {
 					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, const T& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = arg;
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, arg);
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, T&& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = GAIA_MOV(arg);
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, GAIA_MOV(arg));
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the element at pos
@@ -10602,10 +10803,10 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = GAIA_FWD(arg);
+					operator[](m_cnt++) = GAIA_MOV(arg);
 				} else {
 					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, GAIA_FWD(arg));
+					core::call_ctor(ptr, GAIA_MOV(arg));
 				}
 			}
 
@@ -10630,6 +10831,52 @@ namespace gaia {
 					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, const T& arg) noexcept {
+				GAIA_ASSERT(size() < N);
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = arg;
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, arg);
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, T&& arg) noexcept {
+				GAIA_ASSERT(size() < N);
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = GAIA_MOV(arg);
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, GAIA_MOV(arg));
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the element at pos
@@ -10676,6 +10923,23 @@ namespace gaia {
 					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
 				m_cnt -= cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Removes the element at index \param pos
+			iterator erase_at(size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
+
+				const auto idxSrc = pos;
+				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
+
+				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
+				// Destroy if it's the last element
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt - 1]);
+
+				--m_cnt;
 
 				return iterator(&data()[idxSrc]);
 			}
@@ -13310,7 +13574,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
-				m_data[head] = GAIA_FWD(arg);
+				m_data[head] = GAIA_MOV(arg);
 				++m_size;
 			}
 
@@ -19405,14 +19669,17 @@ namespace gaia {
 		GAIA_GCC_WARNING_POP()
 
 		using QueryId = uint32_t;
+		using GroupId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 		using QuerySerBuffer = SerializationBufferDyn;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
+		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
+		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;
 
 		//! User-provided query input
 		struct QueryInput {
@@ -19479,6 +19746,10 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q;
 
+			enum QueryFlags : uint8_t { //
+				SortGroups = 0x01
+			};
+
 			struct Data {
 				//! Array of querried ids
 				QueryEntityArray ids;
@@ -19491,6 +19762,12 @@ namespace gaia {
 				QueryRemappingArray remapping;
 				//! Array of filtered components
 				QueryEntityArray changed;
+				//! Entity to group the archetypes by. EntityBad for no grouping.
+				Entity groupBy;
+				//! Iteration will be restricted only to target Group
+				GroupId groupIdSet;
+				//! Function to use to perfrom the grouping
+				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask;
@@ -19504,6 +19781,8 @@ namespace gaia {
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
+				//! Query flags
+				uint8_t flags;
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY == 8);
@@ -19541,6 +19820,12 @@ namespace gaia {
 
 				// Filters need to be the same
 				if (left.changed != right.changed)
+					return false;
+
+				// Grouping data need to match
+				if (left.groupBy != right.groupBy)
+					return false;
+				if (left.groupByFunc != right.groupByFunc)
 					return false;
 
 				return true;
@@ -19640,6 +19925,16 @@ namespace gaia {
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
 
+			// Grouping
+			{
+				QueryLookupHash::Type hash = 0;
+
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupBy.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupByFunc);
+
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
+
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
 		}
 
@@ -19683,6 +19978,8 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! Chunk::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
+				//! GroupId. 0 if not set.
+				GroupId m_groupId = 0;
 
 			public:
 				ChunkIterImpl() = default;
@@ -19692,13 +19989,21 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
+				void set_chunk(Chunk* pChunk) {
+					GAIA_ASSERT(pChunk != nullptr);
+					m_pChunk = pChunk;
+				}
+
 				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
 					m_pCompIdxMapping = pCompIndicesMapping;
 				}
 
-				void set_chunk(Chunk* pChunk) {
-					GAIA_ASSERT(pChunk != nullptr);
-					m_pChunk = pChunk;
+				void set_group_id(GroupId groupId) {
+					m_groupId = groupId;
+				}
+
+				GAIA_NODISCARD GroupId group_id() const {
+					return m_groupId;
 				}
 
 				//! Returns a read-only entity or component view.
@@ -20027,6 +20332,7 @@ namespace gaia {
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
+			GroupId groupId = 0;
 			uint8_t indices[Chunk::MAX_COMPONENTS];
 		};
 
@@ -20036,6 +20342,8 @@ namespace gaia {
 		void as_relations_trav(const World& world, Entity target, Func func);
 		template <typename Func>
 		bool as_relations_trav_if(const World& world, Entity target, Func func);
+
+		extern GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
 
 		class QueryInfo {
 		public:
@@ -20048,14 +20356,25 @@ namespace gaia {
 				QueryOp op;
 			};
 
+			struct GroupData {
+				GroupId groupId;
+				uint32_t idxFirst;
+				uint32_t idxLast;
+				bool needsSorting;
+			};
+
 			//! Query context
 			QueryCtx m_ctx;
 			//! Compiled instructions for the query engine
 			cnt::darray<Instruction> m_instructions;
+
 			//! Cached array of archetypes matching the query
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
+			//! Group data used by cache
+			cnt::darray<GroupData> m_archetypeGroupData;
+
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
@@ -20868,19 +21187,46 @@ namespace gaia {
 
 							add_archetype_to_cache(pArchetype);
 						}
+
+						sort_cache_groups();
 					}
 				} else {
 					// Write the temporary matches to cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr)
 						add_archetype_to_cache(pArchetype);
+
+					sort_cache_groups();
 				}
 			}
 
-			void add_archetype_to_cache(Archetype* pArchetype) {
-				// Add archetype to cache
-				m_archetypeCache.push_back(pArchetype);
+			void sort_cache_groups() {
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
+					return;
+				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortGroups;
 
-				// Update id mappings
+				struct sort_cond {
+					bool operator()(const ArchetypeCacheData& a, const ArchetypeCacheData& b) const {
+						return a.groupId <= b.groupId;
+					}
+				};
+
+				// Archetypes in cache are ordered by groupId. Adding a new archetype
+				// possibly means rearranging the existing ones.
+				// 2 2 3 3 3 3 4 4 4 [2]
+				// -->
+				// 2 2 [2] 3 3 3 3 4 4 4
+				core::sort(m_archetypeCacheData, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					auto* pTmpArchetype = m_archetypeCache[left];
+					m_archetypeCache[left] = m_archetypeCache[right];
+					m_archetypeCache[right] = pTmpArchetype;
+
+					auto tmp = m_archetypeCacheData[left];
+					m_archetypeCacheData[left] = m_archetypeCacheData[right];
+					m_archetypeCacheData[right] = tmp;
+				});
+			}
+
+			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
 				GAIA_EACH(queryIds) {
@@ -20892,12 +21238,119 @@ namespace gaia {
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}
+				return cacheData;
+			}
+
+			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+				m_archetypeCache.push_back(pArchetype);
+				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
+			}
+
+			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
+
+				ArchetypeCacheData cacheData = create_cache_data(pArchetype);
+				cacheData.groupId = groupId;
+
+				if (m_archetypeGroupData.empty()) {
+					m_archetypeGroupData.push_back({groupId, 0, 0, false});
+				} else {
+					GAIA_EACH(m_archetypeGroupData) {
+						if (groupId < m_archetypeGroupData[i].groupId) {
+							// Insert the new group before one with a lower groupId.
+							// 2 3 5 10 20 25 [7]<-new group
+							// -->
+							// 2 3 5 [7] 10 20 25
+							m_archetypeGroupData.insert(
+									m_archetypeGroupData.begin() + i,
+									{groupId, m_archetypeGroupData[i].idxFirst, m_archetypeGroupData[i].idxFirst, false});
+							const auto lastGrpIdx = m_archetypeGroupData.size();
+
+							// Update ranges
+							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
+								++m_archetypeGroupData[j].idxFirst;
+								++m_archetypeGroupData[j].idxLast;
+							}
+
+							// Resort groups
+							m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+							goto groupWasFound;
+						} else if (m_archetypeGroupData[i].groupId == groupId) {
+							const auto lastGrpIdx = m_archetypeGroupData.size();
+							++m_archetypeGroupData[i].idxLast;
+
+							// Update ranges
+							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
+								++m_archetypeGroupData[j].idxFirst;
+								++m_archetypeGroupData[j].idxLast;
+								m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+							}
+
+							goto groupWasFound;
+						}
+					}
+
+					{
+						// We have a new group
+						const auto groupsCnt = m_archetypeGroupData.size();
+						if (groupsCnt == 0) {
+							// No groups exist yet, the range is {0 .. 0}
+							m_archetypeGroupData.push_back( //
+									{groupId, 0, 0, false});
+						} else {
+							const auto& groupPrev = m_archetypeGroupData[groupsCnt - 1];
+							GAIA_ASSERT(groupPrev.idxLast + 1 == m_archetypeCache.size());
+							// The new group starts where the old one ends
+							m_archetypeGroupData.push_back(
+									{groupId, //
+									 groupPrev.idxLast + 1, //
+									 groupPrev.idxLast + 1, //
+									 false});
+						}
+					}
+
+				groupWasFound:;
+				}
+
+				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
+			void add_archetype_to_cache(Archetype* pArchetype) {
+				if (m_ctx.data.groupBy != EntityBad)
+					add_archetype_to_cache_w_grouping(pArchetype);
+				else
+					add_archetype_to_cache_no_grouping(pArchetype);
+			}
+
 			void del_archetype_from_cache(uint32_t idx) {
+				auto* pArchetype = m_archetypeCache[idx];
 				core::erase_fast(m_archetypeCache, idx);
 				core::erase_fast(m_archetypeCacheData, idx);
+
+				// Update the group data if possible
+				if (m_ctx.data.groupBy != EntityBad) {
+					const auto groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
+					const auto grpIdx = core::get_index_if_unsafe(m_archetypeGroupData, [&](const GroupData& group) {
+						return group.groupId == groupId;
+					});
+					GAIA_ASSERT(grpIdx != BadIndex);
+
+					auto& currGrp = m_archetypeGroupData[idx];
+
+					// Update ranges
+					const auto lastGrpIdx = m_archetypeGroupData.size();
+					for (uint32_t j = grpIdx + 1; j < lastGrpIdx; ++j) {
+						--m_archetypeGroupData[j].idxFirst;
+						--m_archetypeGroupData[j].idxLast;
+					}
+
+					// Handle the current group. If it's about to be left empty, delete it.
+					if (currGrp.idxLast - currGrp.idxFirst > 0)
+						--currGrp.idxLast;
+					else
+						m_archetypeGroupData.erase(m_archetypeGroupData.begin() + grpIdx);
+				}
 			}
 
 			GAIA_NODISCARD World* world() {
@@ -20916,6 +21369,13 @@ namespace gaia {
 			}
 			void ser_buffer_reset() {
 				m_ctx.q.ser_buffer_reset(world());
+			}
+
+			GAIA_NODISCARD QueryCtx& ctx() {
+				return m_ctx;
+			}
+			GAIA_NODISCARD const QueryCtx& ctx() const {
+				return m_ctx;
 			}
 
 			GAIA_NODISCARD const QueryCtx::Data& data() const {
@@ -20993,6 +21453,16 @@ namespace gaia {
 
 			GAIA_NODISCARD ArchetypeDArray::iterator end() const {
 				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD std::span<Archetype*> cache_archetype_view() const {
+				return std::span{m_archetypeCache.data(), m_archetypeCache.size()};
+			}
+			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
+				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
+			}
+			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
+				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
 			}
 		};
 	} // namespace ecs
@@ -21152,6 +21622,7 @@ namespace gaia {
 				struct ChunkBatch {
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
+					GroupId groupId;
 				};
 
 				using CmdBuffer = SerializationBufferDyn;
@@ -21162,10 +21633,11 @@ namespace gaia {
 
 			private:
 				//! Command buffer command type
-				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER };
+				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
 
 				struct Command_AddItem {
 					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_ITEM;
+					static constexpr bool InvalidatesHash = true;
 
 					QueryInput item;
 
@@ -21224,8 +21696,9 @@ namespace gaia {
 					}
 				};
 
-				struct Command_Filter {
+				struct Command_AddFilter {
 					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_FILTER;
+					static constexpr bool InvalidatesHash = true;
 
 					Entity comp;
 
@@ -21273,7 +21746,35 @@ namespace gaia {
 					}
 				};
 
-				static constexpr CmdBufferCmdFunc CommandBufferRead[] = { // Add component
+				struct Command_GroupBy {
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::GROUP_BY;
+					static constexpr bool InvalidatesHash = true;
+
+					Entity groupBy;
+					TGroupByFunc func;
+
+					void exec(QueryCtx& ctx) {
+						auto& data = ctx.data;
+						data.groupBy = groupBy;
+						GAIA_ASSERT(func != nullptr);
+						data.groupByFunc = func; // group_by_func_default;
+					}
+				};
+
+				struct Command_SetGroupId {
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::SET_GROUP;
+					static constexpr bool InvalidatesHash = false;
+
+					GroupId groupId;
+
+					void exec(QueryCtx& ctx) {
+						auto& data = ctx.data;
+						data.groupIdSet = groupId;
+					}
+				};
+
+				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
+						// Add item
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
@@ -21281,7 +21782,19 @@ namespace gaia {
 						},
 						// Add filter
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_Filter cmd;
+							Command_AddFilter cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// GroupBy
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							Command_GroupBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// SetGroupId
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							Command_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						}};
@@ -21314,6 +21827,7 @@ namespace gaia {
 						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_q.queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_q.queryId);
+							recommit(queryInfo.ctx());
 							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 							return queryInfo;
 						}
@@ -21346,6 +21860,14 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
+				template <typename T>
+				void add_cmd(T& cmd) {
+					auto& serBuffer = m_storage.ser_buffer();
+					ser::save(serBuffer, T::Id);
+					ser::save(serBuffer, T::InvalidatesHash);
+					ser::save(serBuffer, cmd);
+				}
+
 				void add_inter(QueryInput item) {
 					// Adding new query items invalidates the query
 					invalidate();
@@ -21353,11 +21875,8 @@ namespace gaia {
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
 
-					auto& serBuffer = m_storage.ser_buffer();
-
 					Command_AddItem cmd{item};
-					ser::save(serBuffer, Command_AddItem::Id);
-					ser::save(serBuffer, cmd);
+					add_cmd(cmd);
 				}
 
 				template <typename T>
@@ -21386,17 +21905,35 @@ namespace gaia {
 					add_inter({op, access, e});
 				}
 
+				template <typename Rel, typename Tgt>
+				void add_inter(QueryOp op) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use add() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use add() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					// Determine the access type
+					QueryAccess access = QueryAccess::None;
+					if (op != QueryOp::Not) {
+						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+					}
+
+					add_inter({op, access, {descRel.entity, descTgt.entity}});
+				}
+
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
 					// Adding new changed items invalidates the query
 					invalidate();
 
-					auto& serBuffer = m_storage.ser_buffer();
-
-					Command_Filter cmd{entity};
-					ser::save(serBuffer, Command_Filter::Id);
-					ser::save(serBuffer, cmd);
+					Command_AddFilter cmd{entity};
+					add_cmd(cmd);
 				}
 
 				template <typename T>
@@ -21407,6 +21944,75 @@ namespace gaia {
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_storage.world());
 					changed_inter(desc.entity);
+				}
+
+				template <typename Rel, typename Tgt>
+				void changed_inter() {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use changed() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use changed() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+					changed_inter({descRel.entity, descTgt.entity});
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void group_by_inter(Entity entity, TGroupByFunc func) {
+					// Adding new changed items invalidates the query
+					invalidate();
+
+					Command_GroupBy cmd{entity, func};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void group_by_inter(Entity entity, TGroupByFunc func) {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					group_by_inter(entity, func);
+				}
+
+				template <typename Rel, typename Tgt>
+				void group_by_inter(TGroupByFunc func) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use groupby() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use groupby() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					group_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void set_group_id_inter(GroupId groupId) {
+					// Dummy usage of GroupIdMax to avoid warrning about unused constant
+					(void)GroupIdMax;
+
+					Command_SetGroupId cmd{groupId};
+					add_cmd(cmd);
+				}
+
+				void set_group_id_inter(Entity groupId) {
+					set_group_id_inter(groupId.value());
+				}
+
+				template <typename T>
+				void set_group_id_inter() {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
+					set_group_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -21426,20 +22032,45 @@ namespace gaia {
 					serBuffer.seek(0);
 					while (serBuffer.tell() < serBuffer.bytes()) {
 						CommandBufferCmdType id{};
+						bool invalidatesHash = false;
 						ser::load(serBuffer, id);
+						ser::load(serBuffer, invalidatesHash);
+						(void)invalidatesHash; // We don't care about this during commit
 						CommandBufferRead[id](serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
-					if constexpr (UseCaching)
+					if constexpr (UseCaching) {
 						calc_lookup_hash(ctx);
+					}
+
+					// We can free all temporary data now
+					m_storage.ser_buffer_reset();
+				}
+
+				void recommit(QueryCtx& ctx) {
+					auto& serBuffer = m_storage.ser_buffer();
+
+					// Read data from buffer and execute the command stored in it
+					serBuffer.seek(0);
+					while (serBuffer.tell() < serBuffer.bytes()) {
+						CommandBufferCmdType id{};
+						bool invalidatesHash = false;
+						ser::load(serBuffer, id);
+						ser::load(serBuffer, invalidatesHash);
+						// Hash recalculation is not accepted here
+						GAIA_ASSERT(!invalidatesHash);
+						if (invalidatesHash)
+							return;
+						CommandBufferRead[id](serBuffer, ctx);
+					}
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
 				}
 
 				//--------------------------------------------------------------------------------
-public:
+			public:
 #if GAIA_ASSERT_ENABLED
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
 				template <typename... T>
@@ -21483,12 +22114,12 @@ public:
 
 					auto runFunc = [&](ChunkBatch& batch) {
 						auto* pChunk = batch.pChunk;
-						const auto* pMappings = batch.pIndicesMapping;
 
 #if GAIA_ASSERT_ENABLED
 						pChunk->lock(true);
 #endif
-						it.set_remapping_indices(pMappings);
+						it.set_group_id(batch.groupId);
+						it.set_remapping_indices(batch.pIndicesMapping);
 						it.set_chunk(pChunk);
 						func(it);
 #if GAIA_ASSERT_ENABLED
@@ -21542,7 +22173,6 @@ public:
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					ChunkBatchArray chunkBatch;
 					TIter it;
-					uint32_t aid = 0;
 
 					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
@@ -21551,13 +22181,48 @@ public:
 					//       Make it so only valid pointers are linked together.
 					//       This means one less indirection + we won't need to call can_process_archetype()
 					//       and pChunk.size()==0 here.
-					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype)) {
-							++aid;
-							continue;
-						}
+					auto cache_view = queryInfo.cache_archetype_view();
+					auto cache_data_view = queryInfo.cache_data_view();
 
-						auto indices_view = queryInfo.indices_mapping_view(aid);
+					// Determine the range of archetypes we will iterate.
+					// Use the entire range by default.
+					uint32_t idx_from = 0;
+					uint32_t idx_to = (uint32_t)cache_view.size();
+
+					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					if (isGroupBy && isGroupSet) {
+						// We wish to iterate only a certain group
+						auto group_data_view = queryInfo.group_data_view();
+						GAIA_EACH(group_data_view) {
+							if (group_data_view[i].groupId == queryInfo.data().groupIdSet) {
+								idx_from = group_data_view[i].idxFirst;
+								idx_to = group_data_view[i].idxLast + 1;
+								goto groupSetFound;
+							}
+						}
+						return;
+					}
+
+				groupSetFound:
+					ArchetypeCacheData dummyCacheData{};
+
+					for (uint32_t i = idx_from; i < idx_to; ++i) {
+						auto* pArchetype = cache_view[i];
+
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
+						GAIA_ASSERT(
+								// Either no grouping is used...
+								!isGroupBy ||
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								cache_data_view[i].groupId == queryInfo.data().groupIdSet);
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 
 						uint32_t chunkOffset = 0;
@@ -21577,7 +22242,7 @@ public:
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data()});
+								chunkBatch.push_back({pChunk, indices_view.data(), cacheData.groupId});
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -21586,8 +22251,6 @@ public:
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
 						}
-
-						++aid;
 					}
 
 					// Take care of any leftovers not processed during run_query
@@ -21837,6 +22500,8 @@ public:
 					return m_storage.m_q.queryId;
 				}
 
+				//------------------------------------------------
+
 				//! Creates a query from a null-terminated expression string.
 				//!
 				//! Expresion is a string between two semicolons.
@@ -21931,6 +22596,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
 						add({QueryOp::All, QueryAccess::None, entity});
@@ -21954,6 +22621,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
 						add({QueryOp::Any, QueryAccess::None, entity});
@@ -21969,6 +22638,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& no(Entity entity) {
 					add({QueryOp::Not, QueryAccess::None, entity});
 					return *this;
@@ -21981,6 +22652,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& changed(Entity entity) {
 					changed_inter(entity);
 					return *this;
@@ -21992,6 +22665,46 @@ public:
 					(changed_inter<T>(), ...);
 					return *this;
 				}
+
+				//------------------------------------------------
+
+				QueryImpl& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
+					group_by_inter(entity, func);
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
+					group_by_inter<T>(func);
+					return *this;
+				}
+
+				template <typename Rel, typename Tgt>
+				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
+					group_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
+
+				//------------------------------------------------
+
+				QueryImpl& group_id(GroupId groupId) {
+					set_group_id_inter(groupId);
+					return *this;
+				}
+
+				QueryImpl& group_id(Entity entity) {
+					GAIA_ASSERT(!entity.pair());
+					set_group_id_inter(entity.id());
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& group_id() {
+					set_group_id_inter<T>();
+					return *this;
+				}
+
+				//------------------------------------------------
 
 				template <typename Func>
 				void each(QueryInfo& queryInfo, Func func) {
@@ -22186,7 +22899,7 @@ public:
 
 namespace gaia {
 	namespace ecs {
-		struct SystemBuilder;
+		class SystemBuilder;
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -22593,7 +23306,7 @@ namespace gaia {
 						q.all(ecs::Pair(DependsOn, m_entity)) //
 								.each([&](Entity dependingEntity) {
 									auto& ecDependingEntity = m_world.fetch(dependingEntity);
-									ecDependingEntity.depthDependsOn += depth;
+									ecDependingEntity.depthDependsOn += (uint8_t)depth;
 								});
 					} else {
 						// Update depth for all entities depending on this one
@@ -22768,6 +23481,19 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[id];
 				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD Entity get() const {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
+				const auto* pItem = comp_cache().find<FT>();
+				GAIA_ASSSERT(pItem != nullptr);
+				return pItem->entity;
 			}
 
 			//----------------------------------------------------------------------
@@ -25841,6 +26567,21 @@ namespace gaia {
 			// Initialize the systems query
 			systems_init();
 #endif
+		}
+
+		inline GroupId
+		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
+			auto ids = archetype.ids_view();
+			for (auto id: ids) {
+				if (!id.pair() || id.id() != groupBy.id())
+					continue;
+
+				// Consider the pair's target the groupId
+				return id.gen();
+			}
+
+			// No group
+			return 0;
 		}
 	} // namespace ecs
 } // namespace gaia

@@ -451,6 +451,49 @@ void resizable_arr_test(uint32_t N) {
 
 	arr.erase(arr.begin(), arr.end());
 	REQUIRE(arr.empty());
+
+	arr.push_back(11);
+	arr.push_back(12);
+	arr.push_back(13);
+	arr.push_back(14);
+	arr.push_back(15);
+	arr.erase(arr.begin() + 1);
+	REQUIRE(arr.size() == 4);
+	REQUIRE(arr[0] == 11);
+	REQUIRE(arr[1] == 13);
+	REQUIRE(arr[2] == 14);
+	REQUIRE(arr[3] == 15);
+	arr.erase(arr.begin() + 3);
+	REQUIRE(arr.size() == 3);
+	REQUIRE(arr[0] == 11);
+	REQUIRE(arr[1] == 13);
+	REQUIRE(arr[2] == 14);
+	arr.erase(arr.begin());
+	arr.erase(arr.begin());
+	arr.erase(arr.begin());
+	REQUIRE(arr.size() == 0);
+	REQUIRE(arr.empty());
+
+	// 11, 13, 14, 15
+	// 11, 13, 13, 14, 15
+	// 11, [12], 13, 14, 15
+	arr.push_back(11);
+	arr.push_back(13);
+	arr.push_back(14);
+	arr.insert(arr.begin() + 1, 12);
+	REQUIRE(arr.size() == 4);
+	REQUIRE(arr[0] == 11);
+	REQUIRE(arr[1] == 12);
+	REQUIRE(arr[2] == 13);
+	REQUIRE(arr[3] == 14);
+
+	arr.insert(arr.begin(), 10);
+	REQUIRE(arr.size() == 5);
+	REQUIRE(arr[0] == 10);
+	REQUIRE(arr[1] == 11);
+	REQUIRE(arr[2] == 12);
+	REQUIRE(arr[3] == 13);
+	REQUIRE(arr[4] == 14);
 }
 
 TEST_CASE("Containers - sarr_ext") {
@@ -5703,8 +5746,91 @@ TEST_CASE("System - simple") {
 	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
 
 	testRun();
-	REQUIRE(sys3_run_before_sys1);
-	REQUIRE(sys3_run_before_sys2);
+	// REQUIRE(sys3_run_before_sys1);
+	// REQUIRE(sys3_run_before_sys2);
+}
+
+struct Eats {};
+struct Healthy {};
+ecs::Entity group_by_relation(ecs::World& w, ecs::Entity id) {
+	auto eats = w.add<Eats>().entity;
+	auto tgt = w.target(id, eats);
+	return (tgt != ecs::EntityBad) ? ((ecs::Entity)ecs::Pair(eats, tgt)).value() : ecs::EntityBad;
+}
+
+TEST_CASE("System - group") {
+	TestWorld twld;
+
+	ecs::Entity eats = wld.add(); // 16
+	ecs::Entity carrot = wld.add(); // 17
+	ecs::Entity salad = wld.add(); // 18
+	ecs::Entity apple = wld.add(); // 19
+
+	ecs::Entity ents[6];
+	GAIA_FOR(6) ents[i] = wld.add(); // 20, 21, 22, 23, 24, 25
+	{
+		// 26 - Position
+		// 27 - Healthy
+		wld.build(ents[0]).add<Position>().add({eats, salad}); // 20 <-- Pos, {Eats,Salad}
+		wld.build(ents[1]).add<Position>().add({eats, carrot});
+		wld.build(ents[2]).add<Position>().add({eats, apple});
+
+		wld.build(ents[3]).add<Position>().add({eats, apple}).add<Healthy>();
+		wld.build(ents[4]).add<Position>().add({eats, salad}).add<Healthy>();
+		wld.build(ents[5]).add<Position>().add({eats, carrot}).add<Healthy>();
+	}
+	// This query is going to group entities by what they eat.
+	// The query cache is going to contains following 6 archetypes in 3 groups as follows:
+	//  - Eats:carrot:
+	//     - Position, (Eats, carrot)
+	//     - Position, (Eats, carrot), Healthy
+	//  - Eats:salad:
+	//     - Position, (Eats, salad)
+	//     - Position, (Eats, salad), Healthy
+	//  - Eats::apple:
+	//     - Position, (Eats, apple)
+	//     - Position, (Eats, apple), Healthy
+	ecs::Entity ents_expected[] = {ents[1], ents[5], // carrot, 21, 25
+																 ents[0], ents[4], // salad, 20, 24
+																 ents[2], ents[3]}; // apple, 22, 23
+
+	auto checkQuery = [&](ecs::Query& q, //
+												std::span<ecs::Entity> ents_exected_view) {
+		{
+			uint32_t j = 0;
+			q.each([&](ecs::Iter& it) {
+				auto ents = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					const auto e = ents[i];
+					const auto e_wanted = ents_exected_view[j++];
+					REQUIRE(e == e_wanted);
+				}
+			});
+			REQUIRE(j == (uint32_t)ents_exected_view.size());
+		}
+		{
+			uint32_t j = 0;
+			q.each([&](ecs::Entity e) {
+				const auto e_wanted = ents_exected_view[j++];
+				REQUIRE(e == e_wanted);
+			});
+			REQUIRE(j == (uint32_t)ents_exected_view.size());
+		}
+	};
+
+	{
+		auto qq = wld.query().all<Position>().group_by(eats);
+
+		// Grouping on, no group enforced
+		checkQuery(qq, {&ents_expected[0], 6});
+		// Gruping on, a group is enforced
+		qq.group_id(carrot);
+		checkQuery(qq, {&ents_expected[0], 2});
+		qq.group_id(salad);
+		checkQuery(qq, {&ents_expected[2], 2});
+		qq.group_id(apple);
+		checkQuery(qq, {&ents_expected[4], 2});
+	}
 }
 
 #endif

@@ -69,6 +69,7 @@
     * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
+    * [Grouping](#grouping)
   * [Relationships](#relationships)
     * [Basics](#basics)
     * [Entity dependencies](#entity-dependencies)
@@ -796,6 +797,90 @@ q.each([&](Position& p, const Velocity& v) {
 ```
 
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one of them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
+
+### Grouping
+
+Grouping is a feature that allows you to assign an id to each archetype and group them together or filter them based on this id. Archetypes are sorted by their groupId in ascending order. If descending order is needed, you can change your groupIds (e.g. instead of 100 you use ecs::GroupIdMax - 100).
+
+Grouping is triggered by calling ***group_by*** before the first call to ***each*** or other functions that build the query.
+
+```cpp
+ecs::Entity eats = wld.add();
+ecs::Entity carrot = wld.add();
+ecs::Entity salad = wld.add();
+ecs::Entity apple = wld.add();
+
+ecs::Entity ents[6];
+GAIA_FOR(6) ents[i] = wld.add();
+{
+  wld.build(ents[0]).add<Position>().add({eats, salad});
+  wld.build(ents[1]).add<Position>().add({eats, carrot});
+  wld.build(ents[2]).add<Position>().add({eats, apple});
+
+  wld.build(ents[3]).add<Position>().add({eats, apple}).add<Healthy>();
+  wld.build(ents[4]).add<Position>().add({eats, salad}).add<Healthy>();
+  wld.build(ents[5]).add<Position>().add({eats, carrot}).add<Healthy>();
+}
+
+// This query is going to group entities by what they eat.
+auto qq = wld.query().all<Position>().group_by(eats);
+
+// The query cache is going to contains following 6 archetypes in 3 groups as follows:
+//  - Eats:carrot:
+//     - Position, (Eats, carrot)
+//     - Position, (Eats, carrot), Healthy
+//  - Eats:salad:
+//     - Position, (Eats, salad)
+//     - Position, (Eats, salad), Healthy
+//  - Eats::apple:
+//     - Position, (Eats, apple)
+//     - Position, (Eats, apple), Healthy
+q.each([&](ecs::Iter& it) {
+  auto ents = it.view<ecs::Entity>();
+  GAIA_EACH(it) {
+    GAIA_LOG_N("GrpId:%u, Entity:%u.%u", it.group_id(), ents[i].id(), ents[i].gen());
+  }
+});
+```
+
+You can choose what group to iterate specifically by calling ***group_id*** prior to iteration.
+
+```cpp
+// This query is going to iterarte the following group of 2 archetypes:
+//  - Eats:salad:
+//     - Position, (Eats, salad)
+//     - Position, (Eats, salad), Healthy
+q.group_id(salad).each([&](ecs::Iter& it) {
+  ...
+});
+// This query is going to iterarte the following group of 2 archetypes:
+//  - Eats:carrot:
+//     - Position, (Eats, carrot)
+//     - Position, (Eats, carrot), Healthy
+q.group_id(carrot).each([&](ecs::Iter& it) {
+  ...
+});
+```
+
+Custom sorting function can be provided if needed.
+
+```cpp
+ecs::GroupId my_group_sort_func(const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
+  auto ids = archetype.ids_view();
+  for (auto id: ids) {
+    if (!id.pair() || id.id() != groupBy.id())
+      continue;
+
+    // Consider the pair's target the groupId
+    return id.gen();
+  }
+
+  // No group
+  return 0;
+}
+
+q.group_by(eats, my_group_sort_func).each(...) { ... };
+```
 
 ## Relationships
 ### Basics

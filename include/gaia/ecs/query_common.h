@@ -35,14 +35,17 @@ namespace gaia {
 		GAIA_GCC_WARNING_POP()
 
 		using QueryId = uint32_t;
+		using GroupId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
 		using QuerySerBuffer = SerializationBufferDyn;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
+		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
+		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;
 
 		//! User-provided query input
 		struct QueryInput {
@@ -109,6 +112,10 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q;
 
+			enum QueryFlags : uint8_t { //
+				SortGroups = 0x01
+			};
+
 			struct Data {
 				//! Array of querried ids
 				QueryEntityArray ids;
@@ -121,6 +128,12 @@ namespace gaia {
 				QueryRemappingArray remapping;
 				//! Array of filtered components
 				QueryEntityArray changed;
+				//! Entity to group the archetypes by. EntityBad for no grouping.
+				Entity groupBy;
+				//! Iteration will be restricted only to target Group
+				GroupId groupIdSet;
+				//! Function to use to perfrom the grouping
+				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask;
@@ -134,6 +147,8 @@ namespace gaia {
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint8_t readWriteMask;
+				//! Query flags
+				uint8_t flags;
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY == 8);
@@ -171,6 +186,12 @@ namespace gaia {
 
 				// Filters need to be the same
 				if (left.changed != right.changed)
+					return false;
+
+				// Grouping data need to match
+				if (left.groupBy != right.groupBy)
+					return false;
+				if (left.groupByFunc != right.groupByFunc)
 					return false;
 
 				return true;
@@ -266,6 +287,16 @@ namespace gaia {
 				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
+
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
+
+			// Grouping
+			{
+				QueryLookupHash::Type hash = 0;
+
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupBy.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupByFunc);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}

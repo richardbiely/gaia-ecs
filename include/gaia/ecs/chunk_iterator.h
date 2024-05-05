@@ -11,6 +11,7 @@
 #include "chunk.h"
 #include "component.h"
 #include "component_cache_item.h"
+#include "id.h"
 #include "query_common.h"
 
 namespace gaia {
@@ -33,6 +34,8 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! Chunk::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
+				//! GroupId. 0 if not set.
+				GroupId m_groupId = 0;
 
 			public:
 				ChunkIterImpl() = default;
@@ -42,13 +45,21 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
+				void set_chunk(Chunk* pChunk) {
+					GAIA_ASSERT(pChunk != nullptr);
+					m_pChunk = pChunk;
+				}
+
 				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
 					m_pCompIdxMapping = pCompIndicesMapping;
 				}
 
-				void set_chunk(Chunk* pChunk) {
-					GAIA_ASSERT(pChunk != nullptr);
-					m_pChunk = pChunk;
+				void set_group_id(GroupId groupId) {
+					m_groupId = groupId;
+				}
+
+				GAIA_NODISCARD GroupId group_id() const {
+					return m_groupId;
 				}
 
 				//! Returns a read-only entity or component view.

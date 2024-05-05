@@ -40,7 +40,7 @@
 
 namespace gaia {
 	namespace ecs {
-		struct SystemBuilder;
+		class SystemBuilder;
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -447,7 +447,7 @@ namespace gaia {
 						q.all(ecs::Pair(DependsOn, m_entity)) //
 								.each([&](Entity dependingEntity) {
 									auto& ecDependingEntity = m_world.fetch(dependingEntity);
-									ecDependingEntity.depthDependsOn += depth;
+									ecDependingEntity.depthDependsOn += (uint8_t)depth;
 								});
 					} else {
 						// Update depth for all entities depending on this one
@@ -622,6 +622,19 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[id];
 				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD Entity get() const {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
+				const auto* pItem = comp_cache().find<FT>();
+				GAIA_ASSSERT(pItem != nullptr);
+				return pItem->entity;
 			}
 
 			//----------------------------------------------------------------------
@@ -3560,6 +3573,21 @@ namespace gaia {
 			// Initialize the systems query
 			systems_init();
 #endif
+		}
+
+		inline GroupId
+		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
+			auto ids = archetype.ids_view();
+			for (auto id: ids) {
+				if (!id.pair() || id.id() != groupBy.id())
+					continue;
+
+				// Consider the pair's target the groupId
+				return id.gen();
+			}
+
+			// No group
+			return 0;
 		}
 	} // namespace ecs
 } // namespace gaia

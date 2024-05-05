@@ -415,10 +415,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = GAIA_FWD(arg);
+					operator[](m_cnt++) = GAIA_MOV(arg);
 				} else {
 					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, GAIA_FWD(arg));
+					core::call_ctor(ptr, GAIA_MOV(arg));
 				}
 			}
 
@@ -443,6 +443,54 @@ namespace gaia {
 					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, const T& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = arg;
+				} else {
+					auto* ptr = &data()[m_cnt];
+					core::call_ctor(ptr, arg);
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Insert the element to the position given by iterator \param pos
+			iterator insert(iterator pos, T&& arg) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				try_grow();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+
+				if constexpr (mem::is_soa_layout_v<T>) {
+					operator[](idxSrc) = GAIA_MOV(arg);
+				} else {
+					auto* ptr = &data()[idxSrc];
+					core::call_ctor(ptr, GAIA_MOV(arg));
+				}
+
+				++m_cnt;
+
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the element at pos

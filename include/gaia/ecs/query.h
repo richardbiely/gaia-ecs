@@ -87,6 +87,7 @@ namespace gaia {
 				struct ChunkBatch {
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
+					GroupId groupId;
 				};
 
 				using CmdBuffer = SerializationBufferDyn;
@@ -97,10 +98,11 @@ namespace gaia {
 
 			private:
 				//! Command buffer command type
-				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER };
+				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
 
 				struct Command_AddItem {
 					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_ITEM;
+					static constexpr bool InvalidatesHash = true;
 
 					QueryInput item;
 
@@ -159,8 +161,9 @@ namespace gaia {
 					}
 				};
 
-				struct Command_Filter {
+				struct Command_AddFilter {
 					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_FILTER;
+					static constexpr bool InvalidatesHash = true;
 
 					Entity comp;
 
@@ -208,7 +211,35 @@ namespace gaia {
 					}
 				};
 
-				static constexpr CmdBufferCmdFunc CommandBufferRead[] = { // Add component
+				struct Command_GroupBy {
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::GROUP_BY;
+					static constexpr bool InvalidatesHash = true;
+
+					Entity groupBy;
+					TGroupByFunc func;
+
+					void exec(QueryCtx& ctx) {
+						auto& data = ctx.data;
+						data.groupBy = groupBy;
+						GAIA_ASSERT(func != nullptr);
+						data.groupByFunc = func; // group_by_func_default;
+					}
+				};
+
+				struct Command_SetGroupId {
+					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::SET_GROUP;
+					static constexpr bool InvalidatesHash = false;
+
+					GroupId groupId;
+
+					void exec(QueryCtx& ctx) {
+						auto& data = ctx.data;
+						data.groupIdSet = groupId;
+					}
+				};
+
+				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
+						// Add item
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							Command_AddItem cmd;
 							ser::load(buffer, cmd);
@@ -216,7 +247,19 @@ namespace gaia {
 						},
 						// Add filter
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_Filter cmd;
+							Command_AddFilter cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// GroupBy
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							Command_GroupBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// SetGroupId
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							Command_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						}};
@@ -249,6 +292,7 @@ namespace gaia {
 						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_q.queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_q.queryId);
+							recommit(queryInfo.ctx());
 							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 							return queryInfo;
 						}
@@ -281,6 +325,14 @@ namespace gaia {
 					return *m_nextArchetypeId - 1;
 				}
 
+				template <typename T>
+				void add_cmd(T& cmd) {
+					auto& serBuffer = m_storage.ser_buffer();
+					ser::save(serBuffer, T::Id);
+					ser::save(serBuffer, T::InvalidatesHash);
+					ser::save(serBuffer, cmd);
+				}
+
 				void add_inter(QueryInput item) {
 					// Adding new query items invalidates the query
 					invalidate();
@@ -288,11 +340,8 @@ namespace gaia {
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
 
-					auto& serBuffer = m_storage.ser_buffer();
-
 					Command_AddItem cmd{item};
-					ser::save(serBuffer, Command_AddItem::Id);
-					ser::save(serBuffer, cmd);
+					add_cmd(cmd);
 				}
 
 				template <typename T>
@@ -321,17 +370,35 @@ namespace gaia {
 					add_inter({op, access, e});
 				}
 
+				template <typename Rel, typename Tgt>
+				void add_inter(QueryOp op) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use add() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use add() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					// Determine the access type
+					QueryAccess access = QueryAccess::None;
+					if (op != QueryOp::Not) {
+						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
+						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+					}
+
+					add_inter({op, access, {descRel.entity, descTgt.entity}});
+				}
+
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
 					// Adding new changed items invalidates the query
 					invalidate();
 
-					auto& serBuffer = m_storage.ser_buffer();
-
-					Command_Filter cmd{entity};
-					ser::save(serBuffer, Command_Filter::Id);
-					ser::save(serBuffer, cmd);
+					Command_AddFilter cmd{entity};
+					add_cmd(cmd);
 				}
 
 				template <typename T>
@@ -342,6 +409,75 @@ namespace gaia {
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_storage.world());
 					changed_inter(desc.entity);
+				}
+
+				template <typename Rel, typename Tgt>
+				void changed_inter() {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use changed() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use changed() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+					changed_inter({descRel.entity, descTgt.entity});
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void group_by_inter(Entity entity, TGroupByFunc func) {
+					// Adding new changed items invalidates the query
+					invalidate();
+
+					Command_GroupBy cmd{entity, func};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void group_by_inter(Entity entity, TGroupByFunc func) {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					group_by_inter(entity, func);
+				}
+
+				template <typename Rel, typename Tgt>
+				void group_by_inter(TGroupByFunc func) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use groupby() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use groupby() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					group_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void set_group_id_inter(GroupId groupId) {
+					// Dummy usage of GroupIdMax to avoid warrning about unused constant
+					(void)GroupIdMax;
+
+					Command_SetGroupId cmd{groupId};
+					add_cmd(cmd);
+				}
+
+				void set_group_id_inter(Entity groupId) {
+					set_group_id_inter(groupId.value());
+				}
+
+				template <typename T>
+				void set_group_id_inter() {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
+					set_group_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -361,20 +497,45 @@ namespace gaia {
 					serBuffer.seek(0);
 					while (serBuffer.tell() < serBuffer.bytes()) {
 						CommandBufferCmdType id{};
+						bool invalidatesHash = false;
 						ser::load(serBuffer, id);
+						ser::load(serBuffer, invalidatesHash);
+						(void)invalidatesHash; // We don't care about this during commit
 						CommandBufferRead[id](serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
-					if constexpr (UseCaching)
+					if constexpr (UseCaching) {
 						calc_lookup_hash(ctx);
+					}
+
+					// We can free all temporary data now
+					m_storage.ser_buffer_reset();
+				}
+
+				void recommit(QueryCtx& ctx) {
+					auto& serBuffer = m_storage.ser_buffer();
+
+					// Read data from buffer and execute the command stored in it
+					serBuffer.seek(0);
+					while (serBuffer.tell() < serBuffer.bytes()) {
+						CommandBufferCmdType id{};
+						bool invalidatesHash = false;
+						ser::load(serBuffer, id);
+						ser::load(serBuffer, invalidatesHash);
+						// Hash recalculation is not accepted here
+						GAIA_ASSERT(!invalidatesHash);
+						if (invalidatesHash)
+							return;
+						CommandBufferRead[id](serBuffer, ctx);
+					}
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
 				}
 
 				//--------------------------------------------------------------------------------
-public:
+			public:
 #if GAIA_ASSERT_ENABLED
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
 				template <typename... T>
@@ -418,12 +579,12 @@ public:
 
 					auto runFunc = [&](ChunkBatch& batch) {
 						auto* pChunk = batch.pChunk;
-						const auto* pMappings = batch.pIndicesMapping;
 
 #if GAIA_ASSERT_ENABLED
 						pChunk->lock(true);
 #endif
-						it.set_remapping_indices(pMappings);
+						it.set_group_id(batch.groupId);
+						it.set_remapping_indices(batch.pIndicesMapping);
 						it.set_chunk(pChunk);
 						func(it);
 #if GAIA_ASSERT_ENABLED
@@ -477,7 +638,6 @@ public:
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					ChunkBatchArray chunkBatch;
 					TIter it;
-					uint32_t aid = 0;
 
 					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
@@ -486,13 +646,48 @@ public:
 					//       Make it so only valid pointers are linked together.
 					//       This means one less indirection + we won't need to call can_process_archetype()
 					//       and pChunk.size()==0 here.
-					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype)) {
-							++aid;
-							continue;
-						}
+					auto cache_view = queryInfo.cache_archetype_view();
+					auto cache_data_view = queryInfo.cache_data_view();
 
-						auto indices_view = queryInfo.indices_mapping_view(aid);
+					// Determine the range of archetypes we will iterate.
+					// Use the entire range by default.
+					uint32_t idx_from = 0;
+					uint32_t idx_to = (uint32_t)cache_view.size();
+
+					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					if (isGroupBy && isGroupSet) {
+						// We wish to iterate only a certain group
+						auto group_data_view = queryInfo.group_data_view();
+						GAIA_EACH(group_data_view) {
+							if (group_data_view[i].groupId == queryInfo.data().groupIdSet) {
+								idx_from = group_data_view[i].idxFirst;
+								idx_to = group_data_view[i].idxLast + 1;
+								goto groupSetFound;
+							}
+						}
+						return;
+					}
+
+				groupSetFound:
+					ArchetypeCacheData dummyCacheData{};
+
+					for (uint32_t i = idx_from; i < idx_to; ++i) {
+						auto* pArchetype = cache_view[i];
+
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
+						GAIA_ASSERT(
+								// Either no grouping is used...
+								!isGroupBy ||
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								cache_data_view[i].groupId == queryInfo.data().groupIdSet);
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 
 						uint32_t chunkOffset = 0;
@@ -512,7 +707,7 @@ public:
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data()});
+								chunkBatch.push_back({pChunk, indices_view.data(), cacheData.groupId});
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -521,8 +716,6 @@ public:
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
 						}
-
-						++aid;
 					}
 
 					// Take care of any leftovers not processed during run_query
@@ -772,6 +965,8 @@ public:
 					return m_storage.m_q.queryId;
 				}
 
+				//------------------------------------------------
+
 				//! Creates a query from a null-terminated expression string.
 				//!
 				//! Expresion is a string between two semicolons.
@@ -866,6 +1061,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
 						add({QueryOp::All, QueryAccess::None, entity});
@@ -889,6 +1086,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
 						add({QueryOp::Any, QueryAccess::None, entity});
@@ -904,6 +1103,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& no(Entity entity) {
 					add({QueryOp::Not, QueryAccess::None, entity});
 					return *this;
@@ -916,6 +1117,8 @@ public:
 					return *this;
 				}
 
+				//------------------------------------------------
+
 				QueryImpl& changed(Entity entity) {
 					changed_inter(entity);
 					return *this;
@@ -927,6 +1130,46 @@ public:
 					(changed_inter<T>(), ...);
 					return *this;
 				}
+
+				//------------------------------------------------
+
+				QueryImpl& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
+					group_by_inter(entity, func);
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
+					group_by_inter<T>(func);
+					return *this;
+				}
+
+				template <typename Rel, typename Tgt>
+				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
+					group_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
+
+				//------------------------------------------------
+
+				QueryImpl& group_id(GroupId groupId) {
+					set_group_id_inter(groupId);
+					return *this;
+				}
+
+				QueryImpl& group_id(Entity entity) {
+					GAIA_ASSERT(!entity.pair());
+					set_group_id_inter(entity.id());
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& group_id() {
+					set_group_id_inter<T>();
+					return *this;
+				}
+
+				//------------------------------------------------
 
 				template <typename Func>
 				void each(QueryInfo& queryInfo, Func func) {

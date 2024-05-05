@@ -192,7 +192,7 @@ namespace gaia {
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(dst[i + n]));
 				}
-				// Try copies if moves are not possible
+				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = dst[i + n];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -222,7 +222,7 @@ namespace gaia {
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = T(GAIA_MOV(dst[idxSrc + i + n]));
 				}
-				// Try copies if moves are not possible
+				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = dst[idxSrc + i + n];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -248,6 +248,84 @@ namespace gaia {
 				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
 							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(!mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				const auto max = idxDst - idxSrc + 1;
+				// Move first if possible
+				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(GAIA_MOV(dst[idxDst - i]));
+				}
+				// Try to copy if moves are not possible
+				else if constexpr (std::is_copy_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+				} else {
+					// Fallback to raw memory copy
+					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(!mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				const auto max = idxDst - idxSrc + 1;
+				// Move first if possible
+				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - +n] = T(GAIA_MOV(dst[idxDst - i]));
+				}
+				// Try to copy if moves are not possible
+				else if constexpr (std::is_copy_assignable_v<T>) {
+					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					GAIA_FOR(max) dst[idxDst - +n] = T(dst[idxDst - i]);
+				} else {
+					// Fallback to raw memory copy
+					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			//! Shift elements at the address pointed to by \param dst to the right by one
+			template <typename T>
+			void shift_elements_right_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				static_assert(mem::is_soa_layout_v<T>);
+
+				GAIA_ASSERT(idxSrc < idxDst);
+
+				GAIA_FOR2(idxSrc, idxDst) {
+					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
+							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -409,6 +487,33 @@ namespace gaia {
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxDst, idxSrc, n);
+		}
+
+		//! Shift elements at the address pointed to by \param dst to the right by one
+		template <typename T>
+		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if GAIA_UNLIKELY (idxSrc == idxDst)
+				return;
+
+			if constexpr (mem::is_soa_layout_v<T>)
+				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, 1, size);
+			else
+				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
+		}
+
+		//! Shift elements at the address pointed to by \param dst to the right by one
+		template <typename T>
+		void
+		shift_elements_right_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if GAIA_UNLIKELY (idxSrc == idxDst)
+				return;
+
+			if constexpr (mem::is_soa_layout_v<T>)
+				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, n, size);
+			else
+				detail::shift_elements_right_aos_n<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
 		GAIA_CLANG_WARNING_POP()

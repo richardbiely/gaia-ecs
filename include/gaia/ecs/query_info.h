@@ -7,6 +7,7 @@
 #include "../config/profiler.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
+#include "../mem/mem_utils.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "component.h"
@@ -22,6 +23,7 @@ namespace gaia {
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
+			GroupId groupId = 0;
 			uint8_t indices[Chunk::MAX_COMPONENTS];
 		};
 
@@ -31,6 +33,8 @@ namespace gaia {
 		void as_relations_trav(const World& world, Entity target, Func func);
 		template <typename Func>
 		bool as_relations_trav_if(const World& world, Entity target, Func func);
+
+		extern GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
 
 		class QueryInfo {
 		public:
@@ -43,14 +47,25 @@ namespace gaia {
 				QueryOp op;
 			};
 
+			struct GroupData {
+				GroupId groupId;
+				uint32_t idxFirst;
+				uint32_t idxLast;
+				bool needsSorting;
+			};
+
 			//! Query context
 			QueryCtx m_ctx;
 			//! Compiled instructions for the query engine
 			cnt::darray<Instruction> m_instructions;
+
 			//! Cached array of archetypes matching the query
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
+			//! Group data used by cache
+			cnt::darray<GroupData> m_archetypeGroupData;
+
 			//! Id of the last archetype in the world we checked
 			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
@@ -863,19 +878,46 @@ namespace gaia {
 
 							add_archetype_to_cache(pArchetype);
 						}
+
+						sort_cache_groups();
 					}
 				} else {
 					// Write the temporary matches to cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr)
 						add_archetype_to_cache(pArchetype);
+
+					sort_cache_groups();
 				}
 			}
 
-			void add_archetype_to_cache(Archetype* pArchetype) {
-				// Add archetype to cache
-				m_archetypeCache.push_back(pArchetype);
+			void sort_cache_groups() {
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
+					return;
+				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortGroups;
 
-				// Update id mappings
+				struct sort_cond {
+					bool operator()(const ArchetypeCacheData& a, const ArchetypeCacheData& b) const {
+						return a.groupId <= b.groupId;
+					}
+				};
+
+				// Archetypes in cache are ordered by groupId. Adding a new archetype
+				// possibly means rearranging the existing ones.
+				// 2 2 3 3 3 3 4 4 4 [2]
+				// -->
+				// 2 2 [2] 3 3 3 3 4 4 4
+				core::sort(m_archetypeCacheData, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					auto* pTmpArchetype = m_archetypeCache[left];
+					m_archetypeCache[left] = m_archetypeCache[right];
+					m_archetypeCache[right] = pTmpArchetype;
+
+					auto tmp = m_archetypeCacheData[left];
+					m_archetypeCacheData[left] = m_archetypeCacheData[right];
+					m_archetypeCacheData[right] = tmp;
+				});
+			}
+
+			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
 				GAIA_EACH(queryIds) {
@@ -887,12 +929,119 @@ namespace gaia {
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}
+				return cacheData;
+			}
+
+			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+				m_archetypeCache.push_back(pArchetype);
+				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
+			}
+
+			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
+
+				ArchetypeCacheData cacheData = create_cache_data(pArchetype);
+				cacheData.groupId = groupId;
+
+				if (m_archetypeGroupData.empty()) {
+					m_archetypeGroupData.push_back({groupId, 0, 0, false});
+				} else {
+					GAIA_EACH(m_archetypeGroupData) {
+						if (groupId < m_archetypeGroupData[i].groupId) {
+							// Insert the new group before one with a lower groupId.
+							// 2 3 5 10 20 25 [7]<-new group
+							// -->
+							// 2 3 5 [7] 10 20 25
+							m_archetypeGroupData.insert(
+									m_archetypeGroupData.begin() + i,
+									{groupId, m_archetypeGroupData[i].idxFirst, m_archetypeGroupData[i].idxFirst, false});
+							const auto lastGrpIdx = m_archetypeGroupData.size();
+
+							// Update ranges
+							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
+								++m_archetypeGroupData[j].idxFirst;
+								++m_archetypeGroupData[j].idxLast;
+							}
+
+							// Resort groups
+							m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+							goto groupWasFound;
+						} else if (m_archetypeGroupData[i].groupId == groupId) {
+							const auto lastGrpIdx = m_archetypeGroupData.size();
+							++m_archetypeGroupData[i].idxLast;
+
+							// Update ranges
+							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
+								++m_archetypeGroupData[j].idxFirst;
+								++m_archetypeGroupData[j].idxLast;
+								m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+							}
+
+							goto groupWasFound;
+						}
+					}
+
+					{
+						// We have a new group
+						const auto groupsCnt = m_archetypeGroupData.size();
+						if (groupsCnt == 0) {
+							// No groups exist yet, the range is {0 .. 0}
+							m_archetypeGroupData.push_back( //
+									{groupId, 0, 0, false});
+						} else {
+							const auto& groupPrev = m_archetypeGroupData[groupsCnt - 1];
+							GAIA_ASSERT(groupPrev.idxLast + 1 == m_archetypeCache.size());
+							// The new group starts where the old one ends
+							m_archetypeGroupData.push_back(
+									{groupId, //
+									 groupPrev.idxLast + 1, //
+									 groupPrev.idxLast + 1, //
+									 false});
+						}
+					}
+
+				groupWasFound:;
+				}
+
+				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
+			void add_archetype_to_cache(Archetype* pArchetype) {
+				if (m_ctx.data.groupBy != EntityBad)
+					add_archetype_to_cache_w_grouping(pArchetype);
+				else
+					add_archetype_to_cache_no_grouping(pArchetype);
+			}
+
 			void del_archetype_from_cache(uint32_t idx) {
+				auto* pArchetype = m_archetypeCache[idx];
 				core::erase_fast(m_archetypeCache, idx);
 				core::erase_fast(m_archetypeCacheData, idx);
+
+				// Update the group data if possible
+				if (m_ctx.data.groupBy != EntityBad) {
+					const auto groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
+					const auto grpIdx = core::get_index_if_unsafe(m_archetypeGroupData, [&](const GroupData& group) {
+						return group.groupId == groupId;
+					});
+					GAIA_ASSERT(grpIdx != BadIndex);
+
+					auto& currGrp = m_archetypeGroupData[idx];
+
+					// Update ranges
+					const auto lastGrpIdx = m_archetypeGroupData.size();
+					for (uint32_t j = grpIdx + 1; j < lastGrpIdx; ++j) {
+						--m_archetypeGroupData[j].idxFirst;
+						--m_archetypeGroupData[j].idxLast;
+					}
+
+					// Handle the current group. If it's about to be left empty, delete it.
+					if (currGrp.idxLast - currGrp.idxFirst > 0)
+						--currGrp.idxLast;
+					else
+						m_archetypeGroupData.erase(m_archetypeGroupData.begin() + grpIdx);
+				}
 			}
 
 			GAIA_NODISCARD World* world() {
@@ -911,6 +1060,13 @@ namespace gaia {
 			}
 			void ser_buffer_reset() {
 				m_ctx.q.ser_buffer_reset(world());
+			}
+
+			GAIA_NODISCARD QueryCtx& ctx() {
+				return m_ctx;
+			}
+			GAIA_NODISCARD const QueryCtx& ctx() const {
+				return m_ctx;
 			}
 
 			GAIA_NODISCARD const QueryCtx::Data& data() const {
@@ -988,6 +1144,16 @@ namespace gaia {
 
 			GAIA_NODISCARD ArchetypeDArray::iterator end() const {
 				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD std::span<Archetype*> cache_archetype_view() const {
+				return std::span{m_archetypeCache.data(), m_archetypeCache.size()};
+			}
+			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
+				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
+			}
+			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
+				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
 			}
 		};
 	} // namespace ecs
