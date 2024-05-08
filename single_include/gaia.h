@@ -21866,6 +21866,10 @@ namespace gaia {
 
 				template <typename T>
 				void add_cmd(T& cmd) {
+					// Make sure to invalidate if necessary.
+					if constexpr (T::InvalidatesHash)
+						invalidate();
+
 					auto& serBuffer = m_storage.ser_buffer();
 					ser::save(serBuffer, T::Id);
 					ser::save(serBuffer, T::InvalidatesHash);
@@ -21873,9 +21877,6 @@ namespace gaia {
 				}
 
 				void add_inter(QueryInput item) {
-					// Adding new query items invalidates the query
-					invalidate();
-
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
 
@@ -21933,9 +21934,6 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
-					// Adding new changed items invalidates the query
-					invalidate();
-
 					Command_AddFilter cmd{entity};
 					add_cmd(cmd);
 				}
@@ -21966,9 +21964,6 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void group_by_inter(Entity entity, TGroupByFunc func) {
-					// Adding new changed items invalidates the query
-					invalidate();
-
 					Command_GroupBy cmd{entity, func};
 					add_cmd(cmd);
 				}
@@ -22474,9 +22469,8 @@ namespace gaia {
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
 						const ArchetypeDArray& allArchetypes):
-						m_nextArchetypeId(&nextArchetypeId),
-						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
-						m_allArchetypes(&allArchetypes) {
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world, &queryCache);
 				}
 
@@ -22484,9 +22478,8 @@ namespace gaia {
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
 						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_nextArchetypeId(&nextArchetypeId),
-						m_worldVersion(&worldVersion), m_archetypes(&archetypes), m_entityToArchetypeMap(&entityToArchetypeMap),
-						m_allArchetypes(&allArchetypes) {
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world);
 				}
 
