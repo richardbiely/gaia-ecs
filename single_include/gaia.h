@@ -14706,10 +14706,8 @@ namespace gaia {
 					thread_func((void*)&ctx);
 				});
 #else
-				int ret;
-
 				pthread_attr_t attr{};
-				ret = pthread_attr_init(&attr);
+				int ret = pthread_attr_init(&attr);
 				if (ret != 0) {
 					GAIA_LOG_W("pthread_attr_init failed for worker thread %u. ErrCode = %d", workerIdx, ret);
 					return;
@@ -14993,13 +14991,19 @@ namespace gaia {
 				auto& cv = m_cv[prio];
 				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
 
+				bool ready = false;
 				while (!m_stop) {
 					JobHandle jobHandle;
-
 					if (!jobQueue.try_pop(jobHandle)) {
+						ready = true;
+
 						auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, cvLock);
 						std::unique_lock lock(mtx);
-						cv.wait(lock);
+						cv.wait(lock, [&] {
+							return ready;
+						});
+
+						ready = false;
 						continue;
 					}
 
