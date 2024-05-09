@@ -93,6 +93,16 @@ struct PositionNonTrivial {
 	PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
 };
 
+template <typename T>
+struct TypeNonTrivial {
+	T x;
+	TypeNonTrivial(): x(T(1)) {}
+	TypeNonTrivial(T xx): x(xx) {}
+	operator T() const {
+		return x;
+	}
+};
+
 static constexpr const char* StringComponentDefaultValue =
 		"StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
 static constexpr const char* StringComponentDefaultValue_2 =
@@ -356,8 +366,15 @@ void fixed_arr_test() {
 }
 
 TEST_CASE("Containers - sarr") {
-	using arr = cnt::sarr<uint32_t, 100>;
-	fixed_arr_test<arr>();
+	constexpr uint32_t N = 100;
+	using TrivialT = cnt::sarr<uint32_t, N>;
+	using NonTrivialT = cnt::sarr<TypeNonTrivial<uint32_t>, N>;
+	SECTION("trivial_types") {
+		fixed_arr_test<TrivialT>();
+	}
+	SECTION("non_trivial_types") {
+		fixed_arr_test<NonTrivialT>();
+	}
 }
 
 template <typename Container>
@@ -497,24 +514,54 @@ void resizable_arr_test(uint32_t N) {
 }
 
 TEST_CASE("Containers - sarr_ext") {
-	using arr = cnt::sarr_ext<uint32_t, 100>;
-	resizable_arr_test<arr>(100);
+	constexpr uint32_t N = 100;
+	using TrivialT = cnt::sarr_ext<uint32_t, 100>;
+	using NonTrivialT = cnt::sarr_ext<TypeNonTrivial<uint32_t>, 100>;
+	SECTION("trivial_types") {
+		resizable_arr_test<TrivialT>(N);
+	}
+	SECTION("non_trivial_types") {
+		resizable_arr_test<NonTrivialT>(N);
+	}
 }
 
 TEST_CASE("Containers - darr") {
-	using arr = cnt::darr<uint32_t>;
-	resizable_arr_test<arr>(100);
-	resizable_arr_test<arr>(10000);
+	constexpr uint32_t N = 100;
+	constexpr uint32_t M = 10000;
+	using TrivialT = cnt::darr<uint32_t>;
+	using NonTrivialT = cnt::darr<TypeNonTrivial<uint32_t>>;
+	SECTION("trivial_types") {
+		resizable_arr_test<TrivialT>(N);
+		resizable_arr_test<TrivialT>(M);
+	}
+	SECTION("non_trivial_types") {
+		resizable_arr_test<NonTrivialT>(N);
+		resizable_arr_test<NonTrivialT>(M);
+	}
 }
 
 TEST_CASE("Containers - darr_ext") {
-	using arr0 = cnt::darr_ext<uint32_t, 50>;
-	resizable_arr_test<arr0>(100);
-	resizable_arr_test<arr0>(10000);
+	constexpr uint32_t N = 100;
+	constexpr uint32_t M = 10000;
+	using TrivialT1 = cnt::darr_ext<uint32_t, 50>;
+	using TrivialT2 = cnt::darr_ext<uint32_t, 100>;
+	using NonTrivialT1 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 50>;
+	using NonTrivialT2 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 100>;
 
-	using arr1 = cnt::darr_ext<uint32_t, 100>;
-	resizable_arr_test<arr1>(100);
-	resizable_arr_test<arr1>(10000);
+	SECTION("trivial_types") {
+		resizable_arr_test<TrivialT1>(N);
+		resizable_arr_test<TrivialT1>(M);
+
+		resizable_arr_test<TrivialT2>(N);
+		resizable_arr_test<TrivialT2>(M);
+	}
+	SECTION("non_trivial_types") {
+		resizable_arr_test<NonTrivialT1>(N);
+		resizable_arr_test<NonTrivialT1>(M);
+
+		resizable_arr_test<NonTrivialT2>(N);
+		resizable_arr_test<NonTrivialT2>(M);
+	}
 }
 
 TEST_CASE("Containers - alignment check") {
@@ -6107,7 +6154,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 struct FooNonTrivial {
 	uint32_t a = 0;
 
-	explicit FooNonTrivial(uint32_t value): a(value){};
+	explicit FooNonTrivial(uint32_t value): a(value) {};
 	FooNonTrivial() noexcept = default;
 	~FooNonTrivial() = default;
 	FooNonTrivial(const FooNonTrivial&) = default;

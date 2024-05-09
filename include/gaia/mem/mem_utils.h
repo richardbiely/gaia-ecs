@@ -272,7 +272,7 @@ namespace gaia {
 				}
 				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
 				} else {
@@ -298,13 +298,13 @@ namespace gaia {
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - +n] = T(GAIA_MOV(dst[idxDst - i]));
+					GAIA_FOR(max) dst[idxDst - i + n] = T(GAIA_MOV(dst[idxDst - i]));
 				}
 				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - +n] = T(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
 				} else {
 					// Fallback to raw memory copy
 					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
