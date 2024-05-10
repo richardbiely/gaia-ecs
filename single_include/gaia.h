@@ -15418,7 +15418,7 @@ namespace gaia {
 				Identifier val;
 			};
 
-			constexpr Entity() noexcept: val(IdentifierBad){};
+			constexpr Entity() noexcept: val(IdentifierBad) {};
 
 			//! We need the entity to be braces-construcible and at the same type prevent it from
 			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
@@ -15612,6 +15612,7 @@ namespace gaia {
 		struct Error_ {};
 		struct Requires_ {};
 		struct CantCombine_ {};
+		struct Exclusive_ {};
 		struct DependsOn_ {};
 		struct Acyclic_ {};
 		struct All_ {};
@@ -15635,18 +15636,19 @@ namespace gaia {
 		// Entity dependencies
 		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
+		inline Entity Exclusive = Entity(10, false, false, false, EntityKind::EK_Gen);
 		//! Graph restrictions
-		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(11, false, false, false, EntityKind::EK_Gen);
 		//! Wildcard query entity
-		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Entity representing a physical hierarchy.
 		//! When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		//! Systems
-		inline Entity System2 = Entity(14, false, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(15, false, false, false, EntityKind::EK_Gen);
+		inline Entity System2 = Entity(15, false, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(16, false, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = DependsOn;
@@ -17201,9 +17203,10 @@ namespace gaia {
 			OnDeleteTarget_Error = 1 << 5,
 			HasAcyclic = 1 << 6,
 			HasCantCombine = 1 << 7,
-			HasAliasOf = 1 << 8,
-			IsSingleton = 1 << 9,
-			DeleteRequested = 1 << 10,
+			IsExclusive = 1 << 8,
+			HasAliasOf = 1 << 9,
+			IsSingleton = 1 << 10,
+			DeleteRequested = 1 << 11,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -20121,6 +20124,13 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
 					return m_pChunk->has(entity);
+				}
+
+				//! Checks if relationship pair \param pair is present in the chunk.
+				//! \param pair Relationship pair
+				//! \return True if the component is present. False otherwise.
+				GAIA_NODISCARD bool has(Pair pair) const {
+					return m_pChunk->has((Entity)pair);
 				}
 
 				//! Checks if component \tparam T is present in the chunk.
@@ -23161,21 +23171,72 @@ namespace gaia {
 				bool handle_add_entity(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
 
-					// Handle entity combination that can't be together
-					{
-						const auto& ec = m_world.fetch(entity);
-						if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
-							m_world.targets(entity, CantCombine, [&targets](Entity target) {
-								targets.push_back(target);
-							});
-							for (auto e: targets) {
-								if (m_pArchetype->has(e)) {
+					const auto& ec = m_world.fetch(entity);
+
+					// Handle entity combinations that can't be together
+					if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
+						m_world.targets(entity, CantCombine, [&targets](Entity target) {
+							targets.push_back(target);
+						});
+						for (auto e: targets) {
+							if (m_pArchetype->has(e)) {
 #if GAIA_ASSERT_ENABLED
-									GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
+								GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
+								print_archetype_entities(m_world, *m_pArchetype, entity, true);
+#endif
+								return false;
+							}
+						}
+					}
+
+					// Handle exclusivity
+					if (entity.pair()) {
+						// Check if (rel, tgt)'s rel part is exclusive
+						const auto& ec = m_world.m_recs.entities[entity.id()];
+						if ((ec.flags & EntityContainerFlags::IsExclusive) != 0) {
+							auto rel = Entity(entity.id(), ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+							auto tgt = m_world.get(entity.gen());
+
+							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
+							// However, before that we need to make sure there only exists one target at most.
+							targets.clear();
+							m_world.targets_if(m_entity, rel, [&targets](Entity target) {
+								targets.push_back(target);
+								// Stop the moment we have more than 1 target. This kind of scenario is not supported
+								// and can happen only if Exclusive is added after multiple relationships already exist.
+								return targets.size() < 2;
+							});
+
+							const auto sz = targets.size();
+							if (sz > 1) {
+#if GAIA_ASSERT_ENABLED
+								GAIA_ASSERT2(
+										false, "Trying to add a pair with exclusive relationship but there are multiple targets present. "
+													 "Make sure to add the Exclusive property before any relationships with it are created.");
+								print_archetype_entities(m_world, *m_pArchetype, entity, true);
+#endif
+								return false;
+							}
+
+							// Remove the previous relationship if possible.
+							// We avoid self-removal.
+							const auto tgtNew = *targets.begin();
+							if (sz == 1 && tgt != tgtNew) {
+								// Exlusive relationship replaces the previous one.
+								// We need to check if the old one can be removed.
+								// This is what del_inter does on the inside.
+								// It first checks if entity can be deleted and calls handle_del afterwards.
+								if (!can_del(entity)) {
+#if GAIA_ASSERT_ENABLED
+									GAIA_ASSERT2(
+											false, "Trying to replace an exclusive relationship but the entity which is getting removed has "
+														 "dependencies.");
 									print_archetype_entities(m_world, *m_pArchetype, entity, true);
 #endif
 									return false;
 								}
+
+								handle_del(ecs::Pair(rel, tgtNew));
 							}
 						}
 					}
@@ -23228,6 +23289,7 @@ namespace gaia {
 					try_set_Is(ec, entity, enable);
 					try_set_CantCombine(ec, entity, enable);
 
+					try_set_IsExclusive(ecMain, entity, enable);
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
 
@@ -23246,6 +23308,13 @@ namespace gaia {
 						return;
 
 					updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, enable);
+				}
+
+				void try_set_IsExclusive(EntityContainer& ec, Entity entity, bool enable) {
+					if (entity.pair() || entity.id() != Exclusive.id())
+						return;
+
+					updateFlag(ec.flags, EntityContainerFlags::IsExclusive, enable);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -23425,11 +23494,19 @@ namespace gaia {
 					handle_add<true>(entity);
 				}
 
-				void del_inter(Entity entity) {
+				GAIA_NODISCARD bool can_del(Entity entity) const {
 					if (has_Requires_tgt(entity))
-						return;
+						return false;
+
+					return true;
+				}
+
+				bool del_inter(Entity entity) {
+					if (!can_del(entity))
+						return false;
 
 					handle_del(entity);
+					return true;
 				}
 			};
 
@@ -26472,6 +26549,7 @@ namespace gaia {
 				(void)reg_core_entity<Error_>(Error);
 				(void)reg_core_entity<Requires_>(Requires);
 				(void)reg_core_entity<CantCombine_>(CantCombine);
+				(void)reg_core_entity<Exclusive_>(Exclusive);
 				(void)reg_core_entity<Acyclic_>(Acyclic);
 				(void)reg_core_entity<All_>(All);
 				(void)reg_core_entity<ChildOf_>(ChildOf);
@@ -26492,9 +26570,11 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, OnDelete) //
 						.add(Core)
+						.add(Exclusive)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, OnDeleteTarget) //
 						.add(Core)
+						.add(Exclusive)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Remove) //
 						.add(Core)
@@ -26510,9 +26590,13 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Requires) //
 						.add(Core)
-						.add(Pair(OnDelete, Error))
-						.add(Acyclic);
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, CantCombine) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Exclusive) //
 						.add(Core)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
@@ -26522,6 +26606,7 @@ namespace gaia {
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
 						.add(Acyclic)
+						.add(Exclusive)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
 				EntityBuilder(*this, Is) //
@@ -26530,12 +26615,12 @@ namespace gaia {
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, System2) //
 						.add(Core)
-						.add(Pair(OnDelete, Error))
-						.add(Acyclic);
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, DependsOn) //
 						.add(Core)
-						.add(Pair(OnDelete, Error))
-						.add(Acyclic);
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
 			}
 
 			// Remove all archetypes with no chunks. We don't want any leftovers after

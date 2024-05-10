@@ -2961,6 +2961,62 @@ TEST_CASE("Relationship") {
 			REQUIRE(i == 3);
 		}
 	}
+
+	SECTION("Exclusive") {
+		TestWorld twld;
+
+		auto on = wld.add();
+		auto off = wld.add();
+
+		auto toggled = wld.add();
+		wld.add(toggled, ecs::Exclusive);
+
+		auto wallSwitch = wld.add();
+		wld.add(wallSwitch, {toggled, on});
+		REQUIRE(wld.has(wallSwitch, {toggled, on}));
+		REQUIRE_FALSE(wld.has(wallSwitch, {toggled, off}));
+		wld.add(wallSwitch, {toggled, off});
+		REQUIRE_FALSE(wld.has(wallSwitch, {toggled, on}));
+		REQUIRE(wld.has(wallSwitch, {toggled, off}));
+
+		{
+			auto q = wld.query().all(ecs::Pair(toggled, on));
+			const auto cnt = q.count();
+			REQUIRE(cnt == 0);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Iter& it) {
+				++i;
+			});
+			REQUIRE(i == 0);
+		}
+		{
+			auto q = wld.query().all(ecs::Pair(toggled, off));
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Iter& it) {
+				++i;
+			});
+			REQUIRE(i == 1);
+		}
+		{
+			auto q = wld.query().all(ecs::Pair(toggled, ecs::All));
+			const auto cnt = q.count();
+			REQUIRE(cnt == 1);
+
+			uint32_t i = 0;
+			q.each([&](ecs::Iter& it) {
+				const bool hasOn = it.has({toggled, on});
+				const bool hasOff = it.has({toggled, off});
+				REQUIRE_FALSE(hasOn);
+				REQUIRE(hasOff);
+				++i;
+			});
+			REQUIRE(i == 1);
+		}
+	}
 }
 
 TEST_CASE("Relationship target/relation") {

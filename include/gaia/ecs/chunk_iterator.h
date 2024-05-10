@@ -175,6 +175,13 @@ namespace gaia {
 					return m_pChunk->has(entity);
 				}
 
+				//! Checks if relationship pair \param pair is present in the chunk.
+				//! \param pair Relationship pair
+				//! \return True if the component is present. False otherwise.
+				GAIA_NODISCARD bool has(Pair pair) const {
+					return m_pChunk->has((Entity)pair);
+				}
+
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.

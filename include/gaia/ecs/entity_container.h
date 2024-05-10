@@ -29,9 +29,10 @@ namespace gaia {
 			OnDeleteTarget_Error = 1 << 5,
 			HasAcyclic = 1 << 6,
 			HasCantCombine = 1 << 7,
-			HasAliasOf = 1 << 8,
-			IsSingleton = 1 << 9,
-			DeleteRequested = 1 << 10,
+			IsExclusive = 1 << 8,
+			HasAliasOf = 1 << 9,
+			IsSingleton = 1 << 10,
+			DeleteRequested = 1 << 11,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {

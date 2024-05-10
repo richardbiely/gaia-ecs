@@ -261,7 +261,7 @@ namespace gaia {
 				Identifier val;
 			};
 
-			constexpr Entity() noexcept: val(IdentifierBad){};
+			constexpr Entity() noexcept: val(IdentifierBad) {};
 
 			//! We need the entity to be braces-construcible and at the same type prevent it from
 			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
@@ -455,6 +455,7 @@ namespace gaia {
 		struct Error_ {};
 		struct Requires_ {};
 		struct CantCombine_ {};
+		struct Exclusive_ {};
 		struct DependsOn_ {};
 		struct Acyclic_ {};
 		struct All_ {};
@@ -478,18 +479,19 @@ namespace gaia {
 		// Entity dependencies
 		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
+		inline Entity Exclusive = Entity(10, false, false, false, EntityKind::EK_Gen);
 		//! Graph restrictions
-		inline Entity Acyclic = Entity(10, false, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(11, false, false, false, EntityKind::EK_Gen);
 		//! Wildcard query entity
-		inline Entity All = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		//! Entity representing a physical hierarchy.
 		//! When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
 		//! Alias for a base entity
-		inline Entity Is = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		//! Systems
-		inline Entity System2 = Entity(14, false, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(15, false, false, false, EntityKind::EK_Gen);
+		inline Entity System2 = Entity(15, false, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(16, false, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = DependsOn;

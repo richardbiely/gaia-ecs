@@ -73,8 +73,9 @@
   * [Relationships](#relationships)
     * [Basics](#basics)
     * [Entity dependencies](#entity-dependencies)
-    * [Entity constraints](#entity-constraints)
-    * [Entity aliasing](#entity-aliasing)
+    * [Combination constraints](#combination-constraints)
+    * [Exclusivity](#exclusivity)
+    * [Entity inheritance](#entity-inheritance)
     * [Targets](#targets)
     * [Relations](#relations)
     * [Cleanup rules](#cleanup-rules)
@@ -1063,7 +1064,7 @@ w.del(rabbit, herbivore); // does nothing
 w.del(rabbit, carrot); // removes carrot from rabbit
 ```
 
-### Entity constraints
+### Combination constraints
 Entity constrains are used to define what entities can not be combined with others.
 
 ```cpp
@@ -1076,6 +1077,27 @@ ecs::Entity e = w.add();
 w.add(e, strong);
 // Following line is an invalid operation.
 w.add(e, weak);
+```
+
+### Exclusivity
+Entities can be defined as exclusive. This means that only one relationship with this entity as a relation can exist. Any attempts to create a relationship with a different target replaces the previous relationship.
+
+```cpp
+ecs::World w;
+// Helper entities defining the state of a wall switch
+ecs::Entity on = w.add();
+ecs::Entity off = w.add();
+// Create the "toggled" entity and define it as exclusive
+ecs::Entity toggled = w.add();
+w.add(toggled, ecs::Exclusive);
+
+// Create a wall switch entity. There can be only one relationship with {toggled, *} now.
+// Therefore, adding {toggled, off} overrides the previous {toggled, on}.
+ecs::Entity wallSwitch = w.add();
+w.add(wallSwitch, ecs::Pair(toggled, on));
+bool isSwitched = w.has(wallSwitch, ecs::Pair{toggled, on}); // true
+w.add(wallSwitch, ecs::Pair(toggled, off));
+isSwitched = w.has(wallSwitch, ecs::Pair{toggled, on}); // false
 ```
 
 ### Entity inheritance
