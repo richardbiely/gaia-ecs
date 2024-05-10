@@ -149,17 +149,45 @@ struct Dummy1 {
 	}
 };
 
-TEST_CASE("StringLookupKey") {
-	constexpr uint32_t MaxLen = 32;
-	char tmp0[MaxLen];
-	char tmp1[MaxLen];
-	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
-	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
-	core::StringLookupKey<128> l0(tmp0);
-	core::StringLookupKey<128> l1(tmp1);
-	REQUIRE(l0.len() == l1.len());
-	// Two different addresses in memory have to return the same hash if the string is the same
-	REQUIRE(l0.hash() == l1.hash());
+GAIA_DEFINE_HAS_FUNCTION(some_func_local)
+struct HasFuncDummy {
+	void some_func_local(int, float*, short&) {}
+};
+void some_func_global(int, float*, short&) {}
+
+TEST_CASE("has_XYZ_check") {
+	SECTION("member_func") {
+		constexpr auto hasFunc1_0 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int);
+		constexpr auto hasFunc1_1 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float, short);
+		constexpr auto hasFunc1_2 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short);
+		constexpr auto hasFunc1_3 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short*);
+		constexpr auto hasFunc1_4 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short&);
+		constexpr auto hasFunc1_5 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float&, short&);
+		constexpr auto hasFunc1_6 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int&, float&, short&);
+		REQUIRE_FALSE(hasFunc1_0);
+		REQUIRE_FALSE(hasFunc1_1);
+		REQUIRE_FALSE(hasFunc1_2);
+		REQUIRE_FALSE(hasFunc1_3);
+		REQUIRE(hasFunc1_4);
+		REQUIRE_FALSE(hasFunc1_5);
+		REQUIRE_FALSE(hasFunc1_6);
+	}
+	SECTION("global_func") {
+		constexpr auto hasFunc1_0 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int);
+		constexpr auto hasFunc1_1 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float, short);
+		constexpr auto hasFunc1_2 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short);
+		constexpr auto hasFunc1_3 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short*);
+		constexpr auto hasFunc1_4 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short&);
+		constexpr auto hasFunc1_5 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float&, short&);
+		constexpr auto hasFunc1_6 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int&, float&, short&);
+		REQUIRE_FALSE(hasFunc1_0);
+		REQUIRE_FALSE(hasFunc1_1);
+		REQUIRE_FALSE(hasFunc1_2);
+		REQUIRE_FALSE(hasFunc1_3);
+		REQUIRE(hasFunc1_4);
+		REQUIRE_FALSE(hasFunc1_5);
+		REQUIRE_FALSE(hasFunc1_6);
+	}
 }
 
 TEST_CASE("has_XYZ_equals_check") {
@@ -183,6 +211,19 @@ TEST_CASE("has_XYZ_equals_check") {
 		REQUIRE_FALSE(hasGlobal);
 		REQUIRE_FALSE(hasFoo);
 	}
+}
+
+TEST_CASE("StringLookupKey") {
+	constexpr uint32_t MaxLen = 32;
+	char tmp0[MaxLen];
+	char tmp1[MaxLen];
+	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
+	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
+	core::StringLookupKey<128> l0(tmp0);
+	core::StringLookupKey<128> l1(tmp1);
+	REQUIRE(l0.len() == l1.len());
+	// Two different addresses in memory have to return the same hash if the string is the same
+	REQUIRE(l0.hash() == l1.hash());
 }
 
 TEST_CASE("Intrinsics") {

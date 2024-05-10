@@ -12,13 +12,13 @@ namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
-	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t)-1)
+	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t) - 1)
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
 		{                                                                                                                  \
 			strncpy((var), (text), (max_len));                                                                               \
-			(var)[(max_len)-1] = 0;                                                                                          \
+			(var)[(max_len) - 1] = 0;                                                                                        \
 		}
 	#define GAIA_STRFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
 #endif
@@ -287,26 +287,37 @@ namespace gaia {
 
 		namespace detail {
 			template <class Default, class AlwaysVoid, template <class...> class Op, class... Args>
-			struct detector {
+			struct member_func_checker {
 				using value_t = std::false_type;
 				using type = Default;
 			};
 
 			template <class Default, template <class...> class Op, class... Args>
-			struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+			struct member_func_checker<Default, std::void_t<Op<Args...>>, Op, Args...> {
 				using value_t = std::true_type;
 				using type = Op<Args...>;
 			};
 
-			struct nonesuch {
-				~nonesuch() = delete;
-				nonesuch(nonesuch const&) = delete;
-				void operator=(nonesuch const&) = delete;
+			struct member_func_none {
+				~member_func_none() = delete;
+				member_func_none(member_func_none const&) = delete;
+				void operator=(member_func_none const&) = delete;
 			};
 		} // namespace detail
 
-		template <template <class...> class Op, class... Args>
-		using is_detected = typename detail::detector<detail::nonesuch, void, Op, Args...>::value_t;
+		template <template <class...> class Op, typename... Args>
+		using has_member_func = typename detail::member_func_checker<detail::member_func_none, void, Op, Args...>::value_t;
+
+		template <typename Func, typename... Args>
+		struct has_global_func {
+			template <typename F, typename... A>
+			static auto test(F&& f, A&&... args) -> decltype(GAIA_FWD(f)(GAIA_FWD(args)...), std::true_type{});
+
+			template <typename...>
+			static std::false_type test(...);
+
+			static constexpr bool value = decltype(test(std::declval<Func>(), std::declval<Args>()...))::value;
+		};
 
 #define GAIA_DEFINE_HAS_FUNCTION(function_name)                                                                        \
 	template <typename T, typename... Args>                                                                              \
@@ -314,8 +325,27 @@ namespace gaia {
                                                                                                                        \
 	template <typename T, typename... Args>                                                                              \
 	struct has_##function_name {                                                                                         \
-		static constexpr bool value = gaia::core::is_detected<has_##function_name##_check, T, Args...>::value;             \
+		static constexpr bool value = gaia::core::has_member_func<has_##function_name##_check, T, Args...>::value;         \
 	};
+
+#define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)                                                                    \
+	gaia::core::has_member_func<has_##function_name##_check, T, __VA_ARGS__>::value
+
+		// TODO: Try replacing the above with following:
+		//
+		//       #define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)
+		//         gaia::core::has_member_func<
+		//           decltype(std::declval<T>().function_name(std::declval<Args>()...)),
+		//					 T, __VA_ARGS__
+		//         >::value
+		//
+		//       This way we could drop GAIA_DEFINE_HAS. However, the issue is that std::declval<Args>
+		//       would have to be replaced with a variadic macro that expands into a seriers
+		//       of std::declval<Arg> which is very inconvenient to do and always has a hard limit
+		//       on the number of arguments which is super limiting.
+
+#define GAIA_HAS_GLOBAL_FUNC(function_name, ...)                                                                       \
+	gaia::core::has_global_func<decltype(&function_name), __VA_ARGS__>::value
 
 		GAIA_DEFINE_HAS_FUNCTION(find)
 		GAIA_DEFINE_HAS_FUNCTION(find_if)
@@ -323,14 +353,14 @@ namespace gaia {
 
 		namespace detail {
 			template <typename T>
-			constexpr auto has_member_equals_check(int)
-					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
+			constexpr auto
+			has_member_equals_check(int) -> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
 			constexpr std::false_type has_member_equals_check(...);
 
 			template <typename T>
-			constexpr auto has_global_equals_check(int)
-					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
+			constexpr auto
+			has_global_equals_check(int) -> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
 			constexpr std::false_type has_global_equals_check(...);
 		} // namespace detail
