@@ -326,9 +326,9 @@ namespace gaia {
 					// Handle exclusivity
 					if (entity.pair()) {
 						// Check if (rel, tgt)'s rel part is exclusive
-						const auto& ec = m_world.m_recs.entities[entity.id()];
-						if ((ec.flags & EntityContainerFlags::IsExclusive) != 0) {
-							auto rel = Entity(entity.id(), ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+						const auto& ecRel = m_world.m_recs.entities[entity.id()];
+						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
+							auto rel = Entity(entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (EntityKind)ecRel.kind);
 							auto tgt = m_world.get(entity.gen());
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
