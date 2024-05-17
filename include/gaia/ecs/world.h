@@ -700,7 +700,7 @@ namespace gaia {
 				constexpr auto kind = CT::Kind;
 
 				const auto* pItem = comp_cache().find<FT>();
-				GAIA_ASSSERT(pItem != nullptr);
+				GAIA_ASSERT(pItem != nullptr);
 				return pItem->entity;
 			}
 
