@@ -15633,8 +15633,10 @@ namespace gaia {
 		// Core components
 		//----------------------------------------------------------------------
 
-		//! Core component. The entity it is attached to is ignored by queries
+		// Core component. The entity it is attached to is ignored by queries
 		struct Core_ {};
+		// struct EntityDesc;
+		// struct Component;
 		struct OnDelete_ {};
 		struct OnDeleteTarget_ {};
 		struct Remove_ {};
@@ -15643,17 +15645,28 @@ namespace gaia {
 		struct Requires_ {};
 		struct CantCombine_ {};
 		struct Exclusive_ {};
-		struct DependsOn_ {};
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 		struct Is_ {};
+		// struct System2_;
+		struct DependsOn_ {};
+
+		// Query variables
+		struct _Var0 {};
+		struct _Var1 {};
+		struct _Var2 {};
+		struct _Var3 {};
+		struct _Var4 {};
+		struct _Var5 {};
+		struct _Var6 {};
+		struct _Var7 {};
 
 		//----------------------------------------------------------------------
 		// Core component entities
 		//----------------------------------------------------------------------
 
-		//! Core component. The entity it is attached to is ignored by queries
+		// Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
@@ -15667,21 +15680,30 @@ namespace gaia {
 		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, false, false, false, EntityKind::EK_Gen);
-		//! Graph restrictions
+		// Graph restrictions
 		inline Entity Acyclic = Entity(11, false, false, false, EntityKind::EK_Gen);
-		//! Wildcard query entity
+		// Wildcard query entity
 		inline Entity All = Entity(12, 0, false, false, EntityKind::EK_Gen);
-		//! Entity representing a physical hierarchy.
-		//! When the relationship target is deleted all children are deleted as well.
+		// Entity representing a physical hierarchy.
+		// When the relationship target is deleted all children are deleted as well.
 		inline Entity ChildOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
-		//! Alias for a base entity
+		// Alias for a base entity
 		inline Entity Is = Entity(14, 0, false, false, EntityKind::EK_Gen);
-		//! Systems
-		inline Entity System2 = Entity(15, false, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(16, false, false, false, EntityKind::EK_Gen);
+		// Systems
+		inline Entity System2 = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		// Query variables
+		inline Entity Var0 = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(24, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = DependsOn;
+		inline Entity GAIA_ID(LastCoreComponent) = Var7;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -15697,6 +15719,10 @@ namespace gaia {
 
 		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
+		}
+
+		GAIA_NODISCARD inline bool is_variable(Entity entity) {
+			return entity.id() <= Var7.id() && entity.id() >= Var0.id();
 		}
 
 	} // namespace ecs
@@ -19702,6 +19728,8 @@ namespace gaia {
 		enum class QueryOp : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
+		//! Operation flags
+		enum class QueryInputFlags : uint8_t { None, Variable };
 
 		GAIA_GCC_WARNING_POP()
 
@@ -19807,10 +19835,10 @@ namespace gaia {
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
-				uint32_t as_mask;
+				uint32_t as_mask_0;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the second part (gen) is written here.
-				uint32_t as_mask_2;
+				uint32_t as_mask_1;
 				//! First NOT record in pairs/ids/ops
 				uint8_t firstNot;
 				//! First ANY record in pairs/ids/ops
@@ -19899,8 +19927,8 @@ namespace gaia {
 
 				// Make sure masks remains correct after sorting
 				core::swap_bits(data.readWriteMask, left, right);
-				core::swap_bits(data.as_mask, left, right);
-				core::swap_bits(data.as_mask_2, left, right);
+				core::swap_bits(data.as_mask_0, left, right);
+				core::swap_bits(data.as_mask_1, left, right);
 			});
 
 			// Update remapping indices.
@@ -20407,6 +20435,18 @@ namespace gaia {
 				bool needsSorting;
 			};
 
+			struct MatchingCtx {
+				const EntityToArchetypeMap* pEntityToArchetypeMap;
+				const ArchetypeDArray* pAllArchetypes;
+				cnt::set<Archetype*>* pMatchesSet;
+				ArchetypeDArray* pMatchesArr;
+
+				Entity ent;
+				EntitySpan idsToMatch;
+				uint32_t as_mask_0;
+				uint32_t as_mask_1;
+			};
+
 			//! Query context
 			QueryCtx m_ctx;
 			//! Compiled instructions for the query engine
@@ -20568,7 +20608,7 @@ namespace gaia {
 
 						const auto e = entity_from_id(*m_ctx.w, idInQuery.gen());
 
-						// If the archetype entity is an (Is, X) pair treat is as X and try matching it with
+						// If the archetype entity is an (Is, X) pair treat Is as X and try matching it with
 						// entities inheriting from e.
 						if (idInArchetype.id() == Is.id()) {
 							const auto e2 = entity_from_id(*m_ctx.w, idInArchetype.gen());
@@ -20806,29 +20846,31 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
-			void match_archetype_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
-					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
+			void match_archetype_all(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
 				}
 
 				// For simple cases it is enough to add archetypes to cache right away
-				if (idsToMatch.size() == 1) {
+				if (ctx.idsToMatch.size() == 1) {
 					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
 						auto* pArchetype = archetypes[a];
 						matchesArr.emplace_back(pArchetype);
@@ -20839,7 +20881,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_all(*pArchetype, idsToMatch))
+						if (!match_all(*pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -20848,19 +20890,21 @@ namespace gaia {
 				}
 			}
 
-			void match_archetype_all_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
+			void match_archetype_all_as(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				const auto& allArchetypes = *ctx.pAllArchetypes;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
-
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
-				if (ent.id() == Is.id()) {
-					ent = EntityBad;
+				if (ctx.ent.id() == Is.id()) {
+					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -20869,10 +20913,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -20893,7 +20937,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (!match_all_backtrack(*pArchetype, idsToMatch))
+					if (!match_all_backtrack(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -20902,30 +20946,33 @@ namespace gaia {
 				//}
 			}
 
-			void match_archetype_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, cnt::set<Archetype*>& matchesSet,
-					ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
+			void match_archetype_one(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				const auto& allArchetypes = *ctx.pAllArchetypes;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
 				}
 
 				// For simple cases it is enough to add archetypes to cache right away
-				if (idsToMatch.size() == 1) {
+				if (ctx.idsToMatch.size() == 1) {
 					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
 						auto* pArchetype = archetypes[a];
 
@@ -20939,7 +20986,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_one(*pArchetype, idsToMatch))
+						if (!match_one(*pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -20948,20 +20995,23 @@ namespace gaia {
 				}
 			}
 
-			void match_archetype_one_as(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch) {
+			void match_archetype_one_as(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				const auto& allArchetypes = *ctx.pAllArchetypes;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
 
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
-				if (ent.id() == Is.id()) {
-					ent = EntityBad;
+				if (ctx.ent.id() == Is.id()) {
+					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ent));
+					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -20970,10 +21020,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -20994,7 +21044,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (!match_one_backtrack(*pArchetype, idsToMatch))
+					if (!match_one_backtrack(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -21003,9 +21053,12 @@ namespace gaia {
 				//}
 			}
 
-			void match_archetype_no(
-					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
-					EntitySpan idsToMatch) {
+			void match_archetype_no(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				const auto& archetypes = *ctx.pAllArchetypes;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
@@ -21022,7 +21075,7 @@ namespace gaia {
 					auto* pArchetype = archetypes[a];
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (match_one(*pArchetype, idsToMatch))
+					if (match_one(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -21030,9 +21083,12 @@ namespace gaia {
 				}
 			}
 
-			void match_archetype_no_as(
-					const ArchetypeDArray& archetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
-					EntitySpan idsToMatch) {
+			void match_archetype_no_as(MatchingCtx& ctx) {
+				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
+				const auto& archetypes = *ctx.pAllArchetypes;
+				auto& matchesArr = *ctx.pMatchesArr;
+				auto& matchesSet = *ctx.pMatchesSet;
+
 				// For NO we need to search among all archetypes.
 				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
@@ -21050,7 +21106,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (match_one_backtrack(*pArchetype, idsToMatch))
+					if (match_one_backtrack(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -21058,57 +21114,47 @@ namespace gaia {
 				}
 			}
 
-			void do_match_all(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
-					uint32_t as_mask_0, uint32_t as_mask_1) {
+			void do_match_all(MatchingCtx& ctx) {
 				// First viable item is not related to an Is relationship
-				if (as_mask_0 + as_mask_1 == 0U) {
-					match_archetype_all(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+					match_archetype_all(ctx);
 				} else
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes and evaluate one-by-one (backtracking).
 				{
-					match_archetype_all_as(entityToArchetypeMap, allArchetypes, matchesSet, matchesArr, ent, idsToMatch);
+					match_archetype_all_as(ctx);
 				}
 			}
 
-			void do_match_one(
-					const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
-					cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr, Entity ent, EntitySpan idsToMatch,
-					uint32_t as_mask_0, uint32_t as_mask_1) {
+			void do_match_one(MatchingCtx& ctx) {
 				// First viable item is not related to an Is relationship
-				if (as_mask_0 + as_mask_1 == 0U) {
-					match_archetype_one(entityToArchetypeMap, matchesSet, matchesArr, ent, idsToMatch);
+				if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+					match_archetype_one(ctx);
 				}
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes.
 				else {
-					match_archetype_one_as(entityToArchetypeMap, allArchetypes, matchesSet, matchesArr, ent, idsToMatch);
+					match_archetype_one_as(ctx);
 				}
 			}
 
-			bool do_match_one(const Archetype& archetype, EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
+			bool do_match_one(MatchingCtx& ctx, const Archetype& archetype) {
 				// First viable item is not related to an Is relationship
-				if (as_mask_0 + as_mask_1 == 0U) {
-					return match_one(archetype, idsToMatch);
-				}
+				if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
+					return match_one(archetype, ctx.idsToMatch);
+
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes.
-				else {
-					return match_one_backtrack(archetype, idsToMatch);
-				}
+				return match_one_backtrack(archetype, ctx.idsToMatch);
 			}
 
-			void do_match_no(
-					const ArchetypeDArray& allArchetypes, cnt::set<Archetype*>& matchesSet, ArchetypeDArray& matchesArr,
-					EntitySpan idsToMatch, uint32_t as_mask_0, uint32_t as_mask_1) {
-				matchesSet.clear();
+			void do_match_no(MatchingCtx& ctx) {
+				ctx.pMatchesSet->clear();
 
-				if (as_mask_0 + as_mask_1 == 0U)
-					match_archetype_no(allArchetypes, matchesSet, matchesArr, idsToMatch);
+				if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
+					match_archetype_no(ctx);
 				else
-					match_archetype_no_as(allArchetypes, matchesSet, matchesArr, idsToMatch);
+					match_archetype_no_as(ctx);
 			}
 
 			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
@@ -21120,12 +21166,12 @@ namespace gaia {
 					const ArchetypeDArray& allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
-				static cnt::set<Archetype*> s_tmpArchetypeMatches;
+				static cnt::set<Archetype*> s_tmpArchetypeMatchesSet;
 				static ArchetypeDArray s_tmpArchetypeMatchesArr;
 
 				struct CleanUpTmpArchetypeMatches {
 					~CleanUpTmpArchetypeMatches() {
-						s_tmpArchetypeMatches.clear();
+						s_tmpArchetypeMatchesSet.clear();
 						s_tmpArchetypeMatchesArr.clear();
 					}
 				} autoCleanup;
@@ -21151,6 +21197,14 @@ namespace gaia {
 				QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
 				QueryTermSpan terms_not = terms.subspan(data.firstNot);
 
+				MatchingCtx ctx;
+				ctx.pAllArchetypes = &allArchetypes;
+				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
+				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.as_mask_0 = data.as_mask_0;
+				ctx.as_mask_1 = data.as_mask_1;
+
 				for (const auto& inst: m_instructions) {
 					switch (inst.op) {
 						case QueryOp::All:
@@ -21166,10 +21220,9 @@ namespace gaia {
 				}
 
 				if (!ids_all.empty()) {
-					do_match_all(
-							entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, //
-							ids_all[0], std::span{ids_all.data(), ids_all.size()}, //
-							data.as_mask, data.as_mask_2);
+					ctx.ent = ids_all[0];
+					ctx.idsToMatch = std::span{ids_all.data(), ids_all.size()};
+					do_match_all(ctx);
 
 					// No ALL matches were found. We can quit right away.
 					if (s_tmpArchetypeMatchesArr.empty())
@@ -21177,16 +21230,16 @@ namespace gaia {
 				}
 
 				if (!terms_any.empty()) {
+					ctx.idsToMatch = std::span{ids_any.data(), ids_any.size()};
+
 					if (ids_all.empty()) {
 						// We didn't try to match any ALL items.
 						// We need to search among all archetypes.
 
 						// Try find matches with optional components.
 						GAIA_EACH(ids_any) {
-							do_match_one(
-									entityToArchetypeMap, allArchetypes, s_tmpArchetypeMatches, s_tmpArchetypeMatchesArr, //
-									ids_any[i], std::span{ids_any.data(), ids_any.size()}, //
-									data.as_mask, data.as_mask_2);
+							ctx.ent = ids_any[i];
+							do_match_one(ctx);
 						}
 					} else {
 						// We tried to match ALL items. Only search among those we already found.
@@ -21196,10 +21249,7 @@ namespace gaia {
 							auto* pArchetype = s_tmpArchetypeMatchesArr[i];
 
 							GAIA_FOR_((uint32_t)ids_any.size(), j) {
-								if (do_match_one(
-												*pArchetype, //
-												std::span{ids_any.data(), ids_any.size()}, //
-												data.as_mask, data.as_mask_2))
+								if (do_match_one(ctx, *pArchetype))
 									goto checkNextArchetype;
 							}
 
@@ -21213,34 +21263,37 @@ namespace gaia {
 					}
 				}
 
-				// Make sure there is no match with NOT items.
-				if (!terms_not.empty()) {
-					// We searched for nothing more than NOT matches
-					if (s_tmpArchetypeMatchesArr.empty()) {
-						do_match_no(
-								allArchetypes, s_tmpArchetypeMatches, m_archetypeCache, //
-								std::span{ids_not.data(), ids_not.size()}, //
-								data.as_mask, data.as_mask_2);
-					} else {
-						// Write the temporary matches to cache if no match with NO is found
-						for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-							if (match_one(
-											*pArchetype, //
-											std::span{ids_not.data(), ids_not.size()}))
-								continue;
-
-							add_archetype_to_cache(pArchetype);
-						}
-
-						sort_cache_groups();
-					}
-				} else {
+				auto addTmpArchetypesToCache = [&]() {
 					// Write the temporary matches to cache
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr)
 						add_archetype_to_cache(pArchetype);
+				};
+				auto addTmpArchetypesToCacheIfNoMatch = [&]() {
+					// Write the temporary matches to cache if no match with NO is found
+					for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
+						if (match_one(*pArchetype, ctx.idsToMatch))
+							continue;
+						add_archetype_to_cache(pArchetype);
+					}
+				};
 
-					sort_cache_groups();
+				// Make sure there is no match with NOT items.
+				if (!terms_not.empty()) {
+					ctx.idsToMatch = std::span{ids_not.data(), ids_not.size()};
+
+					// We searched for nothing more than NOT matches
+					if (s_tmpArchetypeMatchesArr.empty()) {
+						do_match_no(ctx);
+						addTmpArchetypesToCache();
+					} else {
+						addTmpArchetypesToCacheIfNoMatch();
+					}
+				} else {
+					addTmpArchetypesToCache();
 				}
+
+				// Sort cache groups if necessary
+				sort_cache_groups();
 			}
 
 			void sort_cache_groups() {
@@ -21715,18 +21768,18 @@ namespace gaia {
 						//       might need to want to cache different archetypes (add some, delete others).
 						if (!item.id.pair()) {
 							const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
-							data.as_mask |= (has_as << (uint8_t)ids.size());
+							data.as_mask_0 |= (has_as << (uint8_t)ids.size());
 						} else {
 							if (!is_wildcard(item.id.id())) {
 								const auto e = entity_from_id(*ctx.w, item.id.id());
 								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask |= (has_as << (uint8_t)ids.size());
+								data.as_mask_0 |= (has_as << (uint8_t)ids.size());
 							}
 
 							if (!is_wildcard(item.id.gen())) {
 								const auto e = entity_from_id(*ctx.w, item.id.gen());
 								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask_2 |= (has_as << (uint8_t)ids.size());
+								data.as_mask_1 |= (has_as << (uint8_t)ids.size());
 							}
 						}
 
@@ -26586,6 +26639,15 @@ namespace gaia {
 				(void)reg_core_entity<Is_>(Is);
 				(void)reg_core_entity<System2_>(System2);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
+
+				(void)reg_core_entity<_Var0>(Var0);
+				(void)reg_core_entity<_Var1>(Var1);
+				(void)reg_core_entity<_Var2>(Var2);
+				(void)reg_core_entity<_Var3>(Var3);
+				(void)reg_core_entity<_Var4>(Var4);
+				(void)reg_core_entity<_Var5>(Var5);
+				(void)reg_core_entity<_Var6>(Var6);
+				(void)reg_core_entity<_Var7>(Var7);
 			}
 
 			// Add special properites for core components.
@@ -26650,6 +26712,31 @@ namespace gaia {
 				EntityBuilder(*this, DependsOn) //
 						.add(Core)
 						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+
+				EntityBuilder(*this, Var0) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var1) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var2) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var3) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var4) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var5) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var6) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var7) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}
 

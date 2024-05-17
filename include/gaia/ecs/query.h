@@ -136,18 +136,18 @@ namespace gaia {
 						//       might need to want to cache different archetypes (add some, delete others).
 						if (!item.id.pair()) {
 							const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
-							data.as_mask |= (has_as << (uint8_t)ids.size());
+							data.as_mask_0 |= (has_as << (uint8_t)ids.size());
 						} else {
 							if (!is_wildcard(item.id.id())) {
 								const auto e = entity_from_id(*ctx.w, item.id.id());
 								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask |= (has_as << (uint8_t)ids.size());
+								data.as_mask_0 |= (has_as << (uint8_t)ids.size());
 							}
 
 							if (!is_wildcard(item.id.gen())) {
 								const auto e = entity_from_id(*ctx.w, item.id.gen());
 								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask_2 |= (has_as << (uint8_t)ids.size());
+								data.as_mask_1 |= (has_as << (uint8_t)ids.size());
 							}
 						}
 

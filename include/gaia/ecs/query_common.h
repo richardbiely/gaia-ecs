@@ -31,6 +31,8 @@ namespace gaia {
 		enum class QueryOp : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
+		//! Operation flags
+		enum class QueryInputFlags : uint8_t { None, Variable };
 
 		GAIA_GCC_WARNING_POP()
 
@@ -136,10 +138,10 @@ namespace gaia {
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
-				uint32_t as_mask;
+				uint32_t as_mask_0;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the second part (gen) is written here.
-				uint32_t as_mask_2;
+				uint32_t as_mask_1;
 				//! First NOT record in pairs/ids/ops
 				uint8_t firstNot;
 				//! First ANY record in pairs/ids/ops
@@ -228,8 +230,8 @@ namespace gaia {
 
 				// Make sure masks remains correct after sorting
 				core::swap_bits(data.readWriteMask, left, right);
-				core::swap_bits(data.as_mask, left, right);
-				core::swap_bits(data.as_mask_2, left, right);
+				core::swap_bits(data.as_mask_0, left, right);
+				core::swap_bits(data.as_mask_1, left, right);
 			});
 
 			// Update remapping indices.

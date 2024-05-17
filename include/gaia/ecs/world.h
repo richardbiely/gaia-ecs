@@ -3555,6 +3555,15 @@ namespace gaia {
 				(void)reg_core_entity<Is_>(Is);
 				(void)reg_core_entity<System2_>(System2);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
+
+				(void)reg_core_entity<_Var0>(Var0);
+				(void)reg_core_entity<_Var1>(Var1);
+				(void)reg_core_entity<_Var2>(Var2);
+				(void)reg_core_entity<_Var3>(Var3);
+				(void)reg_core_entity<_Var4>(Var4);
+				(void)reg_core_entity<_Var5>(Var5);
+				(void)reg_core_entity<_Var6>(Var6);
+				(void)reg_core_entity<_Var7>(Var7);
 			}
 
 			// Add special properites for core components.
@@ -3619,6 +3628,31 @@ namespace gaia {
 				EntityBuilder(*this, DependsOn) //
 						.add(Core)
 						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+
+				EntityBuilder(*this, Var0) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var1) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var2) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var3) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var4) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var5) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var6) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Var7) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}
 

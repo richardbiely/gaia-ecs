@@ -446,8 +446,10 @@ namespace gaia {
 		// Core components
 		//----------------------------------------------------------------------
 
-		//! Core component. The entity it is attached to is ignored by queries
+		// Core component. The entity it is attached to is ignored by queries
 		struct Core_ {};
+		// struct EntityDesc;
+		// struct Component;
 		struct OnDelete_ {};
 		struct OnDeleteTarget_ {};
 		struct Remove_ {};
@@ -456,17 +458,28 @@ namespace gaia {
 		struct Requires_ {};
 		struct CantCombine_ {};
 		struct Exclusive_ {};
-		struct DependsOn_ {};
 		struct Acyclic_ {};
 		struct All_ {};
 		struct ChildOf_ {};
 		struct Is_ {};
+		// struct System2_;
+		struct DependsOn_ {};
+
+		// Query variables
+		struct _Var0 {};
+		struct _Var1 {};
+		struct _Var2 {};
+		struct _Var3 {};
+		struct _Var4 {};
+		struct _Var5 {};
+		struct _Var6 {};
+		struct _Var7 {};
 
 		//----------------------------------------------------------------------
 		// Core component entities
 		//----------------------------------------------------------------------
 
-		//! Core component. The entity it is attached to is ignored by queries
+		// Core component. The entity it is attached to is ignored by queries
 		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
@@ -480,21 +493,30 @@ namespace gaia {
 		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, false, false, false, EntityKind::EK_Gen);
-		//! Graph restrictions
+		// Graph restrictions
 		inline Entity Acyclic = Entity(11, false, false, false, EntityKind::EK_Gen);
-		//! Wildcard query entity
+		// Wildcard query entity
 		inline Entity All = Entity(12, 0, false, false, EntityKind::EK_Gen);
-		//! Entity representing a physical hierarchy.
-		//! When the relationship target is deleted all children are deleted as well.
+		// Entity representing a physical hierarchy.
+		// When the relationship target is deleted all children are deleted as well.
 		inline Entity ChildOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
-		//! Alias for a base entity
+		// Alias for a base entity
 		inline Entity Is = Entity(14, 0, false, false, EntityKind::EK_Gen);
-		//! Systems
-		inline Entity System2 = Entity(15, false, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(16, false, false, false, EntityKind::EK_Gen);
+		// Systems
+		inline Entity System2 = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		// Query variables
+		inline Entity Var0 = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(24, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
-		inline Entity GAIA_ID(LastCoreComponent) = DependsOn;
+		inline Entity GAIA_ID(LastCoreComponent) = Var7;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -510,6 +532,10 @@ namespace gaia {
 
 		GAIA_NODISCARD inline bool is_wildcard(Pair pair) {
 			return pair.first() == All || pair.second() == All;
+		}
+
+		GAIA_NODISCARD inline bool is_variable(Entity entity) {
+			return entity.id() <= Var7.id() && entity.id() >= Var0.id();
 		}
 
 	} // namespace ecs
