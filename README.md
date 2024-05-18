@@ -469,34 +469,33 @@ w.copy_n(e, 1000, [](Entity newEntity) {
 
 ### Archetype lifespan
 
-Once all entites, and chunks are a result, of a given archetype are deleted, the archetype stays alive for another 127 ticks of ecs::World::update(). However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
+Once all entites of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ecs::World::update(). However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
 
-For instance, you might often end up deleting all entites of a given archetype only to create new ones seconds later. Keeping the archetype around has several minor performance implications:
+For instance, you might often end up deleting all entites of a given archetype only to create new ones seconds later. In this case, keeping the archetype around can have several performance benefits:
 1) no need to recreate the archetype
 2) no need to rematch queries with the archetype
 
 ```cpp
 ecs::World w;
-ecs::Entity player0 = w.add();
-ecs::Entity teamA = w.add();
+ecs::Entity player0 = w.add(); // player0 belongs to archetype A
+ecs::Entity teamA = w.add(); // teamA belongs to archetype A
+
+// Player0 becomes a part of archetype B.
 w.add(player0, teamA);
-
-// Archetype of player0 is never going to be deleted.
+// Archetype B is never going to be deleted.
 w.set_max_lifespan(player0, 0);
-
-// Archetype of player0 is going to be deleted after 20 ticks of ecs::World::update.
+// Archetype B is going to be deleted after 20 ticks of ecs::World::update.
 w.set_max_lifespan(player0, 20);
-
-// Reset maximum lifespan of the archetype player0 belongs to.
+// Reset maximum lifespan of the archetype B belongs to.
 w.set_max_lifespan(player0);
 ```
 
-Note, if the entity used to change an archetype's lifespan moves to a new archetype, the new archetype's lifespan is not updated.
+Note, if the entity used to change an archetype's lifespan moves to a new archetype, the laters's lifespan is not updated.
 
 ```cpp
 ecs::World w;
-ecs::Entity player0 = w.add(); // archetype A
-ecs::Entity teamA = w.add(); // archetype A
+ecs::Entity player0 = w.add(); // player0 belongs to archetype A
+ecs::Entity teamA = w.add(); // teamA belongs to archetype A
 
 // Player0 becomes a part of archetype B.
 w.add(player0, teamA);
@@ -505,6 +504,13 @@ w.set_max_lifespan(player0, 20);
 
 // Player0 becomes a part of archetype A again. Lifespan of B is still 20, lifespan of A is default.
 w.del(player0, team1); 
+```
+
+In case you want to affect an archetype directly without abstracting it away you can retrive it via the entity's container returned by World::fetch() function:
+```cpp
+EntityContainer& ec = w.fetch(player0);
+// Maximum lifespan of archetype the player0 entity belongs to changed to 50.
+ec.pArchetype->set_max_lifespan(50);
 ```
 
 ## Data processing
