@@ -290,7 +290,7 @@ ecs::Entity velocity = w.add<Velocity>().entity;
 // Create an entity with Position and Velocity.
 ecs::Entity e = w.add();
 w.add(e, position, Position{0, 100, 0});
-w.add(e, velocity, Position{0, 0, 1});
+w.add(e, velocity, Velocity{0, 0, 1});
 
 // Remove Velocity from the entity.
 w.del(e, velocity);
@@ -426,7 +426,7 @@ A copy of another entity can be easily created.
 // Create an entity with Position and Velocity.
 ecs::Entity e = w.add();
 w.add(e, position, Position{0, 100, 0});
-w.add(e, velocity, Position{0, 0, 1});
+w.add(e, velocity, Velocity{0, 0, 1});
 
 // Make a copy of "e". Component values on the copied entitiy will match the source.
 // Value of Position on "e2" will be {0, 100, 0}.
@@ -448,7 +448,7 @@ w.add(1000, [](Entity newEntity) {
 // Create an entity with Position and Velocity.
 ecs::Entity e = w.add();
 w.add(e, position, Position{0, 100, 0});
-w.add(e, velocity, Position{0, 0, 1});
+w.add(e, velocity, Velocity{0, 0, 1});
 
 // Create 1000 more entites like "e".
 // Their component values are not initilazed to any particular value.
