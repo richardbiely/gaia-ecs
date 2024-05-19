@@ -50,7 +50,7 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
-  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang)
+  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang AND UNIX AND NOT APPLE)
     # Use mold as the default linker for clang if possible
     find_program(MOLD_LINKER mold)
 
@@ -60,7 +60,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
     endif()
   endif()
 else()
-  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang)
+  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang AND UNIX AND NOT APPLE)
     # Use mold as the default linker for clang if possible
     find_program(MOLD_LINKER mold)
 
@@ -68,32 +68,32 @@ else()
       message(STATUS "Linker: ${MOLD_LINKER} MOLD")
       add_link_options("-fuse-ld=${MOLD_LINKER}")
     else()
-      # LLD uses all system threads by default. Older vesions than 11 can't tweak this,
-      # later versions can do --threads=${HOST_PROC_COUNT}.
-      #
-      # include(ProcessorCount)
-      # ProcessorCount(HOST_PROC_COUNT)
-      # LLD>=11
-      # add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR};LINKER:--threads=${HOST_PROC_COUNT}")
-      # LLD<11
-      # add_link_options("-fuse-ld=lld;LINKER:--threads") (default state)
-      #
-      # Anyways, we want to use the default settings.
-      string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
-      list(GET VERSION_LIST 0 CLANG_VERSION_MAJOR) # extract major compiler version
+      # # LLD uses all system threads by default. Older vesions than 11 can't tweak this,
+      # # later versions can do --threads=${HOST_PROC_COUNT}.
+      # #
+      # # include(ProcessorCount)
+      # # ProcessorCount(HOST_PROC_COUNT)
+      # # LLD>=11
+      # # add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR};LINKER:--threads=${HOST_PROC_COUNT}")
+      # # LLD<11
+      # # add_link_options("-fuse-ld=lld;LINKER:--threads") (default state)
+      # #
+      # # Anyways, we want to use the default settings.
+      # string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
+      # list(GET VERSION_LIST 0 CLANG_VERSION_MAJOR) # extract major compiler version
 
-      # Search for a given version of clang. E.g. lld-13 when clang 13 is used.
-      # Search for the default version of clang, too.
-      find_program(LLD_PROGRAM_MATCH_VER lld-${CLANG_VERSION_MAJOR})
-      find_program(LLD_PROGRAM lld)
+      # # Search for a given version of clang. E.g. lld-13 when clang 13 is used.
+      # # Search for the default version of clang, too.
+      # find_program(LLD_PROGRAM_MATCH_VER lld-${CLANG_VERSION_MAJOR})
+      # find_program(LLD_PROGRAM lld)
 
-      if(LLD_PROGRAM_MATCH_VER) # lld matching compiler version
-        message(STATUS "Linker: ${LLD_PROGRAM_MATCH_VER} LLD")
-        add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
-      elseif(LLD_PROGRAM) # default lld
-        message(STATUS "Linker: ${LLD_PROGRAM} LLD")
-        add_link_options("-fuse-ld=lld")
-      endif(LLD_PROGRAM_MATCH_VER)
+      # if(LLD_PROGRAM_MATCH_VER) # lld matching compiler version
+      #   message(STATUS "Linker: ${LLD_PROGRAM_MATCH_VER} LLD")
+      #   add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
+      # elseif(LLD_PROGRAM) # default lld
+      #   message(STATUS "Linker: ${LLD_PROGRAM} LLD")
+      #   add_link_options("-fuse-ld=lld")
+      # endif(LLD_PROGRAM_MATCH_VER)
     endif()
 
   elseif(${CMAKE_CXX_COMPILER_ID} MATCHES GNU)
@@ -290,13 +290,13 @@ endif()
 
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    find_package(Catch2 CONFIG QUIET 3.5.3)
+    find_package(Catch2 CONFIG QUIET 3.6.0)
 
     if(NOT Catch2_FOUND)
       FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.3
+        GIT_TAG v3.6.0
       )
 
       set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON CACHE BOOL "CATCH_CONFIG_DISABLE_STRINGIFICATION override")
@@ -306,7 +306,7 @@ if(GAIA_BUILD_UNITTEST)
       list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
     endif()
   else()
-    find_package(Catch2 CONFIG REQUIRED 3.5.3)
+    find_package(Catch2 CONFIG REQUIRED 3.6.0)
   endif()
 endif()
 
