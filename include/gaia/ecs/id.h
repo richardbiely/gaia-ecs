@@ -462,6 +462,7 @@ namespace gaia {
 		struct All_ {};
 		struct ChildOf_ {};
 		struct Is_ {};
+		struct Traversable_ {};
 		// struct System2_;
 		struct DependsOn_ {};
 
@@ -484,36 +485,37 @@ namespace gaia {
 		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
 		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
 		// Cleanup rules
-		inline Entity OnDelete = Entity(3, false, false, false, EntityKind::EK_Gen);
-		inline Entity OnDeleteTarget = Entity(4, false, false, false, EntityKind::EK_Gen);
-		inline Entity Remove = Entity(5, false, false, false, EntityKind::EK_Gen);
-		inline Entity Delete = Entity(6, false, false, false, EntityKind::EK_Gen);
-		inline Entity Error = Entity(7, false, false, false, EntityKind::EK_Gen);
+		inline Entity OnDelete = Entity(3, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnDeleteTarget = Entity(4, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Remove = Entity(5, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
-		inline Entity Requires = Entity(8, false, false, false, EntityKind::EK_Gen);
-		inline Entity CantCombine = Entity(9, false, false, false, EntityKind::EK_Gen);
-		inline Entity Exclusive = Entity(10, false, false, false, EntityKind::EK_Gen);
-		// Graph restrictions
-		inline Entity Acyclic = Entity(11, false, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
+		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		// Graph properties
+		inline Entity Acyclic = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(13, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(13, 0, false, false, EntityKind::EK_Gen);
-		// Alias for a base entity
-		inline Entity Is = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		// Alias for a base entity/inheritance
+		inline Entity Is = Entity(15, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System2 = Entity(15, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System2 = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(17, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(25, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;

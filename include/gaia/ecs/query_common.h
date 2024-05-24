@@ -204,13 +204,26 @@ namespace gaia {
 			};
 		};
 
-		//! Smaller ops first. Smaller ids second.
+		//! Functor for sorting terms in a query before compilation
 		struct query_sort_cond {
 			constexpr bool operator()(const QueryTerm& lhs, const QueryTerm& rhs) const {
+				// Smaller ops first.
 				if (lhs.op != rhs.op)
 					return lhs.op < rhs.op;
 
-				return lhs.id < rhs.id;
+				// Smaller ids second.
+				if (lhs.id != rhs.id)
+					return lhs.id < rhs.id;
+
+				// Sources go last. Note, sources are never a pair.
+				// We want to do it this way because it would be expensive to build cache for
+				// the entire tree. Rather, we only cache fixed parts of the query without
+				// variables.
+				// TOOD: In theory, there might be a better way to sort sources.
+				//       E.g. depending on the number of archetypes we'd have to traverse
+				//       it might be benefitial to do a different ordering which is impossible
+				//       to do at this point.
+				return lhs.src.id() < rhs.src.id();
 			}
 		};
 
@@ -245,7 +258,7 @@ namespace gaia {
 				data.remapping[i] = idxBeforeRemapping;
 			}
 
-			auto& terms = data.terms;
+			const auto& terms = data.terms;
 			if (!terms.empty()) {
 				uint32_t i = 0;
 				while (i < terms.size() && terms[i].op == QueryOp::All)

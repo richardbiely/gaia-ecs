@@ -1826,7 +1826,7 @@ TEST_CASE("Add - no components") {
 
 	auto q = wld.query().no<ecs::Component>().no<ecs::Core_>();
 	q.arr(arr);
-	REQUIRE(arr.size() - 3 == ents.size()); // 3 for core component
+	REQUIRE(arr.size() - 4 == ents.size()); // 4 for core components
 
 	GAIA_FOR(N) verify(i);
 }
@@ -2146,6 +2146,63 @@ TEST_CASE("Pair") {
 			REQUIRE(i == 1);
 		}
 	}
+	{
+		TestWorld twld;
+
+		auto wolf = wld.add();
+		auto rabbit = wld.add();
+		auto carrot = wld.add();
+		auto wine = wld.add();
+		auto water = wld.add();
+		auto eats = wld.add();
+		auto drinks = wld.add();
+
+		wld.add(rabbit, {eats, carrot});
+		wld.add(wolf, {eats, rabbit});
+		wld.add(rabbit, {drinks, water});
+		wld.add(wolf, {drinks, wine});
+
+		{
+			uint32_t i = 0;
+			auto q = wld.query().all(ecs::Pair{eats, ecs::All});
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+		{
+			uint32_t i = 0;
+			auto q = wld.query().all(ecs::Pair{drinks, ecs::All});
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+		{
+			uint32_t i = 0;
+			auto q = wld.query().all(ecs::Pair{drinks, water}).all(ecs::Pair{eats, ecs::All});
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 1);
+		}
+		{
+			uint32_t i = 0;
+			auto q = wld.query().all(ecs::Pair{eats, ecs::All}).all(ecs::Pair{drinks, water});
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 1);
+		}
+		{
+			uint32_t i = 0;
+			auto q = wld.query().all(ecs::Pair{eats, ecs::All}).all(ecs::Pair{drinks, ecs::All});
+			q.each([&]() {
+				++i;
+			});
+			REQUIRE(i == 2);
+		}
+	}
 }
 
 TEST_CASE("CantCombine") {
@@ -2444,8 +2501,21 @@ void Test_Query_QueryResult() {
 	{
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
+
+		// Make sure the same entities are returned by each and arr
+		// and that they match out expectations.
 		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
+
+		uint32_t entIdx = 0;
+		q1.each([&](ecs::Entity ent) {
+			REQUIRE(ent == arr[entIdx++]);
+		});
+		entIdx = 0;
+		q1.each([&](ecs::Iter& it) {
+			auto entView = it.view<ecs::Entity>();
+			GAIA_EACH(it) REQUIRE(entView[i] == arr[entIdx++]);
+		});
 	}
 	{
 		cnt::darr<Position> arr;
@@ -5023,6 +5093,20 @@ TEST_CASE("Set - generic") {
 				REQUIRE(e.value == true);
 			}
 		});
+
+		{
+			uint32_t entIdx = 0;
+			q.each([&](ecs::Entity ent) {
+				REQUIRE(ent == arr[entIdx++]);
+			});
+			entIdx = 0;
+			q.each([&](ecs::Iter& it) {
+				auto entityView = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					REQUIRE(entityView[i] == arr[entIdx++]);
+				}
+			});
+		}
 
 		for (const auto ent: arr) {
 			auto r = wld.get<Rotation>(ent);

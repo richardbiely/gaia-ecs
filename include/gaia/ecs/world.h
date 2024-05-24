@@ -3550,6 +3550,7 @@ namespace gaia {
 				(void)reg_core_entity<CantCombine_>(CantCombine);
 				(void)reg_core_entity<Exclusive_>(Exclusive);
 				(void)reg_core_entity<Acyclic_>(Acyclic);
+				(void)reg_core_entity<Traversable_>(Traversable);
 				(void)reg_core_entity<All_>(All);
 				(void)reg_core_entity<ChildOf_>(ChildOf);
 				(void)reg_core_entity<Is_>(Is);
@@ -3611,16 +3612,22 @@ namespace gaia {
 				EntityBuilder(*this, Acyclic) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Traversable) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+
 				EntityBuilder(*this, ChildOf) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Exclusive)
+						.add(Traversable)
 						.add(Pair(OnDelete, Error))
 						.add(Pair(OnDeleteTarget, Delete));
 				EntityBuilder(*this, Is) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
+
 				EntityBuilder(*this, System2) //
 						.add(Core)
 						.add(Acyclic)

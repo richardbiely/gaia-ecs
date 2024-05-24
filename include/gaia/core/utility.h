@@ -811,6 +811,13 @@ namespace gaia {
 		};
 
 		template <typename T>
+		struct is_smaller_or_equal {
+			constexpr bool operator()(const T& lhs, const T& rhs) const {
+				return lhs <= rhs;
+			}
+		};
+
+		template <typename T>
 		struct is_greater {
 			constexpr bool operator()(const T& lhs, const T& rhs) const {
 				return lhs > rhs;

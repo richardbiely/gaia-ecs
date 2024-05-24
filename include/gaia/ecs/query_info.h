@@ -126,34 +126,129 @@ namespace gaia {
 				return has_inter<T>(op, isReadWrite);
 			}
 
-			//! Tries to match entity ids in \param queryIds with those that form \param archetype given
-			//! the comparison function \param func.
+			// Operator AND (used by query::all)
+			struct OpAnd {
+				static bool can_continue(bool hasMatch) {
+					return hasMatch;
+				};
+				static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
+					return expectedMatches == totalMatches;
+				}
+			};
+			// Operator OR (used by query::any)
+			struct OpOr {
+				static bool can_continue(bool hasMatch) {
+					return hasMatch;
+				};
+				static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
+					(void)expectedMatches;
+					return totalMatches > 0;
+				}
+			};
+			// Operator NOT (used by query::no)
+			struct OpNo {
+				static bool can_continue(bool hasMatch) {
+					return !hasMatch;
+				};
+				static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
+					(void)expectedMatches;
+					return totalMatches == 0;
+				}
+			};
+
+			template <typename Op>
+			static bool match_inter_eval_matches(uint32_t queryIdMarches, uint32_t& outMatches) {
+				const bool hadAnyMatches = queryIdMarches > 0;
+
+				// We finished checking matches with an id from query.
+				// We need to check if we have sufficient amount of results in the run.
+				if (!Op::can_continue(hadAnyMatches))
+					return false;
+
+				// No matter the amount of matches we only care if at least one
+				// match happened with the id from query.
+				outMatches += (uint32_t)hadAnyMatches;
+				return true;
+			}
+
+			//! Tries to match ids in \param queryIds with ids in \param archetypeIds given
+			//! the comparison function \param func bool(Entity queryId, Entity archetypeId).
 			//! \return True if there is a match, false otherwise.
-			template <typename Func>
-			GAIA_NODISCARD bool match_inter(const Archetype& archetype, EntitySpan queryIds, Func func) const {
-				auto archetypeIds = archetype.ids_view();
+			template <typename Op, typename CmpFunc>
+			GAIA_NODISCARD bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) const {
 				const auto archetypeIdsCnt = (uint32_t)archetypeIds.size();
-				const auto queryIdsCnt = queryIds.size();
+				const auto queryIdsCnt = (uint32_t)queryIds.size();
 
 				// Arrays are sorted so we can do linear intersection lookup
-				uint32_t i = 0;
-				uint32_t j = 0;
-				while (i < archetypeIdsCnt && j < queryIdsCnt) {
-					const auto idInArchetype = archetypeIds[i];
-					const auto idInQuery = queryIds[j];
+				uint32_t indices[2]{}; // 0 for query ids, 1 for archetype ids
+				uint32_t matches = 0;
 
-					if (func(idInArchetype, idInQuery))
-						return true;
+				// Ids in query and archetype are sorted.
+				// Therefore, to match any two ids we perform a linear intersection forward loop.
+				// The only exception are transitive ids in which case we need to start searching
+				// form the start.
+				// Finding just one match for any id in the query is enough to start checking
+				// the next it. We only have 3 different operations - AND, OR, NOT.
+				//
+				// Example:
+				// - query #1 ------------------------
+				// queryIds    : 5, 10
+				// archetypeIds: 1,  3,  5,  6,  7, 10
+				// - query #2 ------------------------
+				// queryIds    : 1, 10, 11
+				// archetypeIds: 3,  5,  6,  7, 10, 15
+				// -----------------------------------
+				// indices[0]  : 0,  1,  2
+				// indices[1]  : 0,  1,  2,  3,  4,  5
+				//
+				// For query #1:
+				// We start matching 5 in the query with 1 in the archetype. They do not match.
+				// We continue with 3 in the archetype. No match.
+				// We continue with 5 in the archetype. Match.
+				// We try to match 10 in the query with 6 in the archetype. No match.
+				// ... etc.
 
-					if (SortComponentCond{}.operator()(idInArchetype, idInQuery)) {
-						++i;
-						continue;
+				while (indices[0] < queryIdsCnt) {
+					const auto idInQuery = queryIds[indices[0]];
+
+					// For * and transitive ids we have to search from the start.
+					if (idInQuery == All || idInQuery.id() == Is.id())
+						indices[1] = 0;
+
+					uint32_t queryIdMatches = 0;
+					while (indices[1] < archetypeIdsCnt) {
+						const auto idInArchetype = archetypeIds[indices[1]];
+
+						// See if we have a match
+						const auto res = func(idInQuery, idInArchetype);
+
+						// Once a match is found we start matching with the next id in query.
+						if (res.matched) {
+							++indices[0];
+							++indices[1];
+							++queryIdMatches;
+
+							// Only continue with the next iteration unless the given Op determines it is
+							// no longer needed.
+							if (!match_inter_eval_matches<Op>(queryIdMatches, matches))
+								return false;
+
+							goto next_query_id;
+						} else {
+							++indices[1];
+						}
 					}
 
-					++j;
+					if (!match_inter_eval_matches<Op>(queryIdMatches, matches))
+						return false;
+
+					++indices[0];
+
+				next_query_id:
+					continue;
 				}
 
-				return false;
+				return Op::eval(queryIdsCnt, matches);
 			}
 
 			GAIA_NODISCARD static bool match_idQueryId_with_idArchetype(
@@ -166,15 +261,19 @@ namespace gaia {
 				return is(w, ae, qe);
 			};
 
-			GAIA_NODISCARD static bool cmp_ids(Entity idInArchetype, Entity idInQuery) {
-				return idInQuery == idInArchetype;
+			struct IdCmpResult {
+				bool matched;
+			};
+
+			GAIA_NODISCARD static IdCmpResult cmp_ids(Entity idInQuery, Entity idInArchetype) {
+				return {idInQuery == idInArchetype};
 			}
 
-			GAIA_NODISCARD static bool cmp_ids_pairs(Entity idInArchetype, Entity idInQuery) {
+			GAIA_NODISCARD static IdCmpResult cmp_ids_pairs(Entity idInQuery, Entity idInArchetype) {
 				if (idInQuery.pair()) {
 					// all(Pair<All, All>) aka "any pair"
 					if (idInQuery == Pair(All, All))
-						return true;
+						return {true};
 
 					// all(Pair<X, All>):
 					//   X, AAA
@@ -182,7 +281,7 @@ namespace gaia {
 					//   ...
 					//   X, ZZZ
 					if (idInQuery.gen() == All.id())
-						return idInQuery.id() == idInArchetype.id();
+						return {idInQuery.id() == idInArchetype.id()};
 
 					// all(Pair<All, X>):
 					//   AAA, X
@@ -190,40 +289,41 @@ namespace gaia {
 					//   ...
 					//   ZZZ, X
 					if (idInQuery.id() == All.id())
-						return idInQuery.gen() == idInArchetype.gen();
+						return {idInQuery.gen() == idInArchetype.gen()};
 				}
 
-				return cmp_ids(idInArchetype, idInQuery);
+				return cmp_ids(idInQuery, idInArchetype);
 			}
 
-			GAIA_NODISCARD bool cmp_ids_is(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD IdCmpResult cmp_ids_is(const Archetype& archetype, Entity idInQuery, Entity idInArchetype) const {
 				auto archetypeIds = archetype.ids_view();
 
 				// all(Pair<Is, X>)
 				if (idInQuery.pair() && idInQuery.id() == Is.id()) {
-					return as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
+					return {as_relations_trav_if(*m_ctx.w, idInQuery, [&](Entity relation) {
 						const auto idx = core::get_index(archetypeIds, relation);
 						// Stop at the first match
 						return idx != BadIndex;
-					});
+					})};
 				}
 
-				return cmp_ids(idInArchetype, idInQuery);
+				return cmp_ids(idInQuery, idInArchetype);
 			}
 
-			GAIA_NODISCARD bool cmp_ids_is_pairs(const Archetype& archetype, Entity idInArchetype, Entity idInQuery) const {
+			GAIA_NODISCARD IdCmpResult
+			cmp_ids_is_pairs(const Archetype& archetype, Entity idInQuery, Entity idInArchetype) const {
 				auto archetypeIds = archetype.ids_view();
 
 				if (idInQuery.pair()) {
 					// all(Pair<All, All>) aka "any pair"
 					if (idInQuery == Pair(All, All))
-						return true;
+						return {true};
 
 					// all(Pair<Is, X>)
 					if (idInQuery.id() == Is.id()) {
 						// (Is, X) in archetype == (Is, X) in query
 						if (idInArchetype == idInQuery)
-							return true;
+							return {true};
 
 						const auto e = entity_from_id(*m_ctx.w, idInQuery.gen());
 
@@ -231,19 +331,19 @@ namespace gaia {
 						// entities inheriting from e.
 						if (idInArchetype.id() == Is.id()) {
 							const auto e2 = entity_from_id(*m_ctx.w, idInArchetype.gen());
-							return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
+							return {as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 								return e2 == relation;
-							});
+							})};
 						}
 
 						// Archetype entity is generic, try matching it with entites inheriting from e.
-						return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
+						return {as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 							// Relation does not necessary match the sorted order of components in the archetype
 							// so we need to search through all of its ids.
 							const auto idx = core::get_index(archetypeIds, relation);
 							// Stop at the first match
 							return idx != BadIndex;
-						});
+						})};
 					}
 
 					// all(Pair<All, X>):
@@ -253,22 +353,22 @@ namespace gaia {
 					//   ZZZ, X
 					if (idInQuery.id() == All.id()) {
 						if (idInQuery.gen() == idInArchetype.gen())
-							return true;
+							return {true};
 
 						// If there are any Is pairs on the archetype we need to check if we match them
 						if (archetype.pairs_is() > 0) {
 							const auto e = entity_from_id(*m_ctx.w, idInQuery.gen());
-							return as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
+							return {as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 								// Relation does not necessary match the sorted order of components in the archetype
 								// so we need to search through all of its ids.
 								const auto idx = core::get_index(archetypeIds, relation);
 								// Stop at the first match
 								return idx != BadIndex;
-							});
+							})};
 						}
 
 						// No match found
-						return false;
+						return {false};
 					}
 
 					// all(Pair<X, All>):
@@ -277,79 +377,56 @@ namespace gaia {
 					//   ...
 					//   X, ZZZ
 					if (idInQuery.gen() == All.id()) {
-						return idInQuery.id() == idInArchetype.id();
+						return {idInQuery.id() == idInArchetype.id()};
 					}
 				}
 
-				return cmp_ids(idInArchetype, idInQuery);
+				return cmp_ids(idInQuery, idInArchetype);
 			}
 
 			//! Tries to match entity ids in \param queryIds with those in \param archetype given
 			//! the comparison function \param func.
 			//! \return True on the first match, false otherwise.
-			template <typename Func>
-			GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds, Func func) const {
-				// Archetype has no pairs we can compare ids directly
+			template <typename Op>
+			GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds) const {
+				// Archetype has no pairs we can compare ids directly.
+				// This has better performance.
 				if (archetype.pairs() == 0) {
-					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-						return cmp_ids(idInArchetype, idInQuery) && func();
-					});
+					return match_inter<Op>(
+							queryIds, archetype.ids_view(),
+							// Cmp func
+							[](Entity idInQuery, Entity idInArchetype) {
+								return cmp_ids(idInQuery, idInArchetype);
+							});
 				}
 
-				return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-					return cmp_ids_pairs(idInArchetype, idInQuery) && func();
-				});
+				// Pairs are present, we have to evaluate.
+				return match_inter<Op>(
+						queryIds, archetype.ids_view(),
+						// Cmp func
+						[](Entity idInQuery, Entity idInArchetype) {
+							return cmp_ids_pairs(idInQuery, idInArchetype);
+						});
 			}
 
-			//! Tries to match entity ids in \param queryIds with those in \param archetype given
-			//! the comparison function \param func.
-			//! \return True on the first match, false otherwise.
-			GAIA_NODISCARD bool match_one(const Archetype& archetype, EntitySpan queryIds) const {
-				return match_res(archetype, queryIds, []() {
-					return true;
-				});
-			}
-
-			//! Tries to match entity ids in \param queryIds with those in \param archetypeIds given
-			//! the comparison function \param func.
-			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD
-			bool match_all(const Archetype& archetype, EntitySpan queryIds) const {
-				uint32_t matches = 0;
-				uint32_t expected = (uint32_t)queryIds.size();
-				return match_res(archetype, queryIds, [&matches, expected]() {
-					return (++matches) == expected;
-				});
-			}
-
-			template <typename Func>
-			GAIA_NODISCARD bool match_res_backtrack(const Archetype& archetype, EntitySpan queryIds, Func func) const {
+			template <typename Op>
+			GAIA_NODISCARD bool match_res_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
 				// Archetype has no pairs we can compare ids directly
 				if (archetype.pairs() == 0) {
-					return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-						return cmp_ids_is(archetype, idInArchetype, idInQuery) && func();
-					});
+					return match_inter<Op>(
+							queryIds, archetype.ids_view(),
+							// cmp func
+							[&](Entity idInQuery, Entity idInArchetype) {
+								return cmp_ids_is(archetype, idInQuery, idInArchetype);
+							});
 				}
 
-				return match_inter(archetype, queryIds, [&](Entity idInArchetype, Entity idInQuery) {
-					return cmp_ids_is_pairs(archetype, idInArchetype, idInQuery) && func();
-				});
-			}
-
-			GAIA_NODISCARD
-			bool match_one_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
-				return match_res_backtrack(archetype, queryIds, []() {
-					return true;
-				});
-			}
-
-			GAIA_NODISCARD
-			bool match_all_backtrack(const Archetype& archetype, EntitySpan queryIds) const {
-				uint32_t matches = 0;
-				uint32_t expected = (uint32_t)queryIds.size();
-				return match_res_backtrack(archetype, queryIds, [&matches, expected]() {
-					return (++matches) == expected;
-				});
+				return match_inter<Op>(
+						queryIds, archetype.ids_view(),
+						// cmp func
+						[&](Entity idInQuery, Entity idInArchetype) {
+							return cmp_ids_is_pairs(archetype, idInQuery, idInArchetype);
+						});
 			}
 
 		public:
@@ -394,13 +471,21 @@ namespace gaia {
 							continue;
 						}
 
-						// Match static fixed sources
-						p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
+						// // Dynamic source
+						// if (is_variable(p.src)) {
+						// 	m_instructions.emplace_back(p.id, QueryOp::All);
+						// 	continue;
+						// }
 
-						// Archetype needs to exist. If it does not we have nothing to do here.
-						if (p.srcArchetype == nullptr) {
-							m_instructions.clear();
-							return;
+						// Fixed source
+						{
+							p.srcArchetype = archetype_from_entity(*m_ctx.w, p.src);
+
+							// Archetype needs to exist. If it does not we have nothing to do here.
+							if (p.srcArchetype == nullptr) {
+								m_instructions.clear();
+								return;
+							}
 						}
 					}
 				}
@@ -500,7 +585,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_all(*pArchetype, ctx.idsToMatch))
+						if (!match_res<OpAnd>(*pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -556,7 +641,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (!match_all_backtrack(*pArchetype, ctx.idsToMatch))
+					if (!match_res_backtrack<OpAnd>(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -567,7 +652,6 @@ namespace gaia {
 
 			void match_archetype_one(MatchingCtx& ctx) {
 				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
-				const auto& allArchetypes = *ctx.pAllArchetypes;
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
 
@@ -605,7 +689,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_one(*pArchetype, ctx.idsToMatch))
+						if (!match_res<OpOr>(*pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -663,7 +747,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (!match_one_backtrack(*pArchetype, ctx.idsToMatch))
+					if (!match_res_backtrack<OpOr>(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -673,7 +757,6 @@ namespace gaia {
 			}
 
 			void match_archetype_no(MatchingCtx& ctx) {
-				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
 				const auto& archetypes = *ctx.pAllArchetypes;
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
@@ -694,7 +777,7 @@ namespace gaia {
 					auto* pArchetype = archetypes[a];
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (match_one(*pArchetype, ctx.idsToMatch))
+					if (!match_res<OpNo>(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -703,7 +786,6 @@ namespace gaia {
 			}
 
 			void match_archetype_no_as(MatchingCtx& ctx) {
-				const auto& entityToArchetypeMap = *ctx.pEntityToArchetypeMap;
 				const auto& archetypes = *ctx.pAllArchetypes;
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
@@ -725,7 +807,7 @@ namespace gaia {
 
 					if (matchesSet.contains(pArchetype))
 						continue;
-					if (match_one_backtrack(*pArchetype, ctx.idsToMatch))
+					if (!match_res_backtrack<OpNo>(*pArchetype, ctx.idsToMatch))
 						continue;
 
 					matchesSet.emplace(pArchetype);
@@ -760,11 +842,11 @@ namespace gaia {
 			bool do_match_one(MatchingCtx& ctx, const Archetype& archetype) {
 				// First viable item is not related to an Is relationship
 				if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
-					return match_one(archetype, ctx.idsToMatch);
+					return match_res<OpOr>(archetype, ctx.idsToMatch);
 
 				// First viable item is related to an Is relationship.
 				// In this case we need to gather all related archetypes.
-				return match_one_backtrack(archetype, ctx.idsToMatch);
+				return match_res_backtrack<OpOr>(archetype, ctx.idsToMatch);
 			}
 
 			void do_match_no(MatchingCtx& ctx) {
@@ -890,7 +972,7 @@ namespace gaia {
 				auto addTmpArchetypesToCacheIfNoMatch = [&]() {
 					// Write the temporary matches to cache if no match with NO is found
 					for (auto* pArchetype: s_tmpArchetypeMatchesArr) {
-						if (match_one(*pArchetype, ctx.idsToMatch))
+						if (!match_res<OpNo>(*pArchetype, ctx.idsToMatch))
 							continue;
 						add_archetype_to_cache(pArchetype);
 					}
