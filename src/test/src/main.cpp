@@ -201,7 +201,7 @@ TEST_CASE("has_XYZ_equals_check") {
 		REQUIRE(hasGlobal);
 		REQUIRE(hasFoo1);
 		REQUIRE(hasFoo2);
-		REQUIRE(!hasFood);
+		REQUIRE_FALSE(hasFood);
 	}
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
@@ -2217,7 +2217,7 @@ TEST_CASE("CantCombine") {
 	// Can be tested only with asserts disabled because the situation is assert-protected.
 	wld.add(dummy, weak);
 	REQUIRE(wld.has(dummy, strong));
-	REQUIRE(!wld.has(dummy, weak));
+	REQUIRE_FALSE(wld.has(dummy, weak));
 #endif
 }
 
@@ -2241,7 +2241,7 @@ TEST_CASE("Requires") {
 	REQUIRE(wld.has(rabbit, herbivore));
 
 	wld.del(rabbit, carrot);
-	REQUIRE(!wld.has(rabbit, carrot));
+	REQUIRE_FALSE(wld.has(rabbit, carrot));
 }
 
 TEST_CASE("Inheritance (Is)") {
@@ -3348,7 +3348,7 @@ TEST_CASE("Enable") {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it) {
-						REQUIRE(!it.enabled(i));
+						REQUIRE_FALSE(it.enabled(i));
 						++c;
 					}
 					REQUIRE(c == cExpected);
@@ -4227,7 +4227,7 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
-		REQUIRE(!wld.has(wolf));
+		REQUIRE_FALSE(wld.has(wolf));
 		REQUIRE(wld.has(rabbit));
 		REQUIRE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
@@ -4259,11 +4259,11 @@ TEST_CASE("Del - cleanup rules") {
 		wld.del(eats);
 		REQUIRE(wld.has(wolf));
 		REQUIRE(wld.has(rabbit));
-		REQUIRE(!wld.has(eats));
+		REQUIRE_FALSE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
 		REQUIRE(wld.has(hungry));
-		REQUIRE(!wld.has(wolf, {eats, rabbit}));
-		REQUIRE(!wld.has(rabbit, {eats, carrot}));
+		REQUIRE_FALSE(wld.has(wolf, {eats, rabbit}));
+		REQUIRE_FALSE(wld.has(rabbit, {eats, carrot}));
 	}
 	SECTION("(OnDelete,Remove)") {
 		TestWorld twld;
@@ -4278,7 +4278,7 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
-		REQUIRE(!wld.has(wolf));
+		REQUIRE_FALSE(wld.has(wolf));
 		REQUIRE(wld.has(rabbit));
 		REQUIRE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
@@ -4300,11 +4300,11 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(hungry);
-		REQUIRE(!wld.has(wolf));
+		REQUIRE_FALSE(wld.has(wolf));
 		REQUIRE(wld.has(rabbit));
 		REQUIRE(wld.has(eats));
 		REQUIRE(wld.has(carrot));
-		REQUIRE(!wld.has(hungry));
+		REQUIRE_FALSE(wld.has(hungry));
 		REQUIRE(wld.has({eats, rabbit}));
 		REQUIRE(wld.has({eats, carrot}));
 	}
@@ -4317,8 +4317,8 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(child, {child_of, parent});
 
 		wld.del(parent);
-		REQUIRE(!wld.has(child));
-		REQUIRE(!wld.has(parent));
+		REQUIRE_FALSE(wld.has(child));
+		REQUIRE_FALSE(wld.has(parent));
 	}
 }
 
