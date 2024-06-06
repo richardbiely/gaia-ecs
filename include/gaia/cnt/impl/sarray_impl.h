@@ -327,14 +327,14 @@ namespace gaia {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr auto front() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto front() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -342,14 +342,14 @@ namespace gaia {
 					return (const_reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto back() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return (operator[])(N - 1);
 				else
 					return (reference) operator[](N - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto back() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](N - 1);
 				else
