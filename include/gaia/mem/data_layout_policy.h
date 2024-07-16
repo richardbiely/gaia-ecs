@@ -262,7 +262,7 @@ namespace gaia {
 			static void free(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return mem::AllocHelper::free<Allocator>(pData);
+				return mem::AllocHelper::free_alig<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
