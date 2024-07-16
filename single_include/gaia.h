@@ -4119,7 +4119,7 @@ namespace gaia {
 			static void free(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return mem::AllocHelper::free<Allocator>(pData);
+				return mem::AllocHelper::free_alig<Allocator>(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
@@ -6280,7 +6280,7 @@ namespace gaia {
 				return static_cast<size_type>(-1);
 			}
 
-			GAIA_NODISCARD auto front() noexcept {
+			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -6288,7 +6288,7 @@ namespace gaia {
 					return (reference)*begin();
 			}
 
-			GAIA_NODISCARD auto front() const noexcept {
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -6296,7 +6296,7 @@ namespace gaia {
 					return (const_reference)*begin();
 			}
 
-			GAIA_NODISCARD auto back() noexcept {
+			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
@@ -6304,7 +6304,7 @@ namespace gaia {
 					return (reference)(operator[](m_cnt - 1));
 			}
 
-			GAIA_NODISCARD auto back() const noexcept {
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
@@ -6998,7 +6998,7 @@ namespace gaia {
 				return N;
 			}
 
-			GAIA_NODISCARD auto front() noexcept {
+			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -7006,7 +7006,7 @@ namespace gaia {
 					return (reference)*begin();
 			}
 
-			GAIA_NODISCARD auto front() const noexcept {
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -7014,7 +7014,7 @@ namespace gaia {
 					return (const_reference)*begin();
 			}
 
-			GAIA_NODISCARD auto back() noexcept {
+			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
@@ -7022,7 +7022,7 @@ namespace gaia {
 					return (reference) operator[](m_cnt - 1);
 			}
 
-			GAIA_NODISCARD auto back() const noexcept {
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
@@ -10378,14 +10378,14 @@ namespace gaia {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr auto front() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto front() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -10393,14 +10393,14 @@ namespace gaia {
 					return (const_reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto back() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return (operator[])(N - 1);
 				else
 					return (reference) operator[](N - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto back() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](N - 1);
 				else
@@ -11016,7 +11016,7 @@ namespace gaia {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr auto front() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -11024,7 +11024,7 @@ namespace gaia {
 					return (reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto front() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
@@ -11032,7 +11032,7 @@ namespace gaia {
 					return (const_reference)*begin();
 			}
 
-			GAIA_NODISCARD constexpr auto back() noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return (operator[])(m_cnt - 1);
@@ -11040,7 +11040,7 @@ namespace gaia {
 					return (reference) operator[](m_cnt - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto back() const noexcept {
+			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
