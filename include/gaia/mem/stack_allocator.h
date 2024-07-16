@@ -83,7 +83,7 @@ namespace gaia {
 				core::call_ctor_raw_n(pData, cnt);
 
 				// Allocation start offset
-				m_posPrev = addrAllocInfo - addrBuff;
+				m_posPrev = (uint32_t)(addrAllocInfo - addrBuff);
 				// Point to the next free space (not necessary alligned yet)
 				m_pos = m_posPrev + pInfo->off + sizeT * cnt;
 

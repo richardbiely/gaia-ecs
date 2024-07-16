@@ -753,19 +753,19 @@ void BM_NonECS(picobench::state& state) {
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
-	const auto N = (uint32_t)state.user_data();
-	cnt::darray<IUnit*> units(N);
+	const auto N = (uint32_t)state.user_data() / 2;
+	cnt::darray<IUnit*> units(N*2);
 	{
 		GAIA_PROF_SCOPE(setup);
 
-		GAIA_FOR(N / 2) {
+		GAIA_FOR(N) {
 			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
 			units[i] = u;
 		}
-		uint32_t j = N / 2;
+		uint32_t j = N;
 		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
@@ -845,13 +845,14 @@ void BM_NonECS(picobench::state& state) {
 			}
 			{
 				GAIA_PROF_SCOPE(calc_alive);
-				uint32_t aliveUnits = 0;
 				for (auto& u: units) {
 					if (u->isAlive())
 						++aliveUnits;
 				}
 			}
 		}
+
+		(void)aliveUnits;
 
 		units[0]->updatePosition_verify();
 		units[0]->handleGroundCollision_verify();

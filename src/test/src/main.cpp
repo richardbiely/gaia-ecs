@@ -2877,9 +2877,8 @@ TEST_CASE("Query - QueryResult complex") {
 }
 
 TEST_CASE("Relationship") {
-	TestWorld twld;
-
 	SECTION("Simple") {
+		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
 		auto carrot = wld.add();
@@ -2935,6 +2934,7 @@ TEST_CASE("Relationship") {
 	}
 
 	SECTION("Simple - bulk") {
+		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
 		auto carrot = wld.add();
@@ -2978,6 +2978,7 @@ TEST_CASE("Relationship") {
 	}
 
 	SECTION("Intermediate") {
+		TestWorld twld;
 		auto wolf = wld.add();
 		auto hare = wld.add();
 		auto rabbit = wld.add();
@@ -3096,7 +3097,7 @@ TEST_CASE("Relationship") {
 			REQUIRE(cnt == 0);
 
 			uint32_t i = 0;
-			q.each([&](ecs::Iter& it) {
+			q.each([&]([[maybe_unused]] ecs::Iter& it) {
 				++i;
 			});
 			REQUIRE(i == 0);
@@ -3107,7 +3108,7 @@ TEST_CASE("Relationship") {
 			REQUIRE(cnt == 1);
 
 			uint32_t i = 0;
-			q.each([&](ecs::Iter& it) {
+			q.each([&]([[maybe_unused]] ecs::Iter& it) {
 				++i;
 			});
 			REQUIRE(i == 1);
@@ -6846,23 +6847,23 @@ TEST_CASE("StackAllocator") {
 
 		auto* pPos = a.alloc<Position>(10);
 		GAIA_FOR(10) {
-			pPos[i].x = i;
-			pPos[i].y = i + 1;
-			pPos[i].z = i + 2;
+			pPos[i].x = (float)i;
+			pPos[i].y = (float)i + 1.f;
+			pPos[i].z = (float)i + 2.f;
 		}
 		a.free(pPos, 10);
 		pPos = a.alloc<Position>(10);
 		GAIA_FOR(10) {
-			REQUIRE(pPos[i].x == i);
-			REQUIRE(pPos[i].y == i + 1);
-			REQUIRE(pPos[i].z == i + 2);
+			REQUIRE(pPos[i].x == (float)i);
+			REQUIRE(pPos[i].y == (float)i + 1.f);
+			REQUIRE(pPos[i].z == (float)i + 2.f);
 		}
 
 		auto* pPosN = a.alloc<PositionNonTrivial>(3);
 		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1);
-			REQUIRE(pPosN[i].y == 2);
-			REQUIRE(pPosN[i].z == 3);
+			REQUIRE(pPosN[i].x == 1.f);
+			REQUIRE(pPosN[i].y == 2.f);
+			REQUIRE(pPosN[i].z == 3.f);
 		}
 
 		// Alloc and release some more objects
