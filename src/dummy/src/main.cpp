@@ -327,14 +327,17 @@ void test0() {
 		auto q1 = w.query().all<Position>();
 		const auto c1 = q1.count();
 		GAIA_ASSERT(c1 == 2);
+		(void)c1;
 
 		auto q2 = w.query().all<dummy::Position>();
 		const auto c2 = q2.count();
 		GAIA_ASSERT(c2 == 3);
+		(void)c2;
 
 		auto q3 = w.query().no<Position>();
 		const auto c3 = q3.count();
 		GAIA_ASSERT(c3 > 0); // It's going to be a bunch
+		(void)c3;
 	}
 }
 
@@ -354,6 +357,7 @@ void test1() {
 		auto q = w.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 		const auto cnt = q.count();
 		GAIA_ASSERT(cnt == 3);
+		(void)cnt;
 
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
@@ -362,6 +366,7 @@ void test1() {
 			const bool isWolf = entity == wolf;
 			const bool is = isRabbit || isHare || isWolf;
 			GAIA_ASSERT(is);
+			(void)is;
 			++i;
 		});
 		GAIA_ASSERT(i == cnt);
@@ -463,6 +468,7 @@ void test5() {
 		w.del(e);
 		const bool isEntityValid = w.valid(e);
 		GAIA_ASSERT(!isEntityValid);
+		(void)isEntityValid;
 	};
 
 	GAIA_FOR(N) create(i);

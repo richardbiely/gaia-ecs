@@ -845,13 +845,13 @@ void BM_NonECS(picobench::state& state) {
 			}
 			{
 				GAIA_PROF_SCOPE(calc_alive);
-				uint32_t aliveUnits = 0;
 				for (auto& u: units) {
 					if (u->isAlive())
 						++aliveUnits;
 				}
 			}
 		}
+		(void)aliveUnits;
 
 		units[0]->updatePosition_verify();
 		units[0]->handleGroundCollision_verify();
