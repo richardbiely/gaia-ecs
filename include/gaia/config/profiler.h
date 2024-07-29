@@ -31,7 +31,7 @@ namespace tracy {
 
 		ZoneRT(const char* name, const char* file, uint32_t line, const char* function) {
 			const auto srcloc =
-					___tracy_alloc_srcloc_name(line, file, strlen(file), function, strlen(function), name, strlen(name));
+					___tracy_alloc_srcloc_name(line, file, strlen(file), function, strlen(function), name, strlen(name), 0);
 			m_ctx = ___tracy_emit_zone_begin_alloc(srcloc, 1);
 		}
 		~ZoneRT() {
@@ -77,7 +77,7 @@ namespace tracy {
 
 	#define TRACY_ZoneNamedRTBegin(name, function)                                                                       \
 		tracy::ZoneRTBegin(___tracy_alloc_srcloc_name(                                                                     \
-				__LINE__, __FILE__, strlen(__FILE__), function, strlen(function), name, strlen(name)));
+				__LINE__, __FILE__, strlen(__FILE__), function, strlen(function), name, strlen(name), 0));
 
 	#define TRACY_ZoneBegin(name, function)                                                                              \
 		static constexpr ___tracy_source_location_data TracyConcat(__tracy_source_location, __LINE__) {                    \

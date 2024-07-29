@@ -42,9 +42,9 @@
     {
       "label": "Profiler",
       "type": "shell",
-      "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/unix/Tracy-release",
+      "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/unix/tracy-profiler",
       "windows": {
-        "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/win32/Tracy-release.exe",
+        "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/win32/tracy-profiler.exe",
       },
       "group": "build",
       "presentation": {

@@ -88,11 +88,11 @@ else()
       # find_program(LLD_PROGRAM lld)
 
       # if(LLD_PROGRAM_MATCH_VER) # lld matching compiler version
-      #   message(STATUS "Linker: ${LLD_PROGRAM_MATCH_VER} LLD")
-      #   add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
+      # message(STATUS "Linker: ${LLD_PROGRAM_MATCH_VER} LLD")
+      # add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
       # elseif(LLD_PROGRAM) # default lld
-      #   message(STATUS "Linker: ${LLD_PROGRAM} LLD")
-      #   add_link_options("-fuse-ld=lld")
+      # message(STATUS "Linker: ${LLD_PROGRAM} LLD")
+      # add_link_options("-fuse-ld=lld")
       # endif(LLD_PROGRAM_MATCH_VER)
     endif()
 
@@ -312,12 +312,12 @@ endif()
 
 if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
   if(IS_FETCH_AVAILABLE)
-    find_package(tracy CONFIG QUIET 0.10)
+    find_package(tracy CONFIG QUIET 0.11)
 
     if(NOT tracy_FOUND)
       FetchContent_Declare(tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.10
+        GIT_TAG v0.11.0
         GIT_SHALLOW TRUE
       )
 
@@ -327,23 +327,27 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
       FetchContent_MakeAvailable(tracy)
     endif()
   else()
-    find_package(tracy CONFIG REQUIRED 0.10)
+    find_package(tracy CONFIG REQUIRED 0.11)
   endif()
 
   if(GAIA_PROFILER_BUILD)
     # Add a custom target to build the Tracy profiler GUI
     if(UNIX)
-      set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/unix)
+      set(tracy_profiler_build_dir "build/unix")
+      message("Building profiler for UNIX platform in: " ${tracy_profiler_build_dir})
     elseif(WIN32)
-      set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/win32)
+      set(tracy_profiler_build_dir "build/win32")
+      message("Building profiler for Windows platform in: " ${tracy_profiler_build_dir})
     else()
       message(WARNING "Unsupported platform. Building profiler won't be possible")
     endif()
 
     if(DEFINED tracy_profiler_build_dir)
       add_custom_target(build_tracy_profiler_gui ALL
-        COMMAND make -j4 release
-        WORKING_DIRECTORY ${tracy_profiler_build_dir}
+        COMMAND cmake -E make_directory ${tracy_profiler_build_dir}
+        COMMAND cmake -DCMAKE_BUILD_TYPE=Release -B ${tracy_profiler_build_dir} -S .
+        COMMAND cmake --build ${tracy_profiler_build_dir} --config Release
+        WORKING_DIRECTORY ${tracy_SOURCE_DIR}/profiler
       )
     endif()
   endif()
