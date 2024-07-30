@@ -1269,7 +1269,10 @@ If we imagine an ordinary array of 4 Position components defined above with this
 However, in specific cases, you might want to consider organizing your component's internal data as structure or arrays (SoA):
 
 ```cpp
-static constexpr auto Layout = mem::DataLayout::SoA
+// You can use this...
+static constexpr auto Layout = mem::DataLayout::SoA;
+// ... or a convenience preprocessor macro
+GAIA_LAYOUT(SoA);
 ```
 
 Using the example above will make **Gaia-ECS** treat Position components like this in memory: xxxx yyyy zzzz.
@@ -1278,12 +1281,12 @@ If used correctly this can have vast performance implications. Not only do you o
 
 ```cpp
 struct PositionSoA {
+  GAIA_LAYOUT(SoA);
   float x, y, z;
-  static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct VelocitySoA {
+  GAIA_LAYOUT(SoA);
   float x, y, z;
-  static constexpr auto Layout = mem::DataLayout::SoA;
 };
 ...
 

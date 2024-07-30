@@ -68,10 +68,9 @@ namespace components {
 	};
 
 	struct SoAPositionComponent {
+		GAIA_LAYOUT(SoA);
 		float x{0.0f};
 		float y{0.0f};
-
-		static constexpr auto Layout = ::gaia::mem::DataLayout::SoA;
 	};
 
 	struct VelocityComponent {
@@ -80,10 +79,9 @@ namespace components {
 	};
 
 	struct SoAVelocityComponent {
+		GAIA_LAYOUT(SoA);
 		float x{1.0f};
 		float y{1.0f};
-
-		static constexpr auto Layout = ::gaia::mem::DataLayout::SoA;
 	};
 } // namespace components
 

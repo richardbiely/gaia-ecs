@@ -13,15 +13,15 @@ struct Position {
 	float x, y, z;
 };
 struct PositionSoA {
+	GAIA_LAYOUT(SoA);
 	float x, y, z;
-	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct Velocity {
 	float x, y, z;
 };
 struct VelocitySoA {
+	GAIA_LAYOUT(SoA);
 	float x, y, z;
-	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct Rotation {
 	float x, y, z, w;
@@ -754,7 +754,7 @@ void BM_NonECS(picobench::state& state) {
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
 	const auto N = (uint32_t)state.user_data() / 2;
-	cnt::darray<IUnit*> units(N*2);
+	cnt::darray<IUnit*> units(N * 2);
 	{
 		GAIA_PROF_SCOPE(setup);
 

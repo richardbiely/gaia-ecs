@@ -21,6 +21,10 @@ namespace gaia {
 			Count = 4
 		};
 
+#ifndef GAIA_LAYOUT
+	#define GAIA_LAYOUT(layout_name) static constexpr auto Layout = ::gaia::mem::DataLayout::layout_name
+#endif
+
 		// Helper templates
 		namespace detail {
 			//! Returns the alignment for a given type \tparam T

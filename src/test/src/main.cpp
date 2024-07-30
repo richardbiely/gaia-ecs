@@ -41,16 +41,16 @@ struct Position {
 	float x, y, z;
 };
 struct PositionSoA {
+	GAIA_LAYOUT(SoA);
 	float x, y, z;
-	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct PositionSoA8 {
+	GAIA_LAYOUT(SoA8);
 	float x, y, z;
-	static constexpr auto Layout = mem::DataLayout::SoA8;
 };
 struct PositionSoA16 {
+	GAIA_LAYOUT(SoA16);
 	float x, y, z;
-	static constexpr auto Layout = mem::DataLayout::SoA16;
 };
 struct Acceleration {
 	float x, y, z;
@@ -59,22 +59,22 @@ struct Rotation {
 	float x, y, z, w;
 };
 struct DummySoA {
+	GAIA_LAYOUT(SoA);
 	float x, y;
 	bool b;
 	float w;
-	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct RotationSoA {
+	GAIA_LAYOUT(SoA);
 	float x, y, z, w;
-	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct RotationSoA8 {
+	GAIA_LAYOUT(SoA8);
 	float x, y, z, w;
-	static constexpr auto Layout = mem::DataLayout::SoA8;
 };
 struct RotationSoA16 {
+	GAIA_LAYOUT(SoA16);
 	float x, y, z, w;
-	static constexpr auto Layout = mem::DataLayout::SoA16;
 };
 struct Scale {
 	float x, y, z;

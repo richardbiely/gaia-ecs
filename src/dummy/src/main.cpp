@@ -9,7 +9,7 @@ struct Position {
 	float x, y, z;
 };
 struct PositionSoA {
-	static constexpr auto Layout = mem::DataLayout::SoA;
+	GAIA_LAYOUT(SoA);
 	float x, y, z;
 };
 struct Velocity {
