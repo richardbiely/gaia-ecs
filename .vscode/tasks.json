@@ -22,7 +22,7 @@
         "cwd": "${workspaceFolder}/docker"
       },
       "windows": {
-        "command": "setup.bat"
+        "command": "./setup.bat"
       },
       "linux": {
         "command": ""
