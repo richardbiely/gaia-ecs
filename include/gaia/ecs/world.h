@@ -3382,9 +3382,9 @@ namespace gaia {
 			void gc() {
 				GAIA_PROF_SCOPE(World::gc);
 
-				// del_empty_chunks();
+				del_empty_chunks();
 				defrag_chunks(m_defragEntitiesPerTick);
-				// del_empty_archetypes();
+				del_empty_archetypes();
 			}
 		};
 
