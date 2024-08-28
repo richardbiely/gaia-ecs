@@ -18,7 +18,7 @@ namespace gaia {
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions{};
-			//! Byte at which the first etity id is located
+			//! Byte at which the first entity id is located
 			ChunkDataOffset firstByte_CompEntities{};
 			//! Byte at which the first component id is located
 			ChunkDataOffset firstByte_Records{};
@@ -49,7 +49,7 @@ namespace gaia {
 		};
 
 		struct ChunkHeader final {
-			//! Maxiumum number of entities per chunk.
+			//! Maximum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
 			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
@@ -59,7 +59,7 @@ namespace gaia {
 			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
 			static constexpr uint16_t CHUNK_LOCKS_BITS = 3;
-			//! Number of locks the chunk can aquire
+			//! Number of locks the chunk can acquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
 			//! Component cache reference
@@ -107,8 +107,7 @@ namespace gaia {
 			ChunkHeader(
 					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
 					uint32_t& version):
-					cc(&compCache),
-					index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),

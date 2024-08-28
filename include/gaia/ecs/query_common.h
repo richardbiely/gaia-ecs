@@ -119,7 +119,7 @@ namespace gaia {
 			};
 
 			struct Data {
-				//! Array of querried ids
+				//! Array of queried ids
 				QueryEntityArray ids;
 				//! Array of terms
 				QueryTermArray terms;
@@ -134,7 +134,7 @@ namespace gaia {
 				Entity groupBy;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
-				//! Function to use to perfrom the grouping
+				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
@@ -219,9 +219,9 @@ namespace gaia {
 				// We want to do it this way because it would be expensive to build cache for
 				// the entire tree. Rather, we only cache fixed parts of the query without
 				// variables.
-				// TOOD: In theory, there might be a better way to sort sources.
+				// TODO: In theory, there might be a better way to sort sources.
 				//       E.g. depending on the number of archetypes we'd have to traverse
-				//       it might be benefitial to do a different ordering which is impossible
+				//       it might be beneficial to do a different ordering which is impossible
 				//       to do at this point.
 				return lhs.src.id() < rhs.src.id();
 			}
@@ -252,7 +252,7 @@ namespace gaia {
 			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
-			// Therefore, if we want to see where 15 was located originaly (curr index 1), we do look at index 2 and get 1.
+			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
 			GAIA_EACH(data.terms) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
 				data.remapping[i] = idxBeforeRemapping;

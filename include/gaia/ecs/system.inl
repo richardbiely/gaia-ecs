@@ -9,7 +9,7 @@ namespace gaia {
 #else
 
 	#include <cinttypes>
-	// TODO: Currently necessasry due to std::function. Replace them!
+	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
 
 	#include "chunk_iterator.h"

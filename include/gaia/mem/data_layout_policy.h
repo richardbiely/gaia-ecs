@@ -100,7 +100,7 @@ namespace gaia {
 		struct data_view_policy_set_idx;
 
 		//! View policy for accessing and storing data in the AoS way.
-		//! Good for random access and when acessing data that needs to be
+		//! Good for random access and when accessing data that needs to be
 		//! close together.
 		//!
 		//! struct Foo {

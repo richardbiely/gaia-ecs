@@ -441,8 +441,8 @@ namespace gaia {
 				void group_by_inter(TGroupByFunc func) {
 					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
 					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
-					static_assert(core::is_raw_v<UO_Rel>, "Use groupby() with raw types only");
-					static_assert(core::is_raw_v<UO_Tgt>, "Use groupby() with raw types only");
+					static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
 
 					// Make sure the component is always registered
 					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
@@ -454,7 +454,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void set_group_id_inter(GroupId groupId) {
-					// Dummy usage of GroupIdMax to avoid warrning about unused constant
+					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
 					Command_SetGroupId cmd{groupId};
@@ -605,7 +605,7 @@ namespace gaia {
 					// We have many chunks to process.
 					// Chunks might be located at different memory locations. Not even in the same memory page.
 					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-					// for the next chunk explictely so we do not end up stalling later.
+					// for the next chunk explicitly so we do not end up stalling later.
 					// Note, this is a micro optimization and on average it brings no performance benefit. It only
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
@@ -944,7 +944,7 @@ namespace gaia {
 					m_storage.init(&world);
 				}
 
-				// TODO: We might want to allways invalidate the serialization buffer just in case.
+				// TODO: We might want to always invalidate the serialization buffer just in case.
 				//       However, ref-counting would have to be introduced for QueryImpl first.
 				//       Otherwise, any copy of the query would invalidate the serialization buffer
 				//       if its lifetime ended.
@@ -1230,7 +1230,7 @@ namespace gaia {
 				//!					 The result is not cached and repeated calls to the function might be slow.
 				//!					 If you already called arr(), checking if it is empty is preferred.
 				//!					 Use empty() instead of calling count()==0.
-				//!	\return True if there are any entites matchine the query. False otherwise.
+				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					const bool hasFilters = queryInfo.has_filters();

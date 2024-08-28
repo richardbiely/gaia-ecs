@@ -50,7 +50,7 @@ namespace gaia {
 			//!			4) ComponentRecords
 			//!			5) Entities (identifiers)
 			//!			6) Entities (data)
-			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
+			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
 			GAIA_MSVC_WARNING_PUSH()
@@ -61,7 +61,7 @@ namespace gaia {
 
 			Chunk(
 					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
-					uint32_t& worldVersion):
+					uint32_t& worldVersion): //
 					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
@@ -151,7 +151,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Span of read-only component data.
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const //
 					-> decltype(std::span<const uint8_t>{}) {
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
@@ -209,7 +209,7 @@ namespace gaia {
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 			//! \return Span of read-write component data.
 			template <typename T, bool WorldVersionUpdateWanted>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to) //
 					-> decltype(std::span<uint8_t>{}) {
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "view_mut can't be used to modify Entity");
 
@@ -312,7 +312,7 @@ namespace gaia {
 				const auto dataAreaOffset =
 						// ChunkAllocator reserves the first few bytes for internal purposes
 						MemoryBlockUsableOffset +
-						// Chunk "header" area (before actuall entity/component data starts)
+						// Chunk "header" area (before actual entity/component data starts)
 						sizeof(ChunkHeader) + sizeof(ChunkRecords);
 				static_assert(dataAreaOffset < UINT16_MAX);
 				return dataAreaOffset;
@@ -482,7 +482,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable component view.
-			//! Doesn't update the world version when the access is aquired.
+			//! Doesn't update the world version when the access is acquired.
 			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from First valid entity row
@@ -536,7 +536,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! Doesn't update the world version when read-write access is aquired.
+			//! Doesn't update the world version when read-write access is acquired.
 			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
@@ -721,7 +721,7 @@ namespace gaia {
 
 				const uint16_t rowA = row;
 				const uint16_t rowB = m_header.count - 1;
-				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB"
+				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB"
 				GAIA_ASSERT(rowA <= rowB);
 
 				// To move anything, we need at least 2 entities
@@ -809,7 +809,7 @@ namespace gaia {
 			//! If \param rowA equals \param rowB no swapping is performed.
 			//! \warning "rowA" must he smaller or equal to "rowB"
 			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
-				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB".
+				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB".
 				// Unlike remove_entity_inter, it is not technically necessary but we do it
 				// anyway for the sake of consistency.
 				GAIA_ASSERT(rowA <= rowB);

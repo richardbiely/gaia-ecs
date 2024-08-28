@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 #ifndef TCB_SPAN_NO_CONTRACT_CHECKING
-	// #define TCB_SPAN_NO_CONTRACT_CHECKING
+// #define TCB_SPAN_NO_CONTRACT_CHECKING
 #endif
 
 //------------------------------------------------------------------------------
@@ -25,7 +25,7 @@
 //! If enabled, additional debug and verification code is used which
 //! slows things down but enables better security and diagnostics.
 //! Suitable for debug builds first and foremost. Therefore, it is
-//! enabled by default for debud builds.
+//! enabled by default for debug builds.
 #if !defined(GAIA_DEBUG)
 	#if GAIA_DEBUG_BUILD || GAIA_FORCE_DEBUG
 		#define GAIA_DEBUG 1

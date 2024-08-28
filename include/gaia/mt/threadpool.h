@@ -95,7 +95,7 @@ namespace gaia {
 				reset();
 			}
 
-			//! Make the calling thread the effective main thread from the thread pool perscpetive
+			//! Make the calling thread the effective main thread from the thread pool perspective
 			void make_main_thread() {
 				m_mainThreadId = std::this_thread::get_id();
 			}
@@ -228,7 +228,7 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Internal usage only. Only worker theads can decide to resubmit.
+			//! \warning Internal usage only. Only worker threads can decide to resubmit.
 			void resubmit(JobHandle jobHandle) {
 				m_jobManager.resubmit(jobHandle);
 
@@ -310,7 +310,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_stop)
 					return JobNull;
 
-				// Make sure the right priorty is selected
+				// Make sure the right priority is selected
 				const auto prio = job.priority = final_prio(job);
 
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
@@ -466,7 +466,7 @@ namespace gaia {
 				}
 
 				///////////////////////////////////////////////////////////////////////////
-				// Apple's recomendation for Apple Silicon for games / high-perf software
+				// Apple's recommendation for Apple Silicon for games / high-perf software
 				// ========================================================================
 				// Per frame              | Scheduling policy     | QoS class / Priority
 				// ========================================================================
@@ -624,7 +624,7 @@ namespace gaia {
 				// 				if (mask <= 0)
 				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", workerIdx);
 				// #elif GAIA_PLATFORM_APPLE
-				// 				// Do not do affinity for MacOS. If is not supported for Apple Silion and
+				// 				// Do not do affinity for MacOS. If is not supported for Apple Silicon and
 				// 				// Intel MACs are deprecated anyway.
 				// 				// TODO: Consider supporting this at least for Intel MAC as there are still
 				// 				//       quite of few of them out there.

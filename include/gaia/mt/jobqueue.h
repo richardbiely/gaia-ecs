@@ -60,8 +60,8 @@ namespace gaia {
 				return true;
 			}
 
-			//! Tries retriving a job to the queue. FIFO.
-			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
+			//! Tries retrieving a job to the queue. FIFO.
+			//! \return True if the job was retrieved. False otherwise (e.g. there are no jobs).
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 

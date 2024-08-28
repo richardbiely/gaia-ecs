@@ -20,10 +20,10 @@ namespace gaia {
 			SystemManager(World& world):
 					BaseSystemManager(world), m_beforeUpdateCmdBuffer(world), m_afterUpdateCmdBuffer(world) {}
 
-			CommandBuffer& BeforeUpdateCmdBufer() {
+			CommandBuffer& BeforeUpdateCmdBuffer() {
 				return m_beforeUpdateCmdBuffer;
 			}
-			CommandBuffer& AfterUpdateCmdBufer() {
+			CommandBuffer& AfterUpdateCmdBuffer() {
 				return m_afterUpdateCmdBuffer;
 			}
 

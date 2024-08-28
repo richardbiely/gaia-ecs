@@ -23,7 +23,7 @@ namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
 		static constexpr uint32_t MaxMemoryBlockSize = 16384;
-		//! Unusable area at the beggining of the allocated block designated for special purposes
+		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
@@ -73,7 +73,7 @@ namespace gaia {
 					void* m_data;
 					//! Index in the list of pages
 					uint32_t m_idx;
-					
+
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
@@ -356,14 +356,14 @@ namespace gaia {
 
 				//! Performs diagnostics of the memory used.
 				void diag() const {
-					auto diagPage = [](const ChunkAllocatorPageStats& memstats) {
+					auto diagPage = [](const ChunkAllocatorPageStats& stats) {
 						GAIA_LOG_N("ChunkAllocator stats");
-						GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.mem_total);
-						GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.mem_total - memstats.mem_used);
-						GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.mem_used);
-						GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.mem_used / (double)memstats.mem_total));
-						GAIA_LOG_N("  Pages: %u", memstats.num_pages);
-						GAIA_LOG_N("  Free pages: %u", memstats.num_pages_free);
+						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
+						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_total - stats.mem_used);
+						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)stats.mem_used / (double)stats.mem_total));
+						GAIA_LOG_N("  Pages: %u", stats.num_pages);
+						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
 
 					diagPage(page_stats(0));

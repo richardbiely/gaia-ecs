@@ -156,13 +156,13 @@ namespace gaia {
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is alligned to \param alig boundary.
+		//! The memory is aligned to \param alig boundary.
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is alligned to \param alig boundary.
+		//! The memory is aligned to \param alig boundary.
 		inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}

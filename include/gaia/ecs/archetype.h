@@ -108,7 +108,7 @@ namespace gaia {
 			uint32_t& m_worldVersion;
 
 			//! Index of the first chunk with enough space to add at least one entity
-			uint32_t m_firstFreeChunkidx = 0;
+			uint32_t m_firstFreeChunkIdx = 0;
 			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -158,7 +158,7 @@ namespace gaia {
 					Chunk::free(pChunk);
 			}
 
-			//! Calulcates offsets in memory at which important chunk data is going to be stored.
+			//! Calculates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
@@ -246,7 +246,7 @@ namespace gaia {
 				// Set component ids
 				GAIA_FOR2(from, to) arch.m_ids[i] = ids[i];
 
-				// Calulate offsets and assign them indices according to our mappings
+				// Calculate offsets and assign them indices according to our mappings
 				GAIA_FOR2(from, to) {
 					const auto comp = comps[i];
 					const auto compIdx = i;
@@ -460,7 +460,7 @@ namespace gaia {
 				m_chunks.back()->set_idx(chunkIndex);
 				core::erase_fast(m_chunks, chunkIndex);
 
-				// Delete the chunk now. Otherwise, if the chunk happend to be the last
+				// Delete the chunk now. Otherwise, if the chunk happened to be the last
 				// one we would end up overriding released memory.
 				Chunk::free(pChunk);
 
@@ -487,7 +487,7 @@ namespace gaia {
 			}
 
 			//! Defragments the chunk.
-			//! \param maxEntites Maximum number of entities moved per call
+			//! \param maxEntities Maximum number of entities moved per call
 			//! \param chunksToDelete Container of chunks ready for removal
 			//! \param entities Container with entities
 			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, EntityContainers& recs) {
@@ -509,7 +509,7 @@ namespace gaia {
 				// NOTE 1:
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
-				// All entites and components remain intact, they just move to a different place.
+				// All entities and components remain intact, they just move to a different place.
 				// NOTE 2:
 				// Entities belonging to chunks with uni components are locked to their chunk.
 				// Therefore, we won't defragment them unless their uni components contain matching
@@ -620,12 +620,12 @@ namespace gaia {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
-					for (uint32_t i = m_firstFreeChunkidx; i < m_chunks.size(); ++i) {
+					for (uint32_t i = m_firstFreeChunkIdx; i < m_chunks.size(); ++i) {
 						auto* pChunk = m_chunks[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						const auto entityCnt = pChunk->size();
 						if (entityCnt < pChunk->capacity()) {
-							m_firstFreeChunkidx = i;
+							m_firstFreeChunkIdx = i;
 							return pChunk;
 						}
 					}
@@ -641,7 +641,7 @@ namespace gaia {
 						m_properties.genEntities, m_properties.chunkDataBytes, //
 						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
 
-				m_firstFreeChunkidx = m_chunks.size();
+				m_firstFreeChunkIdx = m_chunks.size();
 				m_chunks.push_back(pChunk);
 				return pChunk;
 			}
@@ -653,9 +653,9 @@ namespace gaia {
 				// This is expected to be called only if there are any chunks
 				GAIA_ASSERT(!m_chunks.empty());
 
-				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				auto* pChunk = m_chunks[m_firstFreeChunkIdx];
 				if (pChunk->size() >= pChunk->capacity())
-					++m_firstFreeChunkidx;
+					++m_firstFreeChunkIdx;
 			}
 
 			//! Tries to update the index of the first chunk that has space left
@@ -665,17 +665,17 @@ namespace gaia {
 				// This is expected to be called only if there are any chunks
 				GAIA_ASSERT(!m_chunks.empty());
 
-				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkidx)
+				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkIdx)
 					return;
 
-				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkidx) {
-					m_firstFreeChunkidx = chunkThatRemovedEntity.idx();
+				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkIdx) {
+					m_firstFreeChunkIdx = chunkThatRemovedEntity.idx();
 					return;
 				}
 
-				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				auto* pChunk = m_chunks[m_firstFreeChunkIdx];
 				if (pChunk->size() >= pChunk->capacity())
-					++m_firstFreeChunkidx;
+					++m_firstFreeChunkIdx;
 			}
 
 			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
@@ -855,7 +855,7 @@ namespace gaia {
 				auto ids = archetype.ids_view();
 				auto comps = archetype.comps_view();
 
-				// Caclulate the number of entites in archetype
+				// Calculate the number of entities in archetype
 				uint32_t entCnt = 0;
 				uint32_t entCntDisabled = 0;
 				for (const auto* chunk: archetype.m_chunks) {

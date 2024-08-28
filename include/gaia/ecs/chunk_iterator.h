@@ -115,7 +115,7 @@ namespace gaia {
 				}
 
 				//! Returns a mutable component view.
-				//! Doesn't update the world version when the access is aquired.
+				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
@@ -152,7 +152,7 @@ namespace gaia {
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Doesn't update the world version when read-write access is aquired.
+				//! Doesn't update the world version when read-write access is acquired.
 				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
@@ -238,7 +238,7 @@ namespace gaia {
 		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
 
 		//! Iterator for iterating both enabled and disabled entities.
-		//! Disabled entities always preceed enabled ones.
+		//! Disabled entities always precede enabled ones.
 		class IterAll: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
 			//! Returns the number of enabled entities accessible via the iterator.

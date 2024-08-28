@@ -61,7 +61,7 @@ namespace gaia {
 			QueryCache m_queryCache;
 			//! A map of [Query*, Buffer].
 			//! Contains serialization buffers used by queries during their initialization.
-			//! Kept here because it's only necessary for query initilization and would just
+			//! Kept here because it's only necessary for query initialization and would just
 			//! take space on a query almost 100% of the time with no purpose at all.
 			//! Records removed as soon as the query is compiled.
 			QuerySerMap m_querySerMap;
@@ -118,7 +118,7 @@ namespace gaia {
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
-			//! Local set of entites to delete
+			//! Local set of entities to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! Array of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
@@ -127,7 +127,7 @@ namespace gaia {
 			//! Index of the last defragmented archetype in the archetype list
 			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
-			uint32_t m_defragEntitesPerTick = 100;
+			uint32_t m_defragEntitiesPerTick = 100;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -356,7 +356,7 @@ namespace gaia {
 							// We avoid self-removal.
 							const auto tgtNew = *targets.begin();
 							if (sz == 1 && tgt != tgtNew) {
-								// Exlusive relationship replaces the previous one.
+								// Exclusive relationship replaces the previous one.
 								// We need to check if the old one can be removed.
 								// This is what del_inter does on the inside.
 								// It first checks if entity can be deleted and calls handle_del afterwards.
@@ -730,7 +730,7 @@ namespace gaia {
 
 			//! Creates \param count of entities of the same archetype as \param entity.
 			//! \param func Functor to execute every time an entity is added
-			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
+			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
 			//!       if they provide a constructor
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
@@ -773,7 +773,7 @@ namespace gaia {
 				// Make sure the default component entity name points to the cache item name
 				name_raw(item.entity, item.name.str(), item.name.len());
 
-				// TODO: Implement entity locking. A locked entity can't change archtypes.
+				// TODO: Implement entity locking. A locked entity can't change archetypes.
 				//       This way we can prevent anybody messing with the internal state of the component
 				//       entities created at compile-time data.
 
@@ -884,7 +884,7 @@ namespace gaia {
 				auto* pOldChunk = ec.pChunk;
 
 				// Entities array might get reallocated after m_recs.entities.alloc
-				// so insted of fetching the container again we simply cache the row
+				// so instead of fetching the container again we simply cache the row
 				// of our source entity.
 				const auto oldRow = ec.row;
 
@@ -1002,7 +1002,7 @@ namespace gaia {
 
 					del_entities(*pArchetype);
 
-					// Now that all entites are deleted, all their chunks are requestd to get deleted
+					// Now that all entities are deleted, all their chunks are requested to get deleted
 					// and in turn the archetype itself as well. Therefore, it is added to the archetype
 					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
 					// > del_empty_archetype(pArchetype);
@@ -1019,7 +1019,7 @@ namespace gaia {
 						continue;
 					}
 
-					// Requested entities are partialy deleted. We only need to invalidate them.
+					// Requested entities are partially deleted. We only need to invalidate them.
 					invalidate_entity(e);
 
 					it = m_reqEntitiesToDel.erase(it);
@@ -1238,7 +1238,7 @@ namespace gaia {
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
-			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
@@ -1293,7 +1293,7 @@ namespace gaia {
 			//! Tells if \param entity contains \param pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
-			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
@@ -1757,7 +1757,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
-			//! memory cleanup and other managment operations which keep the system healthy.
+			//! memory cleanup and other management operations which keep the system healthy.
 			void update() {
 				systems_run();
 
@@ -1785,10 +1785,10 @@ namespace gaia {
 				init();
 			}
 
-			//! Sets the maximum number of entites defragmented per world tick
+			//! Sets the maximum number of entities defragmented per world tick
 			//! \param value Number of entities to defragment
 			void defrag_entities_per_tick(uint32_t value) {
-				m_defragEntitesPerTick = value;
+				m_defragEntitiesPerTick = value;
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1806,7 +1806,7 @@ namespace gaia {
 				comp_cache().diag();
 			}
 
-			//! Performs diagnostics on entites of the world.
+			//! Performs diagnostics on entities of the world.
 			//! Also performs validation of internal structures which hold the entities.
 			void diag_entities() const {
 				validate_entities();
@@ -2118,7 +2118,7 @@ namespace gaia {
 			}
 
 			//! Defragments chunks.
-			//! \param maxEntites Maximum number of entities moved per call
+			//! \param maxEntities Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
 				GAIA_PROF_SCOPE(World::defrag_chunks);
 
@@ -2335,7 +2335,7 @@ namespace gaia {
 			//! Searches for an archetype which is formed by adding entity \param entity of \param pArchetypeLeft.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
-			//! \param entity Enity we want to add.
+			//! \param entity Entity we want to add.
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
 				// TODO: Add specialization for m_pCompArchetype and m_pEntityArchetype to make this faster
@@ -2508,7 +2508,7 @@ namespace gaia {
 					invalidate_entity(entity);
 			}
 
-			//! Deletes all entites (and in turn chunks) from \param archetype.
+			//! Deletes all entities (and in turn chunks) from \param archetype.
 			//! If an archetype forming entity is present, the chunk is treated as if it were empty
 			//! and normal dying procedure is applied to it. At the last dying tick the entity is
 			//! deleted so the chunk can be removed.
@@ -2595,7 +2595,7 @@ namespace gaia {
 
 					// Copy entities back-to-front to avoid unnecessary data movements.
 					// TODO: Handle disabled entities efficiently.
-					//       If there are disabled entites, we still do data movements if there already
+					//       If there are disabled entities, we still do data movements if there already
 					//       are enabled entities in the chunk.
 					// TODO: If the header was of some fixed size, e.g. if we always acted as if we had
 					//       Chunk::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
@@ -2759,7 +2759,7 @@ namespace gaia {
 
 				const auto& archetypes = it->second;
 				for (auto* pArchetype: archetypes) {
-					// Evaluate the conditon if a valid pair is given
+					// Evaluate the condition if a valid pair is given
 					if (!archetype_cond_match(*pArchetype, cond, entity))
 						continue;
 
@@ -2823,7 +2823,7 @@ namespace gaia {
 					if (pArchetype->is_req_del())
 						continue;
 
-					// Evaluate the conditon if a valid pair is given
+					// Evaluate the condition if a valid pair is given
 					if (!archetype_cond_match(*pArchetype, cond, entity))
 						continue;
 
@@ -2861,9 +2861,9 @@ namespace gaia {
 					const auto tgt = get(entity.gen());
 					const auto& ecTgt = fetch(tgt);
 					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restricion)");
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restriction)");
 						GAIA_LOG_E(
-								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restricion)",
+								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restriction)",
 								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
@@ -2940,7 +2940,7 @@ namespace gaia {
 						const auto leftId = pArchetype->find_edge_left(entityToRemove);
 						const auto itLeft = m_archetypesById.find(leftId);
 
-						// The edge might have been deleted aleady
+						// The edge might have been deleted already
 						if (itLeft == m_archetypesById.end())
 							continue;
 
@@ -3013,7 +3013,7 @@ namespace gaia {
 				}
 			}
 
-			//! Invalidates the entity record, effectivelly deleting it.
+			//! Invalidates the entity record, effectively deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
 				del_graph_edges(entity);
@@ -3132,7 +3132,7 @@ namespace gaia {
 					}
 					GAIA_ASSERT(cnt == pChunk->size());
 				} else {
-					// Make sure no entites reference the chunk
+					// Make sure no entities reference the chunk
 					for (const auto& ec: m_recs.entities) {
 						GAIA_ASSERT(ec.pChunk != pChunk);
 					}
@@ -3383,7 +3383,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(World::gc);
 
 				// del_empty_chunks();
-				defrag_chunks(m_defragEntitesPerTick);
+				defrag_chunks(m_defragEntitiesPerTick);
 				// del_empty_archetypes();
 			}
 		};
@@ -3408,7 +3408,7 @@ namespace gaia {
 					serId = ++s_querySerId;
 
 					// If the id is already found, try again.
-					// Note, this is essentialy never going to repeat. We would have to prepare millions if
+					// Note, this is essentially never going to repeat. We would have to prepare millions if
 					// not billions of queries for which we only added inputs but never queried them.
 					auto ret = queryBuffers.try_emplace(serId);
 					if (!ret.second)
@@ -3567,7 +3567,7 @@ namespace gaia {
 				(void)reg_core_entity<_Var7>(Var7);
 			}
 
-			// Add special properites for core components.
+			// Add special properties for core components.
 			// Their order must correspond to the value sequence in id.h.
 			{
 				EntityBuilder(*this, Core) //
@@ -3664,7 +3664,7 @@ namespace gaia {
 			}
 
 			// Remove all archetypes with no chunks. We don't want any leftovers after
-			// archetype movemements.
+			// archetype movements.
 			{
 				for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
 					auto* pArchetype = m_archetypes[i];

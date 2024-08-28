@@ -29,7 +29,7 @@ namespace gaia {
 			detail::raw_data_holder<CapacityInBytes, 16> m_buffer;
 			//! Current byte offset
 			uint32_t m_pos = 0;
-			//! Byte offset of the previous allocatoin
+			//! Byte offset of the previous allocation
 			uint32_t m_posPrev = 0;
 			//! Number of allocations made
 			uint32_t m_allocs = 0;
@@ -78,13 +78,13 @@ namespace gaia {
 					core::call_dtor_n((T*)ptr, cnt);
 				};
 
-				// Constuction the object is necessary
+				// Constructing the object is necessary
 				auto* pData = (T*)addrAllocData;
 				core::call_ctor_raw_n(pData, cnt);
 
 				// Allocation start offset
 				m_posPrev = (uint32_t)(addrAllocInfo - addrBuff);
-				// Point to the next free space (not necessary alligned yet)
+				// Point to the next free space (not necessary aligned yet)
 				m_pos = m_posPrev + pInfo->off + sizeT * cnt;
 
 				++m_allocs;

@@ -33,7 +33,7 @@ namespace gaia {
 			Component comp;
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
-			//! If component is SoA, this stores how many bytes each of the elemenets take
+			//! If component is SoA, this stores how many bytes each of the elements take
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
@@ -48,7 +48,7 @@ namespace gaia {
 			FuncDtor* func_dtor{};
 			//! Function to call when the component needs to be copied
 			FuncCopy* func_copy{};
-			//! Fucntion to call when the component needs to be moved
+			//! Function to call when the component needs to be moved
 			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap{};

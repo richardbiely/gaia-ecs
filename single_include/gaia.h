@@ -23,7 +23,7 @@
 #else
 // We use some C++17+ features such as folding expressions, compile-time ifs
 // and similar which makes it impossible to use Gaia-ECS with old compilers.
-	#error "To build Gaia-ECS a compiler capable of at least C++17 is necesary"
+	#error "To build Gaia-ECS a compiler capable of at least C++17 is necessary"
 #endif
 
 #define GAIA_SAFE_CONSTEXPR constexpr
@@ -170,7 +170,7 @@
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC
-	// Whether it is ARM or x86 we consider both litte endian.
+	// Whether it is ARM or x86 we consider both little endian.
 	// It is very unlikely that any modern "big" CPU would use big endian these days
 	// as it is more efficient to be little endian on HW level.
 	#define GAIA_LITTLE_ENDIAN true
@@ -237,7 +237,7 @@ namespace gaia {
 	#define GAIA_UNLIKELY(cond) (cond)
 #endif
 
-// GCC 7 and some later versions had a bug that would aritificaly restrict alignas for stack
+// GCC 7 and some later versions had a bug that would artificially restrict alignas for stack
 // variables to 16 bytes.
 // However, using the compiler custom attribute would still work. Therefore, because it is
 // more portable, we shall introduce the GAIA_ALIGNAS macro.
@@ -661,7 +661,7 @@ namespace gaia {
 //------------------------------------------------------------------------------
 
 #ifndef TCB_SPAN_NO_CONTRACT_CHECKING
-	// #define TCB_SPAN_NO_CONTRACT_CHECKING
+// #define TCB_SPAN_NO_CONTRACT_CHECKING
 #endif
 
 //------------------------------------------------------------------------------
@@ -677,7 +677,7 @@ namespace gaia {
 //! If enabled, additional debug and verification code is used which
 //! slows things down but enables better security and diagnostics.
 //! Suitable for debug builds first and foremost. Therefore, it is
-//! enabled by default for debud builds.
+//! enabled by default for debug builds.
 #if !defined(GAIA_DEBUG)
 	#if GAIA_DEBUG_BUILD || GAIA_FORCE_DEBUG
 		#define GAIA_DEBUG 1
@@ -2527,7 +2527,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire erray is not wanted. \warning If the item order is
+		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
 		template <typename C>
@@ -2541,7 +2541,7 @@ namespace gaia {
 		}
 
 		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire erray is not wanted. \warning If the item order is
+		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		template <typename C>
 		void erase_fast(C& arr, typename C::size_type idx) {
@@ -3763,13 +3763,13 @@ namespace gaia {
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is alligned to \param alig boundary.
+		//! The memory is aligned to \param alig boundary.
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is alligned to \param alig boundary.
+		//! The memory is aligned to \param alig boundary.
 		inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
@@ -3957,7 +3957,7 @@ namespace gaia {
 		struct data_view_policy_set_idx;
 
 		//! View policy for accessing and storing data in the AoS way.
-		//! Good for random access and when acessing data that needs to be
+		//! Good for random access and when accessing data that needs to be
 		//! close together.
 		//!
 		//! struct Foo {
@@ -5272,7 +5272,7 @@ namespace gaia {
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
 					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copiable types
+						// TODO: Handle contiguous blocks of trivially copyable types
 						(ser_data_one<Write>(s, items), ...);
 					});
 				} else
@@ -13735,7 +13735,7 @@ namespace gaia {
 namespace gaia {
 	namespace mt {
 		enum JobPriority : uint32_t {
-			//! High priority job. If avaialble it should target the CPU's performance cores
+			//! High priority job. If available it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
 			Low = 1
@@ -13956,7 +13956,7 @@ namespace gaia {
 			cnt::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
-			//! Cleans up any job allocations and dependicies associated with \param jobHandle
+			//! Cleans up any job allocations and dependencies associated with \param jobHandle
 			void wait(JobHandle jobHandle) {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
@@ -13994,7 +13994,7 @@ namespace gaia {
 			}
 
 			//! Invalidates \param jobHandle by resetting its index in the job pool.
-			//! Everytime a job is deallocated its generation is increased by one.
+			//! Every time a job is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
@@ -14012,7 +14012,7 @@ namespace gaia {
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
-			//! Everytime a dependency is deallocated its generation is increased by one.
+			//! Every time a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_dep(DepHandle depHandle) {
 				m_deps.free(depHandle);
@@ -14233,8 +14233,8 @@ namespace gaia {
 				return true;
 			}
 
-			//! Tries retriving a job to the queue. FIFO.
-			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
+			//! Tries retrieving a job to the queue. FIFO.
+			//! \return True if the job was retrieved. False otherwise (e.g. there are no jobs).
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
@@ -14384,7 +14384,7 @@ namespace gaia {
 				reset();
 			}
 
-			//! Make the calling thread the effective main thread from the thread pool perscpetive
+			//! Make the calling thread the effective main thread from the thread pool perspective
 			void make_main_thread() {
 				m_mainThreadId = std::this_thread::get_id();
 			}
@@ -14517,7 +14517,7 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Internal usage only. Only worker theads can decide to resubmit.
+			//! \warning Internal usage only. Only worker threads can decide to resubmit.
 			void resubmit(JobHandle jobHandle) {
 				m_jobManager.resubmit(jobHandle);
 
@@ -14599,7 +14599,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_stop)
 					return JobNull;
 
-				// Make sure the right priorty is selected
+				// Make sure the right priority is selected
 				const auto prio = job.priority = final_prio(job);
 
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
@@ -14755,7 +14755,7 @@ namespace gaia {
 				}
 
 				///////////////////////////////////////////////////////////////////////////
-				// Apple's recomendation for Apple Silicon for games / high-perf software
+				// Apple's recommendation for Apple Silicon for games / high-perf software
 				// ========================================================================
 				// Per frame              | Scheduling policy     | QoS class / Priority
 				// ========================================================================
@@ -14913,7 +14913,7 @@ namespace gaia {
 				// 				if (mask <= 0)
 				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", workerIdx);
 				// #elif GAIA_PLATFORM_APPLE
-				// 				// Do not do affinity for MacOS. If is not supported for Apple Silion and
+				// 				// Do not do affinity for MacOS. If is not supported for Apple Silicon and
 				// 				// Intel MACs are deprecated anyway.
 				// 				// TODO: Consider supporting this at least for Intel MAC as there are still
 				// 				//       quite of few of them out there.
@@ -15461,8 +15461,8 @@ namespace gaia {
 
 			constexpr Entity() noexcept: val(IdentifierBad) {};
 
-			//! We need the entity to be braces-construcible and at the same type prevent it from
-			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
+			//! We need the entity to be braces-constructible and at the same type prevent it from
+			//! getting constructed accidentally from an int (e.g .Entity::id()). Therefore, only
 			//! allow Entity(Identifier) to be used.
 			template <typename T, typename = std::enable_if_t<std::is_same_v<T, Identifier>>>
 			constexpr Entity(T value) noexcept: val(value) {}
@@ -16040,7 +16040,7 @@ namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
 		static constexpr uint32_t MaxMemoryBlockSize = 16384;
-		//! Unusable area at the beggining of the allocated block designated for special purposes
+		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
@@ -16090,7 +16090,7 @@ namespace gaia {
 					void* m_data;
 					//! Index in the list of pages
 					uint32_t m_idx;
-					
+
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
@@ -16373,14 +16373,14 @@ namespace gaia {
 
 				//! Performs diagnostics of the memory used.
 				void diag() const {
-					auto diagPage = [](const ChunkAllocatorPageStats& memstats) {
+					auto diagPage = [](const ChunkAllocatorPageStats& stats) {
 						GAIA_LOG_N("ChunkAllocator stats");
-						GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.mem_total);
-						GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.mem_total - memstats.mem_used);
-						GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.mem_used);
-						GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.mem_used / (double)memstats.mem_total));
-						GAIA_LOG_N("  Pages: %u", memstats.num_pages);
-						GAIA_LOG_N("  Free pages: %u", memstats.num_pages_free);
+						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
+						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_total - stats.mem_used);
+						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)stats.mem_used / (double)stats.mem_total));
+						GAIA_LOG_N("  Pages: %u", stats.num_pages);
+						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
 
 					diagPage(page_stats(0));
@@ -16443,7 +16443,7 @@ namespace gaia {
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions{};
-			//! Byte at which the first etity id is located
+			//! Byte at which the first entity id is located
 			ChunkDataOffset firstByte_CompEntities{};
 			//! Byte at which the first component id is located
 			ChunkDataOffset firstByte_Records{};
@@ -16474,7 +16474,7 @@ namespace gaia {
 		};
 
 		struct ChunkHeader final {
-			//! Maxiumum number of entities per chunk.
+			//! Maximum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
 			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
@@ -16484,7 +16484,7 @@ namespace gaia {
 			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
 			static constexpr uint16_t CHUNK_LOCKS_BITS = 3;
-			//! Number of locks the chunk can aquire
+			//! Number of locks the chunk can acquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
 			//! Component cache reference
@@ -16532,8 +16532,7 @@ namespace gaia {
 			ChunkHeader(
 					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
 					uint32_t& version):
-					cc(&compCache),
-					index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
@@ -16825,7 +16824,7 @@ namespace gaia {
 			Component comp;
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
-			//! If component is SoA, this stores how many bytes each of the elemenets take
+			//! If component is SoA, this stores how many bytes each of the elements take
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
@@ -16840,7 +16839,7 @@ namespace gaia {
 			FuncDtor* func_dtor{};
 			//! Function to call when the component needs to be copied
 			FuncCopy* func_copy{};
-			//! Fucntion to call when the component needs to be moved
+			//! Function to call when the component needs to be moved
 			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap{};
@@ -17385,7 +17384,7 @@ namespace gaia {
 			//!			4) ComponentRecords
 			//!			5) Entities (identifiers)
 			//!			6) Entities (data)
-			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
+			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
 			GAIA_MSVC_WARNING_PUSH()
@@ -17396,7 +17395,7 @@ namespace gaia {
 
 			Chunk(
 					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
-					uint32_t& worldVersion):
+					uint32_t& worldVersion): //
 					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
@@ -17486,7 +17485,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Span of read-only component data.
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const //
 					-> decltype(std::span<const uint8_t>{}) {
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
@@ -17544,7 +17543,7 @@ namespace gaia {
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 			//! \return Span of read-write component data.
 			template <typename T, bool WorldVersionUpdateWanted>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to) //
 					-> decltype(std::span<uint8_t>{}) {
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "view_mut can't be used to modify Entity");
 
@@ -17647,7 +17646,7 @@ namespace gaia {
 				const auto dataAreaOffset =
 						// ChunkAllocator reserves the first few bytes for internal purposes
 						MemoryBlockUsableOffset +
-						// Chunk "header" area (before actuall entity/component data starts)
+						// Chunk "header" area (before actual entity/component data starts)
 						sizeof(ChunkHeader) + sizeof(ChunkRecords);
 				static_assert(dataAreaOffset < UINT16_MAX);
 				return dataAreaOffset;
@@ -17817,7 +17816,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable component view.
-			//! Doesn't update the world version when the access is aquired.
+			//! Doesn't update the world version when the access is acquired.
 			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from First valid entity row
@@ -17871,7 +17870,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! Doesn't update the world version when read-write access is aquired.
+			//! Doesn't update the world version when read-write access is acquired.
 			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
@@ -18056,7 +18055,7 @@ namespace gaia {
 
 				const uint16_t rowA = row;
 				const uint16_t rowB = m_header.count - 1;
-				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB"
+				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB"
 				GAIA_ASSERT(rowA <= rowB);
 
 				// To move anything, we need at least 2 entities
@@ -18144,7 +18143,7 @@ namespace gaia {
 			//! If \param rowA equals \param rowB no swapping is performed.
 			//! \warning "rowA" must he smaller or equal to "rowB"
 			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
-				// The "rowA" entity is the one we are going to destroy so it needs to preceed the "rowB".
+				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB".
 				// Unlike remove_entity_inter, it is not technically necessary but we do it
 				// anyway for the sake of consistency.
 				GAIA_ASSERT(rowA <= rowB);
@@ -18701,7 +18700,7 @@ namespace gaia {
 			uint32_t& m_worldVersion;
 
 			//! Index of the first chunk with enough space to add at least one entity
-			uint32_t m_firstFreeChunkidx = 0;
+			uint32_t m_firstFreeChunkIdx = 0;
 			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -18751,7 +18750,7 @@ namespace gaia {
 					Chunk::free(pChunk);
 			}
 
-			//! Calulcates offsets in memory at which important chunk data is going to be stored.
+			//! Calculates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
@@ -18839,7 +18838,7 @@ namespace gaia {
 				// Set component ids
 				GAIA_FOR2(from, to) arch.m_ids[i] = ids[i];
 
-				// Calulate offsets and assign them indices according to our mappings
+				// Calculate offsets and assign them indices according to our mappings
 				GAIA_FOR2(from, to) {
 					const auto comp = comps[i];
 					const auto compIdx = i;
@@ -19053,7 +19052,7 @@ namespace gaia {
 				m_chunks.back()->set_idx(chunkIndex);
 				core::erase_fast(m_chunks, chunkIndex);
 
-				// Delete the chunk now. Otherwise, if the chunk happend to be the last
+				// Delete the chunk now. Otherwise, if the chunk happened to be the last
 				// one we would end up overriding released memory.
 				Chunk::free(pChunk);
 
@@ -19080,7 +19079,7 @@ namespace gaia {
 			}
 
 			//! Defragments the chunk.
-			//! \param maxEntites Maximum number of entities moved per call
+			//! \param maxEntities Maximum number of entities moved per call
 			//! \param chunksToDelete Container of chunks ready for removal
 			//! \param entities Container with entities
 			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, EntityContainers& recs) {
@@ -19102,7 +19101,7 @@ namespace gaia {
 				// NOTE 1:
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
-				// All entites and components remain intact, they just move to a different place.
+				// All entities and components remain intact, they just move to a different place.
 				// NOTE 2:
 				// Entities belonging to chunks with uni components are locked to their chunk.
 				// Therefore, we won't defragment them unless their uni components contain matching
@@ -19213,12 +19212,12 @@ namespace gaia {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
-					for (uint32_t i = m_firstFreeChunkidx; i < m_chunks.size(); ++i) {
+					for (uint32_t i = m_firstFreeChunkIdx; i < m_chunks.size(); ++i) {
 						auto* pChunk = m_chunks[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						const auto entityCnt = pChunk->size();
 						if (entityCnt < pChunk->capacity()) {
-							m_firstFreeChunkidx = i;
+							m_firstFreeChunkIdx = i;
 							return pChunk;
 						}
 					}
@@ -19234,7 +19233,7 @@ namespace gaia {
 						m_properties.genEntities, m_properties.chunkDataBytes, //
 						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
 
-				m_firstFreeChunkidx = m_chunks.size();
+				m_firstFreeChunkIdx = m_chunks.size();
 				m_chunks.push_back(pChunk);
 				return pChunk;
 			}
@@ -19246,9 +19245,9 @@ namespace gaia {
 				// This is expected to be called only if there are any chunks
 				GAIA_ASSERT(!m_chunks.empty());
 
-				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				auto* pChunk = m_chunks[m_firstFreeChunkIdx];
 				if (pChunk->size() >= pChunk->capacity())
-					++m_firstFreeChunkidx;
+					++m_firstFreeChunkIdx;
 			}
 
 			//! Tries to update the index of the first chunk that has space left
@@ -19258,17 +19257,17 @@ namespace gaia {
 				// This is expected to be called only if there are any chunks
 				GAIA_ASSERT(!m_chunks.empty());
 
-				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkidx)
+				if (chunkThatRemovedEntity.idx() == m_firstFreeChunkIdx)
 					return;
 
-				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkidx) {
-					m_firstFreeChunkidx = chunkThatRemovedEntity.idx();
+				if (chunkThatRemovedEntity.idx() < m_firstFreeChunkIdx) {
+					m_firstFreeChunkIdx = chunkThatRemovedEntity.idx();
 					return;
 				}
 
-				auto* pChunk = m_chunks[m_firstFreeChunkidx];
+				auto* pChunk = m_chunks[m_firstFreeChunkIdx];
 				if (pChunk->size() >= pChunk->capacity())
-					++m_firstFreeChunkidx;
+					++m_firstFreeChunkIdx;
 			}
 
 			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
@@ -19448,7 +19447,7 @@ namespace gaia {
 				auto ids = archetype.ids_view();
 				auto comps = archetype.comps_view();
 
-				// Caclulate the number of entites in archetype
+				// Calculate the number of entities in archetype
 				uint32_t entCnt = 0;
 				uint32_t entCntDisabled = 0;
 				for (const auto* chunk: archetype.m_chunks) {
@@ -19829,7 +19828,7 @@ namespace gaia {
 			};
 
 			struct Data {
-				//! Array of querried ids
+				//! Array of queried ids
 				QueryEntityArray ids;
 				//! Array of terms
 				QueryTermArray terms;
@@ -19844,7 +19843,7 @@ namespace gaia {
 				Entity groupBy;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
-				//! Function to use to perfrom the grouping
+				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
@@ -19929,9 +19928,9 @@ namespace gaia {
 				// We want to do it this way because it would be expensive to build cache for
 				// the entire tree. Rather, we only cache fixed parts of the query without
 				// variables.
-				// TOOD: In theory, there might be a better way to sort sources.
+				// TODO: In theory, there might be a better way to sort sources.
 				//       E.g. depending on the number of archetypes we'd have to traverse
-				//       it might be benefitial to do a different ordering which is impossible
+				//       it might be beneficial to do a different ordering which is impossible
 				//       to do at this point.
 				return lhs.src.id() < rhs.src.id();
 			}
@@ -19962,7 +19961,7 @@ namespace gaia {
 			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
-			// Therefore, if we want to see where 15 was located originaly (curr index 1), we do look at index 2 and get 1.
+			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
 			GAIA_EACH(data.terms) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
 				data.remapping[i] = idxBeforeRemapping;
@@ -20150,7 +20149,7 @@ namespace gaia {
 				}
 
 				//! Returns a mutable component view.
-				//! Doesn't update the world version when the access is aquired.
+				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
@@ -20187,7 +20186,7 @@ namespace gaia {
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Doesn't update the world version when read-write access is aquired.
+				//! Doesn't update the world version when read-write access is acquired.
 				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
@@ -20273,7 +20272,7 @@ namespace gaia {
 		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
 
 		//! Iterator for iterating both enabled and disabled entities.
-		//! Disabled entities always preceed enabled ones.
+		//! Disabled entities always precede enabled ones.
 		class IterAll: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
 			//! Returns the number of enabled entities accessible via the iterator.
@@ -20743,7 +20742,7 @@ namespace gaia {
 							})};
 						}
 
-						// Archetype entity is generic, try matching it with entites inheriting from e.
+						// Archetype entity is generic, try matching it with entities inheriting from e.
 						return {as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 							// Relation does not necessary match the sorted order of components in the archetype
 							// so we need to search through all of its ids.
@@ -22181,8 +22180,8 @@ namespace gaia {
 				void group_by_inter(TGroupByFunc func) {
 					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
 					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
-					static_assert(core::is_raw_v<UO_Rel>, "Use groupby() with raw types only");
-					static_assert(core::is_raw_v<UO_Tgt>, "Use groupby() with raw types only");
+					static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
 
 					// Make sure the component is always registered
 					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
@@ -22194,7 +22193,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void set_group_id_inter(GroupId groupId) {
-					// Dummy usage of GroupIdMax to avoid warrning about unused constant
+					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
 					Command_SetGroupId cmd{groupId};
@@ -22345,7 +22344,7 @@ namespace gaia {
 					// We have many chunks to process.
 					// Chunks might be located at different memory locations. Not even in the same memory page.
 					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-					// for the next chunk explictely so we do not end up stalling later.
+					// for the next chunk explicitly so we do not end up stalling later.
 					// Note, this is a micro optimization and on average it brings no performance benefit. It only
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
@@ -22684,7 +22683,7 @@ namespace gaia {
 					m_storage.init(&world);
 				}
 
-				// TODO: We might want to allways invalidate the serialization buffer just in case.
+				// TODO: We might want to always invalidate the serialization buffer just in case.
 				//       However, ref-counting would have to be introduced for QueryImpl first.
 				//       Otherwise, any copy of the query would invalidate the serialization buffer
 				//       if its lifetime ended.
@@ -22970,7 +22969,7 @@ namespace gaia {
 				//!					 The result is not cached and repeated calls to the function might be slow.
 				//!					 If you already called arr(), checking if it is empty is preferred.
 				//!					 Use empty() instead of calling count()==0.
-				//!	\return True if there are any entites matchine the query. False otherwise.
+				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					const bool hasFilters = queryInfo.has_filters();
@@ -23118,7 +23117,7 @@ namespace gaia {
 			QueryCache m_queryCache;
 			//! A map of [Query*, Buffer].
 			//! Contains serialization buffers used by queries during their initialization.
-			//! Kept here because it's only necessary for query initilization and would just
+			//! Kept here because it's only necessary for query initialization and would just
 			//! take space on a query almost 100% of the time with no purpose at all.
 			//! Records removed as soon as the query is compiled.
 			QuerySerMap m_querySerMap;
@@ -23175,7 +23174,7 @@ namespace gaia {
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
-			//! Local set of entites to delete
+			//! Local set of entities to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! Array of chunks to delete
 			cnt::darray<Chunk*> m_chunksToDel;
@@ -23184,7 +23183,7 @@ namespace gaia {
 			//! Index of the last defragmented archetype in the archetype list
 			uint32_t m_defragLastArchetypeIdx = 0;
 			//! Maximum number of entities to defragment per world tick
-			uint32_t m_defragEntitesPerTick = 100;
+			uint32_t m_defragEntitiesPerTick = 100;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -23413,7 +23412,7 @@ namespace gaia {
 							// We avoid self-removal.
 							const auto tgtNew = *targets.begin();
 							if (sz == 1 && tgt != tgtNew) {
-								// Exlusive relationship replaces the previous one.
+								// Exclusive relationship replaces the previous one.
 								// We need to check if the old one can be removed.
 								// This is what del_inter does on the inside.
 								// It first checks if entity can be deleted and calls handle_del afterwards.
@@ -23787,7 +23786,7 @@ namespace gaia {
 
 			//! Creates \param count of entities of the same archetype as \param entity.
 			//! \param func Functor to execute every time an entity is added
-			//! \note Similar to copy_n, but keeps component values uninitialized or default-intialized
+			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
 			//!       if they provide a constructor
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
@@ -23830,7 +23829,7 @@ namespace gaia {
 				// Make sure the default component entity name points to the cache item name
 				name_raw(item.entity, item.name.str(), item.name.len());
 
-				// TODO: Implement entity locking. A locked entity can't change archtypes.
+				// TODO: Implement entity locking. A locked entity can't change archetypes.
 				//       This way we can prevent anybody messing with the internal state of the component
 				//       entities created at compile-time data.
 
@@ -23941,7 +23940,7 @@ namespace gaia {
 				auto* pOldChunk = ec.pChunk;
 
 				// Entities array might get reallocated after m_recs.entities.alloc
-				// so insted of fetching the container again we simply cache the row
+				// so instead of fetching the container again we simply cache the row
 				// of our source entity.
 				const auto oldRow = ec.row;
 
@@ -24059,7 +24058,7 @@ namespace gaia {
 
 					del_entities(*pArchetype);
 
-					// Now that all entites are deleted, all their chunks are requestd to get deleted
+					// Now that all entities are deleted, all their chunks are requested to get deleted
 					// and in turn the archetype itself as well. Therefore, it is added to the archetype
 					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
 					// > del_empty_archetype(pArchetype);
@@ -24076,7 +24075,7 @@ namespace gaia {
 						continue;
 					}
 
-					// Requested entities are partialy deleted. We only need to invalidate them.
+					// Requested entities are partially deleted. We only need to invalidate them.
 					invalidate_entity(e);
 
 					it = m_reqEntitiesToDel.erase(it);
@@ -24295,7 +24294,7 @@ namespace gaia {
 			//! Tells if \param entity contains the entity \param object.
 			//! \param entity Entity
 			//! \param object Tested entity
-			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
@@ -24350,7 +24349,7 @@ namespace gaia {
 			//! Tells if \param entity contains \param pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
-			//! \return True if object is present on entity. False otherwise or if any of the entites is not valid.
+			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
@@ -24814,7 +24813,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
-			//! memory cleanup and other managment operations which keep the system healthy.
+			//! memory cleanup and other management operations which keep the system healthy.
 			void update() {
 				systems_run();
 
@@ -24842,10 +24841,10 @@ namespace gaia {
 				init();
 			}
 
-			//! Sets the maximum number of entites defragmented per world tick
+			//! Sets the maximum number of entities defragmented per world tick
 			//! \param value Number of entities to defragment
 			void defrag_entities_per_tick(uint32_t value) {
-				m_defragEntitesPerTick = value;
+				m_defragEntitiesPerTick = value;
 			}
 
 			//--------------------------------------------------------------------------------
@@ -24863,7 +24862,7 @@ namespace gaia {
 				comp_cache().diag();
 			}
 
-			//! Performs diagnostics on entites of the world.
+			//! Performs diagnostics on entities of the world.
 			//! Also performs validation of internal structures which hold the entities.
 			void diag_entities() const {
 				validate_entities();
@@ -25175,7 +25174,7 @@ namespace gaia {
 			}
 
 			//! Defragments chunks.
-			//! \param maxEntites Maximum number of entities moved per call
+			//! \param maxEntities Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
 				GAIA_PROF_SCOPE(World::defrag_chunks);
 
@@ -25392,7 +25391,7 @@ namespace gaia {
 			//! Searches for an archetype which is formed by adding entity \param entity of \param pArchetypeLeft.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
-			//! \param entity Enity we want to add.
+			//! \param entity Entity we want to add.
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
 				// TODO: Add specialization for m_pCompArchetype and m_pEntityArchetype to make this faster
@@ -25565,7 +25564,7 @@ namespace gaia {
 					invalidate_entity(entity);
 			}
 
-			//! Deletes all entites (and in turn chunks) from \param archetype.
+			//! Deletes all entities (and in turn chunks) from \param archetype.
 			//! If an archetype forming entity is present, the chunk is treated as if it were empty
 			//! and normal dying procedure is applied to it. At the last dying tick the entity is
 			//! deleted so the chunk can be removed.
@@ -25652,7 +25651,7 @@ namespace gaia {
 
 					// Copy entities back-to-front to avoid unnecessary data movements.
 					// TODO: Handle disabled entities efficiently.
-					//       If there are disabled entites, we still do data movements if there already
+					//       If there are disabled entities, we still do data movements if there already
 					//       are enabled entities in the chunk.
 					// TODO: If the header was of some fixed size, e.g. if we always acted as if we had
 					//       Chunk::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
@@ -25816,7 +25815,7 @@ namespace gaia {
 
 				const auto& archetypes = it->second;
 				for (auto* pArchetype: archetypes) {
-					// Evaluate the conditon if a valid pair is given
+					// Evaluate the condition if a valid pair is given
 					if (!archetype_cond_match(*pArchetype, cond, entity))
 						continue;
 
@@ -25880,7 +25879,7 @@ namespace gaia {
 					if (pArchetype->is_req_del())
 						continue;
 
-					// Evaluate the conditon if a valid pair is given
+					// Evaluate the condition if a valid pair is given
 					if (!archetype_cond_match(*pArchetype, cond, entity))
 						continue;
 
@@ -25918,9 +25917,9 @@ namespace gaia {
 					const auto tgt = get(entity.gen());
 					const auto& ecTgt = fetch(tgt);
 					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restricion)");
+						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restriction)");
 						GAIA_LOG_E(
-								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restricion)",
+								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restriction)",
 								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
@@ -25997,7 +25996,7 @@ namespace gaia {
 						const auto leftId = pArchetype->find_edge_left(entityToRemove);
 						const auto itLeft = m_archetypesById.find(leftId);
 
-						// The edge might have been deleted aleady
+						// The edge might have been deleted already
 						if (itLeft == m_archetypesById.end())
 							continue;
 
@@ -26070,7 +26069,7 @@ namespace gaia {
 				}
 			}
 
-			//! Invalidates the entity record, effectivelly deleting it.
+			//! Invalidates the entity record, effectively deleting it.
 			//! \param entity Entity to delete
 			void invalidate_entity(Entity entity) {
 				del_graph_edges(entity);
@@ -26189,7 +26188,7 @@ namespace gaia {
 					}
 					GAIA_ASSERT(cnt == pChunk->size());
 				} else {
-					// Make sure no entites reference the chunk
+					// Make sure no entities reference the chunk
 					for (const auto& ec: m_recs.entities) {
 						GAIA_ASSERT(ec.pChunk != pChunk);
 					}
@@ -26440,7 +26439,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(World::gc);
 
 				// del_empty_chunks();
-				defrag_chunks(m_defragEntitesPerTick);
+				defrag_chunks(m_defragEntitiesPerTick);
 				// del_empty_archetypes();
 			}
 		};
@@ -26465,7 +26464,7 @@ namespace gaia {
 					serId = ++s_querySerId;
 
 					// If the id is already found, try again.
-					// Note, this is essentialy never going to repeat. We would have to prepare millions if
+					// Note, this is essentially never going to repeat. We would have to prepare millions if
 					// not billions of queries for which we only added inputs but never queried them.
 					auto ret = queryBuffers.try_emplace(serId);
 					if (!ret.second)
@@ -26564,7 +26563,7 @@ namespace gaia {
 #else
 
 	#include <cinttypes>
-	// TODO: Currently necessasry due to std::function. Replace them!
+	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
 
 	
@@ -26759,7 +26758,7 @@ namespace gaia {
 				(void)reg_core_entity<_Var7>(Var7);
 			}
 
-			// Add special properites for core components.
+			// Add special properties for core components.
 			// Their order must correspond to the value sequence in id.h.
 			{
 				EntityBuilder(*this, Core) //
@@ -26856,7 +26855,7 @@ namespace gaia {
 			}
 
 			// Remove all archetypes with no chunks. We don't want any leftovers after
-			// archetype movemements.
+			// archetype movements.
 			{
 				for (uint32_t i = 1; i < m_archetypes.size(); ++i) {
 					auto* pArchetype = m_archetypes[i];
@@ -27712,10 +27711,10 @@ namespace gaia {
 			SystemManager(World& world):
 					BaseSystemManager(world), m_beforeUpdateCmdBuffer(world), m_afterUpdateCmdBuffer(world) {}
 
-			CommandBuffer& BeforeUpdateCmdBufer() {
+			CommandBuffer& BeforeUpdateCmdBuffer() {
 				return m_beforeUpdateCmdBuffer;
 			}
-			CommandBuffer& AfterUpdateCmdBufer() {
+			CommandBuffer& AfterUpdateCmdBuffer() {
 				return m_afterUpdateCmdBuffer;
 			}
 

@@ -3265,7 +3265,7 @@ TEST_CASE("Query - equality") {
 }
 
 TEST_CASE("Enable") {
-	// 1,500 picked so we create enough entites that they overflow into another chunk
+	// 1,500 picked so we create enough entities that they overflow into another chunk
 	const uint32_t N = 1'500;
 
 	TestWorld twld;

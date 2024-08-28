@@ -263,8 +263,8 @@ namespace gaia {
 
 			constexpr Entity() noexcept: val(IdentifierBad) {};
 
-			//! We need the entity to be braces-construcible and at the same type prevent it from
-			//! getting constructed accidentaly from an int (e.g .Entity::id()). Therefore, only
+			//! We need the entity to be braces-constructible and at the same type prevent it from
+			//! getting constructed accidentally from an int (e.g .Entity::id()). Therefore, only
 			//! allow Entity(Identifier) to be used.
 			template <typename T, typename = std::enable_if_t<std::is_same_v<T, Identifier>>>
 			constexpr Entity(T value) noexcept: val(value) {}

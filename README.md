@@ -259,7 +259,7 @@ const ecs::ComponentCacheItem& cci = w.add<Position>();
 ecs::Entity position_entity = cci.entity;
 ```
 
-Because components are entites as well, adding them is very similar to what we have seen previously.
+Because components are entities as well, adding them is very similar to what we have seen previously.
 
 ```cpp
 struct Position {
@@ -363,8 +363,8 @@ builder
   .add<Velocity>()
   .del<Position>()
   .add<Rotation>();
-if (some_conditon) {
-  bulider.add<Something1, Something2, Something3>();
+if (some_condition) {
+  builder.add<Something1, Something2, Something3>();
 }
 builder.commit();
 ```
@@ -450,8 +450,8 @@ ecs::Entity e = w.add();
 w.add(e, position, Position{0, 100, 0});
 w.add(e, velocity, Velocity{0, 0, 1});
 
-// Create 1000 more entites like "e".
-// Their component values are not initilazed to any particular value.
+// Create 1000 more entities like "e".
+// Their component values are not initialized to any particular value.
 w.add_n(e, 1000);
 w.add_n(e, 1000, [](Entity newEntity) {
   // Do something with the new entity
@@ -469,9 +469,9 @@ w.copy_n(e, 1000, [](Entity newEntity) {
 
 ### Archetype lifespan
 
-Once all entites of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ecs::World::update(). However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
+Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ecs::World::update(). However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
 
-For instance, you might often end up deleting all entites of a given archetype only to create new ones seconds later. In this case, keeping the archetype around can have several performance benefits:
+For instance, you might often end up deleting all entities of a given archetype only to create new ones seconds later. In this case, keeping the archetype around can have several performance benefits:
 1) no need to recreate the archetype
 2) no need to rematch queries with the archetype
 

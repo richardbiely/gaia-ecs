@@ -243,7 +243,7 @@ namespace gaia {
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
 					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copiable types
+						// TODO: Handle contiguous blocks of trivially copyable types
 						(ser_data_one<Write>(s, items), ...);
 					});
 				} else

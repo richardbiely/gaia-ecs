@@ -336,7 +336,7 @@ namespace gaia {
 							})};
 						}
 
-						// Archetype entity is generic, try matching it with entites inheriting from e.
+						// Archetype entity is generic, try matching it with entities inheriting from e.
 						return {as_relations_trav_if(*m_ctx.w, e, [&](Entity relation) {
 							// Relation does not necessary match the sorted order of components in the archetype
 							// so we need to search through all of its ids.

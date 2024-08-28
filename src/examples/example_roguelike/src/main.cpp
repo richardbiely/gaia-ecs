@@ -841,7 +841,7 @@ public:
 				return;
 
 			g_world.map[p.y][p.x] = TILE_FREE;
-			g_smSimulation.AfterUpdateCmdBufer().del(e);
+			g_smSimulation.AfterUpdateCmdBuffer().del(e);
 		});
 	}
 };

@@ -765,7 +765,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire erray is not wanted. \warning If the item order is
+		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
 		template <typename C>
@@ -779,7 +779,7 @@ namespace gaia {
 		}
 
 		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire erray is not wanted. \warning If the item order is
+		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		template <typename C>
 		void erase_fast(C& arr, typename C::size_type idx) {

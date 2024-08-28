@@ -96,7 +96,7 @@ namespace gaia {
 			cnt::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
-			//! Cleans up any job allocations and dependicies associated with \param jobHandle
+			//! Cleans up any job allocations and dependencies associated with \param jobHandle
 			void wait(JobHandle jobHandle) {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
@@ -134,7 +134,7 @@ namespace gaia {
 			}
 
 			//! Invalidates \param jobHandle by resetting its index in the job pool.
-			//! Everytime a job is deallocated its generation is increased by one.
+			//! Every time a job is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
@@ -152,7 +152,7 @@ namespace gaia {
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
-			//! Everytime a dependency is deallocated its generation is increased by one.
+			//! Every time a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_dep(DepHandle depHandle) {
 				m_deps.free(depHandle);

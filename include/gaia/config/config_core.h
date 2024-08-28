@@ -23,7 +23,7 @@
 #else
 // We use some C++17+ features such as folding expressions, compile-time ifs
 // and similar which makes it impossible to use Gaia-ECS with old compilers.
-	#error "To build Gaia-ECS a compiler capable of at least C++17 is necesary"
+	#error "To build Gaia-ECS a compiler capable of at least C++17 is necessary"
 #endif
 
 #define GAIA_SAFE_CONSTEXPR constexpr
@@ -170,7 +170,7 @@
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC
-	// Whether it is ARM or x86 we consider both litte endian.
+	// Whether it is ARM or x86 we consider both little endian.
 	// It is very unlikely that any modern "big" CPU would use big endian these days
 	// as it is more efficient to be little endian on HW level.
 	#define GAIA_LITTLE_ENDIAN true
@@ -237,7 +237,7 @@ namespace gaia {
 	#define GAIA_UNLIKELY(cond) (cond)
 #endif
 
-// GCC 7 and some later versions had a bug that would aritificaly restrict alignas for stack
+// GCC 7 and some later versions had a bug that would artificially restrict alignas for stack
 // variables to 16 bytes.
 // However, using the compiler custom attribute would still work. Therefore, because it is
 // more portable, we shall introduce the GAIA_ALIGNAS macro.
