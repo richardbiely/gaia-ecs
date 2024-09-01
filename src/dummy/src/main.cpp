@@ -118,7 +118,7 @@ void CreateEntities(ecs::World& w) {
 
 	constexpr uint32_t N = 1000;
 	GAIA_FOR(N) {
-		[[maybe_unused]] auto newentity = w.copy(e);
+		[[maybe_unused]] auto newEntity = w.copy(e);
 	}
 }
 
@@ -419,7 +419,7 @@ void test2() {
 			++i;
 		});
 		GAIA_LOG_N("cnt = %u", i);
-		GAIA_LOG_N("");
+		GAIA_LOG_N(" ");
 	}
 }
 

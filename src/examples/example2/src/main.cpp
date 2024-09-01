@@ -28,7 +28,7 @@ int main() {
 	w.add<Position>(e, {});
 	w.add<Acceleration>(e, {0, 0, 1});
 	GAIA_FOR(N) {
-		[[maybe_unused]] auto newentity = w.copy(e);
+		[[maybe_unused]] auto newEntity = w.copy(e);
 	}
 
 	// Record the original position

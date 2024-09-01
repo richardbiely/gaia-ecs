@@ -5973,7 +5973,7 @@ TEST_CASE("System - simple") {
 		wld.add<Position>(e, {0, 100, 0});
 		wld.add<Acceleration>(e, {1, 0, 0});
 		GAIA_FOR(N - 1) {
-			[[maybe_unused]] auto newentity = wld.copy(e);
+			[[maybe_unused]] auto newEntity = wld.copy(e);
 		}
 	}
 
