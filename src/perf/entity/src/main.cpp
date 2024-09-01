@@ -4,7 +4,8 @@
 
 using namespace gaia;
 
-constexpr uint32_t NEntities = 1'000;
+constexpr uint32_t NEntities = 100; // 1'000;
+constexpr uint32_t NEntitiesMany = 1000; // 1'000'000;
 
 template <uint32_t Version, typename T, uint32_t TCount>
 struct Component {
@@ -49,15 +50,17 @@ template <uint32_t NumberOfEntities>
 void BM_CreateEntity(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
 		(void)w.add();
 		state.start_timer();
 
 		GAIA_FOR(NumberOfEntities)(void) w.add();
+
+		state.stop_timer();
 	}
 }
 
@@ -65,6 +68,7 @@ template <uint32_t NumberOfEntities>
 void BM_CreateEntity_Many(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
@@ -74,6 +78,8 @@ void BM_CreateEntity_Many(picobench::state& state) {
 		state.start_timer();
 
 		w.add_n(NumberOfEntities);
+
+		state.stop_timer();
 	}
 }
 
@@ -81,6 +87,7 @@ template <uint32_t Iterations>
 void BM_CreateEntity_Many_With_Component(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
@@ -89,7 +96,34 @@ void BM_CreateEntity_Many_With_Component(picobench::state& state) {
 		auto e = AddsOne<float, 0, Iterations, false>(w);
 		state.start_timer();
 
-		w.add_n(e, NEntities);
+
+		
+		state.stop_timer();
+	}
+}
+
+template <uint32_t NumberOfEntities>
+void BM_DeleteEntity(picobench::state& state) {
+	cnt::darray<ecs::Entity> ents;
+	ents.reserve(NumberOfEntities);
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		(void)w.add();
+		GAIA_FOR(NumberOfEntities) ents.push_back(w.add());
+		state.start_timer();
+
+		for (auto e: ents)
+			w.del(e);
+		w.del_finalize();
+
+		state.stop_timer();
+		ents.clear();
 	}
 }
 
@@ -97,15 +131,17 @@ template <uint32_t Iterations>
 void BM_CreateEntity_CopyMany(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
 		auto e = w.add();
 		state.start_timer();
 
 		w.copy_n(e, NEntities);
+
+		state.stop_timer();
 	}
 }
 
@@ -113,15 +149,17 @@ template <uint32_t Iterations>
 void BM_CreateEntity_CopyMany_With_Component(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
 		auto e = AddsOne<float, 0, Iterations, false>(w);
 		state.start_timer();
 
 		w.copy_n(e, NEntities);
+
+		state.stop_timer();
 	}
 }
 
@@ -129,15 +167,17 @@ template <uint32_t Iterations>
 void BM_CreateEntity_With_Component(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
 		Adds<float, 0, Iterations, false>(w, 1);
 		state.start_timer();
 
 		Adds<float, 0, Iterations, false>(w, NEntities);
+
+		state.stop_timer();
 	}
 }
 
@@ -145,6 +185,7 @@ template <uint32_t Iterations>
 void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
+		state.stop_timer();
 		ecs::World w;
 
 		// Simulate the hot path. This happens when the component was
@@ -154,6 +195,8 @@ void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 		state.start_timer();
 
 		Adds<float, 0, Iterations, true>(w, NEntities);
+
+		state.stop_timer();
 	}
 }
 
@@ -210,11 +253,15 @@ int main(int argc, char* argv[]) {
 		} else {
 			PICOBENCH_SUITE_REG("Entity creation");
 			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS().label("0 components");
-			PICOBENCH_REG(BM_CreateEntity<1000000>).PICO_SETTINGS_1().label("0 components, 1M entities");
+			PICOBENCH_REG(BM_CreateEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
+
+			PICOBENCH_SUITE_REG("Entity deletion");
+			PICOBENCH_REG(BM_DeleteEntity<NEntities>).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_DeleteEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
 
 			PICOBENCH_SUITE_REG("Entity + N components - add_n");
 			PICOBENCH_REG(BM_CreateEntity_Many<NEntities>).PICO_SETTINGS().label("0 component");
-			PICOBENCH_REG(BM_CreateEntity_Many<1000000>).PICO_SETTINGS_1().label("0 component, 1M entities");
+			PICOBENCH_REG(BM_CreateEntity_Many<NEntitiesMany>).PICO_SETTINGS_1().label("0 component, 1M entities");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<2>).PICO_SETTINGS().label("2 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<4>).PICO_SETTINGS().label("4 components");

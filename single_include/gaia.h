@@ -24024,8 +24024,9 @@ namespace gaia {
 
 			void del_inter(Entity entity) {
 				auto on_delete = [this](Entity entityToDel) {
-					handle_del_entity(entityToDel);
-					req_del(entityToDel);
+					auto& ec = fetch(entityToDel);
+					handle_del_entity(ec, entityToDel);
+					req_del(ec, entityToDel);
 				};
 
 				if (is_wildcard(entity)) {
@@ -25531,11 +25532,26 @@ namespace gaia {
 
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
+			void del_name(EntityContainer& ec, Entity entity) {
+				if (entity.pair())
+					return;
+
+				del_name_inter(ec, entity);
+			}
+
+			//! Removes any name associated with the entity
+			//! \param entity Entity the name of which we want to delete
 			void del_name(Entity entity) {
 				if (entity.pair())
 					return;
 
 				auto& ec = fetch(entity);
+				del_name_inter(ec, entity);
+			}
+
+			//! Removes any name associated with the entity
+			//! \param entity Entity the name of which we want to delete
+			void del_name_inter(EntityContainer& ec, Entity entity) {
 				if (!ec.pChunk->has<EntityDesc>())
 					return;
 
@@ -25564,7 +25580,22 @@ namespace gaia {
 				if (entity.pair() || entity == EntityBad)
 					return;
 
-				const auto& ec = fetch(entity);
+				auto& ec = fetch(entity);
+				del_entity_inter(ec, entity);
+			}
+
+			//! Deletes an entity along with all data associated with it.
+			//! \param entity Entity to delete
+			void del_entity(EntityContainer& ec, Entity entity, bool invalidate = true) {
+				if (entity.pair() || entity == EntityBad)
+					return;
+
+				del_entity_inter(ec, entity);
+			}
+
+			//! Deletes an entity along with all data associated with it.
+			//! \param entity Entity to delete
+			void del_entity_inter(EntityContainer& ec, Entity entity, bool invalidate = true) {
 				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
 				// if (!is_req_del(ec))
@@ -25581,7 +25612,7 @@ namespace gaia {
 					// We call del_name first because remove_entity calls component destructors.
 					// If the call was made inside invalidate_entity we would access a memory location
 					// which has already been destructed which is not nice.
-					del_name(entity);
+					del_name(ec, entity);
 					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
 				}
 
@@ -25806,13 +25837,11 @@ namespace gaia {
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
 			}
 
-			void req_del(Entity entity) {
-				auto& ec = fetch(entity);
+			void req_del(EntityContainer& ec, Entity entity) {
 				if (is_req_del(ec))
 					return;
 
-				// del_name(entity);
-				del_entity(entity, false);
+				del_entity(ec, entity, false);
 
 				ec.req_del();
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
@@ -25926,13 +25955,12 @@ namespace gaia {
 			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
-			void handle_del_entity(Entity entity) {
+			void handle_del_entity(const EntityContainer& ec, Entity entity) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
 				GAIA_ASSERT(!is_wildcard(entity));
 
 				if (entity.pair()) {
-					const auto& ec = fetch(entity);
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
 						GAIA_LOG_E(
@@ -25971,7 +25999,6 @@ namespace gaia {
 						rem_from_entities(entity);
 					}
 				} else {
-					const auto& ec = fetch(entity);
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
 						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
 						GAIA_LOG_E(
