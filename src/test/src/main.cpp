@@ -2206,19 +2206,69 @@ TEST_CASE("Pair") {
 }
 
 TEST_CASE("CantCombine") {
-	TestWorld twld;
-	auto weak = wld.add();
-	auto strong = wld.add();
-	wld.add(weak, {ecs::CantCombine, strong});
+	SECTION("One") {
+		TestWorld twld;
+		auto weak = wld.add();
+		auto strong = wld.add();
+		wld.add(weak, {ecs::CantCombine, strong});
 
-	auto dummy = wld.add();
-	wld.add(dummy, strong);
+		auto dummy = wld.add();
+		wld.add(dummy, strong);
 #if !GAIA_ASSERT_ENABLED
-	// Can be tested only with asserts disabled because the situation is assert-protected.
-	wld.add(dummy, weak);
-	REQUIRE(wld.has(dummy, strong));
-	REQUIRE_FALSE(wld.has(dummy, weak));
+		// Can be tested only with asserts disabled because the situation is assert-protected.
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE_FALSE(wld.has(dummy, weak));
 #endif
+
+		// Unset
+		wld.del(weak, {ecs::CantCombine, strong});
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE(wld.has(dummy, weak));
+	}
+	SECTION("Two") {
+		TestWorld twld;
+		auto weak = wld.add();
+		auto strong = wld.add();
+		auto stronger = wld.add();
+		wld.add(weak, {ecs::CantCombine, strong});
+		wld.add(weak, {ecs::CantCombine, stronger});
+
+		auto dummy = wld.add();
+		wld.add(dummy, strong);
+#if !GAIA_ASSERT_ENABLED
+		// Can be tested only with asserts disabled because the situation is assert-protected.
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE_FALSE(wld.has(dummy, weak));
+#endif
+		wld.add(dummy, stronger);
+#if !GAIA_ASSERT_ENABLED
+		// Can be tested only with asserts disabled because the situation is assert-protected.
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE(wld.has(dummy, stronger));
+		REQUIRE_FALSE(wld.has(dummy, weak));
+#endif
+
+		// Unset strong. Still should not be able to add because of stronger.
+		wld.del(weak, {ecs::CantCombine, strong});
+#if !GAIA_ASSERT_ENABLED
+		// Can be tested only with asserts disabled because the situation is assert-protected.
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE(wld.has(dummy, stronger));
+		REQUIRE_FALSE(wld.has(dummy, weak));
+#endif
+
+		// Unset. Finally should be able to add because there are no more restrictions
+		wld.del(weak, {ecs::CantCombine, stronger});
+		wld.add(dummy, weak);
+		REQUIRE(wld.has(dummy, strong));
+		REQUIRE(wld.has(dummy, stronger));
+		REQUIRE(wld.has(dummy, weak));
+	}
 }
 
 TEST_CASE("Requires") {

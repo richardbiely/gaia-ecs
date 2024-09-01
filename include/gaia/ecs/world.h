@@ -305,10 +305,10 @@ namespace gaia {
 				bool handle_add_entity(Entity entity) {
 					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
 
-					const auto& ec = m_world.fetch(entity);
+					const auto& ecMain = m_world.fetch(entity);
 
 					// Handle entity combinations that can't be together
-					if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
+					if ((ecMain.flags & EntityContainerFlags::HasCantCombine) != 0) {
 						m_world.targets(entity, CantCombine, [&targets](Entity target) {
 							targets.push_back(target);
 						});
@@ -417,16 +417,14 @@ namespace gaia {
 				};
 
 				void try_set_flags(Entity entity, bool enable) {
-					auto& ec = m_world.fetch(entity);
 					auto& ecMain = m_world.fetch(m_entity);
+					try_set_CantCombine(ecMain, entity, enable);
 
+					auto& ec = m_world.fetch(entity);
 					try_set_Is(ec, entity, enable);
-					try_set_CantCombine(ec, entity, enable);
-
 					try_set_IsExclusive(ecMain, entity, enable);
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
-
 					try_set_OnDeleteTarget(entity, enable);
 				}
 
@@ -441,7 +439,24 @@ namespace gaia {
 					if (!entity.pair() || entity.id() != CantCombine.id())
 						return;
 
-					updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, enable);
+					GAIA_ASSERT(entity != m_entity);
+
+					// Setting the flag can be done right away.
+					// One bit can only contain information about one pair but there
+					// can be any amount of CanCombine pairs formed with an entity.
+					// Therefore, when resetting the flag, we first need to check if there
+					// are any other targets with this flag set and only reset the flag
+					// if there is only one present.
+					if (enable)
+						updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, true);
+					else if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
+						uint32_t targets = 0;
+						m_world.targets(m_entity, CantCombine, [&targets]() {
+							++targets;
+						});
+						if (targets == 1)
+							updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, false);
+					}
 				}
 
 				void try_set_IsExclusive(EntityContainer& ec, Entity entity, bool enable) {
@@ -523,14 +538,14 @@ namespace gaia {
 				}
 
 				template <bool IsBootstrap = false>
-				void handle_add(Entity entity) {
+				bool handle_add(Entity entity) {
 #if GAIA_ASSERT_ENABLED
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
 #endif
 
 					// Don't add the same entity twice
 					if (m_pArchetype->has(entity))
-						return;
+						return false;
 
 					try_set_flags(entity, true);
 
@@ -555,6 +570,8 @@ namespace gaia {
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
 					}
+
+					return true;
 				}
 
 				void handle_del(Entity entity) {
@@ -1588,9 +1605,14 @@ namespace gaia {
 					if (e.id() != relation.id())
 						continue;
 
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					func(target);
+					// We accept void(Entity) and void()
+					if constexpr (std::is_invocable_v<Func, Entity>) {
+						const auto& ecTarget = m_recs.entities[e.gen()];
+						auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+						func(target);
+					} else {
+						func();
+					}
 				}
 			}
 
@@ -1618,9 +1640,14 @@ namespace gaia {
 					if (e.id() != relation.id())
 						continue;
 
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					func(target);
+					// We accept void(Entity) and void()
+					if constexpr (std::is_invocable_v<Func, Entity>) {
+						const auto& ecTarget = m_recs.entities[e.gen()];
+						auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+						func(target);
+					} else {
+						func();
+					}
 				}
 			}
 
