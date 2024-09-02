@@ -2480,7 +2480,7 @@ namespace gaia {
 				if (entity.pair())
 					return;
 
-				del_name_inter(ec, entity);
+				del_name_inter(ec);
 			}
 
 			//! Removes any name associated with the entity
@@ -2490,12 +2490,12 @@ namespace gaia {
 					return;
 
 				auto& ec = fetch(entity);
-				del_name_inter(ec, entity);
+				del_name_inter(ec);
 			}
 
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
-			void del_name_inter(EntityContainer& ec, Entity entity) {
+			void del_name_inter(EntityContainer& ec) {
 				if (!ec.pChunk->has<EntityDesc>())
 					return;
 
@@ -2520,26 +2520,26 @@ namespace gaia {
 
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			void del_entity(Entity entity, bool invalidate = true) {
+			void del_entity(Entity entity, bool invalidate) {
 				if (entity.pair() || entity == EntityBad)
 					return;
 
 				auto& ec = fetch(entity);
-				del_entity_inter(ec, entity);
+				del_entity_inter(ec, entity, invalidate);
 			}
 
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			void del_entity(EntityContainer& ec, Entity entity, bool invalidate = true) {
+			void del_entity(EntityContainer& ec, Entity entity, bool invalidate) {
 				if (entity.pair() || entity == EntityBad)
 					return;
 
-				del_entity_inter(ec, entity);
+				del_entity_inter(ec, entity, invalidate);
 			}
 
 			//! Deletes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			void del_entity_inter(EntityContainer& ec, Entity entity, bool invalidate = true) {
+			void del_entity_inter(EntityContainer& ec, Entity entity, bool invalidate) {
 				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
 				// if (!is_req_del(ec))
@@ -2584,7 +2584,7 @@ namespace gaia {
 						GAIA_ASSERT((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) == 0);
 #endif
 
-						del_entity(e);
+						del_entity(e, true);
 					}
 
 					validate_chunk(pChunk);
