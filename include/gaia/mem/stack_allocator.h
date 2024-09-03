@@ -19,6 +19,11 @@ namespace gaia {
 			};
 		} // namespace detail
 
+		// MSVC might warn about applying additional padding to an instance of StackAllocator.
+		// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4324)
+
 		//! Stack allocator capable of instantiating any default-constructible object on stack.
 		//! Every allocation comes with a 16-bytes long sentinel object.
 		template <uint32_t CapacityInBytes = 1024>
@@ -142,5 +147,7 @@ namespace gaia {
 				return CapacityInBytes;
 			}
 		};
+
+		GAIA_MSVC_WARNING_POP()
 	} // namespace mem
 } // namespace gaia
