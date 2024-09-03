@@ -118,6 +118,7 @@
 			"defragmenting",
 			"Defragments",
 			"DEVMODE",
+			"PATHFINDING",
 			"prefetchnta",
 			"Reimplementation",
 			"subviews"
@@ -136,9 +137,13 @@
 			"TEMPENTITY",
 			"Wshadow",
 			"alig",
+			"arre",
+			"astar",
 			"clzll",
 			"ctzll",
 			"dbitset",
+			"dpos",
+			"ename",
 			"ents",
 			"fetchu",
 			"ilist",
@@ -156,7 +161,10 @@
 			"tgtrel",
 			"tgts",
 			"trav",
-			"uncvref"
+			"twld",
+			"uncvref",
+			"upci",
+			"upos"
 		],
 	}
 }

@@ -109,7 +109,7 @@ struct Item {
 };
 //! Tag representing the player
 struct Player {};
-//! Tag represention physical object that can interact with one-another
+//! Tag representing physical objects that can interact with one-another
 struct RigidBody {};
 
 //----------------------------------------------------------------------
@@ -646,9 +646,9 @@ public:
 
 			onCollision:
 				// Alter the velocity according to the first contact we made along the way.
-				// We make every collsion stop the moving object. This is only a question of design.
+				// We make every collision stop the moving object. This is only a question of design.
 				// We might as well keep the velocity and handle the collision aftermath in a different system.
-				// Or we could interoduce collision layers or many other things.
+				// Or we could introduce collision layers or many other things.
 				if (v.x != 0)
 					vel[i] = {naa, 0};
 				else
@@ -721,7 +721,7 @@ public:
 			auto* pChunk1 = world().get_chunk(coll.e1, idx1);
 			auto* pChunk2 = world().get_chunk(coll.e2, idx2);
 
-			// Skip non-damagable things
+			// Skip non-damageable things
 			if (!pChunk2->has<Health>())
 				continue;
 			if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
@@ -764,7 +764,7 @@ public:
 				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				// We could have simpy called world().del(coll.e1) but doing it
+				// We could have simply called world().del(coll.e1) but doing it
 				// this way allows our more control. Who knows what kinds of effect and
 				// post-processing we might have in mind for the arrow later in the frame.
 				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
@@ -962,7 +962,7 @@ public:
 int main() {
 	ClearScreen();
 	printf(
-			"Welcome to the rudimenatiest of roguelikes driven by Gaia-ECS.\n"
+			"Welcome to the most rudimentary of rogue-likes driven by Gaia-ECS.\n"
 			"\nControls:\n"
 			"  %c, %c, %c, %c - movement\n"
 			"  %c - shoot an arrow\n"
@@ -997,6 +997,8 @@ int main() {
 	g_smPostSimulation.add<GameStateSystem>();
 
 	g_world.init();
+
+	g_ecs.diag();
 
 	while (!g_world.terminate) {
 		g_smPreSimulation.update();

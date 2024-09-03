@@ -1412,14 +1412,14 @@ TEST_CASE("Containers - dbitset") {
 
 TEST_CASE("each") {
 	constexpr uint32_t N = 10;
-	SECTION("index agument") {
+	SECTION("index argument") {
 		uint32_t cnt = 0;
 		core::each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
-	SECTION("no index agument") {
+	SECTION("no index argument") {
 		uint32_t cnt = 0;
 		core::each<N>([&cnt]() {
 			++cnt;
@@ -1430,14 +1430,14 @@ TEST_CASE("each") {
 
 TEST_CASE("each_ext") {
 	constexpr uint32_t N = 10;
-	SECTION("index agument") {
+	SECTION("index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 2 + 4 + 6 + 8);
 	}
-	SECTION("no index agument") {
+	SECTION("no index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt]() {
 			++cnt;
@@ -6074,26 +6074,26 @@ TEST_CASE("System - group") {
 																 ents[2], ents[3]}; // apple, 22, 23
 
 	auto checkQuery = [&](ecs::Query& q, //
-												std::span<ecs::Entity> ents_exected_view) {
+												std::span<ecs::Entity> ents_expected_view) {
 		{
 			uint32_t j = 0;
 			q.each([&](ecs::Iter& it) {
 				auto ents = it.view<ecs::Entity>();
 				GAIA_EACH(it) {
 					const auto e = ents[i];
-					const auto e_wanted = ents_exected_view[j++];
+					const auto e_wanted = ents_expected_view[j++];
 					REQUIRE(e == e_wanted);
 				}
 			});
-			REQUIRE(j == (uint32_t)ents_exected_view.size());
+			REQUIRE(j == (uint32_t)ents_expected_view.size());
 		}
 		{
 			uint32_t j = 0;
 			q.each([&](ecs::Entity e) {
-				const auto e_wanted = ents_exected_view[j++];
+				const auto e_wanted = ents_expected_view[j++];
 				REQUIRE(e == e_wanted);
 			});
-			REQUIRE(j == (uint32_t)ents_exected_view.size());
+			REQUIRE(j == (uint32_t)ents_expected_view.size());
 		}
 	};
 
@@ -6102,7 +6102,7 @@ TEST_CASE("System - group") {
 
 		// Grouping on, no group enforced
 		checkQuery(qq, {&ents_expected[0], 6});
-		// Gruping on, a group is enforced
+		// Grouping on, a group is enforced
 		qq.group_id(carrot);
 		checkQuery(qq, {&ents_expected[0], 2});
 		qq.group_id(salad);
@@ -6682,7 +6682,7 @@ TEST_CASE("Serialization - arrays") {
 }
 
 //------------------------------------------------------------------------------
-// Mutlithreading
+// Multithreading
 //------------------------------------------------------------------------------
 
 static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
