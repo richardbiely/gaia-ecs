@@ -998,8 +998,6 @@ int main() {
 
 	g_world.init();
 
-	g_ecs.diag();
-
 	while (!g_world.terminate) {
 		g_smPreSimulation.update();
 		g_smSimulation.update();
