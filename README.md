@@ -125,7 +125,7 @@ The actual movement is handled by systems. Those that match the Flying component
 
 On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could ever be both in terms of latency and absolute performance. At the cost of data safety.
 
-The main strengths of an ECS done right could be sumarized as:
+The main strengths of an ECS done right could be summarized as:
 1) *modularity and reusability* - promotes modular and reusable code with self-contained components
 2) *decoupling of logic* - separates data from logic
 7) *facilitation of system design* - encourages a data-driven design approach for cleaner and more organized code
@@ -140,7 +140,7 @@ The main strengths of an ECS done right could be sumarized as:
 
 Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs. Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator.
 
-Components of the same type are grouped together and laid out linearily in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
+Components of the same type are grouped together and laid out linearly in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
 The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize.
 
@@ -149,7 +149,7 @@ On the other hand, adding and removing components can be somewhat slower because
 In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
 
 ## Project structure
-The entire project is implemented inside gaia ***namespace***. It is further split into multiple subprojects each with a separate namespaces.
+The entire project is implemented inside gaia ***namespace***. It is further split into multiple sub-projects each with a separate namespaces.
 - ***core*** - core functionality, use by all other parts of the code
 - ***mem*** - memory-related operations, memory allocators
 - ***cnt*** - data containers
@@ -249,7 +249,7 @@ w.name_raw(e, pUserManagedString);
 
 ### Add or remove component
 
-Components can be created using ***World::add<T>***. This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scences any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
+Components can be created using ***World::add<T>***. This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
 
 ```cpp
 struct Position {
@@ -331,7 +331,7 @@ q.each([&](ecs::Iter& it) {
 
 ### Bulk editing
 
-Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means that all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
+Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means that all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additions / removals per frame.
 
 Instead, when adding or removing multiple entities/components at once it is more efficient doing it via bulk operations. This way only one archetype movement is performed in total rather than one per added/removed entity.
 
@@ -401,9 +401,9 @@ if (some_condition)
   setter.set<Position>({0, 100, 0});
 setter.set<Something>({ ... }).set<Else>({ ... });
 
-// You can also retrive a reference to data (for AoS) or the data accessor (for SoA)
+// You can also retrieve a reference to data (for AoS) or the data accessor (for SoA)
 auto& vel = setter.mut<Velocity>();
-auto& pos = setter.mut<Positon>();
+auto& pos = setter.mut<Position>();
 ```
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
@@ -428,7 +428,7 @@ ecs::Entity e = w.add();
 w.add(e, position, Position{0, 100, 0});
 w.add(e, velocity, Velocity{0, 0, 1});
 
-// Make a copy of "e". Component values on the copied entitiy will match the source.
+// Make a copy of "e". Component values on the copied entity will match the source.
 // Value of Position on "e2" will be {0, 100, 0}.
 // Value of Velocity on "e2" will be {0, 0, 1}.
 ecs::Entity e2 = w.copy(e);
@@ -490,7 +490,7 @@ w.set_max_lifespan(player0, 20);
 w.set_max_lifespan(player0);
 ```
 
-Note, if the entity used to change an archetype's lifespan moves to a new archetype, the laters's lifespan is not updated.
+Note, if the entity used to change an archetype's lifespan moves to a new archetype, the later's lifespan is not updated.
 
 ```cpp
 ecs::World w;
@@ -506,7 +506,7 @@ w.set_max_lifespan(player0, 20);
 w.del(player0, team1); 
 ```
 
-In case you want to affect an archetype directly without abstracting it away you can retrive it via the entity's container returned by World::fetch() function:
+In case you want to affect an archetype directly without abstracting it away you can retrieve it via the entity's container returned by World::fetch() function:
 ```cpp
 EntityContainer& ec = w.fetch(player0);
 // Maximum lifespan of archetype the player0 entity belongs to changed to 50.
@@ -696,14 +696,14 @@ q.each([](ecs::IterAll& it) {
 });
 ```
 
-Performance of views can be improved slightly by explicitely providing the index of the component in the query.
+Performance of views can be improved slightly by explicitly providing the index of the component in the query.
 
 ```cpp
 ecs::Query q = w.query();
 q.any<Something>().all<Position&, Velocity>();
 
 q.each([](ecs::IterAll& it) {
-  auto s = it.view<Somehting>(0); // Something is fhe first defined component in the query
+  auto s = it.view<Something>(0); // Something is fhe first defined component in the query
   auto p = it.view_mut<Position>(1); // Position is the second defined component in the query
   auto v = it.view<Velocity>(2); // Velocity is the third defined component in the query
   ....
@@ -854,14 +854,14 @@ q.each([&](ecs::Iter& it) {
 You can choose what group to iterate specifically by calling ***group_id*** prior to iteration.
 
 ```cpp
-// This query is going to iterarte the following group of 2 archetypes:
+// This query is going to iterate the following group of 2 archetypes:
 //  - Eats:salad:
 //     - Position, (Eats, salad)
 //     - Position, (Eats, salad), Healthy
 q.group_id(salad).each([&](ecs::Iter& it) {
   ...
 });
-// This query is going to iterarte the following group of 2 archetypes:
+// This query is going to iterate the following group of 2 archetypes:
 //  - Eats:carrot:
 //     - Position, (Eats, carrot)
 //     - Position, (Eats, carrot), Healthy
@@ -1024,7 +1024,7 @@ w.target(rabbit, eats, what_rabbit_eats);
 ```
 
 ### Relations
-Relations of a relationhip can be retrived via ***World::relation*** and ***World::relations***.
+Relations of a relationship can be retrieved via ***World::relation*** and ***World::relations***.
 
 ```cpp
 w.add(rabbit, ecs::Pair(eats, carrot));
@@ -1122,7 +1122,7 @@ w.as(herbivore, animal); // equivalent of w.add(herbivore, ecs::Pair(ecs::Is, an
 w.as(rabbit, herbivore); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, herbivore))
 w.as(hare, herbivore); // equivalent of w.add(hare, ecs::Pair(ecs::Is, herbivore))
 
-bool herbibore_is_animal = w.is(herbivore, animal); // true
+bool herbivore_is_animal = w.is(herbivore, animal); // true
 bool rabbit_is_herbivore = w.is(rabbit, herbivore); // true
 bool rabbit_is_animal = w.is(rabbit, animal); // true
 bool animal_is_rabbit = w.is(animal, rabbit); // false
@@ -1588,9 +1588,9 @@ tp.wait(job2Handle);
 
 ### Priorities
 
-Nowdays, CPUs have multiple cores. Each of them is capable of running at different frequencies depending on the system's power-saving requirements and workload. Some CPUs contain cores designed to be used specifically in high-performance or efficiency scenarios. Or, some systems even have multiple CPUs.
+Nowadays, CPUs have multiple cores. Each of them is capable of running at different frequencies depending on the system's power-saving requirements and workload. Some CPUs contain cores designed to be used specifically in high-performance or efficiency scenarios. Or, some systems even have multiple CPUs.
 
-Therefore, it is important to have the abilitly to utilize these CPU features with the right workload for our needs. Gaia-ECS allows jobs to be assigned a priority tag. You can either create a high-priority jobs (default) or low-priority ones.
+Therefore, it is important to have the ability to utilize these CPU features with the right workload for our needs. Gaia-ECS allows jobs to be assigned a priority tag. You can either create a high-priority jobs (default) or low-priority ones.
 
 The operating system should try to schedule the high-priority jobs to cores with highest level of performance (either performance cores, or cores with highest frequency etc.). Low-priority jobs are to target slowest cores (either efficiency cores, or cores with lowest frequency).
 
@@ -1643,7 +1643,7 @@ auto& tp = mt::ThreadPool::get();
 // Get the number of worker threads available for this system.
 const uint32_t workers = tp.workers();
 
-// Set the number of worker threads dedicted for performance cores.
+// Set the number of worker threads dedicated for performance cores.
 // E.g. if workers==5, this dedicates 4 worker threads for high-performance workloads
 // and turns the remaining 1 into an efficiency worker.
 tp.set_workers_high_prio(workers - 1);
@@ -1651,7 +1651,7 @@ tp.set_workers_high_prio(workers - 1);
 // Make all workers high-performance ones.
 tp.set_workers_high_prio(workers);
 
-// Set the number of worker threads dedicted for efficiency cores.
+// Set the number of worker threads dedicated for efficiency cores.
 // E.g. if workers==5, this dedicates 4 worker threads for efficiency workloads loads
 // and turns the remaining 1 into a high-performance worker.
 tp.set_workers_low_prio(workers - 1);
@@ -1737,7 +1737,7 @@ When using MacOS you might run into a few issues caused by the specifics of the 
 > After you update to a new version of Xcode you might start getting "Ignoring CMAKE_OSX_SYSROOT value: ..." warnings when building the project. Residual cmake cache is to blame here. A solution is to delete files generated by cmake.
 >
 > Linker issue:<br/>
-> When not bulding the project from Xcode and using ***ld*** as your linker, if XCode 15 or later is installed on your system you will most likely run into various issues: https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking. In the CMake project a workaround is implemented which adds "-Wl,-ld_classic" to linker settings but if you use a different build system or settings you might want to do same.
+> When not building the project from Xcode and using ***ld*** as your linker, if XCode 15 or later is installed on your system you will most likely run into various issues: https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking. In the CMake project a workaround is implemented which adds "-Wl,-ld_classic" to linker settings but if you use a different build system or settings you might want to do same.
 
 ### Project settings
 Following is a list of parameters you can use to customize your build
