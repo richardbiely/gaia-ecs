@@ -135,7 +135,7 @@ namespace gaia {
 				auto ct_name = detail::ComponentDesc<T>::name();
 
 				// Allocate enough memory for the name string + the null-terminating character (
-				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
+				// the compile time string returned by ComponentDesc<T>::name is not null-terminated).
 				// Different compilers will give a bit different strings, e.g.:
 				//   Clang/GCC: gaia::ecs::uni<Position>
 				//   MSVC     : gaia::ecs::uni<struct Position>

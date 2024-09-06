@@ -714,7 +714,6 @@ namespace gaia {
 
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
-				constexpr auto kind = CT::Kind;
 
 				const auto* pItem = comp_cache().find<FT>();
 				GAIA_ASSERT(pItem != nullptr);
@@ -787,7 +786,8 @@ namespace gaia {
 				auto& comp = pComps[ec.row];
 				comp = item.comp;
 
-				// Make sure the default component entity name points to the cache item name
+				// Make sure the default component entity name points to the cache item name.
+				// The name is deleted when the component cache item is deleted.
 				name_raw(item.entity, item.name.str(), item.name.len());
 
 				// TODO: Implement entity locking. A locked entity can't change archetypes.
@@ -1371,10 +1371,19 @@ namespace gaia {
 				if (entity.pair())
 					return nullptr;
 
-				if (!has<EntityDesc>(entity))
+				const auto& ec = m_recs.entities[entity.id()];
+				ComponentGetter g{ec.pChunk, ec.row};
+				if (!g.has<EntityDesc>())
 					return nullptr;
 
-				const auto& desc = get<EntityDesc>(entity);
+				const auto& desc = g.get<EntityDesc>();
+
+				// This is the shorter but a bit slower form because it fetches twice:
+				// const auto& desc = g.get<EntityDesc>();
+				// if (!has<EntityDesc>(entity))
+				//  	return nullptr;
+
+				// const auto& desc = get<EntityDesc>(entity);
 				return desc.name;
 			}
 
@@ -3205,6 +3214,7 @@ namespace gaia {
 
 				GAIA_ASSERT(valid(entity));
 
+				// When nullptr is passed for the name it means the user wants to delete the current name
 				if (name == nullptr) {
 					GAIA_ASSERT(len == 0);
 					del_name(entity);
