@@ -352,6 +352,12 @@ namespace gaia {
 
 			EntityLookupKey() = default;
 			explicit EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+			~EntityLookupKey() = default;
+
+			EntityLookupKey(const EntityLookupKey&) = default;
+			EntityLookupKey(EntityLookupKey&&) = default;
+			EntityLookupKey& operator=(const EntityLookupKey&) = default;
+			EntityLookupKey& operator=(EntityLookupKey&&) = default;
 
 			Entity entity() const {
 				return m_entity;
@@ -372,6 +378,8 @@ namespace gaia {
 				return !operator==(other);
 			}
 		};
+
+		inline static const EntityLookupKey EntityBadLookupKey = EntityLookupKey(EntityBad);
 
 		//! Component used to describe the entity name
 		struct EntityDesc {

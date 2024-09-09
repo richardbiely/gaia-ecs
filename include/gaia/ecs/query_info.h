@@ -555,19 +555,21 @@ namespace gaia {
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
 
+				EntityLookupKey entityKey(ctx.ent);
+
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+				const auto it = entityToArchetypeMap.find(entityKey);
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -604,11 +606,14 @@ namespace gaia {
 				// if the first one is registered in the world at all.
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
+				EntityLookupKey entityKey = EntityBadLookupKey;
+
 				if (ctx.ent.id() == Is.id()) {
 					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+					entityKey = EntityLookupKey(ctx.ent);
+					const auto it = entityToArchetypeMap.find(entityKey);
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -617,10 +622,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -655,20 +660,22 @@ namespace gaia {
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
 
+				EntityLookupKey entityKey(ctx.ent);
+
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+				const auto it = entityToArchetypeMap.find(entityKey);
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -710,11 +717,14 @@ namespace gaia {
 
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
+				EntityLookupKey entityKey = EntityBadLookupKey;
+
 				if (ctx.ent.id() == Is.id()) {
 					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+					entityKey = EntityLookupKey(ctx.ent);
+					const auto it = entityToArchetypeMap.find(entityKey);
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -723,10 +733,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -762,13 +772,12 @@ namespace gaia {
 				auto& matchesSet = *ctx.pMatchesSet;
 
 				// For NO we need to search among all archetypes.
-				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
 
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityBadLookupKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(key, 0U);
+					data.lastMatchedArchetypeIdx_All.emplace(EntityBadLookupKey, 0U);
 				else
 					lastMatchedIdx = cache_it->second;
 				cache_it->second = archetypes.size();
@@ -791,13 +800,12 @@ namespace gaia {
 				auto& matchesSet = *ctx.pMatchesSet;
 
 				// For NO we need to search among all archetypes.
-				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
 
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityBadLookupKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(key, 0U);
+					data.lastMatchedArchetypeIdx_All.emplace(EntityBadLookupKey, 0U);
 				else
 					lastMatchedIdx = cache_it->second;
 				cache_it->second = archetypes.size();

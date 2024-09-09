@@ -8,15 +8,13 @@
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
 
+#include "gaia/meta/reflection.h"
+#include "gaia/meta/type_info.h"
+
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
 #include "gaia/mem/raw_data_holder.h"
-
-#include "gaia/meta/reflection.h"
-#include "gaia/meta/type_info.h"
-
-#include "gaia/ser/serialization.h"
 
 #include "gaia/cnt/bitset.h"
 #include "gaia/cnt/darray.h"
@@ -28,6 +26,8 @@
 #include "gaia/cnt/sarray_ext.h"
 #include "gaia/cnt/set.h"
 #include "gaia/cnt/sringbuffer.h"
+
+#include "gaia/ser/serialization.h"
 
 #include "gaia/mt/threadpool.h"
 

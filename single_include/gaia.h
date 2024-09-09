@@ -220,6 +220,9 @@ namespace gaia {
 	#if __has_cpp_attribute(unlikely)
 		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
 	#endif
+	#if __has_cpp_attribute(fallthrough)
+		#define GAIA_FALLTHROUGH [[fallthrough]]
+	#endif
 #endif
 #ifndef GAIA_NODISCARD
 	#define GAIA_NODISCARD
@@ -235,6 +238,9 @@ namespace gaia {
 #endif
 #ifndef GAIA_UNLIKELY
 	#define GAIA_UNLIKELY(cond) (cond)
+#endif
+#ifndef GAIA_FALLTHROUGH
+	#define GAIA_FALLTHROUGH
 #endif
 
 // GCC 7 and some later versions had a bug that would artificially restrict alignas for stack
@@ -1943,7 +1949,6 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
-			GAIA_ASSERT(&left != &right);
 			T tmp = GAIA_MOV(left);
 			left = GAIA_MOV(right);
 			right = GAIA_MOV(tmp);
@@ -3292,10 +3297,6 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#include <tuple>
-#include <type_traits>
-#include <utility>
-
 namespace gaia {
 	namespace meta {
 
@@ -3610,6 +3611,107 @@ namespace gaia {
 		GAIA_MSVC_WARNING_POP() // C4702
 	} // namespace meta
 } // namespace gaia
+
+namespace gaia {
+	namespace meta {
+
+		//! Provides statically generated unique identifier for a given group of types.
+		template <typename...>
+		class type_group {
+			inline static uint32_t s_identifier{};
+
+		public:
+			template <typename... Type>
+			inline static const uint32_t id = s_identifier++;
+		};
+
+		template <>
+		class type_group<void>;
+
+		//----------------------------------------------------------------------
+		// Type meta data
+		//----------------------------------------------------------------------
+
+		struct type_info final {
+		private:
+			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
+				for (size_t i = startPos; i < len; ++i) {
+					if (data[i] == toFind)
+						return i;
+				}
+				return size_t(-1);
+			}
+
+			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
+				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
+				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
+					if (data[i] == c)
+						return (size_t)i;
+				}
+				return size_t(-1);
+			}
+
+		public:
+			template <typename T>
+			static uint32_t id() noexcept {
+				return type_group<type_info>::id<T>;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
+				return GAIA_PRETTY_FUNCTION;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto name() noexcept {
+				// MSVC:
+				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
+				//   -> ecs::EnfEntity
+				// Clang/GCC:
+				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
+				//   -> ecs::EnfEntity
+
+				// Note:
+				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
+				//		In fact, even if we did, we need to be afraid of compiler issues.
+				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
+				//		in constexpr context. Tested with and without LIBCPP
+				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
+				//		As a workaround find_first_of and find_last_of were implemented
+
+				size_t strLen = 0;
+				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
+					++strLen;
+
+				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
+				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				return name.subspan(start + 1, end - start - 1);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto hash() noexcept {
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4307)
+#endif
+
+				auto n = name<T>();
+				return core::calculate_hash64(n.data(), n.size());
+
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+#endif
+			}
+		};
+
+	} // namespace meta
+} // namespace gaia
+
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 #include <cstdint>
 #include <cstring>
@@ -4935,377 +5037,6 @@ namespace gaia {
 		template <typename T, uint32_t N>
 		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::Alignment>;
 	} // namespace mem
-} // namespace gaia
-
-namespace gaia {
-	namespace meta {
-
-		//! Provides statically generated unique identifier for a given group of types.
-		template <typename...>
-		class type_group {
-			inline static uint32_t s_identifier{};
-
-		public:
-			template <typename... Type>
-			inline static const uint32_t id = s_identifier++;
-		};
-
-		template <>
-		class type_group<void>;
-
-		//----------------------------------------------------------------------
-		// Type meta data
-		//----------------------------------------------------------------------
-
-		struct type_info final {
-		private:
-			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
-				for (size_t i = startPos; i < len; ++i) {
-					if (data[i] == toFind)
-						return i;
-				}
-				return size_t(-1);
-			}
-
-			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
-				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
-					if (data[i] == c)
-						return (size_t)i;
-				}
-				return size_t(-1);
-			}
-
-		public:
-			template <typename T>
-			static uint32_t id() noexcept {
-				return type_group<type_info>::id<T>;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
-				return GAIA_PRETTY_FUNCTION;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto name() noexcept {
-				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
-				//   -> ecs::EnfEntity
-				// Clang/GCC:
-				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
-				//   -> ecs::EnfEntity
-
-				// Note:
-				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
-				//		In fact, even if we did, we need to be afraid of compiler issues.
-				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
-				//		in constexpr context. Tested with and without LIBCPP
-				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
-				//		As a workaround find_first_of and find_last_of were implemented
-
-				size_t strLen = 0;
-				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
-					++strLen;
-
-				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
-				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
-				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
-				return name.subspan(start + 1, end - start - 1);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto hash() noexcept {
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-				GAIA_MSVC_WARNING_DISABLE(4307)
-#endif
-
-				auto n = name<T>();
-				return core::calculate_hash64(n.data(), n.size());
-
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-#endif
-			}
-		};
-
-	} // namespace meta
-} // namespace gaia
-
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace ser {
-		namespace detail {
-			enum class serialization_type_id : uint8_t {
-				// Integer types
-				s8 = 1,
-				u8 = 2,
-				s16 = 3,
-				u16 = 4,
-				s32 = 5,
-				u32 = 6,
-				s64 = 7,
-				u64 = 8,
-
-				// Boolean
-				b = 40,
-
-				// Character types
-				c8 = 41,
-				c16 = 42,
-				c32 = 43,
-				cw = 44,
-
-				// Floating point types
-				f8 = 81,
-				f16 = 82,
-				f32 = 83,
-				f64 = 84,
-				f128 = 85,
-
-				// Special
-				trivial_wrapper = 200,
-				data_and_size = 201,
-
-				Last = 255,
-			};
-
-			template <typename C>
-			constexpr auto size(C&& c) noexcept -> decltype(c.size()) {
-				return c.size();
-			}
-			template <typename T, auto N>
-			constexpr std::size_t size(const T (&)[N]) noexcept {
-				return N;
-			}
-
-			template <typename C>
-			constexpr auto data(C&& c) noexcept -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename T, auto N>
-			constexpr T* data(T (&array)[N]) noexcept {
-				return array;
-			}
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
-
-			template <typename, typename = void>
-			struct has_data_and_size: std::false_type {};
-			template <typename T>
-			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
-					std::true_type {};
-
-			GAIA_DEFINE_HAS_FUNCTION(resize);
-			GAIA_DEFINE_HAS_FUNCTION(bytes);
-			GAIA_DEFINE_HAS_FUNCTION(save);
-			GAIA_DEFINE_HAS_FUNCTION(load);
-
-			template <typename T>
-			struct is_trivially_serializable {
-			private:
-				static constexpr bool update() {
-					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
-				}
-
-			public:
-				static inline constexpr bool value = update();
-			};
-
-			template <typename T>
-			struct is_int_kind_id:
-					std::disjunction<
-							std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
-							std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
-							std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
-							std::is_same<T, int64_t>, std::is_same<T, uint64_t>, //
-							std::is_same<T, bool>> {};
-
-			template <typename T>
-			struct is_flt_kind_id:
-					std::disjunction<
-							// std::is_same<T, float8_t>, //
-							// std::is_same<T, float16_t>, //
-							std::is_same<T, float>, //
-							std::is_same<T, double>, //
-							std::is_same<T, long double>> {};
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
-				static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
-
-				if constexpr (std::is_same_v<int8_t, T>) {
-					return serialization_type_id::s8;
-				} else if constexpr (std::is_same_v<uint8_t, T>) {
-					return serialization_type_id::u8;
-				} else if constexpr (std::is_same_v<int16_t, T>) {
-					return serialization_type_id::s16;
-				} else if constexpr (std::is_same_v<uint16_t, T>) {
-					return serialization_type_id::u16;
-				} else if constexpr (std::is_same_v<int32_t, T>) {
-					return serialization_type_id::s32;
-				} else if constexpr (std::is_same_v<uint32_t, T>) {
-					return serialization_type_id::u32;
-				} else if constexpr (std::is_same_v<int64_t, T>) {
-					return serialization_type_id::s64;
-				} else if constexpr (std::is_same_v<uint64_t, T>) {
-					return serialization_type_id::u64;
-				} else { // if constexpr (std::is_same_v<bool, T>) {
-					return serialization_type_id::b;
-				}
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
-				static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
-
-				// if constexpr (std::is_same_v<float8_t, T>) {
-				// 	return serialization_type_id::f8;
-				// } else if constexpr (std::is_same_v<float16_t, T>) {
-				// 	return serialization_type_id::f16;
-				// } else
-				if constexpr (std::is_same_v<float, T>) {
-					return serialization_type_id::f32;
-				} else if constexpr (std::is_same_v<double, T>) {
-					return serialization_type_id::f64;
-				} else { // if constexpr (std::is_same_v<long double, T>) {
-					return serialization_type_id::f128;
-				}
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id type_id() {
-				if constexpr (std::is_enum_v<T>)
-					return int_kind_id<std::underlying_type_t<T>>();
-				else if constexpr (std::is_integral_v<T>)
-					return int_kind_id<T>();
-				else if constexpr (std::is_floating_point_v<T>)
-					return flt_type_id<T>();
-				else if constexpr (has_data_and_size<T>::value)
-					return serialization_type_id::data_and_size;
-				else if constexpr (std::is_class_v<T>)
-					return serialization_type_id::trivial_wrapper;
-
-				return serialization_type_id::Last;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
-				using U = core::raw_t<T>;
-
-				constexpr auto id = type_id<U>();
-				static_assert(id != serialization_type_id::Last);
-				uint32_t size_in_bytes{};
-
-				// Custom bytes() has precedence
-				if constexpr (has_bytes<U>::value) {
-					size_in_bytes = (uint32_t)item.bytes();
-				}
-				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
-					size_in_bytes = (uint32_t)sizeof(U);
-				}
-				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
-					size_in_bytes = (uint32_t)item.size();
-				}
-				// Classes
-				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(item, [&](auto&&... items) {
-						size_in_bytes += (bytes_one(items) + ...);
-					});
-				} else
-					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
-
-				return size_in_bytes;
-			}
-
-			template <bool Write, typename Serializer, typename T>
-			void ser_data_one(Serializer& s, T&& arg) {
-				using U = core::raw_t<T>;
-
-				// Custom save() & load() have precedence
-				if constexpr (Write && has_save<U, Serializer&>::value) {
-					arg.save(s);
-				} else if constexpr (!Write && has_load<U, Serializer&>::value) {
-					arg.load(s);
-				}
-				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
-					if constexpr (Write)
-						s.save(GAIA_FWD(arg));
-					else
-						s.load(GAIA_FWD(arg));
-				}
-				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
-					if constexpr (Write) {
-						const auto size = arg.size();
-						s.save(size);
-
-						for (const auto& e: arg)
-							ser_data_one<Write>(s, e);
-					} else {
-						auto size = arg.size();
-						s.load(size);
-
-						if constexpr (has_resize<U, size_t>::value) {
-							// If resize is present, use it
-							arg.resize(size);
-							for (auto& e: arg)
-								ser_data_one<Write>(s, e);
-						} else {
-							// With no resize present, write directly into memory
-							GAIA_FOR(size) {
-								using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
-								auto& e_ref = (arg_type&)arg[i];
-								ser_data_one<Write>(s, e_ref);
-							}
-						}
-					}
-				}
-				// Classes
-				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copyable types
-						(ser_data_one<Write>(s, items), ...);
-					});
-				} else
-					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
-			}
-		} // namespace detail
-
-		//! Calculates the number of bytes necessary to serialize data using the "save" function.
-		//! \warning Compile-time.
-		template <typename T>
-		GAIA_NODISCARD uint32_t bytes(const T& data) {
-			return detail::bytes_one(data);
-		}
-
-		//! Write \param data using \tparam Writer at compile-time.
-		//!
-		//! \warning Writer has to implement a save function as follows:
-		//! 					template <typename T> void save(const T& arg);
-		template <typename Writer, typename T>
-		void save(Writer& writer, const T& data) {
-			detail::ser_data_one<true>(writer, data);
-		}
-
-		//! Read \param data using \tparam Reader at compile-time.
-		//!
-		//! \warning Reader has to implement a save function as follows:
-		//! 					template <typename T> void load(T& arg);
-		template <typename Reader, typename T>
-		void load(Reader& reader, T& data) {
-			detail::ser_data_one<false>(reader, data);
-		}
-	} // namespace ser
 } // namespace gaia
 
 #include <cstdint>
@@ -13711,6 +13442,280 @@ namespace gaia {
 
 } // namespace gaia
 
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace ser {
+		namespace detail {
+			enum class serialization_type_id : uint8_t {
+				// Integer types
+				s8 = 1,
+				u8 = 2,
+				s16 = 3,
+				u16 = 4,
+				s32 = 5,
+				u32 = 6,
+				s64 = 7,
+				u64 = 8,
+
+				// Boolean
+				b = 40,
+
+				// Character types
+				c8 = 41,
+				c16 = 42,
+				c32 = 43,
+				cw = 44,
+
+				// Floating point types
+				f8 = 81,
+				f16 = 82,
+				f32 = 83,
+				f64 = 84,
+				f128 = 85,
+
+				// Special
+				trivial_wrapper = 200,
+				data_and_size = 201,
+
+				Last = 255,
+			};
+
+			template <typename C>
+			constexpr auto size(C&& c) noexcept -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename T, auto N>
+			constexpr std::size_t size(const T (&)[N]) noexcept {
+				return N;
+			}
+
+			template <typename C>
+			constexpr auto data(C&& c) noexcept -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename T, auto N>
+			constexpr T* data(T (&array)[N]) noexcept {
+				return array;
+			}
+			template <typename E>
+			constexpr const E* data(std::initializer_list<E> il) noexcept {
+				return il.begin();
+			}
+
+			template <typename, typename = void>
+			struct has_data_and_size: std::false_type {};
+			template <typename T>
+			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
+					std::true_type {};
+
+			GAIA_DEFINE_HAS_FUNCTION(resize);
+			GAIA_DEFINE_HAS_FUNCTION(bytes);
+			GAIA_DEFINE_HAS_FUNCTION(save);
+			GAIA_DEFINE_HAS_FUNCTION(load);
+
+			template <typename T>
+			struct is_trivially_serializable {
+			private:
+				static constexpr bool update() {
+					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
+				}
+
+			public:
+				static inline constexpr bool value = update();
+			};
+
+			template <typename T>
+			struct is_int_kind_id:
+					std::disjunction<
+							std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
+							std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
+							std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
+							std::is_same<T, int64_t>, std::is_same<T, uint64_t>, //
+							std::is_same<T, bool>> {};
+
+			template <typename T>
+			struct is_flt_kind_id:
+					std::disjunction<
+							// std::is_same<T, float8_t>, //
+							// std::is_same<T, float16_t>, //
+							std::is_same<T, float>, //
+							std::is_same<T, double>, //
+							std::is_same<T, long double>> {};
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
+				static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
+
+				if constexpr (std::is_same_v<int8_t, T>) {
+					return serialization_type_id::s8;
+				} else if constexpr (std::is_same_v<uint8_t, T>) {
+					return serialization_type_id::u8;
+				} else if constexpr (std::is_same_v<int16_t, T>) {
+					return serialization_type_id::s16;
+				} else if constexpr (std::is_same_v<uint16_t, T>) {
+					return serialization_type_id::u16;
+				} else if constexpr (std::is_same_v<int32_t, T>) {
+					return serialization_type_id::s32;
+				} else if constexpr (std::is_same_v<uint32_t, T>) {
+					return serialization_type_id::u32;
+				} else if constexpr (std::is_same_v<int64_t, T>) {
+					return serialization_type_id::s64;
+				} else if constexpr (std::is_same_v<uint64_t, T>) {
+					return serialization_type_id::u64;
+				} else { // if constexpr (std::is_same_v<bool, T>) {
+					return serialization_type_id::b;
+				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
+				static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
+
+				// if constexpr (std::is_same_v<float8_t, T>) {
+				// 	return serialization_type_id::f8;
+				// } else if constexpr (std::is_same_v<float16_t, T>) {
+				// 	return serialization_type_id::f16;
+				// } else
+				if constexpr (std::is_same_v<float, T>) {
+					return serialization_type_id::f32;
+				} else if constexpr (std::is_same_v<double, T>) {
+					return serialization_type_id::f64;
+				} else { // if constexpr (std::is_same_v<long double, T>) {
+					return serialization_type_id::f128;
+				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id type_id() {
+				if constexpr (std::is_enum_v<T>)
+					return int_kind_id<std::underlying_type_t<T>>();
+				else if constexpr (std::is_integral_v<T>)
+					return int_kind_id<T>();
+				else if constexpr (std::is_floating_point_v<T>)
+					return flt_type_id<T>();
+				else if constexpr (has_data_and_size<T>::value)
+					return serialization_type_id::data_and_size;
+				else if constexpr (std::is_class_v<T>)
+					return serialization_type_id::trivial_wrapper;
+
+				return serialization_type_id::Last;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
+				using U = core::raw_t<T>;
+
+				constexpr auto id = type_id<U>();
+				static_assert(id != serialization_type_id::Last);
+				uint32_t size_in_bytes{};
+
+				// Custom bytes() has precedence
+				if constexpr (has_bytes<U>::value) {
+					size_in_bytes = (uint32_t)item.bytes();
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<U>::value) {
+					size_in_bytes = (uint32_t)sizeof(U);
+				}
+				// Types which have data() and size() member functions
+				else if constexpr (has_data_and_size<U>::value) {
+					size_in_bytes = (uint32_t)item.size();
+				}
+				// Classes
+				else if constexpr (std::is_class_v<U>) {
+					meta::each_member(item, [&](auto&&... items) {
+						size_in_bytes += (bytes_one(items) + ...);
+					});
+				} else
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+
+				return size_in_bytes;
+			}
+
+			template <bool Write, typename Serializer, typename T>
+			void ser_data_one(Serializer& s, T&& arg) {
+				using U = core::raw_t<T>;
+
+				// Custom save() & load() have precedence
+				if constexpr (Write && has_save<U, Serializer&>::value) {
+					arg.save(s);
+				} else if constexpr (!Write && has_load<U, Serializer&>::value) {
+					arg.load(s);
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<U>::value) {
+					if constexpr (Write)
+						s.save(GAIA_FWD(arg));
+					else
+						s.load(GAIA_FWD(arg));
+				}
+				// Types which have data() and size() member functions
+				else if constexpr (has_data_and_size<U>::value) {
+					if constexpr (Write) {
+						const auto size = arg.size();
+						s.save(size);
+
+						for (const auto& e: arg)
+							ser_data_one<Write>(s, e);
+					} else {
+						auto size = arg.size();
+						s.load(size);
+
+						if constexpr (has_resize<U, size_t>::value) {
+							// If resize is present, use it
+							arg.resize(size);
+							for (auto& e: arg)
+								ser_data_one<Write>(s, e);
+						} else {
+							// With no resize present, write directly into memory
+							GAIA_FOR(size) {
+								using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
+								auto& e_ref = (arg_type&)arg[i];
+								ser_data_one<Write>(s, e_ref);
+							}
+						}
+					}
+				}
+				// Classes
+				else if constexpr (std::is_class_v<U>) {
+					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copyable types
+						(ser_data_one<Write>(s, items), ...);
+					});
+				} else
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+			}
+		} // namespace detail
+
+		//! Calculates the number of bytes necessary to serialize data using the "save" function.
+		//! \warning Compile-time.
+		template <typename T>
+		GAIA_NODISCARD uint32_t bytes(const T& data) {
+			return detail::bytes_one(data);
+		}
+
+		//! Write \param data using \tparam Writer at compile-time.
+		//!
+		//! \warning Writer has to implement a save function as follows:
+		//! 					template <typename T> void save(const T& arg);
+		template <typename Writer, typename T>
+		void save(Writer& writer, const T& data) {
+			detail::ser_data_one<true>(writer, data);
+		}
+
+		//! Read \param data using \tparam Reader at compile-time.
+		//!
+		//! \warning Reader has to implement a save function as follows:
+		//! 					template <typename T> void load(T& arg);
+		template <typename Reader, typename T>
+		void load(Reader& reader, T& data) {
+			detail::ser_data_one<false>(reader, data);
+		}
+	} // namespace ser
+} // namespace gaia
+
 #if GAIA_PLATFORM_WINDOWS
 	#include <windows.h>
 	#include <cstdio>
@@ -15551,6 +15556,12 @@ namespace gaia {
 
 			EntityLookupKey() = default;
 			explicit EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+			~EntityLookupKey() = default;
+
+			EntityLookupKey(const EntityLookupKey&) = default;
+			EntityLookupKey(EntityLookupKey&&) = default;
+			EntityLookupKey& operator=(const EntityLookupKey&) = default;
+			EntityLookupKey& operator=(EntityLookupKey&&) = default;
 
 			Entity entity() const {
 				return m_entity;
@@ -15571,6 +15582,8 @@ namespace gaia {
 				return !operator==(other);
 			}
 		};
+
+		inline static const EntityLookupKey EntityBadLookupKey = EntityLookupKey(EntityBad);
 
 		//! Component used to describe the entity name
 		struct EntityDesc {
@@ -16593,13 +16606,13 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calulating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminanted and up to MaxLen characters long.
+			//! Constructor calculating hash and length from the provided string \param pStr
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
 			explicit StringLookupKey(const char* pStr):
 					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
-			//! Constructor calulating hash from the provided string \param pStr and \param length
-			//! \warning String has to be null-terminanted and up to MaxLen characters long.
+			//! Constructor calculating hash from the provided string \param pStr and \param length
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
 			explicit StringLookupKey(const char* pStr, uint32_t len):
 					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
@@ -20962,19 +20975,21 @@ namespace gaia {
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
 
+				EntityLookupKey entityKey(ctx.ent);
+
 				// For ALL we need all the archetypes to match. We start by checking
 				// if the first one is registered in the world at all.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+				const auto it = entityToArchetypeMap.find(entityKey);
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -21011,11 +21026,14 @@ namespace gaia {
 				// if the first one is registered in the world at all.
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
+				EntityLookupKey entityKey = EntityBadLookupKey;
+
 				if (ctx.ent.id() == Is.id()) {
 					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+					entityKey = EntityLookupKey(ctx.ent);
+					const auto it = entityToArchetypeMap.find(entityKey);
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -21024,10 +21042,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_All.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -21062,20 +21080,22 @@ namespace gaia {
 				auto& matchesArr = *ctx.pMatchesArr;
 				auto& matchesSet = *ctx.pMatchesSet;
 
+				EntityLookupKey entityKey(ctx.ent);
+
 				// For ANY we need at least one archetypes to match.
 				// However, because any of them can match, we need to check them all.
 				// Iterating all of them is caller's responsibility.
-				const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+				const auto it = entityToArchetypeMap.find(entityKey);
 				if (it == entityToArchetypeMap.end() || it->second.empty())
 					return;
 
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = it->second;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -21117,11 +21137,14 @@ namespace gaia {
 
 				const ArchetypeDArray* pSrcArchetypes = nullptr;
 
+				EntityLookupKey entityKey = EntityBadLookupKey;
+
 				if (ctx.ent.id() == Is.id()) {
 					ctx.ent = EntityBad;
 					pSrcArchetypes = &allArchetypes;
 				} else {
-					const auto it = entityToArchetypeMap.find(EntityLookupKey(ctx.ent));
+					entityKey = EntityLookupKey(ctx.ent);
+					const auto it = entityToArchetypeMap.find(entityKey);
 					if (it == entityToArchetypeMap.end() || it->second.empty())
 						return;
 					pSrcArchetypes = &it->second;
@@ -21130,10 +21153,10 @@ namespace gaia {
 				auto& data = m_ctx.data;
 
 				const auto& archetypes = *pSrcArchetypes;
-				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(EntityLookupKey(ctx.ent));
+				const auto cache_it = data.lastMatchedArchetypeIdx_Any.find(entityKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_Any.end())
-					data.lastMatchedArchetypeIdx_Any.emplace(EntityLookupKey(ctx.ent), archetypes.size());
+					data.lastMatchedArchetypeIdx_Any.emplace(entityKey, archetypes.size());
 				else {
 					lastMatchedIdx = cache_it->second;
 					cache_it->second = archetypes.size();
@@ -21169,13 +21192,12 @@ namespace gaia {
 				auto& matchesSet = *ctx.pMatchesSet;
 
 				// For NO we need to search among all archetypes.
-				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
 
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityBadLookupKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(key, 0U);
+					data.lastMatchedArchetypeIdx_All.emplace(EntityBadLookupKey, 0U);
 				else
 					lastMatchedIdx = cache_it->second;
 				cache_it->second = archetypes.size();
@@ -21198,13 +21220,12 @@ namespace gaia {
 				auto& matchesSet = *ctx.pMatchesSet;
 
 				// For NO we need to search among all archetypes.
-				const EntityLookupKey key(EntityBad);
 				auto& data = m_ctx.data;
 
-				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(key);
+				const auto cache_it = data.lastMatchedArchetypeIdx_All.find(EntityBadLookupKey);
 				uint32_t lastMatchedIdx = 0;
 				if (cache_it == data.lastMatchedArchetypeIdx_All.end())
-					data.lastMatchedArchetypeIdx_All.emplace(key, 0U);
+					data.lastMatchedArchetypeIdx_All.emplace(EntityBadLookupKey, 0U);
 				else
 					lastMatchedIdx = cache_it->second;
 				cache_it->second = archetypes.size();
@@ -23647,12 +23668,15 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto e = m_world.get(entity.gen());
 
+						EntityLookupKey entityKey(entity);
+						EntityLookupKey eKey(e);
+
 						{
 							auto& set = m_world.m_entityToAsTargets;
-							const auto it = set.find(EntityLookupKey(entity));
+							const auto it = set.find(entityKey);
 							GAIA_ASSERT(it != set.end());
 							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(EntityLookupKey(e));
+							it->second.erase(eKey);
 
 							// Remove the record if it is not referenced anymore
 							if (it->second.empty())
@@ -23660,10 +23684,10 @@ namespace gaia {
 						}
 						{
 							auto& set = m_world.m_entityToAsRelations;
-							const auto it = set.find(EntityLookupKey(e));
+							const auto it = set.find(eKey);
 							GAIA_ASSERT(it != set.end());
 							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(EntityLookupKey(entity));
+							it->second.erase(entityKey);
 
 							// Remove the record if it is not referenced anymore
 							if (it->second.empty())
@@ -25252,9 +25276,10 @@ namespace gaia {
 			//! \param entity Entity getting added
 			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				EntityLookupKey entityKey(entity);
+				const auto it = m_entityToArchetypeMap.find(entityKey);
 				if (it == m_entityToArchetypeMap.end()) {
-					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeDArray{pArchetype});
+					m_entityToArchetypeMap.try_emplace(entityKey, ArchetypeDArray{pArchetype});
 					return;
 				}
 
@@ -25352,8 +25377,12 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->list_idx() == BadIndex);
 
 				// Register the archetype
-				m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
-				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+				[[maybe_unused]] const auto it0 =
+						m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
+				[[maybe_unused]] const auto it1 =
+						m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+				GAIA_ASSERT(it0.second);
+				GAIA_ASSERT(it1.second);
 
 				pArchetype->list_idx(m_archetypes.size());
 				m_archetypes.emplace_back(pArchetype);
@@ -25364,9 +25393,12 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
 
 				auto tmpArchetype = ArchetypeLookupChecker(pArchetype->ids_view());
-				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
-				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+				[[maybe_unused]] const auto res0 =
+						m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+				[[maybe_unused]] const auto res1 =
+						m_archetypesByHash.erase(ArchetypeLookupKey(pArchetype->lookup_hash(), &tmpArchetype));
+				GAIA_ASSERT(res0 != 0);
+				GAIA_ASSERT(res1 != 0);
 
 				const auto idx = pArchetype->list_idx();
 				GAIA_ASSERT(idx == core::get_index(m_archetypes, pArchetype));

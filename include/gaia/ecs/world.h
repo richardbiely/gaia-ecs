@@ -590,12 +590,15 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto e = m_world.get(entity.gen());
 
+						EntityLookupKey entityKey(entity);
+						EntityLookupKey eKey(e);
+
 						{
 							auto& set = m_world.m_entityToAsTargets;
-							const auto it = set.find(EntityLookupKey(entity));
+							const auto it = set.find(entityKey);
 							GAIA_ASSERT(it != set.end());
 							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(EntityLookupKey(e));
+							it->second.erase(eKey);
 
 							// Remove the record if it is not referenced anymore
 							if (it->second.empty())
@@ -603,10 +606,10 @@ namespace gaia {
 						}
 						{
 							auto& set = m_world.m_entityToAsRelations;
-							const auto it = set.find(EntityLookupKey(e));
+							const auto it = set.find(eKey);
 							GAIA_ASSERT(it != set.end());
 							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(EntityLookupKey(entity));
+							it->second.erase(entityKey);
 
 							// Remove the record if it is not referenced anymore
 							if (it->second.empty())
@@ -2195,9 +2198,10 @@ namespace gaia {
 			//! \param entity Entity getting added
 			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				EntityLookupKey entityKey(entity);
+				const auto it = m_entityToArchetypeMap.find(entityKey);
 				if (it == m_entityToArchetypeMap.end()) {
-					m_entityToArchetypeMap.try_emplace(EntityLookupKey(entity), ArchetypeDArray{pArchetype});
+					m_entityToArchetypeMap.try_emplace(entityKey, ArchetypeDArray{pArchetype});
 					return;
 				}
 
@@ -2295,8 +2299,12 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->list_idx() == BadIndex);
 
 				// Register the archetype
-				m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
-				m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+				[[maybe_unused]] const auto it0 =
+						m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
+				[[maybe_unused]] const auto it1 =
+						m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+				GAIA_ASSERT(it0.second);
+				GAIA_ASSERT(it1.second);
 
 				pArchetype->list_idx(m_archetypes.size());
 				m_archetypes.emplace_back(pArchetype);
@@ -2307,9 +2315,12 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
 
 				auto tmpArchetype = ArchetypeLookupChecker(pArchetype->ids_view());
-				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
-				m_archetypesByHash.erase(key);
-				m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+				[[maybe_unused]] const auto res0 =
+						m_archetypesById.erase(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+				[[maybe_unused]] const auto res1 =
+						m_archetypesByHash.erase(ArchetypeLookupKey(pArchetype->lookup_hash(), &tmpArchetype));
+				GAIA_ASSERT(res0 != 0);
+				GAIA_ASSERT(res1 != 0);
 
 				const auto idx = pArchetype->list_idx();
 				GAIA_ASSERT(idx == core::get_index(m_archetypes, pArchetype));

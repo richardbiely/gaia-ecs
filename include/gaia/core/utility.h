@@ -181,7 +181,6 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
-			GAIA_ASSERT(&left != &right);
 			T tmp = GAIA_MOV(left);
 			left = GAIA_MOV(right);
 			right = GAIA_MOV(tmp);

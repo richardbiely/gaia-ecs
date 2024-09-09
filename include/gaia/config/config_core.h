@@ -220,6 +220,9 @@ namespace gaia {
 	#if __has_cpp_attribute(unlikely)
 		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
 	#endif
+	#if __has_cpp_attribute(fallthrough)
+		#define GAIA_FALLTHROUGH [[fallthrough]]
+	#endif
 #endif
 #ifndef GAIA_NODISCARD
 	#define GAIA_NODISCARD
@@ -235,6 +238,9 @@ namespace gaia {
 #endif
 #ifndef GAIA_UNLIKELY
 	#define GAIA_UNLIKELY(cond) (cond)
+#endif
+#ifndef GAIA_FALLTHROUGH
+	#define GAIA_FALLTHROUGH
 #endif
 
 // GCC 7 and some later versions had a bug that would artificially restrict alignas for stack
