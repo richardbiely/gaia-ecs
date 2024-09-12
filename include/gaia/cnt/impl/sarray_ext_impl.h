@@ -10,6 +10,7 @@
 
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
+#include "../../mem/data_layout_policy.h"
 #include "../../mem/mem_utils.h"
 #include "../../mem/raw_data_holder.h"
 
@@ -508,7 +509,7 @@ namespace gaia {
 				} else
 				// Resizing to a bigger size but still within allocated capacity
 				{
-					// Constuct new elements
+					// Construct new elements
 					if constexpr (!mem::is_soa_layout_v<T>)
 						core::call_ctor_n(&data()[size()], count - size());
 				}

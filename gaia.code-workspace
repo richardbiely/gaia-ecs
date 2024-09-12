@@ -125,6 +125,7 @@
 			"Reimplementation",
 			"SIMD",
 			"subviews",
+			"Unpoison",
 			"vectorize"
 		],
 		"cSpell.ignoreWords": [

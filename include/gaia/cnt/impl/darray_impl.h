@@ -9,6 +9,7 @@
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
 #include "../../mem/data_layout_policy.h"
+#include "../../mem/mem_sani.h"
 #include "../../mem/mem_utils.h"
 
 namespace gaia {
@@ -228,6 +229,7 @@ namespace gaia {
 				// If no data is allocated go with at least 4 elements
 				if GAIA_UNLIKELY (m_pData == nullptr) {
 					m_pData = view_policy::template alloc<Allocator>(m_cap = 4);
+					GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, m_cap, cnt);
 					return;
 				}
 
@@ -237,7 +239,9 @@ namespace gaia {
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, m_cap, cnt);
 				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, cap, cnt);
 				view_policy::template free<Allocator>(pDataOld, cnt);
 			}
 
@@ -276,7 +280,15 @@ namespace gaia {
 
 			darr(const darr& other): darr(other.begin(), other.end()) {}
 
-			darr(darr&& other) noexcept: m_pData(other.m_pData), m_cnt(other.m_cnt), m_cap(other.m_cap) {
+			darr(darr&& other) noexcept {
+				// This is a newly constructed object.
+				// It can't have any memory allocated, yet.
+				GAIA_ASSERT(m_pData == nullptr);
+
+				m_pData = other.m_pData;
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
 				other.m_cnt = size_type(0);
 				other.m_cap = size_type(0);
 				other.m_pData = nullptr;
@@ -300,7 +312,10 @@ namespace gaia {
 			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				view_policy::template free<Allocator>(m_pData, size());
+				// Release previously allocated memory if there was anything
+				GAIA_MEM_SANI_DEL_BLOCK(value_type, m_pData, m_cap, m_cnt);
+				view_policy::template free<Allocator>(m_pData, m_cnt);
+
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -313,7 +328,8 @@ namespace gaia {
 			}
 
 			~darr() {
-				view_policy::template free<Allocator>(m_pData, size());
+				GAIA_MEM_SANI_DEL_BLOCK(value_type, m_pData, m_cap, m_cnt);
+				view_policy::template free<Allocator>(m_pData, m_cnt);
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -340,18 +356,21 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			void reserve(size_type count) {
-				if (count <= m_cap)
+			void reserve(size_type cap) {
+				if (cap <= m_cap)
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::template alloc<Allocator>(count);
+				m_pData = view_policy::template alloc<Allocator>(cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, cap, m_cnt);
+
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
-					view_policy::template free<Allocator>(pDataOld, size());
+					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, m_cap, m_cnt);
+					view_policy::template free<Allocator>(pDataOld, m_cnt);
 				}
 
-				m_cap = count;
+				m_cap = cap;
 			}
 
 			void resize(size_type count) {
@@ -359,6 +378,7 @@ namespace gaia {
 				if (m_pData == nullptr) {
 					if (count > 0) {
 						m_pData = view_policy::template alloc<Allocator>(count);
+						GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, count, count);
 						m_cap = count;
 						m_cnt = count;
 					}
@@ -368,8 +388,10 @@ namespace gaia {
 				// Resizing to a smaller size
 				if (count <= m_cnt) {
 					// Destroy elements at the end
-					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor_n(&data()[count], size() - count);
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						core::call_dtor_n(&data()[count], m_cnt - count);
+						GAIA_MEM_SANI_POP_N(value_type, m_pData, m_cap, m_cnt - count, count);
+					}
 
 					m_cnt = count;
 					return;
@@ -377,9 +399,11 @@ namespace gaia {
 
 				// Resizing to a bigger size but still within allocated capacity
 				if (count <= m_cap) {
-					// Constuct new elements
-					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_ctor_n(&data()[size()], count - size());
+					// Construct new elements
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						GAIA_MEM_SANI_PUSH_N(value_type, m_pData, m_cap, m_cnt, count - m_cnt);
+						core::call_ctor_n(&data()[m_cnt], count - m_cnt);
+					}
 
 					m_cnt = count;
 					return;
@@ -387,14 +411,18 @@ namespace gaia {
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(count);
+				GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, count, count);
 				{
 					// Move old data to the new location
-					mem::move_elements<T>(m_pData, pDataOld, size(), 0, count, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 					// Default-construct new items
-					core::call_ctor_n(&data()[size()], count - size());
+					if constexpr (!mem::is_soa_layout_v<T>)
+						core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 				}
+
 				// Release old memory
-				view_policy::template free<Allocator>(pDataOld, size());
+				GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, m_cap, m_cnt);
+				view_policy::template free<Allocator>(pDataOld, m_cnt);
 
 				m_cap = count;
 				m_cnt = count;
@@ -406,6 +434,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
+					GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 					auto* ptr = &data()[m_cnt++];
 					core::call_ctor(ptr, arg);
 				}
@@ -417,6 +446,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = GAIA_MOV(arg);
 				} else {
+					GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 					auto* ptr = &data()[m_cnt++];
 					core::call_ctor(ptr, GAIA_MOV(arg));
 				}
@@ -430,6 +460,7 @@ namespace gaia {
 					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
+					GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 					auto* ptr = &data()[m_cnt++];
 					core::call_ctor(ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
@@ -439,8 +470,10 @@ namespace gaia {
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (!mem::is_soa_layout_v<T>)
+				if constexpr (!mem::is_soa_layout_v<T>) {
 					core::call_dtor(&data()[m_cnt]);
+					GAIA_MEM_SANI_POP(value_type, m_pData, m_cap, m_cnt - 1);
+				}
 
 				--m_cnt;
 			}
@@ -462,6 +495,7 @@ namespace gaia {
 				} else {
 					auto* ptr = &data()[m_cnt];
 					core::call_ctor(ptr, arg);
+					GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				}
 
 				++m_cnt;
@@ -486,6 +520,7 @@ namespace gaia {
 				} else {
 					auto* ptr = &data()[idxSrc];
 					core::call_ctor(ptr, GAIA_MOV(arg));
+					GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				}
 
 				++m_cnt;
@@ -507,8 +542,10 @@ namespace gaia {
 
 				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
+				if constexpr (!mem::is_soa_layout_v<T>) {
 					core::call_dtor(&data()[m_cnt - 1]);
+					GAIA_MEM_SANI_POP(value_type, m_pData, m_cap, m_cnt - 1);
+				}
 
 				--m_cnt;
 
@@ -533,8 +570,10 @@ namespace gaia {
 
 				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
+				if constexpr (!mem::is_soa_layout_v<T>) {
 					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
+					GAIA_MEM_SANI_POP_N(value_type, data(), m_cap, m_cnt - cnt, cnt);
+				}
 
 				m_cnt -= cnt;
 
@@ -546,12 +585,17 @@ namespace gaia {
 			}
 
 			void shrink_to_fit() {
-				if (capacity() == size())
+				const auto cap = capacity();
+				const auto cnt = size();
+
+				if (cap == cnt)
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::mem_alloc(m_cap = size());
-				mem::move_elements<T>(m_pData, pDataOld, size(), 0);
+				m_pData = view_policy::mem_alloc(m_cap = cnt);
+				GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pData, m_cap, m_cnt);
+				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
+				GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, cap, cnt);
 				view_policy::mem_free(pDataOld);
 			}
 

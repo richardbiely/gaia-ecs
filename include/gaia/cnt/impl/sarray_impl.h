@@ -9,6 +9,7 @@
 
 #include "../../core/iterator.h"
 #include "../../core/utility.h"
+#include "../../mem/data_layout_policy.h"
 #include "../../mem/mem_utils.h"
 #include "../../mem/raw_data_holder.h"
 
@@ -213,7 +214,7 @@ namespace gaia {
 			using size_type = sarr_detail::size_type;
 
 			using iterator = sarr_iterator<T>;
-			using iteartor_soa = sarr_iterator_soa<T>;
+			using iterator_soa = sarr_iterator_soa<T>;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
