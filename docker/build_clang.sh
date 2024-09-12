@@ -135,7 +135,7 @@ echo "Release mode + mem sanitizer"
 chmod +x ${PATH_RELEASE_MEM}/${PERF_ENTITY_PATH}
 ${PATH_RELEASE_MEM}/${PERF_ENTITY_PATH} -s
 
-echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
+echo ${PATH_DEBUG_ADDR}/${PERF_ITER_PATH}
 echo "Debug mode + addr sanitizer"
 chmod +x ${PATH_DEBUG_ADDR}/${PERF_ITER_PATH}
 ${PATH_DEBUG_ADDR}/${PERF_ITER_PATH} -s
