@@ -24,11 +24,11 @@ namespace gaia {
 
 		GAIA_GCC_WARNING_PUSH()
 		// GCC is unnecessarily too strict about shadowing.
-		// We have a globally defined entity All and thinks QueryOp::All shadows it.
+		// We have a globally defined entity All and thinks QueryOpKind::All shadows it.
 		GAIA_GCC_WARNING_DISABLE("-Wshadow")
 
 		//! Operation type
-		enum class QueryOp : uint8_t { All, Any, Not, Count };
+		enum class QueryOpKind : uint8_t { All, Any, Not, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 		//! Operation flags
@@ -41,7 +41,7 @@ namespace gaia {
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
-		using QueryOpArray = cnt::sarray_ext<QueryOp, MAX_ITEMS_IN_QUERY>;
+		using QueryOpArray = cnt::sarray_ext<QueryOpKind, MAX_ITEMS_IN_QUERY>;
 		using QuerySerBuffer = SerializationBufferDyn;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
@@ -52,7 +52,7 @@ namespace gaia {
 		//! User-provided query input
 		struct QueryInput {
 			//! Operation to perform with the input
-			QueryOp op = QueryOp::All;
+			QueryOpKind op = QueryOpKind::All;
 			//! Access type
 			QueryAccess access = QueryAccess::Read;
 			//! Entity/Component/Pair to query
@@ -72,7 +72,7 @@ namespace gaia {
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
-			QueryOp op;
+			QueryOpKind op;
 
 			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && op == other.op;
@@ -261,10 +261,10 @@ namespace gaia {
 			const auto& terms = data.terms;
 			if (!terms.empty()) {
 				uint32_t i = 0;
-				while (i < terms.size() && terms[i].op == QueryOp::All)
+				while (i < terms.size() && terms[i].op == QueryOpKind::All)
 					++i;
 				data.firstAny = (uint8_t)i;
-				while (i < terms.size() && terms[i].op == QueryOp::Any)
+				while (i < terms.size() && terms[i].op == QueryOpKind::Any)
 					++i;
 				data.firstNot = (uint8_t)i;
 			}

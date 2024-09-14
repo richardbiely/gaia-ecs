@@ -15,6 +15,27 @@ struct PositionSoA {
 struct Velocity {
 	float x, y, z;
 };
+struct Healthy {};
+struct Rotation {
+	float x, y, z;
+};
+struct Scale {
+	float x, y, z;
+};
+struct Something {
+	bool value;
+};
+struct Data {
+	Position p;
+	Scale s;
+};
+struct Acceleration {
+	float x, y, z;
+};
+struct Else {
+	bool value;
+};
+struct Empty {};
 
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
@@ -116,7 +137,7 @@ void CreateEntities(ecs::World& w) {
 	w.add<Position>(e, {0, 100, 0});
 	w.add<Velocity>(e, {1, 0, 0});
 
-	constexpr uint32_t N = 1000;
+	constexpr uint32_t N = 10;
 	GAIA_FOR(N) {
 		[[maybe_unused]] auto newEntity = w.copy(e);
 	}
@@ -354,7 +375,7 @@ void test1() {
 	w.add(wolf, {eats, rabbit});
 
 	{
-		auto q = w.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
+		auto q = w.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 		const auto cnt = q.count();
 		GAIA_ASSERT(cnt == 3);
 		(void)cnt;
@@ -375,15 +396,15 @@ void test1() {
 
 void test2() {
 	ecs::World w;
-	ecs::Entity animal = w.add(); // 14
-	ecs::Entity herbivore = w.add(); // 15
-	w.add<Position>(herbivore, {}); // 16
-	w.add<Velocity>(herbivore, {}); // 17
-	ecs::Entity rabbit = w.add(); // 18
-	ecs::Entity hare = w.add(); // 19
-	ecs::Entity wolf = w.add(); // 20
-	ecs::Entity dummy1 = w.add(); // 21
-	ecs::Entity dummy2 = w.add(); // 22
+	ecs::Entity animal = w.add(); // 26
+	ecs::Entity herbivore = w.add(); // 27
+	w.add<Position>(herbivore, {}); // 28
+	w.add<Velocity>(herbivore, {}); // 29
+	ecs::Entity rabbit = w.add(); // 30
+	ecs::Entity hare = w.add(); // 31
+	ecs::Entity wolf = w.add(); // 32
+	ecs::Entity dummy1 = w.add(); // 33
+	ecs::Entity dummy2 = w.add(); // 34
 	(void)dummy1;
 	(void)dummy2;
 
@@ -395,6 +416,19 @@ void test2() {
 
 	w.diag_archetypes();
 
+	{
+		uint32_t i = 0;
+		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal));
+		q.each([&](ecs::Entity entity) {
+			// runs for herbivore, rabbit, hare, wolf
+			const bool isOK = entity == hare || entity == rabbit || entity == herbivore || entity == wolf;
+			GAIA_ASSERT(isOK);
+			GAIA_LOG_N("%d, [%u:%u]", isOK, entity.id(), entity.gen());
+
+			++i;
+		});
+		GAIA_ASSERT(i == 4);
+	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = w.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
@@ -532,6 +566,159 @@ void test7() {
 	GAIA_FOR(100) w.update();
 }
 
+void test7b() {
+	ecs::World wld;
+
+	auto wolf = wld.add();
+	auto rabbit = wld.add();
+	auto carrot = wld.add();
+	auto wine = wld.add();
+	auto water = wld.add();
+	auto eats = wld.add();
+	auto drinks = wld.add();
+
+	wld.add(rabbit, {eats, carrot});
+	wld.add(wolf, {eats, rabbit});
+	wld.add(rabbit, {drinks, water});
+	wld.add(wolf, {drinks, wine});
+	// wld.add(wolf, {drinks, water});
+
+	{
+		uint32_t i = 0;
+		auto q = wld.query().all(ecs::Pair{eats, ecs::All}).all(ecs::Pair{drinks, water});
+		q.each([&]() {
+			++i;
+		});
+		GAIA_ASSERT(i == 1);
+	}
+
+	{
+		uint32_t i = 0;
+		auto q = wld.query().all(ecs::Pair{eats, ecs::All}).all(ecs::Pair{drinks, ecs::All});
+		q.each([&]() {
+			++i;
+		});
+		GAIA_ASSERT(i == 2);
+	}
+}
+
+void test7c() {
+	ecs::World wld;
+	cnt::darr<ecs::Entity> arr;
+	{
+		auto q = wld.query().no<ecs::Component>().no<ecs::Core_>();
+		q.arr(arr);
+	}
+	// 3.7
+	// 4.6
+	// 1.0
+	// 2.0
+	GAIA_EACH(arr) {
+		GAIA_LOG_N("%u.%u", arr[i].id(), arr[i].gen());
+	}
+	GAIA_ASSERT(arr.size() == 4);
+}
+
+void test7d() {
+	ecs::World wld;
+	auto e1 = wld.add();
+	wld.add<Position>(e1);
+	wld.add<Velocity>(e1);
+	auto e2 = wld.add();
+	wld.add<Position>(e2);
+	auto e3 = wld.add();
+	wld.add<Velocity>(e3);
+	auto e4 = wld.copy(e3);
+	(void)e4;
+	{
+		auto q = wld.query().all<Velocity>().no<Position>();
+		const auto cnt = q.count();
+		(void)cnt;
+		GAIA_ASSERT(cnt == 2);
+	}
+}
+
+void test7e() {
+	const uint32_t N = 10;
+
+	ecs::World wld;
+	cnt::map<ecs::Entity, Data> cmp;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
+
+	auto create = [&](uint32_t i) {
+		auto e = wld.add();
+
+		auto b = wld.build(e);
+		b.add<Position, Scale>();
+		if (i % 2 == 0)
+			b.add<Something>();
+		b.commit();
+	};
+
+	GAIA_FOR(N) create(i);
+
+	constexpr bool UseCachedQuery = true;
+	// auto q1 = wld.query<UseCachedQuery>().all<Position>();
+	// auto q2 = wld.query<UseCachedQuery>().all<Rotation>();
+	// auto q3 = wld.query<UseCachedQuery>().all<Position, Rotation>();
+	// auto q4 = wld.query<UseCachedQuery>().all<Position, Scale>();
+	auto q5 = wld.query<UseCachedQuery>().all<Position, Scale, Something>();
+
+	auto pos = wld.get<Position>();
+	auto sca = wld.get<Scale>();
+	auto som = wld.get<Something>();
+	(void)pos;
+	(void)sca;
+	(void)som;
+
+	{
+		// uint32_t cnt = 0;
+		// q5.each([&cnt](ecs::Iter& it) {
+		// 	GAIA_EACH(it)++ cnt;
+		// });
+		// GAIA_ASSERT(cnt == N / 2);
+
+		ents.clear();
+		q5.arr(ents);
+		GAIA_ASSERT(ents.size() == N / 2);
+	}
+}
+
+void test7f() {
+	ecs::World wld;
+
+	auto e1 = wld.add();
+	wld.add<Position>(e1, {});
+	wld.add<Acceleration>(e1, {});
+	wld.add<Else>(e1, {});
+	auto e2 = wld.add();
+	wld.add<Rotation>(e2, {});
+	wld.add<Scale>(e2, {});
+	wld.add<Else>(e2, {});
+	auto e3 = wld.add();
+	wld.add<Position>(e3, {});
+	wld.add<Acceleration>(e3, {});
+	wld.add<Scale>(e3, {});
+	{
+		ecs::Query q = wld.query().any<Position, Acceleration>();
+
+		uint32_t cnt = 0;
+		q.each([&](ecs::Iter& it) {
+			++cnt;
+
+			const bool ok1 = it.has<Position>() || it.has<Acceleration>();
+			GAIA_ASSERT(ok1);
+			(void)ok1;
+			const bool ok2 = it.has<Acceleration>() || it.has<Position>();
+			GAIA_ASSERT(ok2);
+			(void)ok2;
+		});
+		GAIA_ASSERT(cnt == 2);
+		(void)cnt;
+	}
+}
+
 void test8() {
 	ecs::World w;
 	auto parent = w.add(); // 14
@@ -570,6 +757,225 @@ void test9() {
 	w.update();
 }
 
+void test10() {
+	ecs::World w;
+	CreateEntities(w);
+
+	int sys1_cnt = 0;
+	int sys2_cnt = 0;
+	auto sys2 = w.system()
+									.all<Position&, Velocity>() //
+									.on_each([&sys1_cnt](Position& p, const Velocity& v) {
+										const float dt = 0.01f;
+										p.x += v.x * dt;
+										p.y += v.y * dt;
+										p.z += v.z * dt;
+										GAIA_LOG_N("sys1 #%d", ++sys1_cnt);
+									});
+	auto sys1 = w.system()
+									.all<Position>() //
+									.on_each([&sys2_cnt](ecs::Iter& it) {
+										auto pv = it.view<Position>();
+										GAIA_EACH(it) {
+											const auto& p = pv[i];
+											GAIA_LOG_N("sys2 #%d [%.2f, %.2f, %.2f]", ++sys2_cnt, p.x, p.y, p.z);
+										}
+									});
+	// Make sure to execute sys2 before sys1
+	w.add(sys1.entity(), {ecs::DependsOn, sys2.entity()});
+	// w.diag_archetypes();
+
+	// Put the systems into their proper stage
+	// ecs::Entity OnPreUpdate = w.add();
+	// ecs::Entity OnUpdate = w.add();
+	// ecs::Entity OnPostUpdate = w.add();
+	// w.add(sys1.entity(), {ecs::ChildOf, OnUpdate});
+	// w.add(sys2.entity(), {ecs::ChildOf, OnUpdate});
+
+	ecs::Query sq = w.query().all<ecs::System2_&>();
+	// GAIA_FOR(1000)
+
+	sq.each([](ecs::System2_& sys) {
+		sys.exec();
+	});
+
+	sq.each([](ecs::Iter& it) {
+		auto se_view = it.sview_mut<ecs::System2_>(0);
+		GAIA_EACH(it) {
+			auto& sys = se_view[i];
+			sys.exec();
+		}
+	});
+
+	// sys1.exec();
+	// sys2.exec();
+
+	GAIA_LOG_N("RES: sys1 #%d", sys1_cnt);
+	GAIA_LOG_N("RES: sys2 #%d", sys1_cnt);
+
+	w.update();
+}
+
+void test11() {
+	ecs::World w;
+
+	ecs::Entity eats = w.add(); // 17
+	ecs::Entity carrot = w.add(); // 18
+	ecs::Entity salad = w.add(); // 19
+	ecs::Entity apple = w.add(); // 20
+
+	ecs::Entity ents[6];
+	GAIA_FOR(6) ents[i] = w.add(); // 21, 22, 23, 24, 25, 26
+	{
+		// 27 - Position
+		// 28 - Healthy
+		w.build(ents[0]).add<Position>().add({eats, salad}); // 21 <-- Pos, {Eats,Salad}
+		w.build(ents[1]).add<Position>().add({eats, carrot});
+		w.build(ents[2]).add<Position>().add({eats, apple});
+
+		w.build(ents[3]).add<Position>().add({eats, apple}).add<Healthy>();
+		w.build(ents[4]).add<Position>().add({eats, salad}).add<Healthy>();
+		w.build(ents[5]).add<Position>().add({eats, carrot}).add<Healthy>();
+	}
+	// This query is going to group entities by what they eat.
+	// The query cache is going to contain following 6 archetypes in 3 groups as follows:
+	//  - Eats:carrot:
+	//     - Position, (Eats, carrot)
+	//     - Position, (Eats, carrot), Healthy
+	//  - Eats:salad:
+	//     - Position, (Eats, salad)
+	//     - Position, (Eats, salad), Healthy
+	//  - Eats::apple:
+	//     - Position, (Eats, apple)
+	//     - Position, (Eats, apple), Healthy
+	ecs::Entity ents_expected[] = {ents[1], ents[5], // carrot, 22, 26
+																 ents[0], ents[4], // salad, 21, 25
+																 ents[2], ents[3]}; // apple, 23, 24
+
+	auto qqNoGroup = w.query().all<Position>();
+	qqNoGroup.each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			auto e = ents[i];
+			GAIA_LOG_N("%u, %u.%u", it.group_id(), e.id(), e.gen());
+		}
+	});
+
+	// auto qq = w.query().all<Position>().group_by(eats);
+	//  All entities, iterated by groups (lowest -> hightest id)
+	//  GAIA_LOG_N("1");
+	//  qq.each([&](ecs::Entity e) {
+	//  	GAIA_LOG_N("%u.%u", e.id(), e.gen());
+	//  });
+	//  All entities, iterated by groups (lowest -> hightest id), via the iterator
+	//  GAIA_LOG_N("2");
+	//  qq.each([&](ecs::Iter& it) {
+	//  	auto ents = it.view<ecs::Entity>();
+
+	// 	GAIA_EACH(it) {
+	// 		auto e = ents[i];
+	// 		GAIA_LOG_N("%u, %u.%u", it.group_id(), e.id(), e.gen());
+	// 	}
+	// });
+	// All entities, iterated by groups (lowest -> hightest id), via the iterator, only a specific group
+	// 18, 26.0
+	// 18, 22.0
+	// 19, 25.0
+	// 19, 21.0
+	// 20, 24.0
+	// 20, 23.0
+	GAIA_LOG_N("3");
+	auto qq = w.query().all<Position>().group_by(eats);
+	qq.group_id(carrot).each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			auto e = ents[i];
+			GAIA_LOG_N("%u, %u.%u", it.group_id(), e.id(), e.gen());
+		}
+	});
+}
+
+void test12() {
+	ecs::World w;
+
+	ecs::Entity p1 = w.add(); // 25
+	ecs::Entity ents[6];
+	GAIA_FOR(6) ents[i] = w.add(); // 26, 27, 28, 29, 30, 31
+	ecs::Entity p2 = w.add(); // 32
+	{
+		// 33 - Position
+		// 34 - Healthy
+		w.build(ents[0]).add<Position>().add({ecs::ChildOf, p1});
+		w.build(ents[1]).add({ecs::ChildOf, p1});
+		w.build(ents[2]).add<Position>().add({ecs::ChildOf, p1});
+
+		w.build(ents[3]).add<Position>().add({ecs::ChildOf, p2});
+		w.build(ents[4]).add<Position>().add({ecs::ChildOf, p2});
+		w.build(ents[5]).add({ecs::ChildOf, p2});
+	}
+
+	// Position($0), ChildOf($1, $0), !Position($1)
+	// 1) query all entities with position
+	// 2) consider only children of such entities
+	// 3) consider only those children that don't have position
+	auto pos = w.get<Position>();
+	auto q = w.query()
+							 // Position($0)
+							 .add({ecs::QueryOpKind::All, ecs::QueryAccess::None, pos, ecs::Var0})
+							 // ChildOf($1, $0)
+							 .add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair{ecs::ChildOf, ecs::Var0}, ecs::Var1})
+							 // !Position($1)
+							 .add({ecs::QueryOpKind::Not, ecs::QueryAccess::None, pos, ecs::Var1});
+	q.each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			auto e = ents[i];
+			GAIA_LOG_N("%u.%u", e.id(), e.gen());
+		}
+	});
+}
+
+void test12b() {
+	ecs::World w;
+
+	auto eats = w.add(); // 25
+	auto likes = w.add(); // 26
+	auto tasty = w.add(); // 27
+
+	auto food1 = w.add(); // 28
+	auto food2 = w.add(); // 29
+	w.add(food2, tasty);
+
+	ecs::Entity ents[6];
+	GAIA_FOR(6) ents[i] = w.add(); // 30, 31, 32, 33, 34, 35
+	{
+		w.build(ents[0]).add({eats, food1}).add({likes, food1});
+		w.build(ents[1]).add({eats, food2}).add({likes, food2});
+		w.build(ents[2]).add({eats, food1}).add({likes, food2});
+		w.build(ents[3]).add({eats, food2}).add({likes, food1});
+		w.build(ents[4]).add({eats, food1});
+		w.build(ents[5]).add({eats, food2});
+	}
+
+	// eats(%this, %vO), whatever(%this, tasty), likes(%this, %vO)
+	// {eats, food1}, {likes, food1}
+	// {eats, food2}, {likes, food2}
+	// {eats, food1}, {likes, food2}
+	// {eats, food2}, {likes, food1}
+	auto q = w.query()
+							 //
+							 .add({ecs::QueryOpKind::All, ecs::QueryAccess::Read, ecs::Pair{eats, ecs::Var0}})
+							 //
+							 .add({ecs::QueryOpKind::All, ecs::QueryAccess::Read, ecs::Pair{likes, ecs::Var0}});
+	q.each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			auto e = ents[i];
+			GAIA_LOG_N("%u.%u", e.id(), e.gen());
+		}
+	});
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -579,8 +985,17 @@ int main() {
 	// test5();
 	// test6();
 	// test7();
+	// test7b();
+	// test7c();
+	// test7d();
+	// test7e();
+	// test7f();
 	// test8();
-	test9();
+	// test9();
+	// test10();
+	// test11();
+	// test12();
+	test12b();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

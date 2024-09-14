@@ -544,8 +544,16 @@ namespace gaia {
 			return pair.first() == All || pair.second() == All;
 		}
 
+		GAIA_NODISCARD inline bool is_variable(EntityId entityId) {
+			return entityId <= Var7.id() && entityId >= Var0.id();
+		}
+
 		GAIA_NODISCARD inline bool is_variable(Entity entity) {
 			return entity.id() <= Var7.id() && entity.id() >= Var0.id();
+		}
+
+		GAIA_NODISCARD inline bool is_variable(Pair pair) {
+			return is_variable(pair.first()) || is_variable(pair.second());
 		}
 
 	} // namespace ecs

@@ -81,6 +81,7 @@
     * [Cleanup rules](#cleanup-rules)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
+  * [Systems](#systems)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
   * [Multithreading](#multithreading)
@@ -121,7 +122,7 @@ Three building blocks of ECS are:
 * **System** (processor) - a place where your program's logic is implemented
 
 Following the example given above, a vehicle could be any entity with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
-The actual movement is handled by systems. Those that match the Flying component will implement the logic for flying. Systems matching the Driving component handle the land movement.
+The actual movement is handled by [systems](#systems). Those that match the Flying component will implement the logic for flying. Systems matching the Driving component handle the land movement.
 
 On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could ever be both in terms of latency and absolute performance. At the cost of data safety.
 
@@ -578,14 +579,14 @@ ecs::Entity pl = w.add<Player>().entity;
 
 ecs::Query q = w.query();
 // Take into account everything with Position (mutable access)...
-q.add({p, QueryOp::All, QueryAccess::Write})
+q.add({p, QueryOpKind::All, QueryAccess::Write})
 // ... and at the same time everything with Velocity (mutable access)...
- .add({v, QueryOp::All, QueryAccess::Write})
+ .add({v, QueryOpKind::All, QueryAccess::Write})
  // ... at least Something or SomethingElse (immutable access)..
- .add({s, QueryOp::Any, QueryAccess::Read})
- .add({se, QueryOp::Any, QueryAccess::Read})
+ .add({s, QueryOpKind::Any, QueryAccess::Read})
+ .add({se, QueryOpKind::Any, QueryAccess::Read})
  // ... and no Player component (no access)...
- .add({pl, QueryOp::None, QueryAccess::None}); 
+ .add({pl, QueryOpKind::None, QueryAccess::None}); 
 ```
 
 ### Query string
@@ -1255,6 +1256,71 @@ cb.commit(&w);
 
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
+## Systems
+Systems are were your programs logic is executed. This usually means logic that is performed every frame / all the time. You can either spin your own mechanism for executing this logic or use the build-in one.
+
+Creating a system is very similar to creating a [query](#query). In fact, the built-in systems are queries internally. Ones which are performed at a later point in time. For each system an entity is created.
+
+```cpp
+SystemBuilder mySystem = w.system()
+  // System considers all entities with Position and Velocity components.
+  // Position is mutable.
+  .all<Position&, Velocity>()
+  // Logic to execute every time the system is invoked.
+  .on_each([&sys1_cnt](Position& p, const Velocity& v) {
+    p.x += v.x * dt;
+    p.y += v.y * dt;
+    p.z += v.z * dt;
+  });
+
+// Retrieve the entity representing the system.
+Entity mySystemEntity = mySystem.entity();
+// Disable the entity. This effectively disables the system.
+w.disable(mySystemEntity);
+// Enable the entity. This effectively makes the system runnable again.
+w.enable(mySystemEntity);
+```
+
+The system can be run manually or automatically.
+
+```cpp
+// Run the system manually.
+mySystem.exec();
+
+// Call each system when the time is right.
+w.update();
+```
+Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve any dependencies and execute the systems in the right order.
+
+By default, the order in which the systems are run depends on their entity id. The lower the id the earlier the system is executed. If a different order is needed, there are multiple ways to influence it.
+
+One of them is adding the DependsOn relationship to a system's entity.
+
+```cpp
+SystemBuilder system1 = w.system().all ...
+SystemBuilder system2 = w.system().all ...
+// Make system1 depend on system2. This way, system1 is always executed after system1.
+w.add(system1.entity(), ecs::Pair{DependsOn, system2});
+```
+
+If you need a specific group of systems depend on another group it can be achieved via the ChildOf relationship.
+
+```cpp
+// Create 2 entities for system groups
+Entity group1 = w.add();
+Entity group2 = w.add();
+// Create 3 systems
+SystemBuilder system1 = w.system().all ...
+SystemBuilder system2 = w.system().all ...
+SystemBuilder system3 = w.system().all ...
+// System1 and System2 belong in group2.
+// System3 belongs in group1.
+// Therefore, system3 is executed first, followed by system1 and system2.
+w.add(system1.entity(), ecs::Pair{ChildOf, group2});
+w.add(system2.entity(), ecs::Pair{ChildOf, group2});
+w.add(system3.entity(), ecs::Pair{ChildOf, group1});
+```
+
 ## Data layouts
 By default, all data inside components are treated as an array of structures (AoS) via an implicit
 
@@ -1512,7 +1578,7 @@ mt::JobParallel job {[&arr, &sum](const mt::JobArgs& args) {
   sum += SumNumbers({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
   }};
 
-// Schedule multiple jobs to run in paralell. Make each job process up to 1234 items.
+// Schedule multiple jobs to run in parallel. Make each job process up to 1234 items.
 mt::JobHandle jobHandle = tp.sched_par(job, N, 1234);
 // Alternatively, we can tell the job system to figure out the group size on its own
 // by simply omitting the group size or using 0:
@@ -1614,7 +1680,7 @@ tp.sched(job0);
 
 ### Threads
 
-The total number of threads created for the pool is set via ***ThreadPool::set_max_workers***. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter have many threads are requested, the final number if always capped to 31 (***ThreadPool::MaxWorkers***). You number of available threads for you hardware can be retrived via ***ThreadPool::hw_thread_cnt***.
+The total number of threads created for the pool is set via ***ThreadPool::set_max_workers***. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter how many threads are requested, the final number if always capped to 31 (***ThreadPool::MaxWorkers***). The number of available threads on your hardware can be retrieved via ***ThreadPool::hw_thread_cnt***.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();

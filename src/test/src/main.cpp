@@ -1882,11 +1882,11 @@ TEST_CASE("Add - namespaces") {
 	TestWorld twld;
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 1, 1});
-	wld.add<dummy::Position>(e, {2, 2, 2});
+	wld.add<dummy::Position>(e);
 	auto e2 = wld.add();
 	wld.add<Position>(e2);
 	auto a3 = wld.add();
-	wld.add<dummy::Position>(a3);
+	wld.add<dummy::Position>(a3, {7, 7, 7});
 	auto a4 = wld.copy(a3);
 	(void)a4;
 
@@ -1898,21 +1898,35 @@ TEST_CASE("Add - namespaces") {
 		REQUIRE(p1.x == 1.f);
 		REQUIRE(p1.y == 1.f);
 		REQUIRE(p1.z == 1.f);
+		auto p2 = wld.get<dummy::Position>(e);
+		REQUIRE(p2.x == 0.f);
+		REQUIRE(p2.y == 0.f);
+		REQUIRE(p2.z == 0.f);
 	}
 	{
-		auto p2 = wld.get<dummy::Position>(e);
-		REQUIRE(p2.x == 2.f);
-		REQUIRE(p2.y == 2.f);
-		REQUIRE(p2.z == 2.f);
+		auto p = wld.get<Position>(e2);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 1.f);
+		REQUIRE(p.z == 1.f);
+	}
+	{
+		auto p1 = wld.get<dummy::Position>(a3);
+		REQUIRE(p1.x == 7.f);
+		REQUIRE(p1.y == 7.f);
+		REQUIRE(p1.z == 7.f);
+		auto p2 = wld.get<dummy::Position>(a4);
+		REQUIRE(p2.x == 7.f);
+		REQUIRE(p2.y == 7.f);
+		REQUIRE(p2.z == 7.f);
 	}
 	{
 		auto q1 = wld.query().all<Position>();
 		const auto c1 = q1.count();
-		REQUIRE(c1 == 2);
+		REQUIRE(c1 == 2); // e, e2
 
 		auto q2 = wld.query().all<dummy::Position>();
 		const auto c2 = q2.count();
-		REQUIRE(c2 == 3);
+		REQUIRE(c2 == 3); // e, a3, a4
 
 		auto q3 = wld.query().no<Position>();
 		const auto c3 = q3.count();
@@ -1920,7 +1934,7 @@ TEST_CASE("Add - namespaces") {
 
 		auto q4 = wld.query().all<dummy::Position>().no<Position>();
 		const auto c4 = q4.count();
-		REQUIRE(c4 == 2);
+		REQUIRE(c4 == 2); // a3, a4
 	}
 }
 
@@ -2943,7 +2957,7 @@ TEST_CASE("Relationship") {
 		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2969,7 +2983,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -2999,7 +3013,7 @@ TEST_CASE("Relationship") {
 		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -3013,7 +3027,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
@@ -3040,7 +3054,7 @@ TEST_CASE("Relationship") {
 		wld.add(wolf, {eats, rabbit});
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -3056,7 +3070,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 1);
 
@@ -3069,7 +3083,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 3);
 
@@ -3086,7 +3100,7 @@ TEST_CASE("Relationship") {
 		}
 
 		{
-			auto q = wld.query().add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, carrot)});
+			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, carrot)});
 			const auto cnt = q.count();
 			REQUIRE(cnt == 2);
 
@@ -3103,7 +3117,7 @@ TEST_CASE("Relationship") {
 
 		{
 			auto q = wld.query()
-									 .add({ecs::QueryOp::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)})
+									 .add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)})
 									 .no<ecs::Core_>()
 									 .no<ecs::System2_>();
 			const auto cnt = q.count();

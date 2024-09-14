@@ -198,7 +198,7 @@ namespace gaia {
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (terms[compIdx].op != QueryOp::Not) {
+						if (terms[compIdx].op != QueryOpKind::Not) {
 							changed.push_back(comp);
 							return;
 						}
@@ -339,14 +339,14 @@ namespace gaia {
 
 				void add_inter(QueryInput item) {
 					// When excluding make sure the access type is None.
-					GAIA_ASSERT(item.op != QueryOp::Not || item.access == QueryAccess::None);
+					GAIA_ASSERT(item.op != QueryOpKind::Not || item.access == QueryAccess::None);
 
 					Command_AddItem cmd{item};
 					add_cmd(cmd);
 				}
 
 				template <typename T>
-				void add_inter(QueryOp op) {
+				void add_inter(QueryOpKind op) {
 					Entity e;
 
 					if constexpr (is_pair<T>::value) {
@@ -363,7 +363,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOp::Not) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -372,7 +372,7 @@ namespace gaia {
 				}
 
 				template <typename Rel, typename Tgt>
-				void add_inter(QueryOp op) {
+				void add_inter(QueryOpKind op) {
 					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
 					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
 					static_assert(core::is_raw_v<UO_Rel>, "Use add() with raw types only");
@@ -384,7 +384,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOp::Not) {
+					if (op != QueryOpKind::Not) {
 						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -1058,24 +1058,24 @@ namespace gaia {
 
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
-						add({QueryOp::All, QueryAccess::None, entity});
+						add({QueryOpKind::All, QueryAccess::None, entity});
 					else
-						add({QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
+						add({QueryOpKind::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
 					return *this;
 				}
 
 				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
 					if (entity.pair())
-						add({QueryOp::All, QueryAccess::None, entity, src});
+						add({QueryOpKind::All, QueryAccess::None, entity, src});
 					else
-						add({QueryOp::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity, src});
+						add({QueryOpKind::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity, src});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& all() {
 					// Add commands to the command buffer
-					(add_inter<T>(QueryOp::All), ...);
+					(add_inter<T>(QueryOpKind::All), ...);
 					return *this;
 				}
 
@@ -1083,30 +1083,30 @@ namespace gaia {
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
 					if (entity.pair())
-						add({QueryOp::Any, QueryAccess::None, entity});
+						add({QueryOpKind::Any, QueryAccess::None, entity});
 					else
-						add({QueryOp::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
+						add({QueryOpKind::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& any() {
 					// Add commands to the command buffer
-					(add_inter<T>(QueryOp::Any), ...);
+					(add_inter<T>(QueryOpKind::Any), ...);
 					return *this;
 				}
 
 				//------------------------------------------------
 
 				QueryImpl& no(Entity entity) {
-					add({QueryOp::Not, QueryAccess::None, entity});
+					add({QueryOpKind::Not, QueryAccess::None, entity});
 					return *this;
 				}
 
 				template <typename... T>
 				QueryImpl& no() {
 					// Add commands to the command buffer
-					(add_inter<T>(QueryOp::Not), ...);
+					(add_inter<T>(QueryOpKind::Not), ...);
 					return *this;
 				}
 

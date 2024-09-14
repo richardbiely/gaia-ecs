@@ -163,6 +163,7 @@
 			"reltgt",
 			"sarr",
 			"sarray",
+			"sched",
 			"srcloc",
 			"sringbuffer",
 			"sset",
