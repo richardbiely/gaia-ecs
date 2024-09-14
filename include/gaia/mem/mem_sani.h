@@ -1,9 +1,27 @@
 #pragma once
 
-#if __has_feature(address_sanitizer) || defined(USE_SANITIZER)
-	// #ifndef __SANITIZE_ADDRESS__
-	// 	#define __SANITIZE_ADDRESS__
-	// #endif
+#include "../config/config_core.h"
+
+#ifndef GAIA_USE_MEM_SANI
+	#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+			#define GAIA_USE_MEM_SANI 1
+		#else
+			#define GAIA_USE_MEM_SANI 0
+		#endif
+	#else
+		#if defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+			#define GAIA_USE_MEM_SANI 1
+		#else
+			#define GAIA_USE_MEM_SANI 0
+		#endif
+	#endif
+#endif
+
+#if GAIA_USE_MEM_SANI
+	#ifndef __SANITIZE_ADDRESS__
+		#define __SANITIZE_ADDRESS__
+	#endif
 	#include <sanitizer/asan_interface.h>
 
 	// Poison a new contiguous block of memory

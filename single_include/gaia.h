@@ -5456,10 +5456,26 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if __has_feature(address_sanitizer) || defined(USE_SANITIZER)
-	// #ifndef __SANITIZE_ADDRESS__
-	// 	#define __SANITIZE_ADDRESS__
-	// #endif
+#ifndef GAIA_USE_MEM_SANI
+	#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+			#define GAIA_USE_MEM_SANI 1
+		#else
+			#define GAIA_USE_MEM_SANI 0
+		#endif
+	#else
+		#if defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+			#define GAIA_USE_MEM_SANI 1
+		#else
+			#define GAIA_USE_MEM_SANI 0
+		#endif
+	#endif
+#endif
+
+#if GAIA_USE_MEM_SANI
+	#ifndef __SANITIZE_ADDRESS__
+		#define __SANITIZE_ADDRESS__
+	#endif
 	#include <sanitizer/asan_interface.h>
 
 	// Poison a new contiguous block of memory
@@ -20592,11 +20608,7 @@ namespace gaia {
 			//! ?X
 			Any,
 			//! !X
-			Not,
-			//! Move to the next archetype
-			Next,
-			//!
-			Start
+			Not
 		};
 
 		using VmLabel = uint16_t;
@@ -20621,12 +20633,6 @@ namespace gaia {
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
 			const ArchetypeDArray* pAllArchetypes;
 		};
-
-		struct StackItem {
-			Entity src;
-			const ArchetypeDArray* pArchetypes;
-		};
-		using OpStack = cnt::darray<StackItem>;
 
 		struct MatchingCtx {
 			// Setup up externally
@@ -21295,15 +21301,6 @@ namespace gaia {
 			EOpCode id;
 		};
 
-		struct OpCodeCont {
-			static constexpr EOpCode Id = EOpCode::Cont;
-
-			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
-				ctx.pc = 0;
-				return true;
-			}
-		};
-
 		// struct OpCodeAnd_In: OpCodeBaseData {
 		// 	Entity entity;
 		// };
@@ -21312,7 +21309,7 @@ namespace gaia {
 			// OpCodeAnd_In in;
 			// Entity entity;
 
-			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 				ctx.ent = comp.ids_all[0];
 				ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
@@ -21331,7 +21328,7 @@ namespace gaia {
 			// OpCodeAny_In in;
 			// Entity entity;
 
-			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 				ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
 
 				if (comp.ids_all.empty()) {
@@ -21376,7 +21373,7 @@ namespace gaia {
 			// OpCodeNot_In in;
 			// Entity entity;
 
-			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+			bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 				ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 
 				// We searched for nothing more than NOT matches
@@ -21403,44 +21400,33 @@ namespace gaia {
 		};
 
 		class VirtualMachine {
-			using OpCodeFunc = bool (*)(const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack);
+			using OpCodeFunc = bool (*)(const QueryCompileCtx& comp, MatchingCtx& ctx);
 			struct OpCodes {
 				OpCodeFunc exec;
 			};
 
 			static constexpr OpCodeFunc OpCodeFuncs[] = {
-					// OP_CONT
-					[](const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
-						OpCodeCont op;
-						return op.exec(comp, ctx, stack);
-					},
 					// OP_AND
-					[](const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+					[](const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						OpCodeAnd op;
-						return op.exec(comp, ctx, stack);
+						return op.exec(comp, ctx);
 					},
 					// OP_ANY
-					[](const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+					[](const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						OpCodeAny op;
-						return op.exec(comp, ctx, stack);
+						return op.exec(comp, ctx);
 					},
 					// OP_NOT
-					[](const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
+					[](const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						OpCodeNot op;
-						return op.exec(comp, ctx, stack);
-					},
-					// OP_NEXT
-					[](const QueryCompileCtx& comp, MatchingCtx& ctx, OpStack& stack) {
-						return true;
-					},
-			};
+						return op.exec(comp, ctx);
+					}};
 
 			QueryCompileCtx m_compCtx;
-			OpStack m_opStack;
 
 		private:
 			VmLabel add_op(CompiledOp&& op) {
-				const auto cnt = m_compCtx.ops.size();
+				const auto cnt = (VmLabel)m_compCtx.ops.size();
 				op.pc_ok = cnt + 1;
 				op.pc_fail = cnt - 1;
 				m_compCtx.ops.push_back(GAIA_MOV(op));
@@ -21555,7 +21541,7 @@ namespace gaia {
 				// Extract data from the buffer
 				do {
 					auto& stackItem = m_compCtx.ops[ctx.pc];
-					const bool ret = OpCodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx, m_opStack);
+					const bool ret = OpCodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx);
 					ctx.pc = ret ? stackItem.pc_ok : stackItem.pc_fail;
 				} while (ctx.pc < m_compCtx.ops.size()); // (uint32_t)-1 falls in this category as well
 			}
