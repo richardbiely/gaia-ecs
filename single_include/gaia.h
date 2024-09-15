@@ -21262,6 +21262,8 @@ namespace gaia {
 					// Entity entity;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_and);
+
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
@@ -21289,6 +21291,8 @@ namespace gaia {
 					// Entity entity;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_any);
+
 						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
 
 						if (comp.ids_all.empty()) {
@@ -21351,6 +21355,8 @@ namespace gaia {
 					// Entity entity;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_not);
+
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 
 						// We searched for nothing more than NOT matches
@@ -21518,6 +21524,8 @@ namespace gaia {
 
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
+					GAIA_PROF_SCOPE(vm::exec);
+					
 					ctx.pc = 0;
 
 					// Extract data from the buffer
