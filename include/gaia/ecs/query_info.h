@@ -258,11 +258,15 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(add_cache_ng);
+
 				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
 			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(add_cache_wg);
+
 				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
 
 				ArchetypeCacheData cacheData = create_cache_data(pArchetype);

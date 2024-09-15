@@ -478,6 +478,8 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void commit(QueryCtx& ctx) {
+					GAIA_PROF_SCOPE(commit);
+
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
 						GAIA_ASSERT(m_storage.m_q.queryId == QueryIdBad);
@@ -509,6 +511,8 @@ namespace gaia {
 				}
 
 				void recommit(QueryCtx& ctx) {
+					GAIA_PROF_SCOPE(recommit);
+
 					auto& serBuffer = m_storage.ser_buffer();
 
 					// Read data from buffer and execute the command stored in it
