@@ -702,7 +702,7 @@ namespace gaia {
 						}
 
 						// If no ALL matches were found, we can quit right away.
-						return !ctx.pEntityToArchetypeMap->empty();
+						return !ctx.pMatchesArr->empty();
 					}
 				};
 

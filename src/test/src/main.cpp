@@ -1920,6 +1920,10 @@ TEST_CASE("Add - namespaces") {
 		REQUIRE(p2.z == 7.f);
 	}
 	{
+		auto q0 = wld.query().all<PositionSoA>();
+		const auto c0 = q0.count();
+		REQUIRE(c0 == 0); // nothing
+
 		auto q1 = wld.query().all<Position>();
 		const auto c1 = q1.count();
 		REQUIRE(c1 == 2); // e, e2
@@ -4861,6 +4865,15 @@ TEST_CASE("Usage 2 - simple query, many components") {
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
+	}
+	{
+		ecs::Query q = wld.query().any<Position, Acceleration>().all<PositionSoA>();
+
+		uint32_t cnt = 0;
+		q.each([&](ecs::Iter& it) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
 	}
 	{
 		ecs::Query q = wld.query().any<Position, Acceleration>().no<Scale>();
