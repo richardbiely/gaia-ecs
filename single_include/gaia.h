@@ -20657,9 +20657,10 @@ namespace gaia {
 			namespace detail {
 				enum class EOpCode : uint8_t {
 					//! X
-					And,
+					All,
 					//! ?X
-					Any,
+					Any_NoAll,
+					Any_WithAll,
 					//! !X
 					Not
 				};
@@ -20682,8 +20683,8 @@ namespace gaia {
 					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 				};
 
-				// Operator AND (used by query::all)
-				struct OpAnd {
+				// Operator ALL (used by query::all)
+				struct OpAll {
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
 					};
@@ -20692,7 +20693,7 @@ namespace gaia {
 					}
 				};
 				// Operator OR (used by query::any)
-				struct OpOr {
+				struct OpAny {
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
 					};
@@ -20746,7 +20747,7 @@ namespace gaia {
 					// The only exception are transitive ids in which case we need to start searching
 					// form the start.
 					// Finding just one match for any id in the query is enough to start checking
-					// the next it. We only have 3 different operations - AND, OR, NOT.
+					// the next it. We only have 3 different operations - ALL, OR, NOT.
 					//
 					// Example:
 					// - query #1 ------------------------
@@ -21026,7 +21027,7 @@ namespace gaia {
 
 							if (matchesSet.contains(pArchetype))
 								continue;
-							if (!match_res<OpAnd>(*pArchetype, ctx.idsToMatch))
+							if (!match_res<OpAll>(*pArchetype, ctx.idsToMatch))
 								continue;
 
 							matchesSet.emplace(pArchetype);
@@ -21082,7 +21083,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_res_backtrack<OpAnd>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+						if (!match_res_backtrack<OpAll>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -21129,7 +21130,7 @@ namespace gaia {
 
 							if (matchesSet.contains(pArchetype))
 								continue;
-							if (!match_res<OpOr>(*pArchetype, ctx.idsToMatch))
+							if (!match_res<OpAny>(*pArchetype, ctx.idsToMatch))
 								continue;
 
 							matchesSet.emplace(pArchetype);
@@ -21187,7 +21188,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_res_backtrack<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+						if (!match_res_backtrack<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -21253,13 +21254,8 @@ namespace gaia {
 					EOpCode id;
 				};
 
-				// struct OpCodeAnd_In: OpCodeBaseData {
-				// 	Entity entity;
-				// };
-				struct OpCodeAnd {
-					static constexpr EOpCode Id = EOpCode::And;
-					// OpCodeAnd_In in;
-					// Entity entity;
+				struct OpCodeAll {
+					static constexpr EOpCode Id = EOpCode::All;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_and);
@@ -21282,63 +21278,26 @@ namespace gaia {
 					}
 				};
 
-				// struct OpCodeAny_In: OpCodeBaseData {
-				// 	Entity entity;
-				// };
-				struct OpCodeAny {
-					static constexpr EOpCode Id = EOpCode::Any;
-					// OpCodeAny_In in;
-					// Entity entity;
+				struct OpCodeAny_NoAll {
+					static constexpr EOpCode Id = EOpCode::Any_NoAll;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
 
 						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
 
-						if (comp.ids_all.empty()) {
-							// We didn't try to match any ALL items.
-							// We need to search among all archetypes.
+						// Try find matches with optional components.
+						GAIA_EACH(comp.ids_any) {
+							ctx.ent = comp.ids_any[i];
 
-							// Try find matches with optional components.
-							GAIA_EACH(comp.ids_any) {
-								ctx.ent = comp.ids_any[i];
-
-								// First viable item is not related to an Is relationship
-								if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
-									match_archetype_one(ctx);
-								}
-								// First viable item is related to an Is relationship.
-								// In this case we need to gather all related archetypes.
-								else {
-									match_archetype_one_as(ctx);
-								}
+							// First viable item is not related to an Is relationship
+							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+								match_archetype_one(ctx);
 							}
-						} else {
-							// We tried to match ALL items. Only search among those we already found.
-							// No last matched idx update is necessary because all ids were already checked
-							// during the ALL pass.
-							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-								auto* pArchetype = (*ctx.pMatchesArr)[i];
-
-								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
-									// First viable item is not related to an Is relationship
-									if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
-										if (match_res<OpOr>(*pArchetype, ctx.idsToMatch))
-											goto checkNextArchetype;
-									}
-
-									// First viable item is related to an Is relationship.
-									// In this case we need to gather all related archetypes.
-									if (match_res_backtrack<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
-										goto checkNextArchetype;
-								}
-
-								// No match found among ANY. Remove the archetype from the matching ones
-								core::erase_fast(*ctx.pMatchesArr, i);
-								continue;
-
-							checkNextArchetype:
-								++i;
+							// First viable item is related to an Is relationship.
+							// In this case we need to gather all related archetypes.
+							else {
+								match_archetype_one_as(ctx);
 							}
 						}
 
@@ -21346,14 +21305,48 @@ namespace gaia {
 					}
 				};
 
-				// struct OpCodeNot_In: OpCodeBaseData {
-				// 	Entity entity;
-				// };
-				struct OpCodeNot {
-					// static constexpr EOpCode Id = EOpCode::Not;
-					// OpCodeNot_In in;
-					// Entity entity;
+				struct OpCodeAny_WithAll {
+					static constexpr EOpCode Id = EOpCode::Any_WithAll;
 
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_any);
+
+						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
+
+						// We tried to match ALL items. Only search among archetypes we already found.
+						// No last matched idx update is necessary because all ids were already checked
+						// during the ALL pass.
+						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+							auto* pArchetype = (*ctx.pMatchesArr)[i];
+
+							GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
+								// First viable item is not related to an Is relationship
+								if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+									if (match_res<OpAny>(*pArchetype, ctx.idsToMatch))
+										goto checkNextArchetype;
+								}
+
+								// First viable item is related to an Is relationship.
+								// In this case we need to gather all related archetypes.
+								if (match_res_backtrack<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+									goto checkNextArchetype;
+							}
+
+							// No match found among ANY. Remove the archetype from the matching ones
+							core::erase_fast(*ctx.pMatchesArr, i);
+							continue;
+
+						checkNextArchetype:
+							++i;
+						}
+
+						return true;
+					}
+				};
+
+				struct OpCodeNot {
+					static constexpr EOpCode Id = EOpCode::Not;
+					
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
 
@@ -21361,7 +21354,7 @@ namespace gaia {
 
 						// We searched for nothing more than NOT matches
 						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no AND or ANY matches),
+							// If there are no previous matches (no ALL or ANY matches),
 							// we need to search among all archetypes.
 							ctx.pMatchesSet->clear();
 							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
@@ -21369,7 +21362,7 @@ namespace gaia {
 							else
 								match_archetype_no_as(ctx);
 						} else {
-							// We had some matches already (with AND or ANY). We need to remove those
+							// We had some matches already (with ALL or ANY). We need to remove those
 							// that match with the NO list. Remove them back-to-front.
 							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 								auto* pArchetype = (*ctx.pMatchesArr)[i];
@@ -21394,17 +21387,22 @@ namespace gaia {
 				};
 
 				static constexpr OpCodeFunc OpCodeFuncs[] = {
-						// OP_AND
+						// OpCodeAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeAnd op;
+							detail::OpCodeAll op;
 							return op.exec(comp, ctx);
 						},
-						// OP_ANY
+						// OpCodeAny_NoAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeAny op;
+							detail::OpCodeAny_NoAll op;
 							return op.exec(comp, ctx);
 						},
-						// OP_NOT
+						// OpCodeAny_WithAll
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpCodeAny_WithAll op;
+							return op.exec(comp, ctx);
+						},
+						// OpCodeNot
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
 							detail::OpCodeNot op;
 							return op.exec(comp, ctx);
@@ -21503,12 +21501,12 @@ namespace gaia {
 
 					if (!m_compCtx.ids_all.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = detail::EOpCode::And;
+						op.opcode = detail::EOpCode::All;
 						add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_any.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = detail::EOpCode::Any;
+						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpCode::Any_NoAll : detail::EOpCode::Any_WithAll;
 						add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_not.empty()) {
@@ -21525,7 +21523,7 @@ namespace gaia {
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
-					
+
 					ctx.pc = 0;
 
 					// Extract data from the buffer
@@ -21782,11 +21780,15 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(add_cache_ng);
+
 				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
 			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(add_cache_wg);
+
 				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
 
 				ArchetypeCacheData cacheData = create_cache_data(pArchetype);
@@ -22553,6 +22555,8 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void commit(QueryCtx& ctx) {
+					GAIA_PROF_SCOPE(commit);
+
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
 						GAIA_ASSERT(m_storage.m_q.queryId == QueryIdBad);
@@ -22584,6 +22588,8 @@ namespace gaia {
 				}
 
 				void recommit(QueryCtx& ctx) {
+					GAIA_PROF_SCOPE(recommit);
+
 					auto& serBuffer = m_storage.ser_buffer();
 
 					// Read data from buffer and execute the command stored in it
