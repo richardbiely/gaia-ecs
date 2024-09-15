@@ -49,7 +49,7 @@ namespace gaia {
 			//! Query context
 			QueryCtx m_ctx;
 			//! Virtual machine
-			VirtualMachine m_vm;
+			vm::VirtualMachine m_vm;
 
 			//! Cached array of archetypes matching the query
 			ArchetypeDArray m_archetypeCache;
@@ -195,7 +195,7 @@ namespace gaia {
 
 				auto& data = m_ctx.data;
 
-				MatchingCtx ctx{};
+				vm::MatchingCtx ctx{};
 				ctx.pWorld = world();
 				ctx.pAllArchetypes = &allArchetypes;
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
