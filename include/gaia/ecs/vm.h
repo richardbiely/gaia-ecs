@@ -82,8 +82,6 @@ namespace gaia {
 
 			namespace detail {
 				enum class EOpCode : uint8_t {
-					//! Continue
-					Cont,
 					//! X
 					And,
 					//! ?X
