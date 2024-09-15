@@ -314,12 +314,12 @@ endif()
 
 if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
   if(IS_FETCH_AVAILABLE)
-    find_package(tracy CONFIG QUIET 0.11)
+    find_package(tracy CONFIG QUIET 0.11.1)
 
     if(NOT tracy_FOUND)
       FetchContent_Declare(tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.11.0
+        GIT_TAG v0.11.1
         GIT_SHALLOW TRUE
       )
 
@@ -329,7 +329,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
       FetchContent_MakeAvailable(tracy)
     endif()
   else()
-    find_package(tracy CONFIG REQUIRED 0.11)
+    find_package(tracy CONFIG REQUIRED 0.11.1)
   endif()
 
   if(GAIA_PROFILER_BUILD)
