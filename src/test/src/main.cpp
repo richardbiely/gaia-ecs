@@ -4919,7 +4919,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = wld.query().any<Position, Acceleration>().all<PositionSoA>();
 
 		uint32_t cnt = 0;
-		q.each([&](ecs::Iter& it) {
+		q.each([&]() {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
