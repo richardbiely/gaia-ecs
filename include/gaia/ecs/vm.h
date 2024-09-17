@@ -421,20 +421,14 @@ namespace gaia {
 								return cmp_ids_is_pairs(w, archetype, idInQuery, idInArchetype);
 							});
 				}
+				template <bool CheckAs>
+				inline void match_archetype_all_internal(
+						MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
+					const auto& archetypes = *pSrcArchetypes;
 
-				inline void match_archetype_all(MatchingCtx& ctx) {
 					auto& matchesArr = *ctx.pMatchesArr;
 					auto& matchesSet = *ctx.pMatchesSet;
 
-					EntityLookupKey entityKey(ctx.ent);
-
-					// For ALL we need all the archetypes to match. We start by checking
-					// if the first one is registered in the world at all.
-					const auto* pArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
-					if (pArchetypes == nullptr)
-						return;
-
-					const auto& archetypes = *pArchetypes;
 					const auto cache_it = ctx.pLastMatchedArchetypeIdx_All->find(entityKey);
 					uint32_t lastMatchedIdx = 0;
 					if (cache_it == ctx.pLastMatchedArchetypeIdx_All->end())
@@ -444,31 +438,40 @@ namespace gaia {
 						cache_it->second = archetypes.size();
 					}
 
-					// For simple cases it is enough to add archetypes to cache right away
-					if (ctx.idsToMatch.size() == 1) {
-						for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
-							auto* pArchetype = archetypes[a];
-							matchesArr.emplace_back(pArchetype);
-						}
-					} else {
-						for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
-							auto* pArchetype = archetypes[a];
+					if (lastMatchedIdx >= archetypes.size())
+						return;
 
-							if (matchesSet.contains(pArchetype))
+					auto archetypeSpan = std::span(&archetypes[lastMatchedIdx], archetypes.size() - lastMatchedIdx);
+					for (auto* pArchetype: archetypeSpan) {
+						if (matchesSet.contains(pArchetype))
+							continue;
+						if constexpr (CheckAs) {
+							if (!match_res_as<OpAll>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 								continue;
+						} else {
 							if (!match_res<OpAll>(*pArchetype, ctx.idsToMatch))
 								continue;
+						};
 
-							matchesSet.emplace(pArchetype);
-							matchesArr.emplace_back(pArchetype);
-						}
+						matchesSet.emplace(pArchetype);
+						matchesArr.emplace_back(pArchetype);
 					}
+				}
+
+				inline void match_archetype_all(MatchingCtx& ctx) {
+					EntityLookupKey entityKey(ctx.ent);
+
+					// For ALL we need all the archetypes to match. We start by checking
+					// if the first one is registered in the world at all.
+					const auto* pArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
+					if (pArchetypes == nullptr)
+						return;
+
+					match_archetype_all_internal<false>(ctx, entityKey, pArchetypes);
 				}
 
 				inline void match_archetype_all_as(MatchingCtx& ctx) {
 					const auto& allArchetypes = *ctx.pAllArchetypes;
-					auto& matchesArr = *ctx.pMatchesArr;
-					auto& matchesSet = *ctx.pMatchesSet;
 
 					// For ALL we need all the archetypes to match. We start by checking
 					// if the first one is registered in the world at all.
@@ -487,38 +490,7 @@ namespace gaia {
 							return;
 					}
 
-					const auto& archetypes = *pSrcArchetypes;
-					const auto cache_it = ctx.pLastMatchedArchetypeIdx_All->find(entityKey);
-					uint32_t lastMatchedIdx = 0;
-					if (cache_it == ctx.pLastMatchedArchetypeIdx_All->end())
-						ctx.pLastMatchedArchetypeIdx_All->emplace(entityKey, archetypes.size());
-					else {
-						lastMatchedIdx = cache_it->second;
-						cache_it->second = archetypes.size();
-					}
-
-					// For simple cases it is enough to add archetypes to cache right away
-					// if (idsToMatch.size() == 1) {
-					// 	for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
-					// 		auto* pArchetype = archetypes[a];
-
-					// 		auto res = matchesSet.emplace(pArchetype);
-					// 		if (res.second)
-					// 			matchesArr.emplace_back(pArchetype);
-					// 	}
-					// } else {
-					for (uint32_t a = lastMatchedIdx; a < archetypes.size(); ++a) {
-						auto* pArchetype = archetypes[a];
-
-						if (matchesSet.contains(pArchetype))
-							continue;
-						if (!match_res_as<OpAll>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
-							continue;
-
-						matchesSet.emplace(pArchetype);
-						matchesArr.emplace_back(pArchetype);
-					}
-					//}
+					match_archetype_all_internal<true>(ctx, entityKey, pSrcArchetypes);
 				}
 
 				inline void match_archetype_one(MatchingCtx& ctx) {
