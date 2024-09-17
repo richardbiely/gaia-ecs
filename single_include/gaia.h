@@ -20655,7 +20655,7 @@ namespace gaia {
 			}
 
 			namespace detail {
-				enum class EOpCode : uint8_t {
+				enum class EOpcode : uint8_t {
 					//! X
 					All,
 					//! ?X
@@ -20669,7 +20669,7 @@ namespace gaia {
 
 				struct CompiledOp {
 					//! Opcode to execute
-					EOpCode opcode;
+					EOpcode opcode;
 					//! Stack position to go to if the opcode returns true
 					VmLabel pc_ok;
 					//! Stack position to go to if the opcode returns false
@@ -20678,8 +20678,11 @@ namespace gaia {
 
 				struct QueryCompileCtx {
 					cnt::darray<CompiledOp> ops;
+					//! Array of ops that can be evaluated with a ALL opcode
 					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
+					//! Array of ops that can be evaluated with a ANY opcode
 					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
+					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 				};
 
@@ -21279,12 +21282,12 @@ namespace gaia {
 					}
 				}
 
-				struct OpCodeBaseData {
-					EOpCode id;
+				struct OpcodeBaseData {
+					EOpcode id;
 				};
 
-				struct OpCodeAll {
-					static constexpr EOpCode Id = EOpCode::All;
+				struct OpcodeAll {
+					static constexpr EOpcode Id = EOpcode::All;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_and);
@@ -21307,8 +21310,8 @@ namespace gaia {
 					}
 				};
 
-				struct OpCodeAny_NoAll {
-					static constexpr EOpCode Id = EOpCode::Any_NoAll;
+				struct OpcodeAny_NoAll {
+					static constexpr EOpcode Id = EOpcode::Any_NoAll;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
@@ -21334,8 +21337,8 @@ namespace gaia {
 					}
 				};
 
-				struct OpCodeAny_WithAll {
-					static constexpr EOpCode Id = EOpCode::Any_WithAll;
+				struct OpcodeAny_WithAll {
+					static constexpr EOpcode Id = EOpcode::Any_WithAll;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
@@ -21348,17 +21351,24 @@ namespace gaia {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 							auto* pArchetype = (*ctx.pMatchesArr)[i];
 
-							GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
-								// First viable item is not related to an Is relationship
-								if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
+								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
+									// First viable item is not related to an Is relationship
 									if (match_res<OpAny>(*pArchetype, ctx.idsToMatch))
 										goto checkNextArchetype;
-								}
 
-								// First viable item is related to an Is relationship.
-								// In this case we need to gather all related archetypes.
-								if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
-									goto checkNextArchetype;
+									// First viable item is related to an Is relationship.
+									// In this case we need to gather all related archetypes.
+									if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+										goto checkNextArchetype;
+								}
+							} else {
+								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
+									// First viable item is related to an Is relationship.
+									// In this case we need to gather all related archetypes.
+									if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+										goto checkNextArchetype;
+								}
 							}
 
 							// No match found among ANY. Remove the archetype from the matching ones
@@ -21373,8 +21383,8 @@ namespace gaia {
 					}
 				};
 
-				struct OpCodeNot {
-					static constexpr EOpCode Id = EOpCode::Not;
+				struct OpcodeNot {
+					static constexpr EOpcode Id = EOpcode::Not;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
@@ -21402,37 +21412,37 @@ namespace gaia {
 			} // namespace detail
 
 			class VirtualMachine {
-				using OpCodeFunc = bool (*)(const detail::QueryCompileCtx& comp, MatchingCtx& ctx);
-				struct OpCodes {
-					OpCodeFunc exec;
+				using OpcodeFunc = bool (*)(const detail::QueryCompileCtx& comp, MatchingCtx& ctx);
+				struct Opcodes {
+					OpcodeFunc exec;
 				};
 
-				static constexpr OpCodeFunc OpCodeFuncs[] = {
-						// OpCodeAll
+				static constexpr OpcodeFunc OpcodeFuncs[] = {
+						// OpcodeAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeAll op;
+							detail::OpcodeAll op;
 							return op.exec(comp, ctx);
 						},
-						// OpCodeAny_NoAll
+						// OpcodeAny_NoAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeAny_NoAll op;
+							detail::OpcodeAny_NoAll op;
 							return op.exec(comp, ctx);
 						},
-						// OpCodeAny_WithAll
+						// OpcodeAny_WithAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeAny_WithAll op;
+							detail::OpcodeAny_WithAll op;
 							return op.exec(comp, ctx);
 						},
-						// OpCodeNot
+						// OpcodeNot
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpCodeNot op;
+							detail::OpcodeNot op;
 							return op.exec(comp, ctx);
 						}};
 
 				detail::QueryCompileCtx m_compCtx;
 
 			private:
-				detail::VmLabel add_op(detail::CompiledOp&& op) {
+				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
 					const auto cnt = (detail::VmLabel)m_compCtx.ops.size();
 					op.pc_ok = cnt + 1;
 					op.pc_fail = cnt - 1;
@@ -21522,17 +21532,17 @@ namespace gaia {
 
 					if (!m_compCtx.ids_all.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = detail::EOpCode::All;
+						op.opcode = detail::EOpcode::All;
 						add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_any.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpCode::Any_NoAll : detail::EOpCode::Any_WithAll;
+						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Any_NoAll : detail::EOpcode::Any_WithAll;
 						add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_not.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = detail::EOpCode::Not;
+						op.opcode = detail::EOpcode::Not;
 						add_op(GAIA_MOV(op));
 					}
 				}
@@ -21550,7 +21560,7 @@ namespace gaia {
 					// Extract data from the buffer
 					do {
 						auto& stackItem = m_compCtx.ops[ctx.pc];
-						const bool ret = OpCodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx);
+						const bool ret = OpcodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx);
 						ctx.pc = ret ? stackItem.pc_ok : stackItem.pc_fail;
 					} while (ctx.pc < m_compCtx.ops.size()); // (uint32_t)-1 falls in this category as well
 				}
