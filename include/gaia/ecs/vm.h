@@ -237,16 +237,6 @@ namespace gaia {
 					return Op::eval(queryIdsCnt, matches);
 				}
 
-				inline GAIA_NODISCARD bool match_idQueryId_with_idArchetype(
-						const World& w, uint32_t mask, uint32_t idQueryIdx, EntityId idQuery, EntityId idArchetype) {
-					if ((mask & (1U << idQueryIdx)) == 0U)
-						return idQuery == idArchetype;
-
-					const auto qe = entity_from_id(w, idQuery);
-					const auto ae = entity_from_id(w, idArchetype);
-					return is(w, ae, qe);
-				};
-
 				struct IdCmpResult {
 					bool matched;
 				};
@@ -284,15 +274,16 @@ namespace gaia {
 
 				inline GAIA_NODISCARD IdCmpResult
 				cmp_ids_is(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
-					auto archetypeIds = archetype.ids_view();
-
 					// all(Pair<Is, X>)
 					if (idInQuery.pair() && idInQuery.id() == Is.id()) {
-						return {as_relations_trav_if(w, idInQuery, [&](Entity relation) {
-							const auto idx = core::get_index(archetypeIds, relation);
-							// Stop at the first match
-							return idx != BadIndex;
-						})};
+						auto archetypeIds = archetype.ids_view();
+						return {
+								idInQuery.gen() == idInArchetype.id() || // X vs Id
+								as_relations_trav_if(w, idInQuery, [&](Entity relation) {
+									const auto idx = core::get_index(archetypeIds, relation);
+									// Stop at the first match
+									return idx != BadIndex;
+								})};
 					}
 
 					// 1:1 match needed for non-pairs
@@ -301,8 +292,6 @@ namespace gaia {
 
 				inline GAIA_NODISCARD IdCmpResult
 				cmp_ids_is_pairs(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
-					auto archetypeIds = archetype.ids_view();
-
 					if (idInQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idInQuery == Pair(All, All))
@@ -314,19 +303,25 @@ namespace gaia {
 							if (idInArchetype == idInQuery)
 								return {true};
 
-							const auto e = entity_from_id(w, idInQuery.gen());
+							auto archetypeIds = archetype.ids_view();
+							const auto eQ = entity_from_id(w, idInQuery.gen());
+							if (eQ == idInArchetype)
+								return {true};
 
 							// If the archetype entity is an (Is, X) pair treat Is as X and try matching it with
 							// entities inheriting from e.
 							if (idInArchetype.id() == Is.id()) {
-								const auto e2 = entity_from_id(w, idInArchetype.gen());
-								return {as_relations_trav_if(w, e, [&](Entity relation) {
-									return e2 == relation;
+								const auto eA = entity_from_id(w, idInArchetype.gen());
+								if (eA == eQ)
+									return {true};
+
+								return {as_relations_trav_if(w, eQ, [eA](Entity relation) {
+									return eA == relation;
 								})};
 							}
 
 							// Archetype entity is generic, try matching it with entities inheriting from e.
-							return {as_relations_trav_if(w, e, [&](Entity relation) {
+							return {as_relations_trav_if(w, eQ, [&archetypeIds](Entity relation) {
 								// Relation does not necessary match the sorted order of components in the archetype
 								// so we need to search through all of its ids.
 								const auto idx = core::get_index(archetypeIds, relation);
@@ -346,6 +341,8 @@ namespace gaia {
 
 							// If there are any Is pairs on the archetype we need to check if we match them
 							if (archetype.pairs_is() > 0) {
+								auto archetypeIds = archetype.ids_view();
+
 								const auto e = entity_from_id(w, idInQuery.gen());
 								return {as_relations_trav_if(w, e, [&](Entity relation) {
 									// Relation does not necessary match the sorted order of components in the archetype
@@ -375,7 +372,7 @@ namespace gaia {
 				}
 
 				//! Tries to match entity ids in \param queryIds with those in \param archetype given
-				//! the comparison function \param func.
+				//! the comparison function \param func. Does not consider Is relationships.
 				//! \return True on the first match, false otherwise.
 				template <typename Op>
 				inline GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds) {
@@ -399,9 +396,11 @@ namespace gaia {
 							});
 				}
 
+				//! Tries to match entity ids in \param queryIds with those in \param archetype given
+				//! the comparison function \param func. Considers Is relationships.
+				//! \return True on the first match, false otherwise.
 				template <typename Op>
-				inline GAIA_NODISCARD bool
-				match_res_backtrack(const World& w, const Archetype& archetype, EntitySpan queryIds) {
+				inline GAIA_NODISCARD bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
 					// Archetype has no pairs we can compare ids directly
 					if (archetype.pairs() == 0) {
 						return match_inter<Op>(
@@ -510,7 +509,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_res_backtrack<OpAll>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+						if (!match_res_as<OpAll>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -615,7 +614,7 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_res_backtrack<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+						if (!match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
@@ -628,6 +627,8 @@ namespace gaia {
 					const auto& archetypes = *ctx.pAllArchetypes;
 					auto& matchesArr = *ctx.pMatchesArr;
 					auto& matchesSet = *ctx.pMatchesSet;
+
+					ctx.pMatchesSet->clear();
 
 					// For NO we need to search among all archetypes.
 					const auto cache_it = ctx.pLastMatchedArchetypeIdx_All->find(EntityBadLookupKey);
@@ -669,11 +670,39 @@ namespace gaia {
 
 						if (matchesSet.contains(pArchetype))
 							continue;
-						if (!match_res_backtrack<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+						if (!match_res_as<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 							continue;
 
 						matchesSet.emplace(pArchetype);
 						matchesArr.emplace_back(pArchetype);
+					}
+				}
+
+				inline void match_archetype_no_2(MatchingCtx& ctx) {
+					// We had some matches already (with ALL or ANY). We need to remove those
+					// that match with the NO list. Remove them back-to-front.
+					for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+						auto* pArchetype = (*ctx.pMatchesArr)[i];
+						if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
+							++i;
+							continue;
+						}
+
+						core::erase_fast(*ctx.pMatchesArr, i);
+					}
+				}
+
+				inline void match_archetype_no_as_2(MatchingCtx& ctx) {
+					// We had some matches already (with ALL or ANY). We need to remove those
+					// that match with the NO list. Remove them back-to-front.
+					for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+						auto* pArchetype = (*ctx.pMatchesArr)[i];
+						if (match_res_as<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
+							++i;
+							continue;
+						}
+
+						core::erase_fast(*ctx.pMatchesArr, i);
 					}
 				}
 
@@ -693,10 +722,10 @@ namespace gaia {
 						// First viable item is not related to an Is relationship
 						if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
 							match_archetype_all(ctx);
-						} else
+						}
 						// First viable item is related to an Is relationship.
-						// In this case we need to gather all related archetypes and evaluate one-by-one (backtracking).
-						{
+						// In this case we need to gather all related archetypes.
+						else {
 							match_archetype_all_as(ctx);
 						}
 
@@ -755,7 +784,7 @@ namespace gaia {
 
 								// First viable item is related to an Is relationship.
 								// In this case we need to gather all related archetypes.
-								if (match_res_backtrack<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
+								if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 									goto checkNextArchetype;
 							}
 
@@ -773,7 +802,7 @@ namespace gaia {
 
 				struct OpCodeNot {
 					static constexpr EOpCode Id = EOpCode::Not;
-					
+
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
 
@@ -783,23 +812,15 @@ namespace gaia {
 						if (ctx.pMatchesArr->empty()) {
 							// If there are no previous matches (no ALL or ANY matches),
 							// we need to search among all archetypes.
-							ctx.pMatchesSet->clear();
 							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
 								match_archetype_no(ctx);
 							else
 								match_archetype_no_as(ctx);
 						} else {
-							// We had some matches already (with ALL or ANY). We need to remove those
-							// that match with the NO list. Remove them back-to-front.
-							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-								auto* pArchetype = (*ctx.pMatchesArr)[i];
-								if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
-									++i;
-									continue;
-								}
-
-								core::erase_fast(*ctx.pMatchesArr, i);
-							}
+							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U)
+								match_archetype_no_2(ctx);
+							else
+								match_archetype_no_as_2(ctx);
 						}
 
 						return true;

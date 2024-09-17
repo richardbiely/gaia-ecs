@@ -1098,7 +1098,7 @@ namespace gaia {
 			//! Checks if \param entity inherits from \param entityBase.
 			//! True if entity inherits from entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
-				return is_inter<true>(entity, entityBase);
+				return is_inter<false>(entity, entityBase);
 			}
 
 			//! Checks if \param entity is located in \param entityBase.
@@ -1106,7 +1106,7 @@ namespace gaia {
 			//! if \param entity matches \param entityBase
 			//! True if entity is located in entityBase. False otherwise.
 			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
-				return is_inter<false>(entity, entityBase);
+				return is_inter<true>(entity, entityBase);
 			}
 
 			GAIA_NODISCARD bool is_base(Entity target) const {
@@ -3268,8 +3268,8 @@ namespace gaia {
 				}
 			}
 
-			//! If \tparam CheckIn is true, checks if \param entity inherits from \param entityBase.
-			//! If \tparam CheckIn is false, checks if \param entity is located in \param entityBase.
+			//! If \tparam CheckIn is true, checks if \param entity is located in \param entityBase.
+			//! If \tparam CheckIn is false, checks if \param entity inherits from \param entityBase.
 			//! True if \param entity inherits from/is located in \param entityBase. False otherwise.
 			template <bool CheckIn>
 			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {

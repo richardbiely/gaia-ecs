@@ -1113,33 +1113,34 @@ Entities can inherit from other entities by using the (Is, target) relationship.
 ```cpp
 ecs::World w;
 ecs::Entity animal = w.add();
-ecs::Entity herbivore = w.add();
 ecs::Entity rabbit = w.add();
-ecs::Entity hare = w.add();
-ecs::Entity wolf = w.add();
+ecs::Entity wall = w.add();
 
-w.as(wolf, animal); // equivalent of w.add(wolf, ecs::Pair(ecs::Is, animal))
-w.as(herbivore, animal); // equivalent of w.add(herbivore, ecs::Pair(ecs::Is, animal))
-w.as(rabbit, herbivore); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, herbivore))
-w.as(hare, herbivore); // equivalent of w.add(hare, ecs::Pair(ecs::Is, herbivore))
+// Make rabbit an animal
+w.as(rabbit, animal); // equivalent of w.add(rabbit, ecs::Pair(ecs::Is, animal))
 
-bool herbivore_is_animal = w.is(herbivore, animal); // true
-bool rabbit_is_herbivore = w.is(rabbit, herbivore); // true
-bool rabbit_is_animal = w.is(rabbit, animal); // true
-bool animal_is_rabbit = w.is(animal, rabbit); // false
-bool wolf_is_herbivore = w.is(wolf, herbivore); // false
-bool wolf_is_animal = w.is(wolf, animal); // true
+// Check if an entity is inheriting from something
+bool animal_is_animal = w.is(animal, animal); // true
+bool rabbit_is_animal = w.is(herbivore, animal); // true
+bool wall_is_animal = w.is(wall, animal); // false
+```
+
+The Is relation ship can be very helpful when used in queries. However, before this feature can be properly utilized, one needs to make sure the entity in the Is relationship is treated as a type (has a separate archetype).
+
+```cpp
+// Make sure animal is treated as a type
+w.add(animal, animal);
 
 // Iterate everything that is animal
 ecs::Query q = w.query().all(Pair(ecs::Is, animal));
 q.each([](ecs::Entity entity) {
-  // runs for herbivore, rabbit, hare and wolf
+  // entity = animal, rabbit
 });
 
 // Iterate everything that is animal but skip wolfs
-ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(wolf);
+ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(animal);
 q2.each([](ecs::Entity entity) {
-  // runs for herbivore, rabbit, hare
+  // entity = rabbit
 });
 ```
 

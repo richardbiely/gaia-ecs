@@ -2316,45 +2316,62 @@ TEST_CASE("Inheritance (Is)") {
 	TestWorld twld;
 	ecs::Entity animal = wld.add();
 	ecs::Entity herbivore = wld.add();
+	ecs::Entity carnivore = wld.add();
 	wld.add<Position>(herbivore, {});
 	wld.add<Rotation>(herbivore, {});
 	ecs::Entity rabbit = wld.add();
 	ecs::Entity hare = wld.add();
 	ecs::Entity wolf = wld.add();
 
-	wld.add(wolf, wolf); // make wolf an archetype
+	////////
+	// TODO: Following should probably be done automatically when
+	//       forming an Is relationship
+	wld.add(animal, animal); // make animal an archetype
+	wld.add(carnivore, carnivore); // make carnivore an archetype
+	wld.add(herbivore, herbivore); // make herbivore an archetype
+	////////
+
+	wld.as(carnivore, animal); // wld.add(carnivore, {ecs::Is, animal});
 	wld.as(herbivore, animal); // wld.add(herbivore, {ecs::Is, animal});
 	wld.as(rabbit, herbivore); // wld.add(rabbit, {ecs::Is, herbivore});
 	wld.as(hare, herbivore); // wld.add(hare, {ecs::Is, herbivore});
-	wld.as(wolf, animal); // wld.add(wolf, {ecs::Is, animal})
+	wld.as(wolf, carnivore); // wld.add(wolf, {ecs::Is, carnivore})
 
+	REQUIRE(wld.is(carnivore, animal));
 	REQUIRE(wld.is(herbivore, animal));
-	REQUIRE(wld.is(rabbit, herbivore));
-	REQUIRE(wld.is(hare, herbivore));
 	REQUIRE(wld.is(rabbit, animal));
 	REQUIRE(wld.is(hare, animal));
 	REQUIRE(wld.is(wolf, animal));
+	REQUIRE(wld.is(rabbit, herbivore));
+	REQUIRE(wld.is(hare, herbivore));
+	REQUIRE(wld.is(wolf, carnivore));
+
+	REQUIRE(wld.is(animal, animal));
+	REQUIRE(wld.is(herbivore, herbivore));
+	REQUIRE(wld.is(carnivore, carnivore));
 
 	REQUIRE_FALSE(wld.is(animal, herbivore));
+	REQUIRE_FALSE(wld.is(animal, carnivore));
 	REQUIRE_FALSE(wld.is(wolf, herbivore));
+	REQUIRE_FALSE(wld.is(rabbit, carnivore));
+	REQUIRE_FALSE(wld.is(hare, carnivore));
 
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
 		q.each([&](ecs::Entity entity) {
-			// runs for herbivore, rabbit, hare, wolf
-			const bool isOK = entity == hare || entity == rabbit || entity == herbivore || entity == wolf;
+			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == herbivore ||
+												entity == carnivore || entity == wolf;
 			REQUIRE(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 4);
+		REQUIRE(i == 6);
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(wolf);
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
-			// runs for herbivore, rabbit, hare, wolf
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
 			REQUIRE(isOK);
 
@@ -2364,15 +2381,47 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, herbivore));
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(herbivore);
 		q.each([&](ecs::Entity entity) {
-			// runs for rabbit and hare
-			const bool isOK = entity == hare || entity == rabbit;
+			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == wolf || entity == carnivore;
 			REQUIRE(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 2);
+		REQUIRE(i == 5);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == wolf || entity == carnivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 3);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == wolf || entity == carnivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 3);
+	}
+	{
+		uint32_t i = 0;
+		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, carnivore));
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == herbivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 4);
 	}
 }
 
