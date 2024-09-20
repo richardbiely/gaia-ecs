@@ -160,7 +160,7 @@ namespace gaia {
 			}
 
 			//! Invalidates \param handle.
-			//! Everytime an item is deallocated its generation is increased by one.
+			//! Every time an item is deallocated its generation is increased by one.
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 

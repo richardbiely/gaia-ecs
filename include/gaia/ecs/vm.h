@@ -423,7 +423,7 @@ namespace gaia {
 				}
 
 				template <typename OpKind, bool CheckAs>
-				inline void match_archetype_all_internal(
+				inline void match_archetype_internal(
 						MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
 					const auto& archetypes = *pSrcArchetypes;
 
@@ -469,7 +469,7 @@ namespace gaia {
 					if (pArchetypes == nullptr)
 						return;
 
-					match_archetype_all_internal<OpAll, false>(ctx, entityKey, pArchetypes);
+					match_archetype_internal<OpAll, false>(ctx, entityKey, pArchetypes);
 				}
 
 				inline void match_archetype_all_as(MatchingCtx& ctx) {
@@ -492,7 +492,7 @@ namespace gaia {
 							return;
 					}
 
-					match_archetype_all_internal<OpAll, true>(ctx, entityKey, pSrcArchetypes);
+					match_archetype_internal<OpAll, true>(ctx, entityKey, pSrcArchetypes);
 				}
 
 				inline void match_archetype_one(MatchingCtx& ctx) {
@@ -505,7 +505,7 @@ namespace gaia {
 					if (pArchetypes == nullptr)
 						return;
 
-					match_archetype_all_internal<OpAny, false>(ctx, entityKey, pArchetypes);
+					match_archetype_internal<OpAny, false>(ctx, entityKey, pArchetypes);
 				}
 
 				inline void match_archetype_one_as(MatchingCtx& ctx) {
@@ -530,19 +530,19 @@ namespace gaia {
 							return;
 					}
 
-					match_archetype_all_internal<OpAny, true>(ctx, entityKey, pSrcArchetypes);
+					match_archetype_internal<OpAny, true>(ctx, entityKey, pSrcArchetypes);
 				}
 
 				inline void match_archetype_no(MatchingCtx& ctx) {
 					ctx.pMatchesSet->clear();
 
-					match_archetype_all_internal<OpNo, false>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+					match_archetype_internal<OpNo, false>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
 				}
 
 				inline void match_archetype_no_as(MatchingCtx& ctx) {
 					ctx.pMatchesSet->clear();
 
-					match_archetype_all_internal<OpNo, true>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+					match_archetype_internal<OpNo, true>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
 				}
 
 				inline void match_archetype_no_2(MatchingCtx& ctx) {

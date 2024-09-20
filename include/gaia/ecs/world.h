@@ -112,7 +112,9 @@ namespace gaia {
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
+			//! Archetypes requested to be deleted
 			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
+			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
 			//! Query used to iterate systems
