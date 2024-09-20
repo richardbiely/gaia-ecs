@@ -13547,7 +13547,7 @@ namespace gaia {
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
-		struct sparse_page;
+		class sparse_page;
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		struct sparse_iterator {
@@ -13988,17 +13988,17 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
-					return operator[](m_cnt - 1);
+					return set_data(m_cnt - 1);
 				else
-					return (reference)(operator[](m_cnt - 1));
+					return (reference)(set_data(m_cnt - 1));
 			}
 
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				if constexpr (mem::is_soa_layout_v<T>)
-					return operator[](m_cnt - 1);
+					return set_data(m_cnt - 1);
 				else
-					return (const_reference) operator[](m_cnt - 1);
+					return (const_reference)set_data(m_cnt - 1);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
@@ -14074,7 +14074,7 @@ namespace gaia {
 			//! Current number of items tracked by the sparse set
 			size_type m_cnt = size_type(0);
 
-			void try_grow(uint32_t sid, uint32_t pid) {
+			void try_grow(uint32_t pid) {
 				m_dense.resize(m_cnt + 1);
 
 				// The spare array has to be able to take any sparse index
@@ -14198,7 +14198,7 @@ namespace gaia {
 				const auto pid = sid >> to_page_index;
 				const auto did = sid & (PageCapacity - 1);
 
-				try_grow(sid, pid);
+				try_grow(pid);
 				m_dense[m_cnt] = sid;
 
 				auto& page = m_pages[pid];
@@ -14226,7 +14226,7 @@ namespace gaia {
 				const auto pid = sid >> to_page_index;
 				const auto did = sid & (PageCapacity - 1);
 
-				try_grow(sid, pid);
+				try_grow(pid);
 				m_dense[m_cnt] = sid;
 
 				auto& page = m_pages[pid];
