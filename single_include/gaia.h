@@ -14164,7 +14164,7 @@ namespace gaia {
 			GAIA_CLANG_WARNING_POP()
 
 			//! Checks if an item with a given sparse id \param sid exists
-			GAIA_NODISCARD bool has(uint32_t sid) const {
+			GAIA_NODISCARD bool has(sparse_id sid) const {
 				if (sid == detail::InvalidId)
 					return false;
 
@@ -14245,7 +14245,7 @@ namespace gaia {
 
 			//! Update the record at the index \param sid.
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
-			decltype(auto) set(uint32_t sid) {
+			decltype(auto) set(sparse_id sid) {
 				GAIA_ASSERT(has(sid));
 
 				const auto pid = sid >> to_page_index;
@@ -14256,7 +14256,7 @@ namespace gaia {
 			}
 
 			//! Removes the item at the index \param sid from the storage.
-			void del(uint32_t sid) noexcept {
+			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidId);
 
@@ -16936,7 +16936,7 @@ namespace gaia {
 		struct to_sparse_id<ecs::Entity> {
 			static sparse_id get(const ecs::Entity& item) noexcept {
 				// Cut off the flags
-				return item.value() >> 4;
+				return item.id();
 			}
 		};
 	}

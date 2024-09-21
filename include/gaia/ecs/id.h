@@ -564,7 +564,7 @@ namespace gaia {
 		struct to_sparse_id<ecs::Entity> {
 			static sparse_id get(const ecs::Entity& item) noexcept {
 				// Cut off the flags
-				return item.value() >> 4;
+				return item.id();
 			}
 		};
 	}
