@@ -840,11 +840,150 @@ void sparse_storage_test(uint32_t N) {
 	REQUIRE(arr[to_sid(9030)].data == 9030);
 }
 
+template <typename Container>
+void sparse_storage_test_tag(uint32_t N) {
+	using cont_item = typename Container::value_type;
+
+	constexpr uint32_t CONV = 100;
+	auto to_sid = [](uint32_t i) {
+		return i * CONV;
+	};
+
+	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
+	Container arr;
+
+	GAIA_FOR(N) {
+		arr.add(to_sid(i));
+		REQUIRE(arr.has(to_sid(i)));
+	}
+
+	// Verify the values remain the same even after all the adds
+	GAIA_FOR(N) REQUIRE(arr.has(to_sid(i)));
+
+	// Copy assignment
+	{
+		Container arrCopy = arr;
+		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+	}
+	// Copy constructor
+	{
+		Container arrCopy(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+	}
+	// Move assignment
+	{
+		Container arrCopy = GAIA_MOV(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+	// Move constructor
+	{
+		Container arrCopy(GAIA_MOV(arr));
+		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+
+	// Container comparison
+	{
+		Container arrEmpty;
+		REQUIRE_FALSE(arrEmpty == arr);
+
+		Container arr2(arr);
+		REQUIRE(arr2 == arr);
+	}
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val == to_sid(cnt));
+		++cnt;
+	}
+	REQUIRE(cnt == N);
+	REQUIRE(cnt == arr.size());
+
+	// ------------------
+
+	arr.clear();
+	REQUIRE(arr.empty());
+	REQUIRE(arr.size() == 0);
+
+	arr.add(to_sid(11));
+	arr.add(to_sid(12));
+	arr.add(to_sid(13));
+	arr.add(to_sid(14));
+	arr.add(to_sid(15));
+
+	REQUIRE_FALSE(arr.empty());
+	REQUIRE(arr.size() == 5);
+
+	arr.del(to_sid(13));
+	REQUIRE(arr.size() == 4);
+	REQUIRE(arr.has(to_sid(11)));
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+	REQUIRE(arr.has(to_sid(15)));
+
+	arr.del(to_sid(11));
+	REQUIRE(arr.size() == 3);
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+	REQUIRE(arr.has(to_sid(15)));
+
+	arr.del(to_sid(15));
+	REQUIRE(arr.size() == 2);
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+
+	arr.add(to_sid(9));
+	REQUIRE(arr.size() == 3);
+	REQUIRE(arr.has(to_sid(9)));
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+
+	arr.add(to_sid(9001));
+	arr.add(to_sid(9002));
+	arr.add(to_sid(9003));
+	arr.add(to_sid(9030));
+	REQUIRE(arr.size() == 7);
+	REQUIRE(arr.has(to_sid(9)));
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+	REQUIRE(arr.has(to_sid(9001)));
+	REQUIRE(arr.has(to_sid(9002)));
+	REQUIRE(arr.has(to_sid(9003)));
+	REQUIRE(arr.has(to_sid(9030)));
+
+	arr.del(to_sid(9002));
+	REQUIRE(arr.size() == 6);
+	REQUIRE(arr.has(to_sid(9)));
+	REQUIRE(arr.has(to_sid(12)));
+	REQUIRE(arr.has(to_sid(14)));
+	REQUIRE(arr.has(to_sid(9001)));
+	REQUIRE(arr.has(to_sid(9003)));
+	REQUIRE(arr.has(to_sid(9030)));
+
+	{
+		uint32_t indices[] = {14, 12, 9, 9001, 9030, 9003};
+		cnt = 0;
+		for (auto val: arr) {
+			const auto id = indices[cnt];
+			REQUIRE(val == to_sid(id));
+			++cnt;
+		}
+		REQUIRE(cnt == 6);
+	}
+}
+
 TEST_CASE("Containers - sparse_storage") {
 	constexpr uint32_t N = 100;
 	constexpr uint32_t M = 10000;
+	using TagT = cnt::sparse_storage<Empty>;
 	using TrivialT = cnt::sparse_storage<SparseTestItem>;
 	using NonTrivialT = cnt::sparse_storage<SparseTestItem_NonTrivial>;
+	SECTION("trivial_types") {
+		sparse_storage_test_tag<TagT>(N);
+	}
 	SECTION("trivial_types") {
 		sparse_storage_test<TrivialT>(N);
 		sparse_storage_test<TrivialT>(M);
