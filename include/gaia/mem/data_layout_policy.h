@@ -22,7 +22,7 @@ namespace gaia {
 		};
 
 #ifndef GAIA_LAYOUT
-	#define GAIA_LAYOUT(layout_name) static constexpr auto Layout = ::gaia::mem::DataLayout::layout_name
+	#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
 #endif
 
 		// Helper templates
@@ -498,15 +498,15 @@ namespace gaia {
 				static constexpr DataLayout data_layout_type = DataLayout::AoS;
 			};
 			template <typename T>
-			struct auto_view_policy_inter<T, std::void_t<decltype(T::Layout)>> {
-				static constexpr DataLayout data_layout_type = T::Layout;
+			struct auto_view_policy_inter<T, std::void_t<decltype(T::gaia_Data_Layout)>> {
+				static constexpr DataLayout data_layout_type = T::gaia_Data_Layout;
 			};
 
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>:
-					std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
+			struct is_soa_layout<T, std::void_t<decltype(T::gaia_Data_Layout)>>:
+					std::bool_constant<!std::is_empty_v<T> && (T::gaia_Data_Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>

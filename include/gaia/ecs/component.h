@@ -28,6 +28,35 @@ namespace gaia {
 		using SortComponentCond = core::is_smaller<Entity>;
 
 		//----------------------------------------------------------------------
+		// Component storage
+		//----------------------------------------------------------------------
+
+		enum class DataStorageType : uint32_t {
+			Table, //< Data stored in a table
+			Sparse, //< Data stored in a sparse set
+
+			Count = 2
+		};
+
+#ifndef GAIA_STORAGE
+	#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
+#endif
+
+		namespace detail {
+			template <typename, typename = void>
+			struct storage_type {
+				static constexpr DataStorageType value = DataStorageType::Table;
+			};
+			template <typename T>
+			struct storage_type<T, std::void_t<decltype(T::gaia_Storage_Type)>> {
+				static constexpr DataStorageType value = T::gaia_Storage_Type;
+			};
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr DataStorageType storage_type_v = detail::storage_type<T>::value;
+
+		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
 

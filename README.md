@@ -1323,26 +1323,29 @@ w.add(system3.entity(), ecs::Pair{ChildOf, group1});
 ```
 
 ## Data layouts
-By default, all data inside components are treated as an array of structures (AoS) via an implicit
-
-```cpp
-static constexpr auto Layout = mem::DataLayout::AoS
-```
-
+By default, all data inside components are treated as an array of structures (AoS).
 This is the natural behavior of the language and what you would normally expect.
 
-If we imagine an ordinary array of 4 Position components defined above with this layout they are organized like this in memory: xyz xyz xyz xyz.
-
-However, in specific cases, you might want to consider organizing your component's internal data as structure or arrays (SoA):
+Consider the following component:
 
 ```cpp
-// You can use this...
-static constexpr auto Layout = mem::DataLayout::SoA;
-// ... or a convenience preprocessor macro
-GAIA_LAYOUT(SoA);
+struct Position {
+  float x, y, z;
+};
 ```
 
-Using the example above will make **Gaia-ECS** treat Position components like this in memory: xxxx yyyy zzzz.
+If we imagine an ordinary array of 4 such Position components they are organized like this in memory: xyz xyz xyz xyz.
+
+However, in specific cases, you might want to consider organizing your component's internal data as an structure or arrays (SoA): xxxx yyyy zzzz.
+
+To achieve this you can tag the component with a GAIA_LAYOUT of your choosing. By default, GAIA_LAYOUT(AoS) is assumed.
+
+```cpp
+struct Position {
+  GAIA_LAYOUT(SoA); // Treat this component as SoA
+  float x, y, z;
+};
+```
 
 If used correctly this can have vast performance implications. Not only do you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
 
@@ -1377,28 +1380,39 @@ q.each([](ecs::Iter& it) {
   GAIA_EACH(it) py[i] += vy[i] * dt;
   // Handle z coordinates
   GAIA_EACH(it) pz[i] += vz[i] * dt;
-
-  /*
-  You can even use SIMD intrinsics now without a worry.
-  Note, this is just an example not an optimal way to rewrite the loop.
-  Also, most compilers will auto-vectorize this code in release builds anyway.
-
-  The code bellow uses x86 SIMD intrinsics.
-  uint32_t i = 0;
-  // Process SSE-sized blocks first
-  for (; i < it.size(); i+=4) {
-    const auto pVec = _mm_load_ps(px.data() + i);
-    const auto vVec = _mm_load_ps(vx.data() + i);
-    const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
-    _mm_store_ps(px.data() + i, respVec);
-  }
-  // Process the rest of the elements
-  for (; i < it.size(); ++i) {
-    ...
-  }
-  */
 });
 ```
+
+You can even use SIMD intrinsics now without a worry.
+Note, this is just an example not an optimal way to rewrite the loop.
+Also, most compilers will auto-vectorize this code in release builds anyway.
+The code bellow uses x86 SIMD intrinsics:
+
+```cpp
+...
+auto process_data = [](float* p, const float* v, const uint32_t cnt) {
+  uint32_t i = 0;
+  // Process SSE-sized blocks first
+  for (; i < cnt; i+=4) {
+    const auto pVec = _mm_load_ps(p + i);
+    const auto vVec = _mm_load_ps(v + i);
+    const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+    _mm_store_ps(p + i, respVec);
+  }
+  // Process the rest of the elements
+  for (; i < cnt; ++i) p[i] += v[i] * dt;
+}
+
+// Handle x coordinates
+process_data(px.data(), vx.data(), it.size());
+// Handle y coordinates
+process_data(py.data(), vy.data(), it.size());
+// Handle z coordinates
+process_data(pz.data(), vz.data(), it.size());
+...
+```
+
+Different layouts use different memory alignments. **GAIA_LAYOUT(SoA)** and **GAIA_LAYOUT(AoS)** align data to 8-byte boundaries, while **GAIA_LAYOUT(SoA8)** and **GAIA_LAYOUT(SoA16)** align to 16 and 32 bytes respectively. This makes them a good candidate for AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).
 
 ## Serialization
 Serialization of arbitrary data is available via following functions:

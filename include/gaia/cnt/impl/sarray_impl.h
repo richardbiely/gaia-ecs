@@ -124,10 +124,10 @@ namespace gaia {
 			sarr_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			T operator->() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
@@ -398,13 +398,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{GAIA_ACC((const uint8_t*)&m_data[0]), extent});
 			}
 		};

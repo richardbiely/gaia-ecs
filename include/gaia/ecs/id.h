@@ -7,6 +7,7 @@
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
+#include "../cnt/sparse_storage.h"
 
 namespace gaia {
 	namespace ecs {
@@ -557,4 +558,14 @@ namespace gaia {
 		}
 
 	} // namespace ecs
+
+	namespace cnt {
+		template <>
+		struct to_sparse_id<ecs::Entity> {
+			static sparse_id get(const ecs::Entity& item) noexcept {
+				// Cut off the flags
+				return item.value() >> 4;
+			}
+		};
+	}
 } // namespace gaia

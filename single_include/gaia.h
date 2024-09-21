@@ -3982,7 +3982,7 @@ namespace gaia {
 		};
 
 #ifndef GAIA_LAYOUT
-	#define GAIA_LAYOUT(layout_name) static constexpr auto Layout = ::gaia::mem::DataLayout::layout_name
+	#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
 #endif
 
 		// Helper templates
@@ -4458,15 +4458,15 @@ namespace gaia {
 				static constexpr DataLayout data_layout_type = DataLayout::AoS;
 			};
 			template <typename T>
-			struct auto_view_policy_inter<T, std::void_t<decltype(T::Layout)>> {
-				static constexpr DataLayout data_layout_type = T::Layout;
+			struct auto_view_policy_inter<T, std::void_t<decltype(T::gaia_Data_Layout)>> {
+				static constexpr DataLayout data_layout_type = T::gaia_Data_Layout;
 			};
 
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>:
-					std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
+			struct is_soa_layout<T, std::void_t<decltype(T::gaia_Data_Layout)>>:
+					std::bool_constant<!std::is_empty_v<T> && (T::gaia_Data_Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>
@@ -4631,8 +4631,8 @@ namespace gaia {
 
 				static_assert(mem::is_soa_layout_v<T>);
 
-				(data_view_policy_set<T::Layout, T>({std::span{dst, sizeDst}}))[idxDst] =
-						(data_view_policy_get<T::Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[idxSrc];
+				(data_view_policy_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[idxDst] =
+						(data_view_policy_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[idxSrc];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4649,8 +4649,8 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::Layout, T>({std::span{dst, sizeDst}}))[i] =
-							(data_view_policy_get<T::Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[i];
+					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[i] =
+							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -4786,8 +4786,8 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
-							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
+							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -4864,8 +4864,8 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
-							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
+					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
+							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -4996,9 +4996,9 @@ namespace gaia {
 					detail::copy_element_aos<T>(r, &tmp, idxDst, 0);
 				}
 			} else {
-				T tmp = mem::data_view_policy_get<T::Layout, T>{std::span{(const uint8_t*)src, sizeSrc}}[idxSrc];
+				T tmp = mem::data_view_policy_get<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)src, sizeSrc}}[idxSrc];
 				detail::copy_element_soa<T>(src, dst, idxSrc, idxDst, sizeSrc, sizeDst);
-				mem::data_view_policy_set<T::Layout, T>{std::span{(const uint8_t*)dst, sizeDst}}[idxDst] = tmp;
+				mem::data_view_policy_set<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)dst, sizeDst}}[idxDst] = tmp;
 			}
 		}
 
@@ -5778,10 +5778,10 @@ namespace gaia {
 			darr_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			T operator->() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
@@ -6346,13 +6346,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
@@ -6483,10 +6483,10 @@ namespace gaia {
 			darr_ext_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			T operator->() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
@@ -7099,13 +7099,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
@@ -10199,10 +10199,10 @@ namespace gaia {
 			sarr_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			T operator->() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
@@ -10473,13 +10473,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{GAIA_ACC((const uint8_t*)&m_data[0]), extent});
 			}
 		};
@@ -10637,10 +10637,10 @@ namespace gaia {
 			sarr_ext_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 			T operator*() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			T operator->() const {
-				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
@@ -11117,13 +11117,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return mem::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{GAIA_ACC((const uint8_t*)&m_data[0]), extent});
 			}
 		};
@@ -16930,6 +16930,16 @@ namespace gaia {
 		}
 
 	} // namespace ecs
+
+	namespace cnt {
+		template <>
+		struct to_sparse_id<ecs::Entity> {
+			static sparse_id get(const ecs::Entity& item) noexcept {
+				// Cut off the flags
+				return item.value() >> 4;
+			}
+		};
+	}
 } // namespace gaia
 
 namespace gaia {
@@ -16948,6 +16958,35 @@ namespace gaia {
 		using ComponentSpan = std::span<const Component>;
 		using ChunkDataOffsetSpan = std::span<const ChunkDataOffset>;
 		using SortComponentCond = core::is_smaller<Entity>;
+
+		//----------------------------------------------------------------------
+		// Component storage
+		//----------------------------------------------------------------------
+
+		enum class DataStorageType : uint32_t {
+			Table, //< Data stored in a table
+			Sparse, //< Data stored in a sparse set
+
+			Count = 2
+		};
+
+#ifndef GAIA_STORAGE
+	#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
+#endif
+
+		namespace detail {
+			template <typename, typename = void>
+			struct storage_type {
+				static constexpr DataStorageType value = DataStorageType::Table;
+			};
+			template <typename T>
+			struct storage_type<T, std::void_t<decltype(T::gaia_Storage_Type)>> {
+				static constexpr DataStorageType value = T::gaia_Storage_Type;
+			};
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr DataStorageType storage_type_v = detail::storage_type<T>::value;
 
 		//----------------------------------------------------------------------
 		// Component verification

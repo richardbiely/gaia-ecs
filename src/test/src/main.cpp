@@ -1,3 +1,4 @@
+#include "gaia/ecs/component.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -38,6 +39,12 @@ struct Int3 {
 struct Position {
 	float x, y, z;
 };
+static_assert(ecs::storage_type_v<Position> == ecs::DataStorageType::Table);
+struct PositionSparse {
+	GAIA_STORAGE(Sparse);
+	float x, y, z;
+};
+static_assert(ecs::storage_type_v<PositionSparse> == ecs::DataStorageType::Sparse);
 struct PositionSoA {
 	GAIA_LAYOUT(SoA);
 	float x, y, z;
