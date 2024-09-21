@@ -13544,7 +13544,7 @@ namespace gaia {
 		struct to_sparse_id {
 			static sparse_id get(const T& item) noexcept {
 				(void)item;
-				static_assert(false, "Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
+				static_assert(std::is_empty_v<T>, "Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
 				return BadIndex;
 			}
 		};
