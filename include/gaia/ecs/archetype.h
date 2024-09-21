@@ -30,6 +30,24 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
 
+		namespace detail {
+			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
+				// Size has to match
+				GAIA_FOR(EntityKind::EK_Count) {
+					if (comps.size() != compsOther.size())
+						return false;
+				}
+
+				// Elements have to match
+				GAIA_EACH(comps) {
+					if (comps[i] != compsOther[i])
+						return false;
+				}
+
+				return true;
+			}
+		}
+
 		class ArchetypeBase {
 		protected:
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -41,22 +59,6 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
-			// Size has to match
-			GAIA_FOR(EntityKind::EK_Count) {
-				if (comps.size() != compsOther.size())
-					return false;
-			}
-
-			// Elements have to match
-			GAIA_EACH(comps) {
-				if (comps[i] != compsOther[i])
-					return false;
-			}
-
-			return true;
-		}
-
 		class ArchetypeLookupChecker: public ArchetypeBase {
 			friend class Archetype;
 
@@ -67,7 +69,7 @@ namespace gaia {
 			ArchetypeLookupChecker(EntitySpan comps): m_comps(comps) {}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				return ecs::cmp_comps(m_comps, other.m_comps);
+				return detail::cmp_comps(m_comps, other.m_comps);
 			}
 		};
 
@@ -278,7 +280,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool cmp_comps(const ArchetypeLookupChecker& other) const {
-				return ecs::cmp_comps(ids_view(), other.m_comps);
+				return detail::cmp_comps(ids_view(), other.m_comps);
 			}
 
 			GAIA_NODISCARD static Archetype*

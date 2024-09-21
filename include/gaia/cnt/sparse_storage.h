@@ -19,6 +19,9 @@ namespace gaia {
 			using size_type = uint32_t;
 
 			constexpr static uint32_t InvalidId = BadIndex - 1;
+
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class sparse_page;
 		} // namespace detail
 
 		using dense_id = uint32_t;
@@ -34,9 +37,6 @@ namespace gaia {
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
-		class sparse_page;
-
-		template <typename T, uint32_t PageCapacity, typename Allocator>
 		struct sparse_iterator {
 			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
@@ -48,7 +48,7 @@ namespace gaia {
 
 		private:
 			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
-			using page_type = sparse_page<T, PageCapacity, Allocator>;
+			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
 
 			uint32_t* m_pDense;
 			page_type* m_pPages;
@@ -143,7 +143,7 @@ namespace gaia {
 
 		private:
 			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
-			using page_type = sparse_page<T, PageCapacity, Allocator>;
+			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
 
 			uint32_t* m_pDense;
 			page_type* m_pPages;
@@ -226,312 +226,314 @@ namespace gaia {
 			}
 		};
 
-		template <typename T, uint32_t PageCapacity, typename Allocator>
-		class sparse_page {
-		public:
-			static_assert(sizeof(T) > 0, "It only makes sense to use sparse storage for data types with non-zero size");
+		namespace detail {
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class sparse_page {
+			public:
+				static_assert(sizeof(T) > 0, "It only makes sense to use sparse storage for data types with non-zero size");
 
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
+				using value_type = T;
+				using reference = T&;
+				using const_reference = const T&;
+				using pointer = T*;
+				using const_pointer = T*;
+				using view_policy = mem::auto_view_policy<T>;
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
 
-			using iterator = sparse_iterator<T, PageCapacity, Allocator>;
-			using iterator_soa = sparse_iterator_soa<T, PageCapacity, Allocator>;
+				using iterator = sparse_iterator<T, PageCapacity, Allocator>;
+				using iterator_soa = sparse_iterator_soa<T, PageCapacity, Allocator>;
 
-		private:
-			uint32_t* m_pSparse = nullptr;
-			uint8_t* m_pData = nullptr;
-			size_type m_cnt = 0;
+			private:
+				uint32_t* m_pSparse = nullptr;
+				uint8_t* m_pData = nullptr;
+				size_type m_cnt = 0;
 
-			void ensure() {
-				if (m_pSparse == nullptr) {
-					// Allocate memory for sparse->dense index mapping.
-					// Make sure initial values are detail::InvalidId.
-					m_pSparse = mem::AllocHelper::alloc<uint32_t>("SparsePage", PageCapacity);
-					GAIA_FOR(PageCapacity) m_pSparse[i] = detail::InvalidId;
+				void ensure() {
+					if (m_pSparse == nullptr) {
+						// Allocate memory for sparse->dense index mapping.
+						// Make sure initial values are detail::InvalidId.
+						m_pSparse = mem::AllocHelper::alloc<uint32_t>("SparsePage", PageCapacity);
+						GAIA_FOR(PageCapacity) m_pSparse[i] = detail::InvalidId;
 
-					// Allocate memory for data
-					m_pData = view_policy::template alloc<Allocator>(PageCapacity);
+						// Allocate memory for data
+						m_pData = view_policy::template alloc<Allocator>(PageCapacity);
+					}
 				}
-			}
 
-			void del_data_internal(uint32_t idx) noexcept {
-				GAIA_ASSERT(!empty());
-
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[idx]);
-
-				--m_cnt;
-			}
-
-			void del_active_data() noexcept {
-				GAIA_ASSERT(m_pSparse != nullptr);
-
-				for (uint32_t i = 0; m_cnt != 0 && i != PageCapacity; ++i) {
-					if (m_pSparse[i] == detail::InvalidId)
-						continue;
+				void del_data_internal(uint32_t idx) noexcept {
+					GAIA_ASSERT(!empty());
 
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[i]);
+						core::call_dtor(&data()[idx]);
+
+					--m_cnt;
 				}
 
-				m_cnt = 0;
-			}
+				void del_active_data() noexcept {
+					GAIA_ASSERT(m_pSparse != nullptr);
 
-			void invalidate() {
-				if (m_pSparse == nullptr)
-					return;
-
-				// Destruct active items
-				del_active_data();
-
-				// Release allocated memory
-				mem::AllocHelper::free("SparsePage", m_pSparse);
-				view_policy::template free<Allocator>(m_pData, m_cnt);
-
-				m_pSparse = nullptr;
-				m_pData = nullptr;
-				m_cnt = 0;
-			}
-
-		public:
-			sparse_page() = default;
-
-			sparse_page(const sparse_page& other) {
-				// Copy new items over
-				if (other.m_pSparse == nullptr) {
-					invalidate();
-				} else {
-					for (uint32_t i = 0; i < PageCapacity; ++i) {
-						// Copy indices
-						m_pSparse[i] = other.m_pSparse[i];
+					for (uint32_t i = 0; m_cnt != 0 && i != PageCapacity; ++i) {
 						if (m_pSparse[i] == detail::InvalidId)
 							continue;
 
-						// Copy data
-						set_data(i) = other.set_data(i);
+						if constexpr (!mem::is_soa_layout_v<T>)
+							core::call_dtor(&data()[i]);
 					}
 
-					m_cnt = other.m_cnt;
+					m_cnt = 0;
 				}
-			}
 
-			sparse_page& operator=(const sparse_page& other) {
-				GAIA_ASSERT(core::addressof(other) != this);
+				void invalidate() {
+					if (m_pSparse == nullptr)
+						return;
 
-				if (m_pData == nullptr && other.m_pData != nullptr)
-					ensure();
-
-				// Remove current active items
-				if (m_pSparse != nullptr)
+					// Destruct active items
 					del_active_data();
 
-				GAIA_ASSERT(m_cnt == 0);
+					// Release allocated memory
+					mem::AllocHelper::free("SparsePage", m_pSparse);
+					view_policy::template free<Allocator>(m_pData, m_cnt);
 
-				// Copy new items over if there are any
-				if (other.m_pSparse == nullptr) {
-					invalidate();
-				} else {
-					for (uint32_t i = 0; i < PageCapacity; ++i) {
-						// Copy indices
-						m_pSparse[i] = other.m_pSparse[i];
-						if (other.m_pSparse[i] == detail::InvalidId)
-							continue;
+					m_pSparse = nullptr;
+					m_pData = nullptr;
+					m_cnt = 0;
+				}
 
-						// Copy data
-						mem::copy_ctor_element<T>(m_pData, other.m_pData, i, i, PageCapacity, PageCapacity);
+			public:
+				sparse_page() = default;
+
+				sparse_page(const sparse_page& other) {
+					// Copy new items over
+					if (other.m_pSparse == nullptr) {
+						invalidate();
+					} else {
+						for (uint32_t i = 0; i < PageCapacity; ++i) {
+							// Copy indices
+							m_pSparse[i] = other.m_pSparse[i];
+							if (m_pSparse[i] == detail::InvalidId)
+								continue;
+
+							// Copy data
+							set_data(i) = other.set_data(i);
+						}
+
+						m_cnt = other.m_cnt;
+					}
+				}
+
+				sparse_page& operator=(const sparse_page& other) {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					if (m_pData == nullptr && other.m_pData != nullptr)
+						ensure();
+
+					// Remove current active items
+					if (m_pSparse != nullptr)
+						del_active_data();
+
+					GAIA_ASSERT(m_cnt == 0);
+
+					// Copy new items over if there are any
+					if (other.m_pSparse == nullptr) {
+						invalidate();
+					} else {
+						for (uint32_t i = 0; i < PageCapacity; ++i) {
+							// Copy indices
+							m_pSparse[i] = other.m_pSparse[i];
+							if (other.m_pSparse[i] == detail::InvalidId)
+								continue;
+
+							// Copy data
+							mem::copy_ctor_element<T>(m_pData, other.m_pData, i, i, PageCapacity, PageCapacity);
+						}
+
+						m_cnt = other.m_cnt;
 					}
 
+					return *this;
+				}
+
+				sparse_page(sparse_page&& other) noexcept {
+					// This is a newly constructed object.
+					// It can't have any memory allocated, yet.
+					GAIA_ASSERT(m_pData == nullptr);
+
+					m_pSparse = other.m_pSparse;
+					m_pData = other.m_pData;
 					m_cnt = other.m_cnt;
+
+					other.m_pSparse = nullptr;
+					other.m_pData = nullptr;
+					other.m_cnt = size_type(0);
 				}
 
-				return *this;
-			}
+				sparse_page& operator=(sparse_page&& other) noexcept {
+					GAIA_ASSERT(core::addressof(other) != this);
 
-			sparse_page(sparse_page&& other) noexcept {
-				// This is a newly constructed object.
-				// It can't have any memory allocated, yet.
-				GAIA_ASSERT(m_pData == nullptr);
-
-				m_pSparse = other.m_pSparse;
-				m_pData = other.m_pData;
-				m_cnt = other.m_cnt;
-
-				other.m_pSparse = nullptr;
-				other.m_pData = nullptr;
-				other.m_cnt = size_type(0);
-			}
-
-			sparse_page& operator=(sparse_page&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				invalidate();
-
-				m_pSparse = other.m_pSparse;
-				m_pData = other.m_pData;
-				m_cnt = other.m_cnt;
-
-				other.m_pSparse = nullptr;
-				other.m_pData = nullptr;
-				other.m_cnt = size_type(0);
-
-				return *this;
-			}
-
-			~sparse_page() {
-				invalidate();
-			}
-
-			GAIA_CLANG_WARNING_PUSH()
-			// Memory is aligned so we can silence this warning
-			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
-
-			GAIA_NODISCARD pointer data() noexcept {
-				return (pointer)m_pData;
-			}
-
-			GAIA_NODISCARD const_pointer data() const noexcept {
-				return (const_pointer)m_pData;
-			}
-
-			GAIA_NODISCARD uint32_t& set_id(size_type pos) noexcept {
-				return m_pSparse[pos];
-			}
-
-			GAIA_NODISCARD uint32_t get_id(size_type pos) const noexcept {
-				return m_pSparse[pos];
-			}
-
-			GAIA_NODISCARD decltype(auto) set_data(size_type pos) noexcept {
-				return view_policy::set({(typename view_policy::TargetCastType)m_pData, PageCapacity}, pos);
-			}
-
-			GAIA_NODISCARD decltype(auto) get_data(size_type pos) const noexcept {
-				return view_policy::get({(typename view_policy::TargetCastType)m_pData, PageCapacity}, pos);
-			}
-
-			GAIA_CLANG_WARNING_POP()
-
-			void add() {
-				ensure();
-				++m_cnt;
-			}
-
-			decltype(auto) add_data(uint32_t idx, const T& arg) {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					set_data(idx) = arg;
-				} else {
-					auto* ptr = &set_data(idx);
-					core::call_ctor(ptr, arg);
-					return (reference)(*ptr);
-				}
-			}
-
-			decltype(auto) add_data(uint32_t idx, T&& arg) {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					set_data(idx) = GAIA_MOV(arg);
-				} else {
-					auto* ptr = &set_data(idx);
-					core::call_ctor(ptr, GAIA_MOV(arg));
-					return (reference)(*ptr);
-				}
-			}
-
-			void del_data(uint32_t idx) noexcept {
-				del_data_internal(idx);
-
-				// If there is no more data, release the memory allocated by the page
-				if (m_cnt == 0)
 					invalidate();
-			}
 
-			GAIA_NODISCARD size_type size() const noexcept {
-				return m_cnt;
-			}
+					m_pSparse = other.m_pSparse;
+					m_pData = other.m_pData;
+					m_cnt = other.m_cnt;
 
-			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
-			}
+					other.m_pSparse = nullptr;
+					other.m_pData = nullptr;
+					other.m_cnt = size_type(0);
 
-			GAIA_NODISCARD decltype(auto) front() noexcept {
-				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return *begin();
-				else
-					return (reference)*begin();
-			}
+					return *this;
+				}
 
-			GAIA_NODISCARD decltype(auto) front() const noexcept {
-				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return *begin();
-				else
-					return (const_reference)*begin();
-			}
+				~sparse_page() {
+					invalidate();
+				}
 
-			GAIA_NODISCARD decltype(auto) back() noexcept {
-				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return set_data(m_cnt - 1);
-				else
-					return (reference)(set_data(m_cnt - 1));
-			}
+				GAIA_CLANG_WARNING_PUSH()
+				// Memory is aligned so we can silence this warning
+				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-			GAIA_NODISCARD decltype(auto) back() const noexcept {
-				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return set_data(m_cnt - 1);
-				else
-					return (const_reference)set_data(m_cnt - 1);
-			}
+				GAIA_NODISCARD pointer data() noexcept {
+					return (pointer)m_pData;
+				}
 
-			GAIA_NODISCARD auto begin() const noexcept {
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_pData, size(), 0);
-				else
-					return iterator(data());
-			}
+				GAIA_NODISCARD const_pointer data() const noexcept {
+					return (const_pointer)m_pData;
+				}
 
-			GAIA_NODISCARD auto rbegin() const noexcept {
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_pData, size(), size() - 1);
-				else
-					return iterator((pointer)&back());
-			}
+				GAIA_NODISCARD uint32_t& set_id(size_type pos) noexcept {
+					return m_pSparse[pos];
+				}
 
-			GAIA_NODISCARD auto end() const noexcept {
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_pData, size(), size());
-				else
-					return iterator(data() + size());
-			}
+				GAIA_NODISCARD uint32_t get_id(size_type pos) const noexcept {
+					return m_pSparse[pos];
+				}
 
-			GAIA_NODISCARD auto rend() const noexcept {
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_pData, size(), -1);
-				else
-					return iterator(data() - 1);
-			}
+				GAIA_NODISCARD decltype(auto) set_data(size_type pos) noexcept {
+					return view_policy::set({(typename view_policy::TargetCastType)m_pData, PageCapacity}, pos);
+				}
 
-			GAIA_NODISCARD bool operator==(const sparse_page& other) const {
-				if (m_cnt != other.m_cnt)
-					return false;
-				const size_type n = size();
-				for (size_type i = 0; i < n; ++i)
-					if (!(get_data(i) == other[i]))
+				GAIA_NODISCARD decltype(auto) get_data(size_type pos) const noexcept {
+					return view_policy::get({(typename view_policy::TargetCastType)m_pData, PageCapacity}, pos);
+				}
+
+				GAIA_CLANG_WARNING_POP()
+
+				void add() {
+					ensure();
+					++m_cnt;
+				}
+
+				decltype(auto) add_data(uint32_t idx, const T& arg) {
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = arg;
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, arg);
+						return (reference)(*ptr);
+					}
+				}
+
+				decltype(auto) add_data(uint32_t idx, T&& arg) {
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = GAIA_MOV(arg);
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, GAIA_MOV(arg));
+						return (reference)(*ptr);
+					}
+				}
+
+				void del_data(uint32_t idx) noexcept {
+					del_data_internal(idx);
+
+					// If there is no more data, release the memory allocated by the page
+					if (m_cnt == 0)
+						invalidate();
+				}
+
+				GAIA_NODISCARD size_type size() const noexcept {
+					return m_cnt;
+				}
+
+				GAIA_NODISCARD bool empty() const noexcept {
+					return size() == 0;
+				}
+
+				GAIA_NODISCARD decltype(auto) front() noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) front() const noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (const_reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) back() noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(m_cnt - 1);
+					else
+						return (reference)(set_data(m_cnt - 1));
+				}
+
+				GAIA_NODISCARD decltype(auto) back() const noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(m_cnt - 1);
+					else
+						return (const_reference)set_data(m_cnt - 1);
+				}
+
+				GAIA_NODISCARD auto begin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa(m_pData, size(), 0);
+					else
+						return iterator(data());
+				}
+
+				GAIA_NODISCARD auto rbegin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa(m_pData, size(), size() - 1);
+					else
+						return iterator((pointer)&back());
+				}
+
+				GAIA_NODISCARD auto end() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa(m_pData, size(), size());
+					else
+						return iterator(data() + size());
+				}
+
+				GAIA_NODISCARD auto rend() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa(m_pData, size(), -1);
+					else
+						return iterator(data() - 1);
+				}
+
+				GAIA_NODISCARD bool operator==(const sparse_page& other) const {
+					if (m_cnt != other.m_cnt)
 						return false;
-				return true;
-			}
+					const size_type n = size();
+					for (size_type i = 0; i < n; ++i)
+						if (!(get_data(i) == other[i]))
+							return false;
+					return true;
+				}
 
-			GAIA_NODISCARD constexpr bool operator!=(const sparse_page& other) const {
-				return !operator==(other);
-			}
-		};
+				GAIA_NODISCARD constexpr bool operator!=(const sparse_page& other) const {
+					return !operator==(other);
+				}
+			};
+		} // namespace detail
 
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
@@ -551,12 +553,12 @@ namespace gaia {
 
 			using iterator = sparse_iterator<T, PageCapacity, Allocator>;
 			using iterator_soa = sparse_iterator_soa<T, PageCapacity, Allocator>;
-			using page_type = sparse_page<T, PageCapacity, Allocator>;
+			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
 
 		private:
 			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
 
-			//! Contains mappings to m_sparse
+			//! Contains mappings to sparse storage inside pages
 			cnt::darray<sparse_id> m_dense;
 			//! Contains pages with data and sparse–>dense mapping
 			cnt::darray<page_type> m_pages;
@@ -669,7 +671,8 @@ namespace gaia {
 				return has(sid);
 			}
 
-			//! Inserts the item \param arg into the storage
+			//! Inserts the item \param arg into the storage.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) add(const T& arg) {
 				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidId);
@@ -698,7 +701,8 @@ namespace gaia {
 					return page.add_data(did, arg);
 			}
 
-			//! Inserts the item \param arg into the storage
+			//! Inserts the item \param arg into the storage.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) add(T&& arg) {
 				const auto sid = to_sparse_id<T>::get(arg);
 				if (has(sid)) {
@@ -726,7 +730,8 @@ namespace gaia {
 					return page.add_data(did, GAIA_MOV(arg));
 			}
 
-			//! Update the record for the item \param arg
+			//! Update the record at the index \param sid.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(uint32_t sid) {
 				GAIA_ASSERT(has(sid));
 
@@ -737,11 +742,9 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item \param arg from the storage
-			void del(const T& arg) noexcept {
+			//! Removes the item at the index \param sid from the storage.
+			void del(uint32_t sid) noexcept {
 				GAIA_ASSERT(!empty());
-
-				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidId);
 
 				if (!has(sid))
@@ -762,6 +765,12 @@ namespace gaia {
 				m_dense.resize(m_cnt - 1);
 
 				--m_cnt;
+			}
+
+			//! Removes the item \param arg from the storage.
+			void del(const T& arg) noexcept {
+				const auto sid = to_sparse_id<T>::get(arg);
+				return del(sid);
 			}
 
 			//! Clears the storage
