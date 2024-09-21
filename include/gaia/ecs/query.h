@@ -18,7 +18,6 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
-#include "component_utils.h"
 #include "data_buffer.h"
 #include "id.h"
 #include "query_cache.h"

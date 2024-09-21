@@ -19,7 +19,6 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_desc.h"
-#include "component_utils.h"
 #include "entity_container.h"
 #include "id.h"
 

@@ -17,7 +17,6 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
-#include "component_utils.h"
 #include "id.h"
 
 namespace gaia {

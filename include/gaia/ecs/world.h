@@ -29,7 +29,6 @@
 #include "component_cache_item.h"
 #include "component_getter.h"
 #include "component_setter.h"
-#include "component_utils.h"
 #include "data_buffer.h"
 #include "entity_container.h"
 #include "id.h"

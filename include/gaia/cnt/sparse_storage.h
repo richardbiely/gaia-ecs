@@ -229,6 +229,8 @@ namespace gaia {
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_page {
 		public:
+			static_assert(sizeof(T) > 0, "It only makes sense to use sparse storage for data types with non-zero size");
+
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -247,7 +249,7 @@ namespace gaia {
 			size_type m_cnt = 0;
 
 			void ensure() {
-				if (m_pData == nullptr) {
+				if (m_pSparse == nullptr) {
 					// Allocate memory for sparse->dense index mapping.
 					// Make sure initial values are detail::InvalidId.
 					m_pSparse = mem::AllocHelper::alloc<uint32_t>("SparsePage", PageCapacity);

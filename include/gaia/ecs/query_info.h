@@ -12,7 +12,6 @@
 #include "archetype_common.h"
 #include "component.h"
 #include "component_cache.h"
-#include "component_utils.h"
 #include "id.h"
 #include "query_common.h"
 #include "vm.h"

@@ -10,7 +10,6 @@
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "component.h"
-#include "component_utils.h"
 #include "data_buffer.h"
 #include "id.h"
 
