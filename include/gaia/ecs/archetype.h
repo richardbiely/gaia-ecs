@@ -554,7 +554,7 @@ namespace gaia {
 						GAIA_FOR2(m_properties.genEntities, m_properties.cntEntities) {
 							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
 							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
-							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
+							if (rec[i].pItem->cmp(pSrcVal, pDstVal)) {
 								res = false;
 								break;
 							}

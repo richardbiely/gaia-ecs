@@ -33,8 +33,8 @@ namespace gaia {
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
 			uint8_t* pData;
-			//! Pointer to component descriptor
-			const ComponentCacheItem* pDesc;
+			//! Pointer to component cache record
+			const ComponentCacheItem* pItem;
 		};
 
 		struct ChunkRecords {

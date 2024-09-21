@@ -17665,8 +17665,8 @@ namespace gaia {
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
 			uint8_t* pData;
-			//! Pointer to component descriptor
-			const ComponentCacheItem* pDesc;
+			//! Pointer to component cache record
+			const ComponentCacheItem* pItem;
 		};
 
 		struct ChunkRecords {
@@ -18625,7 +18625,7 @@ namespace gaia {
 						dst[j].entity = ids[j];
 						dst[j].comp = comps[j];
 						dst[j].pData = &data(compOffs[j]);
-						dst[j].pDesc = m_header.cc->find(comps[j].id());
+						dst[j].pItem = m_header.cc->find(comps[j].id());
 					}
 				}
 
@@ -18639,14 +18639,14 @@ namespace gaia {
 							continue;
 
 						if (rec.entity.kind() == EntityKind::EK_Gen) {
-							m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
-							m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
+							m_header.hasAnyCustomGenCtor |= (rec.pItem->func_ctor != nullptr);
+							m_header.hasAnyCustomGenDtor |= (rec.pItem->func_dtor != nullptr);
 						} else {
-							m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
-							m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
+							m_header.hasAnyCustomUniCtor |= (rec.pItem->func_ctor != nullptr);
+							m_header.hasAnyCustomUniDtor |= (rec.pItem->func_dtor != nullptr);
 
 							// We construct unique components rowB away if possible
-							call_ctor(0, *rec.pDesc);
+							call_ctor(0, *rec.pItem);
 						}
 					}
 				}
@@ -19147,7 +19147,7 @@ namespace gaia {
 
 					const auto* pSrc = (const void*)pOldChunk->comp_ptr_mut(i);
 					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i);
-					rec.pDesc->copy(
+					rec.pItem->copy(
 							pDst, pSrc, newEntityContainer.row, oldEntityContainer.row, pNewChunk->capacity(), pOldChunk->capacity());
 				}
 			}
@@ -19168,7 +19168,7 @@ namespace gaia {
 
 					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
 					auto* pDst = (void*)comp_ptr_mut(i);
-					rec.pDesc->ctor_from(pDst, pSrc, row, ec.row, capacity(), pOldChunk->capacity());
+					rec.pItem->ctor_from(pDst, pSrc, row, ec.row, capacity(), pOldChunk->capacity());
 				}
 			}
 
@@ -19201,7 +19201,7 @@ namespace gaia {
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j);
-								rec.pDesc->ctor_from(pDst, pSrc, newRow, oldRow, pNewChunk->capacity(), pOldChunk->capacity());
+								rec.pItem->ctor_from(pDst, pSrc, newRow, oldRow, pNewChunk->capacity(), pOldChunk->capacity());
 							}
 
 							++i;
@@ -19212,9 +19212,9 @@ namespace gaia {
 							// No match with the old chunk. Construct the component
 							const auto& rec = newRecs[j];
 							GAIA_ASSERT(rec.entity == newId);
-							if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
+							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
-								rec.pDesc->func_ctor(pDst, 1);
+								rec.pItem->func_ctor(pDst, 1);
 							}
 
 							++j;
@@ -19224,9 +19224,9 @@ namespace gaia {
 					// Initialize the rest of the components if they are generic.
 					for (; j < pNewChunk->m_header.genEntities; ++j) {
 						const auto& rec = newRecs[j];
-						if (rec.pDesc != nullptr && rec.pDesc->func_ctor != nullptr) {
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
-							rec.pDesc->func_ctor(pDst, 1);
+							rec.pItem->func_ctor(pDst, 1);
 						}
 					}
 				}
@@ -19271,8 +19271,8 @@ namespace gaia {
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i);
-						rec.pDesc->move(pSrc, pSrc, rowA, rowB, capacity(), capacity());
-						rec.pDesc->dtor(pSrc);
+						rec.pItem->move(pSrc, pSrc, rowA, rowB, capacity(), capacity());
+						rec.pItem->dtor(pSrc);
 					}
 
 					// Entity has been replaced with the last one in our chunk. Update its container record.
@@ -19286,7 +19286,7 @@ namespace gaia {
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i, rowA);
-						rec.pDesc->dtor(pSrc);
+						rec.pItem->dtor(pSrc);
 					}
 				}
 			}
@@ -19361,7 +19361,7 @@ namespace gaia {
 						continue;
 
 					GAIA_ASSERT(rec.pData == comp_ptr_mut(i));
-					rec.pDesc->swap(rec.pData, rec.pData, rowA, rowB, capacity(), capacity());
+					rec.pItem->swap(rec.pData, rec.pData, rowA, rowB, capacity(), capacity());
 				}
 
 				// Update indices in entity container.
@@ -19467,7 +19467,7 @@ namespace gaia {
 				GAIA_FOR2(0, m_header.genEntities) {
 					const auto& rec = recs[i];
 
-					const auto* pDesc = rec.pDesc;
+					const auto* pDesc = rec.pItem;
 					if (pDesc == nullptr || pDesc->func_ctor == nullptr)
 						continue;
 
@@ -19483,7 +19483,7 @@ namespace gaia {
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
 
-					const auto* pDesc = rec.pDesc;
+					const auto* pDesc = rec.pItem;
 					if (pDesc == nullptr || pDesc->func_dtor == nullptr)
 						continue;
 
@@ -20333,7 +20333,7 @@ namespace gaia {
 						GAIA_FOR2(m_properties.genEntities, m_properties.cntEntities) {
 							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
 							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
-							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
+							if (rec[i].pItem->cmp(pSrcVal, pDstVal)) {
 								res = false;
 								break;
 							}
@@ -25272,7 +25272,7 @@ namespace gaia {
 							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
 								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
-								rec.pDesc->copy(
+								rec.pItem->copy(
 										pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
 							}
 						}

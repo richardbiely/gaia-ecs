@@ -952,7 +952,7 @@ namespace gaia {
 							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
 								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
-								rec.pDesc->copy(
+								rec.pItem->copy(
 										pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
 							}
 						}
