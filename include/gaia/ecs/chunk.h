@@ -751,6 +751,8 @@ namespace gaia {
 
 						auto* pSrc = (void*)comp_ptr_mut(i);
 						rec.pItem->move(pSrc, pSrc, rowA, rowB, capacity(), capacity());
+
+						pSrc = (void*)comp_ptr_mut(i, rowB);
 						rec.pItem->dtor(pSrc);
 					}
 
