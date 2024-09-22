@@ -36,6 +36,147 @@ namespace gaia {
 		bool is_base(const World& world, Entity entity);
 
 		namespace detail {
+			//! Query command types
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
+
+			struct QueryCmd_AddItem {
+				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
+				static constexpr bool InvalidatesHash = true;
+
+				QueryInput item;
+
+				void exec(QueryCtx& ctx) const {
+					auto& data = ctx.data;
+					auto& ids = data.ids;
+					auto& terms = data.terms;
+
+					// Unique component ids only
+					GAIA_ASSERT(!core::has(ids, item.id));
+
+#if GAIA_DEBUG
+					// There's a limit to the amount of query items which we can store
+					if (ids.size() >= MAX_ITEMS_IN_QUERY) {
+						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
+
+						const auto* name = ctx.cc->get(item.id).name.str();
+						GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
+						return;
+					}
+#endif
+
+					// Build the read-write mask.
+					// This will be used to determine what kind of access the user wants for a given component.
+					const uint8_t isReadWrite = item.access == QueryAccess::Write;
+					data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+
+					// Build the Is mask.
+					// We will use it to identify entities with an Is relationship quickly.
+					// TODO: Implement listeners. Every time Is relationship changes archetype cache
+					//       might need to want to cache different archetypes (add some, delete others).
+					if (!item.id.pair()) {
+						const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
+						data.as_mask_0 |= (has_as << (uint8_t)ids.size());
+					} else {
+						if (!is_wildcard(item.id.id())) {
+							const auto e = entity_from_id(*ctx.w, item.id.id());
+							const auto has_as = (uint8_t)is_base(*ctx.w, e);
+							data.as_mask_0 |= (has_as << (uint8_t)ids.size());
+						}
+
+						if (!is_wildcard(item.id.gen())) {
+							const auto e = entity_from_id(*ctx.w, item.id.gen());
+							const auto has_as = (uint8_t)is_base(*ctx.w, e);
+							data.as_mask_1 |= (has_as << (uint8_t)ids.size());
+						}
+					}
+
+					// The query engine is going to reorder the query items as necessary.
+					// Remapping is used so the user can still identify the items according the order in which
+					// they defined them when building the query.
+					data.remapping.push_back((uint8_t)data.remapping.size());
+
+					ids.push_back(item.id);
+					terms.push_back({item.id, item.src, nullptr, item.op});
+				}
+			};
+
+			struct QueryCmd_AddFilter {
+				static constexpr QueryCmdType Id = QueryCmdType::ADD_FILTER;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity comp;
+
+				void exec(QueryCtx& ctx) const {
+					auto& data = ctx.data;
+					auto& ids = data.ids;
+					auto& changed = data.changed;
+					const auto& terms = data.terms;
+
+					GAIA_ASSERT(core::has(ids, comp));
+					GAIA_ASSERT(!core::has(changed, comp));
+
+#if GAIA_DEBUG
+					// There's a limit to the amount of components which we can store
+					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
+						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
+
+						auto compName = ctx.cc->get(comp).name.str();
+						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
+						return;
+					}
+#endif
+
+					uint32_t compIdx = 0;
+					for (; compIdx < ids.size(); ++compIdx)
+						if (ids[compIdx] == comp)
+							break;
+					// NOTE: This code bellow does technically the same as above.
+					//       However, compilers can't quite optimize it as well because it does some more
+					//       calculations. This is used often so go with the custom code.
+					// const auto compIdx = core::get_index_unsafe(ids, comp);
+
+					// Component has to be present in anyList or allList.
+					// NoneList makes no sense because we skip those in query processing anyway.
+					if (terms[compIdx].op != QueryOpKind::Not) {
+						changed.push_back(comp);
+						return;
+					}
+
+					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
+#if GAIA_DEBUG
+					auto compName = ctx.cc->get(comp).name.str();
+					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
+#endif
+				}
+			};
+
+			struct QueryCmd_GroupBy {
+				static constexpr QueryCmdType Id = QueryCmdType::GROUP_BY;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity groupBy;
+				TGroupByFunc func;
+
+				void exec(QueryCtx& ctx) {
+					auto& data = ctx.data;
+					data.groupBy = groupBy;
+					GAIA_ASSERT(func != nullptr);
+					data.groupByFunc = func; // group_by_func_default;
+				}
+			};
+
+			struct QueryCmd_SetGroupId {
+				static constexpr QueryCmdType Id = QueryCmdType::SET_GROUP;
+				static constexpr bool InvalidatesHash = false;
+
+				GroupId groupId;
+
+				void exec(QueryCtx& ctx) {
+					auto& data = ctx.data;
+					data.groupIdSet = groupId;
+				}
+			};
+
 			template <bool Cached>
 			struct QueryImplStorage {
 				World* m_world{};
@@ -93,172 +234,31 @@ namespace gaia {
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(CmdBuffer& buffer, QueryCtx& ctx);
+				using CmdFunc = void (*)(CmdBuffer& buffer, QueryCtx& ctx);
 
 			private:
-				//! Command buffer command type
-				enum CommandBufferCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
-
-				struct Command_AddItem {
-					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_ITEM;
-					static constexpr bool InvalidatesHash = true;
-
-					QueryInput item;
-
-					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data;
-						auto& ids = data.ids;
-						auto& terms = data.terms;
-
-						// Unique component ids only
-						GAIA_ASSERT(!core::has(ids, item.id));
-
-#if GAIA_DEBUG
-						// There's a limit to the amount of query items which we can store
-						if (ids.size() >= MAX_ITEMS_IN_QUERY) {
-							GAIA_ASSERT2(false, "Trying to create a query with too many components!");
-
-							const auto* name = ctx.cc->get(item.id).name.str();
-							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
-							return;
-						}
-#endif
-
-						// Build the read-write mask.
-						// This will be used to determine what kind of access the user wants for a given component.
-						const uint8_t isReadWrite = item.access == QueryAccess::Write;
-						data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
-
-						// Build the Is mask.
-						// We will use it to identify entities with an Is relationship quickly.
-						// TODO: Implement listeners. Every time Is relationship changes archetype cache
-						//       might need to want to cache different archetypes (add some, delete others).
-						if (!item.id.pair()) {
-							const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
-							data.as_mask_0 |= (has_as << (uint8_t)ids.size());
-						} else {
-							if (!is_wildcard(item.id.id())) {
-								const auto e = entity_from_id(*ctx.w, item.id.id());
-								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask_0 |= (has_as << (uint8_t)ids.size());
-							}
-
-							if (!is_wildcard(item.id.gen())) {
-								const auto e = entity_from_id(*ctx.w, item.id.gen());
-								const auto has_as = (uint8_t)is_base(*ctx.w, e);
-								data.as_mask_1 |= (has_as << (uint8_t)ids.size());
-							}
-						}
-
-						// The query engine is going to reorder the query items as necessary.
-						// Remapping is used so the user can still identify the items according the order in which
-						// they defined them when building the query.
-						data.remapping.push_back((uint8_t)data.remapping.size());
-
-						ids.push_back(item.id);
-						terms.push_back({item.id, item.src, nullptr, item.op});
-					}
-				};
-
-				struct Command_AddFilter {
-					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::ADD_FILTER;
-					static constexpr bool InvalidatesHash = true;
-
-					Entity comp;
-
-					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data;
-						auto& ids = data.ids;
-						auto& changed = data.changed;
-						const auto& terms = data.terms;
-
-						GAIA_ASSERT(core::has(ids, comp));
-						GAIA_ASSERT(!core::has(changed, comp));
-
-#if GAIA_DEBUG
-						// There's a limit to the amount of components which we can store
-						if (changed.size() >= MAX_ITEMS_IN_QUERY) {
-							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
-
-							auto compName = ctx.cc->get(comp).name.str();
-							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
-							return;
-						}
-#endif
-
-						uint32_t compIdx = 0;
-						for (; compIdx < ids.size(); ++compIdx)
-							if (ids[compIdx] == comp)
-								break;
-						// NOTE: This code bellow does technically the same as above.
-						//       However, compilers can't quite optimize it as well because it does some more
-						//       calculations. This is used often so go with the custom code.
-						// const auto compIdx = core::get_index_unsafe(ids, comp);
-
-						// Component has to be present in anyList or allList.
-						// NoneList makes no sense because we skip those in query processing anyway.
-						if (terms[compIdx].op != QueryOpKind::Not) {
-							changed.push_back(comp);
-							return;
-						}
-
-						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
-#if GAIA_DEBUG
-						auto compName = ctx.cc->get(comp).name.str();
-						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
-#endif
-					}
-				};
-
-				struct Command_GroupBy {
-					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::GROUP_BY;
-					static constexpr bool InvalidatesHash = true;
-
-					Entity groupBy;
-					TGroupByFunc func;
-
-					void exec(QueryCtx& ctx) {
-						auto& data = ctx.data;
-						data.groupBy = groupBy;
-						GAIA_ASSERT(func != nullptr);
-						data.groupByFunc = func; // group_by_func_default;
-					}
-				};
-
-				struct Command_SetGroupId {
-					static constexpr CommandBufferCmdType Id = CommandBufferCmdType::SET_GROUP;
-					static constexpr bool InvalidatesHash = false;
-
-					GroupId groupId;
-
-					void exec(QueryCtx& ctx) {
-						auto& data = ctx.data;
-						data.groupIdSet = groupId;
-					}
-				};
-
-				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
+				static constexpr CmdFunc CommandBufferRead[] = {
 						// Add item
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_AddItem cmd;
+							QueryCmd_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_AddFilter cmd;
+							QueryCmd_AddFilter cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// GroupBy
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_GroupBy cmd;
+							QueryCmd_GroupBy cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// SetGroupId
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
-							Command_SetGroupId cmd;
+							QueryCmd_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						}};
@@ -340,7 +340,7 @@ namespace gaia {
 					// When excluding make sure the access type is None.
 					GAIA_ASSERT(item.op != QueryOpKind::Not || item.access == QueryAccess::None);
 
-					Command_AddItem cmd{item};
+					QueryCmd_AddItem cmd{item};
 					add_cmd(cmd);
 				}
 
@@ -394,7 +394,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void changed_inter(Entity entity) {
-					Command_AddFilter cmd{entity};
+					QueryCmd_AddFilter cmd{entity};
 					add_cmd(cmd);
 				}
 
@@ -424,7 +424,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void group_by_inter(Entity entity, TGroupByFunc func) {
-					Command_GroupBy cmd{entity, func};
+					QueryCmd_GroupBy cmd{entity, func};
 					add_cmd(cmd);
 				}
 
@@ -456,7 +456,7 @@ namespace gaia {
 					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
-					Command_SetGroupId cmd{groupId};
+					QueryCmd_SetGroupId cmd{groupId};
 					add_cmd(cmd);
 				}
 
@@ -492,7 +492,7 @@ namespace gaia {
 					// Read data from buffer and execute the command stored in it
 					serBuffer.seek(0);
 					while (serBuffer.tell() < serBuffer.bytes()) {
-						CommandBufferCmdType id{};
+						QueryCmdType id{};
 						bool invalidatesHash = false;
 						ser::load(serBuffer, id);
 						ser::load(serBuffer, invalidatesHash);
@@ -517,7 +517,7 @@ namespace gaia {
 					// Read data from buffer and execute the command stored in it
 					serBuffer.seek(0);
 					while (serBuffer.tell() < serBuffer.bytes()) {
-						CommandBufferCmdType id{};
+						QueryCmdType id{};
 						bool invalidatesHash = false;
 						ser::load(serBuffer, id);
 						ser::load(serBuffer, invalidatesHash);
