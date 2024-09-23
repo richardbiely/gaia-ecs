@@ -1704,11 +1704,14 @@ namespace gaia {
 
 #if GAIA_SYSTEMS_ENABLED
 
+			//! Makes sure the world can work with systems.
 			void systems_init();
+
+			//! Executes all registered systems once.
 			void systems_run();
 
 			//! Provides a system set up to work with the parent world.
-			//! \return Entity holding the system
+			//! \return Entity holding the system.
 			SystemBuilder system();
 
 #endif
