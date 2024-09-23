@@ -25654,17 +25654,14 @@ namespace gaia {
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
-				// Don't allow components to be deleted
-				EntityBuilder(*this, entity).add(Pair(OnDelete, Error));
+				EntityBuilder(*this, entity)
+						// Don't allow components to be deleted
+						.add(Pair(OnDelete, Error))
+						// EntityDesc present by default for components
+						.add<EntityDesc>();
 
 				const auto& item = comp_cache_mut().add<FT>(entity);
-				auto& ec = m_recs.entities[entity.id()];
-
-				// Following lines do the following but a bit faster:
-				// sset<Component>(item.entity, item.comp);
-				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(EntityKind::EK_Gen, 1);
-				auto& comp = pComps[ec.row];
-				comp = item.comp;
+				sset<Component>(item.entity) = item.comp;
 
 				// Make sure the default component entity name points to the cache item name.
 				// The name is deleted when the component cache item is deleted.
@@ -28109,6 +28106,7 @@ namespace gaia {
 					return;
 				}
 
+				// Make sure EntityDesc is added
 				add<EntityDesc>(entity);
 
 				auto res =
