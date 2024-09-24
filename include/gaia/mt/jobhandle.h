@@ -12,7 +12,7 @@ namespace gaia {
 
 		struct JobHandle final {
 			static constexpr JobInternalType IdBits = 20;
-			static constexpr JobInternalType GenBits = 12;
+			static constexpr JobInternalType GenBits = 11;
 			static constexpr JobInternalType PrioBits = 1;
 			static constexpr JobInternalType AllBits = IdBits + GenBits + PrioBits;
 			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
@@ -29,7 +29,7 @@ namespace gaia {
 			struct JobData {
 				//! Index in entity array
 				JobInternalType id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted
+				//! Generation index. Incremented every time an item is deleted
 				JobInternalType gen: GenBits;
 				//! Job priority. 1-priority, 0-background
 				JobInternalType prio: PrioBits;
