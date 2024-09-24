@@ -1777,7 +1777,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v3.5.0](https://github.com/catchorg/Catch2/releases/tag/v3.5.0). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
+Unit testing is handled via [Catch2](https://github.com/catchorg/Catch2/). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
 # Installation
 

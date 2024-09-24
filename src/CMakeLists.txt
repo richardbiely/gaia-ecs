@@ -292,13 +292,13 @@ endif()
 
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    find_package(Catch2 CONFIG QUIET 3.6.0)
+    find_package(Catch2 CONFIG QUIET 3.7.1)
 
     if(NOT Catch2_FOUND)
       FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.6.0
+        GIT_TAG v3.7.1
       )
 
       set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON CACHE BOOL "CATCH_CONFIG_DISABLE_STRINGIFICATION override")
@@ -308,7 +308,7 @@ if(GAIA_BUILD_UNITTEST)
       list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
     endif()
   else()
-    find_package(Catch2 CONFIG REQUIRED 3.6.0)
+    find_package(Catch2 CONFIG REQUIRED 3.7.1)
   endif()
 endif()
 
