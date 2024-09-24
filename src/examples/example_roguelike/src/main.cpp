@@ -672,7 +672,7 @@ public:
 
 	void OnUpdate() override {
 		// Update orientation based on the current velocity
-		m_q.each([&](Orientation& o, const Velocity& v) {
+		m_q.each([](Orientation& o, const Velocity& v) {
 			if (v.x != 0) {
 				o.x = v.x > 0 ? 1 : -1;
 				o.y = 0;
@@ -695,7 +695,7 @@ public:
 
 	void OnUpdate() override {
 		// Update position based on current velocity
-		m_q.each([&](Position& p, const Velocity& v) {
+		m_q.each([](Position& p, const Velocity& v) {
 			p.x += v.x;
 			p.y += v.y;
 		});

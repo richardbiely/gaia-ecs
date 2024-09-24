@@ -614,7 +614,7 @@ namespace gaia {
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 8
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 7
+#define GAIA_VERSION_PATCH 8
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -2108,7 +2108,7 @@ namespace gaia {
 		//         >::value
 		//
 		//       This way we could drop GAIA_DEFINE_HAS. However, the issue is that std::declval<Args>
-		//       would have to be replaced with a variadic macro that expands into a seriers
+		//       would have to be replaced with a variadic macro that expands into a series
 		//       of std::declval<Arg> which is very inconvenient to do and always has a hard limit
 		//       on the number of arguments which is super limiting.
 
@@ -15466,7 +15466,7 @@ namespace gaia {
 
 		struct JobHandle final {
 			static constexpr JobInternalType IdBits = 20;
-			static constexpr JobInternalType GenBits = 12;
+			static constexpr JobInternalType GenBits = 11;
 			static constexpr JobInternalType PrioBits = 1;
 			static constexpr JobInternalType AllBits = IdBits + GenBits + PrioBits;
 			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
@@ -15483,7 +15483,7 @@ namespace gaia {
 			struct JobData {
 				//! Index in entity array
 				JobInternalType id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted
+				//! Generation index. Incremented every time an item is deleted
 				JobInternalType gen: GenBits;
 				//! Job priority. 1-priority, 0-background
 				JobInternalType prio: PrioBits;
@@ -25430,12 +25430,15 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto tgt = m_world.get(entity.gen());
 
+						EntityLookupKey entityKey(m_entity);
+						EntityLookupKey tgtKey(tgt);
+
 						// m_entity -> {..., e}
-						auto& entity_to_e = m_world.m_entityToAsTargets[EntityLookupKey(m_entity)];
-						entity_to_e.insert(EntityLookupKey{tgt});
+						auto& entity_to_e = m_world.m_entityToAsTargets[entityKey];
+						entity_to_e.insert(tgtKey);
 						// e -> {..., m_entity}
-						auto& e_to_entity = m_world.m_entityToAsRelations[EntityLookupKey(tgt)];
-						e_to_entity.insert(EntityLookupKey{m_entity});
+						auto& e_to_entity = m_world.m_entityToAsRelations[tgtKey];
+						e_to_entity.insert(entityKey);
 
 						// Make sure the relation entity is registered as archetype so queries can find it
 						// auto& ec = m_world.fetch(tgt);

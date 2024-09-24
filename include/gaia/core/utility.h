@@ -340,7 +340,7 @@ namespace gaia {
 		//         >::value
 		//
 		//       This way we could drop GAIA_DEFINE_HAS. However, the issue is that std::declval<Args>
-		//       would have to be replaced with a variadic macro that expands into a seriers
+		//       would have to be replaced with a variadic macro that expands into a series
 		//       of std::declval<Arg> which is very inconvenient to do and always has a hard limit
 		//       on the number of arguments which is super limiting.
 

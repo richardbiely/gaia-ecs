@@ -554,12 +554,15 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto tgt = m_world.get(entity.gen());
 
+						EntityLookupKey entityKey(m_entity);
+						EntityLookupKey tgtKey(tgt);
+
 						// m_entity -> {..., e}
-						auto& entity_to_e = m_world.m_entityToAsTargets[EntityLookupKey(m_entity)];
-						entity_to_e.insert(EntityLookupKey{tgt});
+						auto& entity_to_e = m_world.m_entityToAsTargets[entityKey];
+						entity_to_e.insert(tgtKey);
 						// e -> {..., m_entity}
-						auto& e_to_entity = m_world.m_entityToAsRelations[EntityLookupKey(tgt)];
-						e_to_entity.insert(EntityLookupKey{m_entity});
+						auto& e_to_entity = m_world.m_entityToAsRelations[tgtKey];
+						e_to_entity.insert(entityKey);
 
 						// Make sure the relation entity is registered as archetype so queries can find it
 						// auto& ec = m_world.fetch(tgt);
