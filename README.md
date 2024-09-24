@@ -1775,7 +1775,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 - [ICX](https://www.intel.com/content/www/us/en/developer/articles/tool/oneapi-standalone-components.html#dpcpp-cpp) 2021.1.2 or later<br/>
 
 ## Dependencies
-[CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
+[CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.
 
 Unit testing is handled via [Catch2](https://github.com/catchorg/Catch2/). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
