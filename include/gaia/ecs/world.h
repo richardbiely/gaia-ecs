@@ -3646,11 +3646,11 @@ namespace gaia {
 				EntityBuilder(*this, Core) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(EntityDesc))
-						//.add(Core) //
+				EntityBuilder(*this, GAIA_ID(EntityDesc)) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(Component))
-						//.add(Core) //
+				EntityBuilder(*this, GAIA_ID(Component)) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, OnDelete) //
 						.add(Core)

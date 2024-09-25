@@ -2240,7 +2240,7 @@ TEST_CASE("Add - no components") {
 
 	auto q = wld.query().no<ecs::Component>().no<ecs::Core_>();
 	q.arr(arr);
-	REQUIRE(arr.size() - 4 == ents.size()); // 4 for core components
+	REQUIRE(arr.size() - 2 == ents.size()); // 2 for (OnDelete, Error) and (OnTargetDelete, Error)
 
 	GAIA_FOR(N) verify(i);
 }
@@ -3588,7 +3588,7 @@ TEST_CASE("Relationship") {
 									 .no<ecs::Core_>()
 									 .no<ecs::System2_>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 5); // 3 +2 for internal relationships
+			REQUIRE(cnt == 3);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
