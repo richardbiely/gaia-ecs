@@ -304,7 +304,7 @@ namespace gaia {
 
 			private:
 				bool handle_add_entity(Entity entity) {
-					cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> targets;
+					cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> targets;
 
 					const auto& ecMain = m_world.fetch(entity);
 
@@ -970,84 +970,6 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			void del_inter(Entity entity) {
-				auto on_delete = [this](Entity entityToDel) {
-					auto& ec = fetch(entityToDel);
-					handle_del_entity(ec, entityToDel);
-					req_del(ec, entityToDel);
-				};
-
-				if (is_wildcard(entity)) {
-					const auto rel = get(entity.id());
-					const auto tgt = get(entity.gen());
-
-					// (*,*)
-					if (rel == All && tgt == All) {
-						GAIA_ASSERT2(false, "Not supported yet");
-					}
-					// (*,X)
-					else if (rel == All) {
-						if (const auto* pTargets = relations(tgt)) {
-							// handle_del might invalidate the targets map so we need to make a copy
-							// TODO: this is suboptimal at best, needs to be optimized
-							cnt::darray_ext<Entity, 64> tmp;
-							for (auto key: *pTargets)
-								tmp.push_back(key.entity());
-							for (auto e: tmp)
-								on_delete(Pair(e, tgt));
-						}
-					}
-					// (X,*)
-					else if (tgt == All) {
-						if (const auto* pRelations = targets(rel)) {
-							// handle_del might invalidate the targets map so we need to make a copy
-							// TODO: this is suboptimal at best, needs to be optimized
-							cnt::darray_ext<Entity, 64> tmp;
-							for (auto key: *pRelations)
-								tmp.push_back(key.entity());
-							for (auto e: tmp)
-								on_delete(Pair(rel, e));
-						}
-					}
-				} else {
-					on_delete(entity);
-				}
-			}
-
-			//! Finalize all queued delete operations
-			void del_finalize() {
-				// Force-delete all entities from the requested archetypes along with the archetype itself
-				for (auto& key: m_reqArchetypesToDel) {
-					auto* pArchetype = key.archetype();
-					if (pArchetype == nullptr)
-						continue;
-
-					del_entities(*pArchetype);
-
-					// Now that all entities are deleted, all their chunks are requested to get deleted
-					// and in turn the archetype itself as well. Therefore, it is added to the archetype
-					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
-					// > del_empty_archetype(pArchetype);
-				}
-				m_reqArchetypesToDel.clear();
-
-				// Try to delete all requested entities
-				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
-					const auto e = it->entity();
-
-					// Entities that form archetypes need to stay until the archetype itself is gone
-					if (m_entityToArchetypeMap.contains(*it)) {
-						++it;
-						continue;
-					}
-
-					// Requested entities are partially deleted. We only need to invalidate them.
-					invalidate_entity(e);
-
-					it = m_reqEntitiesToDel.erase(it);
-				}
-			}
-
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
@@ -1141,7 +1063,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
-			ComponentSetter acc_mut(Entity entity) {
+			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
@@ -1155,7 +1077,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T>
-			decltype(auto) set(Entity entity) {
+			GAIA_NODISCARD decltype(auto) set(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).mut<T>();
 			}
@@ -1167,7 +1089,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T>
-			decltype(auto) sset(Entity entity) {
+			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).smut<T>();
 			}
@@ -2048,11 +1970,12 @@ namespace gaia {
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
 
-				cnt::sarr_ext<Entity, Chunk::MAX_COMPONENTS> ids;
+				cnt::sarr_ext<Entity, ChunkHeader::MAX_COMPONENTS> ids;
 				{
+					auto eids = pChunk->ents_id_view();
 					auto recs = pChunk->comp_rec_view();
 					ids.resize((uint32_t)recs.size());
-					GAIA_EACH_(recs, j) ids[j] = recs[j].entity;
+					GAIA_EACH_(recs, j) ids[j] = eids[j];
 				}
 
 				const auto hashLookup = calc_lookup_hash({ids.data(), ids.size()}).hash;
@@ -2367,7 +2290,7 @@ namespace gaia {
 				}
 				// Make sure not to add too many entities/components
 				auto ids = archetype.ids_view();
-				if GAIA_UNLIKELY (ids.size() + 1 >= Chunk::MAX_COMPONENTS) {
+				if GAIA_UNLIKELY (ids.size() + 1 >= ChunkHeader::MAX_COMPONENTS) {
 					GAIA_ASSERT2(false, "Trying to add too many entities to entity!");
 					GAIA_LOG_W("Trying to add an entity to entity [%u:%u] but there's no space left!", entity.id(), entity.gen());
 					print_archetype_entities(world, archetype, addEntity, true);
@@ -2419,7 +2342,7 @@ namespace gaia {
 				}
 
 				// Prepare a joint array of components of old + the newly added component
-				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
+				cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> entsNew;
 				{
 					auto entsOld = pArchetypeLeft->ids_view();
 					entsNew.resize((uint32_t)entsOld.size() + 1);
@@ -2428,7 +2351,7 @@ namespace gaia {
 				}
 
 				// Make sure to sort the components so we receive the same hash no matter the order in which components
-				// are provided Bubble sort is okay. We're dealing with at most Chunk::MAX_COMPONENTS items.
+				// are provided Bubble sort is okay. We're dealing with at most ChunkHeader::MAX_COMPONENTS items.
 				sort(entsNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
@@ -2457,7 +2380,7 @@ namespace gaia {
 						return m_archetypesById[edge];
 				}
 
-				cnt::sarray_ext<Entity, Chunk::MAX_COMPONENTS> entsNew;
+				cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> entsNew;
 				auto entsOld = pArchetypeRight->ids_view();
 
 				// Find the intersection
@@ -2486,7 +2409,7 @@ namespace gaia {
 
 			//! Returns an array of archetypes registered in the world
 			//! \return Array or archetypes.
-			const auto& archetypes() const {
+			GAIA_NODISCARD const auto& archetypes() const {
 				return m_archetypesById;
 			}
 
@@ -2630,6 +2553,85 @@ namespace gaia {
 				validate_entities();
 			}
 
+			//! Deletes the entity
+			void del_inter(Entity entity) {
+				auto on_delete = [this](Entity entityToDel) {
+					auto& ec = fetch(entityToDel);
+					handle_del_entity(ec, entityToDel);
+					req_del(ec, entityToDel);
+				};
+
+				if (is_wildcard(entity)) {
+					const auto rel = get(entity.id());
+					const auto tgt = get(entity.gen());
+
+					// (*,*)
+					if (rel == All && tgt == All) {
+						GAIA_ASSERT2(false, "Not supported yet");
+					}
+					// (*,X)
+					else if (rel == All) {
+						if (const auto* pTargets = relations(tgt)) {
+							// handle_del might invalidate the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
+							for (auto key: *pTargets)
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								on_delete(Pair(e, tgt));
+						}
+					}
+					// (X,*)
+					else if (tgt == All) {
+						if (const auto* pRelations = targets(rel)) {
+							// handle_del might invalidate the targets map so we need to make a copy
+							// TODO: this is suboptimal at best, needs to be optimized
+							cnt::darray_ext<Entity, 64> tmp;
+							for (auto key: *pRelations)
+								tmp.push_back(key.entity());
+							for (auto e: tmp)
+								on_delete(Pair(rel, e));
+						}
+					}
+				} else {
+					on_delete(entity);
+				}
+			}
+
+			//! Finalize all queued delete operations
+			void del_finalize() {
+				// Force-delete all entities from the requested archetypes along with the archetype itself
+				for (auto& key: m_reqArchetypesToDel) {
+					auto* pArchetype = key.archetype();
+					if (pArchetype == nullptr)
+						continue;
+
+					del_entities(*pArchetype);
+
+					// Now that all entities are deleted, all their chunks are requested to get deleted
+					// and in turn the archetype itself as well. Therefore, it is added to the archetype
+					// delete list and picked up by del_empty_archetypes. No need to call deletion from here.
+					// > del_empty_archetype(pArchetype);
+				}
+				m_reqArchetypesToDel.clear();
+
+				// Try to delete all requested entities
+				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
+					const auto e = it->entity();
+
+					// Entities that form archetypes need to stay until the archetype itself is gone
+					if (m_entityToArchetypeMap.contains(*it)) {
+						++it;
+						continue;
+					}
+
+					// Requested entities are partially deleted. We only need to invalidate them.
+					invalidate_entity(e);
+
+					it = m_reqEntitiesToDel.erase(it);
+				}
+			}
+
 			GAIA_NODISCARD bool archetype_cond_match(Archetype& archetype, Pair cond, Entity target) const {
 				// E.g.:
 				//   target = (All, entity)
@@ -2680,7 +2682,7 @@ namespace gaia {
 					//       If there are disabled entities, we still do data movements if there already
 					//       are enabled entities in the chunk.
 					// TODO: If the header was of some fixed size, e.g. if we always acted as if we had
-					//       Chunk::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
+					//       ChunkHeader::MAX_COMPONENTS, certain data movements could be done pretty much instantly.
 					//       E.g. when removing tags or pairs, we would simply replace the chunk pointer
 					//       with a pointer to another one. The same goes for archetypes. Component data
 					//       would not have to move at all internal chunk header pointers would remain unchanged.
@@ -3400,12 +3402,12 @@ namespace gaia {
 				addPair(m_targetsToRelations, All, rel);
 			}
 
-			//! Creates a new entity of a given archetype
-			//! \param archetype Archetype the entity should inherit
-			//! \param isEntity True if entity, false otherwise
-			//! \param isPair True if pair, false otherwise
-			//! \param kind Component kind
-			//! \return New entity
+			//! Creates a new entity of a given archetype.
+			//! \param archetype Archetype the entity should inherit.
+			//! \param isEntity True if entity, false otherwise.
+			//! \param isPair True if pair, false otherwise.
+			//! \param kind Component kind.
+			//! \return New entity.
 			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
 				EntityContainerCtx ctx{isEntity, isPair, kind};
 				const auto entity = m_recs.entities.alloc(&ctx);
@@ -3415,8 +3417,8 @@ namespace gaia {
 
 			//! Creates multiple entity of a given archetype at once.
 			//! More efficient than creating entities individually.
-			//! \param archetype Archetype the entity should inherit
-			//! \param count Number of entities to create
+			//! \param archetype Archetype the entity should inherit.
+			//! \param count Number of entities to create.
 			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
 			void add_many_entities(Archetype& archetype, uint32_t count, Func func) {

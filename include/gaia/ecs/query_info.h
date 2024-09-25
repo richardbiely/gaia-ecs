@@ -24,7 +24,7 @@ namespace gaia {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
 			GroupId groupId = 0;
-			uint8_t indices[Chunk::MAX_COMPONENTS];
+			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
 		class QueryInfo {
@@ -455,7 +455,7 @@ namespace gaia {
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t idx) const {
 				const auto& data = m_archetypeCacheData[idx];
-				return {(const uint8_t*)&data.indices[0], Chunk::MAX_COMPONENTS};
+				return {(const uint8_t*)&data.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
 			GAIA_NODISCARD ArchetypeDArray::iterator begin() {

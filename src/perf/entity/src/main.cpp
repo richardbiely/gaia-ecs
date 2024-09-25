@@ -73,7 +73,6 @@ void BM_CreateEntity_Many(picobench::state& state) {
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
 		(void)w.add();
 		state.start_timer();
 
@@ -92,12 +91,10 @@ void BM_CreateEntity_Many_With_Component(picobench::state& state) {
 
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
-		auto e = AddsOne<float, 0, Iterations, false>(w);
 		state.start_timer();
+		auto e = AddsOne<float, 0, Iterations, false>(w);
+		dont_optimize(e);
 
-
-		
 		state.stop_timer();
 	}
 }
@@ -120,7 +117,7 @@ void BM_DeleteEntity(picobench::state& state) {
 
 		for (auto e: ents)
 			w.del(e);
-		w.del_finalize();
+		w.update();
 
 		state.stop_timer();
 		ents.clear();

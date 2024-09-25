@@ -26,13 +26,9 @@ namespace gaia {
 	namespace ecs {
 		class Chunk final {
 		public:
-			static constexpr uint32_t MAX_COMPONENTS_BITS = 5U;
-			//! Maximum number of components on archetype
-			static constexpr uint32_t MAX_COMPONENTS = 1U << MAX_COMPONENTS_BITS;
-
-			using EntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS>;
-			using ComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS>;
-			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, MAX_COMPONENTS>;
+			using EntityArray = cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS>;
+			using ComponentArray = cnt::sarray_ext<Component, ChunkHeader::MAX_COMPONENTS>;
+			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, ChunkHeader::MAX_COMPONENTS>;
 
 			// TODO: Make this private
 			//! Chunk header
@@ -93,7 +89,7 @@ namespace gaia {
 					uint32_t j = 0;
 					for (; j < cntEntities; ++j)
 						dst[j] = ids[j];
-					for (; j < MAX_COMPONENTS; ++j)
+					for (; j < ChunkHeader::MAX_COMPONENTS; ++j)
 						dst[j] = EntityBad;
 				}
 
@@ -101,7 +97,6 @@ namespace gaia {
 				if (cntEntities > 0) {
 					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
 					GAIA_FOR_(cntEntities, j) {
-						dst[j].entity = ids[j];
 						dst[j].comp = comps[j];
 						dst[j].pData = &data(compOffs[j]);
 						dst[j].pItem = m_header.cc->find(comps[j].id());
@@ -113,18 +108,20 @@ namespace gaia {
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
 					auto recs = comp_rec_view();
-					for (const auto& rec: recs) {
+					GAIA_EACH(recs) {
+						const auto& rec = recs[i];
 						if (rec.comp.size() == 0)
 							continue;
 
-						if (rec.entity.kind() == EntityKind::EK_Gen) {
+						const auto e = m_records.pCompEntities[i];
+						if (e.kind() == EntityKind::EK_Gen) {
 							m_header.hasAnyCustomGenCtor |= (rec.pItem->func_ctor != nullptr);
 							m_header.hasAnyCustomGenDtor |= (rec.pItem->func_dtor != nullptr);
 						} else {
 							m_header.hasAnyCustomUniCtor |= (rec.pItem->func_ctor != nullptr);
 							m_header.hasAnyCustomUniDtor |= (rec.pItem->func_dtor != nullptr);
 
-							// We construct unique components rowB away if possible
+							// We construct unique components right away if possible
 							call_ctor(0, *rec.pItem);
 						}
 					}
@@ -618,7 +615,8 @@ namespace gaia {
 
 				auto oldRecs = pOldChunk->comp_rec_view();
 
-				// Copy generic component data from reference entity to our new entity
+				// Copy generic component data from reference entity to our new entity.
+				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
@@ -639,7 +637,8 @@ namespace gaia {
 				auto* pOldChunk = ec.pChunk;
 				auto oldRecs = pOldChunk->comp_rec_view();
 
-				// Copy generic component data from reference entity to our new entity
+				// Copy generic component data from reference entity to our new entity.
+				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pOldChunk->m_header.genEntities) {
 					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
@@ -667,6 +666,7 @@ namespace gaia {
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
 				// Call constructor on each match.
+				// Unique components do not change place in the chunk so there is no need to move them.
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
@@ -676,7 +676,6 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& rec = newRecs[j];
-							GAIA_ASSERT(rec.entity == newId);
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j);
@@ -690,7 +689,6 @@ namespace gaia {
 						} else {
 							// No match with the old chunk. Construct the component
 							const auto& rec = newRecs[j];
-							GAIA_ASSERT(rec.entity == newId);
 							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
 								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
 								rec.pItem->func_ctor(pDst, 1);
@@ -758,8 +756,8 @@ namespace gaia {
 
 					// Entity has been replaced with the last one in our chunk. Update its container record.
 					ecB.row = rowA;
-				} else {
-					// This is the last entity in chunk so simply destroy its data
+				} else if (m_header.hasAnyCustomGenDtor) {
+					// This is the last entity in the chunk so simply destroy its data
 					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recView[i];
@@ -960,6 +958,7 @@ namespace gaia {
 			void call_all_dtors() {
 				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
+				auto ids = ents_id_view();
 				auto recs = comp_rec_view();
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
@@ -969,7 +968,8 @@ namespace gaia {
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
-					const auto cnt = (rec.entity.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
+					const auto e = ids[i];
+					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
 					pDesc->func_dtor(pSrc, cnt);
 				}
 			};
@@ -1131,7 +1131,7 @@ namespace gaia {
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
-				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pCompEntities, entity);
+				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
 			//----------------------------------------------------------------------

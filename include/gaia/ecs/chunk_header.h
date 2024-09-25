@@ -27,8 +27,6 @@ namespace gaia {
 		};
 
 		struct ComponentRecord {
-			//! Entity id
-			Entity entity;
 			//! Component id
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
@@ -49,6 +47,10 @@ namespace gaia {
 		};
 
 		struct ChunkHeader final {
+			static constexpr uint32_t MAX_COMPONENTS_BITS = 5U;
+			//! Maximum number of components on archetype
+			static constexpr uint32_t MAX_COMPONENTS = 1U << MAX_COMPONENTS_BITS;
+
 			//! Maximum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
 			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);

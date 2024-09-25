@@ -28,11 +28,11 @@ namespace gaia {
 			template <Constraints IterConstraint>
 			class ChunkIterImpl {
 			protected:
-				using CompIndicesBitView = core::bit_view<Chunk::MAX_COMPONENTS_BITS>;
+				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
-				//! Chunk::MAX_COMPONENTS values for component indices mapping for the parent archetype
+				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
 				//! GroupId. 0 if not set.
 				GroupId m_groupId = 0;

@@ -26,11 +26,11 @@ namespace gaia {
 			static constexpr uint32_t FastComponentCacheSize = 512;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
-			cnt::darray<const ComponentCacheItem*> m_descIdArr;
+			cnt::darray<const ComponentCacheItem*> m_itemArr;
 			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
-			cnt::map<detail::ComponentDescId, const ComponentCacheItem*> m_descByDescId;
+			cnt::map<detail::ComponentDescId, const ComponentCacheItem*> m_itemByDescId;
 
-			//! Lookup of component items by their symbol name. Strings are owned by m_descIdArr/m_descByDescId
+			//! Lookup of component items by their symbol name. Strings are owned by m_itemArr/m_itemByDescId
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
@@ -42,13 +42,13 @@ namespace gaia {
 			//!       would lose connection to it and effectively become dangling. This means that a new
 			//!       component of type T could be added with a new entity id.
 			void clear() {
-				for (const auto* pDesc: m_descIdArr)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-				for (auto [componentId, pDesc]: m_descByDescId)
-					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+				for (const auto* pItem: m_itemArr)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pItem));
+				for (auto [componentId, pItem]: m_itemByDescId)
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pItem));
 
-				m_descIdArr.clear();
-				m_descByDescId.clear();
+				m_itemArr.clear();
+				m_itemByDescId.clear();
 				m_compByString.clear();
 				m_compByEntity.clear();
 			}
@@ -56,7 +56,7 @@ namespace gaia {
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				m_descIdArr.reserve(FastComponentCacheSize);
+				m_itemArr.reserve(FastComponentCacheSize);
 			}
 
 			~ComponentCache() {
@@ -80,52 +80,52 @@ namespace gaia {
 				// Fast path for small component ids - use the array storage
 				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<T>(entity);
-						GAIA_ASSERT(compDescId == pDesc->comp.id());
-						m_descIdArr[compDescId] = pDesc;
-						m_compByString.emplace(pDesc->name, pDesc);
-						m_compByEntity.emplace(pDesc->entity, pDesc);
-						return *pDesc;
+						const auto* pItem = ComponentCacheItem::create<T>(entity);
+						GAIA_ASSERT(compDescId == pItem->comp.id());
+						m_itemArr[compDescId] = pItem;
+						m_compByString.emplace(pItem->name, pItem);
+						m_compByEntity.emplace(pItem->entity, pItem);
+						return *pItem;
 					};
 
-					if GAIA_UNLIKELY (compDescId >= m_descIdArr.size()) {
-						const auto oldSize = m_descIdArr.size();
+					if GAIA_UNLIKELY (compDescId >= m_itemArr.size()) {
+						const auto oldSize = m_itemArr.size();
 						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
 						const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-						m_descIdArr.reserve(newCapacity);
+						m_itemArr.reserve(newCapacity);
 
 						// Update the size
-						m_descIdArr.resize(newSize);
+						m_itemArr.resize(newSize);
 
 						// Make sure unused memory is initialized to nullptr.
-						GAIA_FOR2(oldSize, newSize - 1) m_descIdArr[i] = nullptr;
+						GAIA_FOR2(oldSize, newSize - 1) m_itemArr[i] = nullptr;
 
 						return createDesc();
 					}
 
-					if GAIA_UNLIKELY (m_descIdArr[compDescId] == nullptr) {
+					if GAIA_UNLIKELY (m_itemArr[compDescId] == nullptr) {
 						return createDesc();
 					}
 
-					return *m_descIdArr[compDescId];
+					return *m_itemArr[compDescId];
 				}
 
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<T>(entity);
-						GAIA_ASSERT(compDescId == pDesc->comp.id());
-						m_descByDescId.emplace(compDescId, pDesc);
-						m_compByString.emplace(pDesc->name, pDesc);
-						m_compByEntity.emplace(pDesc->entity, pDesc);
-						return *pDesc;
+						const auto* pItem = ComponentCacheItem::create<T>(entity);
+						GAIA_ASSERT(compDescId == pItem->comp.id());
+						m_itemByDescId.emplace(compDescId, pItem);
+						m_compByString.emplace(pItem->name, pItem);
+						m_compByEntity.emplace(pItem->entity, pItem);
+						return *pItem;
 					};
 
-					const auto it = m_descByDescId.find(compDescId);
-					if (it == m_descByDescId.end())
+					const auto it = m_itemByDescId.find(compDescId);
+					if (it == m_itemByDescId.end())
 						return createDesc();
 
 					return *it->second;
@@ -137,15 +137,15 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem* find(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
 				if (compDescId < FastComponentCacheSize) {
-					if (compDescId >= m_descIdArr.size())
+					if (compDescId >= m_itemArr.size())
 						return nullptr;
 
-					return m_descIdArr[compDescId];
+					return m_itemArr[compDescId];
 				}
 
 				// Generic path - map storage
-				const auto it = m_descByDescId.find(compDescId);
-				return it != m_descByDescId.end() ? it->second : nullptr;
+				const auto it = m_itemByDescId.find(compDescId);
+				return it != m_itemByDescId.end() ? it->second : nullptr;
 			}
 
 			//! Returns the component cache item given the \param compDescId.
@@ -154,13 +154,13 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem& get(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
 				if (compDescId < FastComponentCacheSize) {
-					GAIA_ASSERT(compDescId < m_descIdArr.size());
-					return *m_descIdArr[compDescId];
+					GAIA_ASSERT(compDescId < m_itemArr.size());
+					return *m_itemArr[compDescId];
 				}
 
 				// Generic path - map storage
-				GAIA_ASSERT(m_descByDescId.contains(compDescId));
-				return *m_descByDescId.find(compDescId)->second;
+				GAIA_ASSERT(m_itemByDescId.contains(compDescId));
+				return *m_itemByDescId.find(compDescId)->second;
 			}
 
 			//! Searches for the component cache item.
@@ -232,22 +232,22 @@ namespace gaia {
 			}
 
 			void diag() const {
-				const auto registeredTypes = m_descIdArr.size();
+				const auto registeredTypes = m_itemArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
-				auto logDesc = [](const ComponentCacheItem& desc) {
+				auto logDesc = [](const ComponentCacheItem& item) {
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
-							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
-							EntityKindString[desc.entity.kind()]);
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", item.hashLookup.hash,
+							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), item.name.str(),
+							EntityKindString[item.entity.kind()]);
 				};
-				for (const auto* pDesc: m_descIdArr) {
-					if (pDesc == nullptr)
+				for (const auto* pItem: m_itemArr) {
+					if (pItem == nullptr)
 						continue;
-					logDesc(*pDesc);
+					logDesc(*pItem);
 				}
-				for (auto [componentId, pDesc]: m_descByDescId)
-					logDesc(*pDesc);
+				for (auto [componentId, pItem]: m_itemByDescId)
+					logDesc(*pItem);
 			}
 		};
 	} // namespace ecs

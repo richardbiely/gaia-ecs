@@ -46,7 +46,7 @@ namespace gaia {
 
 				return true;
 			}
-		}
+		} // namespace detail
 
 		class ArchetypeBase {
 		protected:
@@ -96,7 +96,7 @@ namespace gaia {
 			};
 
 		private:
-			using AsPairsIndexBuffer = cnt::sarr<uint8_t, Chunk::MAX_COMPONENTS>;
+			using AsPairsIndexBuffer = cnt::sarr<uint8_t, ChunkHeader::MAX_COMPONENTS>;
 
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups
@@ -120,13 +120,13 @@ namespace gaia {
 			//! Offsets to various parts of data inside chunk
 			ChunkDataOffsets m_dataOffsets;
 			//! Array of entities used to identify the archetype
-			Entity m_ids[Chunk::MAX_COMPONENTS];
+			Entity m_ids[ChunkHeader::MAX_COMPONENTS];
 			//! Array of indices to Is relationship pairs in m_ids
-			uint8_t m_pairs_as_index_buffer[Chunk::MAX_COMPONENTS];
+			uint8_t m_pairs_as_index_buffer[ChunkHeader::MAX_COMPONENTS];
 			//! Array of component ids
-			Component m_comps[Chunk::MAX_COMPONENTS];
+			Component m_comps[ChunkHeader::MAX_COMPONENTS];
 			//! Array of components offset indices
-			ChunkDataOffset m_compOffs[Chunk::MAX_COMPONENTS];
+			ChunkDataOffset m_compOffs[ChunkHeader::MAX_COMPONENTS];
 
 			//! Archetype list index
 			uint32_t m_listIdx;
@@ -140,9 +140,9 @@ namespace gaia {
 			//! Remaining lifespan of the archetype
 			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			//! Number of relationship pairs on the archetype
-			uint32_t m_pairCnt: Chunk::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt: ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Number of Is relationship pairs on the archetype
-			uint32_t m_pairCnt_is: Chunk::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt_is: ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Unused bits
 			// uint32_t m_unused : 6;
 
@@ -188,7 +188,7 @@ namespace gaia {
 						m_dataOffsets.firstByte_CompEntities = (ChunkDataOffset)offset;
 
 						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
-						offset += sizeof(Entity) * Chunk::MAX_COMPONENTS;
+						offset += sizeof(Entity) * ChunkHeader::MAX_COMPONENTS;
 					}
 				}
 

@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "../cnt/sparse_storage.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
-#include "../cnt/sparse_storage.h"
 
 namespace gaia {
 	namespace ecs {
@@ -239,7 +239,9 @@ namespace gaia {
 				EntityId id;
 
 				///////////////////////////////////////////////////////////////////
-				// Bits in this section need to be 1:1 with EntityContainer data
+				// Bits in this section need to be 1:1 with EntityContainer data.
+				// Note, the order of these bits is important because entities
+				// are sorted by their "val" member and many behaviors rely on this.
 				///////////////////////////////////////////////////////////////////
 
 				//! Generation index. Incremented every time an entity is deleted
@@ -276,6 +278,7 @@ namespace gaia {
 				data.id = id;
 				data.gen = gen;
 			}
+
 			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
@@ -567,5 +570,5 @@ namespace gaia {
 				return item.id();
 			}
 		};
-	}
+	} // namespace cnt
 } // namespace gaia

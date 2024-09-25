@@ -45,7 +45,7 @@ namespace gaia {
 			///////////////////////////////////////////////////////////////////
 
 			//! Generation ID of the record
-			uint32_t gen : 28;
+			uint32_t gen : 27;
 			//! 0-component, 1-entity
 			uint32_t ent : 1;
 			//! 0-ordinary, 1-pair
@@ -53,6 +53,8 @@ namespace gaia {
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
+			//! Entity does not use this bit (always zero) so we steal it
+			//! for special purposes.
 			uint32_t dis : 1;
 
 			///////////////////////////////////////////////////////////////////
