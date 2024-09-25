@@ -20527,10 +20527,10 @@ namespace gaia {
 			//! These offsets are used to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
-				uintptr_t offset = mem::padding<alignof(Entity)>(offset);
+				uintptr_t offset = mem::padding<alignof(Entity)>(memoryAddress);
 				// The number must fit into firstByte_EntityData
 				GAIA_ASSERT(offset < 256);
-				m_dataOffsets.firstByte_EntityData = (ChunkDataOffset)offset;
+				m_dataOffsets.firstByte_EntityData = (uint8_t)offset;
 			}
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
@@ -25365,6 +25365,8 @@ namespace gaia {
 				}
 
 				void handle_DependsOn(Entity entity, bool enable) {
+					(void)entity;
+					(void)enable;
 					// auto& ec = m_world.fetch(entity);
 					// if (enable) {
 					// 	// Calculate the depth in the dependency tree

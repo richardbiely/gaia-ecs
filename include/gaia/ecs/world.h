@@ -500,6 +500,8 @@ namespace gaia {
 				}
 
 				void handle_DependsOn(Entity entity, bool enable) {
+					(void)entity;
+					(void)enable;
 					// auto& ec = m_world.fetch(entity);
 					// if (enable) {
 					// 	// Calculate the depth in the dependency tree
