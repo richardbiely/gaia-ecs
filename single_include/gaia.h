@@ -25648,11 +25648,6 @@ namespace gaia {
 
 				const auto isTag = detail::ComponentDesc<FT>::size() == 0;
 				const auto entity = add(*m_pCompArchetype, false, false, isTag, kind);
-				EntityBuilder(*this, entity)
-						// Don't allow components to be deleted
-						.add(Pair(OnDelete, Error))
-						// EntityDesc present by default for components
-						.add<EntityDesc>();
 
 				const auto& item = comp_cache_mut().add<FT>(entity);
 				sset<Component>(item.entity) = item.comp;
@@ -25660,10 +25655,6 @@ namespace gaia {
 				// Make sure the default component entity name points to the cache item name.
 				// The name is deleted when the component cache item is deleted.
 				name_raw(item.entity, item.name.str(), item.name.len());
-
-				// TODO: Implement entity locking. A locked entity can't change archetypes.
-				//       This way we can prevent anybody messing with the internal state of the component
-				//       entities created at compile-time data.
 
 				return item;
 			}
