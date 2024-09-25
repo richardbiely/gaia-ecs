@@ -16,6 +16,7 @@ namespace gaia {
 		struct EntityContainerCtx {
 			bool isEntity;
 			bool isPair;
+			bool isTag;
 			EntityKind kind;
 		};
 
@@ -50,6 +51,8 @@ namespace gaia {
 			uint32_t ent : 1;
 			//! 0-ordinary, 1-pair
 			uint32_t pair : 1;
+			//! 0-not a tag, 1-tag
+			uint32_t tag : 1;
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
@@ -69,7 +72,7 @@ namespace gaia {
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 
-			uint8_t depthDependsOn = 0;
+			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;
 
@@ -81,12 +84,13 @@ namespace gaia {
 				ec.gen = generation;
 				ec.ent = (uint32_t)ctx->isEntity;
 				ec.pair = (uint32_t)ctx->isPair;
+				ec.tag = (uint32_t)ctx->isTag;
 				ec.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			static Entity create(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind);
 			}
 
 			void req_del() {

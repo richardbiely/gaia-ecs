@@ -17,8 +17,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		using ComponentVersion = uint32_t;
-		using ChunkDataVersionOffset = uint8_t;
-		using CompOffsetMappingIndex = uint8_t;
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
@@ -39,7 +37,8 @@ namespace gaia {
 		};
 
 #ifndef GAIA_STORAGE
-	#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
+	#define GAIA_STORAGE(storage_name)                                                                                   \
+		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
 #endif
 
 		namespace detail {
@@ -152,4 +151,23 @@ namespace gaia {
 			return BadIndex;
 		}
 	} // namespace ecs
+
+	namespace core {
+		template <>
+		struct is_smaller<ecs::Entity> {
+			constexpr bool operator()(const ecs::Entity& lhs, const ecs::Entity& rhs) const {
+				auto l = lhs;
+				auto r = rhs;
+				l.data.tag = 0;
+				r.data.tag = 0;
+
+				// Id first
+				if (l.id() != r.id())
+					return l < r;
+
+				// Tag second
+				return (uint32_t)lhs.tag() < (uint32_t)rhs.tag();
+			}
+		};
+	} // namespace core
 } // namespace gaia

@@ -17134,11 +17134,13 @@ namespace gaia {
 				///////////////////////////////////////////////////////////////////
 
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 28;
+				IdentifierData gen : 27;
 				//! 0-component, 1-entity
 				IdentifierData ent : 1;
 				//! 0-ordinary, 1-pair
 				IdentifierData pair : 1;
+				//! 0-not a tag, 1-tag
+				IdentifierData tag : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
@@ -17166,13 +17168,15 @@ namespace gaia {
 				val = 0;
 				data.id = id;
 				data.gen = gen;
+				data.tag = 1;
 			}
 
-			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, bool tag, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
 				data.ent = isEntity;
 				data.pair = isPair;
+				data.tag = tag;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -17191,6 +17195,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool pair() const noexcept {
 				return data.pair != 0;
+			}
+
+			GAIA_NODISCARD constexpr auto tag() const noexcept {
+				return data.tag != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -17297,11 +17305,13 @@ namespace gaia {
 				return Entity(
 						m_first.id(), m_second.id(),
 						// Pairs have no way of telling gen and uni entities apart.
-						// Therefore, for first, we use the entity bit as Gen/Uni...
+						// Therefore, for m_first, we use the entity bit as Gen/Uni...
 						(bool)m_first.kind(),
-						// Always true for pairs
+						// Always true for pairs.
 						true,
-						// ... and for second, we use the kind bit.
+						// Both parts need to be tags for this to be a tag.
+						m_first.tag() && m_second.tag(),
+						// ... and for m_second, we use the kind bit.
 						m_second.kind());
 			}
 
@@ -17382,41 +17392,41 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Core = Entity(0, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, false, EntityKind::EK_Gen);
 		// Cleanup rules
-		inline Entity OnDelete = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity OnDeleteTarget = Entity(4, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Remove = Entity(5, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnDelete = Entity(3, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity OnDeleteTarget = Entity(4, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Remove = Entity(5, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Delete = Entity(6, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Error = Entity(7, 0, false, false, true, EntityKind::EK_Gen);
 		// Entity dependencies
-		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
-		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity CantCombine = Entity(9, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Exclusive = Entity(10, 0, false, false, true, EntityKind::EK_Gen);
 		// Graph properties
-		inline Entity Acyclic = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(11, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(12, 0, false, false, true, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(13, 0, false, false, true, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(14, 0, false, false, true, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(15, 0, false, false, true, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System2 = Entity(16, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System2 = Entity(16, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(17, 0, false, false, true, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(18, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(19, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(20, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(21, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(22, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(23, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(24, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(25, 0, false, false, true, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;
@@ -17469,8 +17479,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		using ComponentVersion = uint32_t;
-		using ChunkDataVersionOffset = uint8_t;
-		using CompOffsetMappingIndex = uint8_t;
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using EntitySpan = std::span<const Entity>;
@@ -17491,7 +17499,8 @@ namespace gaia {
 		};
 
 #ifndef GAIA_STORAGE
-	#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
+	#define GAIA_STORAGE(storage_name)                                                                                   \
+		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
 #endif
 
 		namespace detail {
@@ -17604,6 +17613,25 @@ namespace gaia {
 			return BadIndex;
 		}
 	} // namespace ecs
+
+	namespace core {
+		template <>
+		struct is_smaller<ecs::Entity> {
+			constexpr bool operator()(const ecs::Entity& lhs, const ecs::Entity& rhs) const {
+				auto l = lhs;
+				auto r = rhs;
+				l.data.tag = 0;
+				r.data.tag = 0;
+
+				// Id first
+				if (l.id() != r.id())
+					return l < r;
+
+				// Tag second
+				return (uint32_t)lhs.tag() < (uint32_t)rhs.tag();
+			}
+		};
+	} // namespace core
 } // namespace gaia
 
 namespace gaia {
@@ -18207,14 +18235,8 @@ namespace gaia {
 		struct ComponentCacheItem;
 
 		struct ChunkDataOffsets {
-			//! Byte at which the first version number is located
-			ChunkDataVersionOffset firstByte_Versions{};
-			//! Byte at which the first entity id is located
-			ChunkDataOffset firstByte_CompEntities{};
-			//! Byte at which the first component id is located
-			ChunkDataOffset firstByte_Records{};
-			//! Byte at which the first entity is located
-			ChunkDataOffset firstByte_EntityData{};
+			//! Byte offset at which the first entity is located
+			uint8_t firstByte_EntityData{};
 		};
 
 		struct ComponentRecord {
@@ -18224,17 +18246,6 @@ namespace gaia {
 			uint8_t* pData;
 			//! Pointer to component cache record
 			const ComponentCacheItem* pItem;
-		};
-
-		struct ChunkRecords {
-			//! Pointer to where component versions are stored
-			ComponentVersion* pVersions{};
-			//! Pointer to where (component) entities are stored
-			Entity* pCompEntities{};
-			//! Pointer to the array of component records
-			ComponentRecord* pRecords{};
-			//! Pointer to the array of entities
-			Entity* pEntities{};
 		};
 
 		struct ChunkHeader final {
@@ -18293,6 +18304,25 @@ namespace gaia {
 			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
+
+			// First entity offset.
+			// It begins at offset 128 + 256 + 768 = 1152 bytes.
+			// This means that the first 1.1 kiB of data in each chunk is taken by the header.
+			// This is unfortunate but it allows 2 important things to happen:
+			// 1) Whatever the chunk touches can fit into the L1 cache. We do not need to fetch
+			//    anything from the archetype or anywhere else unless the user explicitly asks for it.
+			// 2) The fixed area allows us to switch archetypes when adding/removing tags
+			//    virtually for free. No chunk copies will be necessary, we simply switch
+			//    the archetype pointer.
+
+			//! Versions of components
+			ComponentVersion versions[ChunkHeader::MAX_COMPONENTS];
+			//! Entity ids forming the chunk/archetype
+			Entity ids[ChunkHeader::MAX_COMPONENTS];
+			//! Pointer to where the entity array starts
+			Entity* pEntities;
+			//! Pointers to where data for ids starts
+			ComponentRecord recs[ChunkHeader::MAX_COMPONENTS];
 
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
@@ -18976,11 +19006,13 @@ namespace gaia {
 				const auto registeredTypes = m_itemArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
+				static constexpr const char* TagString[2] = {"", "[Tag]"};
+
 				auto logDesc = [](const ComponentCacheItem& item) {
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", item.hashLookup.hash,
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s] %s", item.hashLookup.hash,
 							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), item.name.str(),
-							EntityKindString[item.entity.kind()]);
+							EntityKindString[item.entity.kind()], TagString[item.entity.tag()]);
 				};
 				for (const auto* pItem: m_itemArr) {
 					if (pItem == nullptr)
@@ -19005,6 +19037,7 @@ namespace gaia {
 		struct EntityContainerCtx {
 			bool isEntity;
 			bool isPair;
+			bool isTag;
 			EntityKind kind;
 		};
 
@@ -19039,6 +19072,8 @@ namespace gaia {
 			uint32_t ent : 1;
 			//! 0-ordinary, 1-pair
 			uint32_t pair : 1;
+			//! 0-not a tag, 1-tag
+			uint32_t tag : 1;
 			//! Component kind
 			uint32_t kind : 1;
 			//! Disabled
@@ -19058,7 +19093,7 @@ namespace gaia {
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 
-			uint8_t depthDependsOn = 0;
+			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;
 
@@ -19070,12 +19105,13 @@ namespace gaia {
 				ec.gen = generation;
 				ec.ent = (uint32_t)ctx->isEntity;
 				ec.pair = (uint32_t)ctx->isPair;
+				ec.tag = (uint32_t)ctx->isTag;
 				ec.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			static Entity create(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind);
 			}
 
 			void req_del() {
@@ -19117,18 +19153,12 @@ namespace gaia {
 			// TODO: Make this private
 			//! Chunk header
 			ChunkHeader m_header;
-			//! Pointers to various parts of data inside chunk
-			ChunkRecords m_records;
 
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) ComponentVersions
-			//!     2) EntityIds
-			//!     3) ComponentIds
-			//!			4) ComponentRecords
-			//!			5) Entities (identifiers)
-			//!			6) Entities (data)
+			//!			1) Entities (identifiers)
+			//!			2) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
@@ -19159,35 +19189,25 @@ namespace gaia {
 					const ChunkDataOffset* compOffs) {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
-				// Cache pointers to versions
-				if (cntEntities > 0) {
-					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
-				}
-
-				// Cache entity ids
-				if (cntEntities > 0) {
-					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
-
+				// Entity ids
+				{
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
 					for (; j < cntEntities; ++j)
-						dst[j] = ids[j];
+						m_header.ids[j] = ids[j];
 					for (; j < ChunkHeader::MAX_COMPONENTS; ++j)
-						dst[j] = EntityBad;
+						m_header.ids[j] = EntityBad;
 				}
 
 				// Cache component records
-				if (cntEntities > 0) {
-					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
-					GAIA_FOR_(cntEntities, j) {
-						dst[j].comp = comps[j];
-						dst[j].pData = &data(compOffs[j]);
-						dst[j].pItem = m_header.cc->find(comps[j].id());
-					}
+				GAIA_FOR(cntEntities) {
+					m_header.recs[i].comp = comps[i];
+					m_header.recs[i].pData = &data(compOffs[i]);
+					m_header.recs[i].pItem = m_header.cc->find(comps[i].id());
 				}
 
-				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
+				m_header.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
@@ -19197,7 +19217,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						const auto e = m_records.pCompEntities[i];
+						const auto e = m_header.ids[i];
 						if (e.kind() == EntityKind::EK_Gen) {
 							m_header.hasAnyCustomGenCtor |= (rec.pItem->func_ctor != nullptr);
 							m_header.hasAnyCustomGenDtor |= (rec.pItem->func_dtor != nullptr);
@@ -19215,15 +19235,15 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
-				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
+				return {(const ComponentVersion*)m_header.versions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
-				return {m_records.pVersions, m_header.cntEntities};
+				return {m_header.versions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
-				return {m_records.pEntities, m_header.count};
+				return {m_header.pEntities, m_header.count};
 			}
 
 			//! Returns a read-only span of the component data.
@@ -19236,7 +19256,7 @@ namespace gaia {
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
 					GAIA_ASSERT(to <= m_header.count);
-					return {(const uint8_t*)&m_records.pEntities[from], to - from};
+					return {(const uint8_t*)&m_header.pEntities[from], to - from};
 				} else if constexpr (is_pair<T>::value) {
 					using TT = typename T::type;
 					using U = typename component_type_t<TT>::Type;
@@ -19393,7 +19413,7 @@ namespace gaia {
 						// ChunkAllocator reserves the first few bytes for internal purposes
 						MemoryBlockUsableOffset +
 						// Chunk "header" area (before actual entity/component data starts)
-						sizeof(ChunkHeader) + sizeof(ChunkRecords);
+						sizeof(ChunkHeader);
 				static_assert(dataAreaOffset < UINT16_MAX);
 				return dataAreaOffset;
 			}
@@ -19637,34 +19657,34 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD EntitySpan entity_view() const {
-				return {(const Entity*)m_records.pEntities, m_header.count};
+				return {(const Entity*)m_header.pEntities, m_header.count};
 			}
 
 			GAIA_NODISCARD EntitySpan ents_id_view() const {
-				return {(const Entity*)m_records.pCompEntities, m_header.cntEntities};
+				return {(const Entity*)m_header.ids, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view() const {
-				return {m_records.pRecords, m_header.cntEntities};
+				return {m_header.recs, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx) {
-				const auto& rec = m_records.pRecords[compIdx];
+				const auto& rec = m_header.recs[compIdx];
 				return rec.pData;
 			}
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx, uint32_t offset) {
-				const auto& rec = m_records.pRecords[compIdx];
+				const auto& rec = m_header.recs[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx) const {
-				const auto& rec = m_records.pRecords[compIdx];
+				const auto& rec = m_header.recs[compIdx];
 				return rec.pData;
 			}
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx, uint32_t offset) const {
-				const auto& rec = m_records.pRecords[compIdx];
+				const auto& rec = m_header.recs[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
@@ -20215,7 +20235,7 @@ namespace gaia {
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
-				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
+				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_header.ids, entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -20504,57 +20524,13 @@ namespace gaia {
 			}
 
 			//! Calculates offsets in memory at which important chunk data is going to be stored.
-			//! These offsets are use to setup the chunk data area layout.
+			//! These offsets are used to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
-				uintptr_t offset = 0;
-
-				// Versions
-				// We expect versions to fit in the first 256 bytes.
-				// With 32 components per archetype this gives us some headroom.
-				{
-					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
-
-					const auto cnt = comps_view().size();
-					if (cnt != 0) {
-						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
-						offset += sizeof(ComponentVersion) * cnt;
-					}
-				}
-
-				// Entity ids
-				{
-					offset += mem::padding<alignof(Entity)>(offset);
-
-					const auto cnt = comps_view().size();
-					if (cnt != 0) {
-						m_dataOffsets.firstByte_CompEntities = (ChunkDataOffset)offset;
-
-						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
-						offset += sizeof(Entity) * ChunkHeader::MAX_COMPONENTS;
-					}
-				}
-
-				// Component records
-				{
-					offset += mem::padding<alignof(ComponentRecord)>(offset);
-
-					const auto cnt = comps_view().size();
-					if (cnt != 0) {
-
-						m_dataOffsets.firstByte_Records = (ChunkDataOffset)offset;
-
-						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
-						offset += sizeof(ComponentRecord) * cnt;
-					}
-				}
-
-				// First entity offset
-				{
-					offset += mem::padding<alignof(Entity)>(offset);
-					m_dataOffsets.firstByte_EntityData = (ChunkDataOffset)offset;
-				}
+				uintptr_t offset = mem::padding<alignof(Entity)>(offset);
+				// The number must fit into firstByte_EntityData
+				GAIA_ASSERT(offset < 256);
+				m_dataOffsets.firstByte_EntityData = (ChunkDataOffset)offset;
 			}
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
@@ -20654,10 +20630,14 @@ namespace gaia {
 					if (ids[i].pair()) {
 						// When using pairs we need to decode the storage type from them.
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
-						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
+						const Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
+						const uint32_t idx = (!pairEntities[0].tag() || pairEntities[1].tag()) ? 0 : 1;
+#if !GAIA_DISABLE_ASSERTS
 						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
-						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
-						comps[i] = pairComponents[idx];
+						const uint32_t idx_check = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
+						GAIA_ASSERT(idx_check == idx);
+#endif
+						comps[i] = as_comp(pairEntities[idx]);
 					} else {
 						comps[i] = as_comp(ids[i]);
 					}
@@ -21178,21 +21158,23 @@ namespace gaia {
 			}
 
 			static void diag_entity(const World& world, Entity entity) {
+				static constexpr const char* TagString[2] = {"", "[Tag]"};
 				if (entity.entity()) {
 					GAIA_LOG_N(
-							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
-							EntityKindString[entity.kind()]);
+							"    ent [%u:%u] %s [%s] %s", entity.id(), entity.gen(), entity_name(world, entity),
+							EntityKindString[entity.kind()], TagString[entity.tag()]);
+
 				} else if (entity.pair()) {
 					GAIA_LOG_N(
-							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-							entity_name(world, entity.gen()));
+							"    pair [%u:%u] %s -> %s %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
+							entity_name(world, entity.gen()), TagString[entity.tag()]);
 				} else {
 					const auto& cc = comp_cache(world);
 					const auto& desc = cc.get(entity);
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s] %s", desc.hashLookup.hash,
 							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
-							EntityKindString[entity.kind()]);
+							EntityKindString[entity.kind()], TagString[entity.tag()]);
 				}
 			}
 
@@ -21675,7 +21657,7 @@ namespace gaia {
 
 				// Smaller ids second.
 				if (lhs.id != rhs.id)
-					return lhs.id < rhs.id;
+					return SortComponentCond()(lhs.id, rhs.id);
 
 				// Sources go last. Note, sources are never a pair.
 				// We want to do it this way because it would be expensive to build cache for
@@ -21685,7 +21667,7 @@ namespace gaia {
 				//       E.g. depending on the number of archetypes we'd have to traverse
 				//       it might be beneficial to do a different ordering which is impossible
 				//       to do at this point.
-				return lhs.src.id() < rhs.src.id();
+				return SortComponentCond()(lhs.src, rhs.src);
 			}
 		};
 
@@ -22587,8 +22569,8 @@ namespace gaia {
 				}
 
 				template <typename OpKind, bool CheckAs>
-				inline void match_archetype_internal(
-						MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
+				inline void
+				match_archetype_internal(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
 					const auto& archetypes = *pSrcArchetypes;
 
 					auto& matchesArr = *ctx.pMatchesArr;
@@ -25212,7 +25194,8 @@ namespace gaia {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
 						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
-							auto rel = Entity(entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (EntityKind)ecRel.kind);
+							auto rel = Entity(
+									entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (bool)ecRel.tag, (EntityKind)ecRel.kind);
 							auto tgt = m_world.get(entity.gen());
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
@@ -25382,43 +25365,43 @@ namespace gaia {
 				}
 
 				void handle_DependsOn(Entity entity, bool enable) {
-					auto& ec = m_world.fetch(entity);
-					if (enable) {
-						// Calculate the depth in the dependency tree
-						uint32_t depth = 1;
+					// auto& ec = m_world.fetch(entity);
+					// if (enable) {
+					// 	// Calculate the depth in the dependency tree
+					// 	uint32_t depth = 1;
 
-						auto e = entity;
-						if (m_world.valid(e)) {
-							while (true) {
-								auto tgt = m_world.target(e, DependsOn);
-								if (tgt == EntityBad)
-									break;
+					// 	auto e = entity;
+					// 	if (m_world.valid(e)) {
+					// 		while (true) {
+					// 			auto tgt = m_world.target(e, DependsOn);
+					// 			if (tgt == EntityBad)
+					// 				break;
 
-								++depth;
-								e = tgt;
-							}
-						}
-						ec.depthDependsOn = (uint8_t)depth;
+					// 			++depth;
+					// 			e = tgt;
+					// 		}
+					// 	}
+					// 	ec.depthDependsOn = (uint8_t)depth;
 
-						// Update depth for all entities depending on this one
-						auto q = m_world.query<false>();
-						q.all(ecs::Pair(DependsOn, m_entity)) //
-								.each([&](Entity dependingEntity) {
-									auto& ecDependingEntity = m_world.fetch(dependingEntity);
-									ecDependingEntity.depthDependsOn += (uint8_t)depth;
-								});
-					} else {
-						// Update depth for all entities depending on this one
-						auto q = m_world.query<false>();
-						q.all(ecs::Pair(DependsOn, m_entity)) //
-								.each([&](Entity dependingEntity) {
-									auto& ecDependingEntity = m_world.fetch(dependingEntity);
-									ecDependingEntity.depthDependsOn -= ec.depthDependsOn;
-								});
+					// 	// Update depth for all entities depending on this one
+					// 	auto q = m_world.query<false>();
+					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
+					// 			.each([&](Entity dependingEntity) {
+					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
+					// 				ecDependingEntity.depthDependsOn += (uint8_t)depth;
+					// 			});
+					// } else {
+					// 	// Update depth for all entities depending on this one
+					// 	auto q = m_world.query<false>();
+					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
+					// 			.each([&](Entity dependingEntity) {
+					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
+					// 				ecDependingEntity.depthDependsOn -= ec.depthDependsOn;
+					// 			});
 
-						// Reset the depth
-						ec.depthDependsOn = 0;
-					}
+					// 	// Reset the depth
+					// 	ec.depthDependsOn = 0;
+					// }
 				}
 
 				template <bool IsBootstrap = false>
@@ -25595,7 +25578,7 @@ namespace gaia {
 				GAIA_ASSERT(valid_entity_id(id));
 
 				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind);
 			}
 
 			template <typename T>
@@ -25624,7 +25607,7 @@ namespace gaia {
 			//! \param kind Entity kind
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, true, false, kind);
+				return add(*m_pEntityArchetype, true, false, true, kind);
 			}
 
 			//! Creates \param count new empty entities
@@ -25663,7 +25646,8 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto isTag = detail::ComponentDesc<FT>::size() == 0;
+				const auto entity = add(*m_pCompArchetype, false, false, isTag, kind);
 				EntityBuilder(*this, entity)
 						// Don't allow components to be deleted
 						.add(Pair(OnDelete, Error))
@@ -25763,7 +25747,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
+				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.tag(), entity.kind());
 				Chunk::copy_entity_data(entity, newEntity, m_recs);
 
 				return newEntity;
@@ -25792,7 +25776,7 @@ namespace gaia {
 				// of our source entity.
 				const auto oldRow = ec.row;
 
-				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+				EntityContainerCtx ctx{entity.entity(), entity.pair(), entity.tag(), EntityKind::EK_Gen};
 
 				uint32_t left = count;
 				do {
@@ -26813,7 +26797,7 @@ namespace gaia {
 				if (ec.pair != 0)
 					return false;
 
-				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind));
 			}
 
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -27053,10 +27037,8 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					// Fake entities instantiated for both ids.
-					// We are fine with it because to build a pair all we need are valid entity ids.
-					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+					const auto first = get(entity.id());
+					const auto second = get(entity.gen());
 
 					// (*, tgt)
 					del_entity_archetype_pair(Pair(All, second), entity);
@@ -27079,10 +27061,8 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						// Fake entities instantiated for both ids.
-						// We are fine with it because to build a pair all we need are valid entity ids.
-						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+						const auto first = get(entity.id());
+						const auto second = get(entity.gen());
 
 						// (*, tgt)
 						add_entity_archetype_pair(Pair(All, second), pArchetype);
@@ -28198,7 +28178,7 @@ namespace gaia {
 
 			template <typename T>
 			const ComponentCacheItem& reg_core_entity(Entity id, Archetype* pArchetype) {
-				auto comp = add(*pArchetype, id.entity(), id.pair(), id.kind());
+				auto comp = add(*pArchetype, id.entity(), id.pair(), id.tag(), id.kind());
 				const auto& ci = comp_cache_mut().add<T>(id);
 				GAIA_ASSERT(ci.entity == id);
 				GAIA_ASSERT(comp == id);
@@ -28256,12 +28236,16 @@ namespace gaia {
 				if (it != m_recs.pairs.end())
 					return;
 
+				const auto rel = get(entity.id());
+				const auto tgt = get(entity.gen());
+
 				// Update the container record
 				EntityContainer ec{};
 				ec.idx = entity.id();
 				ec.gen = entity.gen();
-				ec.pair = 1;
 				ec.ent = 1;
+				ec.pair = 1;
+				ec.tag = rel.tag() && tgt.tag();
 				ec.kind = EntityKind::EK_Gen;
 
 				auto* pChunk = archetype.foc_free_chunk();
@@ -28271,9 +28255,6 @@ namespace gaia {
 				m_recs.pairs.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
 
 				// Update pair mappings
-				const auto rel = get(entity.id());
-				const auto tgt = get(entity.gen());
-
 				auto addPair = [](PairMap& map, Entity source, Entity add) {
 					auto& ents = map[EntityLookupKey(source)];
 					ents.insert(EntityLookupKey(add));
@@ -28289,10 +28270,11 @@ namespace gaia {
 			//! \param archetype Archetype the entity should inherit.
 			//! \param isEntity True if entity, false otherwise.
 			//! \param isPair True if pair, false otherwise.
+			//! \param isTag True if tag, false otherwise.
 			//! \param kind Component kind.
 			//! \return New entity.
-			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
-				EntityContainerCtx ctx{isEntity, isPair, kind};
+			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, bool isTag, EntityKind kind) {
+				EntityContainerCtx ctx{isEntity, isPair, isTag, kind};
 				const auto entity = m_recs.entities.alloc(&ctx);
 				assign_entity(entity, archetype);
 				return entity;
@@ -28305,7 +28287,7 @@ namespace gaia {
 			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
 			void add_many_entities(Archetype& archetype, uint32_t count, Func func) {
-				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+				EntityContainerCtx ctx{true, false, true, EntityKind::EK_Gen};
 
 				uint32_t left = count;
 				do {
@@ -28673,9 +28655,11 @@ namespace gaia {
 				EntityBuilder(*this, Core) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(EntityDesc)) //
+				EntityBuilder(*this, GAIA_ID(EntityDesc))
+						//.add(Core) //
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, GAIA_ID(Component)) //
+				EntityBuilder(*this, GAIA_ID(Component))
+						//.add(Core) //
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, OnDelete) //
 						.add(Core)
@@ -28896,8 +28880,10 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (Archetype*)archetypePtr;
-					[[maybe_unused]] const auto res =
-							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, true, false, EntityKind::EK_Gen));
+					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(
+							ctx.entities++, //
+							ctx.world.add(*pArchetype, true, false, true, EntityKind::EK_Gen) //
+					);
 					GAIA_ASSERT(res.second);
 				}
 			};

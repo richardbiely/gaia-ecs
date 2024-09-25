@@ -235,11 +235,13 @@ namespace gaia {
 				const auto registeredTypes = m_itemArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
+				static constexpr const char* TagString[2] = {"", "[Tag]"};
+
 				auto logDesc = [](const ComponentCacheItem& item) {
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", item.hashLookup.hash,
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s] %s", item.hashLookup.hash,
 							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), item.name.str(),
-							EntityKindString[item.entity.kind()]);
+							EntityKindString[item.entity.kind()], TagString[item.entity.tag()]);
 				};
 				for (const auto* pItem: m_itemArr) {
 					if (pItem == nullptr)

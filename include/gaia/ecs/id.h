@@ -245,11 +245,13 @@ namespace gaia {
 				///////////////////////////////////////////////////////////////////
 
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 28;
+				IdentifierData gen : 27;
 				//! 0-component, 1-entity
 				IdentifierData ent : 1;
 				//! 0-ordinary, 1-pair
 				IdentifierData pair : 1;
+				//! 0-not a tag, 1-tag
+				IdentifierData tag : 1;
 				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
 				IdentifierData kind : 1;
 				//! Unused
@@ -277,13 +279,15 @@ namespace gaia {
 				val = 0;
 				data.id = id;
 				data.gen = gen;
+				data.tag = 1;
 			}
 
-			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, EntityKind kind) noexcept {
+			Entity(EntityId id, IdentifierData gen, bool isEntity, bool isPair, bool tag, EntityKind kind) noexcept {
 				data.id = id;
 				data.gen = gen;
 				data.ent = isEntity;
 				data.pair = isPair;
+				data.tag = tag;
 				data.kind = kind;
 				data.unused = 0;
 			}
@@ -302,6 +306,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool pair() const noexcept {
 				return data.pair != 0;
+			}
+
+			GAIA_NODISCARD constexpr auto tag() const noexcept {
+				return data.tag != 0;
 			}
 
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
@@ -408,11 +416,13 @@ namespace gaia {
 				return Entity(
 						m_first.id(), m_second.id(),
 						// Pairs have no way of telling gen and uni entities apart.
-						// Therefore, for first, we use the entity bit as Gen/Uni...
+						// Therefore, for m_first, we use the entity bit as Gen/Uni...
 						(bool)m_first.kind(),
-						// Always true for pairs
+						// Always true for pairs.
 						true,
-						// ... and for second, we use the kind bit.
+						// Both parts need to be tags for this to be a tag.
+						m_first.tag() && m_second.tag(),
+						// ... and for m_second, we use the kind bit.
 						m_second.kind());
 			}
 
@@ -493,41 +503,41 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		inline Entity Core = Entity(0, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, EntityKind::EK_Gen);
-		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Core = Entity(0, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, false, false, false, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, false, false, false, EntityKind::EK_Gen);
 		// Cleanup rules
-		inline Entity OnDelete = Entity(3, 0, false, false, EntityKind::EK_Gen);
-		inline Entity OnDeleteTarget = Entity(4, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Remove = Entity(5, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnDelete = Entity(3, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity OnDeleteTarget = Entity(4, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Remove = Entity(5, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Delete = Entity(6, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Error = Entity(7, 0, false, false, true, EntityKind::EK_Gen);
 		// Entity dependencies
-		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
-		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Requires = Entity(8, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity CantCombine = Entity(9, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Exclusive = Entity(10, 0, false, false, true, EntityKind::EK_Gen);
 		// Graph properties
-		inline Entity Acyclic = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(11, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(12, 0, false, false, true, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(13, 0, false, false, true, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(14, 0, false, false, true, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(15, 0, false, false, true, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System2 = Entity(16, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System2 = Entity(16, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(17, 0, false, false, true, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(18, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(19, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(20, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(21, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(22, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(23, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(24, 0, false, false, true, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(25, 0, false, false, true, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;

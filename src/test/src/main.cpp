@@ -1,4 +1,3 @@
-#include "gaia/ecs/component.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -2191,6 +2190,32 @@ TEST_CASE("Entity copy") {
 	auto e3 = wld.copy(e1);
 
 	REQUIRE(wld.has(e3, e2));
+}
+
+TEST_CASE("Tags") {
+	TestWorld twld;
+
+	auto e = wld.add();
+	REQUIRE(e.tag());
+
+	wld.add_n(10, [](ecs::Entity ent) {
+		REQUIRE(ent.tag());
+	});
+
+	const auto& ci1 = wld.add<Position>();
+	const auto e1 = ci1.entity;
+	REQUIRE(wld.has(e1));
+	REQUIRE(!e1.tag());
+
+	const auto& ci2 = wld.add<Empty>();
+	const auto e2 = ci2.entity;
+	REQUIRE(wld.has(e2));
+	REQUIRE(e2.tag());
+
+	const auto& ci3 = wld.add<ecs::uni<Empty>>();
+	const auto e3 = ci3.entity;
+	REQUIRE(wld.has(e3));
+	REQUIRE(e3.tag());
 }
 
 TEST_CASE("Add - no components") {

@@ -423,8 +423,8 @@ namespace gaia {
 				}
 
 				template <typename OpKind, bool CheckAs>
-				inline void match_archetype_internal(
-						MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
+				inline void
+				match_archetype_internal(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
 					const auto& archetypes = *pSrcArchetypes;
 
 					auto& matchesArr = *ctx.pMatchesArr;
