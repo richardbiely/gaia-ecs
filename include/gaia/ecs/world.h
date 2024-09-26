@@ -406,16 +406,16 @@ namespace gaia {
 					return false;
 				}
 
-				static void updateFlag(EntityContainerFlagsType& flags, EntityContainerFlags flag, bool enable) {
+				static void set_flag(EntityContainerFlagsType& flags, EntityContainerFlags flag, bool enable) {
 					if (enable)
 						flags |= flag;
 					else
 						flags &= ~flag;
 				};
 
-				void updateFlag(Entity entity, EntityContainerFlags flag, bool enable) {
+				void set_flag(Entity entity, EntityContainerFlags flag, bool enable) {
 					auto& ec = m_world.fetch(entity);
-					updateFlag(ec.flags, flag, enable);
+					set_flag(ec.flags, flag, enable);
 				};
 
 				void try_set_flags(Entity entity, bool enable) {
@@ -434,7 +434,7 @@ namespace gaia {
 					if (!entity.pair() || entity.id() != Is.id())
 						return;
 
-					updateFlag(ec.flags, EntityContainerFlags::HasAliasOf, enable);
+					set_flag(ec.flags, EntityContainerFlags::HasAliasOf, enable);
 				}
 
 				void try_set_CantCombine(EntityContainer& ec, Entity entity, bool enable) {
@@ -450,14 +450,14 @@ namespace gaia {
 					// are any other targets with this flag set and only reset the flag
 					// if there is only one present.
 					if (enable)
-						updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, true);
+						set_flag(ec.flags, EntityContainerFlags::HasCantCombine, true);
 					else if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
 						uint32_t targets = 0;
 						m_world.targets(m_entity, CantCombine, [&targets]() {
 							++targets;
 						});
 						if (targets == 1)
-							updateFlag(ec.flags, EntityContainerFlags::HasCantCombine, false);
+							set_flag(ec.flags, EntityContainerFlags::HasCantCombine, false);
 					}
 				}
 
@@ -465,7 +465,7 @@ namespace gaia {
 					if (entity.pair() || entity.id() != Exclusive.id())
 						return;
 
-					updateFlag(ec.flags, EntityContainerFlags::IsExclusive, enable);
+					set_flag(ec.flags, EntityContainerFlags::IsExclusive, enable);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -478,25 +478,25 @@ namespace gaia {
 					// Adding a pair to an entity with OnDeleteTarget relationship.
 					// We need to update the target entity's flags.
 					if (m_world.has(rel, Pair(OnDeleteTarget, Delete)))
-						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Delete, enable);
+						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Delete, enable);
 					else if (m_world.has(rel, Pair(OnDeleteTarget, Remove)))
-						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Remove, enable);
+						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Remove, enable);
 					else if (m_world.has(rel, Pair(OnDeleteTarget, Error)))
-						updateFlag(tgt, EntityContainerFlags::OnDeleteTarget_Error, enable);
+						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Error, enable);
 				}
 
 				void try_set_OnDelete(EntityContainer& ec, Entity entity, bool enable) {
 					if (entity == Pair(OnDelete, Delete))
-						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Delete, enable);
+						set_flag(ec.flags, EntityContainerFlags::OnDelete_Delete, enable);
 					else if (entity == Pair(OnDelete, Remove))
-						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Remove, enable);
+						set_flag(ec.flags, EntityContainerFlags::OnDelete_Remove, enable);
 					else if (entity == Pair(OnDelete, Error))
-						updateFlag(ec.flags, EntityContainerFlags::OnDelete_Error, enable);
+						set_flag(ec.flags, EntityContainerFlags::OnDelete_Error, enable);
 				}
 
 				void try_set_IsSingleton(EntityContainer& ec, Entity entity, bool enable) {
 					const bool isSingleton = enable && m_entity == entity;
-					updateFlag(ec.flags, EntityContainerFlags::IsSingleton, isSingleton);
+					set_flag(ec.flags, EntityContainerFlags::IsSingleton, isSingleton);
 				}
 
 				void handle_DependsOn(Entity entity, bool enable) {
@@ -2858,7 +2858,7 @@ namespace gaia {
 						auto ids = ec.pArchetype->ids_view();
 						const auto idx = core::get_index(ids, entity);
 						if (idx != BadIndex)
-							EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::IsSingleton, false);
+							EntityBuilder::set_flag(ec.flags, EntityContainerFlags::IsSingleton, false);
 					}
 				}
 
@@ -2890,7 +2890,7 @@ namespace gaia {
 						auto ids = ec.pArchetype->ids_view();
 						const auto idx = core::get_index(ids, entity);
 						if (idx != BadIndex)
-							EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::IsSingleton, false);
+							EntityBuilder::set_flag(ec.flags, EntityContainerFlags::IsSingleton, false);
 					}
 				}
 
@@ -3077,7 +3077,7 @@ namespace gaia {
 
 					ec.pArchetype = nullptr;
 					ec.pChunk = nullptr;
-					EntityBuilder::updateFlag(ec.flags, EntityContainerFlags::DeleteRequested, false);
+					EntityBuilder::set_flag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
 					delPair(m_relationsToTargets, All, entity);
