@@ -1010,6 +1010,9 @@ namespace gaia {
 
 			//! Shortcut for add(entity, Pair(Is, entityBase)
 			void as(Entity entity, Entity entityBase) {
+				// Make sure entityBase has an archetype of its own
+				add(entityBase, entityBase);
+				// Form the relationship
 				add(entity, Pair(Is, entityBase));
 			}
 

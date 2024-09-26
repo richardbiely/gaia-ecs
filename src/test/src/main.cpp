@@ -2737,19 +2737,11 @@ TEST_CASE("Inheritance (Is)") {
 	ecs::Entity hare = wld.add();
 	ecs::Entity wolf = wld.add();
 
-	////////
-	// TODO: Following should probably be done automatically when
-	//       forming an Is relationship
-	wld.add(animal, animal); // make animal an archetype
-	wld.add(carnivore, carnivore); // make carnivore an archetype
-	wld.add(herbivore, herbivore); // make herbivore an archetype
-	////////
-
-	wld.as(carnivore, animal); // wld.add(carnivore, {ecs::Is, animal});
-	wld.as(herbivore, animal); // wld.add(herbivore, {ecs::Is, animal});
-	wld.as(rabbit, herbivore); // wld.add(rabbit, {ecs::Is, herbivore});
-	wld.as(hare, herbivore); // wld.add(hare, {ecs::Is, herbivore});
-	wld.as(wolf, carnivore); // wld.add(wolf, {ecs::Is, carnivore})
+	wld.as(carnivore, animal);
+	wld.as(herbivore, animal);
+	wld.as(rabbit, herbivore);
+	wld.as(hare, herbivore);
+	wld.as(wolf, carnivore);
 
 	REQUIRE(wld.is(carnivore, animal));
 	REQUIRE(wld.is(herbivore, animal));

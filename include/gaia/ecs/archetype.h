@@ -346,9 +346,8 @@ namespace gaia {
 
 				// Limit the number of entities to a certain number so we can make use of smaller
 				// chunks where it makes sense.
-				// TODO:
-				// Tweak this so the full remaining capacity is used. So if we occupy 7000 B we still
-				// have 1000 B left to fill.
+				// TODO: Tweak this so the full remaining capacity is used. So if we occupy 7000 B we still
+				//       have 1000 B left to fill.
 				if (maxGenItemsInArchetype > maxEntities) {
 					maxGenItemsInArchetype = maxEntities;
 					goto recalculate;
@@ -464,9 +463,8 @@ namespace gaia {
 				//   Chunk_3:  0/10 (empty, ready for removal)
 				//   Chunk_4: 10/10
 				//   Chunk_5:  7/10
-				// TODO:
-				// Implement mask of semi-full chunks so we can pick one easily when searching
-				// for a chunk to fill with a new entity and when defragmenting.
+				// TODO: Implement mask of semi-full chunks so we can pick one easily when searching
+				//       for a chunk to fill with a new entity and when defragmenting.
 				// NOTE 1:
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
