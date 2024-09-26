@@ -690,6 +690,21 @@ namespace gaia {
 				});
 			}
 
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component or pair
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool has() const {
+				if constexpr (is_pair<T>::value) {
+					const auto rel = m_cc.get<typename T::rel>().entity;
+					const auto tgt = m_cc.get<typename T::tgt>().entity;
+					return has((Entity)Pair(rel, tgt));
+				} else {
+					const auto* pComp = m_cc.find<T>();
+					return pComp != nullptr && has(pComp->entity);
+				}
+			}
+
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);

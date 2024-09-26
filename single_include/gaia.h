@@ -19088,9 +19088,9 @@ namespace gaia {
 			//! Flags
 			uint16_t flags = 0;
 
-			//! Archetype
+			//! Archetype (stable address)
 			Archetype* pArchetype;
-			//! Chunk the entity currently resides in
+			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
 
 			// uint8_t depthDependsOn = 0;
@@ -21059,6 +21059,21 @@ namespace gaia {
 				});
 			}
 
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component or pair
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool has() const {
+				if constexpr (is_pair<T>::value) {
+					const auto rel = m_cc.get<typename T::rel>().entity;
+					const auto tgt = m_cc.get<typename T::tgt>().entity;
+					return has((Entity)Pair(rel, tgt));
+				} else {
+					const auto* pComp = m_cc.find<T>();
+					return pComp != nullptr && has(pComp->entity);
+				}
+			}
+
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
@@ -22052,23 +22067,6 @@ namespace gaia {
 					return m_pChunk->template get<T>(m_row);
 				else
 					return m_pChunk->template get<T>();
-			}
-
-			//! Tells if the entity \param object.
-			//! \param object Tested entity
-			//! \return True if present, false otherwise.
-			GAIA_NODISCARD bool has(Entity object) const {
-				return m_pChunk->has(object);
-			}
-
-			//! Tells if the component \tparam T is present.
-			//! \tparam T Component
-			//! \return True if the component is present on entity.
-			template <typename T>
-			GAIA_NODISCARD bool has() const {
-				verify_comp<T>();
-
-				return m_pChunk->template has<T>();
 			}
 		};
 	} // namespace ecs
@@ -26055,9 +26053,9 @@ namespace gaia {
 				if (is_req_del(ec))
 					return false;
 
-				if (object.pair()) {
-					const auto* pArchetype = ec.pArchetype;
+				const auto* pArchetype = ec.pArchetype;
 
+				if (object.pair()) {
 					// Early exit if there are no pairs on the archetype
 					if (pArchetype->pairs() == 0)
 						return false;
@@ -26096,7 +26094,7 @@ namespace gaia {
 					}
 				}
 
-				return ComponentGetter{ec.pChunk, ec.row}.has(object);
+				return pArchetype->has(object);
 			}
 
 			//! Tells if \param entity contains \param pair.
@@ -26123,7 +26121,7 @@ namespace gaia {
 				if (is_req_del(ec))
 					return false;
 
-				return ComponentGetter{ec.pChunk, ec.row}.has<T>();
+				return ec.pArchetype->has<T>();
 			}
 
 			//----------------------------------------------------------------------
@@ -26163,18 +26161,10 @@ namespace gaia {
 					return nullptr;
 
 				const auto& ec = m_recs.entities[entity.id()];
-				ComponentGetter g{ec.pChunk, ec.row};
-				if (!g.has<EntityDesc>())
+				if (!ec.pArchetype->has<EntityDesc>())
 					return nullptr;
 
-				const auto& desc = g.get<EntityDesc>();
-
-				// This is the shorter but a bit slower form because it fetches twice:
-				// const auto& desc = g.get<EntityDesc>();
-				// if (!has<EntityDesc>(entity))
-				//  	return nullptr;
-
-				// const auto& desc = get<EntityDesc>(entity);
+				const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
 				return desc.name;
 			}
 
@@ -27304,7 +27294,7 @@ namespace gaia {
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
 			void del_name_inter(EntityContainer& ec) {
-				if (!ec.pChunk->has<EntityDesc>())
+				if (!ec.pArchetype->has<EntityDesc>())
 					return;
 
 				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];

@@ -67,9 +67,9 @@ namespace gaia {
 			//! Flags
 			uint16_t flags = 0;
 
-			//! Archetype
+			//! Archetype (stable address)
 			Archetype* pArchetype;
-			//! Chunk the entity currently resides in
+			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
 
 			// uint8_t depthDependsOn = 0;

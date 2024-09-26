@@ -22,23 +22,6 @@ namespace gaia {
 				else
 					return m_pChunk->template get<T>();
 			}
-
-			//! Tells if the entity \param object.
-			//! \param object Tested entity
-			//! \return True if present, false otherwise.
-			GAIA_NODISCARD bool has(Entity object) const {
-				return m_pChunk->has(object);
-			}
-
-			//! Tells if the component \tparam T is present.
-			//! \tparam T Component
-			//! \return True if the component is present on entity.
-			template <typename T>
-			GAIA_NODISCARD bool has() const {
-				verify_comp<T>();
-
-				return m_pChunk->template has<T>();
-			}
 		};
 	} // namespace ecs
 } // namespace gaia
