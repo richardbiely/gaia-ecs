@@ -357,8 +357,7 @@ namespace gaia {
 				pChunk->die();
 
 				// Call destructors for components that need it
-				if (pChunk->has_custom_gen_dtor() || pChunk->has_custom_uni_dtor())
-					pChunk->call_all_dtors();
+				pChunk->call_all_dtors();
 
 				pChunk->~Chunk();
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -912,34 +911,40 @@ namespace gaia {
 				return m_header.hasAnyCustomUniDtor;
 			}
 
-			void call_ctor(uint32_t entIdx, const ComponentCacheItem& desc) {
-				GAIA_PROF_SCOPE(Chunk::call_ctor);
-
-				if (desc.func_ctor == nullptr)
+			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
+				if (item.func_ctor == nullptr)
 					return;
 
-				const auto compIdx = comp_idx(desc.entity);
+				GAIA_PROF_SCOPE(Chunk::call_ctor);
+
+				const auto compIdx = comp_idx(item.entity);
 				auto* pSrc = (void*)comp_ptr_mut(compIdx, entIdx);
-				desc.func_ctor(pSrc, 1);
+				item.func_ctor(pSrc, 1);
 			}
 
 			void call_gen_ctors(uint32_t entIdx, uint32_t entCnt) {
+				if (!m_header.hasAnyCustomGenCtor)
+					return;
+
 				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
 
 				auto recs = comp_rec_view();
 				GAIA_FOR2(0, m_header.genEntities) {
 					const auto& rec = recs[i];
 
-					const auto* pDesc = rec.pItem;
-					if (pDesc == nullptr || pDesc->func_ctor == nullptr)
+					const auto* pItem = rec.pItem;
+					if (pItem == nullptr || pItem->func_ctor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, entIdx);
-					pDesc->func_ctor(pSrc, entCnt);
+					pItem->func_ctor(pSrc, entCnt);
 				}
 			}
 
 			void call_all_dtors() {
+				if (!m_header.hasAnyCustomGenDtor && !m_header.hasAnyCustomUniCtor)
+					return;
+
 				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
 				auto ids = ents_id_view();
@@ -947,14 +952,14 @@ namespace gaia {
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
 
-					const auto* pDesc = rec.pItem;
-					if (pDesc == nullptr || pDesc->func_dtor == nullptr)
+					const auto* pItem = rec.pItem;
+					if (pItem == nullptr || pItem->func_dtor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
 					const auto e = ids[i];
 					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
-					pDesc->func_dtor(pSrc, cnt);
+					pItem->func_dtor(pSrc, cnt);
 				}
 			};
 

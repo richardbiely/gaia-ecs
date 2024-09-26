@@ -751,7 +751,7 @@ namespace gaia {
 			//! \param func Functor to execute every time an entity is added
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(uint32_t count, Func func = func_void_with_entity) {
-				add_many_entities(*m_pEntityArchetype, count, func);
+				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
 			//! Creates \param count of entities of the same archetype as \param entity.
@@ -765,7 +765,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
-				add_many_entities(*ec.pArchetype, count, func);
+				add_entity_n(*ec.pArchetype, count, func);
 			}
 
 			//! Creates a new component if not found already.
@@ -929,8 +929,7 @@ namespace gaia {
 					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
-					if (pChunk->has_custom_gen_ctor())
-						pChunk->call_gen_ctors(originalChunkSize, toCreate);
+					pChunk->call_gen_ctors(originalChunkSize, toCreate);
 
 					// Copy data
 					{
@@ -3343,8 +3342,7 @@ namespace gaia {
 				archetype.try_update_free_chunk_idx();
 
 				// Call constructors for the generic components on the newly added entity if necessary
-				if (pChunk->has_custom_gen_ctor())
-					pChunk->call_gen_ctors(pChunk->size() - 1, 1);
+				pChunk->call_gen_ctors(pChunk->size() - 1, 1);
 
 #if GAIA_ASSERT_ENABLED
 				const auto& ec = m_recs.entities[entity.id()];
@@ -3417,7 +3415,7 @@ namespace gaia {
 			//! \param count Number of entities to create.
 			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
-			void add_many_entities(Archetype& archetype, uint32_t count, Func func) {
+			void add_entity_n(Archetype& archetype, uint32_t count, Func func) {
 				EntityContainerCtx ctx{true, false, true, EntityKind::EK_Gen};
 
 				uint32_t left = count;
@@ -3443,8 +3441,7 @@ namespace gaia {
 					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
-					if (pChunk->has_custom_gen_ctor())
-						pChunk->call_gen_ctors(originalChunkSize, toCreate);
+					pChunk->call_gen_ctors(originalChunkSize, toCreate);
 
 					// Call functors
 					{
