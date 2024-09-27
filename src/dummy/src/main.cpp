@@ -976,6 +976,17 @@ void test12b() {
 	});
 }
 
+void test13() {
+	ecs::World w;
+
+	auto e1 = w.add();
+	auto e2 = w.add();
+	w.add(e1, e2);
+	auto e3 = w.copy(e1);
+
+	GAIA_ASSERT(w.has(e3, e2));
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -995,7 +1006,8 @@ int main() {
 	// test10();
 	// test11();
 	// test12();
-	test12b();
+	//test12b();
+	test13();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

@@ -30,6 +30,8 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
+				//! Archetype owning the chunk
+				const Archetype* m_pArchetype = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -44,6 +46,11 @@ namespace gaia {
 				ChunkIterImpl& operator=(ChunkIterImpl&&) noexcept = default;
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
+
+				void set_archetype(const Archetype* pArchetype) {
+					GAIA_ASSERT(pArchetype != nullptr);
+					m_pArchetype = pArchetype;
+				}
 
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
@@ -68,7 +75,7 @@ namespace gaia {
 				//! \return Entity of component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view() const {
-					return m_pChunk->view<T>(from(), to());
+					return m_pArchetype->view<T>(m_pChunk->m_header, from(), to());
 				}
 
 				template <typename T>
@@ -76,14 +83,14 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pArchetype->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_raw<T>(pData, m_pChunk->capacity());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx);
+						return m_pArchetype->view_raw<T>(pData, m_pChunk->capacity());
 					} else {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_raw<T>(pData, to() - from());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx, from());
+						return m_pArchetype->view_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -93,7 +100,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
-					return m_pChunk->view_mut<T>(from(), to());
+					return const_cast<Archetype*>(m_pArchetype)->view_mut<T>(m_pChunk->m_header, from(), to());
 				}
 
 				template <typename T>
@@ -106,11 +113,11 @@ namespace gaia {
 					m_pChunk->update_world_version(compIdx);
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx);
+						return m_pArchetype->view_mut_raw<T>(pData, m_pChunk->capacity());
 					} else {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, to() - from());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx, from());
+						return m_pArchetype->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -121,7 +128,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
-					return m_pChunk->sview_mut<T>(from(), to());
+					return const_cast<Archetype*>(m_pArchetype)->sview_mut<T>(m_pChunk->m_header, from(), to());
 				}
 
 				template <typename T>
@@ -129,14 +136,14 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pArchetype->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx);
+						return m_pArchetype->view_mut_raw<T>(m_pChunk->m_header, pData, m_pChunk->capacity());
 					} else {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, to() - from());
+						auto* pData = m_pArchetype->comp_ptr_mut(m_pChunk->m_header, compIdx, from());
+						return m_pArchetype->view_mut_raw<T>(pData, to() - from());
 					}
 				}
 
@@ -147,7 +154,7 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					return m_pChunk->view_auto<T>(from(), to());
+					return const_cast<Archetype*>(m_pArchetype)->view_auto<T>(m_pChunk->m_header, from(), to());
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -158,7 +165,7 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					return m_pChunk->sview_auto<T>(from(), to());
+					return m_pArchetype->sview_auto<T>(m_pChunk->m_header, from(), to());
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
@@ -172,14 +179,14 @@ namespace gaia {
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
-					return m_pChunk->has(entity);
+					return m_pArchetype->has(entity);
 				}
 
 				//! Checks if relationship pair \param pair is present in the chunk.
 				//! \param pair Relationship pair
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Pair pair) const {
-					return m_pChunk->has((Entity)pair);
+					return m_pArchetype->has((Entity)pair);
 				}
 
 				//! Checks if component \tparam T is present in the chunk.
@@ -187,7 +194,7 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
-					return m_pChunk->has<T>();
+					return m_pArchetype->has<T>();
 				}
 
 				//! Returns the number of entities accessible via the iterator

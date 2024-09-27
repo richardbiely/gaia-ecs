@@ -548,7 +548,8 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				GAIA_NODISCARD static bool match_filters(const Chunk& chunk, const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static bool
+				match_filters(const Archetype& archetype, const Chunk& chunk, const QueryInfo& queryInfo) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
@@ -558,7 +559,7 @@ namespace gaia {
 					for (const auto comp: filtered) {
 						// TODO: Components are sorted. Therefore, we don't need to search from 0
 						//       all the time. We can search from the last found index.
-						const auto compIdx = chunk.comp_idx(comp);
+						const auto compIdx = archetype.comp_idx(comp);
 						if (chunk.changed(queryVersion, compIdx))
 							return true;
 					}
@@ -676,6 +677,8 @@ namespace gaia {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
+						it.set_archetype(pArchetype);
+
 						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
 						GAIA_ASSERT(
 								// Either no grouping is used...
@@ -701,7 +704,7 @@ namespace gaia {
 									continue;
 
 								if constexpr (HasFilters) {
-									if (!match_filters(*pChunk, queryInfo))
+									if (!match_filters(*pArchetype, *pChunk, queryInfo))
 										continue;
 								}
 
@@ -775,11 +778,12 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						TIter it;
+						it.set_archetype(pArchetype);
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
 							if constexpr (UseFilters)
-								return it.size() > 0 && match_filters(*pChunk, queryInfo);
+								return it.size() > 0 && match_filters(*pArchetype, *pChunk, queryInfo);
 							else
 								return it.size() > 0;
 						});
@@ -802,6 +806,8 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::count);
 
+						it.set_archetype(pArchetype);
+
 						// No mapping for count(). It doesn't need to access data cache.
 						// auto indices_view = queryInfo.indices_mapping_view(aid);
 
@@ -815,7 +821,7 @@ namespace gaia {
 
 							// Filters
 							if constexpr (UseFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*pArchetype, *pChunk, queryInfo))
 									continue;
 							}
 
@@ -838,6 +844,8 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::arr);
 
+						it.set_archetype(pArchetype);
+
 						// No mapping for arr(). It doesn't need to access data cache.
 						// auto indices_view = queryInfo.indices_mapping_view(aid);
 
@@ -849,7 +857,7 @@ namespace gaia {
 
 							// Filters
 							if constexpr (UseFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*pArchetype, *pChunk, queryInfo))
 									continue;
 							}
 

@@ -6336,8 +6336,8 @@ TEST_CASE("Query Filter - no systems") {
 		REQUIRE(cnt == 0);
 	}
 	{
-		auto* ch = wld.get_chunk(e);
-		auto p = ch->sview_mut<Position>();
+		const auto& ec = wld.fetch(e);
+		auto p = ec.pArchetype->sview_mut<Position>(ec.pChunk->m_header);
 		p[0] = {};
 	}
 	{
