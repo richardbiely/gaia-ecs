@@ -57,7 +57,7 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			void init(
-					uint32_t cntEntities, const Entity* ids, const Component* comps, const ChunkDataOffsets& headerOffsets,
+					uint32_t cntEntities, const Component* comps, const ChunkDataOffsets& headerOffsets,
 					const ChunkDataOffset* compOffs) {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
@@ -87,8 +87,6 @@ namespace gaia {
 					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
-					// component entities
-					const Entity* ids,
 					// component
 					const Component* comps,
 					// component offsets
@@ -106,7 +104,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
-				pChunk->init((uint32_t)cntEntities, ids, comps, offsets, compOffs);
+				pChunk->init((uint32_t)cntEntities, comps, offsets, compOffs);
 
 				return pChunk;
 			}

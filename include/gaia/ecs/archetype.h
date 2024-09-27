@@ -582,7 +582,7 @@ namespace gaia {
 						m_cc, chunkCnt, //
 						m_properties.capacity, m_properties.cntEntities, //
 						m_properties.genEntities, m_properties.chunkDataBytes, //
-						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
+						m_worldVersion, m_dataOffsets, m_comps, m_compOffs);
 
 				m_firstFreeChunkIdx = m_chunks.size();
 				m_chunks.push_back(pChunk);
@@ -823,14 +823,12 @@ namespace gaia {
 					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
-					// component entities
-					const Entity* ids,
 					// component
 					const Component* comps,
 					// component offsets
 					const ChunkDataOffset* compOffs) {
 				auto* pChunk = Chunk::create(
-						cc, chunkIndex, capacity, cntEntities, genEntities, dataBytes, worldVersion, offsets, ids, comps, compOffs);
+						cc, chunkIndex, capacity, cntEntities, genEntities, dataBytes, worldVersion, offsets, comps, compOffs);
 
 				// Construct unique components
 				GAIA_FOR2(0, cntEntities) {
