@@ -31,7 +31,9 @@ namespace gaia {
 		struct to_sparse_id {
 			static sparse_id get(const T& item) noexcept {
 				(void)item;
-				static_assert(std::is_empty_v<T>, "Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
+				static_assert(
+						std::is_empty_v<T>,
+						"Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
 				return BadIndex;
 			}
 		};
@@ -350,7 +352,7 @@ namespace gaia {
 					}
 				}
 
-				void del_data_internal(uint32_t idx) noexcept {
+				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
 					if constexpr (!mem::is_soa_layout_v<T>)
@@ -533,7 +535,7 @@ namespace gaia {
 				}
 
 				void del_data(uint32_t idx) noexcept {
-					del_data_internal(idx);
+					del_data_inter(idx);
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -651,7 +653,7 @@ namespace gaia {
 					}
 				}
 
-				void del_data_internal(uint32_t idx) noexcept {
+				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 					--m_cnt;
 				}
@@ -775,7 +777,7 @@ namespace gaia {
 				}
 
 				void del_id(uint32_t idx) noexcept {
-					del_data_internal(idx);
+					del_data_inter(idx);
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)

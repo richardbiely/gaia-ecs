@@ -1711,7 +1711,7 @@ namespace gaia {
 
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
-				cleanup_internal();
+				cleanup_inter();
 
 				// Reinit
 				m_pRootArchetype = nullptr;
@@ -1777,8 +1777,8 @@ namespace gaia {
 
 		private:
 			//! Clears the world so that all its entities and components are released
-			void cleanup_internal() {
-				GAIA_PROF_SCOPE(World::cleanup_internal);
+			void cleanup_inter() {
+				GAIA_PROF_SCOPE(World::cleanup_inter);
 
 				// Clear entities
 				m_recs.entities = {};
@@ -3299,7 +3299,7 @@ namespace gaia {
 			void init();
 
 			void done() {
-				cleanup_internal();
+				cleanup_inter();
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();

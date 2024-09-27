@@ -1568,7 +1568,7 @@ namespace gaia {
 					if (pItem == nullptr || pItem->comp.size() == 0U)
 						continue;
 
-					auto& rec = recView[i];
+					const auto& rec = recView[i];
 					GAIA_ASSERT(rec.pData == comp_ptr_mut(chunk.m_header, i));
 					pItem->swap(rec.pData, rec.pData, rowA, rowB, m_properties.capacity, m_properties.capacity);
 				}
