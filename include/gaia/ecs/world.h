@@ -122,7 +122,7 @@ namespace gaia {
 			//! Local set of entities to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
 			//! Array of chunks to delete
-			cnt::darray<ArchetypeChunkPair> m_chunksToDel;
+			cnt::darray<Chunk*> m_chunksToDel;
 			//! Array of archetypes to delete
 			ArchetypeDArray m_archetypesToDel;
 			//! Index of the last defragmented archetype in the archetype list
@@ -839,7 +839,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pArchetype, ec.pChunk, idx}}.set(object, GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
 			}
 
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
@@ -856,7 +856,7 @@ namespace gaia {
 				// Make sure the idx is 0 for unique entities
 				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
-				ComponentSetter{{ec.pArchetype, ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -876,7 +876,7 @@ namespace gaia {
 
 				auto& archetype = *ec.pArchetype;
 				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.tag(), entity.kind());
-				Archetype::copy_entity_data(m_recs, entity, newEntity);
+				Chunk::copy_entity_data(entity, newEntity, m_recs);
 
 				return newEntity;
 			}
@@ -929,7 +929,7 @@ namespace gaia {
 					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
-					archetype.call_gen_ctors(pChunk->m_header, originalChunkSize, toCreate);
+					pChunk->call_gen_ctors(originalChunkSize, toCreate);
 
 					// Copy data
 					{
@@ -938,16 +938,15 @@ namespace gaia {
 						auto oldRecs = pOldChunk->comp_rec_view();
 
 						// Copy generic component data from reference entity to our new entity
-						auto items = archetype.items();
 						GAIA_FOR(pOldChunk->m_header.genEntities) {
-							const auto* pItem = items[i];
-							if (pItem == nullptr || pItem->comp.size() == 0U)
+							const auto& rec = oldRecs[i];
+							if (rec.comp.size() == 0U)
 								continue;
 
-							const auto* pSrc = (const void*)archetype.comp_ptr(pOldChunk->m_header, i);
+							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
-								auto* pDst = (void*)archetype.comp_ptr_mut(pChunk->m_header, i);
-								pItem->copy(
+								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
+								rec.pItem->copy(
 										pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
 							}
 						}
@@ -1065,7 +1064,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{{ec.pArchetype, ec.pChunk, ec.row}};
+				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
 			//! Sets the value of the component \tparam T on \param entity.
@@ -1103,7 +1102,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{ec.pArchetype, ec.pChunk, ec.row};
+				return ComponentGetter{ec.pChunk, ec.row};
 			}
 
 			//! Returns the value stored in the component \tparam T on \param entity.
@@ -1299,7 +1298,7 @@ namespace gaia {
 				if (!ec.pArchetype->has<EntityDesc>())
 					return nullptr;
 
-				const auto& desc = ComponentGetter{ec.pArchetype, ec.pChunk, ec.row}.get<EntityDesc>();
+				const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
 				return desc.name;
 			}
 
@@ -1648,7 +1647,7 @@ namespace gaia {
 						"(structural changes are forbidden during this time!)");
 
 				auto& archetype = *ec.pArchetype;
-				archetype.enable_entity(*ec.pChunk, m_recs, ec.row, enable);
+				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
 			}
 
 			//! Checks if an entity is enabled.
@@ -1668,6 +1667,24 @@ namespace gaia {
 			}
 
 			//----------------------------------------------------------------------
+
+			//! Returns a chunk containing the \param entity.
+			//! \return Chunk or nullptr if not found.
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
+				return ec.pChunk;
+			}
+
+			//! Returns a chunk containing the \param entity.
+			//! Index of the entity is stored in \param indexInChunk
+			//! \return Chunk or nullptr if not found
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
+				GAIA_ASSERT(entity.id() < m_recs.entities.size());
+				const auto& ec = m_recs.entities[entity.id()];
+				indexInChunk = ec.row;
+				return ec.pChunk;
+			}
 
 			//! Returns the number of active entities
 			//! \return Entity
@@ -1924,17 +1941,28 @@ namespace gaia {
 				});
 			}
 
+			//! Remove an entity from its chunk.
+			//! \param archetype Archetype we remove the entity from
+			//! \param chunk Chunk we remove the entity from
+			//! \param row Index of entity within its chunk
+			void remove_entity(Archetype& archetype, Chunk& chunk, uint16_t row) {
+				GAIA_PROF_SCOPE(World::remove_entity);
+
+				archetype.remove_entity(chunk, row, m_recs, m_chunksToDel);
+			}
+
 			//! Delete an empty chunk from its archetype
-			void del_empty_chunk(Archetype& archetype, Chunk& chunk) {
+			void del_empty_chunk(Chunk* pChunk) {
 				GAIA_PROF_SCOPE(World::del_empty_chunk);
 
-				GAIA_ASSERT(chunk.empty());
-				GAIA_ASSERT(!chunk.dying());
+				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(pChunk->empty());
+				GAIA_ASSERT(!pChunk->dying());
 
 				cnt::sarr_ext<Entity, ChunkHeader::MAX_COMPONENTS> ids;
 				{
-					auto eids = archetype.ids_view();
-					auto recs = chunk.comp_rec_view();
+					auto eids = pChunk->ents_id_view();
+					auto recs = pChunk->comp_rec_view();
 					ids.resize((uint32_t)recs.size());
 					GAIA_EACH_(recs, j) ids[j] = eids[j];
 				}
@@ -1943,7 +1971,7 @@ namespace gaia {
 				auto* pArchetype = find_archetype({hashLookup}, {ids.data(), ids.size()});
 				GAIA_ASSERT(pArchetype != nullptr);
 
-				pArchetype->del(&chunk, m_archetypesToDel);
+				pArchetype->del(pChunk, m_archetypesToDel);
 			}
 
 			//! Delete all chunks which are empty (have no entities) and have not been used in a while
@@ -1951,30 +1979,23 @@ namespace gaia {
 				GAIA_PROF_SCOPE(World::del_empty_chunks);
 
 				for (uint32_t i = 0; i < m_chunksToDel.size();) {
-					auto* pArchetype = m_chunksToDel[i].pArchetype;
-					auto* pChunk = m_chunksToDel[i].pChunk;
-
-					GAIA_ASSERT(pArchetype != nullptr);
-					GAIA_ASSERT(pChunk != nullptr);
-
-					auto& archetype = *pArchetype;
-					auto& chunk = *pChunk;
+					auto* pChunk = m_chunksToDel[i];
 
 					// Revive reclaimed chunks
-					if (!chunk.empty()) {
-						chunk.revive();
+					if (!pChunk->empty()) {
+						pChunk->revive();
 						core::erase_fast(m_chunksToDel, i);
 						continue;
 					}
 
 					// Skip chunks which still have some lifespan left
-					if (chunk.progress_death()) {
+					if (pChunk->progress_death()) {
 						++i;
 						continue;
 					}
 
 					// Delete unused chunks that are past their lifespan
-					del_empty_chunk(archetype, chunk);
+					del_empty_chunk(pChunk);
 					core::erase_fast(m_chunksToDel, i);
 				}
 			}
@@ -2423,7 +2444,7 @@ namespace gaia {
 				if (!ec.pArchetype->has<EntityDesc>())
 					return;
 
-				auto& entityDesc = ec.pArchetype->sview_mut<EntityDesc>(ec.pChunk->m_header)[ec.row];
+				auto& entityDesc = ec.pChunk->sview_mut<EntityDesc>()[ec.row];
 				if (entityDesc.name == nullptr)
 					return;
 
@@ -2481,7 +2502,7 @@ namespace gaia {
 					// If the call was made inside invalidate_entity we would access a memory location
 					// which has already been destructed which is not nice.
 					del_name(ec, entity);
-					ec.pArchetype->remove_entity(*ec.pChunk, ec.row, m_recs, m_chunksToDel);
+					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
 				}
 
 				// Invalidate on-demand.
@@ -2519,7 +2540,7 @@ namespace gaia {
 					//       header. This way the lookup is O(1) instead of O(N) and it will help
 					//       with edge-cases (tons of chunks removed at the same time).
 					if (pChunk->dying()) {
-						const auto idx = core::get_index(m_chunksToDel, ArchetypeChunkPair{&archetype, pChunk});
+						const auto idx = core::get_index(m_chunksToDel, pChunk);
 						if (idx != BadIndex)
 							core::erase_fast(m_chunksToDel, idx);
 					}
@@ -3108,8 +3129,6 @@ namespace gaia {
 				auto& ec = fetch(entity);
 				auto* pOldChunk = ec.pChunk;
 
-				GAIA_ASSERT(pOldChunk != nullptr);
-				GAIA_ASSERT(pNewChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != pOldChunk);
 
 				const auto oldRow0 = ec.row;
@@ -3120,21 +3139,19 @@ namespace gaia {
 				auto& newArchetype = targetArchetype;
 
 				// Make sure the old entity becomes enabled now
-				oldArchetype.enable_entity(*pOldChunk, m_recs, oldRow0, true);
+				oldArchetype.enable_entity(pOldChunk, oldRow0, true, m_recs);
 				// Enabling the entity might have changed its chunk index so fetch it again
 				const auto oldRow = ec.row;
 
 				// Move data from the old chunk to the new one
 				if (newArchetype.id() == oldArchetype.id()) {
-					Archetype::move_entity_data(m_recs, entity, pNewChunk, newRow);
+					pNewChunk->move_entity_data(entity, newRow, m_recs);
 				} else {
-					Archetype::move_foreign_entity_data(
-							oldArchetype, *pOldChunk, oldRow, //
-							newArchetype, *pNewChunk, newRow);
+					pNewChunk->move_foreign_entity_data(pOldChunk, oldRow, pNewChunk, newRow);
 				}
 
 				// Remove the entity record from the old chunk
-				oldArchetype.remove_entity(*pOldChunk, oldRow, m_recs, m_chunksToDel);
+				remove_entity(oldArchetype, *pOldChunk, oldRow);
 
 				// An entity might have moved, try updating the free chunk index
 				newArchetype.try_update_free_chunk_idx();
@@ -3145,7 +3162,7 @@ namespace gaia {
 				ec.row = (uint16_t)newRow;
 
 				// Make the enabled state in the new chunk match the original state
-				newArchetype.enable_entity(*pNewChunk, m_recs, newRow, wasEnabled);
+				newArchetype.enable_entity(pNewChunk, newRow, wasEnabled, m_recs);
 
 				// End-state validation
 				GAIA_ASSERT(valid(entity));
@@ -3330,7 +3347,7 @@ namespace gaia {
 				archetype.try_update_free_chunk_idx();
 
 				// Call constructors for the generic components on the newly added entity if necessary
-				archetype.call_gen_ctors(pChunk->m_header, pChunk->size() - 1, 1);
+				pChunk->call_gen_ctors(pChunk->size() - 1, 1);
 
 #if GAIA_ASSERT_ENABLED
 				const auto& ec = m_recs.entities[entity.id()];
@@ -3429,7 +3446,7 @@ namespace gaia {
 					archetype.try_update_free_chunk_idx();
 
 					// Call constructors for the generic components on the newly added entity if necessary
-					archetype.call_gen_ctors(pChunk->m_header, originalChunkSize, toCreate);
+					pChunk->call_gen_ctors(originalChunkSize, toCreate);
 
 					// Call functors
 					{

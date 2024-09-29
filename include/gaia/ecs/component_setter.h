@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#include "archetype.h"
 #include "chunk.h"
+#include "component.h"
 #include "component_getter.h"
 
 namespace gaia {
@@ -15,7 +15,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut() {
-				return m_pArchetype->template set<T>(m_pChunk->m_header, m_row);
+				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row);
 			}
 
 			//! Sets the value of the component \tparam T.
@@ -33,7 +33,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut(Entity type) {
-				return m_pArchetype->template set<T>(m_pChunk->m_header, m_row, type);
+				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row, type);
 			}
 
 			//! Sets the value of the component \param type.
@@ -52,7 +52,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut() {
-				return m_pArchetype->template sset<T>(m_pChunk->m_header, m_row);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
 			//! Sets the value of the component without triggering a world version update.
@@ -71,7 +71,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut(Entity type) {
-				return m_pArchetype->template sset<T>(m_pChunk->m_header, type);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(type);
 			}
 
 			//! Sets the value of the component without triggering a world version update.

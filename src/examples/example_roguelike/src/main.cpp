@@ -717,26 +717,27 @@ public:
 			if (coll.e2 == ecs::IdentifierBad)
 				continue;
 
-			const auto& ec1 = world().fetch(coll.e1);
-			const auto& ec2 = world().fetch(coll.e2);
+			uint32_t idx1{}, idx2{};
+			auto* pChunk1 = world().get_chunk(coll.e1, idx1);
+			auto* pChunk2 = world().get_chunk(coll.e2, idx2);
 
 			// Skip non-damageable things
-			if (!ec2.pArchetype->has<Health>())
+			if (!pChunk2->has<Health>())
 				continue;
-			if (!ec1.pArchetype->has<BattleStats>() || !ec2.pArchetype->has<BattleStats>())
+			if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
 				continue;
 
 			// Verify if damage can be applied (e.g. power > armor)
-			const auto stats1 = ec1.pArchetype->view<BattleStats>(ec1.pChunk->m_header);
-			const auto stats2 = ec2.pArchetype->view<BattleStats>(ec2.pChunk->m_header);
+			const auto stats1 = pChunk1->view<BattleStats>();
+			const auto stats2 = pChunk2->view<BattleStats>();
 
-			const int damage = stats1[ec1.row].power - stats2[ec2.row].armor;
+			const int damage = stats1[idx1].power - stats2[idx2].armor;
 			if (damage < 0)
 				continue;
 
 			// Apply damage
-			auto health2 = ec2.pArchetype->view_mut<Health>(ec2.pChunk->m_header);
-			health2[ec2.row].value -= damage;
+			auto health2 = pChunk2->view_mut<Health>();
+			health2[idx2].value -= damage;
 		}
 	}
 
@@ -758,45 +759,47 @@ public:
 		for (const auto& coll: colls) {
 			// Entity -> world content collision
 			if (coll.e2 == ecs::IdentifierBad) {
-				const auto& ec = world().fetch(coll.e1);
-				GAIA_ASSERT(ec.pChunk != nullptr);
+				uint32_t idx1{};
+				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
+				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
 				// We could have simply called world().del(coll.e1) but doing it
 				// this way allows our more control. Who knows what kinds of effect and
 				// post-processing we might have in mind for the arrow later in the frame.
-				if (ec.pArchetype->has<Item>() && ec.pArchetype->has<Health>()) {
-					auto item1 = ec.pArchetype->view<Item>(ec.pChunk->m_header);
-					if (item1[ec.row].type == ItemType::Arrow) {
-						auto health1 = ec.pArchetype->view_mut<Health>(ec.pChunk->m_header);
-						health1[ec.row].value = 0;
+				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+					auto item1 = pChunk1->view<Item>();
+					if (item1[idx1].type == ItemType::Arrow) {
+						auto health1 = pChunk1->view_mut<Health>();
+						health1[idx1].value = 0;
 					}
 				}
 			}
 			// Entity -> entity collision
 			else {
-				const auto& ec1 = world().fetch(coll.e1);
-				const auto& ec2 = world().fetch(coll.e2);
-				GAIA_ASSERT(ec1.pChunk != nullptr);
-				GAIA_ASSERT(ec2.pChunk != nullptr);
+				uint32_t idx1{}, idx2{};
+				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
+				auto* pChunk2 = world().get_chunk(coll.e2, idx2);
+				GAIA_ASSERT(pChunk1 != nullptr);
+				GAIA_ASSERT(pChunk2 != nullptr);
 
 				// TODO: Add ability to get a list of components based on query
 
 				// E.g. a player colliding with an item
-				if (ec1.pArchetype->has<Health>() && ec2.pArchetype->has<Item>() && ec2.pArchetype->has<BattleStats>()) {
-					auto health1 = ec1.pArchetype->view_mut<Health>(ec1.pChunk->m_header);
-					auto stats2 = ec2.pArchetype->view<BattleStats>(ec2.pChunk->m_header);
+				if (pChunk1->has<Health>() && pChunk2->has<Item>() && pChunk2->has<BattleStats>()) {
+					auto health1 = pChunk1->view_mut<Health>();
+					auto stats2 = pChunk2->view<BattleStats>();
 
 					// Apply the item's effect
-					health1[ec1.row].value += stats2[ec2.row].power;
+					health1[idx1].value += stats2[idx2].power;
 				}
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				if (ec1.pArchetype->has<Item>() && ec1.pArchetype->has<Health>()) {
-					auto item1 = ec1.pArchetype->view<Item>(ec1.pChunk->m_header);
-					if (item1[ec1.row].type == ItemType::Arrow) {
-						auto health1 = ec1.pArchetype->view_mut<Health>(ec1.pChunk->m_header);
-						health1[ec1.row].value = 0;
+				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+					auto item1 = pChunk1->view<Item>();
+					if (item1[idx1].type == ItemType::Arrow) {
+						auto health1 = pChunk1->view_mut<Health>();
+						health1[idx1].value = 0;
 					}
 				}
 			}

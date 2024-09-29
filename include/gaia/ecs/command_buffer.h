@@ -96,8 +96,9 @@ namespace gaia {
 					World::EntityBuilder(ctx.world, entity).add(object);
 
 #if GAIA_ASSERT_ENABLED
-					const auto& ec = ctx.world.fetch(entity);
-					GAIA_ASSERT(ec.pChunk != nullptr);
+					[[maybe_unused]] uint32_t indexInChunk{};
+					[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
 #endif
 				}
 			};
@@ -108,13 +109,16 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					World::EntityBuilder(ctx.world, entity).add(object);
 
-					const auto& ec = ctx.world.fetch(entity);
-					GAIA_ASSERT(ec.pChunk != nullptr);
-					const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+					uint32_t indexInChunk{};
+					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+
+					if (object.kind() == EntityKind::EK_Uni)
+						indexInChunk = 0;
 
 					// Component data
-					const auto compIdx = ec.pArchetype->comp_idx(object);
-					auto* pComponentData = (void*)ec.pArchetype->comp_ptr_mut(ec.pChunk->m_header, compIdx, row);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
@@ -133,8 +137,9 @@ namespace gaia {
 					World::EntityBuilder(ctx.world, entity).add(object);
 
 #if GAIA_ASSERT_ENABLED
-					const auto& ec = ctx.world.fetch(entity);
-					GAIA_ASSERT(ec.pChunk != nullptr);
+					[[maybe_unused]] uint32_t indexInChunk{};
+					[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
 #endif
 				}
 			};
@@ -152,13 +157,16 @@ namespace gaia {
 					Entity entity = it->second;
 					World::EntityBuilder(ctx.world, entity).add(object);
 
-					const auto& ec = ctx.world.fetch(entity);
-					GAIA_ASSERT(ec.pChunk != nullptr);
-					const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+					uint32_t indexInChunk{};
+					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+
+					if (object.kind() == EntityKind::EK_Uni)
+						indexInChunk = 0;
 
 					// Component data
-					const auto compIdx = ec.pArchetype->comp_idx(object);
-					auto* pComponentData = (void*)ec.pArchetype->comp_ptr_mut(ec.pChunk->m_header, compIdx, row);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
 					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
@@ -171,8 +179,8 @@ namespace gaia {
 					const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 
 					// Component data
-					const auto compIdx = ec.pArchetype->comp_idx(object);
-					auto* pComponentData = (void*)ec.pArchetype->comp_ptr_mut(ec.pChunk->m_header, compIdx, row);
+					const auto compIdx = ec.pChunk->comp_idx(object);
+					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};
@@ -193,8 +201,8 @@ namespace gaia {
 					const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 
 					// Component data
-					const auto compIdx = ec.pArchetype->comp_idx(object);
-					auto* pComponentData = (void*)ec.pArchetype->comp_ptr_mut(ec.pChunk->m_header, compIdx, row);
+					const auto compIdx = ec.pChunk->comp_idx(object);
+					auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 					ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
 				}
 			};

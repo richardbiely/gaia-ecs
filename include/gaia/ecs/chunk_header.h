@@ -3,7 +3,9 @@
 
 #include <cstdint>
 
+#include "../cnt/bitset.h"
 #include "../core/utility.h"
+#include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "component.h"
 #include "id.h"
@@ -23,6 +25,8 @@ namespace gaia {
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
 			uint8_t* pData;
+			//! Pointer to component cache record
+			const ComponentCacheItem* pItem;
 		};
 
 		struct ChunkHeader final {
@@ -56,6 +60,14 @@ namespace gaia {
 
 			//! Index of the first enabled entity in the chunk
 			uint16_t rowFirstEnabledEntity: MAX_CHUNK_ENTITIES_BITS;
+			//! True if there's any generic component that requires custom construction
+			uint16_t hasAnyCustomGenCtor : 1;
+			//! True if there's any unique component that requires custom construction
+			uint16_t hasAnyCustomUniCtor : 1;
+			//! True if there's any generic component that requires custom destruction
+			uint16_t hasAnyCustomGenDtor : 1;
+			//! True if there's any unique component that requires custom destruction
+			uint16_t hasAnyCustomUniDtor : 1;
 			//! Chunk size type. This tells whether it's 8K or 16K
 			uint16_t sizeType : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
@@ -65,7 +77,7 @@ namespace gaia {
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! Empty space for future use
-			// uint16_t unused : 4;
+			uint16_t unused : 8;
 
 			//! Number of generic entities/components
 			uint8_t genEntities;
@@ -86,6 +98,8 @@ namespace gaia {
 
 			//! Versions of components
 			ComponentVersion versions[ChunkHeader::MAX_COMPONENTS];
+			//! Entity ids forming the chunk/archetype
+			Entity ids[ChunkHeader::MAX_COMPONENTS];
 			//! Pointer to where the entity array starts
 			Entity* pEntities;
 			//! Pointers to where data for ids starts
@@ -99,7 +113,8 @@ namespace gaia {
 					uint32_t& version):
 					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
-					rowFirstEnabledEntity(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0),
+					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
+					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
 					//
 					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right
