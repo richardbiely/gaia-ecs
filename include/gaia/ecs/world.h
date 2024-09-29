@@ -1996,11 +1996,32 @@ namespace gaia {
 
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
+				// Remove all dead archetypes from query caches.
+				// Because the number of cached queries is way higher than the number of archetypes
+				// we want to remove, we flip the logic around and iterate over all query caches
+				// and match against our lists.
+				// Note, all archetype pointers in the tmp array are invalid at this point and can
+				// be used only for comparison. They can't be dereferenced.
+				auto remove_from_queries = [&]() {
+					if (tmp.empty())
+						return;
+
+					// TODO: How to speed this up? If there are 1k cached queries is it still going to
+					//       be fast enough or do we get spikes? Probably a linked list for query cache
+					//       would be a way to go.
+					for (auto& info: m_queryCache) {
+						for (auto* pArchetype: tmp)
+							info.remove(pArchetype);
+					}
+
+					tmp.clear();
+				};
+
 				for (uint32_t i = 0; i < m_archetypesToDel.size();) {
 					auto* pArchetype = m_archetypesToDel[i];
 
 					// Skip reclaimed archetypes
-					if (!pArchetype->empty()) {
+					if (pArchetype->empty()) {
 						revive_archetype(*pArchetype);
 						core::erase_fast(m_archetypesToDel, i);
 						continue;
@@ -2018,24 +2039,16 @@ namespace gaia {
 					// Remove the unused archetypes
 					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
+
+					// Release the archetypes memory
 					Archetype::destroy(pArchetype);
+
+					// Clear what we have once the capacity is reached
+					if (tmp.size() == tmp.max_size())
+						remove_from_queries();
 				}
 
-				// Remove all dead archetypes from query caches.
-				// Because the number of cached queries is way higher than the number of archetypes
-				// we want to remove, we flip the logic around and iterate over all query caches
-				// and match against our lists.
-				// Note, all archetype pointers in the tmp array are invalid at this point and can
-				// be used only for comparison. They can't be dereferenced.
-				if (!tmp.empty()) {
-					// TODO: How to speed this up? If there are 1k cached queries is it still going to
-					//       be fast enough or do we get spikes? Probably a linked list for query cache
-					//       would be a way to go.
-					for (auto& info: m_queryCache) {
-						for (auto* pArchetype: tmp)
-							info.remove(pArchetype);
-					}
-				}
+				remove_from_queries();
 			}
 
 			void revive_archetype(Archetype& archetype) {

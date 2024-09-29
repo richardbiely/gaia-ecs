@@ -13544,7 +13544,9 @@ namespace gaia {
 		struct to_sparse_id {
 			static sparse_id get(const T& item) noexcept {
 				(void)item;
-				static_assert(std::is_empty_v<T>, "Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
+				static_assert(
+						std::is_empty_v<T>,
+						"Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
 				return BadIndex;
 			}
 		};
@@ -13863,7 +13865,7 @@ namespace gaia {
 					}
 				}
 
-				void del_data_internal(uint32_t idx) noexcept {
+				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
 					if constexpr (!mem::is_soa_layout_v<T>)
@@ -14046,7 +14048,7 @@ namespace gaia {
 				}
 
 				void del_data(uint32_t idx) noexcept {
-					del_data_internal(idx);
+					del_data_inter(idx);
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -14164,7 +14166,7 @@ namespace gaia {
 					}
 				}
 
-				void del_data_internal(uint32_t idx) noexcept {
+				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 					--m_cnt;
 				}
@@ -14288,7 +14290,7 @@ namespace gaia {
 				}
 
 				void del_id(uint32_t idx) noexcept {
-					del_data_internal(idx);
+					del_data_inter(idx);
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -21044,7 +21046,7 @@ namespace gaia {
 					if (pItem == nullptr || pItem->comp.size() == 0U)
 						continue;
 
-					auto& rec = recView[i];
+					const auto& rec = recView[i];
 					GAIA_ASSERT(rec.pData == comp_ptr_mut(chunk.m_header, i));
 					pItem->swap(rec.pData, rec.pData, rowA, rowB, m_properties.capacity, m_properties.capacity);
 				}
@@ -22607,7 +22609,7 @@ namespace gaia {
 
 				template <typename OpKind, bool CheckAs>
 				inline void
-				match_archetype_internal(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
+				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
 					const auto& archetypes = *pSrcArchetypes;
 
 					auto& matchesArr = *ctx.pMatchesArr;
@@ -22652,7 +22654,7 @@ namespace gaia {
 					if (pArchetypes == nullptr)
 						return;
 
-					match_archetype_internal<OpAll, false>(ctx, entityKey, pArchetypes);
+					match_archetype_inter<OpAll, false>(ctx, entityKey, pArchetypes);
 				}
 
 				inline void match_archetype_all_as(MatchingCtx& ctx) {
@@ -22675,7 +22677,7 @@ namespace gaia {
 							return;
 					}
 
-					match_archetype_internal<OpAll, true>(ctx, entityKey, pSrcArchetypes);
+					match_archetype_inter<OpAll, true>(ctx, entityKey, pSrcArchetypes);
 				}
 
 				inline void match_archetype_one(MatchingCtx& ctx) {
@@ -22688,7 +22690,7 @@ namespace gaia {
 					if (pArchetypes == nullptr)
 						return;
 
-					match_archetype_internal<OpAny, false>(ctx, entityKey, pArchetypes);
+					match_archetype_inter<OpAny, false>(ctx, entityKey, pArchetypes);
 				}
 
 				inline void match_archetype_one_as(MatchingCtx& ctx) {
@@ -22713,19 +22715,19 @@ namespace gaia {
 							return;
 					}
 
-					match_archetype_internal<OpAny, true>(ctx, entityKey, pSrcArchetypes);
+					match_archetype_inter<OpAny, true>(ctx, entityKey, pSrcArchetypes);
 				}
 
 				inline void match_archetype_no(MatchingCtx& ctx) {
 					ctx.pMatchesSet->clear();
 
-					match_archetype_internal<OpNo, false>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+					match_archetype_inter<OpNo, false>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
 				}
 
 				inline void match_archetype_no_as(MatchingCtx& ctx) {
 					ctx.pMatchesSet->clear();
 
-					match_archetype_internal<OpNo, true>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+					match_archetype_inter<OpNo, true>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
 				}
 
 				inline void match_archetype_no_2(MatchingCtx& ctx) {
@@ -26621,7 +26623,7 @@ namespace gaia {
 
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
-				cleanup_internal();
+				cleanup_inter();
 
 				// Reinit
 				m_pRootArchetype = nullptr;
@@ -26687,8 +26689,8 @@ namespace gaia {
 
 		private:
 			//! Clears the world so that all its entities and components are released
-			void cleanup_internal() {
-				GAIA_PROF_SCOPE(World::cleanup_internal);
+			void cleanup_inter() {
+				GAIA_PROF_SCOPE(World::cleanup_inter);
 
 				// Clear entities
 				m_recs.entities = {};
@@ -26906,11 +26908,32 @@ namespace gaia {
 
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
+				// Remove all dead archetypes from query caches.
+				// Because the number of cached queries is way higher than the number of archetypes
+				// we want to remove, we flip the logic around and iterate over all query caches
+				// and match against our lists.
+				// Note, all archetype pointers in the tmp array are invalid at this point and can
+				// be used only for comparison. They can't be dereferenced.
+				auto remove_from_queries = [&]() {
+					if (tmp.empty())
+						return;
+
+					// TODO: How to speed this up? If there are 1k cached queries is it still going to
+					//       be fast enough or do we get spikes? Probably a linked list for query cache
+					//       would be a way to go.
+					for (auto& info: m_queryCache) {
+						for (auto* pArchetype: tmp)
+							info.remove(pArchetype);
+					}
+
+					tmp.clear();
+				};
+
 				for (uint32_t i = 0; i < m_archetypesToDel.size();) {
 					auto* pArchetype = m_archetypesToDel[i];
 
 					// Skip reclaimed archetypes
-					if (!pArchetype->empty()) {
+					if (pArchetype->empty()) {
 						revive_archetype(*pArchetype);
 						core::erase_fast(m_archetypesToDel, i);
 						continue;
@@ -26928,24 +26951,16 @@ namespace gaia {
 					// Remove the unused archetypes
 					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
+
+					// Release the archetypes memory
 					Archetype::destroy(pArchetype);
+
+					// Clear what we have once the capacity is reached
+					if (tmp.size() == tmp.max_size())
+						remove_from_queries();
 				}
 
-				// Remove all dead archetypes from query caches.
-				// Because the number of cached queries is way higher than the number of archetypes
-				// we want to remove, we flip the logic around and iterate over all query caches
-				// and match against our lists.
-				// Note, all archetype pointers in the tmp array are invalid at this point and can
-				// be used only for comparison. They can't be dereferenced.
-				if (!tmp.empty()) {
-					// TODO: How to speed this up? If there are 1k cached queries is it still going to
-					//       be fast enough or do we get spikes? Probably a linked list for query cache
-					//       would be a way to go.
-					for (auto& info: m_queryCache) {
-						for (auto* pArchetype: tmp)
-							info.remove(pArchetype);
-					}
-				}
+				remove_from_queries();
 			}
 
 			void revive_archetype(Archetype& archetype) {
@@ -28209,7 +28224,7 @@ namespace gaia {
 			void init();
 
 			void done() {
-				cleanup_internal();
+				cleanup_inter();
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
