@@ -1956,17 +1956,9 @@ namespace gaia {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
-
-				cnt::sarr_ext<Entity, ChunkHeader::MAX_COMPONENTS> ids;
-				{
-					auto eids = pChunk->ents_id_view();
-					auto recs = pChunk->comp_rec_view();
-					ids.resize((uint32_t)recs.size());
-					GAIA_EACH_(recs, j) ids[j] = eids[j];
-				}
-
-				const auto hashLookup = calc_lookup_hash({ids.data(), ids.size()}).hash;
-				auto* pArchetype = find_archetype({hashLookup}, {ids.data(), ids.size()});
+				
+				const auto hashLookup = calc_lookup_hash(pChunk->ents_id_view()).hash;
+				auto* pArchetype = find_archetype({hashLookup}, pChunk->ents_id_view());
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->del(pChunk, m_archetypesToDel);
