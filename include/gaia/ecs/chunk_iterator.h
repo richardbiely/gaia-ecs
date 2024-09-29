@@ -76,7 +76,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
@@ -129,7 +129,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx);

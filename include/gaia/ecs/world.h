@@ -1956,9 +1956,9 @@ namespace gaia {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
-				
-				const auto hashLookup = calc_lookup_hash(pChunk->ents_id_view()).hash;
-				auto* pArchetype = find_archetype({hashLookup}, pChunk->ents_id_view());
+
+				const auto hashLookup = calc_lookup_hash(pChunk->ids_view()).hash;
+				auto* pArchetype = find_archetype({hashLookup}, pChunk->ids_view());
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->del(pChunk, m_archetypesToDel);

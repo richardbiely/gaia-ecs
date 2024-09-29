@@ -19640,7 +19640,7 @@ namespace gaia {
 				return {(const Entity*)m_records.pEntities, m_header.count};
 			}
 
-			GAIA_NODISCARD EntitySpan ents_id_view() const {
+			GAIA_NODISCARD EntitySpan ids_view() const {
 				return {(const Entity*)m_records.pCompEntities, m_header.cntEntities};
 			}
 
@@ -19743,8 +19743,8 @@ namespace gaia {
 				GAIA_ASSERT(srcRow < pSrcChunk->size());
 				GAIA_ASSERT(dstRow < pDstChunk->size());
 
-				auto srcIds = pSrcChunk->ents_id_view();
-				auto dstIds = pDstChunk->ents_id_view();
+				auto srcIds = pSrcChunk->ids_view();
+				auto dstIds = pDstChunk->ids_view();
 				auto dstRecs = pDstChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
@@ -20048,7 +20048,7 @@ namespace gaia {
 
 				GAIA_PROF_SCOPE(Chunk::call_all_dtors);
 
-				auto ids = ents_id_view();
+				auto ids = ids_view();
 				auto recs = comp_rec_view();
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
@@ -20072,7 +20072,7 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return True if found. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
-				auto ids = ents_id_view();
+				auto ids = ids_view();
 				return core::has(ids, entity);
 			}
 
@@ -21882,7 +21882,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
@@ -21935,7 +21935,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ents_id_view().size());
+					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
@@ -26841,9 +26841,9 @@ namespace gaia {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
-				
-				const auto hashLookup = calc_lookup_hash(pChunk->ents_id_view()).hash;
-				auto* pArchetype = find_archetype({hashLookup}, pChunk->ents_id_view());
+
+				const auto hashLookup = calc_lookup_hash(pChunk->ids_view()).hash;
+				auto* pArchetype = find_archetype({hashLookup}, pChunk->ids_view());
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->del(pChunk, m_archetypesToDel);
