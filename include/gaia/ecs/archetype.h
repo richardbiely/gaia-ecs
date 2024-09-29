@@ -160,13 +160,57 @@ namespace gaia {
 			}
 
 			//! Calculates offsets in memory at which important chunk data is going to be stored.
-			//! These offsets are used to setup the chunk data area layout.
+			//! These offsets are use to setup the chunk data area layout.
 			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
-				uintptr_t offset = mem::padding<alignof(Entity)>(memoryAddress);
-				// The number must fit into firstByte_EntityData
-				GAIA_ASSERT(offset < 256);
-				m_dataOffsets.firstByte_EntityData = (uint8_t)offset;
+				uintptr_t offset = 0;
+
+				// Versions
+				// We expect versions to fit in the first 256 bytes.
+				// With 32 components per archetype this gives us some headroom.
+				{
+					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
+
+					const auto cnt = comps_view().size();
+					if (cnt != 0) {
+						GAIA_ASSERT(offset < 256);
+						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
+						offset += sizeof(ComponentVersion) * cnt;
+					}
+				}
+
+				// Entity ids
+				{
+					offset += mem::padding<alignof(Entity)>(offset);
+
+					const auto cnt = comps_view().size();
+					if (cnt != 0) {
+						m_dataOffsets.firstByte_CompEntities = (ChunkDataOffset)offset;
+
+						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
+						offset += sizeof(Entity) * ChunkHeader::MAX_COMPONENTS;
+					}
+				}
+
+				// Component records
+				{
+					offset += mem::padding<alignof(ComponentRecord)>(offset);
+
+					const auto cnt = comps_view().size();
+					if (cnt != 0) {
+
+						m_dataOffsets.firstByte_Records = (ChunkDataOffset)offset;
+
+						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
+						offset += sizeof(ComponentRecord) * cnt;
+					}
+				}
+
+				// First entity offset
+				{
+					offset += mem::padding<alignof(Entity)>(offset);
+					m_dataOffsets.firstByte_EntityData = (ChunkDataOffset)offset;
+				}
 			}
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
@@ -266,14 +310,10 @@ namespace gaia {
 					if (ids[i].pair()) {
 						// When using pairs we need to decode the storage type from them.
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
-						const Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
-						const uint32_t idx = (!pairEntities[0].tag() || pairEntities[1].tag()) ? 0 : 1;
-#if !GAIA_DISABLE_ASSERTS
+						Entity pairEntities[] = {entity_from_id(world, ids[i].id()), entity_from_id(world, ids[i].gen())};
 						Component pairComponents[] = {as_comp(pairEntities[0]), as_comp(pairEntities[1])};
-						const uint32_t idx_check = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
-						GAIA_ASSERT(idx_check == idx);
-#endif
-						comps[i] = as_comp(pairEntities[idx]);
+						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
+						comps[i] = pairComponents[idx];
 					} else {
 						comps[i] = as_comp(ids[i]);
 					}
@@ -807,23 +847,21 @@ namespace gaia {
 			}
 
 			static void diag_entity(const World& world, Entity entity) {
-				static constexpr const char* TagString[2] = {"", "[Tag]"};
 				if (entity.entity()) {
 					GAIA_LOG_N(
-							"    ent [%u:%u] %s [%s] %s", entity.id(), entity.gen(), entity_name(world, entity),
-							EntityKindString[entity.kind()], TagString[entity.tag()]);
-
+							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+							EntityKindString[entity.kind()]);
 				} else if (entity.pair()) {
 					GAIA_LOG_N(
-							"    pair [%u:%u] %s -> %s %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-							entity_name(world, entity.gen()), TagString[entity.tag()]);
+							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
+							entity_name(world, entity.gen()));
 				} else {
 					const auto& cc = comp_cache(world);
 					const auto& desc = cc.get(entity);
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s] %s", desc.hashLookup.hash,
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
 							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
-							EntityKindString[entity.kind()], TagString[entity.tag()]);
+							EntityKindString[entity.kind()]);
 				}
 			}
 

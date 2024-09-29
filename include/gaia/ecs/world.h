@@ -329,8 +329,7 @@ namespace gaia {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
 						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
-							auto rel = Entity(
-									entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (bool)ecRel.tag, (EntityKind)ecRel.kind);
+							auto rel = Entity(entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (EntityKind)ecRel.kind);
 							auto tgt = m_world.get(entity.gen());
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
@@ -715,7 +714,7 @@ namespace gaia {
 				GAIA_ASSERT(valid_entity_id(id));
 
 				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind);
+				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 
 			template <typename T>
@@ -744,7 +743,7 @@ namespace gaia {
 			//! \param kind Entity kind
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
-				return add(*m_pEntityArchetype, true, false, true, kind);
+				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
 			//! Creates \param count new empty entities
@@ -783,8 +782,7 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto isTag = detail::ComponentDesc<FT>::size() == 0;
-				const auto entity = add(*m_pCompArchetype, false, false, isTag, kind);
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
 
 				const auto& item = comp_cache_mut().add<FT>(entity);
 				sset<Component>(item.entity) = item.comp;
@@ -875,7 +873,7 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.tag(), entity.kind());
+				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
 				Chunk::copy_entity_data(entity, newEntity, m_recs);
 
 				return newEntity;
@@ -904,7 +902,7 @@ namespace gaia {
 				// of our source entity.
 				const auto oldRow = ec.row;
 
-				EntityContainerCtx ctx{entity.entity(), entity.pair(), entity.tag(), EntityKind::EK_Gen};
+				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
 				uint32_t left = count;
 				do {
@@ -1919,7 +1917,7 @@ namespace gaia {
 				if (ec.pair != 0)
 					return false;
 
-				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (bool)ec.tag, (EntityKind)ec.kind));
+				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
 			}
 
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -2172,8 +2170,10 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					const auto first = get(entity.id());
-					const auto second = get(entity.gen());
+					// Fake entities instantiated for both ids.
+					// We are fine with it because to build a pair all we need are valid entity ids.
+					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
+					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
 					// (*, tgt)
 					del_entity_archetype_pair(Pair(All, second), entity);
@@ -2196,8 +2196,10 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						const auto first = get(entity.id());
-						const auto second = get(entity.gen());
+						// Fake entities instantiated for both ids.
+						// We are fine with it because to build a pair all we need are valid entity ids.
+						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
+						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
 
 						// (*, tgt)
 						add_entity_archetype_pair(Pair(All, second), pArchetype);
@@ -3313,7 +3315,7 @@ namespace gaia {
 
 			template <typename T>
 			const ComponentCacheItem& reg_core_entity(Entity id, Archetype* pArchetype) {
-				auto comp = add(*pArchetype, id.entity(), id.pair(), id.tag(), id.kind());
+				auto comp = add(*pArchetype, id.entity(), id.pair(), id.kind());
 				const auto& ci = comp_cache_mut().add<T>(id);
 				GAIA_ASSERT(ci.entity == id);
 				GAIA_ASSERT(comp == id);
@@ -3370,16 +3372,12 @@ namespace gaia {
 				if (it != m_recs.pairs.end())
 					return;
 
-				const auto rel = get(entity.id());
-				const auto tgt = get(entity.gen());
-
 				// Update the container record
 				EntityContainer ec{};
 				ec.idx = entity.id();
 				ec.gen = entity.gen();
-				ec.ent = 1;
 				ec.pair = 1;
-				ec.tag = rel.tag() && tgt.tag();
+				ec.ent = 1;
 				ec.kind = EntityKind::EK_Gen;
 
 				auto* pChunk = archetype.foc_free_chunk();
@@ -3389,6 +3387,9 @@ namespace gaia {
 				m_recs.pairs.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
 
 				// Update pair mappings
+				const auto rel = get(entity.id());
+				const auto tgt = get(entity.gen());
+
 				auto addPair = [](PairMap& map, Entity source, Entity add) {
 					auto& ents = map[EntityLookupKey(source)];
 					ents.insert(EntityLookupKey(add));
@@ -3404,11 +3405,10 @@ namespace gaia {
 			//! \param archetype Archetype the entity should inherit.
 			//! \param isEntity True if entity, false otherwise.
 			//! \param isPair True if pair, false otherwise.
-			//! \param isTag True if tag, false otherwise.
 			//! \param kind Component kind.
 			//! \return New entity.
-			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, bool isTag, EntityKind kind) {
-				EntityContainerCtx ctx{isEntity, isPair, isTag, kind};
+			GAIA_NODISCARD Entity add(Archetype& archetype, bool isEntity, bool isPair, EntityKind kind) {
+				EntityContainerCtx ctx{isEntity, isPair, kind};
 				const auto entity = m_recs.entities.alloc(&ctx);
 				assign_entity(entity, archetype);
 				return entity;
@@ -3421,7 +3421,7 @@ namespace gaia {
 			//! \param func void(Entity) functor executed for each added entity.
 			template <typename Func>
 			void add_entity_n(Archetype& archetype, uint32_t count, Func func) {
-				EntityContainerCtx ctx{true, false, true, EntityKind::EK_Gen};
+				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
 				uint32_t left = count;
 				do {

@@ -33,12 +33,17 @@ namespace gaia {
 			// TODO: Make this private
 			//! Chunk header
 			ChunkHeader m_header;
+			//! Pointers to various parts of data inside chunk
+			ChunkRecords m_records;
 
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) Entities (identifiers)
-			//!			2) Entities (data)
+			//!			1) ComponentVersions
+			//!     2) EntityIds/ComponentIds
+			//!			3) ComponentRecords
+			//!			4) Entities (identifiers)
+			//!			5) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
 			uint8_t m_data[1];
 
@@ -69,25 +74,35 @@ namespace gaia {
 					const ChunkDataOffset* compOffs) {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
-				// Entity ids
-				{
+				// Cache pointers to versions
+				if (cntEntities > 0) {
+					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
+				}
+
+				// Cache entity ids
+				if (cntEntities > 0) {
+					auto* dst = m_records.pCompEntities = (Entity*)&data(headerOffsets.firstByte_CompEntities);
+
 					// We treat the entity array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
 					uint32_t j = 0;
 					for (; j < cntEntities; ++j)
-						m_header.ids[j] = ids[j];
+						dst[j] = ids[j];
 					for (; j < ChunkHeader::MAX_COMPONENTS; ++j)
-						m_header.ids[j] = EntityBad;
+						dst[j] = EntityBad;
 				}
 
 				// Cache component records
-				GAIA_FOR(cntEntities) {
-					m_header.recs[i].comp = comps[i];
-					m_header.recs[i].pData = &data(compOffs[i]);
-					m_header.recs[i].pItem = m_header.cc->find(comps[i].id());
+				if (cntEntities > 0) {
+					auto* dst = m_records.pRecords = (ComponentRecord*)&data(headerOffsets.firstByte_Records);
+					GAIA_FOR_(cntEntities, j) {
+						dst[j].comp = comps[j];
+						dst[j].pData = &data(compOffs[j]);
+						dst[j].pItem = m_header.cc->find(comps[j].id());
+					}
 				}
 
-				m_header.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
+				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
@@ -97,7 +112,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						const auto e = m_header.ids[i];
+						const auto e = m_records.pCompEntities[i];
 						if (e.kind() == EntityKind::EK_Gen) {
 							m_header.hasAnyCustomGenCtor |= (rec.pItem->func_ctor != nullptr);
 							m_header.hasAnyCustomGenDtor |= (rec.pItem->func_dtor != nullptr);
@@ -115,15 +130,15 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
-				return {(const ComponentVersion*)m_header.versions, m_header.cntEntities};
+				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
-				return {m_header.versions, m_header.cntEntities};
+				return {m_records.pVersions, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
-				return {m_header.pEntities, m_header.count};
+				return {m_records.pEntities, m_header.count};
 			}
 
 			//! Returns a read-only span of the component data.
@@ -136,7 +151,7 @@ namespace gaia {
 
 				if constexpr (std::is_same_v<core::raw_t<T>, Entity>) {
 					GAIA_ASSERT(to <= m_header.count);
-					return {(const uint8_t*)&m_header.pEntities[from], to - from};
+					return {(const uint8_t*)&m_records.pEntities[from], to - from};
 				} else if constexpr (is_pair<T>::value) {
 					using TT = typename T::type;
 					using U = typename component_type_t<TT>::Type;
@@ -293,7 +308,7 @@ namespace gaia {
 						// ChunkAllocator reserves the first few bytes for internal purposes
 						MemoryBlockUsableOffset +
 						// Chunk "header" area (before actual entity/component data starts)
-						sizeof(ChunkHeader);
+						sizeof(ChunkHeader) + sizeof(ChunkRecords);
 				static_assert(dataAreaOffset < UINT16_MAX);
 				return dataAreaOffset;
 			}
@@ -536,34 +551,34 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD EntitySpan entity_view() const {
-				return {(const Entity*)m_header.pEntities, m_header.count};
+				return {(const Entity*)m_records.pEntities, m_header.count};
 			}
 
 			GAIA_NODISCARD EntitySpan ents_id_view() const {
-				return {(const Entity*)m_header.ids, m_header.cntEntities};
+				return {(const Entity*)m_records.pCompEntities, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD std::span<const ComponentRecord> comp_rec_view() const {
-				return {m_header.recs, m_header.cntEntities};
+				return {m_records.pRecords, m_header.cntEntities};
 			}
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx) {
-				const auto& rec = m_header.recs[compIdx];
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx, uint32_t offset) {
-				const auto& rec = m_header.recs[compIdx];
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx) const {
-				const auto& rec = m_header.recs[compIdx];
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData;
 			}
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx, uint32_t offset) const {
-				const auto& rec = m_header.recs[compIdx];
+				const auto& rec = m_records.pRecords[compIdx];
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
@@ -1120,7 +1135,7 @@ namespace gaia {
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
-				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_header.ids, entity);
+				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
 			//----------------------------------------------------------------------

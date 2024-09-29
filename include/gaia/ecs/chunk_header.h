@@ -16,8 +16,14 @@ namespace gaia {
 		struct ComponentCacheItem;
 
 		struct ChunkDataOffsets {
-			//! Byte offset at which the first entity is located
-			uint8_t firstByte_EntityData{};
+			//! Byte at which the first version number is located
+			ChunkDataVersionOffset firstByte_Versions{};
+			//! Byte at which the first entity id is located
+			ChunkDataOffset firstByte_CompEntities{};
+			//! Byte at which the first component id is located
+			ChunkDataOffset firstByte_Records{};
+			//! Byte at which the first entity is located
+			ChunkDataOffset firstByte_EntityData{};
 		};
 
 		struct ComponentRecord {
@@ -27,6 +33,17 @@ namespace gaia {
 			uint8_t* pData;
 			//! Pointer to component cache record
 			const ComponentCacheItem* pItem;
+		};
+
+		struct ChunkRecords {
+			//! Pointer to where component versions are stored
+			ComponentVersion* pVersions{};
+			//! Pointer to where (component) entities are stored
+			Entity* pCompEntities{};
+			//! Pointer to the array of component records
+			ComponentRecord* pRecords{};
+			//! Pointer to the array of entities
+			Entity* pEntities{};
 		};
 
 		struct ChunkHeader final {
@@ -85,25 +102,6 @@ namespace gaia {
 			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
-
-			// First entity offset.
-			// It begins at offset 128 + 256 + 768 = 1152 bytes.
-			// This means that the first 1.1 kiB of data in each chunk is taken by the header.
-			// This is unfortunate but it allows 2 important things to happen:
-			// 1) Whatever the chunk touches can fit into the L1 cache. We do not need to fetch
-			//    anything from the archetype or anywhere else unless the user explicitly asks for it.
-			// 2) The fixed area allows us to switch archetypes when adding/removing tags
-			//    virtually for free. No chunk copies will be necessary, we simply switch
-			//    the archetype pointer.
-
-			//! Versions of components
-			ComponentVersion versions[ChunkHeader::MAX_COMPONENTS];
-			//! Entity ids forming the chunk/archetype
-			Entity ids[ChunkHeader::MAX_COMPONENTS];
-			//! Pointer to where the entity array starts
-			Entity* pEntities;
-			//! Pointers to where data for ids starts
-			ComponentRecord recs[ChunkHeader::MAX_COMPONENTS];
 
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
