@@ -29,7 +29,15 @@ namespace gaia {
 			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
 				[[maybe_unused]] const auto ret =
 						edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId, hash});
-				GAIA_ASSERT(ret.second);
+#if !GAIA_DISABLE_ASSERTS
+				// // If the result already exists make sure the new one is the same
+				// if (!ret.second) {
+				// 	const auto it = edges.find(EntityLookupKey(entity));
+				// 	GAIA_ASSERT(it != edges.end());
+				// 	GAIA_ASSERT(it->second.id == archetypeId);
+				// 	GAIA_ASSERT(it->second.hash == hash);
+				// }
+#endif
 			}
 
 			void del_edge(EdgeMap& edges, Entity entity) {
@@ -76,6 +84,14 @@ namespace gaia {
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return find_edge(m_edgesDel, entity);
+			}
+
+			GAIA_NODISCARD auto& right_edges() {
+				return m_edgesAdd;
+			}
+
+			GAIA_NODISCARD auto& left_edges() {
+				return m_edgesDel;
 			}
 
 			void diag(const World& world) const {

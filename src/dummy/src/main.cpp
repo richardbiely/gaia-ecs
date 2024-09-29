@@ -976,6 +976,14 @@ void test12b() {
 	});
 }
 
+void test13() {
+	ecs::World w;
+	auto e = w.add();
+	w.name(e, "xyz");
+	const char* pName = w.name(e);
+	GAIA_LOG_N("%s", pName);
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -995,7 +1003,8 @@ int main() {
 	// test10();
 	// test11();
 	// test12();
-	test12b();
+	// test12b();
+	test13();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

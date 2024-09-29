@@ -48,6 +48,15 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		struct ArchetypeChunkPair {
+			Archetype* pArchetype;
+			Chunk* pChunk;
+
+			GAIA_NODISCARD bool operator==(const ArchetypeChunkPair& other) const {
+				return pArchetype == other.pArchetype && pChunk == other.pChunk;
+			}
+		};
+
 		class ArchetypeBase {
 		protected:
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -150,7 +159,7 @@ namespace gaia {
 			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
 					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
 					m_deleteReq(0), m_dead(0), //
-					m_lifespanCountdownMax(0), m_lifespanCountdown(0), //
+					m_lifespanCountdownMax(1), m_lifespanCountdown(0), //
 					m_pairCnt(0), m_pairCnt_is(0) {}
 
 			~Archetype() {
@@ -445,7 +454,7 @@ namespace gaia {
 
 			//! Removes a chunk from the list of chunks managed by their archetype and deletes its memory.
 			//! \param pChunk Chunk to remove from the list of managed archetypes
-			void del(Chunk* pChunk, ArchetypeDArray& archetypesToDelete) {
+			void del(Chunk* pChunk) {
 				// Make sure there are any chunks to delete
 				GAIA_ASSERT(!m_chunks.empty());
 
@@ -463,153 +472,6 @@ namespace gaia {
 				// Delete the chunk now. Otherwise, if the chunk happened to be the last
 				// one we would end up overriding released memory.
 				Chunk::free(pChunk);
-
-				// TODO: This needs cleaning up.
-				//       Chunk should have no idea of the world and also should not store
-				//       any states related to its lifespan.
-				if (m_lifespanCountdownMax > 0 && !dying() && empty()) {
-					// When the chunk is emptied we want it to be removed. We can't do it
-					// right away and need to wait for world::gc() to be called.
-					//
-					// However, we need to prevent the following:
-					//    1) chunk is emptied, add it to some removal list
-					//    2) chunk is reclaimed
-					//    3) chunk is emptied, add it to some removal list again
-					//
-					// Therefore, we have a flag telling us the chunk is already waiting to
-					// be removed. The chunk might be reclaimed before garbage collection happens
-					// but it simply ignores such requests. This way we always have at most one
-					// record for removal for any given chunk.
-					start_dying();
-
-					archetypesToDelete.push_back(this);
-				}
-			}
-
-			//! Defragments the chunk.
-			//! \param maxEntities Maximum number of entities moved per call
-			//! \param chunksToDelete Container of chunks ready for removal
-			//! \param entities Container with entities
-			void defrag(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToDelete, EntityContainers& recs) {
-				// Assuming the following chunk layout:
-				//   Chunk_1: 10/10
-				//   Chunk_2:  1/10
-				//   Chunk_3:  7/10
-				//   Chunk_4: 10/10
-				//   Chunk_5:  9/10
-				// After full defragmentation we end up with:
-				//   Chunk_1: 10/10
-				//   Chunk_2: 10/10 (7 entities from Chunk_3 + 2 entities from Chunk_5)
-				//   Chunk_3:  0/10 (empty, ready for removal)
-				//   Chunk_4: 10/10
-				//   Chunk_5:  7/10
-				// TODO: Implement mask of semi-full chunks so we can pick one easily when searching
-				//       for a chunk to fill with a new entity and when defragmenting.
-				// NOTE 1:
-				// Even though entity movement might be present during defragmentation, we do
-				// not update the world version here because no real structural changes happen.
-				// All entities and components remain intact, they just move to a different place.
-				// NOTE 2:
-				// Entities belonging to chunks with uni components are locked to their chunk.
-				// Therefore, we won't defragment them unless their uni components contain matching
-				// values.
-
-				if (maxEntities == 0)
-					return;
-				if (m_chunks.size() < 2)
-					return;
-
-				uint32_t front = 0;
-				uint32_t back = m_chunks.size() - 1;
-
-				auto* pDstChunk = m_chunks[front];
-				auto* pSrcChunk = m_chunks[back];
-
-				// Find the first semi-full chunk in the front
-				while (front < back && (pDstChunk->full() || !pDstChunk->is_semi()))
-					pDstChunk = m_chunks[++front];
-				// Find the last semi-full chunk in the back
-				while (front < back && (pSrcChunk->empty() || !pSrcChunk->is_semi()))
-					pSrcChunk = m_chunks[--back];
-
-				const bool hasUniEnts =
-						m_properties.cntEntities > 0 && m_ids[m_properties.cntEntities - 1].kind() == EntityKind::EK_Uni;
-
-				// Find the first semi-empty chunk in the back
-				while (front < back) {
-					pDstChunk = m_chunks[front];
-					pSrcChunk = m_chunks[back];
-
-					const uint32_t entitiesInSrcChunk = pSrcChunk->size();
-					const uint32_t spaceInDstChunk = pDstChunk->capacity() - pDstChunk->size();
-					const uint32_t entitiesToMoveSrc = core::get_min(entitiesInSrcChunk, maxEntities);
-					const uint32_t entitiesToMove = core::get_min(entitiesToMoveSrc, spaceInDstChunk);
-
-					// Make sure uni components have matching values
-					if (hasUniEnts) {
-						auto rec = pSrcChunk->comp_rec_view();
-						bool res = true;
-						GAIA_FOR2(m_properties.genEntities, m_properties.cntEntities) {
-							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(i, 0);
-							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(i, 0);
-							if (rec[i].pItem->cmp(pSrcVal, pDstVal)) {
-								res = false;
-								break;
-							}
-						}
-
-						// When there is not a match we move to the next chunk
-						if (!res) {
-							pDstChunk = m_chunks[++front];
-							goto next_iteration;
-						}
-					}
-
-					GAIA_FOR(entitiesToMove) {
-						const auto lastSrcEntityIdx = entitiesInSrcChunk - i - 1;
-						const auto entity = pSrcChunk->entity_view()[lastSrcEntityIdx];
-
-						auto& ec = recs[entity];
-
-						const auto srcRow = ec.row;
-						const auto dstRow = pDstChunk->add_entity(entity);
-						const bool wasEnabled = !ec.dis;
-
-						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, srcRow, true, recs);
-						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
-						GAIA_ASSERT(srcRow == ec.row);
-
-						// Move data from the old chunk to the new one
-						pDstChunk->move_entity_data(entity, dstRow, recs);
-
-						// Remove the entity record from the old chunk
-						remove_entity(*pSrcChunk, srcRow, recs, chunksToDelete);
-
-						// Bring the entity container record up-to-date
-						ec.pChunk = pDstChunk;
-						ec.row = (uint16_t)dstRow;
-
-						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, dstRow, wasEnabled, recs);
-					}
-
-					maxEntities -= entitiesToMove;
-					if (maxEntities == 0)
-						return;
-
-					// The source is empty, find another semi-empty source
-					if (pSrcChunk->empty()) {
-						while (front < back && !m_chunks[--back]->is_semi())
-							;
-					}
-
-				next_iteration:
-					// The destination chunk is full, we need to move to the next one.
-					// The idea is to fill the destination as much as possible.
-					while (front < back && pDstChunk->full())
-						pDstChunk = m_chunks[++front];
-				}
 			}
 
 			//! Tries to locate a chunk that has some space left for a new entity.
@@ -677,8 +539,8 @@ namespace gaia {
 					++m_firstFreeChunkIdx;
 			}
 
-			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
-				chunk.remove_entity(row, recs, chunksToDelete);
+			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
+				chunk.remove_entity(row, recs);
 				chunk.update_versions();
 
 				try_update_free_chunk_idx(chunk);
@@ -787,6 +649,14 @@ namespace gaia {
 				return m_graph.find_edge_left(entity);
 			}
 
+			GAIA_NODISCARD auto& right_edges() {
+				return m_graph.right_edges();
+			}
+
+			GAIA_NODISCARD auto& left_edges() {
+				return m_graph.left_edges();
+			}
+
 			//! Checks is there are no chunk in the archetype.
 			GAIA_NODISCARD bool empty() const {
 				return m_chunks.empty();
@@ -806,7 +676,9 @@ namespace gaia {
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(uint32_t lifespan) {
-				GAIA_ASSERT(lifespan < MAX_ARCHETYPE_LIFESPAN);
+				GAIA_ASSERT(lifespan > 0);
+				GAIA_ASSERT(lifespan <= MAX_ARCHETYPE_LIFESPAN);
+
 				m_lifespanCountdownMax = lifespan;
 			}
 
@@ -840,10 +712,15 @@ namespace gaia {
 
 			//! Updates internal lifespan
 			//! \return True if there is some lifespan left, false otherwise.
-			bool progress_death() {
+			GAIA_NODISCARD bool progress_death() {
 				GAIA_ASSERT(dying());
 				--m_lifespanCountdown;
 				return dying();
+			}
+
+			//! Tells whether archetype is ready to be deleted
+			GAIA_NODISCARD bool ready_to_die() const {
+				return m_lifespanCountdownMax > 0 && !dying() && empty();
 			}
 
 			static void diag_entity(const World& world, Entity entity) {

@@ -282,20 +282,6 @@ namespace gaia {
 					return (const U&)view<T>()[row];
 			}
 
-			//! Removes the entity at from the chunk and updates the world versions
-			void remove_last_entity_inter() {
-				// Should never be called over an empty chunk
-				GAIA_ASSERT(!empty());
-
-#if GAIA_ASSERT_ENABLED
-				// Invalidate the entity in chunk data
-				entity_view_mut()[m_header.count - 1] = EntityBad;
-#endif
-
-				--m_header.count;
-				--m_header.countEnabled;
-			}
-
 		public:
 			Chunk(const Chunk& chunk) = delete;
 			Chunk(Chunk&& chunk) = delete;
@@ -385,29 +371,17 @@ namespace gaia {
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.
 			//! \param chunksToDelete Container of chunks ready for deletion
-			void remove_last_entity(cnt::darray<Chunk*>& chunksToDelete) {
-				remove_last_entity_inter();
+			void remove_last_entity() {
+				// Should never be called over an empty chunk
+				GAIA_ASSERT(!empty());
 
-				// TODO: This needs cleaning up.
-				//       Chunk should have no idea of the world and also should not store
-				//       any states related to its lifespan.
-				if (!dying() && empty()) {
-					// When the chunk is emptied we want it to be removed. We can't do it
-					// rowB away and need to wait for world::gc() to be called.
-					//
-					// However, we need to prevent the following:
-					//    1) chunk is emptied, add it to some removal list
-					//    2) chunk is reclaimed
-					//    3) chunk is emptied, add it to some removal list again
-					//
-					// Therefore, we have a flag telling us the chunk is already waiting to
-					// be removed. The chunk might be reclaimed before garbage collection happens
-					// but it simply ignores such requests. This way we always have at most one
-					// record for removal for any given chunk.
-					start_dying();
+#if GAIA_ASSERT_ENABLED
+				// Invalidate the entity in chunk data
+				entity_view_mut()[m_header.count - 1] = EntityBad;
+#endif
 
-					chunksToDelete.push_back(this);
-				}
+				--m_header.count;
+				--m_header.countEnabled;
 			}
 
 			//! Updates the version numbers for this chunk.
@@ -772,7 +746,7 @@ namespace gaia {
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
-			void remove_entity(uint16_t row, EntityContainers& recs, cnt::darray<Chunk*>& chunksToDelete) {
+			void remove_entity(uint16_t row, EntityContainers& recs) {
 				GAIA_ASSERT(
 						!locked() && "Entities can't be removed while their chunk is being iterated "
 												 "(structural changes are forbidden during this time!)");
@@ -798,7 +772,7 @@ namespace gaia {
 				}
 
 				// At this point the last entity is no longer valid so remove it
-				remove_last_entity(chunksToDelete);
+				remove_last_entity();
 			}
 
 			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.
