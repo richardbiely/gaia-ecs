@@ -19668,8 +19668,8 @@ namespace gaia {
 				return rec.pData + (uintptr_t)rec.comp.size() * offset;
 			}
 
-			//! Make \param entity a part of the chunk at the version of the world
-			//! \return Row of entity in the chunk,
+			//! Make \param entity a part of the chunk at the version of the world.
+			//! \return Row of entity within the chunk.
 			GAIA_NODISCARD uint16_t add_entity(Entity entity) {
 				const auto row = m_header.count++;
 
@@ -19685,31 +19685,31 @@ namespace gaia {
 				return row;
 			}
 
-			//! Copies all data associated with \param oldEntity into \param newEntity.
-			static void copy_entity_data(Entity oldEntity, Entity newEntity, EntityContainers& recs) {
+			//! Copies all data associated with \param srcEntity into \param dstEntity.
+			static void copy_entity_data(Entity srcEntity, Entity dstEntity, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
-				auto& oldEntityContainer = recs[oldEntity];
-				auto* pOldChunk = oldEntityContainer.pChunk;
+				auto& srcEntityContainer = recs[srcEntity];
+				auto* pSrcChunk = srcEntityContainer.pChunk;
 
-				auto& newEntityContainer = recs[newEntity];
-				auto* pNewChunk = newEntityContainer.pChunk;
+				auto& dstEntityContainer = recs[dstEntity];
+				auto* pDstChunk = dstEntityContainer.pChunk;
 
-				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
+				GAIA_ASSERT(srcEntityContainer.pArchetype == dstEntityContainer.pArchetype);
 
-				auto oldRecs = pOldChunk->comp_rec_view();
+				auto srcRecs = pSrcChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity.
 				// Unique components do not change place in the chunk so there is no need to move them.
-				GAIA_FOR(pOldChunk->m_header.genEntities) {
-					const auto& rec = oldRecs[i];
+				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+					const auto& rec = srcRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					const auto* pSrc = (const void*)pOldChunk->comp_ptr_mut(i);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(i);
+					const auto* pSrc = (const void*)pSrcChunk->comp_ptr_mut(i);
+					auto* pDst = (void*)pDstChunk->comp_ptr_mut(i);
 					rec.pItem->copy(
-							pDst, pSrc, newEntityContainer.row, oldEntityContainer.row, pNewChunk->capacity(), pOldChunk->capacity());
+							pDst, pSrc, dstEntityContainer.row, srcEntityContainer.row, pDstChunk->capacity(), pSrcChunk->capacity());
 				}
 			}
 
@@ -19718,34 +19718,34 @@ namespace gaia {
 				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
 				auto& ec = recs[entity];
-				auto* pOldChunk = ec.pChunk;
-				auto oldRecs = pOldChunk->comp_rec_view();
+				auto* pSrcChunk = ec.pChunk;
+				auto srcRecs = pSrcChunk->comp_rec_view();
 
 				// Copy generic component data from reference entity to our new entity.
 				// Unique components do not change place in the chunk so there is no need to move them.
-				GAIA_FOR(pOldChunk->m_header.genEntities) {
-					const auto& rec = oldRecs[i];
+				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+					const auto& rec = srcRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
+					auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 					auto* pDst = (void*)comp_ptr_mut(i);
-					rec.pItem->ctor_from(pDst, pSrc, row, ec.row, capacity(), pOldChunk->capacity());
+					rec.pItem->ctor_from(pDst, pSrc, row, ec.row, capacity(), pSrcChunk->capacity());
 				}
 			}
 
 			//! Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
-			static void move_foreign_entity_data(Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow) {
+			static void move_foreign_entity_data(Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow) {
 				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
-				GAIA_ASSERT(pOldChunk != nullptr);
-				GAIA_ASSERT(pNewChunk != nullptr);
-				GAIA_ASSERT(oldRow < pOldChunk->size());
-				GAIA_ASSERT(newRow < pNewChunk->size());
+				GAIA_ASSERT(pSrcChunk != nullptr);
+				GAIA_ASSERT(pDstChunk != nullptr);
+				GAIA_ASSERT(srcRow < pSrcChunk->size());
+				GAIA_ASSERT(dstRow < pDstChunk->size());
 
-				auto oldIds = pOldChunk->ents_id_view();
-				auto newIds = pNewChunk->ents_id_view();
-				auto newRecs = pNewChunk->comp_rec_view();
+				auto srcIds = pSrcChunk->ents_id_view();
+				auto dstIds = pDstChunk->ents_id_view();
+				auto dstRecs = pDstChunk->comp_rec_view();
 
 				// Find intersection of the two component lists.
 				// Arrays are sorted so we can do linear intersection lookup.
@@ -19754,16 +19754,16 @@ namespace gaia {
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < pOldChunk->m_header.genEntities && j < pNewChunk->m_header.genEntities) {
-						const auto oldId = oldIds[i];
-						const auto newId = newIds[j];
+					while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+						const auto oldId = srcIds[i];
+						const auto newId = dstIds[j];
 
 						if (oldId == newId) {
-							const auto& rec = newRecs[j];
+							const auto& rec = dstRecs[j];
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(i);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j);
-								rec.pItem->ctor_from(pDst, pSrc, newRow, oldRow, pNewChunk->capacity(), pOldChunk->capacity());
+								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
+								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
+								rec.pItem->ctor_from(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
 							}
 
 							++i;
@@ -19772,9 +19772,9 @@ namespace gaia {
 							++i;
 						} else {
 							// No match with the old chunk. Construct the component
-							const auto& rec = newRecs[j];
+							const auto& rec = dstRecs[j];
 							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
+								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 								rec.pItem->func_ctor(pDst, 1);
 							}
 
@@ -19783,10 +19783,10 @@ namespace gaia {
 					}
 
 					// Initialize the rest of the components if they are generic.
-					for (; j < pNewChunk->m_header.genEntities; ++j) {
-						const auto& rec = newRecs[j];
+					for (; j < pDstChunk->m_header.genEntities; ++j) {
+						const auto& rec = dstRecs[j];
 						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
-							auto* pDst = (void*)pNewChunk->comp_ptr_mut(j, newRow);
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
 							rec.pItem->func_ctor(pDst, 1);
 						}
 					}
@@ -20921,27 +20921,27 @@ namespace gaia {
 
 						auto& ec = recs[entity];
 
-						const auto oldRow = ec.row;
-						const auto newRow = pDstChunk->add_entity(entity);
+						const auto srcRow = ec.row;
+						const auto dstRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, oldRow, true, recs);
+						enable_entity(pSrcChunk, srcRow, true, recs);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
-						GAIA_ASSERT(oldRow == ec.row);
+						GAIA_ASSERT(srcRow == ec.row);
 
 						// Move data from the old chunk to the new one
-						pDstChunk->move_entity_data(entity, newRow, recs);
+						pDstChunk->move_entity_data(entity, dstRow, recs);
 
 						// Remove the entity record from the old chunk
-						remove_entity(*pSrcChunk, oldRow, recs, chunksToDelete);
+						remove_entity(*pSrcChunk, srcRow, recs, chunksToDelete);
 
 						// Bring the entity container record up-to-date
 						ec.pChunk = pDstChunk;
-						ec.row = (uint16_t)newRow;
+						ec.row = (uint16_t)dstRow;
 
 						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newRow, wasEnabled, recs);
+						enable_entity(pDstChunk, dstRow, wasEnabled, recs);
 					}
 
 					maxEntities -= entitiesToMove;
@@ -25745,23 +25745,23 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Creates a new entity by cloning an already existing one.
-			//! \param entity Entity to clone
+			//! \param srcEntity Entity to clone
 			//! \return New entity
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity copy(Entity entity) {
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(valid(entity));
+			GAIA_NODISCARD Entity copy(Entity srcEntity) {
+				GAIA_ASSERT(!srcEntity.pair());
+				GAIA_ASSERT(valid(srcEntity));
 
-				auto& ec = m_recs.entities[entity.id()];
+				auto& ec = m_recs.entities[srcEntity.id()];
 
 				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				const auto newEntity = add(archetype, entity.entity(), entity.pair(), entity.kind());
-				Chunk::copy_entity_data(entity, newEntity, m_recs);
+				const auto dstEntity = add(archetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+				Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 
-				return newEntity;
+				return dstEntity;
 			}
 
 			//! Creates \param count new entities by cloning an already existing one.
@@ -25780,12 +25780,12 @@ namespace gaia {
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 
 				auto& archetype = *ec.pArchetype;
-				auto* pOldChunk = ec.pChunk;
+				auto* pSrcChunk = ec.pChunk;
 
 				// Entities array might get reallocated after m_recs.entities.alloc
 				// so instead of fetching the container again we simply cache the row
 				// of our source entity.
-				const auto oldRow = ec.row;
+				const auto srcRow = ec.row;
 
 				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
 
@@ -25818,19 +25818,19 @@ namespace gaia {
 					{
 						GAIA_PROF_SCOPE(copy_n::copy_entity_data);
 
-						auto oldRecs = pOldChunk->comp_rec_view();
+						auto srcRecs = pSrcChunk->comp_rec_view();
 
 						// Copy generic component data from reference entity to our new entity
-						GAIA_FOR(pOldChunk->m_header.genEntities) {
-							const auto& rec = oldRecs[i];
+						GAIA_FOR(pSrcChunk->m_header.genEntities) {
+							const auto& rec = srcRecs[i];
 							if (rec.comp.size() == 0U)
 								continue;
 
-							const auto* pSrc = (const void*)pOldChunk->comp_ptr(i);
+							const auto* pSrc = (const void*)pSrcChunk->comp_ptr(i);
 							GAIA_FOR_(toCreate, rowOffset) {
 								auto* pDst = (void*)pChunk->comp_ptr_mut(i);
 								rec.pItem->copy(
-										pDst, pSrc, originalChunkSize + rowOffset, oldRow, pChunk->capacity(), pOldChunk->capacity());
+										pDst, pSrc, originalChunkSize + rowOffset, srcRow, pChunk->capacity(), pSrcChunk->capacity());
 							}
 						}
 					}
@@ -28006,68 +28006,67 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one.
 			//! \param entity Entity to move
-			//! \param targetArchetype Target archetype
-			//! \param targetChunk Target chunk
-			void move_entity(Entity entity, Archetype& targetArchetype, Chunk& targetChunk) {
+			//! \param dstArchetype Destination archetype
+			//! \param dstChunk Destination chunk
+			void move_entity(Entity entity, Archetype& dstArchetype, Chunk& dstChunk) {
 				GAIA_PROF_SCOPE(World::move_entity);
 
-				auto* pNewChunk = &targetChunk;
+				auto* pDstChunk = &dstChunk;
 
 				auto& ec = fetch(entity);
-				auto* pOldChunk = ec.pChunk;
+				auto* pSrcChunk = ec.pChunk;
 
-				GAIA_ASSERT(pNewChunk != pOldChunk);
+				GAIA_ASSERT(pDstChunk != pSrcChunk);
 
-				const auto oldRow0 = ec.row;
-				const auto newRow = pNewChunk->add_entity(entity);
+				const auto srcRow0 = ec.row;
+				const auto dstRow = pDstChunk->add_entity(entity);
 				const bool wasEnabled = !ec.dis;
 
-				auto& oldArchetype = *ec.pArchetype;
-				auto& newArchetype = targetArchetype;
+				auto& srcArchetype = *ec.pArchetype;
 
 				// Make sure the old entity becomes enabled now
-				oldArchetype.enable_entity(pOldChunk, oldRow0, true, m_recs);
+				srcArchetype.enable_entity(pSrcChunk, srcRow0, true, m_recs);
 				// Enabling the entity might have changed its chunk index so fetch it again
-				const auto oldRow = ec.row;
+				const auto srcRow = ec.row;
 
 				// Move data from the old chunk to the new one
-				if (newArchetype.id() == oldArchetype.id()) {
-					pNewChunk->move_entity_data(entity, newRow, m_recs);
+				if (dstArchetype.id() == srcArchetype.id()) {
+					pDstChunk->move_entity_data(entity, dstRow, m_recs);
 				} else {
-					pNewChunk->move_foreign_entity_data(pOldChunk, oldRow, pNewChunk, newRow);
+					pDstChunk->move_foreign_entity_data(pSrcChunk, srcRow, pDstChunk, dstRow);
 				}
 
 				// Remove the entity record from the old chunk
-				remove_entity(oldArchetype, *pOldChunk, oldRow);
+				remove_entity(srcArchetype, *pSrcChunk, srcRow);
 
 				// An entity might have moved, try updating the free chunk index
-				newArchetype.try_update_free_chunk_idx();
+				dstArchetype.try_update_free_chunk_idx();
 
 				// Bring the entity container record up-to-date
-				ec.pArchetype = &newArchetype;
-				ec.pChunk = pNewChunk;
-				ec.row = (uint16_t)newRow;
+				ec.pArchetype = &dstArchetype;
+				ec.pChunk = pDstChunk;
+				ec.row = (uint16_t)dstRow;
 
 				// Make the enabled state in the new chunk match the original state
-				newArchetype.enable_entity(pNewChunk, newRow, wasEnabled, m_recs);
+				dstArchetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
 
 				// End-state validation
 				GAIA_ASSERT(valid(entity));
-				validate_chunk(pOldChunk);
-				validate_chunk(pNewChunk);
+				validate_chunk(pSrcChunk);
+				validate_chunk(pDstChunk);
 				validate_entities();
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
-			//! archetype. \param entity Entity to move \param newArchetype Target archetype
-			void move_entity(Entity entity, Archetype& newArchetype) {
+			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
+			void move_entity(Entity entity, Archetype& dstArchetype) {
 				// Archetypes need to be different
 				const auto& ec = fetch(entity);
-				if (ec.pArchetype == &newArchetype)
+				if (ec.pArchetype == &dstArchetype)
 					return;
 
-				auto* pNewChunk = newArchetype.foc_free_chunk();
-				move_entity(entity, newArchetype, *pNewChunk);
+				auto* pDstChunk = dstArchetype.foc_free_chunk();
+				move_entity(entity, dstArchetype, *pDstChunk);
 			}
 
 			//! Verifies than the implicit linked list of entities is valid

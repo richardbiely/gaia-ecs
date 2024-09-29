@@ -571,27 +571,27 @@ namespace gaia {
 
 						auto& ec = recs[entity];
 
-						const auto oldRow = ec.row;
-						const auto newRow = pDstChunk->add_entity(entity);
+						const auto srcRow = ec.row;
+						const auto dstRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, oldRow, true, recs);
+						enable_entity(pSrcChunk, srcRow, true, recs);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its row
-						GAIA_ASSERT(oldRow == ec.row);
+						GAIA_ASSERT(srcRow == ec.row);
 
 						// Move data from the old chunk to the new one
-						pDstChunk->move_entity_data(entity, newRow, recs);
+						pDstChunk->move_entity_data(entity, dstRow, recs);
 
 						// Remove the entity record from the old chunk
-						remove_entity(*pSrcChunk, oldRow, recs, chunksToDelete);
+						remove_entity(*pSrcChunk, srcRow, recs, chunksToDelete);
 
 						// Bring the entity container record up-to-date
 						ec.pChunk = pDstChunk;
-						ec.row = (uint16_t)newRow;
+						ec.row = (uint16_t)dstRow;
 
 						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newRow, wasEnabled, recs);
+						enable_entity(pDstChunk, dstRow, wasEnabled, recs);
 					}
 
 					maxEntities -= entitiesToMove;
