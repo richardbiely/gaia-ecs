@@ -204,6 +204,7 @@ namespace gaia {
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
 				m_vm.exec(ctx);

@@ -21495,6 +21495,7 @@ namespace gaia {
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! Array of filtered components
@@ -22101,6 +22102,8 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the ANY opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Any;
+				//! Idx of the last matched archetype against the NOT opcode
+				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Not;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -22167,6 +22170,19 @@ namespace gaia {
 					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 				};
 
+				inline uint32_t handle_last_archetype_match(
+						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+					const auto cache_it = pCont->find(entityKey);
+					uint32_t lastMatchedIdx = 0;
+					if (cache_it == pCont->end())
+						pCont->emplace(entityKey, pSrcArchetype->size());
+					else {
+						lastMatchedIdx = cache_it->second;
+						cache_it->second = pSrcArchetype->size();
+					}
+					return lastMatchedIdx;
+				}
+
 				// Operator ALL (used by query::all)
 				struct OpAll {
 					static bool can_continue(bool hasMatch) {
@@ -22174,6 +22190,10 @@ namespace gaia {
 					};
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						return expectedMatches == totalMatches;
+					}
+					static uint32_t
+					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, pSrcArchetype);
 					}
 				};
 				// Operator OR (used by query::any)
@@ -22185,6 +22205,10 @@ namespace gaia {
 						(void)expectedMatches;
 						return totalMatches > 0;
 					}
+					static uint32_t
+					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, pSrcArchetype);
+					}
 				};
 				// Operator NOT (used by query::no)
 				struct OpNo {
@@ -22194,6 +22218,10 @@ namespace gaia {
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						(void)expectedMatches;
 						return totalMatches == 0;
+					}
+					static uint32_t
+					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, pSrcArchetype);
 					}
 				};
 
@@ -22480,19 +22508,10 @@ namespace gaia {
 				inline void
 				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
 					const auto& archetypes = *pSrcArchetypes;
-
 					auto& matchesArr = *ctx.pMatchesArr;
 					auto& matchesSet = *ctx.pMatchesSet;
 
-					const auto cache_it = ctx.pLastMatchedArchetypeIdx_All->find(entityKey);
-					uint32_t lastMatchedIdx = 0;
-					if (cache_it == ctx.pLastMatchedArchetypeIdx_All->end())
-						ctx.pLastMatchedArchetypeIdx_All->emplace(entityKey, archetypes.size());
-					else {
-						lastMatchedIdx = cache_it->second;
-						cache_it->second = archetypes.size();
-					}
-
+					uint32_t lastMatchedIdx = OpKind::handle_last_match(ctx, entityKey, pSrcArchetypes);
 					if (lastMatchedIdx >= archetypes.size())
 						return;
 
@@ -23104,6 +23123,7 @@ namespace gaia {
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
 				m_vm.exec(ctx);

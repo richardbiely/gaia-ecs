@@ -125,6 +125,7 @@ namespace gaia {
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
 				//! Array of filtered components
