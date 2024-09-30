@@ -1,5 +1,3 @@
-#include "gaia/config/logging.h"
-#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -6469,13 +6467,7 @@ TEST_CASE("System - simple") {
 									.on_each([&](ecs::Iter& it) {
 										if (sys2_cnt == 0 && sys3_cnt == 0)
 											sys3_run_before_sys2 = true;
-
-										auto ents = it.view<ecs::Entity>();
-										GAIA_EACH(it) {
-											++sys2_cnt;
-											auto& ec = wld.fetch(ents[i]);
-											GAIA_LOG_N("A:%u, E:%u.%u", ec.pArchetype->id(), ents[i].id(), ents[i].gen());
-										}
+										GAIA_EACH(it)++ sys2_cnt;
 									});
 	auto sys3 = wld.system()
 									.all<Acceleration>() //

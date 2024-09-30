@@ -3358,7 +3358,7 @@ namespace gaia {
 				move_entity(entity, dstArchetype, *pDstChunk);
 			}
 
-			void validate_archetype_edges(const Archetype* pArchetype) const {
+			void validate_archetype_edges([[maybe_unused]] const Archetype* pArchetype) const {
 #if GAIA_ECS_VALIDATE_ARCHETYPE_GRAPH && GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(pArchetype != nullptr);
 
