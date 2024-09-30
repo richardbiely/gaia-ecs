@@ -6443,7 +6443,6 @@ TEST_CASE("System - simple") {
 		GAIA_FOR(100) {
 			sys3_run_before_sys1 = false;
 			sys3_run_before_sys2 = false;
-			GAIA_LOG_N("-------------");
 			wld.update();
 			REQUIRE(sys1_cnt == N);
 			REQUIRE(sys2_cnt == N);

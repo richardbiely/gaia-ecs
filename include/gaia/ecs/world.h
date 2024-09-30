@@ -2020,6 +2020,8 @@ namespace gaia {
 							info.remove(pArchetype);
 					}
 
+					for (auto* pArchetype: tmp)
+						del_empty_archetype(pArchetype);
 					tmp.clear();
 				};
 
@@ -2043,7 +2045,6 @@ namespace gaia {
 					tmp.push_back(pArchetype);
 
 					// Remove the unused archetypes
-					del_empty_archetype(pArchetype);
 					core::erase_fast(m_archetypesToDel, i);
 
 					// Clear what we have once the capacity is reached

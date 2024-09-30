@@ -2,7 +2,6 @@
 #include "../config/config.h"
 
 #include "../cnt/darray.h"
-#include "../cnt/sarray_ext.h"
 #include "../cnt/set.h"
 #include "../config/profiler.h"
 #include "../core/hashing_policy.h"
@@ -50,6 +49,9 @@ namespace gaia {
 			//! Virtual machine
 			vm::VirtualMachine m_vm;
 
+			//! Use to make sure only unique archetypes are inserted into the cache
+			//! TODO: Get rid of the set by changing the way the caching works.
+			cnt::set<Archetype*> m_archetypeSet;
 			//! Cached array of archetypes matching the query
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
@@ -250,6 +252,7 @@ namespace gaia {
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
 					const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+					GAIA_ASSERT(compIdx != BadIndex);
 
 					cacheData.indices[i] = (uint8_t)compIdx;
 				}
@@ -259,12 +262,19 @@ namespace gaia {
 			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(add_cache_ng);
 
+				if (m_archetypeSet.contains(pArchetype))
+					return;
+
+				m_archetypeSet.emplace(pArchetype);
 				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
 			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(add_cache_wg);
+
+				if (m_archetypeSet.contains(pArchetype))
+					return;
 
 				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
 
@@ -331,6 +341,7 @@ namespace gaia {
 				groupWasFound:;
 				}
 
+				m_archetypeSet.emplace(pArchetype);
 				m_archetypeCache.push_back(pArchetype);
 				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
@@ -342,8 +353,12 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype);
 			}
 
-			void del_archetype_from_cache(uint32_t idx) {
-				auto* pArchetype = m_archetypeCache[idx];
+			bool del_archetype_from_cache(Archetype* pArchetype) {
+				const auto idx = core::get_index(m_archetypeCache, pArchetype);
+				if (idx == BadIndex)
+					return false;
+
+				m_archetypeSet.erase(pArchetype);
 				core::erase_fast(m_archetypeCache, idx);
 				core::erase_fast(m_archetypeCacheData, idx);
 
@@ -370,6 +385,8 @@ namespace gaia {
 					else
 						m_archetypeGroupData.erase(m_archetypeGroupData.begin() + grpIdx);
 				}
+
+				return true;
 			}
 
 			GAIA_NODISCARD World* world() {
@@ -433,11 +450,8 @@ namespace gaia {
 			void remove(Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::remove);
 
-				const auto idx = core::get_index(m_archetypeCache, pArchetype);
-				if (idx == BadIndex)
+				if (!del_archetype_from_cache(pArchetype))
 					return;
-
-				del_archetype_from_cache(idx);
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
 				// lowered by one for every component context.
