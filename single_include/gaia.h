@@ -770,6 +770,9 @@ namespace gaia {
 #if !defined(GAIA_ECS_VALIDATE_ENTITY_LIST)
 	#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG && GAIA_DEVMODE)
 #endif
+#if !defined(GAIA_ECS_VALIDATE_ARCHETYPE_GRAPH)
+	#define GAIA_ECS_VALIDATE_ARCHETYPE_GRAPH (GAIA_DEBUG && GAIA_DEVMODE)
+#endif
 
 //------------------------------------------------------------------------------
 // Prefetching
@@ -17626,16 +17629,18 @@ namespace gaia {
 
 		private:
 			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
-				[[maybe_unused]] const auto ret =
+#if !GAIA_DISABLE_ASSERTS
+				const auto ret =
+#endif
 						edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId, hash});
 #if !GAIA_DISABLE_ASSERTS
-				// // If the result already exists make sure the new one is the same
-				// if (!ret.second) {
-				// 	const auto it = edges.find(EntityLookupKey(entity));
-				// 	GAIA_ASSERT(it != edges.end());
-				// 	GAIA_ASSERT(it->second.id == archetypeId);
-				// 	GAIA_ASSERT(it->second.hash == hash);
-				// }
+				// If the result already exists make sure the new one is the same
+				if (!ret.second) {
+					const auto it = edges.find(EntityLookupKey(entity));
+					GAIA_ASSERT(it != edges.end());
+					GAIA_ASSERT(it->second.id == archetypeId);
+					GAIA_ASSERT(it->second.hash == hash);
+				}
 #endif
 			}
 
@@ -17689,7 +17694,15 @@ namespace gaia {
 				return m_edgesAdd;
 			}
 
+			GAIA_NODISCARD const auto& right_edges() const {
+				return m_edgesAdd;
+			}
+
 			GAIA_NODISCARD auto& left_edges() {
+				return m_edgesDel;
+			}
+
+			GAIA_NODISCARD const auto& left_edges() const {
 				return m_edgesDel;
 			}
 
@@ -20993,7 +21006,15 @@ namespace gaia {
 				return m_graph.right_edges();
 			}
 
+			GAIA_NODISCARD const auto& right_edges() const {
+				return m_graph.right_edges();
+			}
+
 			GAIA_NODISCARD auto& left_edges() {
+				return m_graph.left_edges();
+			}
+
+			GAIA_NODISCARD const auto& left_edges() const {
 				return m_graph.left_edges();
 			}
 
@@ -27147,8 +27168,7 @@ namespace gaia {
 				// Make sure the archetype was registered already
 				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
 
-				// We have to connect edges of the left and right to fill the void
-				// created after this one is removed.
+				// Break graph connections
 				{
 					auto& edgeLefts = pArchetype->left_edges();
 					for (auto& itLeft: edgeLefts)
@@ -27215,27 +27235,6 @@ namespace gaia {
 			//! \param entity Entity we want to add.
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
-				// TODO: Add specialization for m_pCompArchetype and m_pEntityArchetype to make this faster
-				//       E.g. when adding a new entity we only have to sort from position 2 because the first 2
-				//			 indices are taken by the core component. Also hash calculation can be sped up this way.
-				// // We don't want to store edges for the root archetype because the more components there are the longer
-				// // it would take to find anything. Therefore, for the root archetype we always make a lookup.
-				// // Compared to an ordinary lookup this path is stripped as much as possible.
-				// if (pArchetypeLeft == m_pRootArchetype) {
-				// 	Archetype* pArchetypeRight = nullptr;
-				//
-				// 	const auto hashLookup = calc_lookup_hash(EntitySpan{&entity, 1}).hash;
-				// 	pArchetypeRight = find_archetype({hashLookup}, EntitySpan{&entity, 1});
-				// 	if (pArchetypeRight == nullptr) {
-				// 		pArchetypeRight = create_archetype(EntitySpan{&entity, 1});
-				// 		pArchetypeRight->set_hashes({hashLookup});
-				// 		pArchetypeRight->build_graph_edges_left(pArchetypeLeft, entity);
-				// 		reg_archetype(pArchetypeRight);
-				// 	}
-				//
-				// 	return pArchetypeRight;
-				// }
-
 				// Check if the component is found when following the "add" edges
 				{
 					const auto edge = pArchetypeLeft->find_edge_right(entity);
@@ -27929,7 +27928,11 @@ namespace gaia {
 				}
 			}
 
-			void remove_edge_from_archetype(Archetype* pArchetype, ArchetypeGraphEdge edgeLeft, Entity entityToRemove) {
+			//! Removes a graph connection with the surrounding archetypes.
+			//! \param pArchetype Archetype we are removing an edge from
+			//! \param edgeLeft An edge pointing towards the archetype on the left
+			//! \param edgeEntity An entity which when followed from the left edge we reach the archetype
+			void remove_edge_from_archetype(Archetype* pArchetype, ArchetypeGraphEdge edgeLeft, Entity edgeEntity) {
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				const auto edgeLeftIt = m_archetypesById.find(ArchetypeIdLookupKey(edgeLeft.id, edgeLeft.hash));
@@ -27939,7 +27942,10 @@ namespace gaia {
 				auto* pArchetypeLeft = edgeLeftIt->second;
 				GAIA_ASSERT(pArchetypeLeft != nullptr);
 
-				// Connect with edges on the right
+				// Remove the connection with the current archetype
+				pArchetypeLeft->del_graph_edges(pArchetype, edgeEntity);
+
+				// Traverse all archetypes on the right
 				auto& archetypesRight = pArchetype->right_edges();
 				for (auto& it: archetypesRight) {
 					const auto& edgeRight = it.second;
@@ -27948,10 +27954,10 @@ namespace gaia {
 						continue;
 
 					auto* pArchetypeRight = edgeRightIt->second;
-					pArchetypeRight->build_graph_edges(pArchetypeLeft, entityToRemove);
-				}
 
-				pArchetypeLeft->del_graph_edges(pArchetype, entityToRemove);
+					// Remove the connection with the current archetype
+					pArchetype->del_graph_edges(pArchetypeRight, it.first.entity());
+				}
 			}
 
 			void remove_edges(Entity entityToRemove) {
@@ -28123,6 +28129,56 @@ namespace gaia {
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
+			}
+
+			void validate_archetype_edges(const Archetype* pArchetype) const {
+#if GAIA_ECS_VALIDATE_ARCHETYPE_GRAPH && GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				// Validate left edges
+				const auto& archetypesLeft = pArchetype->left_edges();
+				for (const auto& it: archetypesLeft) {
+					const auto& edge = it.second;
+					const auto edgeIt = m_archetypesById.find(ArchetypeIdLookupKey(edge.id, edge.hash));
+					if (edgeIt == m_archetypesById.end())
+						continue;
+
+					const auto entity = it.first.entity();
+					const auto* pArchetypeRight = edgeIt->second;
+
+					// Edge must be found
+					const auto edgeRight = pArchetypeRight->find_edge_right(entity);
+					GAIA_ASSERT(edgeRight != ArchetypeIdHashPairBad);
+
+					// The edge must point to pArchetype
+					const auto it2 = m_archetypesById.find(ArchetypeIdLookupKey(edgeRight.id, edgeRight.hash));
+					GAIA_ASSERT(it2 != m_archetypesById.end());
+					const auto* pArchetype2 = it2->second;
+					GAIA_ASSERT(pArchetype2 == pArchetype);
+				}
+
+				// Validate right edges
+				const auto& archetypesRight = pArchetype->right_edges();
+				for (const auto& it: archetypesRight) {
+					const auto& edge = it.second;
+					const auto edgeIt = m_archetypesById.find(ArchetypeIdLookupKey(edge.id, edge.hash));
+					if (edgeIt == m_archetypesById.end())
+						continue;
+
+					const auto entity = it.first.entity();
+					const auto* pArchetypeRight = edgeIt->second;
+
+					// Edge must be found
+					const auto edgeLeft = pArchetypeRight->find_edge_left(entity);
+					GAIA_ASSERT(edgeLeft != ArchetypeIdHashPairBad);
+
+					// The edge must point to pArchetype
+					const auto it2 = m_archetypesById.find(ArchetypeIdLookupKey(edgeLeft.id, edgeLeft.hash));
+					GAIA_ASSERT(it2 != m_archetypesById.end());
+					const auto* pArchetype2 = it2->second;
+					GAIA_ASSERT(pArchetype2 == pArchetype);
+				}
+#endif
 			}
 
 			//! Verifies than the implicit linked list of entities is valid
@@ -28850,6 +28906,10 @@ namespace gaia {
 				}
 
 				sort_archetypes();
+
+				// Make sure archetypes have valid graphs after the cleanup
+				for (const auto* pArchetype: m_archetypes)
+					validate_archetype_edges(pArchetype);
 			}
 
 			// Make sure archetype pointers are up-to-date

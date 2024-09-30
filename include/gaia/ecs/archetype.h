@@ -653,7 +653,15 @@ namespace gaia {
 				return m_graph.right_edges();
 			}
 
+			GAIA_NODISCARD const auto& right_edges() const {
+				return m_graph.right_edges();
+			}
+
 			GAIA_NODISCARD auto& left_edges() {
+				return m_graph.left_edges();
+			}
+
+			GAIA_NODISCARD const auto& left_edges() const {
 				return m_graph.left_edges();
 			}
 
