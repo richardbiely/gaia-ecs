@@ -23254,11 +23254,14 @@ namespace gaia {
 			}
 
 			bool del_archetype_from_cache(Archetype* pArchetype) {
-				const auto idx = core::get_index(m_archetypeCache, pArchetype);
-				if (idx == BadIndex)
+				const auto it = m_archetypeSet.find(pArchetype);
+				if (it == m_archetypeSet.end())
 					return false;
+				m_archetypeSet.erase(it);
 
-				m_archetypeSet.erase(pArchetype);
+				const auto idx = core::get_index_unsafe(m_archetypeCache, pArchetype);
+				GAIA_ASSERT(idx != BadIndex);
+
 				core::erase_fast(m_archetypeCache, idx);
 				core::erase_fast(m_archetypeCacheData, idx);
 
