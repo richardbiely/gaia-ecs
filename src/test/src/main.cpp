@@ -5416,6 +5416,34 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 	}
 }
 
+TEST_CASE("Query - all/any eval after new archetypes are created") {
+	TestWorld twld;
+
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	wld.add(e1, e1);
+	wld.add(e2, e2);
+
+	auto q_ = wld.query().any(e1).any(e2);
+	REQUIRE(q_.count() == 0);
+	auto q = wld.query().all(e1).all(e2);
+	REQUIRE(q.count() == 0);
+
+	auto e3 = wld.add();
+	wld.add(e3, e3);
+	wld.add(e3, e1);
+	wld.add(e3, e2);
+	REQUIRE(q.count() == 1);
+	REQUIRE(q_.count() == 1);
+
+	auto e4 = wld.add();
+	wld.add(e4, e4);
+	wld.add(e4, e1);
+	wld.add(e4, e2);
+	REQUIRE(q_.count() == 2);
+	REQUIRE(q.count() == 2);
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 
