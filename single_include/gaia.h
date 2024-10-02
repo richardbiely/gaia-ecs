@@ -23494,7 +23494,7 @@ namespace gaia {
 			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
-				// Check if the query info exists first
+				// First check if the query cache record exists
 				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
 				if (!ret.second)
 					return get(ret.first->second);
@@ -24875,6 +24875,7 @@ namespace gaia {
 			//! take space on a query almost 100% of the time with no purpose at all.
 			//! Records removed as soon as the query is compiled.
 			QuerySerMap m_querySerMap;
+			uint32_t m_nextQuerySerId = 0;
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
@@ -27146,6 +27147,7 @@ namespace gaia {
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
+				GAIA_ASSERT(m_nextArchetypeId < decltype(m_nextArchetypeId)(-1));
 				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
 				for (auto entity: entities) {
@@ -28501,49 +28503,54 @@ namespace gaia {
 				defrag_chunks(m_defragEntitiesPerTick);
 				del_empty_archetypes();
 			}
+
+		public:
+			QuerySerBuffer& query_buffer(QueryId& serId) {
+				// No serialization id set on the query, try creating a new record
+				if GAIA_UNLIKELY (serId == QueryIdBad) {
+#if GAIA_ASSERT_ENABLED
+					uint32_t safetyCounter = 0;
+#endif
+
+					while (true) {
+#if GAIA_ASSERT_ENABLED
+						// Make sure we don't cross some safety threshold
+						++safetyCounter;
+						GAIA_ASSERT(safetyCounter < 100000);
+#endif
+
+						serId = ++m_nextQuerySerId;
+
+						// If the id is already found, try again.
+						// Note, this is essentially never going to repeat. We would have to prepare millions if
+						// not billions of queries for which we only added inputs but never queried them.
+						auto ret = m_querySerMap.try_emplace(serId);
+						if (!ret.second)
+							continue;
+
+						return ret.first->second;
+					};
+				}
+
+				return m_querySerMap[serId];
+			}
+
+			void query_buffer_reset(QueryId& serId) {
+				auto it = m_querySerMap.find(serId);
+				if (it == m_querySerMap.end())
+					return;
+
+				m_querySerMap.erase(it);
+				serId = QueryIdBad;
+			}
 		};
 
 		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
-			static QueryId s_querySerId = QueryIdBad;
-
-			auto& queryBuffers = world.query_ser_map();
-			// No serialization id set on the query, try creating a new record
-			if GAIA_UNLIKELY (serId == QueryIdBad) {
-#if GAIA_ASSERT_ENABLED
-				uint32_t safetyCounter = 0;
-#endif
-
-				while (true) {
-#if GAIA_ASSERT_ENABLED
-					// Make sure we don't cross some safety threshold
-					++safetyCounter;
-					GAIA_ASSERT(safetyCounter < 100000);
-#endif
-
-					serId = ++s_querySerId;
-
-					// If the id is already found, try again.
-					// Note, this is essentially never going to repeat. We would have to prepare millions if
-					// not billions of queries for which we only added inputs but never queried them.
-					auto ret = queryBuffers.try_emplace(serId);
-					if (!ret.second)
-						continue;
-
-					return ret.first->second;
-				};
-			}
-
-			return queryBuffers[serId];
+			return world.query_buffer(serId);
 		}
 
 		inline void query_buffer_reset(World& world, QueryId& serId) {
-			auto& queryBuffers = world.query_ser_map();
-			auto it = queryBuffers.find(serId);
-			if (it == queryBuffers.end())
-				return;
-
-			queryBuffers.erase(it);
-			serId = QueryIdBad;
+			world.query_buffer_reset(serId);
 		}
 
 		GAIA_NODISCARD inline const ComponentCache& comp_cache(const World& world) {

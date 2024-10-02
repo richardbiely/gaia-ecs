@@ -76,7 +76,7 @@ namespace gaia {
 			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
-				// Check if the query info exists first
+				// First check if the query cache record exists
 				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
 				if (!ret.second)
 					return get(ret.first->second);
