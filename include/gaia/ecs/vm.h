@@ -516,7 +516,7 @@ namespace gaia {
 				inline void match_archetype_one(MatchingCtx& ctx) {
 					EntityLookupKey entityKey(ctx.ent);
 
-					// For ANY we need at least one archetypes to match.
+					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
 					const auto* pArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
@@ -529,7 +529,7 @@ namespace gaia {
 				inline void match_archetype_one_as(MatchingCtx& ctx) {
 					const auto& allArchetypes = *ctx.pAllArchetypes;
 
-					// For ANY we need at least one archetypes to match.
+					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
 
@@ -565,7 +565,7 @@ namespace gaia {
 
 				inline void match_archetype_no_2(MatchingCtx& ctx) {
 					// We had some matches already (with ALL or ANY). We need to remove those
-					// that match with the NO list. Remove them back-to-front.
+					// that match with the NO list.
 					for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 						auto* pArchetype = (*ctx.pMatchesArr)[i];
 						if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
@@ -579,7 +579,7 @@ namespace gaia {
 
 				inline void match_archetype_no_as_2(MatchingCtx& ctx) {
 					// We had some matches already (with ALL or ANY). We need to remove those
-					// that match with the NO list. Remove them back-to-front.
+					// that match with the NO list.
 					for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 						auto* pArchetype = (*ctx.pMatchesArr)[i];
 						if (match_res_as<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {

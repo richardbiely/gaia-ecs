@@ -213,7 +213,7 @@ namespace gaia {
 
 				// Smaller ids second.
 				if (lhs.id != rhs.id)
-					return lhs.id < rhs.id;
+					return SortComponentCond()(lhs.id, rhs.id);
 
 				// Sources go last. Note, sources are never a pair.
 				// We want to do it this way because it would be expensive to build cache for
@@ -223,7 +223,7 @@ namespace gaia {
 				//       E.g. depending on the number of archetypes we'd have to traverse
 				//       it might be beneficial to do a different ordering which is impossible
 				//       to do at this point.
-				return lhs.src.id() < rhs.src.id();
+				return SortComponentCond()(lhs.src, rhs.src);
 			}
 		};
 
