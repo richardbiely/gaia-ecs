@@ -355,8 +355,10 @@ namespace gaia {
 				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
-					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[idx]);
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						auto* ptr = &data()[idx];
+						core::call_dtor(ptr);
+					}
 
 					--m_cnt;
 				}
@@ -368,8 +370,10 @@ namespace gaia {
 						if (m_pSparse[i] == detail::InvalidId)
 							continue;
 
-						if constexpr (!mem::is_soa_layout_v<T>)
-							core::call_dtor(&data()[i]);
+						if constexpr (!mem::is_soa_layout_v<T>) {
+							auto* ptr = &data()[i];
+							core::call_dtor(ptr);
+						}
 					}
 
 					m_cnt = 0;

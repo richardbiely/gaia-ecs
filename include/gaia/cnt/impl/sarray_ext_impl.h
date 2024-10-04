@@ -377,8 +377,10 @@ namespace gaia {
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 			}
@@ -443,8 +445,10 @@ namespace gaia {
 
 				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - 1]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 
@@ -486,8 +490,10 @@ namespace gaia {
 
 				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - 1]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 

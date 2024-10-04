@@ -508,7 +508,8 @@ namespace gaia {
 				GAIA_ASSERT(!empty());
 
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt]);
+					auto* ptr = &data()[m_cnt];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, data(), m_cap, m_cnt - 1);
 				}
 
@@ -580,7 +581,8 @@ namespace gaia {
 				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt - 1]);
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, data(), m_cap, m_cnt - 1);
 				}
 
