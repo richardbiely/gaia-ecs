@@ -298,9 +298,11 @@ endif()
 if(GAIA_GENERATE_CC)
   add_custom_target(generate_compile_commands ALL)
   add_custom_command(
+    COMMENT "Generating compile_commands.json in: ${CMAKE_BINARY_DIR}/ninja"  
     TARGET generate_compile_commands POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja -DGAIA_DEVMODE=${GAIA_DEVMODE} -DGAIA_PROFILER_CPU=${GAIA_PROFILER_CPU} -DGAIA_PROFILER_MEM=${GAIA_PROFILER_MEM}
-    COMMENT "Generating compile_commands.json"
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/ninja -DGAIA_DEVMODE=${GAIA_DEVMODE} -DGAIA_PROFILER_CPU=${GAIA_PROFILER_CPU} -DGAIA_PROFILER_MEM=${GAIA_PROFILER_MEM}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/ninja
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/ninja/compile_commands.json ${CMAKE_SOURCE_DIR}/ninja/compile_commands.json
   )
 endif()
 
