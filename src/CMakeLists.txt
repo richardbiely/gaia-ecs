@@ -240,6 +240,8 @@ if(GAIA_BUILD_BENCHMARK OR GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROF
   endif()
 endif()
 
+# Amalgamate currently does not build for Win+ARM properly because it requires the __cpuid intrinsic
+# if(GAIA_MAKE_SINGLE_HEADER AND NOT (WIN32 AND IsARM))
 if(GAIA_MAKE_SINGLE_HEADER)
   if(IS_FETCH_AVAILABLE)
     find_package(amalgamate CONFIG QUIET 0.99.0)
@@ -271,7 +273,7 @@ if(GAIA_MAKE_SINGLE_HEADER)
     message("Building amalgamate for Windows platform in: " ${amalgamate_SOURCE_DIR})
     add_custom_target(build_amalgamate ALL
       WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
-      COMMAND ${CMAKE_COMMAND} -E call ${amalgamate_SOURCE_DIR}/build.bat
+      COMMAND build.bat
     )
 
   else()
