@@ -242,32 +242,49 @@ endif()
 
 if(GAIA_MAKE_SINGLE_HEADER)
   if(IS_FETCH_AVAILABLE)
-    find_package(quom CONFIG QUIET 4.0.1)
+    find_package(amalgamate CONFIG QUIET 0.99.0)
 
-    if(NOT quom_FOUND)
+    if(NOT amalgamate_FOUND)
       FetchContent_Declare(
-        quom
-        GIT_REPOSITORY https://github.com/Viatorus/quom.git
-        GIT_TAG 4.0.1
+        amalgamate
+        GIT_REPOSITORY https://github.com/rindeal/Amalgamate.git
+        GIT_TAG v0.99.0
+        GIT_SHALLOW TRUE
+        GIT_SUBMODULES_RECURSE TRUE
       )
 
-      FetchContent_MakeAvailable(quom)
+      FetchContent_MakeAvailable(amalgamate)
     endif()
   else()
-    find_package(quom CONFIG REQUIRED 4.0.1)
+    find_package(amalgamate CONFIG REQUIRED 0.99.0)
   endif()
 
-  if(NOT UNIX)
-    message(WARNING "Merging files into a single header is only supported on Unix systems")
-  else()
-    add_custom_target(generate_single_header ALL)
-    add_custom_command(
-      TARGET generate_single_header POST_BUILD
-      COMMAND ./make_single_header.sh ${quom_SOURCE_DIR}
-      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-      COMMENT "Merging files into a single header"
+  # Add a custom target to build amalgamate
+  if(UNIX)
+    message("Building amalgamate for Unix platform in: " ${amalgamate_SOURCE_DIR})
+
+    add_custom_target(build_amalgamate ALL
+      WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
+      COMMAND make
     )
+  elseif(WIN32)
+    message("Building amalgamate for Windows platform in: " ${amalgamate_SOURCE_DIR})
+    add_custom_target(build_amalgamate ALL
+      WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
+      COMMAND ${CMAKE_COMMAND} -E call ${amalgamate_SOURCE_DIR}/build.bat
+    )
+
+  else()
+    message(WARNING "Unsupported platform. Building amalgamate won't be possible")
   endif()
+
+  add_custom_target(generate_single_header ALL)
+  add_custom_command(
+    TARGET generate_single_header POST_BUILD
+    COMMAND ./make_single_header.sh ${amalgamate_SOURCE_DIR}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    COMMENT "Merging files into a single header"
+  )
 endif()
 
 if(GAIA_GENERATE_CC)
@@ -351,9 +368,9 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
     if(DEFINED tracy_profiler_build_dir)
       add_custom_target(build_tracy_profiler_gui ALL
-        COMMAND cmake -E make_directory ${tracy_profiler_build_dir}
-        COMMAND cmake -DCMAKE_BUILD_TYPE=Release -B ${tracy_profiler_build_dir} -S .
-        COMMAND cmake --build ${tracy_profiler_build_dir} --config Release
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${tracy_profiler_build_dir}
+        COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release -B ${tracy_profiler_build_dir} -S .
+        COMMAND ${CMAKE_COMMAND} --build ${tracy_profiler_build_dir} --config Release
         WORKING_DIRECTORY ${tracy_SOURCE_DIR}/profiler
       )
     endif()
