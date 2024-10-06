@@ -196,8 +196,6 @@ namespace gaia {
 					// Arrays are sorted so we can do linear intersection lookup
 					uint32_t indices[2]{}; // 0 for query ids, 1 for archetype ids
 					uint32_t matches = 0;
-					Entity entityToMatch = EntityBad;
-					Entity varEntity = EntityBad;
 
 					// Ids in query and archetype are sorted.
 					// Therefore, to match any two ids we perform a linear intersection forward loop.

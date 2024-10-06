@@ -9,7 +9,7 @@
 
 #include "../config/profiler.h"
 
-#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
+#if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)
 	#define GAIA_MEM_FREE(ptr) ::free(ptr)
 

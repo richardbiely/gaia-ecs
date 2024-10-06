@@ -1841,7 +1841,7 @@ namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
-	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t) - 1)
+	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t) - 1);(void)max_len
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
@@ -3809,7 +3809,7 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
+#if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)
 	#define GAIA_MEM_FREE(ptr) ::free(ptr)
 
@@ -20314,8 +20314,6 @@ namespace gaia {
 					// Arrays are sorted so we can do linear intersection lookup
 					uint32_t indices[2]{}; // 0 for query ids, 1 for archetype ids
 					uint32_t matches = 0;
-					Entity entityToMatch = EntityBad;
-					Entity varEntity = EntityBad;
 
 					// Ids in query and archetype are sorted.
 					// Therefore, to match any two ids we perform a linear intersection forward loop.
