@@ -161,7 +161,7 @@ namespace gaia {
 		void call_dtor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
-				pData.~T();
+				pData->~T();
 			}
 		}
 
@@ -769,7 +769,7 @@ namespace gaia {
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
 		template <typename C>
-		void erase_fast_unsafe(C& arr, typename C::size_type idx) {
+		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
 
 			if (idx + 1 != arr.size())
@@ -782,7 +782,7 @@ namespace gaia {
 		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		template <typename C>
-		void erase_fast(C& arr, typename C::size_type idx) {
+		void swap_erase(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
 				return;
 
