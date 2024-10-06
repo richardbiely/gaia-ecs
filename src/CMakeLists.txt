@@ -281,9 +281,15 @@ if(GAIA_MAKE_SINGLE_HEADER)
   endif()
 
   add_custom_target(generate_single_header ALL)
+  if(WIN32)
+    set(generate_single_header_path "make_single_header.bat")
+  else()
+    set(generate_single_header_path "./make_single_header.sh")  
+  endif()
+
   add_custom_command(
     TARGET generate_single_header POST_BUILD
-    COMMAND ./make_single_header.sh ${amalgamate_SOURCE_DIR}
+    COMMAND ${generate_single_header_path} ${amalgamate_SOURCE_DIR}
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Merging files into a single header"
   )
