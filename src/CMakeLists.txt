@@ -161,8 +161,6 @@ else()
     endif()
   endif()
 
-  enable_cxx_compiler_flag_if_supported("-fno-exceptions")
-
   # strictness rules
   # Tracy profiler is not written with strictness and warnings-as-errors in mind
   # so rather than reading spam in the build output we disable any strictness
@@ -208,6 +206,12 @@ else()
   endif()
 endif()
 
+# Turn off RTTI and exception handling
+# Ideally we would want something like following:
+# set(CMAKE_CXX_EXCEPTIONS OFF)
+# set(CMAKE_CXX_RTTI OFF)
+# https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
+# However, it does not look like it is ever going to happen so let us do things manually.
 if(MSVC)
   # Turn off RTTI
   string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -215,11 +219,12 @@ if(MSVC)
   # Turn off exceptions (including in STL)
   string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   add_definitions(-D_HAS_EXCEPTIONS=0)
+else()
+  # Turn off RTTI
+  enable_cxx_compiler_flag_if_supported("-fno-rtti")
 
-  # TODO: Enable this once it lands
-  # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
-  # set(CMAKE_CXX_EXCEPTIONS OFF)
-  # set(CMAKE_CXX_RTTI OFF)
+  # Turn off exceptions (including in STL)
+  enable_cxx_compiler_flag_if_supported("-fno-exceptions")
 endif()
 
 set(IS_FETCH_AVAILABLE OFF)
