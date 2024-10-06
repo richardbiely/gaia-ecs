@@ -23399,11 +23399,11 @@ namespace gaia {
 					return false;
 				m_archetypeSet.erase(it);
 
-				const auto idx = core::get_index_unsafe(m_archetypeCache, pArchetype);
-				GAIA_ASSERT(idx != BadIndex);
+				const auto archetypeIdx = core::get_index_unsafe(m_archetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
 
-				core::swap_erase(m_archetypeCache, idx);
-				core::swap_erase(m_archetypeCacheData, idx);
+				core::swap_erase(m_archetypeCache, archetypeIdx);
+				core::swap_erase(m_archetypeCacheData, archetypeIdx);
 
 				// Update the group data if possible
 				if (m_ctx.data.groupBy != EntityBad) {
@@ -23413,7 +23413,7 @@ namespace gaia {
 					});
 					GAIA_ASSERT(grpIdx != BadIndex);
 
-					auto& currGrp = m_archetypeGroupData[idx];
+					auto& currGrp = m_archetypeGroupData[archetypeIdx];
 
 					// Update ranges
 					const auto lastGrpIdx = m_archetypeGroupData.size();
@@ -23506,8 +23506,8 @@ namespace gaia {
 			}
 
 			//! Returns a view of indices mapping for component entities in a given archetype
-			std::span<const uint8_t> indices_mapping_view(uint32_t idx) const {
-				const auto& data = m_archetypeCacheData[idx];
+			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
+				const auto& data = m_archetypeCacheData[archetypeIdx];
 				return {(const uint8_t*)&data.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
