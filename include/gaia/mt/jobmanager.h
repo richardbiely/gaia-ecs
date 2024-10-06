@@ -40,7 +40,7 @@ namespace gaia {
 
 			JobContainer() = default;
 
-			static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+			GAIA_NODISCARD static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (JobAllocCtx*)pCtx;
 
 				JobContainer jc{};
@@ -54,7 +54,7 @@ namespace gaia {
 				return jc;
 			}
 
-			static JobHandle create(const JobContainer& jc) {
+			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
 				return JobHandle(jc.idx, jc.gen, (uint32_t)jc.priority);
 			}
 		};
@@ -67,7 +67,7 @@ namespace gaia {
 
 			JobDependency() = default;
 
-			static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
+			GAIA_NODISCARD static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
 				JobDependency jd{};
 				jd.idx = index;
 				jd.gen = generation;
@@ -77,7 +77,7 @@ namespace gaia {
 				return jd;
 			}
 
-			static DepHandle create(const JobDependency& jd) {
+			GAIA_NODISCARD static DepHandle handle(const JobDependency& jd) {
 				return DepHandle(
 						jd.idx, jd.gen,
 						// It does not matter what value we set for priority on dependencies,

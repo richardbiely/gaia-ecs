@@ -48,6 +48,49 @@ namespace gaia {
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;
 
+		struct QueryHandle {
+			static constexpr uint32_t IdMask = QueryIdBad;
+
+		private:
+			struct HandleData {
+				QueryId id;
+				uint32_t gen;
+			};
+
+			union {
+				HandleData data;
+				uint64_t val;
+			};
+
+		public:
+			constexpr QueryHandle() noexcept: val((uint64_t)-1) {};
+
+			QueryHandle(QueryId id, uint32_t gen) {
+				data.id = id;
+				data.gen = gen;
+			}
+			~QueryHandle() = default;
+
+			QueryHandle(QueryHandle&&) noexcept = default;
+			QueryHandle(const QueryHandle&) = default;
+			QueryHandle& operator=(QueryHandle&&) noexcept = default;
+			QueryHandle& operator=(const QueryHandle&) = default;
+
+			GAIA_NODISCARD constexpr bool operator==(const QueryHandle& other) const noexcept {
+				return val == other.val;
+			}
+			GAIA_NODISCARD constexpr bool operator!=(const QueryHandle& other) const noexcept {
+				return val != other.val;
+			}
+
+			GAIA_NODISCARD auto id() const {
+				return data.id;
+			}
+			GAIA_NODISCARD auto gen() const {
+				return data.gen;
+			}
+		};
+
 		//! User-provided query input
 		struct QueryInput {
 			//! Operation to perform with the input
@@ -91,7 +134,7 @@ namespace gaia {
 
 		struct QueryIdentity {
 			//! Query id
-			QueryId queryId = QueryIdBad;
+			QueryHandle handle = {};
 			//! Serialization id
 			QueryId serId = QueryIdBad;
 
@@ -111,7 +154,7 @@ namespace gaia {
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
 			//! Query identity
-			QueryIdentity q;
+			QueryIdentity q{};
 
 			enum QueryFlags : uint8_t { //
 				SortGroups = 0x01
@@ -162,7 +205,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(q.queryId == QueryIdBad);
+				GAIA_ASSERT(q.handle.id() == QueryIdBad);
 				// Fast path when cache ids are set
 				// if (queryId != QueryIdBad && queryId == other.queryId)
 				// 	return true;

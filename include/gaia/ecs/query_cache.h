@@ -3,6 +3,7 @@
 
 #include "../cnt/darray.h"
 #include "../cnt/map.h"
+#include "../core/utility.h"
 #include "query_common.h"
 #include "query_info.h"
 
@@ -28,23 +29,26 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->q.queryId;
+				const auto id = m_pCtx->q.handle.id();
 
 				// Temporary key is given. Do full context comparison.
 				if (id == QueryIdBad)
 					return *m_pCtx == *other.m_pCtx;
 
 				// Real key is given. Compare context pointer.
-				// Normally we'd compare query IDs but because we do not allow query copies and all query are
+				// Normally we'd compare query IDs but because we do not allow query copies and all queries are
 				// unique it's guaranteed that if pointers are the same we have a match.
-				// This also saves a pointer indirection because we do not access the memory the pointer points to.
 				return m_pCtx == other.m_pCtx;
 			}
 		};
-
 		class QueryCache {
-			cnt::map<QueryLookupKey, QueryId> m_queryCache;
-			cnt::darray<QueryInfo> m_queryArr;
+			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
+			// TODO: Make m_queryArr allocate data in pages.
+			//       Currently ilist always uses a darr internally which keeps growing following
+			//       logic not suitable for this particular use case.
+			//       QueryInfo is quite big and we do not want to copying a lot of data every time
+			//       resizing is necessary.
+			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
 
 		public:
 			QueryCache() {
@@ -58,34 +62,93 @@ namespace gaia {
 			QueryCache& operator=(QueryCache&&) = delete;
 			QueryCache& operator=(const QueryCache&) = delete;
 
+			GAIA_NODISCARD bool valid(QueryHandle handle) const {
+				if (handle.id() == QueryIdBad)
+					return false;
+
+				// Entity ID has to fit inside the entity array
+				if (handle.id() >= m_queryArr.size())
+					return false;
+
+				const auto& h = m_queryArr[handle.id()];
+				return h.idx == handle.id() && h.gen == handle.gen();
+			}
+
 			void clear() {
 				m_queryCache.clear();
 				m_queryArr.clear();
 			}
 
-			//! Returns an already existing query info from the provided \param queryId.
-			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
-			//! \param queryId Query used to search for query info
+			//! Returns a QueryInfo object stored at the index \param idx.
+			//! \param idx Index of the QueryInfo we try to retrieve
 			//! \return Query info
-			QueryInfo& get(QueryId queryId) {
-				return m_queryArr[queryId];
+			QueryInfo* try_get(QueryHandle handle) {
+				if (!valid(handle))
+					return nullptr;
+
+				auto& info = m_queryArr[handle.id()];
+				GAIA_ASSERT(info.idx == handle.id());
+				GAIA_ASSERT(info.gen == handle.gen());
+				return &info;
+			};
+
+			//! Returns a QueryInfo object stored at the index \param idx.
+			//! \param idx Index of the QueryInfo we try to retrieve
+			//! \return Query info
+			QueryInfo& get(QueryHandle handle) {
+				GAIA_ASSERT(valid(handle));
+
+				auto& info = m_queryArr[handle.id()];
+				GAIA_ASSERT(info.idx == handle.id());
+				GAIA_ASSERT(info.gen == handle.gen());
+				return info;
 			};
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
-			//! \return Query id
+			//! \return Reference a newly created or an already existing QueryInfo object.
 			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
 				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
-				if (!ret.second)
-					return get(ret.first->second);
+				if (!ret.second) {
+					const auto idx = ret.first->second;
+					auto& info = m_queryArr[idx];
+					GAIA_ASSERT(idx == info.idx);
+					info.add_ref();
+					return info;
+				}
 
-				const auto queryId = (QueryId)m_queryArr.size();
-				ret.first->second = queryId;
-				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx), entityToArchetypeMap));
-				return get(queryId);
-			};
+				// No record exists, let us create a new one
+				QueryInfoCreationCtx creationCtx;
+				creationCtx.pQueryCtx = &ctx;
+				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				auto handle = m_queryArr.alloc(&creationCtx);
+
+				auto& info = get(handle);
+				info.add_ref();
+				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), info.idx));
+				ret.first->swap(new_p);
+
+				return info;
+			}
+
+			//! Deletes an existing QueryInfo object given the provided query lookup context \param ctx.
+			bool del(QueryHandle handle) {
+				auto* pInfo = try_get(handle);
+				if (pInfo == nullptr)
+					return false;
+
+				pInfo->dec_ref();
+				if (pInfo->refs() != 0)
+					return false;
+
+				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
+				GAIA_ASSERT(it != m_queryCache.end());
+				m_queryCache.erase(it);
+				m_queryArr.free(handle);
+				return true;
+			}
 
 			cnt::darray<QueryInfo>::iterator begin() {
 				return m_queryArr.begin();

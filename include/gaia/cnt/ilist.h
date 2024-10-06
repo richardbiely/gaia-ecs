@@ -102,6 +102,10 @@ namespace gaia {
 				return {(pointer)m_items.data() + size()};
 			}
 
+			void reserve(size_type cap) {
+				m_items.reserve(cap);
+			}
+
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
@@ -115,7 +119,7 @@ namespace gaia {
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
-					return TListItem::create(m_items.back());
+					return TListItem::handle(m_items.back());
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
 				}
@@ -128,7 +132,7 @@ namespace gaia {
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
 				j = TListItem::create(index, j.gen, ctx);
-				return TListItem::create(j);
+				return TListItem::handle(j);
 			}
 
 			//! Allocates a new item in the list

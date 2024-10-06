@@ -573,7 +573,7 @@ namespace gaia {
 							continue;
 						}
 
-						core::erase_fast(*ctx.pMatchesArr, i);
+						core::swap_erase(*ctx.pMatchesArr, i);
 					}
 				}
 
@@ -587,7 +587,7 @@ namespace gaia {
 							continue;
 						}
 
-						core::erase_fast(*ctx.pMatchesArr, i);
+						core::swap_erase(*ctx.pMatchesArr, i);
 					}
 				}
 
@@ -681,7 +681,7 @@ namespace gaia {
 							}
 
 							// No match found among ANY. Remove the archetype from the matching ones
-							core::erase_fast(*ctx.pMatchesArr, i);
+							core::swap_erase(*ctx.pMatchesArr, i);
 							continue;
 
 						checkNextArchetype:

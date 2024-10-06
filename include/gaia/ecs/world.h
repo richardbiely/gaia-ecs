@@ -1969,7 +1969,7 @@ namespace gaia {
 					if (!pChunk->empty()) {
 						pChunk->revive();
 						revive_archetype(*pArchetype);
-						core::erase_fast(m_chunksToDel, i);
+						core::swap_erase(m_chunksToDel, i);
 						continue;
 					}
 
@@ -1981,7 +1981,7 @@ namespace gaia {
 
 					// Delete unused chunks that are past their lifespan
 					remove_chunk(*pArchetype, *pChunk);
-					core::erase_fast(m_chunksToDel, i);
+					core::swap_erase(m_chunksToDel, i);
 				}
 			}
 
@@ -2032,7 +2032,7 @@ namespace gaia {
 					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
 						revive_archetype(*pArchetype);
-						core::erase_fast(m_archetypesToDel, i);
+						core::swap_erase(m_archetypesToDel, i);
 						continue;
 					}
 
@@ -2046,7 +2046,7 @@ namespace gaia {
 					tmp.push_back(pArchetype);
 
 					// Remove the unused archetypes
-					core::erase_fast(m_archetypesToDel, i);
+					core::swap_erase(m_archetypesToDel, i);
 
 					// Clear what we have once the capacity is reached
 					if (tmp.size() == tmp.max_size())
@@ -2299,7 +2299,7 @@ namespace gaia {
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::erase_fast_unsafe(archetypes, i);
+					core::swap_erase_unsafe(archetypes, i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.
@@ -2336,7 +2336,7 @@ namespace gaia {
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
-				GAIA_ASSERT(m_nextArchetypeId < decltype(m_nextArchetypeId)(-1));
+				GAIA_ASSERT(m_nextArchetypeId < (decltype(m_nextArchetypeId))-1);
 				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
 				for (auto entity: entities) {
@@ -2415,7 +2415,7 @@ namespace gaia {
 
 				const auto idx = pArchetype->list_idx();
 				GAIA_ASSERT(idx == core::get_index(m_archetypes, pArchetype));
-				core::erase_fast(m_archetypes, idx);
+				core::swap_erase(m_archetypes, idx);
 				if (!m_archetypes.empty() && idx != m_archetypes.size())
 					m_archetypes[idx]->list_idx(idx);
 			}
@@ -2682,7 +2682,7 @@ namespace gaia {
 					if (pChunk->dying()) {
 						const auto idx = core::get_index(m_chunksToDel, {&archetype, pChunk});
 						if (idx != BadIndex)
-							core::erase_fast(m_chunksToDel, idx);
+							core::swap_erase(m_chunksToDel, idx);
 					}
 
 					remove_chunk(archetype, *pChunk);
@@ -3709,6 +3709,8 @@ namespace gaia {
 #endif
 
 						serId = ++m_nextQuerySerId;
+						// Make sure we do not overflow
+						GAIA_ASSERT(serId != 0);
 
 						// If the id is already found, try again.
 						// Note, this is essentially never going to repeat. We would have to prepare millions if

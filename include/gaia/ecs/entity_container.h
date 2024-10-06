@@ -73,7 +73,7 @@ namespace gaia {
 
 			EntityContainer() = default;
 
-			static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+			GAIA_NODISCARD static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (EntityContainerCtx*)pCtx;
 
 				EntityContainer ec{};
@@ -85,7 +85,7 @@ namespace gaia {
 				return ec;
 			}
 
-			static Entity create(const EntityContainer& ec) {
+			GAIA_NODISCARD static Entity handle(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 

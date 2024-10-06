@@ -1932,7 +1932,7 @@ namespace gaia {
 		void call_dtor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
-				pData.~T();
+				pData->~T();
 			}
 		}
 
@@ -2540,7 +2540,7 @@ namespace gaia {
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
 		template <typename C>
-		void erase_fast_unsafe(C& arr, typename C::size_type idx) {
+		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
 
 			if (idx + 1 != arr.size())
@@ -2553,7 +2553,7 @@ namespace gaia {
 		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
 		//! important and the size of the array changes after calling this function you need to sort the array.
 		template <typename C>
-		void erase_fast(C& arr, typename C::size_type idx) {
+		void swap_erase(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
 				return;
 
@@ -6129,7 +6129,8 @@ namespace gaia {
 				GAIA_ASSERT(!empty());
 
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt]);
+					auto* ptr = &data()[m_cnt];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, m_pData, m_cap, m_cnt - 1);
 				}
 
@@ -6201,7 +6202,8 @@ namespace gaia {
 				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt - 1]);
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, m_pData, m_cap, m_cnt - 1);
 				}
 
@@ -6870,7 +6872,8 @@ namespace gaia {
 				GAIA_ASSERT(!empty());
 
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt]);
+					auto* ptr = &data()[m_cnt];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, data(), m_cap, m_cnt - 1);
 				}
 
@@ -6942,7 +6945,8 @@ namespace gaia {
 				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor(&data()[m_cnt - 1]);
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
 					GAIA_MEM_SANI_POP(value_type, data(), m_cap, m_cnt - 1);
 				}
 
@@ -7625,6 +7629,10 @@ namespace gaia {
 				return {(pointer)m_items.data() + size()};
 			}
 
+			void reserve(size_type cap) {
+				m_items.reserve(cap);
+			}
+
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
@@ -7638,7 +7646,7 @@ namespace gaia {
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
-					return TListItem::create(m_items.back());
+					return TListItem::handle(m_items.back());
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
 				}
@@ -7651,7 +7659,7 @@ namespace gaia {
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
 				j = TListItem::create(index, j.gen, ctx);
-				return TListItem::create(j);
+				return TListItem::handle(j);
 			}
 
 			//! Allocates a new item in the list
@@ -10892,8 +10900,10 @@ namespace gaia {
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 			}
@@ -10958,8 +10968,10 @@ namespace gaia {
 
 				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - 1]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 
@@ -11001,8 +11013,10 @@ namespace gaia {
 
 				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - 1]);
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = &data()[m_cnt - 1];
+					core::call_dtor(ptr);
+				}
 
 				--m_cnt;
 
@@ -13871,8 +13885,10 @@ namespace gaia {
 				void del_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
-					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[idx]);
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						auto* ptr = &data()[idx];
+						core::call_dtor(ptr);
+					}
 
 					--m_cnt;
 				}
@@ -13884,8 +13900,10 @@ namespace gaia {
 						if (m_pSparse[i] == detail::InvalidId)
 							continue;
 
-						if constexpr (!mem::is_soa_layout_v<T>)
-							core::call_dtor(&data()[i]);
+						if constexpr (!mem::is_soa_layout_v<T>) {
+							auto* ptr = &data()[i];
+							core::call_dtor(ptr);
+						}
 					}
 
 					m_cnt = 0;
@@ -15597,7 +15615,7 @@ namespace gaia {
 
 			JobContainer() = default;
 
-			static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+			GAIA_NODISCARD static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (JobAllocCtx*)pCtx;
 
 				JobContainer jc{};
@@ -15611,7 +15629,7 @@ namespace gaia {
 				return jc;
 			}
 
-			static JobHandle create(const JobContainer& jc) {
+			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
 				return JobHandle(jc.idx, jc.gen, (uint32_t)jc.priority);
 			}
 		};
@@ -15624,7 +15642,7 @@ namespace gaia {
 
 			JobDependency() = default;
 
-			static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
+			GAIA_NODISCARD static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
 				JobDependency jd{};
 				jd.idx = index;
 				jd.gen = generation;
@@ -15634,7 +15652,7 @@ namespace gaia {
 				return jd;
 			}
 
-			static DepHandle create(const JobDependency& jd) {
+			GAIA_NODISCARD static DepHandle handle(const JobDependency& jd) {
 				return DepHandle(
 						jd.idx, jd.gen,
 						// It does not matter what value we set for priority on dependencies,
@@ -18070,7 +18088,7 @@ namespace gaia {
 					if (pPage->full()) {
 						// Remove the page from the open list and update the swapped page's pointer
 						container.pagesFree.back()->m_idx = 0;
-						core::erase_fast(container.pagesFree, 0);
+						core::swap_erase(container.pagesFree, 0);
 
 						// Move our page to the full list
 						pPage->m_idx = (uint32_t)container.pagesFull.size();
@@ -18115,7 +18133,7 @@ namespace gaia {
 					if (wasFull) {
 						// Our page is no longer full. Remove it from the full list and update the swapped page's pointer
 						container.pagesFull.back()->m_idx = pPage->m_idx;
-						core::erase_fast(container.pagesFull, pPage->m_idx);
+						core::swap_erase(container.pagesFull, pPage->m_idx);
 
 						// Move our page to the open list
 						pPage->m_idx = (uint32_t)container.pagesFree.size();
@@ -18128,7 +18146,7 @@ namespace gaia {
 						if (pPage->empty()) {
 							GAIA_ASSERT(!container.pagesFree.empty());
 							container.pagesFree.back()->m_idx = pPage->m_idx;
-							core::erase_fast(container.pagesFree, pPage->m_idx);
+							core::swap_erase(container.pagesFree, pPage->m_idx);
 						}
 
 						try_delete_this();
@@ -18159,7 +18177,7 @@ namespace gaia {
 
 							GAIA_ASSERT(pPage->m_idx == i);
 							container.pagesFree.back()->m_idx = i;
-							core::erase_fast(container.pagesFree, i);
+							core::swap_erase(container.pagesFree, i);
 							free_page(pPage);
 						}
 					};
@@ -19093,7 +19111,7 @@ namespace gaia {
 
 			EntityContainer() = default;
 
-			static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+			GAIA_NODISCARD static EntityContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (EntityContainerCtx*)pCtx;
 
 				EntityContainer ec{};
@@ -19105,7 +19123,7 @@ namespace gaia {
 				return ec;
 			}
 
-			static Entity create(const EntityContainer& ec) {
+			GAIA_NODISCARD static Entity handle(const EntityContainer& ec) {
 				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
 			}
 
@@ -20254,23 +20272,23 @@ namespace gaia {
 				return m_header.lifespanCountdown > 0;
 			}
 
-			//! Marks the chunk as dead
+			//! Marks the chunk as dead (ready to delete)
 			void die() {
 				m_header.dead = 1;
 			}
 
-			//! Checks is this chunk is dying
+			//! Checks is this chunk is dead (ready to delete)
 			GAIA_NODISCARD bool dead() const {
 				return m_header.dead == 1;
 			}
 
-			//! Starts the process of dying
+			//! Starts the process of dying (not yet ready to delete, can be revived)
 			void start_dying() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
-			//! Makes the chunk alive again
+			//! Makes a dying chunk alive again
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = 0;
@@ -20386,10 +20404,8 @@ namespace gaia {
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 				// Size has to match
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps.size() != compsOther.size())
+				if (comps.size() != compsOther.size())
 						return false;
-				}
 
 				// Elements have to match
 				GAIA_EACH(comps) {
@@ -20820,7 +20836,7 @@ namespace gaia {
 				// with the last one in the array. Therefore, we first update the last item's
 				// index with the current chunk's index and then do the swapping.
 				m_chunks.back()->set_idx(chunkIndex);
-				core::erase_fast(m_chunks, chunkIndex);
+				core::swap_erase(m_chunks, chunkIndex);
 
 				// Delete the chunk now. Otherwise, if the chunk happened to be the last
 				// one we would end up overriding released memory.
@@ -21418,6 +21434,49 @@ namespace gaia {
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;
 
+		struct QueryHandle {
+			static constexpr uint32_t IdMask = QueryIdBad;
+
+		private:
+			struct HandleData {
+				QueryId id;
+				uint32_t gen;
+			};
+
+			union {
+				HandleData data;
+				uint64_t val;
+			};
+
+		public:
+			constexpr QueryHandle() noexcept: val((uint64_t)-1) {};
+
+			QueryHandle(QueryId id, uint32_t gen) {
+				data.id = id;
+				data.gen = gen;
+			}
+			~QueryHandle() = default;
+
+			QueryHandle(QueryHandle&&) noexcept = default;
+			QueryHandle(const QueryHandle&) = default;
+			QueryHandle& operator=(QueryHandle&&) noexcept = default;
+			QueryHandle& operator=(const QueryHandle&) = default;
+
+			GAIA_NODISCARD constexpr bool operator==(const QueryHandle& other) const noexcept {
+				return val == other.val;
+			}
+			GAIA_NODISCARD constexpr bool operator!=(const QueryHandle& other) const noexcept {
+				return val != other.val;
+			}
+
+			GAIA_NODISCARD auto id() const {
+				return data.id;
+			}
+			GAIA_NODISCARD auto gen() const {
+				return data.gen;
+			}
+		};
+
 		//! User-provided query input
 		struct QueryInput {
 			//! Operation to perform with the input
@@ -21461,7 +21520,7 @@ namespace gaia {
 
 		struct QueryIdentity {
 			//! Query id
-			QueryId queryId = QueryIdBad;
+			QueryHandle handle = {};
 			//! Serialization id
 			QueryId serId = QueryIdBad;
 
@@ -21481,7 +21540,7 @@ namespace gaia {
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
 			//! Query identity
-			QueryIdentity q;
+			QueryIdentity q{};
 
 			enum QueryFlags : uint8_t { //
 				SortGroups = 0x01
@@ -21532,7 +21591,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(q.queryId == QueryIdBad);
+				GAIA_ASSERT(q.handle.id() == QueryIdBad);
 				// Fast path when cache ids are set
 				// if (queryId != QueryIdBad && queryId == other.queryId)
 				// 	return true;
@@ -22628,7 +22687,7 @@ namespace gaia {
 							continue;
 						}
 
-						core::erase_fast(*ctx.pMatchesArr, i);
+						core::swap_erase(*ctx.pMatchesArr, i);
 					}
 				}
 
@@ -22642,7 +22701,7 @@ namespace gaia {
 							continue;
 						}
 
-						core::erase_fast(*ctx.pMatchesArr, i);
+						core::swap_erase(*ctx.pMatchesArr, i);
 					}
 				}
 
@@ -22736,7 +22795,7 @@ namespace gaia {
 							}
 
 							// No match found among ANY. Remove the archetype from the matching ones
-							core::erase_fast(*ctx.pMatchesArr, i);
+							core::swap_erase(*ctx.pMatchesArr, i);
 							continue;
 
 						checkNextArchetype:
@@ -22945,7 +23004,12 @@ namespace gaia {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
-		class QueryInfo {
+		struct QueryInfoCreationCtx {
+			QueryCtx* pQueryCtx;
+			const EntityToArchetypeMap* pEntityToArchetypeMap;
+		};
+
+		class QueryInfo: public cnt::ilist_item {
 		public:
 			//! Query matching result
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
@@ -22962,6 +23026,8 @@ namespace gaia {
 				uint32_t idxLast;
 				bool needsSorting;
 			};
+
+			uint32_t m_refs = 0;
 
 			//! Query context
 			QueryCtx m_ctx;
@@ -23027,8 +23093,34 @@ namespace gaia {
 			}
 
 		public:
+			void add_ref() {
+				++m_refs;
+				GAIA_ASSERT(m_refs != 0);
+			}
+
+			void dec_ref() {
+				GAIA_ASSERT(m_refs > 0);
+				--m_refs;
+			}
+
+			uint32_t refs() const {
+				return m_refs;
+			}
+
 			void init(World* world) {
 				m_ctx.w = world;
+			}
+
+			void reset() {
+				m_archetypeSet = {};
+				m_archetypeCache = {};
+				m_archetypeCacheData = {};
+				m_archetypeCacheData = {};
+				m_lastArchetypeId = 0;
+
+				m_ctx.data.lastMatchedArchetypeIdx_All = {};
+				m_ctx.data.lastMatchedArchetypeIdx_Any = {};
+				m_ctx.data.lastMatchedArchetypeIdx_Not = {};
 			}
 
 			GAIA_NODISCARD static QueryInfo
@@ -23037,13 +23129,41 @@ namespace gaia {
 				sort(ctx);
 
 				QueryInfo info;
+				info.idx = id;
+				info.gen = 0;
+
 				info.m_ctx = GAIA_MOV(ctx);
-				info.m_ctx.q.queryId = id;
+				info.m_ctx.q.handle = {id, 0};
 
 				// Compile the query
 				info.compile(entityToArchetypeMap);
 
 				return info;
+			}
+
+			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
+				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
+				auto& queryCtx = (QueryCtx&)*pCreationCtx->pQueryCtx;
+				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
+
+				// Make sure query items are sorted
+				sort(queryCtx);
+
+				QueryInfo info;
+				info.idx = idx;
+				info.gen = gen;
+
+				info.m_ctx = GAIA_MOV(queryCtx);
+				info.m_ctx.q.handle = {idx, gen};
+
+				// Compile the query
+				info.compile(entityToArchetypeMap);
+
+				return info;
+			}
+
+			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
+				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
@@ -23282,8 +23402,8 @@ namespace gaia {
 				const auto idx = core::get_index_unsafe(m_archetypeCache, pArchetype);
 				GAIA_ASSERT(idx != BadIndex);
 
-				core::erase_fast(m_archetypeCache, idx);
-				core::erase_fast(m_archetypeCacheData, idx);
+				core::swap_erase(m_archetypeCache, idx);
+				core::swap_erase(m_archetypeCacheData, idx);
 
 				// Update the group data if possible
 				if (m_ctx.data.groupBy != EntityBad) {
@@ -23317,10 +23437,6 @@ namespace gaia {
 			}
 			GAIA_NODISCARD const World* world() const {
 				return m_ctx.w;
-			}
-
-			GAIA_NODISCARD QueryId id() const {
-				return m_ctx.q.queryId;
 			}
 
 			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
@@ -23446,23 +23562,26 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->q.queryId;
+				const auto id = m_pCtx->q.handle.id();
 
 				// Temporary key is given. Do full context comparison.
 				if (id == QueryIdBad)
 					return *m_pCtx == *other.m_pCtx;
 
 				// Real key is given. Compare context pointer.
-				// Normally we'd compare query IDs but because we do not allow query copies and all query are
+				// Normally we'd compare query IDs but because we do not allow query copies and all queries are
 				// unique it's guaranteed that if pointers are the same we have a match.
-				// This also saves a pointer indirection because we do not access the memory the pointer points to.
 				return m_pCtx == other.m_pCtx;
 			}
 		};
-
 		class QueryCache {
-			cnt::map<QueryLookupKey, QueryId> m_queryCache;
-			cnt::darray<QueryInfo> m_queryArr;
+			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
+			// TODO: Make m_queryArr allocate data in pages.
+			//       Currently ilist always uses a darr internally which keeps growing following
+			//       logic not suitable for this particular use case.
+			//       QueryInfo is quite big and we do not want to copying a lot of data every time
+			//       resizing is necessary.
+			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
 
 		public:
 			QueryCache() {
@@ -23476,34 +23595,93 @@ namespace gaia {
 			QueryCache& operator=(QueryCache&&) = delete;
 			QueryCache& operator=(const QueryCache&) = delete;
 
+			GAIA_NODISCARD bool valid(QueryHandle handle) const {
+				if (handle.id() == QueryIdBad)
+					return false;
+
+				// Entity ID has to fit inside the entity array
+				if (handle.id() >= m_queryArr.size())
+					return false;
+
+				const auto& h = m_queryArr[handle.id()];
+				return h.idx == handle.id() && h.gen == handle.gen();
+			}
+
 			void clear() {
 				m_queryCache.clear();
 				m_queryArr.clear();
 			}
 
-			//! Returns an already existing query info from the provided \param queryId.
-			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
-			//! \param queryId Query used to search for query info
+			//! Returns a QueryInfo object stored at the index \param idx.
+			//! \param idx Index of the QueryInfo we try to retrieve
 			//! \return Query info
-			QueryInfo& get(QueryId queryId) {
-				return m_queryArr[queryId];
+			QueryInfo* try_get(QueryHandle handle) {
+				if (!valid(handle))
+					return nullptr;
+
+				auto& info = m_queryArr[handle.id()];
+				GAIA_ASSERT(info.idx == handle.id());
+				GAIA_ASSERT(info.gen == handle.gen());
+				return &info;
+			};
+
+			//! Returns a QueryInfo object stored at the index \param idx.
+			//! \param idx Index of the QueryInfo we try to retrieve
+			//! \return Query info
+			QueryInfo& get(QueryHandle handle) {
+				GAIA_ASSERT(valid(handle));
+
+				auto& info = m_queryArr[handle.id()];
+				GAIA_ASSERT(info.idx == handle.id());
+				GAIA_ASSERT(info.gen == handle.gen());
+				return info;
 			};
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
-			//! \return Query id
+			//! \return Reference a newly created or an already existing QueryInfo object.
 			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
 				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
-				if (!ret.second)
-					return get(ret.first->second);
+				if (!ret.second) {
+					const auto idx = ret.first->second;
+					auto& info = m_queryArr[idx];
+					GAIA_ASSERT(idx == info.idx);
+					info.add_ref();
+					return info;
+				}
 
-				const auto queryId = (QueryId)m_queryArr.size();
-				ret.first->second = queryId;
-				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx), entityToArchetypeMap));
-				return get(queryId);
-			};
+				// No record exists, let us create a new one
+				QueryInfoCreationCtx creationCtx;
+				creationCtx.pQueryCtx = &ctx;
+				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				auto handle = m_queryArr.alloc(&creationCtx);
+
+				auto& info = get(handle);
+				info.add_ref();
+				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), info.idx));
+				ret.first->swap(new_p);
+
+				return info;
+			}
+
+			//! Deletes an existing QueryInfo object given the provided query lookup context \param ctx.
+			bool del(QueryHandle handle) {
+				auto* pInfo = try_get(handle);
+				if (pInfo == nullptr)
+					return false;
+
+				pInfo->dec_ref();
+				if (pInfo->refs() != 0)
+					return false;
+
+				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
+				GAIA_ASSERT(it != m_queryCache.end());
+				m_queryCache.erase(it);
+				m_queryArr.free(handle);
+				return true;
+			}
 
 			cnt::darray<QueryInfo>::iterator begin() {
 				return m_queryArr.begin();
@@ -23675,11 +23853,13 @@ namespace gaia {
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_queryCache{};
 				//! Query identity
-				QueryIdentity m_q;
+				QueryIdentity m_q{};
+				bool destroyed = false;
 
 				GAIA_NODISCARD World* world() {
 					return m_world;
 				}
+
 				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
 					return m_q.ser_buffer(m_world);
 				}
@@ -23691,15 +23871,58 @@ namespace gaia {
 					m_world = world;
 					m_queryCache = queryCache;
 				}
+
+				//! Release any data allocated by the query
+				void reset() {
+					auto& info = m_queryCache->get(m_q.handle);
+					info.reset();
+				}
+
+				void allow_to_destroy_again() {
+					destroyed = false;
+				}
+
+				//! Try delete the query from query cache
+				GAIA_NODISCARD bool try_del_from_cache() {
+					if (!destroyed)
+						m_queryCache->del(m_q.handle);
+
+					// Don't allow multiple calls to destroy to break the reference counter.
+					// One object is only allowed to destroy once.
+					destroyed = true;
+					return false;
+				}
+
+				//! Invalidates the query handle
+				void invalidate() {
+					m_q.handle = {};
+				}
+
+				//! Returns true if the query is found in the query cache.
+				GAIA_NODISCARD bool is_cached() const {
+					auto* pInfo = m_queryCache->try_get(m_q.handle);
+					return pInfo != nullptr;
+				}
+
+				//! Returns true if the query is ready to be used.
+				GAIA_NODISCARD bool is_initialized() const {
+					return m_world != nullptr && m_queryCache != nullptr;
+				}
 			};
 
 			template <>
 			struct QueryImplStorage<false> {
 				QueryInfo m_queryInfo;
 
+				QueryImplStorage() {
+					m_queryInfo.idx = QueryIdBad;
+					m_queryInfo.gen = QueryIdBad;
+				}
+
 				GAIA_NODISCARD World* world() {
 					return m_queryInfo.world();
 				}
+
 				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
 					return m_queryInfo.ser_buffer();
 				}
@@ -23709,6 +23932,29 @@ namespace gaia {
 
 				void init(World* world) {
 					m_queryInfo.init(world);
+				}
+
+				//! Release any data allocated by the query
+				void reset() {
+					m_queryInfo.reset();
+				}
+
+				//! Does nothing for uncached queries.
+				GAIA_NODISCARD bool try_del_from_cache() {
+					return false;
+				}
+
+				//! Does nothing for uncached queries.
+				void invalidate() {}
+
+				//! Does nothing for uncached queries.
+				GAIA_NODISCARD bool is_cached() const {
+					return false;
+				}
+
+				//! Returns true. Uncached queries are always considered initialized.
+				GAIA_NODISCARD bool is_initialized() const {
+					return true;
 				}
 			};
 
@@ -23776,16 +24022,22 @@ namespace gaia {
 					if constexpr (UseCaching) {
 						GAIA_PROF_SCOPE(query::fetch);
 
-						// Make sure the query was created by World.query()
-						GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+						// Make sure the query was created by World::query()
+						GAIA_ASSERT(m_storage.is_initialized());
 
 						// If queryId is set it means QueryInfo was already created.
-						// Because caching is used, we expect this to be the common case.
-						if GAIA_LIKELY (m_storage.m_q.queryId != QueryIdBad) {
-							auto& queryInfo = m_storage.m_queryCache->get(m_storage.m_q.queryId);
-							recommit(queryInfo.ctx());
-							queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
-							return queryInfo;
+						// This is the common case for cached queries.
+						if GAIA_LIKELY (m_storage.m_q.handle.id() != QueryIdBad) {
+							auto* pQueryInfo = m_storage.m_queryCache->try_get(m_storage.m_q.handle);
+
+							// The only time when this can be nullptr is just once after Query::destroy is called.
+							if GAIA_LIKELY (pQueryInfo != nullptr) {
+								recommit(pQueryInfo->ctx());
+								pQueryInfo->match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
+								return *pQueryInfo;
+							}
+
+							m_storage.invalidate();
 						}
 
 						// No queryId is set which means QueryInfo needs to be created
@@ -23793,13 +24045,14 @@ namespace gaia {
 						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap);
-						m_storage.m_q.queryId = queryInfo.id();
+						m_storage.m_q.handle = queryInfo.handle(queryInfo);
+						m_storage.allow_to_destroy_again();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
 						GAIA_PROF_SCOPE(query::fetchu);
 
-						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
+						if GAIA_UNLIKELY (m_storage.m_queryInfo.ctx().q.handle.id() == QueryIdBad) {
 							QueryCtx ctx;
 							ctx.init(m_storage.world());
 							commit(ctx);
@@ -23820,7 +24073,7 @@ namespace gaia {
 				void add_cmd(T& cmd) {
 					// Make sure to invalidate if necessary.
 					if constexpr (T::InvalidatesHash)
-						invalidate();
+						m_storage.invalidate();
 
 					auto& serBuffer = m_storage.ser_buffer();
 					ser::save(serBuffer, T::Id);
@@ -23973,9 +24226,9 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_q.queryId == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_q.handle.id() == QueryIdBad);
 					} else {
-						GAIA_ASSERT(m_storage.m_queryInfo.id() == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_queryInfo.idx == QueryIdBad);
 					}
 #endif
 
@@ -24252,11 +24505,6 @@ namespace gaia {
 					}
 				}
 
-				void invalidate() {
-					if constexpr (UseCaching)
-						m_storage.m_q.queryId = QueryIdBad;
-				}
-
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					for (const auto* pArchetype: queryInfo) {
@@ -24437,18 +24685,35 @@ namespace gaia {
 					m_storage.init(&world);
 				}
 
-				// TODO: We might want to always invalidate the serialization buffer just in case.
-				//       However, ref-counting would have to be introduced for QueryImpl first.
-				//       Otherwise, any copy of the query would invalidate the serialization buffer
-				//       if its lifetime ended.
-				// ~QueryImpl() {
-				// 	// Make sure to invalidate the serialization buffer record just in case.
-				// 	m_storage.ser_buffer_reset();
-				// }
+				~QueryImpl() {
+					if (m_storage.try_del_from_cache())
+						m_storage.ser_buffer_reset();
+				}
 
-				GAIA_NODISCARD uint32_t id() const {
+				GAIA_NODISCARD QueryId id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
-					return m_storage.m_q.queryId;
+					return m_storage.m_q.handle.id();
+				}
+
+				GAIA_NODISCARD uint32_t gen() const {
+					static_assert(UseCaching, "gen() can be used only with cached queries");
+					return m_storage.m_q.handle.gen();
+				}
+
+				//------------------------------------------------
+
+				//! Release any data allocated by the query
+				void reset() {
+					m_storage.reset();
+				}
+
+				void destroy() {
+					m_storage.try_del_from_cache();
+				}
+
+				//! Returns true if the query is stored in the query cache
+				GAIA_NODISCARD bool is_cached() const {
+					return m_storage.is_cached();
 				}
 
 				//------------------------------------------------
@@ -24835,7 +25100,7 @@ namespace gaia {
 				void diag() {
 					// Make sure matching happened
 					auto& info = fetch();
-					GAIA_LOG_N("DIAG Query %u [%c]", id(), UseCaching ? 'C' : 'U');
+					GAIA_LOG_N("DIAG Query %u.%u [%c]", id(), gen(), UseCaching ? 'C' : 'U');
 					for (const auto* pArchetype: info)
 						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
 					GAIA_LOG_N("END DIAG Query");
@@ -26780,7 +27045,7 @@ namespace gaia {
 					if (!pChunk->empty()) {
 						pChunk->revive();
 						revive_archetype(*pArchetype);
-						core::erase_fast(m_chunksToDel, i);
+						core::swap_erase(m_chunksToDel, i);
 						continue;
 					}
 
@@ -26792,7 +27057,7 @@ namespace gaia {
 
 					// Delete unused chunks that are past their lifespan
 					remove_chunk(*pArchetype, *pChunk);
-					core::erase_fast(m_chunksToDel, i);
+					core::swap_erase(m_chunksToDel, i);
 				}
 			}
 
@@ -26843,7 +27108,7 @@ namespace gaia {
 					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
 						revive_archetype(*pArchetype);
-						core::erase_fast(m_archetypesToDel, i);
+						core::swap_erase(m_archetypesToDel, i);
 						continue;
 					}
 
@@ -26857,7 +27122,7 @@ namespace gaia {
 					tmp.push_back(pArchetype);
 
 					// Remove the unused archetypes
-					core::erase_fast(m_archetypesToDel, i);
+					core::swap_erase(m_archetypesToDel, i);
 
 					// Clear what we have once the capacity is reached
 					if (tmp.size() == tmp.max_size())
@@ -27110,7 +27375,7 @@ namespace gaia {
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::erase_fast_unsafe(archetypes, i);
+					core::swap_erase_unsafe(archetypes, i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.
@@ -27147,7 +27412,7 @@ namespace gaia {
 			//! \param entities Archetype entities/components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(EntitySpan entities) {
-				GAIA_ASSERT(m_nextArchetypeId < decltype(m_nextArchetypeId)(-1));
+				GAIA_ASSERT(m_nextArchetypeId < (decltype(m_nextArchetypeId))-1);
 				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
 				for (auto entity: entities) {
@@ -27226,7 +27491,7 @@ namespace gaia {
 
 				const auto idx = pArchetype->list_idx();
 				GAIA_ASSERT(idx == core::get_index(m_archetypes, pArchetype));
-				core::erase_fast(m_archetypes, idx);
+				core::swap_erase(m_archetypes, idx);
 				if (!m_archetypes.empty() && idx != m_archetypes.size())
 					m_archetypes[idx]->list_idx(idx);
 			}
@@ -27493,7 +27758,7 @@ namespace gaia {
 					if (pChunk->dying()) {
 						const auto idx = core::get_index(m_chunksToDel, {&archetype, pChunk});
 						if (idx != BadIndex)
-							core::erase_fast(m_chunksToDel, idx);
+							core::swap_erase(m_chunksToDel, idx);
 					}
 
 					remove_chunk(archetype, *pChunk);
@@ -28520,6 +28785,8 @@ namespace gaia {
 #endif
 
 						serId = ++m_nextQuerySerId;
+						// Make sure we do not overflow
+						GAIA_ASSERT(serId != 0);
 
 						// If the id is already found, try again.
 						// Note, this is essentially never going to repeat. We would have to prepare millions if

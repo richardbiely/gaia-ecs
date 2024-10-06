@@ -1139,23 +1139,23 @@ namespace gaia {
 				return m_header.lifespanCountdown > 0;
 			}
 
-			//! Marks the chunk as dead
+			//! Marks the chunk as dead (ready to delete)
 			void die() {
 				m_header.dead = 1;
 			}
 
-			//! Checks is this chunk is dying
+			//! Checks is this chunk is dead (ready to delete)
 			GAIA_NODISCARD bool dead() const {
 				return m_header.dead == 1;
 			}
 
-			//! Starts the process of dying
+			//! Starts the process of dying (not yet ready to delete, can be revived)
 			void start_dying() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
-			//! Makes the chunk alive again
+			//! Makes a dying chunk alive again
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = 0;

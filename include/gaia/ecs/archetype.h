@@ -33,10 +33,8 @@ namespace gaia {
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 				// Size has to match
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps.size() != compsOther.size())
+				if (comps.size() != compsOther.size())
 						return false;
-				}
 
 				// Elements have to match
 				GAIA_EACH(comps) {
@@ -467,7 +465,7 @@ namespace gaia {
 				// with the last one in the array. Therefore, we first update the last item's
 				// index with the current chunk's index and then do the swapping.
 				m_chunks.back()->set_idx(chunkIndex);
-				core::erase_fast(m_chunks, chunkIndex);
+				core::swap_erase(m_chunks, chunkIndex);
 
 				// Delete the chunk now. Otherwise, if the chunk happened to be the last
 				// one we would end up overriding released memory.

@@ -256,7 +256,7 @@ namespace gaia {
 					if (pPage->full()) {
 						// Remove the page from the open list and update the swapped page's pointer
 						container.pagesFree.back()->m_idx = 0;
-						core::erase_fast(container.pagesFree, 0);
+						core::swap_erase(container.pagesFree, 0);
 
 						// Move our page to the full list
 						pPage->m_idx = (uint32_t)container.pagesFull.size();
@@ -301,7 +301,7 @@ namespace gaia {
 					if (wasFull) {
 						// Our page is no longer full. Remove it from the full list and update the swapped page's pointer
 						container.pagesFull.back()->m_idx = pPage->m_idx;
-						core::erase_fast(container.pagesFull, pPage->m_idx);
+						core::swap_erase(container.pagesFull, pPage->m_idx);
 
 						// Move our page to the open list
 						pPage->m_idx = (uint32_t)container.pagesFree.size();
@@ -314,7 +314,7 @@ namespace gaia {
 						if (pPage->empty()) {
 							GAIA_ASSERT(!container.pagesFree.empty());
 							container.pagesFree.back()->m_idx = pPage->m_idx;
-							core::erase_fast(container.pagesFree, pPage->m_idx);
+							core::swap_erase(container.pagesFree, pPage->m_idx);
 						}
 
 						try_delete_this();
@@ -345,7 +345,7 @@ namespace gaia {
 
 							GAIA_ASSERT(pPage->m_idx == i);
 							container.pagesFree.back()->m_idx = i;
-							core::erase_fast(container.pagesFree, i);
+							core::swap_erase(container.pagesFree, i);
 							free_page(pPage);
 						}
 					};

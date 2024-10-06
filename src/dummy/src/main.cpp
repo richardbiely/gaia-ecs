@@ -984,6 +984,22 @@ void test13() {
 	GAIA_LOG_N("%s", pName);
 }
 
+void test14() {
+	ecs::World wld;
+	auto wolf = wld.add();
+	auto rabbit = wld.add();
+	auto carrot = wld.add();
+	auto eats = wld.add();
+
+	wld.add(rabbit, {eats, carrot});
+	wld.add(wolf, {eats, rabbit});
+
+	auto q1 = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+	auto q2 = wld.query().add("(%e, %e)", eats.value(), carrot.value());
+	(void)q1.count();
+	(void)q2.count();
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -1004,7 +1020,8 @@ int main() {
 	// test11();
 	// test12();
 	// test12b();
-	test13();
+	// test13();
+	test14();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

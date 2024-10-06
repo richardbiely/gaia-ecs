@@ -177,5 +177,6 @@
 			"upci",
 			"upos"
 		],
+		"makefile.configureOnOpen": false,
 	}
 }

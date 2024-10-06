@@ -2,6 +2,7 @@
 #include "../config/config.h"
 
 #include "../cnt/darray.h"
+#include "../cnt/ilist.h"
 #include "../cnt/set.h"
 #include "../config/profiler.h"
 #include "../core/hashing_policy.h"
@@ -26,7 +27,12 @@ namespace gaia {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
-		class QueryInfo {
+		struct QueryInfoCreationCtx {
+			QueryCtx* pQueryCtx;
+			const EntityToArchetypeMap* pEntityToArchetypeMap;
+		};
+
+		class QueryInfo: public cnt::ilist_item {
 		public:
 			//! Query matching result
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
@@ -43,6 +49,8 @@ namespace gaia {
 				uint32_t idxLast;
 				bool needsSorting;
 			};
+
+			uint32_t m_refs = 0;
 
 			//! Query context
 			QueryCtx m_ctx;
@@ -108,8 +116,34 @@ namespace gaia {
 			}
 
 		public:
+			void add_ref() {
+				++m_refs;
+				GAIA_ASSERT(m_refs != 0);
+			}
+
+			void dec_ref() {
+				GAIA_ASSERT(m_refs > 0);
+				--m_refs;
+			}
+
+			uint32_t refs() const {
+				return m_refs;
+			}
+
 			void init(World* world) {
 				m_ctx.w = world;
+			}
+
+			void reset() {
+				m_archetypeSet = {};
+				m_archetypeCache = {};
+				m_archetypeCacheData = {};
+				m_archetypeCacheData = {};
+				m_lastArchetypeId = 0;
+
+				m_ctx.data.lastMatchedArchetypeIdx_All = {};
+				m_ctx.data.lastMatchedArchetypeIdx_Any = {};
+				m_ctx.data.lastMatchedArchetypeIdx_Not = {};
 			}
 
 			GAIA_NODISCARD static QueryInfo
@@ -118,13 +152,41 @@ namespace gaia {
 				sort(ctx);
 
 				QueryInfo info;
+				info.idx = id;
+				info.gen = 0;
+
 				info.m_ctx = GAIA_MOV(ctx);
-				info.m_ctx.q.queryId = id;
+				info.m_ctx.q.handle = {id, 0};
 
 				// Compile the query
 				info.compile(entityToArchetypeMap);
 
 				return info;
+			}
+
+			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
+				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
+				auto& queryCtx = (QueryCtx&)*pCreationCtx->pQueryCtx;
+				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
+
+				// Make sure query items are sorted
+				sort(queryCtx);
+
+				QueryInfo info;
+				info.idx = idx;
+				info.gen = gen;
+
+				info.m_ctx = GAIA_MOV(queryCtx);
+				info.m_ctx.q.handle = {idx, gen};
+
+				// Compile the query
+				info.compile(entityToArchetypeMap);
+
+				return info;
+			}
+
+			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
+				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
@@ -363,8 +425,8 @@ namespace gaia {
 				const auto idx = core::get_index_unsafe(m_archetypeCache, pArchetype);
 				GAIA_ASSERT(idx != BadIndex);
 
-				core::erase_fast(m_archetypeCache, idx);
-				core::erase_fast(m_archetypeCacheData, idx);
+				core::swap_erase(m_archetypeCache, idx);
+				core::swap_erase(m_archetypeCacheData, idx);
 
 				// Update the group data if possible
 				if (m_ctx.data.groupBy != EntityBad) {
@@ -398,10 +460,6 @@ namespace gaia {
 			}
 			GAIA_NODISCARD const World* world() const {
 				return m_ctx.w;
-			}
-
-			GAIA_NODISCARD QueryId id() const {
-				return m_ctx.q.queryId;
 			}
 
 			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {

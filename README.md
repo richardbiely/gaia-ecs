@@ -589,6 +589,29 @@ q.add({p, QueryOpKind::All, QueryAccess::Write})
  .add({pl, QueryOpKind::None, QueryAccess::None}); 
 ```
 
+Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
+
+```cpp
+q.reset();
+```
+
+If this is a cached query, even after resetting it it still remains in the query cache. To remove it from there all queries with the matching signature will need to be destroyed first:
+
+```cpp
+ecs::Query q1 = w.query();
+ecs::Query q2 = w.query();
+q1.add<Position>();
+q2.add<Position>();
+
+(void)q1.count(); // do some operation that compiles the query and inserts it into the query cache
+(void)q2.count(); // do some operation that compiles the query and inserts it into the query cache
+
+q1 = w.query(); // First reference to cached query is destroyed.
+q2 = w.query(); // Last reference to cache query is destroyed. The cache is cleared of queries with the given signature
+```
+
+Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via World::query have a valid state.
+
 ### Query string
 Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
