@@ -148,7 +148,7 @@ else()
     if(NOT CMAKE_GENERATOR MATCHES "Xcode")
       # Make sure xcodebuild is installed. Otherwise we won't be able to tell is the workaround
       # needs to be applied
-      find_program(XCODEBUILD_EXECUTABLE NAMES xcodebuild)
+      find_program(XCODEBUILD_EXECUTABLE xcodebuild)
 
       if(XCODEBUILD_EXECUTABLE)
         execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERSION_STRING OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -281,10 +281,11 @@ if(GAIA_MAKE_SINGLE_HEADER)
   endif()
 
   add_custom_target(generate_single_header ALL)
+
   if(WIN32)
     set(generate_single_header_path "make_single_header.bat")
   else()
-    set(generate_single_header_path "./make_single_header.sh")  
+    set(generate_single_header_path "./make_single_header.sh")
   endif()
 
   add_custom_command(
@@ -298,7 +299,7 @@ endif()
 if(GAIA_GENERATE_CC)
   add_custom_target(generate_compile_commands ALL)
   add_custom_command(
-    COMMENT "Generating compile_commands.json in: ${CMAKE_BINARY_DIR}/ninja"  
+    COMMENT "Generating compile_commands.json in: ${CMAKE_BINARY_DIR}/ninja"
     TARGET generate_compile_commands POST_BUILD
     COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/ninja -DGAIA_DEVMODE=${GAIA_DEVMODE} -DGAIA_PROFILER_CPU=${GAIA_PROFILER_CPU} -DGAIA_PROFILER_MEM=${GAIA_PROFILER_MEM}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/ninja
