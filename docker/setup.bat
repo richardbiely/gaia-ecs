@@ -26,12 +26,6 @@ if "%currach%"=="ARM64" (
   exit 0
 )
 
-@REM Make sure scripts are in unix format
-dos2unix ./build.sh
-dos2unix ./build_clang.sh
-dos2unix ./build_clang_cachegrind.sh
-dos2unix ./build_gcc.sh
-
 @REM Start the container
 docker volume create %imagename_tmp%
 set currdir=%~dp0

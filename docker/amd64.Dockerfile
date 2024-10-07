@@ -16,7 +16,6 @@ RUN apt update && apt install -y --no-install-recommends \
     tzdata \
     git \
     ninja-build \
-    dos2unix \
     neovim \
     valgrind \
     wget \

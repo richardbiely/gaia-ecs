@@ -19,7 +19,6 @@ RUN apt update && apt install -y --no-install-recommends \
     tzdata \
     git \
     ninja-build \
-    dos2unix \
     neovim \
     valgrind \
     python3.8-venv \

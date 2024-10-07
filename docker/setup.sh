@@ -19,12 +19,6 @@ else
   docker build --file Dockerfile --tag ${imagename} .
 fi
 
-# Make sure scripts are in unix format
-dos2unix ./build.sh
-dos2unix ./build_clang.sh
-dos2unix ./build_clang_cachegrind.sh
-dos2unix ./build_gcc.sh
-
 # Start the container
 docker volume create ${imagename_tmp}
 docker run -p 2022:22 --rm --interactive --tty --privileged --name ${imagename} --mount type=volume,source=${imagename_tmp},target=/work-output --mount type=bind,source=$(pwd)/..,target=/gaia-ecs --workdir /gaia-ecs/docker ${imagename} bash
