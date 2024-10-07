@@ -58,6 +58,9 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
+      "windows": {
+        "command": "make_single_header.bat"
+      },
       "linux": {
         "command": "make_single_header.sh"
       },
