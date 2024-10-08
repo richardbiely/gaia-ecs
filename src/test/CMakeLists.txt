@@ -14,6 +14,10 @@ target_link_libraries(${PROJ_NAME} PRIVATE Catch2::Catch2WithMain)
 # Project files
 target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
+if(MSVC)
+  enable_cxx_compiler_flag_if_supported("/bigobj")
+endif()
+
 include(CTest)
 include(Catch)
 catch_discover_tests(${PROJ_NAME})
