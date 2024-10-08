@@ -555,16 +555,16 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto tgt = m_world.get(entity.gen());
+						auto e = m_world.get(entity.gen());
 
 						EntityLookupKey entityKey(m_entity);
-						EntityLookupKey tgtKey(tgt);
+						EntityLookupKey eKey(e);
 
 						// m_entity -> {..., e}
 						auto& entity_to_e = m_world.m_entityToAsTargets[entityKey];
-						entity_to_e.insert(tgtKey);
+						entity_to_e.insert(eKey);
 						// e -> {..., m_entity}
-						auto& e_to_entity = m_world.m_entityToAsRelations[tgtKey];
+						auto& e_to_entity = m_world.m_entityToAsRelations[eKey];
 						e_to_entity.insert(entityKey);
 
 						// Make sure the relation entity is registered as archetype so queries can find it
@@ -597,30 +597,33 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto e = m_world.get(entity.gen());
 
-						EntityLookupKey entityKey(entity);
+						EntityLookupKey entityKey(m_entity);
 						EntityLookupKey eKey(e);
 
+						// m_entity -> {..., e}
 						{
-							auto& set = m_world.m_entityToAsTargets;
-							const auto it = set.find(entityKey);
-							GAIA_ASSERT(it != set.end());
-							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(eKey);
+							const auto it = m_world.m_entityToAsTargets.find(entityKey);
+							GAIA_ASSERT(it != m_world.m_entityToAsTargets.end());
+							auto& set = it->second;
+							GAIA_ASSERT(!set.empty());
+							set.erase(eKey);
 
 							// Remove the record if it is not referenced anymore
-							if (it->second.empty())
-								set.erase(it);
+							if (set.empty())
+								m_world.m_entityToAsTargets.erase(it);
 						}
+
+						// e -> {..., m_entity}
 						{
-							auto& set = m_world.m_entityToAsRelations;
-							const auto it = set.find(eKey);
-							GAIA_ASSERT(it != set.end());
-							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(entityKey);
+							const auto it = m_world.m_entityToAsRelations.find(eKey);
+							GAIA_ASSERT(it != m_world.m_entityToAsRelations.end());
+							auto& set = it->second;
+							GAIA_ASSERT(!set.empty());
+							set.erase(entityKey);
 
 							// Remove the record if it is not referenced anymore
-							if (it->second.empty())
-								set.erase(it);
+							if (set.empty())
+								m_world.m_entityToAsRelations.erase(it);
 						}
 					}
 
