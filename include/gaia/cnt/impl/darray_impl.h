@@ -573,7 +573,8 @@ namespace gaia {
 				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>) {
-					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
+					auto* ptr = &data()[m_cnt - cnt];
+					core::call_dtor_n(ptr, cnt);
 					GAIA_MEM_SANI_POP_N(value_type, data(), m_cap, m_cnt - cnt, cnt);
 				}
 
@@ -599,6 +600,41 @@ namespace gaia {
 				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
 				GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, cap, cnt);
 				view_policy::mem_free(pDataOld);
+			}
+
+			//! Removes all elements that fail the predicate.
+			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
+			//! \return The new size of the array.
+			template <typename Func>
+			auto retain(Func&& func) {
+				size_type erased = 0;
+				size_type idxDst = 0;
+				size_type idxSrc = 0;
+
+				while (idxSrc < m_cnt) {
+					if (func(operator[](idxSrc))) {
+						if (idxDst < idxSrc) {
+							mem::move_element<T>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
+							auto* ptr = &data()[idxSrc];
+							core::call_dtor(ptr);
+						}
+						++idxDst;
+					} else {
+						auto* ptr = &data()[idxSrc];
+						core::call_dtor(ptr);
+						++erased;
+					}
+
+					++idxSrc;
+				}
+
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					if (erased > 0)
+						GAIA_MEM_SANI_POP_N(value_type, data(), m_cap, m_cnt - erased, erased);
+				}
+
+				m_cnt -= erased;
+				return idxDst;
 			}
 
 			GAIA_NODISCARD size_type size() const noexcept {

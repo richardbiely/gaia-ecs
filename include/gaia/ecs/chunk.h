@@ -1024,7 +1024,7 @@ namespace gaia {
 
 				// TODO: This function works but is useless because it does the same job as
 				//       set(uint16_t row, U&& value).
-				//       This is because T needs to match U anyway so the component lookup can succeed.
+				//       This is because T needs to match U anyway for the component lookup to succeed.
 				(void)type;
 				// const uint32_t col = comp_idx(type);
 				//(void)col;
@@ -1066,7 +1066,7 @@ namespace gaia {
 
 				// TODO: This function works but is useless because it does the same job as
 				//       sset(uint16_t row, U&& value).
-				//       This is because T needs to match U anyway so the component lookup can succeed.
+				//       This is because T needs to match U anyway for the component lookup to succeed.
 				(void)type;
 				// const uint32_t col = comp_idx(type);
 				//(void)col;

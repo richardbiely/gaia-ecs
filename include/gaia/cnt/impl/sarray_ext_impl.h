@@ -523,6 +523,37 @@ namespace gaia {
 				m_cnt = count;
 			}
 
+			//! Removes all elements that fail the predicate.
+			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
+			//! \return The new size of the array.
+			template <typename Func>
+			auto retain(Func&& func) {
+				size_type erased = 0;
+				size_type idxDst = 0;
+				size_type idxSrc = 0;
+
+				while (idxSrc < m_cnt) {
+					if (func(operator[](idxSrc))) {
+						if (idxDst < idxSrc) {
+							auto* ptr = (uint8_t*)data();
+							mem::move_element<T>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
+							auto* ptr2 = &data()[idxSrc];
+							core::call_dtor(ptr2);
+						}
+						++idxDst;
+					} else {
+						auto* ptr = &data()[idxSrc];
+						core::call_dtor(ptr);
+						++erased;
+					}
+
+					++idxSrc;
+				}
+
+				m_cnt -= erased;
+				return idxDst;
+			}
+
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}

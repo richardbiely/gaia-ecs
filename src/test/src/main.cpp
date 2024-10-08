@@ -562,6 +562,31 @@ void resizable_arr_test(uint32_t N) {
 	REQUIRE(arr[4] == 14);
 }
 
+template <typename Container>
+void retainable_arr_test() {
+	using cont_item = typename Container::value_type;
+
+	constexpr cont_item original[] = {2, 5, 10, 8, 9, 21, 22, 24, 36, 7};
+	constexpr cont_item expected[] = {2, 10, 8, 22, 24, 36};
+
+	constexpr auto cntOriginal = sizeof(original) / sizeof(cont_item);
+	constexpr auto cntExpected = sizeof(expected) / sizeof(cont_item);
+
+	Container arr;
+	arr.resize(cntOriginal);
+	GAIA_EACH(arr) arr[i] = original[i];
+
+	arr.retain([](const cont_item& item) {
+		// Keep only even numbers
+		return item % 2 == 0;
+	});
+
+	REQUIRE(arr.size() == cntExpected);
+	GAIA_EACH(arr) {
+		REQUIRE(arr[i] == expected[i]);
+	}
+}
+
 TEST_CASE("Containers - sarr_ext") {
 	constexpr uint32_t N = 100;
 	using TrivialT = cnt::sarr_ext<uint32_t, 100>;
@@ -571,6 +596,9 @@ TEST_CASE("Containers - sarr_ext") {
 	}
 	SECTION("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
+	}
+	SECTION("retain") {
+		retainable_arr_test<TrivialT>();
 	}
 }
 
@@ -586,6 +614,9 @@ TEST_CASE("Containers - darr") {
 	SECTION("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
 		resizable_arr_test<NonTrivialT>(M);
+	}
+	SECTION("retain") {
+		retainable_arr_test<TrivialT>();
 	}
 }
 
@@ -610,6 +641,9 @@ TEST_CASE("Containers - darr_ext") {
 
 		resizable_arr_test<NonTrivialT2>(N);
 		resizable_arr_test<NonTrivialT2>(M);
+	}
+	SECTION("retain") {
+		retainable_arr_test<TrivialT1>();
 	}
 }
 
@@ -7500,6 +7534,136 @@ TEST_CASE("StackAllocator") {
 			REQUIRE(pPosN[i].y == 2);
 			REQUIRE(pPosN[i].z == 3);
 		}
+	}
+}
+
+//------------------------------------------------------------------------------
+// Signals
+//------------------------------------------------------------------------------
+
+using sig_func_t = void(ecs::Entity, ecs::Entity, uint32_t&);
+void test_func(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+	GAIA_ASSERT(e1 == e2);
+	++cnt;
+}
+
+TEST_CASE("Signals") {
+	TestWorld twld;
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	auto e3 = wld.add();
+	util::signal<sig_func_t> sig;
+
+	{
+		util::sink<sig_func_t> sink{sig};
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+
+		// No bindings, zero expected
+		uint32_t cnt = 0;
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Free function bound
+		cnt = 0;
+		sink.bind<test_func>();
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Unbind the function, zero expected
+		cnt = 0;
+		sink.unbind<test_func>();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Bind again
+		cnt = 0;
+		sink.bind<test_func>();
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Reset the sink object, zero expected
+		cnt = 0;
+		sink.reset();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+	}
+	{
+		struct foo {
+			void on_event(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+				GAIA_ASSERT(e1 == e2);
+				++cnt;
+			}
+		} f;
+
+		util::sink<sig_func_t> sink{sig};
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+
+		// No bindings, zero expected
+		uint32_t cnt = 0;
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Free function bound
+		cnt = 0;
+		sink.bind<&foo::on_event>(f);
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Unbind the function, zero expected
+		cnt = 0;
+		sink.unbind<&foo::on_event>(f);
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Bind again
+		cnt = 0;
+		sink.bind<&foo::on_event>(f);
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Reset the sink object, zero expected
+		cnt = 0;
+		sink.reset();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
 	}
 }
 

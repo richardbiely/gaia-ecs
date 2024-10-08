@@ -31,6 +31,8 @@
 #include "gaia/cnt/sparse_storage.h"
 #include "gaia/cnt/sringbuffer.h"
 
+#include "gaia/util/signal.h"
+
 #include "gaia/ser/serialization.h"
 
 #include "gaia/mt/threadpool.h"
