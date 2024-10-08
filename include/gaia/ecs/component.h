@@ -39,7 +39,8 @@ namespace gaia {
 		};
 
 #ifndef GAIA_STORAGE
-	#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
+	#define GAIA_STORAGE(storage_name)                                                                                   \
+		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
 #endif
 
 		namespace detail {

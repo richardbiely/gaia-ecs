@@ -65,6 +65,7 @@ if(USE_SANITIZER)
       endif()
 
       set(SANITIZER_ADDR_FLAG "-fsanitize=pointer-compare")
+
       if(SANITIZER_ADDR_AVAILABLE)
         message(STATUS "  Building with pointer-compare sanitizer")
         append("${SANITIZER_ADDR_FLAG}" SANITIZER_SELECTED_FLAGS)
@@ -73,6 +74,7 @@ if(USE_SANITIZER)
       endif()
 
       set(SANITIZER_ADDR_FLAG "-fsanitize=pointer-subtract")
+
       if(SANITIZER_ADDR_AVAILABLE)
         message(STATUS "  Building with pointer-subtract sanitizer")
         append("${SANITIZER_ADDR_FLAG}" SANITIZER_SELECTED_FLAGS)

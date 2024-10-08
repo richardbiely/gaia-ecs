@@ -247,7 +247,8 @@ namespace gaia {
 
 				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
-							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+							(data_view_policy_get<T::gaia_Data_Layout, T>(
+									{std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
 				}
 
 				GAIA_MSVC_WARNING_POP()

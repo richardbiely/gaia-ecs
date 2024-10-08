@@ -6395,7 +6395,9 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
-	{ wld.set<Position>(e) = {}; }
+	{
+		wld.set<Position>(e) = {};
+	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
@@ -6410,7 +6412,9 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
-	{ wld.sset<Position>(e) = {}; }
+	{
+		wld.sset<Position>(e) = {};
+	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {

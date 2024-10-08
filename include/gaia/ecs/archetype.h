@@ -34,7 +34,7 @@ namespace gaia {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 				// Size has to match
 				if (comps.size() != compsOther.size())
-						return false;
+					return false;
 
 				// Elements have to match
 				GAIA_EACH(comps) {

@@ -3,8 +3,8 @@
 #include "../config/config.h"
 
 #if GAIA_PLATFORM_WINDOWS
-	#include <windows.h>
 	#include <cstdio>
+	#include <windows.h>
 	#define GAIA_THREAD std::thread
 #elif GAIA_PLATFORM_APPLE
 	#include <pthread.h>

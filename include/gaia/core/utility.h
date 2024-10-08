@@ -12,7 +12,9 @@ namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
-	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t) - 1);(void)max_len
+	#define GAIA_STRCPY(var, max_len, text)                                                                              \
+		strncpy_s((var), (text), (size_t)-1);                                                                              \
+		(void)max_len
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
@@ -353,14 +355,14 @@ namespace gaia {
 
 		namespace detail {
 			template <typename T>
-			constexpr auto
-			has_member_equals_check(int) -> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
+			constexpr auto has_member_equals_check(int)
+					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
 			constexpr std::false_type has_member_equals_check(...);
 
 			template <typename T>
-			constexpr auto
-			has_global_equals_check(int) -> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
+			constexpr auto has_global_equals_check(int)
+					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
 			constexpr std::false_type has_global_equals_check(...);
 		} // namespace detail

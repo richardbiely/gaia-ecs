@@ -453,25 +453,21 @@ namespace robin_hood {
 		// pair constructors are explicit so we don't accidentally call this ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2> const& o) noexcept(
 				noexcept(T1(std::declval<T1 const&>())) && noexcept(T2(std::declval<T2 const&>()))):
-				first(o.first),
-				second(o.second) {}
+				first(o.first), second(o.second) {}
 
 		// pair constructors are explicit so we don't accidentally call this ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2>&& o) noexcept(
 				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
-				first(GAIA_MOV(o.first)),
-				second(GAIA_MOV(o.second)) {}
+				first(GAIA_MOV(o.first)), second(GAIA_MOV(o.second)) {}
 
 		constexpr pair(T1&& a, T2&& b) noexcept(
 				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
-				first(GAIA_MOV(a)),
-				second(GAIA_MOV(b)) {}
+				first(GAIA_MOV(a)), second(GAIA_MOV(b)) {}
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
 				noexcept(T1(GAIA_FWD(std::declval<U1&&>()))) && noexcept(T2(GAIA_FWD(std::declval<U2&&>())))):
-				first(GAIA_FWD(a)),
-				second(GAIA_FWD(b)) {}
+				first(GAIA_FWD(a)), second(GAIA_FWD(b)) {}
 
 		template <typename... U1, typename... U2>
 		// MSVC 2015 produces error "C2476: ‘constexpr’ constructor does not initialize all members"
@@ -487,20 +483,10 @@ namespace robin_hood {
 
 		// constructor called from the std::piecewise_construct_t ctor
 		template <typename... U1, size_t... I1, typename... U2, size_t... I2>
-		pair(
-				std::tuple<U1...>& a, std::tuple<U2...>& b, std::index_sequence<I1...> /*unused*/,
-				std::index_sequence<
-						I2...> /*unused*/) noexcept(noexcept(T1(std::
-																												forward<U1>(std::get<I1>(
-																														std::declval<std::tuple<
-																																U1...>&>()))...)) && noexcept(T2(std::
-																																																		 forward<
-																																																				 U2>(std::get<
-																																																						 I2>(
-																																																				 std::declval<std::tuple<
-																																																						 U2...>&>()))...))):
-				first(GAIA_FWD(std::get<I1>(a))...),
-				second(GAIA_FWD(std::get<I2>(b))...) {
+		pair(std::tuple<U1...>& a, std::tuple<U2...>& b, std::index_sequence<I1...> /*unused*/, std::index_sequence<I2...> /*unused*/) noexcept(
+				noexcept(T1(std::forward<U1>(std::get<I1>(std::declval<std::tuple<U1...>&>()))...)) &&
+				noexcept(T2(std::forward<U2>(std::get<I2>(std::declval<std::tuple<U2...>&>()))...))):
+				first(GAIA_FWD(std::get<I1>(a))...), second(GAIA_FWD(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a & b.
 			// Visual studio's pair implementation disables warning 4100.
 			(void)a;
@@ -533,9 +519,9 @@ namespace robin_hood {
 		return !(x == y);
 	}
 	template <typename A, typename B>
-	inline constexpr bool operator<(pair<A, B> const& x, pair<A, B> const& y) noexcept(noexcept(
-			std::declval<A const&>() <
-			std::declval<A const&>()) && noexcept(std::declval<B const&>() < std::declval<B const&>())) {
+	inline constexpr bool operator<(pair<A, B> const& x, pair<A, B> const& y) noexcept(
+			noexcept(std::declval<A const&>() < std::declval<A const&>()) &&
+			noexcept(std::declval<B const&>() < std::declval<B const&>())) {
 		return x.first < y.first || (!(y.first < x.first) && x.second < y.second);
 	}
 	template <typename A, typename B>
@@ -805,12 +791,10 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, Args&&... args) noexcept(
-						noexcept(value_type(GAIA_FWD(args)...))):
-						mData(GAIA_FWD(args)...) {}
+						noexcept(value_type(GAIA_FWD(args)...))): mData(GAIA_FWD(args)...) {}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
-						std::is_nothrow_move_constructible<value_type>::value):
-						mData(GAIA_MOV(n.mData)) {}
+						std::is_nothrow_move_constructible<value_type>::value): mData(GAIA_MOV(n.mData)) {}
 
 				// doesn't do anything
 				void destroy(M& ROBIN_HOOD_UNUSED(map) /*unused*/) noexcept {}
@@ -1330,8 +1314,7 @@ namespace robin_hood {
 			explicit Table(
 					size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/, const Hash& h = Hash{},
 					const KeyEqual& equal = KeyEqual{}) noexcept(noexcept(Hash(h)) && noexcept(KeyEqual(equal))):
-					WHash(h),
-					WKeyEqual(equal) {
+					WHash(h), WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 			}
@@ -1339,9 +1322,7 @@ namespace robin_hood {
 			template <typename Iter>
 			Table(
 					Iter first, Iter last, size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0, const Hash& h = Hash{},
-					const KeyEqual& equal = KeyEqual{}):
-					WHash(h),
-					WKeyEqual(equal) {
+					const KeyEqual& equal = KeyEqual{}): WHash(h), WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(first, last);
@@ -1349,9 +1330,7 @@ namespace robin_hood {
 
 			Table(
 					std::initializer_list<value_type> initlist, size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0,
-					const Hash& h = Hash{}, const KeyEqual& equal = KeyEqual{}):
-					WHash(h),
-					WKeyEqual(equal) {
+					const Hash& h = Hash{}, const KeyEqual& equal = KeyEqual{}): WHash(h), WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(initlist.begin(), initlist.end());
