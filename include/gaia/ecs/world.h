@@ -570,6 +570,13 @@ namespace gaia {
 						// Make sure the relation entity is registered as archetype so queries can find it
 						// auto& ec = m_world.fetch(tgt);
 						// m_world.add_entity_archetype_pair(m_entity, ec.pArchetype);
+
+						// Cached queries might need to be invalidated.
+						// TODO: We still need to handle invalidation "down-the-tree".
+						//       E.g., if [wolf, (Is,carnivore)] and [carnivore, (Is,animal)],
+						//       and there is a query (Is,animal) and we remove {Is,carnivore}
+						//       from wolf, the (Is,animal) query won't be invalidated.
+						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
 					}
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
@@ -625,6 +632,9 @@ namespace gaia {
 							if (set.empty())
 								m_world.m_entityToAsRelations.erase(it);
 						}
+
+						// Cached queries might need to be invalidated.
+						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
@@ -1297,8 +1307,15 @@ namespace gaia {
 					return nullptr;
 
 				const auto& ec = m_recs.entities[entity.id()];
-				if (!ec.pArchetype->has<EntityDesc>())
+				if (!ec.pArchetype->has<EntityDesc>()) {
+					// If no EntityDesc is assigned it is still possible to extract a name from
+					// the entity. Components always come with a compile-time string associated
+					// with them.
+					if (!entity.entity())
+						return m_compCache.get(entity).name.str();
+
 					return nullptr;
+				}
 
 				const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
 				return desc.name;
@@ -2289,10 +2306,10 @@ namespace gaia {
 			}
 
 			//! Deletes an archetype from the <pairEntity, archetype> map
-			//! \param pairKey Pair entity used as a key in the map
+			//! \param pair Pair entity used as a key in the map
 			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
-			void del_entity_archetype_pair(Pair pairKey, Entity entityToRemove) {
-				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pairKey));
+			void del_entity_archetype_pair(Pair pair, Entity entityToRemove) {
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
 				auto& archetypes = it->second;
 
 				// Remove any reference to the found archetype from the array.
@@ -2321,10 +2338,8 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					// Fake entities instantiated for both ids.
-					// We are fine with it because to build a pair all we need are valid entity ids.
-					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+					const auto first = get(entity.id());
+					const auto second = get(entity.gen());
 
 					// (*, tgt)
 					del_entity_archetype_pair(Pair(All, second), entity);
@@ -2348,10 +2363,8 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						// Fake entities instantiated for both ids.
-						// We are fine with it because to build a pair all we need are valid entity ids.
-						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+						const auto first = get(entity.id());
+						const auto second = get(entity.gen());
 
 						// (*, tgt)
 						add_entity_archetype_pair(Pair(All, second), pArchetype);

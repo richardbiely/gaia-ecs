@@ -89,7 +89,60 @@ namespace gaia {
 			GAIA_NODISCARD auto gen() const {
 				return data.gen;
 			}
+			GAIA_NODISCARD auto value() const {
+				return val;
+			}
 		};
+
+		inline static const QueryHandle QueryHandleBad = QueryHandle();
+
+		//! Hashmap lookup structure used for Entity
+		struct QueryHandleLookupKey {
+			using LookupHash = core::direct_hash_key<uint64_t>;
+
+		private:
+			//! Entity
+			QueryHandle m_handle;
+			//! Entity hash
+			LookupHash m_hash;
+
+			static LookupHash calc(QueryHandle handle) {
+				return {core::calculate_hash64(handle.value())};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			QueryHandleLookupKey() = default;
+			explicit QueryHandleLookupKey(QueryHandle handle): m_handle(handle), m_hash(calc(handle)) {}
+			~QueryHandleLookupKey() = default;
+
+			QueryHandleLookupKey(const QueryHandleLookupKey&) = default;
+			QueryHandleLookupKey(QueryHandleLookupKey&&) = default;
+			QueryHandleLookupKey& operator=(const QueryHandleLookupKey&) = default;
+			QueryHandleLookupKey& operator=(QueryHandleLookupKey&&) = default;
+
+			QueryHandle handle() const {
+				return m_handle;
+			}
+
+			size_t hash() const {
+				return (size_t)m_hash.hash;
+			}
+
+			bool operator==(const QueryHandleLookupKey& other) const {
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_handle == other.m_handle;
+			}
+
+			bool operator!=(const QueryHandleLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+
+		inline static const QueryHandleLookupKey QueryHandleBadLookupKey = QueryHandleLookupKey(QueryHandleBad);
 
 		//! User-provided query input
 		struct QueryInput {

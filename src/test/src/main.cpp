@@ -2839,6 +2839,67 @@ TEST_CASE("Inheritance (Is)") {
 	}
 }
 
+TEST_CASE("Inheritance (Is) - change") {
+	TestWorld twld;
+	ecs::Entity animal = wld.add();
+	ecs::Entity herbivore = wld.add();
+	ecs::Entity carnivore = wld.add();
+
+	wld.as(carnivore, animal);
+	wld.as(herbivore, animal);
+
+	REQUIRE(wld.is(carnivore, animal));
+	REQUIRE(wld.is(herbivore, animal));
+
+	REQUIRE(wld.is(animal, animal));
+	REQUIRE(wld.is(herbivore, herbivore));
+	REQUIRE(wld.is(carnivore, carnivore));
+
+	REQUIRE_FALSE(wld.is(animal, herbivore));
+	REQUIRE_FALSE(wld.is(animal, carnivore));
+
+	ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 3);
+	}
+
+	// Carnivore is no longer an animal
+	wld.del(carnivore, {ecs::Is, animal});
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 2);
+	}
+
+	// Make carnivore an animal again
+	wld.as(carnivore, animal);
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 3);
+	}
+}
+
 TEST_CASE("AddAndDel_entity - no components") {
 	const uint32_t N = 1'500;
 
@@ -6623,14 +6684,14 @@ TEST_CASE("System - simple") {
 
 	testRun();
 
-	// TODO: Changing archetypes this way needs to trigger re-evaluation of the archetype cache on queries.
-	// // Make sure to execute sys2 before sys1
+	// Make sure to execute sys2 before sys1
+	// TODO: Bugged, sys2_cnt == 0 instead of 10! This needs fixing ASAP
 	// wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
 	// wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
 
 	// testRun();
 
-	// TODO: This still needs implementing
+	// TODO: Ordering still needs implementing
 	// REQUIRE(sys3_run_before_sys1);
 	// REQUIRE(sys3_run_before_sys2);
 }

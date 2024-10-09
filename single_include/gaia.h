@@ -20002,7 +20002,60 @@ namespace gaia {
 			GAIA_NODISCARD auto gen() const {
 				return data.gen;
 			}
+			GAIA_NODISCARD auto value() const {
+				return val;
+			}
 		};
+
+		inline static const QueryHandle QueryHandleBad = QueryHandle();
+
+		//! Hashmap lookup structure used for Entity
+		struct QueryHandleLookupKey {
+			using LookupHash = core::direct_hash_key<uint64_t>;
+
+		private:
+			//! Entity
+			QueryHandle m_handle;
+			//! Entity hash
+			LookupHash m_hash;
+
+			static LookupHash calc(QueryHandle handle) {
+				return {core::calculate_hash64(handle.value())};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			QueryHandleLookupKey() = default;
+			explicit QueryHandleLookupKey(QueryHandle handle): m_handle(handle), m_hash(calc(handle)) {}
+			~QueryHandleLookupKey() = default;
+
+			QueryHandleLookupKey(const QueryHandleLookupKey&) = default;
+			QueryHandleLookupKey(QueryHandleLookupKey&&) = default;
+			QueryHandleLookupKey& operator=(const QueryHandleLookupKey&) = default;
+			QueryHandleLookupKey& operator=(QueryHandleLookupKey&&) = default;
+
+			QueryHandle handle() const {
+				return m_handle;
+			}
+
+			size_t hash() const {
+				return (size_t)m_hash.hash;
+			}
+
+			bool operator==(const QueryHandleLookupKey& other) const {
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_handle == other.m_handle;
+			}
+
+			bool operator!=(const QueryHandleLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+
+		inline static const QueryHandleLookupKey QueryHandleBadLookupKey = QueryHandleLookupKey(QueryHandleBad);
 
 		//! User-provided query input
 		struct QueryInput {
@@ -21559,6 +21612,8 @@ namespace gaia {
 		struct Entity;
 		class World;
 
+		bool is_base(const World& world, Entity entity);
+
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
 			GroupId groupId = 0;
@@ -21751,6 +21806,47 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
+			void refresh_ctx() {
+				auto& data = m_ctx.data;
+
+				// Update masks
+				{
+					uint32_t as_mask_0 = 0;
+					uint32_t as_mask_1 = 0;
+
+					const auto& ids = data.ids;
+					GAIA_EACH(ids) {
+						const auto id = ids[i];
+
+						// Build the Is mask.
+						// We will use it to identify entities with an Is relationship quickly.
+						if (!id.pair()) {
+							const auto j = i; // data.remapping[i];
+							const auto has_as = (uint8_t)is_base(*m_ctx.w, id);
+							as_mask_0 |= (has_as << (uint8_t)j);
+						} else {
+							if (!is_wildcard(id.id())) {
+								const auto j = i; // data.remapping[i];
+								const auto e = entity_from_id(*m_ctx.w, id.id());
+								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
+								as_mask_0 |= (has_as << (uint8_t)j);
+							}
+
+							if (!is_wildcard(id.gen())) {
+								const auto j = i; // data.remapping[i];
+								const auto e = entity_from_id(*m_ctx.w, id.gen());
+								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
+								as_mask_1 |= (has_as << (uint8_t)j);
+							}
+						}
+					}
+
+					// Update the mask
+					data.as_mask_0 = as_mask_0;
+					data.as_mask_1 = as_mask_1;
+				}
+			}
+
 			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \warning Not thread safe. No two threads can call this at the same time.
@@ -21796,6 +21892,7 @@ namespace gaia {
 
 				auto& data = m_ctx.data;
 
+				// Prepare the context
 				vm::MatchingCtx ctx{};
 				ctx.pWorld = world();
 				ctx.pAllArchetypes = &allArchetypes;
@@ -21807,6 +21904,8 @@ namespace gaia {
 				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
+
+				// Run the virtual machine
 				m_vm.exec(ctx);
 
 				// Write found matches to cache
@@ -22137,6 +22236,7 @@ namespace gaia {
 				return m_pCtx == other.m_pCtx;
 			}
 		};
+
 		class QueryCache {
 			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
 			// TODO: Make m_queryArr allocate data in pages.
@@ -22145,6 +22245,9 @@ namespace gaia {
 			//       QueryInfo is quite big and we do not want to copying a lot of data every time
 			//       resizing is necessary.
 			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
+
+			//! entity -> query mapping
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
 
 		public:
 			QueryCache() {
@@ -22173,6 +22276,7 @@ namespace gaia {
 			void clear() {
 				m_queryCache.clear();
 				m_queryArr.clear();
+				m_entityToQuery.clear();
 			}
 
 			//! Returns a QueryInfo object stored at the index \param idx.
@@ -22221,10 +22325,15 @@ namespace gaia {
 				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
+				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer
+				// going to be valid. Therefore we swap the map key with a one with a valid pointer.
 				auto& info = get(handle);
 				info.add_ref();
 				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), info.idx));
 				ret.first->swap(new_p);
+
+				// Add the entity->query pair
+				add_entity_to_query_pairs({info.ids().data(), info.ids().size()}, handle);
 
 				return info;
 			}
@@ -22239,10 +22348,15 @@ namespace gaia {
 				if (pInfo->refs() != 0)
 					return false;
 
+				// If this was the last reference to the query, we can safely remove it
 				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
 				GAIA_ASSERT(it != m_queryCache.end());
 				m_queryCache.erase(it);
 				m_queryArr.free(handle);
+
+				// Remove the entity->query pair
+				del_entity_to_query_pairs({pInfo->ids().data(), pInfo->ids().size()}, handle);
+
 				return true;
 			}
 
@@ -22252,6 +22366,74 @@ namespace gaia {
 
 			cnt::darray<QueryInfo>::iterator end() {
 				return m_queryArr.end();
+			}
+
+			//! Invalidates all cached queries that work with the given entity
+			//! This covers the following kinds of query terms:
+			//! 1) X
+			//! 2) (*, X)
+			//! 3) (X, *)
+			void invalidate_queries_for_entity(EntityLookupKey entityKey) {
+				auto it = m_entityToQuery.find(entityKey);
+				if (it == m_entityToQuery.end())
+					return;
+
+				const auto& handles = it->second;
+				for (auto& handle: handles) {
+					auto& info = get(handle);
+					info.reset();
+					info.refresh_ctx();
+				}
+			}
+
+		private:
+			//! Adds an entity to the <entity, query> map
+			//! \param entity Entity getting added
+			//! \param handle Query handle
+			void add_entity_query_pair(Entity entity, QueryHandle handle) {
+				EntityLookupKey entityKey(entity);
+				const auto it = m_entityToQuery.find(entityKey);
+				if (it == m_entityToQuery.end()) {
+					m_entityToQuery.try_emplace(entityKey, cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			//! Deletes an entity from the <entity, query> map
+			//! \param entity Entity getting removed
+			//! \param handle Query handle
+			void del_entity_archetype_pair(Entity entity, QueryHandle handle) {
+				auto it = m_entityToQuery.find(EntityLookupKey(entity));
+				if (it == m_entityToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				const auto idx = core::get_index_unsafe(handles, handle);
+				core::swap_erase_unsafe(handles, idx);
+
+				// Remove the mapping if there are no more matches
+				if (handles.empty())
+					m_entityToQuery.erase(it);
+			}
+
+			//! Adds an entity to the <entity, query> map
+			//! \param entities Entities getting added
+			void add_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
+				for (auto entity: entities) {
+					add_entity_query_pair(entity, handle);
+				}
+			}
+
+			//! Deletes an entity from the <entity, query> map
+			//! \param entities Entities getting deleted
+			void del_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
+				for (auto entity: entities) {
+					add_entity_query_pair(entity, handle);
+				}
 			}
 		};
 	} // namespace ecs
@@ -22306,8 +22488,6 @@ namespace gaia {
 
 					// Build the Is mask.
 					// We will use it to identify entities with an Is relationship quickly.
-					// TODO: Implement listeners. Every time Is relationship changes archetype cache
-					//       might need to want to cache different archetypes (add some, delete others).
 					if (!item.id.pair()) {
 						const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
 						data.as_mask_0 |= (has_as << (uint8_t)ids.size());
@@ -24198,21 +24378,28 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto tgt = m_world.get(entity.gen());
+						auto e = m_world.get(entity.gen());
 
 						EntityLookupKey entityKey(m_entity);
-						EntityLookupKey tgtKey(tgt);
+						EntityLookupKey eKey(e);
 
 						// m_entity -> {..., e}
 						auto& entity_to_e = m_world.m_entityToAsTargets[entityKey];
-						entity_to_e.insert(tgtKey);
+						entity_to_e.insert(eKey);
 						// e -> {..., m_entity}
-						auto& e_to_entity = m_world.m_entityToAsRelations[tgtKey];
+						auto& e_to_entity = m_world.m_entityToAsRelations[eKey];
 						e_to_entity.insert(entityKey);
 
 						// Make sure the relation entity is registered as archetype so queries can find it
 						// auto& ec = m_world.fetch(tgt);
 						// m_world.add_entity_archetype_pair(m_entity, ec.pArchetype);
+
+						// Cached queries might need to be invalidated.
+						// TODO: We still need to handle invalidation "down-the-tree".
+						//       E.g., if [wolf, (Is,carnivore)] and [carnivore, (Is,animal)],
+						//       and there is a query (Is,animal) and we remove {Is,carnivore}
+						//       from wolf, the (Is,animal) query won't be invalidated.
+						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
 					}
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
@@ -24240,31 +24427,37 @@ namespace gaia {
 					if (entity.pair() && entity.id() == Is.id()) {
 						auto e = m_world.get(entity.gen());
 
-						EntityLookupKey entityKey(entity);
+						EntityLookupKey entityKey(m_entity);
 						EntityLookupKey eKey(e);
 
+						// m_entity -> {..., e}
 						{
-							auto& set = m_world.m_entityToAsTargets;
-							const auto it = set.find(entityKey);
-							GAIA_ASSERT(it != set.end());
-							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(eKey);
+							const auto it = m_world.m_entityToAsTargets.find(entityKey);
+							GAIA_ASSERT(it != m_world.m_entityToAsTargets.end());
+							auto& set = it->second;
+							GAIA_ASSERT(!set.empty());
+							set.erase(eKey);
 
 							// Remove the record if it is not referenced anymore
-							if (it->second.empty())
-								set.erase(it);
+							if (set.empty())
+								m_world.m_entityToAsTargets.erase(it);
 						}
+
+						// e -> {..., m_entity}
 						{
-							auto& set = m_world.m_entityToAsRelations;
-							const auto it = set.find(eKey);
-							GAIA_ASSERT(it != set.end());
-							GAIA_ASSERT(!it->second.empty());
-							it->second.erase(entityKey);
+							const auto it = m_world.m_entityToAsRelations.find(eKey);
+							GAIA_ASSERT(it != m_world.m_entityToAsRelations.end());
+							auto& set = it->second;
+							GAIA_ASSERT(!set.empty());
+							set.erase(entityKey);
 
 							// Remove the record if it is not referenced anymore
-							if (it->second.empty())
-								set.erase(it);
+							if (set.empty())
+								m_world.m_entityToAsRelations.erase(it);
 						}
+
+						// Cached queries might need to be invalidated.
+						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
@@ -24937,8 +25130,15 @@ namespace gaia {
 					return nullptr;
 
 				const auto& ec = m_recs.entities[entity.id()];
-				if (!ec.pArchetype->has<EntityDesc>())
+				if (!ec.pArchetype->has<EntityDesc>()) {
+					// If no EntityDesc is assigned it is still possible to extract a name from
+					// the entity. Components always come with a compile-time string associated
+					// with them.
+					if (!entity.entity())
+						return m_compCache.get(entity).name.str();
+
 					return nullptr;
+				}
 
 				const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
 				return desc.name;
@@ -25929,10 +26129,10 @@ namespace gaia {
 			}
 
 			//! Deletes an archetype from the <pairEntity, archetype> map
-			//! \param pairKey Pair entity used as a key in the map
+			//! \param pair Pair entity used as a key in the map
 			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
-			void del_entity_archetype_pair(Pair pairKey, Entity entityToRemove) {
-				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pairKey));
+			void del_entity_archetype_pair(Pair pair, Entity entityToRemove) {
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
 				auto& archetypes = it->second;
 
 				// Remove any reference to the found archetype from the array.
@@ -25961,10 +26161,8 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					// Fake entities instantiated for both ids.
-					// We are fine with it because to build a pair all we need are valid entity ids.
-					const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-					const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+					const auto first = get(entity.id());
+					const auto second = get(entity.gen());
 
 					// (*, tgt)
 					del_entity_archetype_pair(Pair(All, second), entity);
@@ -25988,10 +26186,8 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						// Fake entities instantiated for both ids.
-						// We are fine with it because to build a pair all we need are valid entity ids.
-						const auto first = Entity(entity.id(), 0, false, false, EntityKind::EK_Gen);
-						const auto second = Entity(entity.gen(), 0, false, false, EntityKind::EK_Gen);
+						const auto first = get(entity.id());
+						const auto second = get(entity.gen());
 
 						// (*, tgt)
 						add_entity_archetype_pair(Pair(All, second), pArchetype);

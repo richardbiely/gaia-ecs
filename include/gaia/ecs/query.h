@@ -71,8 +71,6 @@ namespace gaia {
 
 					// Build the Is mask.
 					// We will use it to identify entities with an Is relationship quickly.
-					// TODO: Implement listeners. Every time Is relationship changes archetype cache
-					//       might need to want to cache different archetypes (add some, delete others).
 					if (!item.id.pair()) {
 						const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
 						data.as_mask_0 |= (has_as << (uint8_t)ids.size());

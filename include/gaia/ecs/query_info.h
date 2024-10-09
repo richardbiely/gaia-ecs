@@ -21,6 +21,8 @@ namespace gaia {
 		struct Entity;
 		class World;
 
+		bool is_base(const World& world, Entity entity);
+
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
 			GroupId groupId = 0;
@@ -213,6 +215,47 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
+			void refresh_ctx() {
+				auto& data = m_ctx.data;
+
+				// Update masks
+				{
+					uint32_t as_mask_0 = 0;
+					uint32_t as_mask_1 = 0;
+
+					const auto& ids = data.ids;
+					GAIA_EACH(ids) {
+						const auto id = ids[i];
+
+						// Build the Is mask.
+						// We will use it to identify entities with an Is relationship quickly.
+						if (!id.pair()) {
+							const auto j = i; // data.remapping[i];
+							const auto has_as = (uint8_t)is_base(*m_ctx.w, id);
+							as_mask_0 |= (has_as << (uint8_t)j);
+						} else {
+							if (!is_wildcard(id.id())) {
+								const auto j = i; // data.remapping[i];
+								const auto e = entity_from_id(*m_ctx.w, id.id());
+								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
+								as_mask_0 |= (has_as << (uint8_t)j);
+							}
+
+							if (!is_wildcard(id.gen())) {
+								const auto j = i; // data.remapping[i];
+								const auto e = entity_from_id(*m_ctx.w, id.gen());
+								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
+								as_mask_1 |= (has_as << (uint8_t)j);
+							}
+						}
+					}
+
+					// Update the mask
+					data.as_mask_0 = as_mask_0;
+					data.as_mask_1 = as_mask_1;
+				}
+			}
+
 			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \warning Not thread safe. No two threads can call this at the same time.
@@ -258,6 +301,7 @@ namespace gaia {
 
 				auto& data = m_ctx.data;
 
+				// Prepare the context
 				vm::MatchingCtx ctx{};
 				ctx.pWorld = world();
 				ctx.pAllArchetypes = &allArchetypes;
@@ -269,6 +313,8 @@ namespace gaia {
 				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
+
+				// Run the virtual machine
 				m_vm.exec(ctx);
 
 				// Write found matches to cache

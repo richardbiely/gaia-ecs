@@ -1000,6 +1000,100 @@ void test14() {
 	(void)q2.count();
 }
 
+void test15() {
+	ecs::World wld;
+	ecs::Entity animal = wld.add();
+	ecs::Entity herbivore = wld.add();
+	ecs::Entity carnivore = wld.add();
+	ecs::Entity wolf = wld.add();
+
+	wld.name(animal, "animal");
+	wld.name(herbivore, "herbivore");
+	wld.name(carnivore, "carnivore");
+	wld.name(wolf, "wolf");
+
+	wld.as(carnivore, animal);
+	wld.as(herbivore, animal);
+	wld.as(wolf, carnivore);
+
+	GAIA_ASSERT(wld.is(carnivore, animal));
+	GAIA_ASSERT(wld.is(herbivore, animal));
+	GAIA_ASSERT(wld.is(wolf, animal));
+
+	GAIA_ASSERT(wld.is(animal, animal));
+	GAIA_ASSERT(wld.is(herbivore, herbivore));
+	GAIA_ASSERT(wld.is(carnivore, carnivore));
+	GAIA_ASSERT(wld.is(wolf, carnivore));
+
+	GAIA_ASSERT(!wld.is(animal, herbivore));
+	GAIA_ASSERT(!wld.is(animal, carnivore));
+	GAIA_ASSERT(!wld.is(wolf, herbivore));
+
+	ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			GAIA_ASSERT(isOK);
+
+			++i;
+		});
+		GAIA_ASSERT(i == 4);
+	}
+
+	// Carnivore is no longer an animal
+	wld.del(carnivore, {ecs::Is, animal});
+	GAIA_ASSERT(wld.is(wolf, carnivore));
+	GAIA_ASSERT(!wld.is(carnivore, animal));
+	GAIA_ASSERT(!wld.is(wolf, animal));
+
+	wld.diag_archetypes();
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore;
+			GAIA_ASSERT(isOK);
+
+			++i;
+		});
+		GAIA_ASSERT(i == 2);
+	}
+
+	// Make carnivore an animal again
+	wld.as(carnivore, animal);
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			GAIA_ASSERT(isOK);
+
+			++i;
+		});
+		GAIA_ASSERT(i == 4);
+	}
+
+	// Wolf is no longer a carnivore and thus no longer an animal.
+	// It should no longer match q
+	wld.del(wolf, {ecs::Is, carnivore});
+	GAIA_ASSERT(!wld.is(wolf, carnivore));
+	GAIA_ASSERT(wld.is(carnivore, animal));
+	GAIA_ASSERT(!wld.is(wolf, animal));
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
+			GAIA_ASSERT(isOK);
+
+			++i;
+		});
+		GAIA_ASSERT(i == 3);
+	}
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -1021,7 +1115,8 @@ int main() {
 	// test12();
 	// test12b();
 	// test13();
-	test14();
+	// test14();
+	test15();
 
 	// g_test_0.getters();
 	// g_test_0.setters();
