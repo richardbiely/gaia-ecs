@@ -3,7 +3,7 @@
 #include "../config/config_core.h"
 
 #ifndef GAIA_USE_MEM_SANI
-	#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	#if defined(__has_feature)
 		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
