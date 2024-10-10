@@ -24763,7 +24763,7 @@ namespace gaia {
 			//! \warning It is expected \param srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(srcEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
@@ -24799,7 +24799,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(srcEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				GAIA_ASSERT(!entity.pair());
