@@ -24395,11 +24395,7 @@ namespace gaia {
 						// m_world.add_entity_archetype_pair(m_entity, ec.pArchetype);
 
 						// Cached queries might need to be invalidated.
-						// TODO: We still need to handle invalidation "down-the-tree".
-						//       E.g., if [wolf, (Is,carnivore)] and [carnivore, (Is,animal)],
-						//       and there is a query (Is,animal) and we remove {Is,carnivore}
-						//       from wolf, the (Is,animal) query won't be invalidated.
-						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
+						m_world.invalidate_queries_for_entity({Is, e});
 					}
 
 					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
@@ -24430,6 +24426,9 @@ namespace gaia {
 						EntityLookupKey entityKey(m_entity);
 						EntityLookupKey eKey(e);
 
+						// Cached queries might need to be invalidated.
+						m_world.invalidate_queries_for_entity({Is, e});
+
 						// m_entity -> {..., e}
 						{
 							const auto it = m_world.m_entityToAsTargets.find(entityKey);
@@ -24455,9 +24454,6 @@ namespace gaia {
 							if (set.empty())
 								m_world.m_entityToAsRelations.erase(it);
 						}
-
-						// Cached queries might need to be invalidated.
-						m_world.m_queryCache.invalidate_queries_for_entity(EntityLookupKey(entity));
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
@@ -27378,6 +27374,36 @@ namespace gaia {
 				return false;
 			}
 
+			//! Traverse the (Is, X) relationships all the way to their source
+			template <bool CheckIn, typename Func>
+			GAIA_NODISCARD void as_up_trav(Entity entity, Func func) {
+				GAIA_ASSERT(valid_entity(entity));
+
+				// Pairs are not supported
+				if (entity.pair())
+					return;
+
+				if constexpr (!CheckIn) {
+					func(entity);
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const auto* pArchetype = ec.pArchetype;
+
+				// Early exit if there are no Is relationship pairs on the archetype
+				if (pArchetype->pairs_is() == 0)
+					return;
+
+				for (uint32_t i = 0; i < pArchetype->pairs_is(); ++i) {
+					auto e = pArchetype->entity_from_pairs_as_idx(i);
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					func(target);
+
+					as_up_trav<CheckIn>(target, func);
+				}
+			}
+
 			template <typename T>
 			const ComponentCacheItem& reg_core_entity(Entity id, Archetype* pArchetype) {
 				auto comp = add(*pArchetype, id.entity(), id.pair(), id.kind());
@@ -27572,6 +27598,27 @@ namespace gaia {
 
 				m_querySerMap.erase(it);
 				serId = QueryIdBad;
+			}
+
+			void invalidate_queries_for_entity(Pair is_pair) {
+				GAIA_ASSERT(is_pair.first() == Is);
+
+				// We still need to handle invalidation "down-the-tree".
+				// E.g. following setup:
+				// q = w.query().all({Is,animal});
+				// w.as(wolf, carnivore);
+				// w.as(carnivore, animal);
+				// q.each() ...; // animal, carnivore, wolf
+				// w.del(wolf, {Is,carnivore}) // wolf no longer a carnivore and thus no longer an animal
+				// After this deletion, we need to invalidate "q" because wolf is no longer an animal
+				// and we don't want q to include it.
+				// q.each() ...; // animal
+
+				auto e = is_pair.second();
+				as_up_trav<false>(e, [&](Entity target) {
+					// Invalidate all queries that contain  everything in our path.
+					m_queryCache.invalidate_queries_for_entity(EntityLookupKey(Pair{Is, target}));
+				});
 			}
 		};
 
