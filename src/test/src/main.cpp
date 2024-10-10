@@ -2845,35 +2845,45 @@ TEST_CASE("Inheritance (Is) - change") {
 	ecs::Entity animal = wld.add();
 	ecs::Entity herbivore = wld.add();
 	ecs::Entity carnivore = wld.add();
+	ecs::Entity wolf = wld.add();
 
 	wld.as(carnivore, animal);
 	wld.as(herbivore, animal);
+	wld.as(wolf, carnivore);
 
 	REQUIRE(wld.is(carnivore, animal));
 	REQUIRE(wld.is(herbivore, animal));
+	REQUIRE(wld.is(wolf, animal));
 
 	REQUIRE(wld.is(animal, animal));
 	REQUIRE(wld.is(herbivore, herbivore));
 	REQUIRE(wld.is(carnivore, carnivore));
+	REQUIRE(wld.is(wolf, carnivore));
 
 	REQUIRE_FALSE(wld.is(animal, herbivore));
 	REQUIRE_FALSE(wld.is(animal, carnivore));
+	REQUIRE_FALSE(wld.is(wolf, herbivore));
 
 	ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
 
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
 			REQUIRE(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 3);
+		REQUIRE(i == 4);
 	}
 
 	// Carnivore is no longer an animal
 	wld.del(carnivore, {ecs::Is, animal});
+	REQUIRE(wld.is(wolf, carnivore));
+	REQUIRE_FALSE(wld.is(carnivore, animal));
+	REQUIRE_FALSE(wld.is(wolf, animal));
+
+	wld.diag_archetypes();
 
 	{
 		uint32_t i = 0;
@@ -2888,6 +2898,24 @@ TEST_CASE("Inheritance (Is) - change") {
 
 	// Make carnivore an animal again
 	wld.as(carnivore, animal);
+
+	{
+		uint32_t i = 0;
+		q.each([&](ecs::Entity entity) {
+			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			REQUIRE(isOK);
+
+			++i;
+		});
+		REQUIRE(i == 4);
+	}
+
+	// Wolf is no longer a carnivore and thus no longer an animal.
+	// It should no longer match q
+	wld.del(wolf, {ecs::Is, carnivore});
+	REQUIRE_FALSE(wld.is(wolf, carnivore));
+	REQUIRE(wld.is(carnivore, animal));
+	REQUIRE_FALSE(wld.is(wolf, animal));
 
 	{
 		uint32_t i = 0;
