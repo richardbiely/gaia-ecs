@@ -66,9 +66,15 @@ namespace gaia {
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void
-			ctor_from(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
+				GAIA_ASSERT(func_move_ctor != nullptr && (pSrc != pDst || idxSrc != idxDst));
 				func_move_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+			}
+
+			void ctor_copy(
+					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
+				GAIA_ASSERT(func_copy_ctor != nullptr && (pSrc != pDst || idxSrc != idxDst));
+				func_copy_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 
 			void dtor(void* pSrc) const {
@@ -78,12 +84,12 @@ namespace gaia {
 
 			void
 			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				GAIA_ASSERT(func_copy != nullptr && (pSrc != pDst || idxSrc != idxDst));
 				func_copy(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 
 			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				GAIA_ASSERT(func_move != nullptr && (pSrc != pDst || idxSrc != idxDst));
 				func_move(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 

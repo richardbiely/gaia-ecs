@@ -618,7 +618,66 @@ namespace gaia {
 
 					auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 					auto* pDst = (void*)comp_ptr_mut(i);
-					rec.pItem->ctor_from(pDst, pSrc, row, ec.row, capacity(), pSrcChunk->capacity());
+					rec.pItem->ctor_move(pDst, pSrc, row, ec.row, capacity(), pSrcChunk->capacity());
+				}
+			}
+
+			//! Copies all data associated with \param entity into the chunk so that it is stored at the row \param row.
+			static void copy_foreign_entity_data(Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow) {
+				GAIA_PROF_SCOPE(Chunk::copy_foreign_entity_data);
+
+				GAIA_ASSERT(pSrcChunk != nullptr);
+				GAIA_ASSERT(pDstChunk != nullptr);
+				GAIA_ASSERT(srcRow < pSrcChunk->size());
+				GAIA_ASSERT(dstRow < pDstChunk->size());
+
+				auto srcIds = pSrcChunk->ids_view();
+				auto dstIds = pDstChunk->ids_view();
+				auto dstRecs = pDstChunk->comp_rec_view();
+
+				// Find intersection of the two component lists.
+				// Arrays are sorted so we can do linear intersection lookup.
+				// Call constructor on each match.
+				// Unique components do not change place in the chunk so there is no need to move them.
+				{
+					uint32_t i = 0;
+					uint32_t j = 0;
+					while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+						const auto oldId = srcIds[i];
+						const auto newId = dstIds[j];
+
+						if (oldId == newId) {
+							const auto& rec = dstRecs[j];
+							if (rec.comp.size() != 0U) {
+								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
+								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
+								rec.pItem->ctor_copy(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
+							}
+
+							++i;
+							++j;
+						} else if (SortComponentCond{}.operator()(oldId, newId)) {
+							++i;
+						} else {
+							// No match with the old chunk. Construct the component
+							const auto& rec = dstRecs[j];
+							if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+								rec.pItem->func_ctor(pDst, 1);
+							}
+
+							++j;
+						}
+					}
+
+					// Initialize the rest of the components if they are generic.
+					for (; j < pDstChunk->m_header.genEntities; ++j) {
+						const auto& rec = dstRecs[j];
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+							rec.pItem->func_ctor(pDst, 1);
+						}
+					}
 				}
 			}
 
@@ -651,7 +710,7 @@ namespace gaia {
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
-								rec.pItem->ctor_from(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
+								rec.pItem->ctor_move(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
 							}
 
 							++i;

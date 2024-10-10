@@ -1,3 +1,4 @@
+#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -5191,6 +5192,69 @@ TEST_CASE("Entity name - component") {
 		REQUIRE(strcmp(name, "gaia::ecs::uni<Position>") == 0);
 		const auto e = wld.get("gaia::ecs::uni<Position>");
 		REQUIRE(e == upci.entity);
+	}
+}
+
+TEST_CASE("Entity name - copy") {
+	TestWorld twld;
+
+	constexpr const char* pTestStr = "text";
+
+	auto e1 = wld.add();
+	wld.add<PositionNonTrivial>(e1, {1.f, 2.f, 3.f});
+	wld.name_raw(e1, pTestStr);
+
+	// Expectations:
+	// Names are unique, so the copied entity can't have the name set.
+
+	SECTION("single entity") {
+		auto e2 = wld.copy(e1);
+
+		auto e = wld.get(pTestStr);
+		REQUIRE(e == e1);
+
+		const auto& p1 = wld.get<PositionNonTrivial>(e1);
+		REQUIRE(p1.x == 1.f);
+		REQUIRE(p1.y == 2.f);
+		REQUIRE(p1.z == 3.f);
+		const auto& p2 = wld.get<PositionNonTrivial>(e2);
+		REQUIRE(p2.x == 1.f);
+		REQUIRE(p2.y == 2.f);
+		REQUIRE(p2.z == 3.f);
+
+		const auto* e1name = wld.name(e1);
+		REQUIRE(e1name == pTestStr);
+		const auto* e2name = wld.name(e2);
+		REQUIRE(e2name == nullptr);
+	}
+
+	SECTION("many entities") {
+		constexpr uint32_t N = 1'500;
+
+		cnt::darr<ecs::Entity> ents;
+		ents.reserve(N);
+
+		wld.copy_n(e1, N, [&ents](ecs::Entity ecopy) {
+			ents.push_back(ecopy);
+		});
+
+		auto e = wld.get(pTestStr);
+		REQUIRE(e == e1);
+		const auto* e1name = wld.name(e1);
+		REQUIRE(e1name == pTestStr);
+		const auto& p1 = wld.get<PositionNonTrivial>(e1);
+		REQUIRE(p1.x == 1.f);
+		REQUIRE(p1.y == 2.f);
+		REQUIRE(p1.z == 3.f);
+
+		for (auto ent: ents) {
+			const auto* e2name = wld.name(ent);
+			REQUIRE(e2name == nullptr);
+			const auto& p2 = wld.get<PositionNonTrivial>(ent);
+			REQUIRE(p2.x == 1.f);
+			REQUIRE(p2.y == 2.f);
+			REQUIRE(p2.z == 3.f);
+		}
 	}
 }
 
