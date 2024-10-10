@@ -2883,8 +2883,6 @@ TEST_CASE("Inheritance (Is) - change") {
 	REQUIRE_FALSE(wld.is(carnivore, animal));
 	REQUIRE_FALSE(wld.is(wolf, animal));
 
-	wld.diag_archetypes();
-
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
