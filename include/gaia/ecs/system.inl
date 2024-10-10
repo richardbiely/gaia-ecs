@@ -113,9 +113,15 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [this, func](Iter& it) {
+					ctx.on_each_func = [&w = m_world, e = m_entity, func](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
-						data().query.run_query_on_chunk(it, func, InputArgs{});
+						// NOTE: We can't directly use data().query here because the function relies
+						//       on SystemBuilder to be present at all times. If it goes out of scope
+						//       the only option left is having a copy of the world pointer and entity.
+						//       They are then used to get to the query stored inside System2_.
+						auto ss = w.acc_mut(e);
+						auto& sys = ss.smut<System2_>();
+						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};
 				}
 
