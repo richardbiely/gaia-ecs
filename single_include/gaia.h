@@ -20358,7 +20358,7 @@ namespace gaia {
 				QueryLookupHash::Type hash = 0;
 
 				const auto& terms = data.terms;
-				for (auto pair: terms) {
+				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 				}
