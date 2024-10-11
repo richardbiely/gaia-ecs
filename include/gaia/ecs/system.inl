@@ -98,7 +98,7 @@ namespace gaia {
 
 				auto& ctx = data();
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
-					ctx.on_each_func = [this, func](Iter& it) {
+					ctx.on_each_func = [func](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
 						func(it);
 					};

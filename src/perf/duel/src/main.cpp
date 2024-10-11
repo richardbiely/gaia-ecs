@@ -1069,6 +1069,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 			}
 			units_dynamic3[0].isAlive_verify();
 			units_dynamic4[0].isAlive_verify();
+			gaia::dont_optimize(aliveUnits);
 		}
 
 		GAIA_PROF_FRAME();

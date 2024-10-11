@@ -109,8 +109,6 @@ struct TypeNonTrivial {
 
 static constexpr const char* StringComponentDefaultValue =
 		"StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
-static constexpr const char* StringComponentDefaultValue_2 =
-		"2_StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
 static constexpr const char* StringComponent2DefaultValue =
 		"StringComponent2DefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
 static constexpr const char* StringComponent2DefaultValue_2 =
@@ -875,8 +873,6 @@ void sparse_storage_test(uint32_t N) {
 
 template <typename Container>
 void sparse_storage_test_tag(uint32_t N) {
-	using cont_item = typename Container::value_type;
-
 	constexpr uint32_t CONV = 100;
 	auto to_sid = [](uint32_t i) {
 		return i * CONV;
@@ -928,7 +924,7 @@ void sparse_storage_test_tag(uint32_t N) {
 	}
 
 	uint32_t cnt = 0;
-	for (auto val: arr) {
+	for (const auto& val: arr) {
 		REQUIRE(val == to_sid(cnt));
 		++cnt;
 	}
@@ -2045,6 +2041,11 @@ TEST_CASE("Run-time sort - quick sort") {
 	sort_ascending<true>(cnt::sarray<uint32_t, 45>{});
 }
 
+GAIA_GCC_WARNING_PUSH()
+GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers")
+GAIA_CLANG_WARNING_PUSH()
+GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers")
+
 template <typename T>
 void TestDataLayoutAoS() {
 	constexpr uint32_t N = 100;
@@ -2189,6 +2190,9 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<PositionSoA16>();
 	TestDataLayoutSoA<RotationSoA16>();
 }
+
+GAIA_CLANG_WARNING_POP()
+GAIA_GCC_WARNING_POP()
 
 TEST_CASE("Entity - valid/has") {
 	TestWorld twld;
@@ -7707,7 +7711,6 @@ TEST_CASE("Delegates") {
 	TestWorld twld;
 	auto e1 = wld.add();
 	auto e2 = wld.add();
-	auto e3 = wld.add();
 
 	// free function
 	{

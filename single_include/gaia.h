@@ -16112,11 +16112,11 @@ namespace gaia {
 
 		private:
 			void add_edge(EdgeMap& edges, Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
-#if !GAIA_DISABLE_ASSERTS
+#if GAIA_ASSERT_ENABLED
 				const auto ret =
 #endif
 						edges.try_emplace(EntityLookupKey(entity), ArchetypeGraphEdge{archetypeId, hash});
-#if !GAIA_DISABLE_ASSERTS
+#if GAIA_ASSERT_ENABLED
 				// If the result already exists make sure the new one is the same
 				if (!ret.second) {
 					const auto it = edges.find(EntityLookupKey(entity));
