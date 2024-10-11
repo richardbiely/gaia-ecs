@@ -103,7 +103,7 @@ namespace gaia {
 				m_ctx = nullptr;
 
 				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Args...>) {
-					m_fnc = [](const void*, Args... args) -> Ret {
+					m_fnc = [](const void*, Args... args) {
 						return Ret(std::invoke(FuncToBind, GAIA_FWD(args)...));
 					};
 				} else if constexpr (std::is_member_pointer_v<decltype(FuncToBind)>) {
@@ -126,7 +126,7 @@ namespace gaia {
 
 				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Type&, Args...>) {
 					using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
-					m_fnc = [](const void* ctx, Args... args) -> Ret {
+					m_fnc = [](const void* ctx, Args... args) {
 						auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
 						return Ret(std::invoke(FuncToBind, *pType, GAIA_FWD(args)...));
 					};
@@ -146,7 +146,7 @@ namespace gaia {
 
 				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Type*, Args...>) {
 					using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
-					m_fnc = [](const void* ctx, Args... args) -> Ret {
+					m_fnc = [](const void* ctx, Args... args) {
 						auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
 						return Ret(std::invoke(FuncToBind, pType, GAIA_FWD(args)...));
 					};
@@ -215,7 +215,7 @@ namespace gaia {
 		private:
 			template <auto FuncToBind, std::size_t... Index>
 			GAIA_NODISCARD auto wrap(std::index_sequence<Index...>) noexcept {
-				return [](const void*, Args... args) -> Ret {
+				return [](const void*, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					return Ret(std::invoke(FuncToBind, GAIA_FWD(std::get<Index>(argsFwd))...));
 				};
@@ -224,7 +224,7 @@ namespace gaia {
 			template <auto FuncToBind, typename Type, std::size_t... Index>
 			GAIA_NODISCARD auto wrap(Type&, std::index_sequence<Index...>) noexcept {
 				using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
-				return [](const void* ctx, Args... args) -> Ret {
+				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
 					return Ret(std::invoke(FuncToBind, *pType, GAIA_FWD(std::get<Index>(argsFwd))...));
@@ -234,7 +234,7 @@ namespace gaia {
 			template <auto FuncToBind, typename Type, std::size_t... Index>
 			GAIA_NODISCARD auto wrap(Type*, std::index_sequence<Index...>) noexcept {
 				using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
-				return [](const void* ctx, Args... args) -> Ret {
+				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
 					return Ret(std::invoke(FuncToBind, pType, GAIA_FWD(std::get<Index>(argsFwd))...));

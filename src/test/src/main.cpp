@@ -1,4 +1,3 @@
-#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -7697,6 +7696,64 @@ void test_func(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
 	++cnt;
 }
 
+struct SigFoo {
+	void on_event(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+		GAIA_ASSERT(e1 == e2);
+		++cnt;
+	}
+};
+
+TEST_CASE("Delegates") {
+	TestWorld twld;
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	auto e3 = wld.add();
+
+	// free function
+	{
+		util::delegate<sig_func_t> d;
+		REQUIRE_FALSE(d.operator bool());
+		d.bind<test_func>();
+		REQUIRE(d.operator bool());
+
+		uint32_t i = 0;
+		d(e1, e1, i);
+		REQUIRE(i == 1);
+
+		d.reset();
+		REQUIRE_FALSE(d.operator bool());
+	}
+
+	// class
+	{
+		SigFoo f;
+		util::delegate<sig_func_t> d;
+		REQUIRE_FALSE(d.operator bool());
+		d.bind<&SigFoo::on_event>(f);
+		REQUIRE(d.operator bool());
+
+		uint32_t i = 0;
+		d(e1, e1, i);
+		REQUIRE(i == 1);
+	}
+
+	// non-capturing lambda-like construct
+	{
+		struct dummyCtx {
+			void operator()(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+				GAIA_ASSERT(e1 == e2);
+				++cnt;
+			}
+		} dummy;
+		util::delegate<sig_func_t> d;
+		d.bind<&dummyCtx::operator()>(dummy);
+
+		uint32_t i = 0;
+		d(e1, e2, i);
+		REQUIRE(i);
+	}
+}
+
 TEST_CASE("Signals") {
 	TestWorld twld;
 	auto e1 = wld.add();
@@ -7757,12 +7814,7 @@ TEST_CASE("Signals") {
 		REQUIRE(cnt == 0);
 	}
 	{
-		struct foo {
-			void on_event(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
-				GAIA_ASSERT(e1 == e2);
-				++cnt;
-			}
-		} f;
+		SigFoo f;
 
 		util::sink<sig_func_t> sink{sig};
 		REQUIRE(sig.size() == 0);
@@ -7777,7 +7829,7 @@ TEST_CASE("Signals") {
 
 		// Free function bound
 		cnt = 0;
-		sink.bind<&foo::on_event>(f);
+		sink.bind<&SigFoo::on_event>(f);
 		REQUIRE(sig.size() == 1);
 		REQUIRE(!sig.empty());
 		sig.emit(e1, e1, cnt);
@@ -7787,7 +7839,7 @@ TEST_CASE("Signals") {
 
 		// Unbind the function, zero expected
 		cnt = 0;
-		sink.unbind<&foo::on_event>(f);
+		sink.unbind<&SigFoo::on_event>(f);
 		REQUIRE(sig.size() == 0);
 		REQUIRE(sig.empty());
 		sig.emit(e1, e1, cnt);
@@ -7797,7 +7849,7 @@ TEST_CASE("Signals") {
 
 		// Bind again
 		cnt = 0;
-		sink.bind<&foo::on_event>(f);
+		sink.bind<&SigFoo::on_event>(f);
 		REQUIRE(sig.size() == 1);
 		REQUIRE(!sig.empty());
 		sig.emit(e1, e1, cnt);
