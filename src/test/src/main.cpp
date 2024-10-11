@@ -7691,13 +7691,13 @@ TEST_CASE("StackAllocator") {
 //------------------------------------------------------------------------------
 
 using sig_func_t = void(ecs::Entity, ecs::Entity, uint32_t&);
-void test_func(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+void test_func([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
 	GAIA_ASSERT(e1 == e2);
 	++cnt;
 }
 
 struct SigFoo {
-	void on_event(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+	void on_event([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
 		GAIA_ASSERT(e1 == e2);
 		++cnt;
 	}
@@ -7740,7 +7740,7 @@ TEST_CASE("Delegates") {
 	// non-capturing lambda-like construct
 	{
 		struct dummyCtx {
-			void operator()(ecs::Entity e1, ecs::Entity e2, uint32_t& cnt) {
+			void operator()([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
 				GAIA_ASSERT(e1 == e2);
 				++cnt;
 			}
