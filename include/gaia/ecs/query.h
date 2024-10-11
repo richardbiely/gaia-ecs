@@ -182,7 +182,72 @@ namespace gaia {
 				QueryCache* m_queryCache{};
 				//! Query identity
 				QueryIdentity m_q{};
-				bool destroyed = false;
+				bool m_destroyed = false;
+
+			public:
+				QueryImplStorage() = default;
+				~QueryImplStorage() {
+					if (try_del_from_cache())
+						ser_buffer_reset();
+				}
+
+				QueryImplStorage(QueryImplStorage&& other) {
+					m_world = other.m_world;
+					m_queryCache = other.m_queryCache;
+					m_q = other.m_q;
+					m_destroyed = other.m_destroyed;
+
+					// Make sure old instance is invalidated
+					other.m_q = {};
+					other.m_destroyed = false;
+				}
+				QueryImplStorage& operator=(QueryImplStorage&& other) {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					m_world = other.m_world;
+					m_queryCache = other.m_queryCache;
+					m_q = other.m_q;
+					m_destroyed = other.m_destroyed;
+
+					// Make sure old instance is invalidated
+					other.m_q = {};
+					other.m_destroyed = false;
+
+					return *this;
+				}
+
+				QueryImplStorage(const QueryImplStorage& other) {
+					m_world = other.m_world;
+					m_queryCache = other.m_queryCache;
+					m_q = other.m_q;
+					m_destroyed = other.m_destroyed;
+
+					// Make sure to update the ref count of the cached query so
+					// it doesn't get deleted by accident.
+					if (!m_destroyed) {
+						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						if (pInfo != nullptr)
+							pInfo->add_ref();
+					}
+				}
+				QueryImplStorage& operator=(const QueryImplStorage& other) {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					m_world = other.m_world;
+					m_queryCache = other.m_queryCache;
+					m_q = other.m_q;
+					m_destroyed = other.m_destroyed;
+
+					// Make sure to update the ref count of the cached query so
+					// it doesn't get deleted by accident.
+					if (!m_destroyed) {
+						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						if (pInfo != nullptr)
+							pInfo->add_ref();
+					}
+
+					return *this;
+				}
 
 				GAIA_NODISCARD World* world() {
 					return m_world;
@@ -207,17 +272,17 @@ namespace gaia {
 				}
 
 				void allow_to_destroy_again() {
-					destroyed = false;
+					m_destroyed = false;
 				}
 
 				//! Try delete the query from query cache
 				GAIA_NODISCARD bool try_del_from_cache() {
-					if (!destroyed)
+					if (!m_destroyed)
 						m_queryCache->del(m_q.handle);
 
 					// Don't allow multiple calls to destroy to break the reference counter.
 					// One object is only allowed to destroy once.
-					destroyed = true;
+					m_destroyed = true;
 					return false;
 				}
 
@@ -993,6 +1058,7 @@ namespace gaia {
 
 			public:
 				QueryImpl() = default;
+				~QueryImpl() = default;
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
@@ -1011,11 +1077,6 @@ namespace gaia {
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
 						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world);
-				}
-
-				~QueryImpl() {
-					if (m_storage.try_del_from_cache())
-						m_storage.ser_buffer_reset();
 				}
 
 				GAIA_NODISCARD QueryId id() const {

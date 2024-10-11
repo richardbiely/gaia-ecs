@@ -6775,11 +6775,10 @@ TEST_CASE("System - simple") {
 	testRun();
 
 	// Make sure to execute sys2 before sys1
-	// TODO: Bugged, sys2_cnt == 0 instead of 10! This needs fixing ASAP
-	// wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
-	// wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
+	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
+	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
 
-	// testRun();
+	testRun();
 
 	// TODO: Ordering still needs implementing
 	// REQUIRE(sys3_run_before_sys1);

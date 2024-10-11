@@ -816,6 +816,94 @@ void test10() {
 	w.update();
 }
 
+void test10b() {
+	ecs::World wld;
+
+	constexpr uint32_t N = 10;
+	{
+		auto e = wld.add();
+		wld.add<Position>(e, {0, 100, 0});
+		wld.add<Acceleration>(e, {1, 0, 0});
+		GAIA_FOR(N - 1) {
+			[[maybe_unused]] auto newEntity = wld.copy(e);
+		}
+	}
+
+	int sys1_cnt = 0;
+	int sys2_cnt = 0;
+	int sys3_cnt = 0;
+	bool sys3_run_before_sys1 = false;
+	bool sys3_run_before_sys2 = false;
+
+	auto testRun1 = [&]() {
+		GAIA_FOR(1) {
+			sys3_run_before_sys1 = false;
+			sys3_run_before_sys2 = false;
+			wld.update();
+			//wld.diag_archetypes();
+			GAIA_ASSERT(sys1_cnt == N);
+			// GAIA_ASSERT(sys2_cnt == N);
+			// GAIA_ASSERT(sys3_cnt == N);
+			sys1_cnt = 0;
+			sys2_cnt = 0;
+			sys3_cnt = 0;
+		}
+	};
+	auto testRun = [&]() {
+		GAIA_LOG_N("-------------------------------");
+		GAIA_FOR(1) {
+			sys3_run_before_sys1 = false;
+			sys3_run_before_sys2 = false;
+			wld.update();
+			//wld.diag_archetypes();
+			GAIA_ASSERT(sys1_cnt == N);
+			GAIA_ASSERT(sys2_cnt == N);
+			GAIA_ASSERT(sys3_cnt == N);
+			sys1_cnt = 0;
+			sys2_cnt = 0;
+			sys3_cnt = 0;
+		}
+		GAIA_LOG_N("================");
+	};
+
+	// Our systems
+	auto sys1 = wld.system()
+									.all<Position, Acceleration>() //
+									.on_each([&](Position, Acceleration) {
+										if (sys1_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys1 = true;
+										++sys1_cnt;
+									});
+	wld.name(sys1.entity(), "sys1");
+	auto sys2 = wld.system()
+									.all<Position>() //
+									.on_each([&](ecs::Iter& it) {
+										if (sys2_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys2 = true;
+										GAIA_EACH(it)++ sys2_cnt;
+									});
+	wld.name(sys2.entity(), "sys2");
+	auto sys3 = wld.system()
+									.all<Acceleration>() //
+									.on_each([&](ecs::Iter& it) {
+										GAIA_EACH(it)++ sys3_cnt;
+									});
+	wld.name(sys3.entity(), "sys3");
+
+	testRun1();
+
+	// Make sure to execute sys2 before sys1
+	// TODO: Bugged, sys2_cnt == 0 instead of 10! This needs fixing ASAP
+	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
+	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
+
+	testRun();
+
+	// TODO: Ordering still needs implementing
+	// REQUIRE(sys3_run_before_sys1);
+	// REQUIRE(sys3_run_before_sys2);
+}
+
 void test11() {
 	ecs::World w;
 
@@ -1111,12 +1199,13 @@ int main() {
 	// test8();
 	// test9();
 	// test10();
+	test10b();
 	// test11();
 	// test12();
 	// test12b();
 	// test13();
 	// test14();
-	test15();
+	// test15();
 
 	// g_test_0.getters();
 	// g_test_0.setters();
