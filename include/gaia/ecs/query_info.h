@@ -32,6 +32,7 @@ namespace gaia {
 		struct QueryInfoCreationCtx {
 			QueryCtx* pQueryCtx;
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
+			const ArchetypeDArray* pAllArchetypes;
 		};
 
 		class QueryInfo: public cnt::ilist_item {
@@ -148,8 +149,9 @@ namespace gaia {
 				m_ctx.data.lastMatchedArchetypeIdx_Not = {};
 			}
 
-			GAIA_NODISCARD static QueryInfo
-			create(QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
+			GAIA_NODISCARD static QueryInfo create(
+					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
+					const ArchetypeDArray& allArchetypes) {
 				// Make sure query items are sorted
 				sort(ctx);
 
@@ -161,7 +163,7 @@ namespace gaia {
 				info.m_ctx.q.handle = {id, 0};
 
 				// Compile the query
-				info.compile(entityToArchetypeMap);
+				info.compile(entityToArchetypeMap, allArchetypes);
 
 				return info;
 			}
@@ -170,6 +172,7 @@ namespace gaia {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = (QueryCtx&)*pCreationCtx->pQueryCtx;
 				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
+				auto& allArchetypes = (ArchetypeDArray&)*pCreationCtx->pAllArchetypes;
 
 				// Make sure query items are sorted
 				sort(queryCtx);
@@ -182,7 +185,7 @@ namespace gaia {
 				info.m_ctx.q.handle = {idx, gen};
 
 				// Compile the query
-				info.compile(entityToArchetypeMap);
+				info.compile(entityToArchetypeMap, allArchetypes);
 
 				return info;
 			}
@@ -192,11 +195,11 @@ namespace gaia {
 			}
 
 			//! Compile the query terms into a form we can easily process
-			void compile(const EntityToArchetypeMap& entityToArchetypeMap) {
+			void compile(const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes) {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				// Compile the opcodes
-				m_vm.compile(entityToArchetypeMap, m_ctx);
+				m_vm.compile(entityToArchetypeMap, allArchetypes, m_ctx);
 			}
 
 			void set_world_version(uint32_t version) {

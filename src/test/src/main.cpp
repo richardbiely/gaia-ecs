@@ -7752,7 +7752,7 @@ TEST_CASE("Delegates") {
 		d.bind<&dummyCtx::operator()>(dummy);
 
 		uint32_t i = 0;
-		d(e1, e2, i);
+		d(e1, e1, i);
 		REQUIRE(i);
 	}
 }

@@ -67,8 +67,12 @@ namespace gaia {
 				uint32_t pc;
 			};
 
-			inline const ArchetypeDArray* fetch_archetypes_for_select(const EntityToArchetypeMap& map, EntityLookupKey key) {
+			inline const ArchetypeDArray* fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
+
+				if (ent == Pair(All, All))
+					return &arr;
 
 				const auto it = map.find(key);
 				if (it == map.end() || it->second.empty())
@@ -77,10 +81,11 @@ namespace gaia {
 				return &it->second;
 			}
 
-			inline const ArchetypeDArray* fetch_archetypes_for_select(const EntityToArchetypeMap& map, Entity src) {
+			inline const ArchetypeDArray*
+			fetch_archetypes_for_select(const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, Entity src) {
 				GAIA_ASSERT(src != EntityBad);
 
-				return fetch_archetypes_for_select(map, EntityLookupKey(src));
+				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
 			}
 
 			namespace detail {
@@ -481,7 +486,8 @@ namespace gaia {
 
 					// For ALL we need all the archetypes to match. We start by checking
 					// if the first one is registered in the world at all.
-					const auto* pArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
+					const auto* pArchetypes =
+							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
 					if (pArchetypes == nullptr)
 						return;
 
@@ -503,7 +509,8 @@ namespace gaia {
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
-						pSrcArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
+						pSrcArchetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
 						if (pSrcArchetypes == nullptr)
 							return;
 					}
@@ -517,7 +524,8 @@ namespace gaia {
 					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-					const auto* pArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
+					const auto* pArchetypes =
+							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
 					if (pArchetypes == nullptr)
 						return;
 
@@ -541,7 +549,8 @@ namespace gaia {
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
-						pSrcArchetypes = fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, entityKey);
+						pSrcArchetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
 						if (pSrcArchetypes == nullptr)
 							return;
 					}
@@ -759,7 +768,9 @@ namespace gaia {
 
 			public:
 				//! Transforms inputs into virtual machine opcodes.
-				void compile(const EntityToArchetypeMap& entityToArchetypeMap, const QueryCtx& queryCtx) {
+				void compile(
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+						const QueryCtx& queryCtx) {
 					GAIA_PROF_SCOPE(vm::compile);
 
 					const auto& data = queryCtx.data;
@@ -797,7 +808,7 @@ namespace gaia {
 					if (!terms_any.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_any);
 
-						cnt::sarr_ext<const ArchetypeDArray*, MAX_ITEMS_IN_QUERY> archetypesWithId;
+						uint32_t archetypesWithId = 0;
 						GAIA_EACH(terms_any) {
 							auto& p = terms_any[i];
 							if (p.src != EntityBad) {
@@ -808,17 +819,18 @@ namespace gaia {
 
 							// Check if any archetype is associated with the entity id.
 							// All ids must be registered in the world.
-							const auto* pArchetypes = fetch_archetypes_for_select(entityToArchetypeMap, EntityLookupKey(p.id));
+							const auto* pArchetypes =
+									fetch_archetypes_for_select(entityToArchetypeMap, allArchetypes, p.id, EntityLookupKey(p.id));
 							if (pArchetypes == nullptr)
 								continue;
 
-							archetypesWithId.push_back(pArchetypes);
+							++archetypesWithId;
 
 							m_compCtx.ids_any.push_back(p.id);
 						}
 
 						// No archetypes with "any" entities exist. We can quit right away.
-						if (archetypesWithId.empty()) {
+						if (archetypesWithId == 0) {
 							m_compCtx.ops.clear();
 							return;
 						}

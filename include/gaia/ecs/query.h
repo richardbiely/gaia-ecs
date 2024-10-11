@@ -449,7 +449,8 @@ namespace gaia {
 							QueryCtx ctx;
 							ctx.init(m_storage.world());
 							commit(ctx);
-							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap);
+							m_storage.m_queryInfo =
+									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
 						}
 						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;

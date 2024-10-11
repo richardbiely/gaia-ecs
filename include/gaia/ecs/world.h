@@ -1193,6 +1193,9 @@ namespace gaia {
 			GAIA_NODISCARD bool has(Entity entity) const {
 				// Pair
 				if (entity.pair()) {
+					if (entity == Pair(All, All))
+						return true;
+
 					if (is_wildcard(entity)) {
 						if (!m_entityToArchetypeMap.contains(EntityLookupKey(entity)))
 							return false;
@@ -2350,6 +2353,8 @@ namespace gaia {
 			//! \param entity Entity getting added
 			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
+				GAIA_ASSERT(entity != Pair(All, All));
+
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToArchetypeMap.find(entityKey);
 				if (it == m_entityToArchetypeMap.end()) {
@@ -2366,6 +2371,8 @@ namespace gaia {
 			//! \param pair Pair entity used as a key in the map
 			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
 			void del_entity_archetype_pair(Pair pair, Entity entityToRemove) {
+				GAIA_ASSERT(pair != Pair(All, All));
+
 				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
 				auto& archetypes = it->second;
 
@@ -2380,7 +2387,7 @@ namespace gaia {
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.
-				//       There are only 3 such keys: (*, tgt), (src, *), (*, *)
+				//       There are only 2 such keys: (*, tgt), (src, *).
 				// If no more items are present in the array, remove the map key.
 				// if (archetypes.empty())
 				// 	m_entityToArchetypeMap.erase(it); DON'T
@@ -2392,6 +2399,8 @@ namespace gaia {
 				// TODO: Optimize. Either switch to an array or add an index to the map value.
 				//       Otherwise all these lookups make deleting entities slow.
 
+				GAIA_ASSERT(entity != Pair(All, All));
+
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
@@ -2402,8 +2411,6 @@ namespace gaia {
 					del_entity_archetype_pair(Pair(All, second), entity);
 					// (src, *)
 					del_entity_archetype_pair(Pair(first, All), entity);
-					// (*, *)
-					del_entity_archetype_pair(Pair(All, All), entity);
 				}
 			}
 
@@ -2427,8 +2434,6 @@ namespace gaia {
 						add_entity_archetype_pair(Pair(All, second), pArchetype);
 						// (src, *)
 						add_entity_archetype_pair(Pair(first, All), pArchetype);
-						// (*, *)
-						add_entity_archetype_pair(Pair(All, All), pArchetype);
 					}
 				}
 
@@ -3045,6 +3050,8 @@ namespace gaia {
 			void req_del_entities_with(Entity entity) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
 
+				GAIA_ASSERT(entity != Pair(All, All));
+
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
 					return;
@@ -3058,6 +3065,8 @@ namespace gaia {
 			//! Takes \param cond into account.
 			void req_del_entities_with(Entity entity, Pair cond) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
+
+				GAIA_ASSERT(entity != Pair(All, All));
 
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
