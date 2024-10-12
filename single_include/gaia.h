@@ -22568,19 +22568,19 @@ namespace gaia {
 					// Build the Is mask.
 					// We will use it to identify entities with an Is relationship quickly.
 					if (!item.id.pair()) {
-						const auto has_as = (uint8_t)is_base(*ctx.w, item.id);
-						data.as_mask_0 |= (has_as << (uint8_t)ids.size());
+						const auto has_as = (uint32_t)is_base(*ctx.w, item.id);
+						data.as_mask_0 |= (has_as << ids.size());
 					} else {
 						if (!is_wildcard(item.id.id())) {
 							const auto e = entity_from_id(*ctx.w, item.id.id());
-							const auto has_as = (uint8_t)is_base(*ctx.w, e);
-							data.as_mask_0 |= (has_as << (uint8_t)ids.size());
+							const auto has_as = (uint32_t)is_base(*ctx.w, e);
+							data.as_mask_0 |= (has_as << ids.size());
 						}
 
 						if (!is_wildcard(item.id.gen())) {
 							const auto e = entity_from_id(*ctx.w, item.id.gen());
-							const auto has_as = (uint8_t)is_base(*ctx.w, e);
-							data.as_mask_1 |= (has_as << (uint8_t)ids.size());
+							const auto has_as = (uint32_t)is_base(*ctx.w, e);
+							data.as_mask_1 |= (has_as << ids.size());
 						}
 					}
 
