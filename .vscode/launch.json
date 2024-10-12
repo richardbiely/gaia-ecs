@@ -33,6 +33,14 @@
       "cwd": "${workspaceFolder}",
     },
     {
+      "name": "(lldb) example - example3",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example3/gaia_example3",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+    },
+    {
       "name": "(lldb) dummy",
       "type": "lldb",
       "request": "launch",
