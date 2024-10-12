@@ -626,7 +626,7 @@ namespace gaia {
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 8
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 9
+#define GAIA_VERSION_PATCH 10
 
 /*** End of inlined file: version.h ***/
 
