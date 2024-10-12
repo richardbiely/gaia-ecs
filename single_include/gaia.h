@@ -16240,10 +16240,8 @@ namespace gaia {
 /*** Start of inlined file: chunk_allocator.h ***/
 #pragma once
 
+#include <cinttypes>
 #include <cstdint>
-
-#if GAIA_ECS_CHUNK_ALLOCATOR
-	#include <cinttypes>
 
 
 /*** Start of inlined file: dyn_singleton.h ***/
@@ -16321,8 +16319,6 @@ namespace gaia {
 
 /*** End of inlined file: common.h ***/
 
-#endif
-
 namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
@@ -16363,7 +16359,7 @@ namespace gaia {
 
 			//! Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			class ChunkAllocatorImpl {
-				friend gaia::ecs::ChunkAllocator;
+				friend ::gaia::ecs::ChunkAllocator;
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
@@ -16675,17 +16671,20 @@ namespace gaia {
 				}
 
 			private:
+				static constexpr const char* s_strChunkAlloc_Chunk = "Chunk";
+				static constexpr const char* s_strChunkAlloc_MemPage = "MemoryPage";
+
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>("Chunk", 16U, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>("MemoryPage");
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(s_strChunkAlloc_Chunk, 16U, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>(s_strChunkAlloc_MemPage);
 					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
 
 				static void free_page(MemoryPage* pMemoryPage) {
-					mem::AllocHelper::free_alig("Chunk", pMemoryPage->m_data);
+					mem::AllocHelper::free_alig(s_strChunkAlloc_Chunk, pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free("MemoryPage", pMemoryPage);
+					mem::AllocHelper::free(s_strChunkAlloc_MemPage, pMemoryPage);
 				}
 
 				void done() {
@@ -18034,7 +18033,7 @@ namespace gaia {
 
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
 			}
 
@@ -18215,7 +18214,7 @@ namespace gaia {
 				++m_header.countEnabled;
 				entity_view_mut()[row] = entity;
 
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
 
 				return row;
@@ -18704,7 +18703,7 @@ namespace gaia {
 						"Set providing a row can only be used with generic components");
 
 				// Update the world version
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				return view_mut<T>()[row];
@@ -18725,7 +18724,7 @@ namespace gaia {
 				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 
 				// Update the world version
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
 
@@ -18939,7 +18938,7 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
 				auto versions = comp_version_view();
-				return version_changed(versions[compIdx], version);
+				return ::gaia::ecs::version_changed(versions[compIdx], version);
 			}
 
 			//! Update the version of a component at the index \param compIdx
@@ -23359,7 +23358,7 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
-					update_version(*m_worldVersion);
+					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)

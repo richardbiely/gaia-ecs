@@ -1,23 +1,17 @@
 #pragma once
 #include "../config/config.h"
 
+#include <cinttypes>
 #include <cstdint>
 
-#if GAIA_ECS_CHUNK_ALLOCATOR
-	#include <cinttypes>
-
-	#include "../cnt/darray.h"
-	#include "../cnt/sarray.h"
-	#include "../cnt/sarray_ext.h"
-	#include "../config/logging.h"
-	#include "../config/profiler.h"
-	#include "../core/bit_utils.h"
-	#include "../core/dyn_singleton.h"
-	#include "../core/span.h"
-	#include "../core/utility.h"
-	#include "../mem/mem_alloc.h"
-	#include "common.h"
-#endif
+#include "../cnt/darray.h"
+#include "../cnt/sarray.h"
+#include "../config/logging.h"
+#include "../core/bit_utils.h"
+#include "../core/dyn_singleton.h"
+#include "../core/utility.h"
+#include "../mem/mem_alloc.h"
+#include "common.h"
 
 namespace gaia {
 	namespace ecs {
@@ -59,7 +53,7 @@ namespace gaia {
 
 			//! Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			class ChunkAllocatorImpl {
-				friend gaia::ecs::ChunkAllocator;
+				friend ::gaia::ecs::ChunkAllocator;
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
@@ -371,17 +365,20 @@ namespace gaia {
 				}
 
 			private:
+				static constexpr const char* s_strChunkAlloc_Chunk = "Chunk";
+				static constexpr const char* s_strChunkAlloc_MemPage = "MemoryPage";
+
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>("Chunk", 16U, size);
-					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>("MemoryPage");
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(s_strChunkAlloc_Chunk, 16U, size);
+					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>(s_strChunkAlloc_MemPage);
 					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
 
 				static void free_page(MemoryPage* pMemoryPage) {
-					mem::AllocHelper::free_alig("Chunk", pMemoryPage->m_data);
+					mem::AllocHelper::free_alig(s_strChunkAlloc_Chunk, pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
-					mem::AllocHelper::free("MemoryPage", pMemoryPage);
+					mem::AllocHelper::free(s_strChunkAlloc_MemPage, pMemoryPage);
 				}
 
 				void done() {

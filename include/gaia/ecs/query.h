@@ -863,7 +863,7 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
-					update_version(*m_worldVersion);
+					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)

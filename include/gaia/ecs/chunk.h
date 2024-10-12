@@ -386,7 +386,7 @@ namespace gaia {
 
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
 			}
 
@@ -567,7 +567,7 @@ namespace gaia {
 				++m_header.countEnabled;
 				entity_view_mut()[row] = entity;
 
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
 
 				return row;
@@ -1056,7 +1056,7 @@ namespace gaia {
 						"Set providing a row can only be used with generic components");
 
 				// Update the world version
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				return view_mut<T>()[row];
@@ -1077,7 +1077,7 @@ namespace gaia {
 				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 
 				// Update the world version
-				update_version(m_header.worldVersion);
+				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
 
@@ -1291,7 +1291,7 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
 				auto versions = comp_version_view();
-				return version_changed(versions[compIdx], version);
+				return ::gaia::ecs::version_changed(versions[compIdx], version);
 			}
 
 			//! Update the version of a component at the index \param compIdx
