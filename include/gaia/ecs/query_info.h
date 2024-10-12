@@ -233,22 +233,22 @@ namespace gaia {
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
 						if (!id.pair()) {
-							const auto j = i; // data.remapping[i];
-							const auto has_as = (uint8_t)is_base(*m_ctx.w, id);
-							as_mask_0 |= (has_as << (uint8_t)j);
+							const auto j = (uint32_t)i; // data.remapping[i];
+							const auto has_as = (uint32_t)is_base(*m_ctx.w, id);
+							as_mask_0 |= (has_as << j);
 						} else {
 							if (!is_wildcard(id.id())) {
-								const auto j = i; // data.remapping[i];
+								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.id());
-								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
-								as_mask_0 |= (has_as << (uint8_t)j);
+								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
+								as_mask_0 |= (has_as << j);
 							}
 
 							if (!is_wildcard(id.gen())) {
-								const auto j = i; // data.remapping[i];
+								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.gen());
-								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
-								as_mask_1 |= (has_as << (uint8_t)j);
+								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
+								as_mask_1 |= (has_as << j);
 							}
 						}
 					}

@@ -12119,8 +12119,9 @@ namespace gaia {
 					}
 				}
 
-				void del_data_inter(uint32_t idx) noexcept {
+				void del_data_inter([[maybe_unused]] uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
+					GAIA_ASSERT(idx < m_cnt);
 					--m_cnt;
 				}
 
@@ -15481,12 +15482,10 @@ namespace gaia {
 			// Generic entity, one per entity
 			EK_Gen = 0,
 			// Unique entity, one per chunk
-			EK_Uni,
-			// Number of entity kinds
-			EK_Count
+			EK_Uni
 		};
 
-		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
+		inline constexpr const char* EntityKindString[] = {"Gen", "Uni"};
 
 		//----------------------------------------------------------------------
 		// Id type deduction
@@ -17174,7 +17173,7 @@ namespace gaia {
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void
-			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
+			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(func_move_ctor != nullptr && (pSrc != pDst || idxSrc != idxDst));
 				func_move_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
@@ -17196,13 +17195,13 @@ namespace gaia {
 				func_copy(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 
-			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, int32_t sizeDst, uint32_t sizeSrc) const {
+			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(func_move != nullptr && (pSrc != pDst || idxSrc != idxDst));
 				func_move(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
 			}
 
 			void
-			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, int32_t sizeDst, uint32_t sizeSrc) const {
+			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(func_swap != nullptr);
 				func_swap(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
 			}
@@ -18655,7 +18654,7 @@ namespace gaia {
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
 					const auto e = ids[i];
-					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
+					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : (uint16_t)1;
 					pItem->func_dtor(pSrc, cnt);
 				}
 			};
@@ -20988,7 +20987,7 @@ namespace gaia {
 				//! the comparison function \param func bool(Entity queryId, Entity archetypeId).
 				//! \return True if there is a match, false otherwise.
 				template <typename Op, typename CmpFunc>
-				inline GAIA_NODISCARD bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
+				GAIA_NODISCARD inline bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
 					const auto archetypeIdsCnt = (uint32_t)archetypeIds.size();
 					const auto queryIdsCnt = (uint32_t)queryIds.size();
 
@@ -21068,11 +21067,11 @@ namespace gaia {
 					bool matched;
 				};
 
-				inline GAIA_NODISCARD IdCmpResult cmp_ids(Entity idInQuery, Entity idInArchetype) {
+				GAIA_NODISCARD inline IdCmpResult cmp_ids(Entity idInQuery, Entity idInArchetype) {
 					return {idInQuery == idInArchetype};
 				}
 
-				inline GAIA_NODISCARD IdCmpResult cmp_ids_pairs(Entity idInQuery, Entity idInArchetype) {
+				GAIA_NODISCARD inline IdCmpResult cmp_ids_pairs(Entity idInQuery, Entity idInArchetype) {
 					if (idInQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idInQuery == Pair(All, All))
@@ -21099,7 +21098,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				inline GAIA_NODISCARD IdCmpResult
+				GAIA_NODISCARD inline IdCmpResult
 				cmp_ids_is(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
 					// all(Pair<Is, X>)
 					if (idInQuery.pair() && idInQuery.id() == Is.id()) {
@@ -21117,7 +21116,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				inline GAIA_NODISCARD IdCmpResult
+				GAIA_NODISCARD inline IdCmpResult
 				cmp_ids_is_pairs(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
 					if (idInQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
@@ -21202,7 +21201,7 @@ namespace gaia {
 				//! the comparison function \param func. Does not consider Is relationships.
 				//! \return True on the first match, false otherwise.
 				template <typename Op>
-				inline GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds) {
+				GAIA_NODISCARD inline bool match_res(const Archetype& archetype, EntitySpan queryIds) {
 					// Archetype has no pairs we can compare ids directly.
 					// This has better performance.
 					if (archetype.pairs() == 0) {
@@ -21227,7 +21226,7 @@ namespace gaia {
 				//! the comparison function \param func. Considers Is relationships.
 				//! \return True on the first match, false otherwise.
 				template <typename Op>
-				inline GAIA_NODISCARD bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
+				GAIA_NODISCARD inline bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
 					// Archetype has no pairs we can compare ids directly
 					if (archetype.pairs() == 0) {
 						return match_inter<Op>(
@@ -21646,17 +21645,17 @@ namespace gaia {
 					if (!m_compCtx.ids_all.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::All;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_any.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Any_NoAll : detail::EOpcode::Any_WithAll;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_not.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Not;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 				}
 
@@ -21901,22 +21900,22 @@ namespace gaia {
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
 						if (!id.pair()) {
-							const auto j = i; // data.remapping[i];
-							const auto has_as = (uint8_t)is_base(*m_ctx.w, id);
-							as_mask_0 |= (has_as << (uint8_t)j);
+							const auto j = (uint32_t)i; // data.remapping[i];
+							const auto has_as = (uint32_t)is_base(*m_ctx.w, id);
+							as_mask_0 |= (has_as << j);
 						} else {
 							if (!is_wildcard(id.id())) {
-								const auto j = i; // data.remapping[i];
+								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.id());
-								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
-								as_mask_0 |= (has_as << (uint8_t)j);
+								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
+								as_mask_0 |= (has_as << j);
 							}
 
 							if (!is_wildcard(id.gen())) {
-								const auto j = i; // data.remapping[i];
+								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.gen());
-								const auto has_as = (uint8_t)is_base(*m_ctx.w, e);
-								as_mask_1 |= (has_as << (uint8_t)j);
+								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
+								as_mask_1 |= (has_as << j);
 							}
 						}
 					}
@@ -26348,7 +26347,7 @@ namespace gaia {
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::swap_erase_unsafe(archetypes, i);
+					core::swap_erase_unsafe(archetypes, (uint32_t)i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.
@@ -27588,7 +27587,7 @@ namespace gaia {
 
 			//! Traverse the (Is, X) relationships all the way to their source
 			template <bool CheckIn, typename Func>
-			GAIA_NODISCARD void as_up_trav(Entity entity, Func func) {
+			void as_up_trav(Entity entity, Func func) {
 				GAIA_ASSERT(valid_entity(entity));
 
 				// Pairs are not supported
@@ -27909,7 +27908,147 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-../include/gaia/ecs/system.inl"
+
+/*** Start of inlined file: system.inl ***/
+#if !GAIA_SYSTEMS_ENABLED
+namespace gaia {
+	namespace ecs {
+		struct System2_ {};
+	} // namespace ecs
+} // namespace gaia
+#else
+
+	#include <cinttypes>
+	// TODO: Currently necessary due to std::function. Replace them!
+	#include <functional>
+
+namespace gaia {
+	namespace ecs {
+
+		struct System2_ {
+			using TSystemIterFunc = std::function<void(Iter&)>;
+
+			//! Entity identifying the system
+			Entity entity;
+			//! Called every time system is allowed to tick
+			TSystemIterFunc on_each_func;
+			//! Query associated with the system
+			Query query;
+
+			void exec() {
+				auto& queryInfo = query.fetch();
+				query.run_query_on_chunks<Iter>(queryInfo, on_each_func);
+			}
+		};
+
+		// Usage:
+		// auto s = w.system()
+		// 						 .all<Position&, Velocity>()
+		// 						 .any<Rotation>()
+		// 						 .OnCreated([](ecs::Query& q) {
+		// 						 })
+		// 						 .OnStopped([](ecs::Query& q) {
+		// 							 ...
+		// 						 })
+		// 						 .OnUpdate([](ecs::Query& q) {
+		// 							 q.each([](Position& p, const Velocity& v) {
+		// 								 ...
+		// 							 });
+		// 						 })
+		// 						 .commit();
+		class SystemBuilder {
+			World& m_world;
+			Entity m_entity;
+
+			void validate() {
+				GAIA_ASSERT(m_world.valid(m_entity));
+			}
+
+			System2_& data() {
+				auto ss = m_world.acc_mut(m_entity);
+				auto& sys = ss.smut<System2_>();
+				return sys;
+			}
+
+		public:
+			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
+
+			template <typename... T>
+			SystemBuilder& all() {
+				validate();
+				data().query.all<T...>();
+				return *this;
+			}
+			template <typename... T>
+			SystemBuilder& any() {
+				validate();
+				data().query.any<T...>();
+				return *this;
+			}
+			template <typename... T>
+			SystemBuilder& no() {
+				validate();
+				data().query.no<T...>();
+				return *this;
+			}
+			template <typename... T>
+			SystemBuilder& changed() {
+				validate();
+				data().query.changed<T...>();
+				return *this;
+			}
+
+			template <typename Func>
+			SystemBuilder& on_each(Func func) {
+				validate();
+
+				auto& ctx = data();
+				if constexpr (std::is_invocable_v<Func, Iter&>) {
+					ctx.on_each_func = [func](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						func(it);
+					};
+				} else {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+	#if GAIA_ASSERT_ENABLED
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					auto& queryInfo = ctx.query.fetch();
+					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+	#endif
+
+					ctx.on_each_func = [&w = m_world, e = m_entity, func](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						// NOTE: We can't directly use data().query here because the function relies
+						//       on SystemBuilder to be present at all times. If it goes out of scope
+						//       the only option left is having a copy of the world pointer and entity.
+						//       They are then used to get to the query stored inside System2_.
+						auto ss = w.acc_mut(e);
+						auto& sys = ss.smut<System2_>();
+						sys.query.run_query_on_chunk(it, func, InputArgs{});
+					};
+				}
+
+				return (SystemBuilder&)*this;
+			}
+
+			GAIA_NODISCARD Entity entity() const {
+				return m_entity;
+			}
+
+			void exec() {
+				auto& ctx = data();
+				ctx.exec();
+			}
+		};
+
+	} // namespace ecs
+} // namespace gaia
+
+#endif
+/*** End of inlined file: system.inl ***/
 
 namespace gaia {
 	namespace ecs {

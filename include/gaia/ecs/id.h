@@ -107,12 +107,10 @@ namespace gaia {
 			// Generic entity, one per entity
 			EK_Gen = 0,
 			// Unique entity, one per chunk
-			EK_Uni,
-			// Number of entity kinds
-			EK_Count
+			EK_Uni
 		};
 
-		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
+		inline constexpr const char* EntityKindString[] = {"Gen", "Uni"};
 
 		//----------------------------------------------------------------------
 		// Id type deduction

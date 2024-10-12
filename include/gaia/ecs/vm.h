@@ -194,7 +194,7 @@ namespace gaia {
 				//! the comparison function \param func bool(Entity queryId, Entity archetypeId).
 				//! \return True if there is a match, false otherwise.
 				template <typename Op, typename CmpFunc>
-				inline GAIA_NODISCARD bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
+				GAIA_NODISCARD inline bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
 					const auto archetypeIdsCnt = (uint32_t)archetypeIds.size();
 					const auto queryIdsCnt = (uint32_t)queryIds.size();
 
@@ -274,11 +274,11 @@ namespace gaia {
 					bool matched;
 				};
 
-				inline GAIA_NODISCARD IdCmpResult cmp_ids(Entity idInQuery, Entity idInArchetype) {
+				GAIA_NODISCARD inline IdCmpResult cmp_ids(Entity idInQuery, Entity idInArchetype) {
 					return {idInQuery == idInArchetype};
 				}
 
-				inline GAIA_NODISCARD IdCmpResult cmp_ids_pairs(Entity idInQuery, Entity idInArchetype) {
+				GAIA_NODISCARD inline IdCmpResult cmp_ids_pairs(Entity idInQuery, Entity idInArchetype) {
 					if (idInQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
 						if (idInQuery == Pair(All, All))
@@ -305,7 +305,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				inline GAIA_NODISCARD IdCmpResult
+				GAIA_NODISCARD inline IdCmpResult
 				cmp_ids_is(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
 					// all(Pair<Is, X>)
 					if (idInQuery.pair() && idInQuery.id() == Is.id()) {
@@ -323,7 +323,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				inline GAIA_NODISCARD IdCmpResult
+				GAIA_NODISCARD inline IdCmpResult
 				cmp_ids_is_pairs(const World& w, const Archetype& archetype, Entity idInQuery, Entity idInArchetype) {
 					if (idInQuery.pair()) {
 						// all(Pair<All, All>) aka "any pair"
@@ -408,7 +408,7 @@ namespace gaia {
 				//! the comparison function \param func. Does not consider Is relationships.
 				//! \return True on the first match, false otherwise.
 				template <typename Op>
-				inline GAIA_NODISCARD bool match_res(const Archetype& archetype, EntitySpan queryIds) {
+				GAIA_NODISCARD inline bool match_res(const Archetype& archetype, EntitySpan queryIds) {
 					// Archetype has no pairs we can compare ids directly.
 					// This has better performance.
 					if (archetype.pairs() == 0) {
@@ -433,7 +433,7 @@ namespace gaia {
 				//! the comparison function \param func. Considers Is relationships.
 				//! \return True on the first match, false otherwise.
 				template <typename Op>
-				inline GAIA_NODISCARD bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
+				GAIA_NODISCARD inline bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
 					// Archetype has no pairs we can compare ids directly
 					if (archetype.pairs() == 0) {
 						return match_inter<Op>(
@@ -852,17 +852,17 @@ namespace gaia {
 					if (!m_compCtx.ids_all.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::All;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_any.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Any_NoAll : detail::EOpcode::Any_WithAll;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 					if (!m_compCtx.ids_not.empty()) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Not;
-						add_op(GAIA_MOV(op));
+						(void)add_op(GAIA_MOV(op));
 					}
 				}
 

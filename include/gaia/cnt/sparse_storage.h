@@ -657,8 +657,9 @@ namespace gaia {
 					}
 				}
 
-				void del_data_inter(uint32_t idx) noexcept {
+				void del_data_inter([[maybe_unused]] uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
+					GAIA_ASSERT(idx < m_cnt);
 					--m_cnt;
 				}
 

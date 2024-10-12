@@ -2383,7 +2383,7 @@ namespace gaia {
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::swap_erase_unsafe(archetypes, i);
+					core::swap_erase_unsafe(archetypes, (uint32_t)i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.
@@ -3623,7 +3623,7 @@ namespace gaia {
 
 			//! Traverse the (Is, X) relationships all the way to their source
 			template <bool CheckIn, typename Func>
-			GAIA_NODISCARD void as_up_trav(Entity entity, Func func) {
+			void as_up_trav(Entity entity, Func func) {
 				GAIA_ASSERT(valid_entity(entity));
 
 				// Pairs are not supported

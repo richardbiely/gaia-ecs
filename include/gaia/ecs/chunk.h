@@ -1006,7 +1006,7 @@ namespace gaia {
 
 					auto* pSrc = (void*)comp_ptr_mut(i, 0);
 					const auto e = ids[i];
-					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : 1;
+					const auto cnt = (e.kind() == EntityKind::EK_Gen) ? m_header.count : (uint16_t)1;
 					pItem->func_dtor(pSrc, cnt);
 				}
 			};
