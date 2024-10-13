@@ -236,7 +236,7 @@ int main(int argc, char* argv[]) {
 		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
 
 		if (profilingMode) {
-			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
+			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");
 			r.run_benchmarks();
 			return 0;
 		} else if (sanitizerMode) {
