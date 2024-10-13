@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "iterator.h"
+#include "span.h"
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
@@ -1260,5 +1261,20 @@ namespace gaia {
 				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
+
+		//----------------------------------------------------------------------
+		// Strings
+		//----------------------------------------------------------------------
+
+		inline auto trim(std::span<const char> expr) {
+			uint32_t beg = 0;
+			while (expr[beg] == ' ')
+				++beg;
+			uint32_t end = (uint32_t)expr.size() - 1;
+			while (end > beg && expr[end] == ' ')
+				--end;
+			return expr.subspan(beg, end - beg + 1);
+		};
+
 	} // namespace core
 } // namespace gaia

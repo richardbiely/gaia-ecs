@@ -5287,6 +5287,72 @@ TEST_CASE("Entity name - copy") {
 	}
 }
 
+
+TEST_CASE("Entity name - hierarchy") {
+	TestWorld twld;
+
+	auto europe = wld.add();
+	auto slovakia = wld.add();
+	auto bratislava = wld.add();
+
+	wld.child(slovakia, europe);
+	wld.child(bratislava, slovakia);
+
+	wld.name(europe, "europe");
+	wld.name(slovakia, "slovakia");
+	wld.name(bratislava, "bratislava");
+
+	{
+		auto e = wld.get("europe.slovakia");
+		REQUIRE(e == slovakia);
+	}
+	{
+		auto e = wld.get("europe.slovakia.bratislava");
+		REQUIRE(e == bratislava);
+	}
+	{
+		auto e = wld.get("slovakia.bratislava");
+		REQUIRE(e == bratislava);
+	}
+	{
+		auto e = wld.get("europe.bratislava.slovakia");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get("bratislava.slovakia");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get(".");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get(".bratislava");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		// We treat this case as "bratislava"
+		auto e = wld.get("bratislava.");
+		REQUIRE(e == bratislava);
+	}
+	{
+		auto e = wld.get("..");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get("..bratislava");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get("bratislava..");
+		REQUIRE(e == ecs::EntityBad);
+	}
+	{
+		auto e = wld.get("slovakia..bratislava");
+		REQUIRE(e == ecs::EntityBad);
+	}
+}
+
 TEST_CASE("Usage 1 - simple query, 0 component") {
 	TestWorld twld;
 

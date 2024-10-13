@@ -34,6 +34,7 @@ namespace gaia {
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
 		bool is_base(const World& world, Entity entity);
+		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
 		namespace detail {
 			//! Query command types
@@ -995,68 +996,6 @@ namespace gaia {
 					}
 				}
 
-				static auto trim(std::span<const char> expr) {
-					uint32_t beg = 0;
-					while (expr[beg] == ' ')
-						++beg;
-					uint32_t end = (uint32_t)expr.size() - 1;
-					while (end > beg && expr[end] == ' ')
-						--end;
-					return expr.subspan(beg, end - beg + 1);
-				};
-
-				Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) {
-					auto expr = trim(exprRaw);
-
-					if (expr[0] == '%') {
-						if (expr[1] != 'e') {
-							GAIA_ASSERT2(false, "Expression '%' not terminated");
-							return EntityBad;
-						}
-
-						auto id = (Identifier)va_arg(args, unsigned long long);
-						return Entity(id);
-					}
-
-					if (expr[0] == '(') {
-						if (expr.back() != ')') {
-							GAIA_ASSERT2(false, "Expression '(' not terminated");
-							return EntityBad;
-						}
-
-						auto idStr = expr.subspan(1, expr.size() - 2);
-						const auto commaIdx = core::get_index(idStr, ',');
-
-						const auto first = expr_to_entity(args, idStr.subspan(0, commaIdx));
-						if (first == EntityBad)
-							return EntityBad;
-						const auto second = expr_to_entity(args, idStr.subspan(commaIdx + 1));
-						if (second == EntityBad)
-							return EntityBad;
-
-						return ecs::Pair(first, second);
-					}
-
-					{
-						auto idStr = trim(expr);
-
-						// Wildcard character
-						if (idStr.size() == 1 && idStr[0] == '*')
-							return All;
-
-						// Anything else is a component name
-						const auto& cc = comp_cache(*m_storage.world());
-						const auto* pItem = cc.find(idStr.data(), (uint32_t)idStr.size());
-						if (pItem == nullptr) {
-							GAIA_ASSERT2(false, "Type not found");
-							GAIA_LOG_W("Type '%.*s' not found", (uint32_t)idStr.size(), idStr.data());
-							return EntityBad;
-						}
-
-						return pItem->entity;
-					}
-				};
-
 			public:
 				QueryImpl() = default;
 				~QueryImpl() = default;
@@ -1152,7 +1091,7 @@ namespace gaia {
 						std::span<const char> exprRaw(&str[exp0], pos - exp0);
 						exp0 = ++pos;
 
-						auto expr = trim(exprRaw);
+						auto expr = core::trim(exprRaw);
 						if (expr.empty())
 							return true;
 
@@ -1162,20 +1101,20 @@ namespace gaia {
 								off = 2;
 
 							auto var = expr.subspan(off);
-							auto entity = expr_to_entity(args, var);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
 							any(entity, off != 0);
 						} else if (expr[0] == '!') {
 							auto var = expr.subspan(1);
-							auto entity = expr_to_entity(args, var);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
 							no(entity);
 						} else {
-							auto entity = expr_to_entity(args, expr);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, expr);
 							if (entity == EntityBad)
 								return false;
 

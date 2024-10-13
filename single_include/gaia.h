@@ -3089,6 +3089,21 @@ namespace gaia {
 				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
+
+		//----------------------------------------------------------------------
+		// Strings
+		//----------------------------------------------------------------------
+
+		inline auto trim(std::span<const char> expr) {
+			uint32_t beg = 0;
+			while (expr[beg] == ' ')
+				++beg;
+			uint32_t end = (uint32_t)expr.size() - 1;
+			while (end > beg && expr[end] == ' ')
+				--end;
+			return expr.subspan(beg, end - beg + 1);
+		};
+
 	} // namespace core
 } // namespace gaia
 
@@ -20666,6 +20681,7 @@ namespace gaia {
 #pragma once
 
 #include <cstdint>
+#include <cstdarg>
 #include <type_traits>
 
 
@@ -22529,6 +22545,7 @@ namespace gaia {
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
 		bool is_base(const World& world, Entity entity);
+		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
 		namespace detail {
 			//! Query command types
@@ -23490,68 +23507,6 @@ namespace gaia {
 					}
 				}
 
-				static auto trim(std::span<const char> expr) {
-					uint32_t beg = 0;
-					while (expr[beg] == ' ')
-						++beg;
-					uint32_t end = (uint32_t)expr.size() - 1;
-					while (end > beg && expr[end] == ' ')
-						--end;
-					return expr.subspan(beg, end - beg + 1);
-				};
-
-				Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) {
-					auto expr = trim(exprRaw);
-
-					if (expr[0] == '%') {
-						if (expr[1] != 'e') {
-							GAIA_ASSERT2(false, "Expression '%' not terminated");
-							return EntityBad;
-						}
-
-						auto id = (Identifier)va_arg(args, unsigned long long);
-						return Entity(id);
-					}
-
-					if (expr[0] == '(') {
-						if (expr.back() != ')') {
-							GAIA_ASSERT2(false, "Expression '(' not terminated");
-							return EntityBad;
-						}
-
-						auto idStr = expr.subspan(1, expr.size() - 2);
-						const auto commaIdx = core::get_index(idStr, ',');
-
-						const auto first = expr_to_entity(args, idStr.subspan(0, commaIdx));
-						if (first == EntityBad)
-							return EntityBad;
-						const auto second = expr_to_entity(args, idStr.subspan(commaIdx + 1));
-						if (second == EntityBad)
-							return EntityBad;
-
-						return ecs::Pair(first, second);
-					}
-
-					{
-						auto idStr = trim(expr);
-
-						// Wildcard character
-						if (idStr.size() == 1 && idStr[0] == '*')
-							return All;
-
-						// Anything else is a component name
-						const auto& cc = comp_cache(*m_storage.world());
-						const auto* pItem = cc.find(idStr.data(), (uint32_t)idStr.size());
-						if (pItem == nullptr) {
-							GAIA_ASSERT2(false, "Type not found");
-							GAIA_LOG_W("Type '%.*s' not found", (uint32_t)idStr.size(), idStr.data());
-							return EntityBad;
-						}
-
-						return pItem->entity;
-					}
-				};
-
 			public:
 				QueryImpl() = default;
 				~QueryImpl() = default;
@@ -23647,7 +23602,7 @@ namespace gaia {
 						std::span<const char> exprRaw(&str[exp0], pos - exp0);
 						exp0 = ++pos;
 
-						auto expr = trim(exprRaw);
+						auto expr = core::trim(exprRaw);
 						if (expr.empty())
 							return true;
 
@@ -23657,20 +23612,20 @@ namespace gaia {
 								off = 2;
 
 							auto var = expr.subspan(off);
-							auto entity = expr_to_entity(args, var);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
 							any(entity, off != 0);
 						} else if (expr[0] == '!') {
 							auto var = expr.subspan(1);
-							auto entity = expr_to_entity(args, var);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
 							no(entity);
 						} else {
-							auto entity = expr_to_entity(args, expr);
+							auto entity = expr_to_entity((const World&)*m_storage.world(), args, expr);
 							if (entity == EntityBad)
 								return false;
 
@@ -25302,6 +25257,8 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			//! \warning The name can't contain the character '.'. This character is reserved for hierachical lookups
+			//!          such as "parent.child.subchild".
 			void name(Entity entity, const char* name, uint32_t len = 0) {
 				name_inter<true>(entity, name, len);
 			}
@@ -25312,7 +25269,9 @@ namespace gaia {
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			//! \warning The name is expected to be unique. If it is not this function does nothing.
+			//! \warning The name can't contain the character '.'. This character is reserved for hierachical lookups
+			//!          such as "parent.child.subchild".
 			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
 			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
 			//!          the string to a different place you have to unset the name before it happens and set it anew
@@ -25353,18 +25312,88 @@ namespace gaia {
 				return name(entity);
 			}
 
-			//! Returns the entity that is assigned with the \param name.
-			//! \param name Name
+			//! Returns the entity that is assigned a name \param name.
+			//! If the name contains the character '.' hierarchical lookup is use.
+			//! E.g. "parent.child.subchild" will return the entity for subchild is the entire
+			//! tree could be found by name.
+			//! \param name Pointer to a stable null-terminated string
+			//! \param len String length. If zero, the length is calculated
 			//! \return Entity assigned the given name. EntityBad if there is nothing to return.
-			GAIA_NODISCARD Entity get(const char* name) const {
-				if (name == nullptr)
+			GAIA_NODISCARD Entity get(const char* name, uint32_t len = 0) const {
+				if (name == nullptr || name[0] == 0)
 					return EntityBad;
 
-				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
-				if (it == m_nameToEntity.end())
+				Entity parent = EntityBad;
+				Entity child = EntityBad;
+				uint32_t posDot = 0;
+
+				// If no length was given, we have to find it ourselves
+				if (len == 0) {
+					while (name[len] != '\0') ++len;
+				}
+				std::span<const char> str(name, len);
+
+				// Localize a dot in the string. If not present, use the entire string.
+				{
+					posDot = core::get_index(str, '.');
+					if (posDot == BadIndex)
+						return name_to_entity(str);
+
+					parent = name_to_entity(str.subspan(0, posDot));
+					if (parent == EntityBad)
+						return EntityBad;
+				}
+
+				str = str.subspan(posDot + 1);
+				while (!str.empty()) {
+					posDot = core::get_index(str, '.');
+
+					// A) No more dots in the string, use the entire substring.
+					if (posDot == BadIndex) {
+						child = name_to_entity(str);
+
+						// If the entity is not found, there is nothing for us to do anymore.
+						// If the parent-child relationship does not exist there is nothing for us to do anymore.
+						if (child == EntityBad || !this->child(child, parent))
+							return EntityBad;
+
+						return child;
+					}
+
+					// B) More dots in the string
+					child = name_to_entity(str.subspan(0, posDot));
+
+					// If the entity is not found, there is nothing for us to do anymore.
+					// If the parent-child relationship does not exist there is nothing for us to do anymore.
+					if (child == EntityBad || !this->child(child, parent))
+						return EntityBad;
+
+					// Current child becomes the parent for the next step
+					parent = child;
+
+					str = str.subspan(posDot + 1);
+				}
+
+				return parent;
+			}
+
+			GAIA_NODISCARD Entity get_inter(const char* name, uint32_t len = 0) const {
+				if (name == nullptr || name[0] == 0)
 					return EntityBad;
 
-				return it->second;
+				auto key = len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len);
+
+				const auto it = m_nameToEntity.find(key);
+				if (it != m_nameToEntity.end())
+					return it->second;
+
+				// Name not found. This might be a component so check the component cache
+				const auto* pItem = m_compCache.find(name, len);
+				if (pItem != nullptr)
+					return pItem->entity;
+
+				// No entity with the given name exists. Return a bad entity
+				return EntityBad;
 			}
 
 			//----------------------------------------------------------------------
@@ -27509,6 +27538,21 @@ namespace gaia {
 					return;
 				}
 
+				// Make sure the name does not contain a dot because this character is reserved for
+				// hierarchical lookups, e.g. "parent.child.subchild".
+				#ifdef GAIA_ASSERT_ENABLED
+				{
+					const char *pName = name;
+					while (*pName != '\0') {
+						const bool hasInvalidCharacter = *pName == '.';
+						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
+						if (hasInvalidCharacter)
+							return;
+						++pName;
+					}
+				}
+				#endif
+
 				// Make sure EntityDesc is added
 				add<EntityDesc>(entity);
 
@@ -27830,6 +27874,90 @@ namespace gaia {
 					m_queryCache.invalidate_queries_for_entity(EntityLookupKey(Pair{Is, target}));
 				});
 			}
+
+			Entity name_to_entity(std::span<const char> exprRaw) const {
+				auto expr = core::trim(exprRaw);
+
+				if (expr[0] == '(') {
+					if (expr.back() != ')') {
+						GAIA_ASSERT2(false, "Expression '(' not terminated");
+						return EntityBad;
+					}
+
+					const auto idStr = expr.subspan(1, expr.size() - 2);
+					const auto commaIdx = core::get_index(idStr, ',');
+
+					const auto first = name_to_entity(idStr.subspan(0, commaIdx));
+					if (first == EntityBad)
+						return EntityBad;
+					const auto second = name_to_entity(idStr.subspan(commaIdx + 1));
+					if (second == EntityBad)
+						return EntityBad;
+
+					return ecs::Pair(first, second);
+				}
+
+				{
+					auto idStr = core::trim(expr);
+
+					// Wildcard character
+					if (idStr.size() == 1 && idStr[0] == '*')
+						return All;
+
+					return get_inter(idStr.data(), (uint32_t)idStr.size());
+				}
+			}
+
+			Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) const {
+				auto expr = core::trim(exprRaw);
+
+				if (expr[0] == '%') {
+					if (expr[1] != 'e') {
+						GAIA_ASSERT2(false, "Expression '%' not terminated");
+						return EntityBad;
+					}
+
+					auto id = (Identifier)va_arg(args, unsigned long long);
+					return Entity(id);
+				}
+
+				if (expr[0] == '(') {
+					if (expr.back() != ')') {
+						GAIA_ASSERT2(false, "Expression '(' not terminated");
+						return EntityBad;
+					}
+
+					const auto idStr = expr.subspan(1, expr.size() - 2);
+					const auto commaIdx = core::get_index(idStr, ',');
+
+					const auto first = expr_to_entity(args, idStr.subspan(0, commaIdx));
+					if (first == EntityBad)
+						return EntityBad;
+					const auto second = expr_to_entity(args, idStr.subspan(commaIdx + 1));
+					if (second == EntityBad)
+						return EntityBad;
+
+					return ecs::Pair(first, second);
+				}
+
+				{
+					auto idStr = core::trim(expr);
+
+					// Wildcard character
+					if (idStr.size() == 1 && idStr[0] == '*')
+						return All;
+
+					// Anything else is a component name
+					const auto* pItem = m_compCache.find(idStr.data(), (uint32_t)idStr.size());
+					if (pItem == nullptr) {
+						GAIA_ASSERT2(false, "Component not found");
+						GAIA_LOG_W("Component '%.*s' not found", (uint32_t)idStr.size(), idStr.data());
+						return EntityBad;
+					}
+
+					return pItem->entity;
+				}
+			}
 		};
 
 		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
@@ -27904,6 +28032,10 @@ namespace gaia {
 		void as_targets_trav_if(const World& world, Entity relation, Func func) {
 			return world.as_targets_trav_if(relation, func);
 		}
+
+		inline Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw) {
+			return world.expr_to_entity(args, exprRaw);
+		};
 	} // namespace ecs
 } // namespace gaia
 
