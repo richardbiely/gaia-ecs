@@ -23304,57 +23304,17 @@ namespace gaia {
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
-				void run_query(const QueryInfo& queryInfo, Func func) {
+				void run_query_batch_no_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					ChunkBatchArray chunkBatch;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+
 					TIter it;
-
-					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
-
-					// TODO: Have archetype cache as double-linked list with pointers only.
-					//       Have chunk cache as double-linked list with pointers only.
-					//       Make it so only valid pointers are linked together.
-					//       This means one less indirection + we won't need to call can_process_archetype()
-					//       and pChunk.size()==0 here.
-					auto cache_view = queryInfo.cache_archetype_view();
-					auto cache_data_view = queryInfo.cache_data_view();
-
-					// Determine the range of archetypes we will iterate.
-					// Use the entire range by default.
-					uint32_t idx_from = 0;
-					uint32_t idx_to = (uint32_t)cache_view.size();
-
-					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
-					if (isGroupBy && isGroupSet) {
-						// We wish to iterate only a certain group
-						auto group_data_view = queryInfo.group_data_view();
-						GAIA_EACH(group_data_view) {
-							if (group_data_view[i].groupId == queryInfo.data().groupIdSet) {
-								idx_from = group_data_view[i].idxFirst;
-								idx_to = group_data_view[i].idxLast + 1;
-								goto groupSetFound;
-							}
-						}
-						return;
-					}
-
-				groupSetFound:
-					ArchetypeCacheData dummyCacheData{};
-
-					for (uint32_t i = idx_from; i < idx_to; ++i) {
-						auto* pArchetype = cache_view[i];
-
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
-
-						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
-						GAIA_ASSERT(
-								// Either no grouping is used...
-								!isGroupBy ||
-								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
-								// ... or the groupId must match the requested one
-								cache_data_view[i].groupId == queryInfo.data().groupIdSet);
 
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
@@ -23376,7 +23336,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data(), cacheData.groupId});
+								chunkBatch.push_back({pChunk, indices_view.data(), 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -23390,6 +23350,111 @@ namespace gaia {
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatch.empty())
 						run_query_func(func, it, chunkBatch);
+				}
+
+				template <bool HasFilters, typename TIter, typename Func>
+				void run_query_batch_with_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					ArchetypeCacheData dummyCacheData{};
+					ChunkBatchArray chunkBatch;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					TIter it;
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						const auto& data = dataView[i];
+
+						uint32_t chunkOffset = 0;
+						uint32_t itemsLeft = chunks.size();
+						while (itemsLeft > 0) {
+							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+							for (auto* pChunk: chunkSpan) {
+								it.set_chunk(pChunk);
+								if GAIA_UNLIKELY (it.size() == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								chunkBatch.push_back({pChunk, indices_view.data(), data.groupId});
+							}
+
+							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
+								run_query_func(func, it, chunkBatch);
+
+							itemsLeft -= batchSize;
+							chunkOffset += batchSize;
+						}
+					}
+
+					// Take care of any leftovers not processed during run_query
+					if (!chunkBatch.empty())
+						run_query_func(func, it, chunkBatch);
+				}
+
+				template <bool HasFilters, typename TIter, typename Func>
+				void run_query(const QueryInfo& queryInfo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+
+					// TODO: Have archetype cache as double-linked list with pointers only.
+					//       Have chunk cache as double-linked list with pointers only.
+					//       Make it so only valid pointers are linked together.
+					//       This means one less indirection + we won't need to call can_process_archetype()
+					//       or pChunk.size()==0 in run_query_batch functions.
+					auto cache_view = queryInfo.cache_archetype_view();
+					if (cache_view.empty())
+						return;
+
+					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					if (!isGroupBy || !isGroupSet) {
+						// No group requested or group filtering is currently turned off
+						const auto idxFrom = 0;
+						const auto idxTo = (uint32_t)cache_view.size();
+						run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+					} else {
+						// We wish to iterate only a certain group
+						// TODO: Cache the indices so we don't have to iterate. In situations with many
+						//       groups this could save a bit of performance.
+						auto cache_data_view = queryInfo.cache_data_view();
+						auto group_data_view = queryInfo.group_data_view();
+						GAIA_EACH(group_data_view) {
+							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
+								continue;
+
+							const auto idxFrom = group_data_view[i].idxFirst;
+							const auto idxTo = group_data_view[i].idxLast + 1;
+							run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							return;
+						}
+					}
 				}
 
 				template <typename TIter, typename Func>
