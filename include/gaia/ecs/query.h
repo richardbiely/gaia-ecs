@@ -795,7 +795,7 @@ namespace gaia {
 
 					// We are batching by chunks. Some of them might contain only few items but this state is only
 					// temporary because defragmentation runs constantly and keeps things clean.
-					ChunkBatchArray chunkBatch;
+					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
 
@@ -810,7 +810,7 @@ namespace gaia {
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
 							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
@@ -823,12 +823,12 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data(), 0});
+								chunkBatches.push_back({pChunk, indices_view.data(), 0});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size()) {
-								run_query_func<Func, TIter>(func, chunkBatch);
-								chunkBatch.clear();
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
 							}
 
 							itemsLeft -= batchSize;
@@ -837,8 +837,8 @@ namespace gaia {
 					}
 
 					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty())
-						run_query_func<Func, TIter>(func, chunkBatch);
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -893,8 +893,7 @@ namespace gaia {
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query_with_group);
 
-					ArchetypeCacheData dummyCacheData{};
-					ChunkBatchArray chunkBatch;
+					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
@@ -926,7 +925,7 @@ namespace gaia {
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
 							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
@@ -939,12 +938,12 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data(), data.groupId});
+								chunkBatches.push_back({pChunk, indices_view.data(), data.groupId});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size()) {
-								run_query_func<Func, TIter>(func, chunkBatch);
-								chunkBatch.clear();
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
 							}
 
 							itemsLeft -= batchSize;
@@ -953,8 +952,8 @@ namespace gaia {
 					}
 
 					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty())
-						run_query_func<Func, TIter>(func, chunkBatch);
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -963,7 +962,6 @@ namespace gaia {
 					static_assert(ExecType != QueryExecType::Default);
 					GAIA_PROF_SCOPE(query::run_query_with_group);
 
-					ArchetypeCacheData dummyCacheData{};
 					ChunkBatchArray chunkBatch;
 
 					auto cacheView = queryInfo.cache_archetype_view();
@@ -1051,7 +1049,6 @@ namespace gaia {
 						// We wish to iterate only a certain group
 						// TODO: Cache the indices so we don't have to iterate. In situations with many
 						//       groups this could save a bit of performance.
-						auto cache_data_view = queryInfo.cache_data_view();
 						auto group_data_view = queryInfo.group_data_view();
 						GAIA_EACH(group_data_view) {
 							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
