@@ -14680,7 +14680,7 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
+			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				m_jobManager.submit(jobHandle);
 
@@ -14718,7 +14718,7 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle resubmittion (submit, update).
+					// Let the other parts of the code handle the resubmit (submit(), update()).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
 					return;
@@ -20623,14 +20623,18 @@ namespace gaia {
 					return m_pChunk->has<T>();
 				}
 
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_enabled();
+					else if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_disabled();
+					else
+						return pChunk->size();
+				}
+
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_enabled();
-					else if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return size(m_pChunk);
 				}
 
 				//! Returns the absolute index that should be used to access an item in the chunk.
@@ -22567,6 +22571,17 @@ namespace gaia {
 		bool is_base(const World& world, Entity entity);
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
+		enum class QueryExecType : uint32_t {
+			// Default - main thread
+			Default,
+			// Parallel, any core
+			Parallel,
+			// Parallel, perf cores only
+			ParallelPerf,
+			// Parallel, efficiency cores only
+			ParallelEff
+		};
+
 		namespace detail {
 			//! Query command types
 			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
@@ -22938,6 +22953,9 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+				//! Batches used for parallel query processing
+				//! TODO: This is just temporary until a smarter system is introduced
+				cnt::darray<ChunkBatch> m_batches;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -23238,28 +23256,38 @@ namespace gaia {
 					return false;
 				}
 
-				//! Execute functors in batches
+				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing
+					return !archetype.is_req_del();
+				}
+
+				//--------------------------------------------------------------------------------
+
+				//! Execute the functor for a given chunk batch
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchArray& chunks) {
+				static void run_query_func(Func func, ChunkBatch& batch) {
+					auto* pChunk = batch.pChunk;
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+					TIter it;
+					it.set_group_id(batch.groupId);
+					it.set_remapping_indices(batch.pIndicesMapping);
+					it.set_chunk(pChunk);
+					func(it);
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(false);
+#endif
+				}
+
+				//! Execute the functor in batches
+				template <typename Func, typename TIter>
+				static void run_query_func(Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
-					const auto chunkCnt = chunks.size();
+					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
-
-					auto runFunc = [&](ChunkBatch& batch) {
-						auto* pChunk = batch.pChunk;
-
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(true);
-#endif
-						it.set_group_id(batch.groupId);
-						it.set_remapping_indices(batch.pIndicesMapping);
-						it.set_chunk(pChunk);
-						func(it);
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(false);
-#endif
-					};
 
 					// This is what the function is doing:
 					// for (auto *pChunk: chunks) {
@@ -23267,12 +23295,10 @@ namespace gaia {
 					//	runFunc(pChunk);
 					//  pChunk->lock(false);
 					// }
-					// chunks.clear();
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						runFunc(chunks[0]);
-						chunks.clear();
+						run_query_func<Func, TIter>(func, batches[0]);
 						return;
 					}
 
@@ -23284,33 +23310,29 @@ namespace gaia {
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
-					gaia::prefetch(&chunks[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-					runFunc(chunks[0]);
+					gaia::prefetch(&batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+					run_query_func<Func, TIter>(func, batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
-						gaia::prefetch(&chunks[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-						runFunc(chunks[chunkIdx]);
+						gaia::prefetch(&batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+						run_query_func<Func, TIter>(func, batches[chunkIdx]);
 					}
 
-					runFunc(chunks[chunkIdx]);
-
-					chunks.clear();
-				}
-
-				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
-					// Archetypes requested for deletion are skipped for processing
-					return !archetype.is_req_del();
+					run_query_func<Func, TIter>(func, batches[chunkIdx]);
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_no_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_no_group);
+
+					// We are batching by chunks. Some of them might contain only few items but this state is only
+					// temporary because defragmentation runs constantly and keeps things clean.
 					ChunkBatchArray chunkBatch;
 
 					auto cacheView = queryInfo.cache_archetype_view();
 
-					TIter it;
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23327,8 +23349,7 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								it.set_chunk(pChunk);
-								if GAIA_UNLIKELY (it.size() == 0)
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -23339,8 +23360,10 @@ namespace gaia {
 								chunkBatch.push_back({pChunk, indices_view.data(), 0});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_query_func(func, it, chunkBatch);
+							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size()) {
+								run_query_func<Func, TIter>(func, chunkBatch);
+								chunkBatch.clear();
+							}
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
@@ -23349,12 +23372,61 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatch.empty())
-						run_query_func(func, it, chunkBatch);
+						run_query_func<Func, TIter>(func, chunkBatch);
+				}
+
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_no_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_no_group);
+
+					auto cacheView = queryInfo.cache_archetype_view();
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), 0});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 1);
+					tp.wait(jobHandle);
+					m_batches.clear();
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_with_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_with_group);
+
 					ArchetypeCacheData dummyCacheData{};
 					ChunkBatchArray chunkBatch;
 
@@ -23376,7 +23448,6 @@ namespace gaia {
 					}
 #endif
 
-					TIter it;
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23394,8 +23465,7 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								it.set_chunk(pChunk);
-								if GAIA_UNLIKELY (it.size() == 0)
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -23406,8 +23476,10 @@ namespace gaia {
 								chunkBatch.push_back({pChunk, indices_view.data(), data.groupId});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_query_func(func, it, chunkBatch);
+							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size()) {
+								run_query_func<Func, TIter>(func, chunkBatch);
+								chunkBatch.clear();
+							}
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
@@ -23416,12 +23488,79 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatch.empty())
-						run_query_func(func, it, chunkBatch);
+						run_query_func<Func, TIter>(func, chunkBatch);
 				}
 
-				template <bool HasFilters, typename TIter, typename Func>
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_with_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_with_group);
+
+					ArchetypeCacheData dummyCacheData{};
+					ChunkBatchArray chunkBatch;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& data = dataView[i];
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), data.groupId});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 1);
+					tp.wait(jobHandle);
+					m_batches.clear();
+				}
+
+				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
-					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+					GAIA_PROF_SCOPE(query::run_query);
 
 					// TODO: Have archetype cache as double-linked list with pointers only.
 					//       Have chunk cache as double-linked list with pointers only.
@@ -23438,7 +23577,10 @@ namespace gaia {
 						// No group requested or group filtering is currently turned off
 						const auto idxFrom = 0;
 						const auto idxTo = (uint32_t)cache_view.size();
-						run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_no_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+						else
+							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
 						// TODO: Cache the indices so we don't have to iterate. In situations with many
@@ -23451,22 +23593,25 @@ namespace gaia {
 
 							const auto idxFrom = group_data_view[i].idxFirst;
 							const auto idxTo = group_data_view[i].idxLast + 1;
-							run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							if constexpr (ExecType != QueryExecType::Default)
+								run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							else
+								run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 							return;
 						}
 					}
 				}
 
-				template <typename TIter, typename Func>
+				template <QueryExecType ExecType, typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)
-						run_query<true, TIter>(queryInfo, func);
+						run_query<true, ExecType, TIter>(queryInfo, func);
 					else
-						run_query<false, TIter>(queryInfo, func);
+						run_query<false, ExecType, TIter>(queryInfo, func);
 
 					// Update the query version with the current world's version
 					queryInfo.set_world_version(*m_worldVersion);
@@ -23494,6 +23639,69 @@ namespace gaia {
 						// No functor parameters. Do an empty loop.
 						GAIA_EACH(it) func();
 					}
+				}
+
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(QueryInfo& queryInfo, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					// in query.
+					// Example 1:
+					//   auto q = w.query().all<MyType>(); // immutable access requested
+					//   q.each([](MyType val)) {}); // okay
+					//   q.each([](const MyType& val)) {}); // okay
+					//   q.each([](MyType& val)) {}); // error
+					// Example 2:
+					//   auto q = w.query().all<MyType&>(); // mutable access requested
+					//   q.each([](MyType val)) {}); // error
+					//   q.each([](const MyType& val)) {}); // error
+					//   q.each([](MyType& val)) {}); // okay
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						run_query_on_chunk(it, func, InputArgs{});
+					});
+				}
+
+				template <
+						QueryExecType ExecType, typename Func, bool FuncEnabled = UseCaching,
+						typename std::enable_if<FuncEnabled>::type* = nullptr>
+				void each_inter(QueryId queryId, Func func) {
+					// Make sure the query was created by World.query()
+					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+					GAIA_ASSERT(queryId != QueryIdBad);
+
+					auto& queryInfo = m_storage.m_queryCache->get(queryId);
+					each_inter(queryInfo, func);
+				}
+
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(Func func) {
+					auto& queryInfo = fetch();
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_chunks<ExecType, IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else
+						each_inter<ExecType>(queryInfo, func);
 				}
 
 				template <bool UseFilters, typename TIter>
@@ -23848,65 +24056,29 @@ namespace gaia {
 				//------------------------------------------------
 
 				template <typename Func>
-				void each(QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-#if GAIA_ASSERT_ENABLED
-					// Make sure we only use components specified in the query.
-					// Constness is respected. Therefore, if a type is const when registered to query,
-					// it has to be const (or immutable) also in each().
-					// in query.
-					// Example 1:
-					//   auto q = w.query().all<MyType>(); // immutable access requested
-					//   q.each([](MyType val)) {}); // okay
-					//   q.each([](const MyType& val)) {}); // okay
-					//   q.each([](MyType& val)) {}); // error
-					// Example 2:
-					//   auto q = w.query().all<MyType&>(); // mutable access requested
-					//   q.each([](MyType val)) {}); // error
-					//   q.each([](const MyType& val)) {}); // error
-					//   q.each([](MyType& val)) {}); // okay
-					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-#endif
-
-					run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(it, func, InputArgs{});
-					});
+				void each(Func func) {
+					each_inter<QueryExecType::Default, Func>(func);
 				}
 
 				template <typename Func>
-				void each(Func func) {
-					auto& queryInfo = fetch();
-
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						run_query_on_chunks<IterDisabled>(queryInfo, [&](IterDisabled& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else
-						each(queryInfo, func);
+				void each(Func func, QueryExecType execType) {
+					switch (execType) {
+						case QueryExecType::Parallel:
+							each_inter<QueryExecType::Parallel, Func>(func);
+							break;
+						case QueryExecType::ParallelPerf:
+							each_inter<QueryExecType::ParallelPerf, Func>(func);
+							break;
+						case QueryExecType::ParallelEff:
+							each_inter<QueryExecType::ParallelEff, Func>(func);
+							break;
+						default:
+							each_inter<QueryExecType::Default, Func>(func);
+							break;
+					}
 				}
 
-				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
-				void each(QueryId queryId, Func func) {
-					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
-					GAIA_ASSERT(queryId != QueryIdBad);
-
-					auto& queryInfo = m_storage.m_queryCache->get(queryId);
-					each(queryInfo, func);
-				}
+				//------------------------------------------------
 
 				//!	Returns true or false depending on whether there are any entities matching the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
@@ -28157,10 +28329,26 @@ namespace gaia {
 			TSystemIterFunc on_each_func;
 			//! Query associated with the system
 			Query query;
+			//! Execution type
+			QueryExecType execType;
 
 			void exec() {
 				auto& queryInfo = query.fetch();
-				query.run_query_on_chunks<Iter>(queryInfo, on_each_func);
+
+				switch (execType) {
+					case QueryExecType::Parallel:
+						query.run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelPerf:
+						query.run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelEff:
+						query.run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, on_each_func);
+						break;
+					default:
+						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
+						break;
+				}
 			}
 		};
 
@@ -28182,6 +28370,7 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
+			QueryExecType m_execType;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
@@ -28221,11 +28410,17 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& mode(QueryExecType type) {
+				m_execType = type;
+				return *this;
+			}
+
 			template <typename Func>
 			SystemBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = data();
+				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);

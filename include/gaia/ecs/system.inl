@@ -28,10 +28,26 @@ namespace gaia {
 			TSystemIterFunc on_each_func;
 			//! Query associated with the system
 			Query query;
+			//! Execution type
+			QueryExecType execType;
 
 			void exec() {
 				auto& queryInfo = query.fetch();
-				query.run_query_on_chunks<Iter>(queryInfo, on_each_func);
+
+				switch (execType) {
+					case QueryExecType::Parallel:
+						query.run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelPerf:
+						query.run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelEff:
+						query.run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, on_each_func);
+						break;
+					default:
+						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
+						break;
+				}
 			}
 		};
 
@@ -53,6 +69,7 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
+			QueryExecType m_execType;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
@@ -92,11 +109,17 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& mode(QueryExecType type) {
+				m_execType = type;
+				return *this;
+			}
+
 			template <typename Func>
 			SystemBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = data();
+				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
