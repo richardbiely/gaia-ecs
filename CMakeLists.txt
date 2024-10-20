@@ -157,3 +157,12 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INC
 if(GAIA_BUILD_SRC)
     add_subdirectory(src)
 endif()
+
+# Print project variables
+get_cmake_property(all_vars VARIABLES)
+
+foreach(var ${all_vars})
+    if(var MATCHES "^GAIA_")
+        message(STATUS "${var} = ${${var}}")
+    endif()
+endforeach()
