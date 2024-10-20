@@ -367,6 +367,7 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				static constexpr uint32_t SchedParBatchSize = 8;
 
 				struct ChunkBatch {
 					Chunk* pChunk;
@@ -883,7 +884,7 @@ namespace gaia {
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 1);
+					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
 					tp.wait(jobHandle);
 					m_batches.clear();
 				}
@@ -1017,7 +1018,7 @@ namespace gaia {
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 1);
+					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
 					tp.wait(jobHandle);
 					m_batches.clear();
 				}
