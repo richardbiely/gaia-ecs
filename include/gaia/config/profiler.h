@@ -48,7 +48,7 @@ namespace tracy {
 
 	inline thread_local ScopeStack t_ScopeStack;
 
-	void ZoneBegin(const ___tracy_source_location_data* srcloc) {
+	inline void ZoneBegin(const ___tracy_source_location_data* srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize) {
@@ -56,14 +56,14 @@ namespace tracy {
 		}
 	}
 
-	void ZoneRTBegin(uint64_t srcloc) {
+	inline void ZoneRTBegin(uint64_t srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize)
 			stack.buffer[pos] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
 	}
 
-	void ZoneEnd() {
+	inline void ZoneEnd() {
 		auto& stack = t_ScopeStack;
 		GAIA_ASSERT(stack.count > 0);
 		const auto pos = --stack.count;
