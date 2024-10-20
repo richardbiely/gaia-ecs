@@ -227,6 +227,12 @@ else()
   enable_cxx_compiler_flag_if_supported("-fno-exceptions")
 endif()
 
+if(NOT "GAIA_USE_SANITIZER" MATCHES "")
+  add_definitions(-DGAIA_USE_SANITIZER=1)
+else()
+  add_definitions(-DGAIA_USE_SANITIZER=0)
+endif()
+
 set(IS_FETCH_AVAILABLE OFF)
 
 if(GAIA_BUILD_BENCHMARK OR GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)

@@ -4619,13 +4619,18 @@ namespace gaia {
 
 #ifndef GAIA_USE_MEM_SANI
 	#if defined(__has_feature)
-		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if __has_feature(address_sanitizer)
+			#define GAIA_HAS_SANI_FEATURE 1
+		#else
+			#define GAIA_HAS_SANI_FEATURE 0
+		#endif
+		#if GAIA_HAS_SANI_FEATURE || GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
 		#endif
 	#else
-		#if defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0

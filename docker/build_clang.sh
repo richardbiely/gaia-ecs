@@ -82,7 +82,7 @@ fi
 
 # Debug mode - address sanitizers
 cmake -E make_directory ${PATH_DEBUG_ADDR}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_DEBUG_ADDR}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_DEBUG_ADDR}
 if ! cmake --build ${PATH_DEBUG_ADDR} --config Debug; then
     echo "${PATH_DEBUG_ADDR} build failed"
     exit 1
@@ -90,7 +90,7 @@ fi
 
 # Debug mode - memory sanitizers
 cmake -E make_directory ${PATH_DEBUG_MEM}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_DEBUG_MEM}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_DEBUG_MEM}
 if ! cmake --build ${PATH_DEBUG_MEM} --config Debug; then
     echo "${PATH_DEBUG_MEM} build failed"
     exit 1
@@ -98,7 +98,7 @@ fi
 
 # Release mode - address sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_RELEASE_ADDR}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_RELEASE_ADDR}
 if ! cmake --build ${PATH_RELEASE_ADDR} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_ADDR} build failed"
     exit 1
@@ -106,7 +106,7 @@ fi
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_RELEASE_MEM}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_RELEASE_MEM}
 if ! cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_MEM} build failed"
     exit 1
