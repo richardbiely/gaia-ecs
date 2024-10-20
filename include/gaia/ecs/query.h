@@ -732,13 +732,14 @@ namespace gaia {
 
 				//! Execute the functor for a given chunk batch
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, ChunkBatch& batch) {
+				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					auto* pChunk = batch.pChunk;
 
 #if GAIA_ASSERT_ENABLED
 					pChunk->lock(true);
 #endif
 					TIter it;
+					it.set_world(pWorld);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
 					it.set_chunk(pChunk);
@@ -750,7 +751,7 @@ namespace gaia {
 
 				//! Execute the functor in batches
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, std::span<ChunkBatch> batches) {
+				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = batches.size();
@@ -765,7 +766,7 @@ namespace gaia {
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						run_query_func<Func, TIter>(func, batches[0]);
+						run_query_func<Func, TIter>(pWorld, func, batches[0]);
 						return;
 					}
 
@@ -778,15 +779,15 @@ namespace gaia {
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
 					gaia::prefetch(&batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-					run_query_func<Func, TIter>(func, batches[0]);
+					run_query_func<Func, TIter>(pWorld, func, batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(&batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-						run_query_func<Func, TIter>(func, batches[chunkIdx]);
+						run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 					}
 
-					run_query_func<Func, TIter>(func, batches[chunkIdx]);
+					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
@@ -828,7 +829,7 @@ namespace gaia {
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
-								run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
 
@@ -839,7 +840,7 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
-						run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -880,7 +881,8 @@ namespace gaia {
 						j.priority = mt::JobPriority::Low;
 
 					j.func = [&](const mt::JobArgs& args) {
-						run_query_func<Func, TIter>(func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
 					auto& tp = mt::ThreadPool::get();
@@ -943,7 +945,7 @@ namespace gaia {
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
-								run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
 
@@ -954,7 +956,7 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
-						run_query_func<Func, TIter>(func, {chunkBatches.data(), chunkBatches.size()});
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -1014,7 +1016,8 @@ namespace gaia {
 						j.priority = mt::JobPriority::Low;
 
 					j.func = [&](const mt::JobArgs& args) {
-						run_query_func<Func, TIter>(func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
 					auto& tp = mt::ThreadPool::get();
@@ -1178,6 +1181,7 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						TIter it;
+						it.set_world(queryInfo.world());
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
@@ -1198,6 +1202,7 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -1234,6 +1239,7 @@ namespace gaia {
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))

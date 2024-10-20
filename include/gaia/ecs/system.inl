@@ -19,6 +19,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 
+	#if GAIA_PROFILER_CPU
+		inline constexpr const char* sc_query_func_str = "System2_exec";
+	#endif
+
 		struct System2_ {
 			using TSystemIterFunc = std::function<void(Iter&)>;
 
@@ -33,6 +37,12 @@ namespace gaia {
 
 			void exec() {
 				auto& queryInfo = query.fetch();
+
+	#if GAIA_PROFILER_CPU
+				const char* pName = queryInfo.world()->name(entity);
+				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
+				GAIA_PROF_SCOPE2(pScopeName);
+	#endif
 
 				switch (execType) {
 					case QueryExecType::Parallel:
@@ -122,7 +132,6 @@ namespace gaia {
 				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
 						func(it);
 					};
 				} else {
@@ -136,13 +145,12 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [&w = m_world, e = m_entity, func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
+					ctx.on_each_func = [e = m_entity, func](Iter& it) {
 						// NOTE: We can't directly use data().query here because the function relies
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
 						//       They are then used to get to the query stored inside System2_.
-						auto ss = w.acc_mut(e);
+						auto ss = const_cast<World*>(it.world())->acc_mut(e);
 						auto& sys = ss.smut<System2_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};

@@ -114,12 +114,16 @@ void BM_Schedule_ECS_Simple(picobench::state& state) {
 	const auto type =
 			ExecMode < (uint32_t)ecs::QueryExecType::ParallelEff ? (ecs::QueryExecType)ExecMode : ecs::QueryExecType::Default;
 
-	w.system().all<Data>().mode(type).on_each([&](ecs::Iter& it) {
-		auto dv = it.view<Data>();
-		auto sp = std::span((const Data*)dv.data(), dv.size());
-		auto res = BenchFunc_Simple(sp);
-		gaia::dont_optimize(res);
-	});
+	auto sb = w.system() //
+								.all<Data>()
+								.mode(type)
+								.on_each([&](ecs::Iter& it) {
+									auto dv = it.view<Data>();
+									auto sp = std::span((const Data*)dv.data(), dv.size());
+									auto res = BenchFunc_Simple(sp);
+									gaia::dont_optimize(res);
+								});
+	w.name(sb.entity(), "BM_Schedule_ECS_Simple");
 
 	GAIA_FOR(N) {
 		auto e = w.add();
@@ -145,12 +149,16 @@ void BM_Schedule_ECS_Complex(picobench::state& state) {
 	const auto type =
 			ExecMode < (uint32_t)ecs::QueryExecType::ParallelEff ? (ecs::QueryExecType)ExecMode : ecs::QueryExecType::Default;
 
-	w.system().all<Data>().mode(type).on_each([&](ecs::Iter& it) {
-		auto dv = it.view<Data>();
-		auto sp = std::span((const Data*)dv.data(), dv.size());
-		auto res = BenchFunc_Complex(sp);
-		gaia::dont_optimize(res);
-	});
+	auto sb = w.system() //
+								.all<Data>()
+								.mode(type)
+								.on_each([&](ecs::Iter& it) {
+									auto dv = it.view<Data>();
+									auto sp = std::span((const Data*)dv.data(), dv.size());
+									auto res = BenchFunc_Complex(sp);
+									gaia::dont_optimize(res);
+								});
+	w.name(sb.entity(), "BM_Schedule_ECS_Complex");
 
 	GAIA_FOR(N) {
 		auto e = w.add();
@@ -259,11 +267,11 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_SUITE("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Simple | (1ll << 32))
+					.user_data(ItemsToProcess_Simple | ((uint64_t)ecs::QueryExecType::Parallel << 32))
 					.label("Par");
 			PICOBENCH_REG(BM_Schedule_ECS_Complex)
 					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Complex | (1ll << 32))
+					.user_data(ItemsToProcess_Complex | ((uint64_t)ecs::QueryExecType::Parallel << 32))
 					.label("Par");
 			r.run_benchmarks();
 			return 0;
@@ -271,11 +279,11 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_SUITE("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Trivial | (1ll << 32))
+					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
 					.label("Par");
 			PICOBENCH_REG(BM_Schedule_ECS_Complex)
 					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Trivial | (1ll << 32))
+					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
 					.label("Par");
 			return 0;
 		} else {
