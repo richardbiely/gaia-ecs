@@ -154,6 +154,80 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
+if(NOT "GAIA_USE_SANITIZER" MATCHES "")
+    add_definitions(-DGAIA_USE_SANITIZER=1)
+else()
+    add_definitions(-DGAIA_USE_SANITIZER=0)
+endif()
+
+set(IS_FETCH_AVAILABLE OFF)
+
+if(GAIA_BUILD_BENCHMARK OR GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)
+    find_package(Git REQUIRED)
+    Include(FetchContent OPTIONAL RESULT_VARIABLE FetchContent_FOUND)
+
+    if(NOT FetchContent_FOUND)
+        message(WARNING "FetchContent might be necessary but it is not available")
+    else()
+        set(IS_FETCH_AVAILABLE ON)
+    endif()
+endif()
+
+if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_PROFILER_BUILD)
+    if(IS_FETCH_AVAILABLE)
+        find_package(tracy CONFIG QUIET 0.11.1)
+
+        if(NOT tracy_FOUND)
+            FetchContent_Declare(tracy
+                GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+                GIT_TAG v0.11.1
+                GIT_SHALLOW TRUE
+            )
+
+            set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
+            set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
+
+            FetchContent_MakeAvailable(tracy)
+        endif()
+    else()
+        find_package(tracy CONFIG REQUIRED 0.11.1)
+    endif()
+
+    if(GAIA_PROFILER_CPU)
+        add_compile_definitions(GAIA_PROFILER_CPU=1)
+    endif()
+
+    if(GAIA_PROFILER_MEM)
+        add_compile_definitions(GAIA_PROFILER_MEM=1)
+    endif()
+
+    if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
+        link_libraries(TracyClient)
+    endif()
+
+    if(GAIA_PROFILER_BUILD)
+        # Add a custom target to build the Tracy profiler GUI
+        if(UNIX)
+            set(tracy_profiler_build_dir "build/unix")
+            message("Building profiler for UNIX platform in: " ${tracy_profiler_build_dir})
+        elseif(WIN32)
+            set(tracy_profiler_build_dir "build/win32")
+            message("Building profiler for Windows platform in: " ${tracy_profiler_build_dir})
+        else()
+            message(WARNING "Unsupported platform. Building profiler won't be possible")
+        endif()
+
+        if(DEFINED tracy_profiler_build_dir)
+            add_custom_target(build_tracy_profiler_gui ALL
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${tracy_profiler_build_dir}
+                COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release -B ${tracy_profiler_build_dir} -S .
+                COMMAND ${CMAKE_COMMAND} --build ${tracy_profiler_build_dir} --config Release
+                WORKING_DIRECTORY ${tracy_SOURCE_DIR}/profiler
+            )
+        endif()
+    endif()
+endif()
+
 if(GAIA_BUILD_SRC)
     add_subdirectory(src)
 endif()
