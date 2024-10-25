@@ -1959,31 +1959,59 @@ TEST_CASE("each_pack") {
 }
 
 template <bool IsRuntime, typename C>
-void sort_descending(C arr) {
+void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	for (TValue i = 0; i < (TValue)arr.size(); ++i)
-		arr[i] = i;
-	if constexpr (IsRuntime)
-		core::sort(arr, core::is_greater<TValue>());
-	else
-		core::sort_ct(arr, core::is_greater<TValue>());
-	for (uint32_t i = 1; i < arr.size(); ++i)
-		REQUIRE(arr[i - 1] > arr[i]);
+	SECTION("sort1") {
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		if constexpr (IsRuntime)
+			core::sort(arr, core::is_greater<TValue>());
+		else
+			core::sort_ct(arr, core::is_greater<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
+	if constexpr (IsRuntime) {
+		SECTION("sort2") {
+			for (TValue i = 0; i < (TValue)arr.size(); ++i)
+				arr[i] = i;
+			core::sort(arr, core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
+				core::swap(arr[a], arr[b]);
+			});
+			for (uint32_t i = 1; i < arr.size(); ++i)
+				REQUIRE(arr[i - 1] > arr[i]);
+		}
+	}
 }
 
 template <bool IsRuntime, typename C>
-void sort_ascending(C arr) {
+void sort_ascending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	for (TValue i = 0; i < (TValue)arr.size(); ++i)
-		arr[i] = i;
-	if constexpr (IsRuntime)
-		core::sort(arr, core::is_smaller<TValue>());
-	else
-		core::sort_ct(arr, core::is_smaller<TValue>());
-	for (uint32_t i = 1; i < arr.size(); ++i)
-		REQUIRE(arr[i - 1] < arr[i]);
+	SECTION("sort1") {
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		if constexpr (IsRuntime)
+			core::sort(arr, core::is_smaller<TValue>());
+		else
+			core::sort_ct(arr, core::is_smaller<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
+	if constexpr (IsRuntime) {
+		SECTION("sort2") {
+			for (TValue i = 0; i < (TValue)arr.size(); ++i)
+				arr[i] = i;
+			core::sort(arr, core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
+				core::swap(arr[a], arr[b]);
+			});
+			for (uint32_t i = 1; i < arr.size(); ++i)
+				REQUIRE(arr[i - 1] < arr[i]);
+		}
+	}
 }
 
 TEST_CASE("Compile-time sort descending") {
@@ -5286,7 +5314,6 @@ TEST_CASE("Entity name - copy") {
 		}
 	}
 }
-
 
 TEST_CASE("Entity name - hierarchy") {
 	TestWorld twld;

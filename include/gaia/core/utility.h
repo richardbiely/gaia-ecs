@@ -832,8 +832,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename Array, typename TSortFunc>
-			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
+			template <typename Array, typename TCmpFunc>
+			constexpr void comb_sort_impl(Array& array_, TCmpFunc cmpFunc) noexcept {
 				constexpr double Factor = 1.247330950103979;
 				using size_type = typename Array::size_type;
 
@@ -845,7 +845,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (!func(array_[i], array_[i + gap])) {
+						if (!cmpFunc(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;
@@ -855,168 +855,189 @@ namespace gaia {
 				}
 			}
 
-			template <typename Container, typename TSortFunc>
-			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
-					if (func(arr[(uint32_t)j], pivot))
+					if (cmpFunc(arr[(uint32_t)j], pivot))
 						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
 				}
 				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
 				return i;
 			}
 
-			template <typename Container, typename TSortFunc>
-			void quick_sort(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				if (low >= high)
 					return;
-				auto pos = quick_sort_partition(arr, func, low, high);
-				quick_sort(arr, func, low, pos - 1);
-				quick_sort(arr, func, pos + 1, high);
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc);
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				const auto& pivot = arr[(uint32_t)high];
+				int i = low - 1;
+				for (int j = low; j <= high - 1; ++j) {
+					if (cmpFunc(arr[(uint32_t)j], pivot))
+						sortFunc((uint32_t)++i, (uint32_t)j);
+				}
+				sortFunc((uint32_t)++i, (uint32_t)high);
+				return i;
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				if (low >= high)
+					return;
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc, sortFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc, sortFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc, sortFunc);
 			}
 		} // namespace detail
 
 		//! Compile-time sort.
 		//! Implements a sorting network for \tparam N up to 8
-		template <typename Container, typename TSortFunc>
-		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
+		template <typename Container, typename TCmpFunc>
+		constexpr void sort_ct(Container& arr, TCmpFunc cmpFunc) noexcept {
 			constexpr size_t NItems = std::tuple_size<Container>::value;
 			if constexpr (NItems <= 1) {
 				return;
 			} else if constexpr (NItems == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if constexpr (NItems == 9) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[7], arr[8], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[7], arr[8], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[3], arr[6], func);
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[4], arr[7], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[4], arr[7], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[5], arr[8], func);
-				swap_if(arr[2], arr[5], func);
-				swap_if(arr[5], arr[8], func);
+				swap_if(arr[5], arr[8], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
+				swap_if(arr[5], arr[8], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[5], arr[7], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 			} else {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
-				detail::comb_sort_impl(arr, func);
+				detail::comb_sort_impl(arr, cmpFunc);
 				GAIA_MSVC_WARNING_POP()
 			}
 		}
@@ -1026,116 +1047,116 @@ namespace gaia {
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparision function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		template <typename Container, typename TCmpFunc>
-		void sort(Container& arr, TCmpFunc func) {
+		void sort(Container& arr, TCmpFunc cmpFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i) {
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						swap_if(arr[j], arr[j + 1], func);
+						swap_if(arr[j], arr[j + 1], cmpFunc);
 				}
 			} else {
 				const auto n = (int)arr.size();
-				detail::quick_sort(arr, func, 0, n - 1);
+				detail::quick_sort(arr, 0, n - 1, cmpFunc);
 			}
 		}
 
@@ -1148,117 +1169,116 @@ namespace gaia {
 		//! \tparam TCmpFunc Comparision function
 		//! \tparam TSortFunc Sorting function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		//! \param sortFunc Sorting function
 		template <typename Container, typename TCmpFunc, typename TSortFunc>
-		void sort(Container& arr, TCmpFunc func, TSortFunc sortFunc) {
+		void sort(Container& arr, TCmpFunc cmpFunc, TSortFunc sortFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 3) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 4) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 5) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 6) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 7) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 1, 5, func, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 8) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 6, 7, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 6, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
-				try_swap_if(arr, 5, 7, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 3, 7, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 4, func, sortFunc);
-				try_swap_if(arr, 3, 6, func, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i)
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						try_swap_if(arr, j, j + 1, func, sortFunc);
+						try_swap_if(arr, j, j + 1, cmpFunc, sortFunc);
 			} else {
-				GAIA_ASSERT2(false, "sort currently supports at most 32 items in the array");
-				// const int n = (int)arr.size();
-				// detail::quick_sort(arr, 0, n - 1);
+				const int n = (int)arr.size();
+				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
 			}
 		}
 

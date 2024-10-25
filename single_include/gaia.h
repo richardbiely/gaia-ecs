@@ -974,7 +974,7 @@ namespace tracy {
 
 	inline thread_local ScopeStack t_ScopeStack;
 
-	void ZoneBegin(const ___tracy_source_location_data* srcloc) {
+	inline void ZoneBegin(const ___tracy_source_location_data* srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize) {
@@ -982,14 +982,14 @@ namespace tracy {
 		}
 	}
 
-	void ZoneRTBegin(uint64_t srcloc) {
+	inline void ZoneRTBegin(uint64_t srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize)
 			stack.buffer[pos] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
 	}
 
-	void ZoneEnd() {
+	inline void ZoneEnd() {
 		auto& stack = t_ScopeStack;
 		GAIA_ASSERT(stack.count > 0);
 		const auto pos = --stack.count;
@@ -2660,8 +2660,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename Array, typename TSortFunc>
-			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
+			template <typename Array, typename TCmpFunc>
+			constexpr void comb_sort_impl(Array& array_, TCmpFunc cmpFunc) noexcept {
 				constexpr double Factor = 1.247330950103979;
 				using size_type = typename Array::size_type;
 
@@ -2673,7 +2673,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (!func(array_[i], array_[i + gap])) {
+						if (!cmpFunc(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;
@@ -2683,168 +2683,189 @@ namespace gaia {
 				}
 			}
 
-			template <typename Container, typename TSortFunc>
-			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
-					if (func(arr[(uint32_t)j], pivot))
+					if (cmpFunc(arr[(uint32_t)j], pivot))
 						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
 				}
 				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
 				return i;
 			}
 
-			template <typename Container, typename TSortFunc>
-			void quick_sort(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				if (low >= high)
 					return;
-				auto pos = quick_sort_partition(arr, func, low, high);
-				quick_sort(arr, func, low, pos - 1);
-				quick_sort(arr, func, pos + 1, high);
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc);
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				const auto& pivot = arr[(uint32_t)high];
+				int i = low - 1;
+				for (int j = low; j <= high - 1; ++j) {
+					if (cmpFunc(arr[(uint32_t)j], pivot))
+						sortFunc((uint32_t)++i, (uint32_t)j);
+				}
+				sortFunc((uint32_t)++i, (uint32_t)high);
+				return i;
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				if (low >= high)
+					return;
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc, sortFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc, sortFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc, sortFunc);
 			}
 		} // namespace detail
 
 		//! Compile-time sort.
 		//! Implements a sorting network for \tparam N up to 8
-		template <typename Container, typename TSortFunc>
-		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
+		template <typename Container, typename TCmpFunc>
+		constexpr void sort_ct(Container& arr, TCmpFunc cmpFunc) noexcept {
 			constexpr size_t NItems = std::tuple_size<Container>::value;
 			if constexpr (NItems <= 1) {
 				return;
 			} else if constexpr (NItems == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if constexpr (NItems == 9) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[7], arr[8], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[7], arr[8], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[3], arr[6], func);
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[4], arr[7], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[4], arr[7], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[5], arr[8], func);
-				swap_if(arr[2], arr[5], func);
-				swap_if(arr[5], arr[8], func);
+				swap_if(arr[5], arr[8], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
+				swap_if(arr[5], arr[8], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[5], arr[7], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 			} else {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
-				detail::comb_sort_impl(arr, func);
+				detail::comb_sort_impl(arr, cmpFunc);
 				GAIA_MSVC_WARNING_POP()
 			}
 		}
@@ -2854,116 +2875,116 @@ namespace gaia {
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparision function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		template <typename Container, typename TCmpFunc>
-		void sort(Container& arr, TCmpFunc func) {
+		void sort(Container& arr, TCmpFunc cmpFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i) {
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						swap_if(arr[j], arr[j + 1], func);
+						swap_if(arr[j], arr[j + 1], cmpFunc);
 				}
 			} else {
 				const auto n = (int)arr.size();
-				detail::quick_sort(arr, func, 0, n - 1);
+				detail::quick_sort(arr, 0, n - 1, cmpFunc);
 			}
 		}
 
@@ -2976,117 +2997,116 @@ namespace gaia {
 		//! \tparam TCmpFunc Comparision function
 		//! \tparam TSortFunc Sorting function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		//! \param sortFunc Sorting function
 		template <typename Container, typename TCmpFunc, typename TSortFunc>
-		void sort(Container& arr, TCmpFunc func, TSortFunc sortFunc) {
+		void sort(Container& arr, TCmpFunc cmpFunc, TSortFunc sortFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 3) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 4) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 5) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 6) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 7) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 1, 5, func, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 8) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 6, 7, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 6, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
-				try_swap_if(arr, 5, 7, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 3, 7, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 4, func, sortFunc);
-				try_swap_if(arr, 3, 6, func, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i)
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						try_swap_if(arr, j, j + 1, func, sortFunc);
+						try_swap_if(arr, j, j + 1, cmpFunc, sortFunc);
 			} else {
-				GAIA_ASSERT2(false, "sort currently supports at most 32 items in the array");
-				// const int n = (int)arr.size();
-				// detail::quick_sort(arr, 0, n - 1);
+				const int n = (int)arr.size();
+				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
 			}
 		}
 
@@ -4243,8 +4263,8 @@ namespace gaia {
 				return ((const ValueType*)m_data.data())[idx];
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {
@@ -4470,8 +4490,8 @@ namespace gaia {
 				return std::span(s.data(), s.size());
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {
@@ -4599,13 +4619,18 @@ namespace gaia {
 
 #ifndef GAIA_USE_MEM_SANI
 	#if defined(__has_feature)
-		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if __has_feature(address_sanitizer)
+			#define GAIA_HAS_SANI_FEATURE 1
+		#else
+			#define GAIA_HAS_SANI_FEATURE 0
+		#endif
+		#if GAIA_HAS_SANI_FEATURE || GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
 		#endif
 	#else
-		#if defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
@@ -14660,7 +14685,7 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
+			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				m_jobManager.submit(jobHandle);
 
@@ -14698,7 +14723,7 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle resubmittion (submit, update).
+					// Let the other parts of the code handle the resubmit (submit(), update()).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
 					return;
@@ -20443,6 +20468,8 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
+				//! World pointer
+				const World* m_pWorld = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -20458,9 +20485,24 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
+				void set_world(const World* pWorld) {
+					GAIA_ASSERT(pWorld != nullptr);
+					m_pWorld = pWorld;
+				}
+
+				const World* world() const {
+					GAIA_ASSERT(m_pWorld != nullptr);
+					return m_pWorld;
+				}
+
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+				}
+
+				const Chunk* chunk() const {
+					GAIA_ASSERT(m_pChunk != nullptr);
+					return m_pChunk;
 				}
 
 				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
@@ -20603,14 +20645,18 @@ namespace gaia {
 					return m_pChunk->has<T>();
 				}
 
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_enabled();
+					else if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_disabled();
+					else
+						return pChunk->size();
+				}
+
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_enabled();
-					else if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return size(m_pChunk);
 				}
 
 				//! Returns the absolute index that should be used to access an item in the chunk.
@@ -20680,8 +20726,8 @@ namespace gaia {
 /*** Start of inlined file: world.h ***/
 #pragma once
 
-#include <cstdint>
 #include <cstdarg>
+#include <cstdint>
 #include <type_traits>
 
 
@@ -22547,6 +22593,17 @@ namespace gaia {
 		bool is_base(const World& world, Entity entity);
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
+		enum class QueryExecType : uint32_t {
+			// Default - main thread
+			Default,
+			// Parallel, any core
+			Parallel,
+			// Parallel, perf cores only
+			ParallelPerf,
+			// Parallel, efficiency cores only
+			ParallelEff
+		};
+
 		namespace detail {
 			//! Query command types
 			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
@@ -22866,6 +22923,7 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				static constexpr uint32_t SchedParBatchSize = 8;
 
 				struct ChunkBatch {
 					Chunk* pChunk;
@@ -22918,6 +22976,9 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+				//! Batches used for parallel query processing
+				//! TODO: This is just temporary until a smarter system is introduced
+				cnt::darray<ChunkBatch> m_batches;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -23218,28 +23279,39 @@ namespace gaia {
 					return false;
 				}
 
-				//! Execute functors in batches
+				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing
+					return !archetype.is_req_del();
+				}
+
+				//--------------------------------------------------------------------------------
+
+				//! Execute the functor for a given chunk batch
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchArray& chunks) {
+				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
+					auto* pChunk = batch.pChunk;
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+					TIter it;
+					it.set_world(pWorld);
+					it.set_group_id(batch.groupId);
+					it.set_remapping_indices(batch.pIndicesMapping);
+					it.set_chunk(pChunk);
+					func(it);
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(false);
+#endif
+				}
+
+				//! Execute the functor in batches
+				template <typename Func, typename TIter>
+				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
-					const auto chunkCnt = chunks.size();
+					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
-
-					auto runFunc = [&](ChunkBatch& batch) {
-						auto* pChunk = batch.pChunk;
-
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(true);
-#endif
-						it.set_group_id(batch.groupId);
-						it.set_remapping_indices(batch.pIndicesMapping);
-						it.set_chunk(pChunk);
-						func(it);
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(false);
-#endif
-					};
 
 					// This is what the function is doing:
 					// for (auto *pChunk: chunks) {
@@ -23247,12 +23319,10 @@ namespace gaia {
 					//	runFunc(pChunk);
 					//  pChunk->lock(false);
 					// }
-					// chunks.clear();
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						runFunc(chunks[0]);
-						chunks.clear();
+						run_query_func<Func, TIter>(pWorld, func, batches[0]);
 						return;
 					}
 
@@ -23264,77 +23334,33 @@ namespace gaia {
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
-					gaia::prefetch(&chunks[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-					runFunc(chunks[0]);
+					gaia::prefetch(&batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+					run_query_func<Func, TIter>(pWorld, func, batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
-						gaia::prefetch(&chunks[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-						runFunc(chunks[chunkIdx]);
+						gaia::prefetch(&batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+						run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 					}
 
-					runFunc(chunks[chunkIdx]);
-
-					chunks.clear();
-				}
-
-				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
-					// Archetypes requested for deletion are skipped for processing
-					return !archetype.is_req_del();
+					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
-				void run_query(const QueryInfo& queryInfo, Func func) {
-					ChunkBatchArray chunkBatch;
-					TIter it;
+				void run_query_batch_no_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_no_group);
 
-					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+					// We are batching by chunks. Some of them might contain only few items but this state is only
+					// temporary because defragmentation runs constantly and keeps things clean.
+					ChunkBatchArray chunkBatches;
 
-					// TODO: Have archetype cache as double-linked list with pointers only.
-					//       Have chunk cache as double-linked list with pointers only.
-					//       Make it so only valid pointers are linked together.
-					//       This means one less indirection + we won't need to call can_process_archetype()
-					//       and pChunk.size()==0 here.
-					auto cache_view = queryInfo.cache_archetype_view();
-					auto cache_data_view = queryInfo.cache_data_view();
+					auto cacheView = queryInfo.cache_archetype_view();
 
-					// Determine the range of archetypes we will iterate.
-					// Use the entire range by default.
-					uint32_t idx_from = 0;
-					uint32_t idx_to = (uint32_t)cache_view.size();
-
-					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
-					if (isGroupBy && isGroupSet) {
-						// We wish to iterate only a certain group
-						auto group_data_view = queryInfo.group_data_view();
-						GAIA_EACH(group_data_view) {
-							if (group_data_view[i].groupId == queryInfo.data().groupIdSet) {
-								idx_from = group_data_view[i].idxFirst;
-								idx_to = group_data_view[i].idxLast + 1;
-								goto groupSetFound;
-							}
-						}
-						return;
-					}
-
-				groupSetFound:
-					ArchetypeCacheData dummyCacheData{};
-
-					for (uint32_t i = idx_from; i < idx_to; ++i) {
-						auto* pArchetype = cache_view[i];
-
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
-
-						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
-						GAIA_ASSERT(
-								// Either no grouping is used...
-								!isGroupBy ||
-								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
-								// ... or the groupId must match the requested one
-								cache_data_view[i].groupId == queryInfo.data().groupIdSet);
 
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
@@ -23342,13 +23368,12 @@ namespace gaia {
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
 							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								it.set_chunk(pChunk);
-								if GAIA_UNLIKELY (it.size() == 0)
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -23356,11 +23381,13 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data(), cacheData.groupId});
+								chunkBatches.push_back({pChunk, indices_view.data(), 0});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_query_func(func, it, chunkBatch);
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
+							}
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
@@ -23368,20 +23395,246 @@ namespace gaia {
 					}
 
 					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty())
-						run_query_func(func, it, chunkBatch);
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
-				template <typename TIter, typename Func>
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_no_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_no_group);
+
+					auto cacheView = queryInfo.cache_archetype_view();
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), 0});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
+					tp.wait(jobHandle);
+					m_batches.clear();
+				}
+
+				template <bool HasFilters, typename TIter, typename Func>
+				void run_query_batch_with_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_with_group);
+
+					ChunkBatchArray chunkBatches;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						const auto& data = dataView[i];
+
+						uint32_t chunkOffset = 0;
+						uint32_t itemsLeft = chunks.size();
+						while (itemsLeft > 0) {
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+							for (auto* pChunk: chunkSpan) {
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								chunkBatches.push_back({pChunk, indices_view.data(), data.groupId});
+							}
+
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
+							}
+
+							itemsLeft -= batchSize;
+							chunkOffset += batchSize;
+						}
+					}
+
+					// Take care of any leftovers not processed during run_query
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+				}
+
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_with_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_with_group);
+
+					ChunkBatchArray chunkBatch;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& data = dataView[i];
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), data.groupId});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
+					tp.wait(jobHandle);
+					m_batches.clear();
+				}
+
+				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
+				void run_query(const QueryInfo& queryInfo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query);
+
+					// TODO: Have archetype cache as double-linked list with pointers only.
+					//       Have chunk cache as double-linked list with pointers only.
+					//       Make it so only valid pointers are linked together.
+					//       This means one less indirection + we won't need to call can_process_archetype()
+					//       or pChunk.size()==0 in run_query_batch functions.
+					auto cache_view = queryInfo.cache_archetype_view();
+					if (cache_view.empty())
+						return;
+
+					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					if (!isGroupBy || !isGroupSet) {
+						// No group requested or group filtering is currently turned off
+						const auto idxFrom = 0;
+						const auto idxTo = (uint32_t)cache_view.size();
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_no_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+						else
+							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+					} else {
+						// We wish to iterate only a certain group
+						// TODO: Cache the indices so we don't have to iterate. In situations with many
+						//       groups this could save a bit of performance.
+						auto group_data_view = queryInfo.group_data_view();
+						GAIA_EACH(group_data_view) {
+							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
+								continue;
+
+							const auto idxFrom = group_data_view[i].idxFirst;
+							const auto idxTo = group_data_view[i].idxLast + 1;
+							if constexpr (ExecType != QueryExecType::Default)
+								run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							else
+								run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							return;
+						}
+					}
+				}
+
+				template <QueryExecType ExecType, typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)
-						run_query<true, TIter>(queryInfo, func);
+						run_query<true, ExecType, TIter>(queryInfo, func);
 					else
-						run_query<false, TIter>(queryInfo, func);
+						run_query<false, ExecType, TIter>(queryInfo, func);
 
 					// Update the query version with the current world's version
 					queryInfo.set_world_version(*m_worldVersion);
@@ -23411,6 +23664,69 @@ namespace gaia {
 					}
 				}
 
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(QueryInfo& queryInfo, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					// in query.
+					// Example 1:
+					//   auto q = w.query().all<MyType>(); // immutable access requested
+					//   q.each([](MyType val)) {}); // okay
+					//   q.each([](const MyType& val)) {}); // okay
+					//   q.each([](MyType& val)) {}); // error
+					// Example 2:
+					//   auto q = w.query().all<MyType&>(); // mutable access requested
+					//   q.each([](MyType val)) {}); // error
+					//   q.each([](const MyType& val)) {}); // error
+					//   q.each([](MyType& val)) {}); // okay
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						run_query_on_chunk(it, func, InputArgs{});
+					});
+				}
+
+				template <
+						QueryExecType ExecType, typename Func, bool FuncEnabled = UseCaching,
+						typename std::enable_if<FuncEnabled>::type* = nullptr>
+				void each_inter(QueryId queryId, Func func) {
+					// Make sure the query was created by World.query()
+					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+					GAIA_ASSERT(queryId != QueryIdBad);
+
+					auto& queryInfo = m_storage.m_queryCache->get(queryId);
+					each_inter(queryInfo, func);
+				}
+
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(Func func) {
+					auto& queryInfo = fetch();
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_chunks<ExecType, IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else
+						each_inter<ExecType>(queryInfo, func);
+				}
+
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					for (const auto* pArchetype: queryInfo) {
@@ -23421,6 +23737,7 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						TIter it;
+						it.set_world(queryInfo.world());
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
@@ -23441,6 +23758,7 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23477,6 +23795,7 @@ namespace gaia {
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23763,65 +24082,29 @@ namespace gaia {
 				//------------------------------------------------
 
 				template <typename Func>
-				void each(QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-#if GAIA_ASSERT_ENABLED
-					// Make sure we only use components specified in the query.
-					// Constness is respected. Therefore, if a type is const when registered to query,
-					// it has to be const (or immutable) also in each().
-					// in query.
-					// Example 1:
-					//   auto q = w.query().all<MyType>(); // immutable access requested
-					//   q.each([](MyType val)) {}); // okay
-					//   q.each([](const MyType& val)) {}); // okay
-					//   q.each([](MyType& val)) {}); // error
-					// Example 2:
-					//   auto q = w.query().all<MyType&>(); // mutable access requested
-					//   q.each([](MyType val)) {}); // error
-					//   q.each([](const MyType& val)) {}); // error
-					//   q.each([](MyType& val)) {}); // okay
-					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-#endif
-
-					run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(it, func, InputArgs{});
-					});
+				void each(Func func) {
+					each_inter<QueryExecType::Default, Func>(func);
 				}
 
 				template <typename Func>
-				void each(Func func) {
-					auto& queryInfo = fetch();
-
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						run_query_on_chunks<IterDisabled>(queryInfo, [&](IterDisabled& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else
-						each(queryInfo, func);
+				void each(Func func, QueryExecType execType) {
+					switch (execType) {
+						case QueryExecType::Parallel:
+							each_inter<QueryExecType::Parallel, Func>(func);
+							break;
+						case QueryExecType::ParallelPerf:
+							each_inter<QueryExecType::ParallelPerf, Func>(func);
+							break;
+						case QueryExecType::ParallelEff:
+							each_inter<QueryExecType::ParallelEff, Func>(func);
+							break;
+						default:
+							each_inter<QueryExecType::Default, Func>(func);
+							break;
+					}
 				}
 
-				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
-				void each(QueryId queryId, Func func) {
-					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
-					GAIA_ASSERT(queryId != QueryIdBad);
-
-					auto& queryInfo = m_storage.m_queryCache->get(queryId);
-					each(queryInfo, func);
-				}
+				//------------------------------------------------
 
 				//!	Returns true or false depending on whether there are any entities matching the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
@@ -25329,7 +25612,8 @@ namespace gaia {
 
 				// If no length was given, we have to find it ourselves
 				if (len == 0) {
-					while (name[len] != '\0') ++len;
+					while (name[len] != '\0')
+						++len;
 				}
 				std::span<const char> str(name, len);
 
@@ -25338,6 +25622,9 @@ namespace gaia {
 					posDot = core::get_index(str, '.');
 					if (posDot == BadIndex)
 						return name_to_entity(str);
+
+					if (posDot == 0)
+						return EntityBad;
 
 					parent = name_to_entity(str.subspan(0, posDot));
 					if (parent == EntityBad)
@@ -25359,6 +25646,9 @@ namespace gaia {
 
 						return child;
 					}
+
+					if (posDot == 0)
+						return EntityBad;
 
 					// B) More dots in the string
 					child = name_to_entity(str.subspan(0, posDot));
@@ -27540,9 +27830,9 @@ namespace gaia {
 
 				// Make sure the name does not contain a dot because this character is reserved for
 				// hierarchical lookups, e.g. "parent.child.subchild".
-				#ifdef GAIA_ASSERT_ENABLED
+#ifdef GAIA_ASSERT_ENABLED
 				{
-					const char *pName = name;
+					const char* pName = name;
 					while (*pName != '\0') {
 						const bool hasInvalidCharacter = *pName == '.';
 						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
@@ -27551,7 +27841,7 @@ namespace gaia {
 						++pName;
 					}
 				}
-				#endif
+#endif
 
 				// Make sure EntityDesc is added
 				add<EntityDesc>(entity);
@@ -28056,6 +28346,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 
+	#if GAIA_PROFILER_CPU
+		inline constexpr const char* sc_query_func_str = "System2_exec";
+	#endif
+
 		struct System2_ {
 			using TSystemIterFunc = std::function<void(Iter&)>;
 
@@ -28065,10 +28359,32 @@ namespace gaia {
 			TSystemIterFunc on_each_func;
 			//! Query associated with the system
 			Query query;
+			//! Execution type
+			QueryExecType execType;
 
 			void exec() {
 				auto& queryInfo = query.fetch();
-				query.run_query_on_chunks<Iter>(queryInfo, on_each_func);
+
+	#if GAIA_PROFILER_CPU
+				const char* pName = queryInfo.world()->name(entity);
+				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
+				GAIA_PROF_SCOPE2(pScopeName);
+	#endif
+
+				switch (execType) {
+					case QueryExecType::Parallel:
+						query.run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelPerf:
+						query.run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelEff:
+						query.run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, on_each_func);
+						break;
+					default:
+						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
+						break;
+				}
 			}
 		};
 
@@ -28090,6 +28406,7 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
+			QueryExecType m_execType;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
@@ -28129,14 +28446,19 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& mode(QueryExecType type) {
+				m_execType = type;
+				return *this;
+			}
+
 			template <typename Func>
 			SystemBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = data();
+				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
 						func(it);
 					};
 				} else {
@@ -28150,13 +28472,12 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [&w = m_world, e = m_entity, func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
+					ctx.on_each_func = [e = m_entity, func](Iter& it) {
 						// NOTE: We can't directly use data().query here because the function relies
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
 						//       They are then used to get to the query stored inside System2_.
-						auto ss = w.acc_mut(e);
+						auto ss = const_cast<World*>(it.world())->acc_mut(e);
 						auto& sys = ss.smut<System2_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};

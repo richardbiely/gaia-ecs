@@ -15,7 +15,7 @@
 
 include(CheckCXXSourceCompiles)
 
-set(USE_SANITIZER
+set(GAIA_USE_SANITIZER
   ""
   CACHE
   STRING
@@ -41,7 +41,7 @@ function(test_san_flags return_var flags)
   set(CMAKE_REQUIRED_QUIET "${QUIET_BACKUP}")
 endfunction()
 
-if(USE_SANITIZER)
+if(GAIA_USE_SANITIZER)
   append("-fno-omit-frame-pointer" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
 
   unset(SANITIZER_SELECTED_FLAGS)
@@ -51,7 +51,7 @@ if(USE_SANITIZER)
       append("-O1" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
     endif()
 
-    if(USE_SANITIZER MATCHES "([Aa]ddress)")
+    if(GAIA_USE_SANITIZER MATCHES "([Aa]ddress)")
       # Optional: -fno-optimize-sibling-calls -fsanitize-address-use-after-scope
       message(STATUS "Testing with Address sanitizer")
       set(SANITIZER_ADDR_FLAG "-fsanitize=address")
@@ -83,11 +83,11 @@ if(USE_SANITIZER)
       endif()
     endif()
 
-    if(USE_SANITIZER MATCHES "([Mm]emory([Ww]ith[Oo]rigins)?)")
+    if(GAIA_USE_SANITIZER MATCHES "([Mm]emory([Ww]ith[Oo]rigins)?)")
       # Optional: -fno-optimize-sibling-calls -fsanitize-memory-track-origins=2
       set(SANITIZER_MEM_FLAG "-fsanitize=memory")
 
-      if(USE_SANITIZER MATCHES "([Mm]emory[Ww]ith[Oo]rigins)")
+      if(GAIA_USE_SANITIZER MATCHES "([Mm]emory[Ww]ith[Oo]rigins)")
         message(STATUS "Testing with MemoryWithOrigins sanitizer")
         append("-fsanitize-memory-track-origins" SANITIZER_MEM_FLAG)
       else()
@@ -97,7 +97,7 @@ if(USE_SANITIZER)
       test_san_flags(SANITIZER_MEM_AVAILABLE ${SANITIZER_MEM_FLAG})
 
       if(SANITIZER_MEM_AVAILABLE)
-        if(USE_SANITIZER MATCHES "([Mm]emory[Ww]ith[Oo]rigins)")
+        if(GAIA_USE_SANITIZER MATCHES "([Mm]emory[Ww]ith[Oo]rigins)")
           message(STATUS "  Building with MemoryWithOrigins sanitizer")
         else()
           message(STATUS "  Building with Memory sanitizer")
@@ -109,7 +109,7 @@ if(USE_SANITIZER)
       endif()
     endif()
 
-    if(USE_SANITIZER MATCHES "([Uu]ndefined)")
+    if(GAIA_USE_SANITIZER MATCHES "([Uu]ndefined)")
       message(STATUS "Testing with Undefined Behaviour sanitizer")
       set(SANITIZER_UB_FLAG "-fsanitize=undefined")
 
@@ -127,7 +127,7 @@ if(USE_SANITIZER)
       endif()
     endif()
 
-    if(USE_SANITIZER MATCHES "([Tt]hread)")
+    if(GAIA_USE_SANITIZER MATCHES "([Tt]hread)")
       message(STATUS "Testing with Thread sanitizer")
       set(SANITIZER_THREAD_FLAG "-fsanitize=thread")
       test_san_flags(SANITIZER_THREAD_AVAILABLE ${SANITIZER_THREAD_FLAG})
@@ -140,7 +140,7 @@ if(USE_SANITIZER)
       endif()
     endif()
 
-    if(USE_SANITIZER MATCHES "([Ll]eak)")
+    if(GAIA_USE_SANITIZER MATCHES "([Ll]eak)")
       message(STATUS "Testing with Leak sanitizer")
       set(SANITIZER_LEAK_FLAG "-fsanitize=leak")
       test_san_flags(SANITIZER_LEAK_AVAILABLE ${SANITIZER_LEAK_FLAG})
@@ -163,16 +163,16 @@ if(USE_SANITIZER)
       message(FATAL_ERROR " Sanitizer flags ${SANITIZER_SELECTED_FLAGS} are not compatible.")
     endif()
   elseif(MSVC)
-    if(USE_SANITIZER MATCHES "([Aa]ddress)")
+    if(GAIA_USE_SANITIZER MATCHES "([Aa]ddress)")
       message(STATUS "Building with Address sanitizer")
       append("-fsanitize=address" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
     else()
       message(
         FATAL_ERROR
-        "This sanitizer not yet supported in the MSVC environment: ${USE_SANITIZER}"
+        "This sanitizer not yet supported in the MSVC environment: ${GAIA_USE_SANITIZER}"
       )
     endif()
   else()
-    message(FATAL_ERROR "USE_SANITIZER is not supported on this platform.")
+    message(FATAL_ERROR "GAIA_USE_SANITIZER is not supported on this platform.")
   endif()
 endif()

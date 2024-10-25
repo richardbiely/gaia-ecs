@@ -200,7 +200,7 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
+			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				m_jobManager.submit(jobHandle);
 
@@ -238,7 +238,7 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle resubmittion (submit, update).
+					// Let the other parts of the code handle the resubmit (submit(), update()).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
 					return;

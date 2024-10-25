@@ -174,8 +174,8 @@ namespace gaia {
 				return ((const ValueType*)m_data.data())[idx];
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {
@@ -401,8 +401,8 @@ namespace gaia {
 				return std::span(s.data(), s.size());
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {

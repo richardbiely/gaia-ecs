@@ -1856,13 +1856,13 @@ Parameter | Description
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
-**USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
+**GAIA_USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, that some options don't work together or might not be supported by all compilers.
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
+cmake -DCMAKE_BUILD_TYPE=Release -DGAIA_USE_SANITIZER=address -S . -B "build"
 ```
 
 ### Single-header
