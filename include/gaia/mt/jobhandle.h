@@ -47,6 +47,9 @@ namespace gaia {
 				data.gen = gen;
 				data.prio = prio;
 			}
+			explicit JobHandle(uint32_t value) {
+				val = value;
+			}
 			~JobHandle() = default;
 
 			JobHandle(JobHandle&&) noexcept = default;

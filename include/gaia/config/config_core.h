@@ -4,6 +4,7 @@
 	#include <version.h>
 #endif
 #include <cstdint>
+#include <new>
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE

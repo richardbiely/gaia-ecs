@@ -1,4 +1,8 @@
+#include <chrono>
 #include <gaia.h>
+#include <gaia/external/random.h>
+#include <thread>
+#include <type_traits>
 
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
@@ -7536,6 +7540,172 @@ TEST_CASE("Serialization - arrays") {
 //------------------------------------------------------------------------------
 // Multithreading
 //------------------------------------------------------------------------------
+
+template <typename TQueue>
+void TestJobQueue() {
+	mt::JobHandle handle;
+	TQueue q;
+
+	constexpr bool reverse = std::is_same_v<TQueue, mt::JobQueue>;
+
+	{
+		q.try_push(mt::JobHandle(1, 0, 0));
+		q.try_push(mt::JobHandle(2, 0, 0));
+
+		auto res = q.try_pop(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+	}
+
+	{
+		q.try_push(mt::JobHandle(1, 0, 0));
+		q.try_push(mt::JobHandle(2, 0, 0));
+
+		auto res = q.try_steal(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_steal(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_steal(handle);
+		REQUIRE_FALSE(res);
+	}
+}
+
+constexpr uint32_t JobQueueMTTesterItems = 500;
+
+template <typename TQueue>
+struct JobQueueMTTester {
+	TQueue* q;
+	bool* terminate;
+	uint32_t thread_idx;
+
+	std::thread t;
+	uint32_t processed = 0;
+
+	JobQueueMTTester(TQueue* q_, bool* terminate_, uint32_t idx): q(q_), terminate(terminate_), thread_idx(idx) {}
+	JobQueueMTTester() = default;
+
+	void init() {
+		processed = 0;
+		t = std::thread([this]() {
+			run();
+		});
+	}
+
+	void fini() {
+		if (t.joinable())
+			t.join();
+	}
+
+	void run() {
+		mt::JobHandle handle;
+
+		if (0 == thread_idx) {
+			rnd::random_xoshiro128 rng{};
+			uint32_t itemsToInsert = JobQueueMTTesterItems;
+
+			// This thread generates 2 items per tick and consumes one
+			while (itemsToInsert > 0) {
+				// Keep inserting items
+				if (!q->try_push(mt::JobHandle(itemsToInsert, 0, 0))) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				--itemsToInsert;
+
+				if (rng.range(0, 1) == 0)
+					std::this_thread::yield();
+
+				if (!q->try_pop(handle))
+					std::this_thread::yield();
+				else
+					++processed;
+			}
+
+			// Make sure all items are consumed
+			while (!q->empty())
+				std::this_thread::yield();
+			*terminate = true;
+		} else {
+			while (!*terminate) {
+				// Other threads steal work
+				if (!q->try_steal(handle)) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				++processed;
+			}
+		}
+	}
+};
+
+template <typename TQueue>
+void TestJobQueueMT(uint32_t threadCnt) {
+	REQUIRE(threadCnt > 1);
+
+	TQueue q;
+	bool terminate = false;
+	cnt::darray<JobQueueMTTester<TQueue>> testers;
+	GAIA_FOR(threadCnt) testers.push_back(JobQueueMTTester(&q, &terminate, i));
+
+	GAIA_FOR_(100, j) {
+		GAIA_FOR(threadCnt) testers[i].init();
+		GAIA_FOR(threadCnt) testers[i].fini();
+		uint32_t total = 0;
+		GAIA_FOR(threadCnt) {
+			GAIA_LOG_N("worker:%u, processed:%u", i, testers[i].processed);
+			total += testers[i].processed;
+		}
+		REQUIRE(total == JobQueueMTTesterItems);
+		terminate = false;
+	}
+}
+
+TEST_CASE("JobQueue") {
+	SECTION("Basic") {
+		TestJobQueue<mt::JobQueue>();
+		TestJobQueue<mt::JobQueueLockFree>();
+	}
+
+	SECTION("MT - 2 threads") {
+		TestJobQueueMT<mt::JobQueue>(2);
+		TestJobQueueMT<mt::JobQueueLockFree>(2);
+	}
+
+	SECTION("MT - 4 threads") {
+		TestJobQueueMT<mt::JobQueue>(4);
+		TestJobQueueMT<mt::JobQueueLockFree>(4);
+	}
+
+	SECTION("MT - 16 threads") {
+		TestJobQueueMT<mt::JobQueue>(16);
+		TestJobQueueMT<mt::JobQueueLockFree>(16);
+	}
+}
 
 static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;

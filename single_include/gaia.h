@@ -9,6 +9,7 @@
 	#include <version.h>
 #endif
 #include <cstdint>
+#include <new>
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
@@ -14014,6 +14015,9 @@ namespace gaia {
 				data.gen = gen;
 				data.prio = prio;
 			}
+			explicit JobHandle(uint32_t value) {
+				val = value;
+			}
 			~JobHandle() = default;
 
 			JobHandle(JobHandle&&) noexcept = default;
@@ -14397,55 +14401,37 @@ namespace gaia {
 /*** Start of inlined file: jobqueue.h ***/
 #pragma once
 
-#define JOB_QUEUE_USE_LOCKS 1
-#if JOB_QUEUE_USE_LOCKS
-
-	#include <mutex>
-#endif
+#include <mutex>
 
 namespace gaia {
 	namespace mt {
 		class JobQueue {
 			//! The maximum number of jobs fitting in the queue at the same time
 			static constexpr uint32_t N = 1 << 12;
-#if !JOB_QUEUE_USE_LOCKS
-			static constexpr uint32_t MASK = N - 1;
-#endif
 
-#if JOB_QUEUE_USE_LOCKS
 			GAIA_PROF_MUTEX(std::mutex, m_bufferLock);
 			cnt::sringbuffer<JobHandle, N> m_buffer;
-#else
-			cnt::sarray<JobHandle, N> m_buffer;
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom{};
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top{};
-#endif
 
 		public:
+			//! Checks if there are any items in the queue.
+			//! \return True if the queue is empty. False otherwise.
+			bool empty() {
+				GAIA_PROF_SCOPE(JobQueue::empty);
+
+				std::scoped_lock lock(m_bufferLock);
+				return m_buffer.empty();
+			}
+
 			//! Tries adding a job to the queue. FIFO.
 			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_push);
 
-#if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
+
 				m_buffer.push_back(jobHandle);
-#else
-				const uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				if (b >= m_buffer.size())
-					return false;
-
-				m_buffer[b & MASK] = jobHandle;
-
-				// Make sure the handle is written before we update the bottom
-				std::atomic_thread_fence(std::memory_order_release);
-
-				m_bottom.store(b + 1, std::memory_order_release);
-#endif
-
 				return true;
 			}
 
@@ -14454,49 +14440,11 @@ namespace gaia {
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
-#if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
 				m_buffer.pop_front(jobHandle);
-#else
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
-				if (b > 0) {
-					b = b - 1;
-					m_bottom.store(b, std::memory_order_release);
-				}
-
-				std::atomic_thread_fence(std::memory_order_release);
-
-				uint32_t t = m_top.load(std::memory_order_acquire);
-
-				// Queue already empty
-				if (t > b) {
-					m_bottom.store(t, std::memory_order_release);
-					return false;
-				}
-
-				jobHandle = m_buffer[b & MASK];
-
-				// The last item in the queue
-				if (t == b) {
-					if (t == 0) {
-						return false; // Queue is empty, nothing to pop
-					}
-					// Should multiple thread fight for the last item the atomic
-					// CAS ensures this last item is extracted only once.
-
-					uint32_t expectedTop = t;
-					const uint32_t nextTop = t + 1;
-					const uint32_t desiredTop = nextTop;
-
-					bool ret = m_top.compare_exchange_strong(expectedTop, desiredTop, std::memory_order_acq_rel);
-					m_bottom.store(nextTop, std::memory_order_release);
-					return ret;
-				}
-#endif
-
 				return true;
 			}
 
@@ -14505,33 +14453,118 @@ namespace gaia {
 			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_steal);
 
-#if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
 				m_buffer.pop_back(jobHandle);
-#else
-				uint32_t t = m_top.load(std::memory_order_acquire);
+				return true;
+			}
+		};
 
+		class JobQueueLockFree {
+			//! The maximum number of jobs fitting in the queue at the same time
+			static constexpr uint32_t N = 1 << 12;
+			static constexpr uint32_t MASK = N - 1;
+
+			// Lock-less version is inspired heavily by:
+			// http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
+
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom = 0;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top = 0;
+
+			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
+			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
+
+		public:
+			//! Checks if there are any items in the queue.
+			//! \return True if the queue is empty. False otherwise.
+			bool empty() const {
+				GAIA_PROF_SCOPE(JobQueue::empty);
+
+				const uint32_t b = m_bottom.load(std::memory_order_acquire);
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+				return (t >= b);
+			}
+
+			//! Tries adding a job to the queue. FIFO.
+			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
+			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_push);
+
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+
+				if (b - t > MASK)
+					return false;
+
+				m_buffer[b & MASK].store(jobHandle.value(), std::memory_order_relaxed);
+
+				// Make sure the handle is written before we update the bottom
 				std::atomic_thread_fence(std::memory_order_release);
 
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				// Return false when empty
-				if (t >= b)
-					return false;
-
-				jobHandle = m_buffer[t & MASK];
-
-				const uint32_t tNext = t + 1;
-				uint32_t tDesired = tNext;
-				// We fail if concurrent pop()/steal() operation changed the current top
-				if (!m_top.compare_exchange_weak(t, tDesired, std::memory_order_acq_rel))
-					return false;
-#endif
-
+				m_bottom.store(b + 1, std::memory_order_relaxed);
 				return true;
+			}
+
+			//! Tries retrieving a job to the queue. FIFO.
+			//! \return True if the job was retrieved. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_pop);
+
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed) - 1;
+				m_bottom.store(b, std::memory_order_relaxed);
+
+				std::atomic_thread_fence(std::memory_order_seq_cst);
+
+				uint32_t jobHandleValue = ((JobHandle)JobNull_t{}).value();
+
+				uint32_t t = m_top.load(std::memory_order_relaxed);
+				if (t <= b) {
+					// non-empty queue
+					jobHandleValue = m_buffer[b & MASK].load(std::memory_order_relaxed);
+
+					if (t == b) {
+						// last element in the queue
+						const bool ret =
+								m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
+						m_bottom.store(b + 1, std::memory_order_relaxed);
+						jobHandle = JobHandle(jobHandleValue);
+						return ret; // false = failed race, don't use jobHandle; true = found a result
+					}
+				} else {
+					// empty queue
+					m_bottom.store(b + 1, std::memory_order_relaxed);
+					return false; // false = empty, don't use jobHandle
+				}
+
+				jobHandle = JobHandle(jobHandleValue);
+
+				// Make sure an invalid handle is not returned for true
+				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
+
+				return true; // true = found a result
+			}
+
+			//! Tries stealing a job from the queue. LIFO.
+			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_steal);
+
+				uint32_t t = m_top.load(std::memory_order_acquire);
+
+				std::atomic_thread_fence(std::memory_order_seq_cst);
+
+				const uint32_t b = m_bottom.load(std::memory_order_acquire);
+				if (t >= b)
+					return false; // false = empty, don't use jobHandle
+
+				uint32_t jobHandleValue = m_buffer[t & MASK].load(std::memory_order_relaxed);
+
+				// We fail if concurrent pop()/steal() operation changed the current top
+				const bool ret = m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
+				jobHandle = JobHandle(jobHandleValue);
+				return ret; // false = failed race, don't use jobHandle; true = found a result
 			}
 		};
 	} // namespace mt
@@ -22254,9 +22287,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD World* world() {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return const_cast<World*>(m_ctx.w);
 			}
 			GAIA_NODISCARD const World* world() const {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return m_ctx.w;
 			}
 
@@ -28369,6 +28404,7 @@ namespace gaia {
 
 	#if GAIA_PROFILER_CPU
 		inline constexpr const char* sc_query_func_str = "System2_exec";
+		const char* entity_name(const World& world, Entity entity);
 	#endif
 
 		struct System2_ {
@@ -28387,7 +28423,7 @@ namespace gaia {
 				auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
-				const char* pName = queryInfo.world()->name(entity);
+				const char* pName = entity_name(*queryInfo.world(), entity);
 				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
