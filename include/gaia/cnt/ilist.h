@@ -116,6 +116,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
@@ -145,6 +146,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem(itemCnt, 0U));
