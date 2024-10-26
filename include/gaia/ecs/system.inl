@@ -21,6 +21,7 @@ namespace gaia {
 
 	#if GAIA_PROFILER_CPU
 		inline constexpr const char* sc_query_func_str = "System2_exec";
+		const char* entity_name(const World& world, Entity entity);
 	#endif
 
 		struct System2_ {
@@ -39,7 +40,7 @@ namespace gaia {
 				auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
-				const char* pName = queryInfo.world()->name(entity);
+				const char* pName = entity_name(*queryInfo.world(), entity);
 				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
