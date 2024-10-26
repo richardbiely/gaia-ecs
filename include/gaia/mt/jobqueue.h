@@ -28,8 +28,8 @@ namespace gaia {
 			cnt::sringbuffer<JobHandle, N> m_buffer;
 #else
 			cnt::sarray<JobHandle, N> m_buffer;
-			std::atomic_uint32_t m_bottom{};
-			std::atomic_uint32_t m_top{};
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom{};
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top{};
 #endif
 
 		public:

@@ -259,6 +259,25 @@ namespace gaia {
 	#define GAIA_ALIGNAS(alignment) alignas(alignment)
 #endif
 
+#ifndef GAIA_CACHELINE_SIZE
+	#ifdef __cpp_lib_hardware_interference_size
+		#define GAIA_CACHELINE_SIZE std::hardware_constructive_interference_size
+	#elif defined(__GCC_DESTRUCTIVE_SIZE)
+		#define GAIA_CACHELINE_SIZE __GCC_DESTRUCTIVE_SIZE
+	#else
+		#if GAIA_ARCH == GAIA_ARCH_ARM
+	// For ARM cache line sizes are not strict as they depend on implementation,
+	// not architecture. They usually have 64 or 128 byte long cache lines. We pick
+	// the longer one but feel free to use one that suits your needs better.
+	// E.g. you can define the value before you include gaia.h or define the macro
+	// per-project in your build system per target architecture.
+			#define GAIA_CACHELINE_SIZE 128
+		#else
+			#define GAIA_CACHELINE_SIZE 64
+		#endif
+	#endif
+#endif
+
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
@@ -349,21 +368,21 @@ namespace gaia {
 //! \warning Little-endian format.
 	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
 	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
 	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
 #else
 	//! Returns the number of set bits in \param x
@@ -399,7 +418,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CLZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -422,7 +441,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CTZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -445,7 +464,7 @@ namespace gaia {
 			return index + 1;                                                                                                \
 		}(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_FFS64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -574,10 +593,10 @@ namespace gaia {
 #endif
 
 namespace gaia {
-// The dont_optimize(...) function can be used to prevent a value or
-// expression from being optimized away by the compiler. This function is
-// intended to add little to no overhead.
-// See: https://youtu.be/nXaxk27zwlk?t=2441
+	// The dont_optimize(...) function can be used to prevent a value or
+	// expression from being optimized away by the compiler. This function is
+	// intended to add little to no overhead.
+	// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 	template <class T>
 	inline void dont_optimize(T const& value) {
@@ -7913,6 +7932,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
@@ -7942,6 +7962,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem(itemCnt, 0U));
@@ -14396,8 +14417,8 @@ namespace gaia {
 			cnt::sringbuffer<JobHandle, N> m_buffer;
 #else
 			cnt::sarray<JobHandle, N> m_buffer;
-			std::atomic_uint32_t m_bottom{};
-			std::atomic_uint32_t m_top{};
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom{};
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top{};
 #endif
 
 		public:
