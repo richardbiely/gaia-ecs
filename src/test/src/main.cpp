@@ -1,4 +1,3 @@
-#include <chrono>
 #include <gaia.h>
 #include <gaia/external/random.h>
 #include <thread>
@@ -7542,11 +7541,70 @@ TEST_CASE("Serialization - arrays") {
 //------------------------------------------------------------------------------
 
 template <typename TQueue>
-void TestJobQueue() {
+void TestJobQueue_PushPopSteal(bool reverse) {
 	mt::JobHandle handle;
 	TQueue q;
 
-	constexpr bool reverse = std::is_same_v<TQueue, mt::JobQueue>;
+	{
+		REQUIRE(q.empty());
+		q.try_push(mt::JobHandle(1, 0, 0));
+		REQUIRE_FALSE(q.empty());
+		q.try_push(mt::JobHandle(2, 0, 0));
+		REQUIRE_FALSE(q.empty());
+
+		auto res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
+
+	{
+		q.try_push(mt::JobHandle(1, 0, 0));
+		REQUIRE_FALSE(q.empty());
+		q.try_push(mt::JobHandle(2, 0, 0));
+		REQUIRE_FALSE(q.empty());
+
+		auto res = q.try_steal(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_steal(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_steal(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
+}
+
+template <typename TQueue>
+void TestJobQueue_PushPop(bool reverse) {
+	mt::JobHandle handle;
+	TQueue q;
 
 	{
 		q.try_push(mt::JobHandle(1, 0, 0));
@@ -7569,34 +7627,14 @@ void TestJobQueue() {
 		res = q.try_pop(handle);
 		REQUIRE_FALSE(res);
 	}
-
-	{
-		q.try_push(mt::JobHandle(1, 0, 0));
-		q.try_push(mt::JobHandle(2, 0, 0));
-
-		auto res = q.try_steal(handle);
-		REQUIRE(res);
-		if (reverse)
-			REQUIRE(handle.id() == 2);
-		else
-			REQUIRE(handle.id() == 1);
-
-		res = q.try_steal(handle);
-		REQUIRE(res);
-		if (reverse)
-			REQUIRE(handle.id() == 1);
-		else
-			REQUIRE(handle.id() == 2);
-
-		res = q.try_steal(handle);
-		REQUIRE_FALSE(res);
-	}
 }
 
 constexpr uint32_t JobQueueMTTesterItems = 500;
 
 template <typename TQueue>
-struct JobQueueMTTester {
+struct JobQueueMTTester_PushPopSteal {
+	using QueueType = TQueue;
+
 	TQueue* q;
 	bool* terminate;
 	uint32_t thread_idx;
@@ -7604,8 +7642,9 @@ struct JobQueueMTTester {
 	std::thread t;
 	uint32_t processed = 0;
 
-	JobQueueMTTester(TQueue* q_, bool* terminate_, uint32_t idx): q(q_), terminate(terminate_), thread_idx(idx) {}
-	JobQueueMTTester() = default;
+	JobQueueMTTester_PushPopSteal(TQueue* q_, bool* terminate_, uint32_t idx):
+			q(q_), terminate(terminate_), thread_idx(idx) {}
+	JobQueueMTTester_PushPopSteal() = default;
 
 	void init() {
 		processed = 0;
@@ -7664,20 +7703,90 @@ struct JobQueueMTTester {
 };
 
 template <typename TQueue>
+struct JobQueueMTTester_PushPop {
+	using QueueType = TQueue;
+
+	TQueue* q;
+	bool* terminate;
+	uint32_t thread_idx;
+
+	std::thread t;
+	uint32_t processed = 0;
+
+	JobQueueMTTester_PushPop(TQueue* q_, bool* terminate_, uint32_t idx): q(q_), terminate(terminate_), thread_idx(idx) {}
+	JobQueueMTTester_PushPop() = default;
+
+	void init() {
+		processed = 0;
+		t = std::thread([this]() {
+			run();
+		});
+	}
+
+	void fini() {
+		if (t.joinable())
+			t.join();
+	}
+
+	void run() {
+		mt::JobHandle handle;
+
+		if (0 == thread_idx) {
+			rnd::random_xoshiro128 rng{};
+			uint32_t itemsToInsert = JobQueueMTTesterItems;
+
+			// This thread generates 2 items per tick and consumes one
+			while (itemsToInsert > 0) {
+				// Keep inserting items
+				if (!q->try_push(mt::JobHandle(itemsToInsert, 0, 0))) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				--itemsToInsert;
+
+				if (rng.range(0, 1) == 0)
+					std::this_thread::yield();
+
+				if (!q->try_pop(handle))
+					std::this_thread::yield();
+				else
+					++processed;
+			}
+
+			// Make sure all items are consumed
+			while (!q->empty())
+				std::this_thread::yield();
+			*terminate = true;
+		} else {
+			while (!*terminate) {
+				// Other threads steal work
+				if (!q->try_pop(handle)) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				++processed;
+			}
+		}
+	}
+};
+
+template <typename TTestType>
 void TestJobQueueMT(uint32_t threadCnt) {
 	REQUIRE(threadCnt > 1);
 
-	TQueue q;
+	typename TTestType::QueueType q;
 	bool terminate = false;
-	cnt::darray<JobQueueMTTester<TQueue>> testers;
-	GAIA_FOR(threadCnt) testers.push_back(JobQueueMTTester(&q, &terminate, i));
+	cnt::darray<TTestType> testers;
+	GAIA_FOR(threadCnt) testers.push_back(TTestType(&q, &terminate, i));
 
 	GAIA_FOR_(100, j) {
 		GAIA_FOR(threadCnt) testers[i].init();
 		GAIA_FOR(threadCnt) testers[i].fini();
 		uint32_t total = 0;
 		GAIA_FOR(threadCnt) {
-			GAIA_LOG_N("worker:%u, processed:%u", i, testers[i].processed);
+			// GAIA_LOG_N("worker:%u, processed:%u", i, testers[i].processed);
 			total += testers[i].processed;
 		}
 		REQUIRE(total == JobQueueMTTesterItems);
@@ -7686,24 +7795,36 @@ void TestJobQueueMT(uint32_t threadCnt) {
 }
 
 TEST_CASE("JobQueue") {
+	using jc = mt::JobQueue<1024>;
+	using jclf = mt::JobQueueLockFree<1024>;
+	using mpmc = mt::MpmcQueue<mt::JobHandle, 1024>;
+
 	SECTION("Basic") {
-		TestJobQueue<mt::JobQueue>();
-		TestJobQueue<mt::JobQueueLockFree>();
+		TestJobQueue_PushPopSteal<jc>(true);
+		TestJobQueue_PushPopSteal<jclf>(false);
+		TestJobQueue_PushPop<mpmc>(true);
 	}
 
+	using mttester_jc = JobQueueMTTester_PushPopSteal<jc>;
+	using mttester_jclf = JobQueueMTTester_PushPopSteal<jclf>;
+	using mttester_mpmc = JobQueueMTTester_PushPop<mpmc>;
+
 	SECTION("MT - 2 threads") {
-		TestJobQueueMT<mt::JobQueue>(2);
-		TestJobQueueMT<mt::JobQueueLockFree>(2);
+		TestJobQueueMT<mttester_jc>(2);
+		TestJobQueueMT<mttester_jclf>(2);
+		TestJobQueueMT<mttester_mpmc>(2);
 	}
 
 	SECTION("MT - 4 threads") {
-		TestJobQueueMT<mt::JobQueue>(4);
-		TestJobQueueMT<mt::JobQueueLockFree>(4);
+		TestJobQueueMT<mttester_jc>(4);
+		TestJobQueueMT<mttester_jclf>(4);
+		TestJobQueueMT<mttester_mpmc>(4);
 	}
 
 	SECTION("MT - 16 threads") {
-		TestJobQueueMT<mt::JobQueue>(16);
-		TestJobQueueMT<mt::JobQueueLockFree>(16);
+		TestJobQueueMT<mttester_jc>(16);
+		TestJobQueueMT<mttester_jclf>(16);
+		TestJobQueueMT<mttester_mpmc>(16);
 	}
 }
 

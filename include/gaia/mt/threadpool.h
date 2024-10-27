@@ -70,7 +70,7 @@ namespace gaia {
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
 			//! Array of pending user jobs
-			JobQueue m_jobQueue[JobPriorityCnt];
+			JobQueue<1024> m_jobQueue[JobPriorityCnt];
 
 		private:
 			ThreadPool() {
