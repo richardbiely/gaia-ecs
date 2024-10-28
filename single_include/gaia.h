@@ -14363,7 +14363,7 @@ namespace gaia {
 				if (dependsOnSpan.empty())
 					return;
 
-				GAIA_PROF_SCOPE(JobManager::dep);
+				GAIA_PROF_SCOPE(JobManager::depMany);
 
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(!busy(jobHandle));
@@ -23581,7 +23581,7 @@ namespace gaia {
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_no_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
-					GAIA_PROF_SCOPE(query::run_query_no_group);
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					// We are batching by chunks. Some of them might contain only few items but this state is only
 					// temporary because defragmentation runs constantly and keeps things clean.
@@ -23635,7 +23635,7 @@ namespace gaia {
 				void run_query_batch_no_group_id_par(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					static_assert(ExecType != QueryExecType::Default);
-					GAIA_PROF_SCOPE(query::run_query_no_group);
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
 
@@ -23682,7 +23682,7 @@ namespace gaia {
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_with_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
-					GAIA_PROF_SCOPE(query::run_query_with_group);
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id);
 
 					ChunkBatchArray chunkBatches;
 
@@ -23751,7 +23751,7 @@ namespace gaia {
 				void run_query_batch_with_group_id_par(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					static_assert(ExecType != QueryExecType::Default);
-					GAIA_PROF_SCOPE(query::run_query_with_group);
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id_par);
 
 					ChunkBatchArray chunkBatch;
 

@@ -286,7 +286,7 @@ namespace gaia {
 				if (dependsOnSpan.empty())
 					return;
 
-				GAIA_PROF_SCOPE(JobManager::dep);
+				GAIA_PROF_SCOPE(JobManager::depMany);
 
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(!busy(jobHandle));
