@@ -13935,7 +13935,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		enum JobPriority : uint32_t {
+		enum class JobPriority : uint32_t {
 			//! High priority job. If available it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
@@ -14091,26 +14091,40 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		enum class JobInternalState : uint32_t {
-			//! No scheduled
-			Idle = 0,
-			//! Scheduled
-			Submitted = 0x01,
-			//! Being executed
-			Running = 0x02,
-			//! Finished executing
-			Done = 0x04,
-			//! Job released. Not to be used anymore
-			Released = 0x08,
+		enum JobInternalState : uint32_t {
+			DEP_BITS_START = 0,
+			DEP_BITS = 27,
+			DEP_BITS_MASK = (uint32_t)((1llu << DEP_BITS) - 1),
 
+			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
+			STATE_BITS = 4,
+			STATE_BITS_MASK = (uint32_t)(((1llu << STATE_BITS) - 1) << STATE_BITS_START),
+
+			PRIORITY_BITS_START = STATE_BITS_START + STATE_BITS,
+			PRIORITY_BITS = 1,
+			PRIORITY_BIT_MASK = (uint32_t)(((1llu << PRIORITY_BITS) - 1) << PRIORITY_BITS_START),
+
+			// STATE
+
+			//! Submitted
+			Submitted = 0x01 << STATE_BITS_START,
+			//! Being executed
+			Running = 0x02 << STATE_BITS_START,
+			//! Finished executing
+			Done = 0x04 << STATE_BITS_START,
+			//! Job released. Not to be used anymore
+			Released = 0x08 << STATE_BITS_START,
 			//! Scheduled or being executed
 			Busy = Submitted | Running,
+
+			// PRIORITY
+
+			LowPriority = (uint32_t)(1llu << PRIORITY_BITS_START)
 		};
 
 		struct JobContainer: cnt::ilist_item {
 			uint32_t dependencyIdx;
-			JobPriority priority : 1;
-			JobInternalState state : 31;
+			uint32_t state;
 			std::function<void()> func;
 
 			JobContainer() = default;
@@ -14121,8 +14135,7 @@ namespace gaia {
 				JobContainer jc{};
 				jc.idx = index;
 				jc.gen = generation;
-				jc.priority = ctx->priority;
-				jc.state = JobInternalState::Idle;
+				jc.state = ctx->priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
 				// The rest of the values are set later on:
 				//   jc.dependencyIdx
 				//   jc.func
@@ -14130,7 +14143,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (uint32_t)jc.priority);
+				return JobHandle(jc.idx, jc.gen, (jc.state & JobInternalState::LowPriority) != 0);
 			}
 		};
 
@@ -14176,7 +14189,8 @@ namespace gaia {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
 
-				if (job.state == JobInternalState::Released)
+				// No need to wait for a dead job
+				if ((job.state & JobInternalState::Released) != 0)
 					return;
 
 				uint32_t depIdx = job.dependencyIdx;
@@ -14201,9 +14215,13 @@ namespace gaia {
 				std::scoped_lock lock(m_jobsLock);
 				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
-				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
+				GAIA_ASSERT(
+						// No state yet
+						((j.state & JobInternalState::STATE_BITS_MASK) == 0) ||
+						// Released already
+						((j.state & JobInternalState::Released) != 0));
 				j.dependencyIdx = BadIndex;
-				j.state = JobInternalState::Idle;
+				j.state = ctx.priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
 				j.func = job.func;
 				return handle;
 			}
@@ -14215,7 +14233,8 @@ namespace gaia {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock lock(m_jobsLock);
 				auto& job = m_jobs.free(jobHandle);
-				job.state = JobInternalState::Released;
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Released;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Released);
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.
@@ -14253,7 +14272,8 @@ namespace gaia {
 				{
 					std::scoped_lock lock(m_jobsLock);
 					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Running;
+					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Running;
+					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Running);
 					func = job.func;
 				}
 				if (func.operator bool())
@@ -14261,7 +14281,8 @@ namespace gaia {
 				{
 					std::scoped_lock lock(m_jobsLock);
 					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Done;
+					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Done;
+					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Done);
 				}
 			}
 
@@ -14373,24 +14394,26 @@ namespace gaia {
 
 			void submit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state < JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) < JobInternalState::Submitted);
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
 			}
 
 			void resubmit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) <= JobInternalState::Submitted);
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
 			}
 
 			GAIA_NODISCARD bool busy(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
+				return (job.state & JobInternalState::Busy) != 0;
 			}
 
 			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
+				return (job.state & JobInternalState::Done) != 0;
 			}
 		};
 	} // namespace mt
@@ -15425,8 +15448,8 @@ namespace gaia {
 			//! \param prio Target worker queue defined by job priority
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[prio];
-				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
+				auto& cv = m_cv[(uint32_t)prio];
+				auto& cvLock = prio == JobPriority::High ? m_cvLock0 : m_cvLock1;
 
 				bool ready = false;
 				while (!m_stop) {
@@ -15518,12 +15541,12 @@ namespace gaia {
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cnt = m_workerCnt[job.priority];
+				const auto cnt = m_workerCnt[(uint32_t)job.priority];
 				return cnt > 0
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)((job.priority + 1U) % (uint32_t)JobPriorityCnt);
+									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 		};
 	} // namespace mt

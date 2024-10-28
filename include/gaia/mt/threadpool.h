@@ -740,8 +740,8 @@ namespace gaia {
 			//! \param prio Target worker queue defined by job priority
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[prio];
-				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
+				auto& cv = m_cv[(uint32_t)prio];
+				auto& cvLock = prio == JobPriority::High ? m_cvLock0 : m_cvLock1;
 
 				bool ready = false;
 				while (!m_stop) {
@@ -833,12 +833,12 @@ namespace gaia {
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cnt = m_workerCnt[job.priority];
+				const auto cnt = m_workerCnt[(uint32_t)job.priority];
 				return cnt > 0
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)((job.priority + 1U) % (uint32_t)JobPriorityCnt);
+									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 		};
 	} // namespace mt
