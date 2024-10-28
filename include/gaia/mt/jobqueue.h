@@ -24,7 +24,9 @@ namespace gaia {
 			bool empty() {
 				GAIA_PROF_SCOPE(JobQueue::empty);
 
-				std::scoped_lock lock(m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				return m_buffer.empty();
 			}
 
@@ -33,7 +35,9 @@ namespace gaia {
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_push);
 
-				std::scoped_lock lock(m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
 
@@ -46,7 +50,9 @@ namespace gaia {
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
-				std::scoped_lock lock(m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.empty())
 					return false;
 
@@ -59,7 +65,9 @@ namespace gaia {
 			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_steal);
 
-				std::scoped_lock lock(m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.empty())
 					return false;
 

@@ -98,7 +98,7 @@ namespace gaia {
 		};
 
 		class JobManager {
-			GAIA_PROF_MUTEX(std::mutex, m_mtxJobs);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx);
 
 			//! Implicit list of jobs
 			cnt::ilist<JobContainer, JobHandle> m_jobs;
@@ -135,7 +135,7 @@ namespace gaia {
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				JobAllocCtx ctx{job.priority};
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::scoped_lock lock(mtx);
 
 				auto handle = m_jobs.alloc(&ctx);
@@ -156,7 +156,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				// --> std::scoped_lock lock(mtx);
 				auto& job = m_jobs.free(jobHandle);
 				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Released;
@@ -181,7 +181,7 @@ namespace gaia {
 			//! Resets the job pool.
 			void reset() {
 				// No need to lock. Called from the main thread only when all jobs have finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				// --> std::scoped_lock lock(mtx);
 				m_jobs.clear();
 				m_deps.clear();
@@ -191,7 +191,7 @@ namespace gaia {
 				std::function<void()> func;
 
 				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 					std::scoped_lock lock(mtx);
 
 					auto& job = m_jobs[jobHandle.id()];
@@ -204,7 +204,7 @@ namespace gaia {
 					func();
 
 				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 					std::scoped_lock lock(mtx);
 
 					auto& job = m_jobs[jobHandle.id()];
@@ -218,7 +218,7 @@ namespace gaia {
 			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobManager::handle_deps);
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::scoped_lock lock(mtx);
 
 				auto& job = m_jobs[jobHandle.id()];
@@ -260,7 +260,7 @@ namespace gaia {
 				GAIA_ASSERT(!busy(dependsOn));
 #endif
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::scoped_lock lock(mtx);
 
 				auto depHandle = alloc_dep();
@@ -296,7 +296,7 @@ namespace gaia {
 				}
 #endif
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtxJobs);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::scoped_lock lock(mtx);
 
 				auto& job = m_jobs[jobHandle.id()];

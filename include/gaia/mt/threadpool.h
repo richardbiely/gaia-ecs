@@ -217,6 +217,9 @@ namespace gaia {
 				// The thread is put to sleep if pushing the jobs fails.
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
+
+				auto& cv = m_cv[(uint32_t)prio];
+				cv.notify_one();
 			}
 
 		private:
@@ -243,6 +246,9 @@ namespace gaia {
 				// The thread is put to sleep if pushing the jobs fails.
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
+
+				auto& cv = m_cv[(uint32_t)prio];
+				cv.notify_one();
 			}
 
 		public:
