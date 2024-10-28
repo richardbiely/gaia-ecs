@@ -14914,7 +14914,6 @@ namespace gaia {
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
@@ -14926,9 +14925,6 @@ namespace gaia {
 				// The thread is put to sleep if pushing the jobs fails.
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
-
-				// Wake some worker thread
-				cv.notify_one();
 			}
 
 		private:
@@ -14942,7 +14938,6 @@ namespace gaia {
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
@@ -14956,9 +14951,6 @@ namespace gaia {
 				// The thread is put to sleep if pushing the jobs fails.
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
-
-				// Wake some worker thread
-				cv.notify_one();
 			}
 
 		public:
