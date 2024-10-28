@@ -65,8 +65,8 @@ namespace gaia {
 			//! How many jobs are currently being processed
 			std::atomic_uint32_t m_jobsPending[JobPriorityCnt]{};
 			//! Mutex protecting the access to a given queue
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock0);
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock1);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv0);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv1);
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
 			//! Array of pending user jobs
@@ -733,7 +733,7 @@ namespace gaia {
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
 				auto& cv = m_cv[(uint32_t)prio];
-				auto& cvLock = prio == JobPriority::High ? m_cvLock0 : m_cvLock1;
+				auto& cvLock = prio == JobPriority::High ? m_mtx_cv0 : m_mtx_cv1;
 
 				bool ready = false;
 				while (!m_stop) {
