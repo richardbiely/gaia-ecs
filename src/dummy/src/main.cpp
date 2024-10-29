@@ -1122,7 +1122,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			[[maybe_unused]] const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1141,7 +1141,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == herbivore;
+			[[maybe_unused]]  bool isOK = entity == animal || entity == herbivore;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1155,7 +1155,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			[[maybe_unused]]  bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1173,7 +1173,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
+			[[maybe_unused]] const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
 			GAIA_ASSERT(isOK);
 
 			++i;

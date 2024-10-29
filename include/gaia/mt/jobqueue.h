@@ -84,11 +84,18 @@ namespace gaia {
 			static_assert((N & (N - 1)) == 0, "Extent of JobQueueLockFree must be a power of 2");
 			static constexpr uint32_t MASK = N - 1;
 
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom = 0;
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top = 0;
+			// MSVC might warn about applying additional padding to an instance of StackAllocator.
+			// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4324)
 
 			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
 			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
+
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom = 0;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top = 0;
+
+			GAIA_MSVC_WARNING_POP()
 
 		public:
 			//! Checks if there are any items in the queue.
@@ -200,9 +207,16 @@ namespace gaia {
 			static constexpr uint32_t extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
+			// MSVC might warn about applying additional padding to an instance of StackAllocator.
+			// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4324)
+
 			mem::raw_data_holder<Node, allocated_bytes> m_data;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_pushPos;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_popPos;
+
+			GAIA_MSVC_WARNING_POP()
 
 		public:
 			MpmcQueue() {
