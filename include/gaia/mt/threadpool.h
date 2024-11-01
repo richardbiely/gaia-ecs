@@ -16,6 +16,7 @@
 	#define GAIA_THREAD pthread_t
 #endif
 
+#include <alloca.h>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -314,8 +315,20 @@ namespace gaia {
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
 
 				// No group size was given, make a guess based on the set size
-				if (groupSize == 0)
+				if (groupSize == 0) {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+					// If there are too many items we split them into multiple jobs.
+					// This way, if we wait for the result and some workers finish
+					// with our task faster, the finished worker can pick up a new
+					// job faster.
+					// On the other hand, too little items probably don't deserve
+					// multiple jobs.
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize <= 0)
+						groupSize = 1;
+				}
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				// Internal jobs + 1 for the groupHandle
@@ -323,6 +336,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({{}, prio});
 
+				auto* pHandles = (JobHandle*)alloca(jobs * sizeof(JobHandle));
 				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
@@ -337,9 +351,12 @@ namespace gaia {
 						job.func(args);
 					};
 
-					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc, prio});
+					JobHandle jobHandle = pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
 					dep(groupHandle, jobHandle);
-					submit(jobHandle);
+				}
+
+				GAIA_FOR_(jobs, jobIndex) {
+					submit(pHandles[jobIndex]);
 				}
 
 				submit(groupHandle);

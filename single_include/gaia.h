@@ -13907,6 +13907,8 @@ namespace gaia {
 /*** Start of inlined file: threadpool.h ***/
 #pragma once
 
+#include <alloca.h>
+
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
 	#include <windows.h>
@@ -15045,8 +15047,20 @@ namespace gaia {
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
 
 				// No group size was given, make a guess based on the set size
-				if (groupSize == 0)
+				if (groupSize == 0) {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+					// If there are too many items we split them into multiple jobs.
+					// This way, if we wait for the result and some workers finish
+					// with our task faster, the finished worker can pick up a new
+					// job faster.
+					// On the other hand, too little items probably don't deserve
+					// multiple jobs.
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize <= 0)
+						groupSize = 1;
+				}
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				// Internal jobs + 1 for the groupHandle
@@ -15054,6 +15068,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({{}, prio});
 
+				auto* pHandles = (JobHandle*)alloca(jobs * sizeof(JobHandle));
 				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
@@ -15068,9 +15083,12 @@ namespace gaia {
 						job.func(args);
 					};
 
-					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc, prio});
+					JobHandle jobHandle = pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
 					dep(groupHandle, jobHandle);
-					submit(jobHandle);
+				}
+
+				GAIA_FOR_(jobs, jobIndex) {
+					submit(pHandles[jobIndex]);
 				}
 
 				submit(groupHandle);
@@ -23652,6 +23670,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					uint32_t entityCnt = 0;
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
@@ -23661,7 +23680,8 @@ namespace gaia {
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+							const auto cnt = TIter::size(pChunk);
+							if GAIA_UNLIKELY (cnt == 0)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -23670,6 +23690,7 @@ namespace gaia {
 							}
 
 							m_batches.push_back({pChunk, indices_view.data(), 0});
+							entityCnt += cnt;
 						}
 					}
 
@@ -23688,7 +23709,7 @@ namespace gaia {
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 				}
