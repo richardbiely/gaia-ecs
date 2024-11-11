@@ -9,6 +9,7 @@
 	#include <version.h>
 #endif
 #include <cstdint>
+#include <new>
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
@@ -259,6 +260,25 @@ namespace gaia {
 	#define GAIA_ALIGNAS(alignment) alignas(alignment)
 #endif
 
+#ifndef GAIA_CACHELINE_SIZE
+	#ifdef __cpp_lib_hardware_interference_size
+		#define GAIA_CACHELINE_SIZE std::hardware_constructive_interference_size
+	#elif defined(__GCC_DESTRUCTIVE_SIZE)
+		#define GAIA_CACHELINE_SIZE __GCC_DESTRUCTIVE_SIZE
+	#else
+		#if GAIA_ARCH == GAIA_ARCH_ARM
+	// For ARM cache line sizes are not strict as they depend on implementation,
+	// not architecture. They usually have 64 or 128 byte long cache lines. We pick
+	// the longer one but feel free to use one that suits your needs better.
+	// E.g. you can define the value before you include gaia.h or define the macro
+	// per-project in your build system per target architecture.
+			#define GAIA_CACHELINE_SIZE 128
+		#else
+			#define GAIA_CACHELINE_SIZE 64
+		#endif
+	#endif
+#endif
+
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
@@ -349,21 +369,21 @@ namespace gaia {
 //! \warning Little-endian format.
 	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
 	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
 	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
 #else
 	//! Returns the number of set bits in \param x
@@ -399,7 +419,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CLZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -422,7 +442,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_CTZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -445,7 +465,7 @@ namespace gaia {
 			return index + 1;                                                                                                \
 		}(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-//! \warning Little-endian format.
+	//! \warning Little-endian format.
 	#define GAIA_FFS64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -574,10 +594,10 @@ namespace gaia {
 #endif
 
 namespace gaia {
-// The dont_optimize(...) function can be used to prevent a value or
-// expression from being optimized away by the compiler. This function is
-// intended to add little to no overhead.
-// See: https://youtu.be/nXaxk27zwlk?t=2441
+	// The dont_optimize(...) function can be used to prevent a value or
+	// expression from being optimized away by the compiler. This function is
+	// intended to add little to no overhead.
+	// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 	template <class T>
 	inline void dont_optimize(T const& value) {
@@ -974,7 +994,7 @@ namespace tracy {
 
 	inline thread_local ScopeStack t_ScopeStack;
 
-	void ZoneBegin(const ___tracy_source_location_data* srcloc) {
+	inline void ZoneBegin(const ___tracy_source_location_data* srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize) {
@@ -982,14 +1002,14 @@ namespace tracy {
 		}
 	}
 
-	void ZoneRTBegin(uint64_t srcloc) {
+	inline void ZoneRTBegin(uint64_t srcloc) {
 		auto& stack = t_ScopeStack;
 		const auto pos = stack.count++;
 		if (pos < ScopeStack::StackSize)
 			stack.buffer[pos] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
 	}
 
-	void ZoneEnd() {
+	inline void ZoneEnd() {
 		auto& stack = t_ScopeStack;
 		GAIA_ASSERT(stack.count > 0);
 		const auto pos = --stack.count;
@@ -2660,8 +2680,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename Array, typename TSortFunc>
-			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
+			template <typename Array, typename TCmpFunc>
+			constexpr void comb_sort_impl(Array& array_, TCmpFunc cmpFunc) noexcept {
 				constexpr double Factor = 1.247330950103979;
 				using size_type = typename Array::size_type;
 
@@ -2673,7 +2693,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (!func(array_[i], array_[i + gap])) {
+						if (!cmpFunc(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;
@@ -2683,168 +2703,189 @@ namespace gaia {
 				}
 			}
 
-			template <typename Container, typename TSortFunc>
-			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
-					if (func(arr[(uint32_t)j], pivot))
+					if (cmpFunc(arr[(uint32_t)j], pivot))
 						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
 				}
 				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
 				return i;
 			}
 
-			template <typename Container, typename TSortFunc>
-			void quick_sort(Container& arr, TSortFunc func, int low, int high) {
+			template <typename Container, typename TCmpFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				if (low >= high)
 					return;
-				auto pos = quick_sort_partition(arr, func, low, high);
-				quick_sort(arr, func, low, pos - 1);
-				quick_sort(arr, func, pos + 1, high);
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc);
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				const auto& pivot = arr[(uint32_t)high];
+				int i = low - 1;
+				for (int j = low; j <= high - 1; ++j) {
+					if (cmpFunc(arr[(uint32_t)j], pivot))
+						sortFunc((uint32_t)++i, (uint32_t)j);
+				}
+				sortFunc((uint32_t)++i, (uint32_t)high);
+				return i;
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSortFunc>
+			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+				if (low >= high)
+					return;
+				auto pos = quick_sort_partition(arr, low, high, cmpFunc, sortFunc);
+				quick_sort(arr, low, pos - 1, cmpFunc, sortFunc);
+				quick_sort(arr, pos + 1, high, cmpFunc, sortFunc);
 			}
 		} // namespace detail
 
 		//! Compile-time sort.
 		//! Implements a sorting network for \tparam N up to 8
-		template <typename Container, typename TSortFunc>
-		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
+		template <typename Container, typename TCmpFunc>
+		constexpr void sort_ct(Container& arr, TCmpFunc cmpFunc) noexcept {
 			constexpr size_t NItems = std::tuple_size<Container>::value;
 			if constexpr (NItems <= 1) {
 				return;
 			} else if constexpr (NItems == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if constexpr (NItems == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if constexpr (NItems == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if constexpr (NItems == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if constexpr (NItems == 9) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[7], arr[8], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[7], arr[8], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[3], arr[6], func);
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[4], arr[7], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[4], arr[7], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[5], arr[8], func);
-				swap_if(arr[2], arr[5], func);
-				swap_if(arr[5], arr[8], func);
+				swap_if(arr[5], arr[8], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
+				swap_if(arr[5], arr[8], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[5], arr[7], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 			} else {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
-				detail::comb_sort_impl(arr, func);
+				detail::comb_sort_impl(arr, cmpFunc);
 				GAIA_MSVC_WARNING_POP()
 			}
 		}
@@ -2854,116 +2895,116 @@ namespace gaia {
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparision function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		template <typename Container, typename TCmpFunc>
-		void sort(Container& arr, TCmpFunc func) {
+		void sort(Container& arr, TCmpFunc cmpFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 3) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[0], arr[1], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[0], arr[1], cmpFunc);
 			} else if (arr.size() == 4) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 5) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
+				swap_if(arr[0], arr[3], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
+				swap_if(arr[1], arr[2], cmpFunc);
 			} else if (arr.size() == 6) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[4], arr[5], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[1], arr[4], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[1], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 7) {
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[3], arr[4], func);
-				swap_if(arr[5], arr[6], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[3], arr[5], func);
-				swap_if(arr[4], arr[6], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[1], arr[5], func);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[1], arr[5], cmpFunc);
 
-				swap_if(arr[0], arr[3], func);
-				swap_if(arr[2], arr[5], func);
+				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(arr[2], arr[5], cmpFunc);
 
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[2], arr[4], cmpFunc);
 
-				swap_if(arr[2], arr[3], func);
+				swap_if(arr[2], arr[3], cmpFunc);
 			} else if (arr.size() == 8) {
-				swap_if(arr[0], arr[1], func);
-				swap_if(arr[2], arr[3], func);
-				swap_if(arr[4], arr[5], func);
-				swap_if(arr[6], arr[7], func);
+				swap_if(arr[0], arr[1], cmpFunc);
+				swap_if(arr[2], arr[3], cmpFunc);
+				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(arr[6], arr[7], cmpFunc);
 
-				swap_if(arr[0], arr[2], func);
-				swap_if(arr[1], arr[3], func);
-				swap_if(arr[4], arr[6], func);
-				swap_if(arr[5], arr[7], func);
+				swap_if(arr[0], arr[2], cmpFunc);
+				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(arr[5], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[2], func);
-				swap_if(arr[5], arr[6], func);
-				swap_if(arr[0], arr[4], func);
-				swap_if(arr[3], arr[7], func);
+				swap_if(arr[1], arr[2], cmpFunc);
+				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(arr[0], arr[4], cmpFunc);
+				swap_if(arr[3], arr[7], cmpFunc);
 
-				swap_if(arr[1], arr[5], func);
-				swap_if(arr[2], arr[6], func);
+				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(arr[2], arr[6], cmpFunc);
 
-				swap_if(arr[1], arr[4], func);
-				swap_if(arr[3], arr[6], func);
+				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(arr[3], arr[6], cmpFunc);
 
-				swap_if(arr[2], arr[4], func);
-				swap_if(arr[3], arr[5], func);
+				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(arr[3], arr[5], cmpFunc);
 
-				swap_if(arr[3], arr[4], func);
+				swap_if(arr[3], arr[4], cmpFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i) {
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						swap_if(arr[j], arr[j + 1], func);
+						swap_if(arr[j], arr[j + 1], cmpFunc);
 				}
 			} else {
 				const auto n = (int)arr.size();
-				detail::quick_sort(arr, func, 0, n - 1);
+				detail::quick_sort(arr, 0, n - 1, cmpFunc);
 			}
 		}
 
@@ -2976,117 +3017,116 @@ namespace gaia {
 		//! \tparam TCmpFunc Comparision function
 		//! \tparam TSortFunc Sorting function
 		//! \param arr Container to sort
-		//! \param func Comparision function
+		//! \param cmpFunc Comparision function
 		//! \param sortFunc Sorting function
 		template <typename Container, typename TCmpFunc, typename TSortFunc>
-		void sort(Container& arr, TCmpFunc func, TSortFunc sortFunc) {
+		void sort(Container& arr, TCmpFunc cmpFunc, TSortFunc sortFunc) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 3) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
 			} else if (arr.size() == 4) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 5) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
 			} else if (arr.size() == 6) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 7) {
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 3, 4, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 1, 5, func, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 3, func, sortFunc);
-				try_swap_if(arr, 2, 5, func, sortFunc);
+				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
 			} else if (arr.size() == 8) {
-				try_swap_if(arr, 0, 1, func, sortFunc);
-				try_swap_if(arr, 2, 3, func, sortFunc);
-				try_swap_if(arr, 4, 5, func, sortFunc);
-				try_swap_if(arr, 6, 7, func, sortFunc);
+				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 6, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 0, 2, func, sortFunc);
-				try_swap_if(arr, 1, 3, func, sortFunc);
-				try_swap_if(arr, 4, 6, func, sortFunc);
-				try_swap_if(arr, 5, 7, func, sortFunc);
+				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 2, func, sortFunc);
-				try_swap_if(arr, 5, 6, func, sortFunc);
-				try_swap_if(arr, 0, 4, func, sortFunc);
-				try_swap_if(arr, 3, 7, func, sortFunc);
+				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
+				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
+				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 7, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 5, func, sortFunc);
-				try_swap_if(arr, 2, 6, func, sortFunc);
+				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
+				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 1, 4, func, sortFunc);
-				try_swap_if(arr, 3, 6, func, sortFunc);
+				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 6, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 2, 4, func, sortFunc);
-				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
 
-				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
 				for (decltype(n) i = 0; i < n - 1; ++i)
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						try_swap_if(arr, j, j + 1, func, sortFunc);
+						try_swap_if(arr, j, j + 1, cmpFunc, sortFunc);
 			} else {
-				GAIA_ASSERT2(false, "sort currently supports at most 32 items in the array");
-				// const int n = (int)arr.size();
-				// detail::quick_sort(arr, 0, n - 1);
+				const int n = (int)arr.size();
+				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
 			}
 		}
 
@@ -4243,8 +4283,8 @@ namespace gaia {
 				return ((const ValueType*)m_data.data())[idx];
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {
@@ -4470,8 +4510,8 @@ namespace gaia {
 				return std::span(s.data(), s.size());
 			}
 
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
+			GAIA_NODISCARD decltype(auto) data() const noexcept {
+				return (const uint8_t*)m_data.data();
 			}
 
 			GAIA_NODISCARD auto size() const noexcept {
@@ -4599,13 +4639,18 @@ namespace gaia {
 
 #ifndef GAIA_USE_MEM_SANI
 	#if defined(__has_feature)
-		#if __has_feature(address_sanitizer) || defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if __has_feature(address_sanitizer)
+			#define GAIA_HAS_SANI_FEATURE 1
+		#else
+			#define GAIA_HAS_SANI_FEATURE 0
+		#endif
+		#if GAIA_HAS_SANI_FEATURE || GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
 		#endif
 	#else
-		#if defined(USE_SANITIZER) || defined(_SANITIZE_ADDRESS__)
+		#if GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
@@ -7888,6 +7933,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
@@ -7917,6 +7963,7 @@ namespace gaia {
 
 					GAIA_GCC_WARNING_PUSH()
 					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back(TListItem(itemCnt, 0U));
@@ -13860,6 +13907,8 @@ namespace gaia {
 /*** Start of inlined file: threadpool.h ***/
 #pragma once
 
+#include <alloca.h>
+
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
 	#include <windows.h>
@@ -13888,7 +13937,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		enum JobPriority : uint32_t {
+		enum class JobPriority : uint32_t {
 			//! High priority job. If available it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
@@ -13968,6 +14017,9 @@ namespace gaia {
 				data.gen = gen;
 				data.prio = prio;
 			}
+			explicit JobHandle(uint32_t value) {
+				val = value;
+			}
 			~JobHandle() = default;
 
 			JobHandle(JobHandle&&) noexcept = default;
@@ -14041,26 +14093,40 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		enum class JobInternalState : uint32_t {
-			//! No scheduled
-			Idle = 0,
-			//! Scheduled
-			Submitted = 0x01,
-			//! Being executed
-			Running = 0x02,
-			//! Finished executing
-			Done = 0x04,
-			//! Job released. Not to be used anymore
-			Released = 0x08,
+		enum JobInternalState : uint32_t {
+			DEP_BITS_START = 0,
+			DEP_BITS = 27,
+			DEP_BITS_MASK = (uint32_t)((1llu << DEP_BITS) - 1),
 
+			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
+			STATE_BITS = 4,
+			STATE_BITS_MASK = (uint32_t)(((1llu << STATE_BITS) - 1) << STATE_BITS_START),
+
+			PRIORITY_BITS_START = STATE_BITS_START + STATE_BITS,
+			PRIORITY_BITS = 1,
+			PRIORITY_BIT_MASK = (uint32_t)(((1llu << PRIORITY_BITS) - 1) << PRIORITY_BITS_START),
+
+			// STATE
+
+			//! Submitted
+			Submitted = 0x01 << STATE_BITS_START,
+			//! Being executed
+			Running = 0x02 << STATE_BITS_START,
+			//! Finished executing
+			Done = 0x04 << STATE_BITS_START,
+			//! Job released. Not to be used anymore
+			Released = 0x08 << STATE_BITS_START,
 			//! Scheduled or being executed
 			Busy = Submitted | Running,
+
+			// PRIORITY
+
+			LowPriority = (uint32_t)(1llu << PRIORITY_BITS_START)
 		};
 
 		struct JobContainer: cnt::ilist_item {
 			uint32_t dependencyIdx;
-			JobPriority priority : 1;
-			JobInternalState state : 31;
+			uint32_t state;
 			std::function<void()> func;
 
 			JobContainer() = default;
@@ -14071,8 +14137,7 @@ namespace gaia {
 				JobContainer jc{};
 				jc.idx = index;
 				jc.gen = generation;
-				jc.priority = ctx->priority;
-				jc.state = JobInternalState::Idle;
+				jc.state = ctx->priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
 				// The rest of the values are set later on:
 				//   jc.dependencyIdx
 				//   jc.func
@@ -14080,7 +14145,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (uint32_t)jc.priority);
+				return JobHandle(jc.idx, jc.gen, (jc.state & JobInternalState::LowPriority) != 0);
 			}
 		};
 
@@ -14112,12 +14177,11 @@ namespace gaia {
 		};
 
 		class JobManager {
-			GAIA_PROF_MUTEX(std::mutex, m_jobsLock);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx);
+
 			//! Implicit list of jobs
 			cnt::ilist<JobContainer, JobHandle> m_jobs;
-
-			GAIA_PROF_MUTEX(std::mutex, m_depsLock);
-			//! List of job dependencies
+			//! Implicit list of job dependencies
 			cnt::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
@@ -14126,7 +14190,8 @@ namespace gaia {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
 
-				if (job.state == JobInternalState::Released)
+				// No need to wait for a dead job
+				if ((job.state & JobInternalState::Released) != 0)
 					return;
 
 				uint32_t depIdx = job.dependencyIdx;
@@ -14148,12 +14213,19 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				JobAllocCtx ctx{job.priority};
-				std::scoped_lock lock(m_jobsLock);
+
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				auto handle = m_jobs.alloc(&ctx);
 				auto& j = m_jobs[handle.id()];
-				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
+				GAIA_ASSERT(
+						// No state yet
+						((j.state & JobInternalState::STATE_BITS_MASK) == 0) ||
+						// Released already
+						((j.state & JobInternalState::Released) != 0));
 				j.dependencyIdx = BadIndex;
-				j.state = JobInternalState::Idle;
+				j.state = ctx.priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
 				j.func = job.func;
 				return handle;
 			}
@@ -14163,9 +14235,11 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> std::scoped_lock lock(m_jobsLock);
+				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				// --> std::scoped_lock lock(mtx);
 				auto& job = m_jobs.free(jobHandle);
-				job.state = JobInternalState::Released;
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Released;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Released);
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.
@@ -14185,33 +14259,36 @@ namespace gaia {
 
 			//! Resets the job pool.
 			void reset() {
-				{
-					// No need to lock. Called from the main thread only when all jobs have finished already.
-					// --> std::scoped_lock lock(m_jobsLock);
-					m_jobs.clear();
-				}
-				{
-					// No need to lock. Called from the main thread only when all jobs must have ended already.
-					// --> std::scoped_lock lock(m_depsLock);
-					m_deps.clear();
-				}
+				// No need to lock. Called from the main thread only when all jobs have finished already.
+				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				// --> std::scoped_lock lock(mtx);
+				m_jobs.clear();
+				m_deps.clear();
 			}
 
 			void run(JobHandle jobHandle) {
 				std::function<void()> func;
 
 				{
-					std::scoped_lock lock(m_jobsLock);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+					std::scoped_lock lock(mtx);
+
 					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Running;
+					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Running;
+					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Running);
 					func = job.func;
 				}
+
 				if (func.operator bool())
 					func();
+
 				{
-					std::scoped_lock lock(m_jobsLock);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+					std::scoped_lock lock(mtx);
+
 					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Done;
+					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Done;
+					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Done);
 				}
 			}
 
@@ -14219,15 +14296,16 @@ namespace gaia {
 			//! \return True if job dependencies are met. False otherwise
 			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobManager::handle_deps);
-				std::scoped_lock lockJobs(m_jobsLock);
+
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				auto& job = m_jobs[jobHandle.id()];
 				if (job.dependencyIdx == BadIndex)
 					return true;
 
 				uint32_t depsId = job.dependencyIdx;
 				{
-					std::scoped_lock lockDeps(m_depsLock);
-
 					// Iterate over all dependencies.
 					// The first busy dependency breaks the loop. At this point we also update
 					// the initial dependency index because we know all previous dependencies
@@ -14253,8 +14331,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobHandle, JobHandle dependsOn) {
-				std::scoped_lock lockJobs(m_jobsLock);
-				auto& job = m_jobs[jobHandle.id()];
+				GAIA_PROF_SCOPE(JobManager::dep);
 
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(jobHandle != dependsOn);
@@ -14262,10 +14339,47 @@ namespace gaia {
 				GAIA_ASSERT(!busy(dependsOn));
 #endif
 
-				{
-					GAIA_PROF_SCOPE(JobManager::dep);
-					std::scoped_lock lockDeps(m_depsLock);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
 
+				auto depHandle = alloc_dep();
+				auto& dep = m_deps[depHandle.id()];
+				dep.dependsOn = dependsOn;
+
+				auto& job = m_jobs[jobHandle.id()];
+				if (job.dependencyIdx == BadIndex)
+					// First time adding a dependency to this job. Point it to the first allocated handle
+					dep.dependencyIdxNext = BadIndex;
+				else
+					// We have existing dependencies. Point the last known one to the first allocated handle
+					dep.dependencyIdxNext = job.dependencyIdx;
+
+				job.dependencyIdx = depHandle.id();
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				if (dependsOnSpan.empty())
+					return;
+
+				GAIA_PROF_SCOPE(JobManager::depMany);
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!busy(jobHandle));
+				for (auto dependsOn: dependsOnSpan) {
+					GAIA_ASSERT(jobHandle != dependsOn);
+					GAIA_ASSERT(!busy(dependsOn));
+				}
+#endif
+
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
+				auto& job = m_jobs[jobHandle.id()];
+				for (auto dependsOn: dependsOnSpan) {
 					auto depHandle = alloc_dep();
 					auto& dep = m_deps[depHandle.id()];
 					dep.dependsOn = dependsOn;
@@ -14281,66 +14395,28 @@ namespace gaia {
 				}
 			}
 
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				if (dependsOnSpan.empty())
-					return;
-
-				auto& job = m_jobs[jobHandle.id()];
-
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(!busy(jobHandle));
-				for (auto dependsOn: dependsOnSpan) {
-					GAIA_ASSERT(jobHandle != dependsOn);
-					GAIA_ASSERT(!busy(dependsOn));
-				}
-#endif
-
-				GAIA_PROF_SCOPE(JobManager::deps);
-				std::scoped_lock lockJobs(m_jobsLock);
-				{
-					std::scoped_lock lockDeps(m_depsLock);
-
-					for (auto dependsOn: dependsOnSpan) {
-						auto depHandle = alloc_dep();
-						auto& dep = m_deps[depHandle.id()];
-						dep.dependsOn = dependsOn;
-
-						if (job.dependencyIdx == BadIndex)
-							// First time adding a dependency to this job. Point it to the first allocated handle
-							dep.dependencyIdxNext = BadIndex;
-						else
-							// We have existing dependencies. Point the last known one to the first allocated handle
-							dep.dependencyIdxNext = job.dependencyIdx;
-
-						job.dependencyIdx = depHandle.id();
-					}
-				}
-			}
-
 			void submit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state < JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) < JobInternalState::Submitted);
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
 			}
 
 			void resubmit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) <= JobInternalState::Submitted);
+				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
+				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
 			}
 
 			GAIA_NODISCARD bool busy(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
+				return (job.state & JobInternalState::Busy) != 0;
 			}
 
 			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
+				return (job.state & JobInternalState::Done) != 0;
 			}
 		};
 	} // namespace mt
@@ -14351,55 +14427,40 @@ namespace gaia {
 /*** Start of inlined file: jobqueue.h ***/
 #pragma once
 
-#define JOB_QUEUE_USE_LOCKS 1
-#if JOB_QUEUE_USE_LOCKS
-
-	#include <mutex>
-#endif
+#include <atomic>
+#include <mutex>
 
 namespace gaia {
 	namespace mt {
+		template <const uint32_t N = 1 << 12>
 		class JobQueue {
-			//! The maximum number of jobs fitting in the queue at the same time
-			static constexpr uint32_t N = 1 << 12;
-#if !JOB_QUEUE_USE_LOCKS
-			static constexpr uint32_t MASK = N - 1;
-#endif
-
-#if JOB_QUEUE_USE_LOCKS
-			GAIA_PROF_MUTEX(std::mutex, m_bufferLock);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx);
 			cnt::sringbuffer<JobHandle, N> m_buffer;
-#else
-			cnt::sarray<JobHandle, N> m_buffer;
-			std::atomic_uint32_t m_bottom{};
-			std::atomic_uint32_t m_top{};
-#endif
 
 		public:
+			//! Checks if there are any items in the queue.
+			//! \return True if the queue is empty. False otherwise.
+			bool empty() {
+				GAIA_PROF_SCOPE(JobQueue::empty);
+
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
+				return m_buffer.empty();
+			}
+
 			//! Tries adding a job to the queue. FIFO.
 			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_push);
 
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock lock(m_bufferLock);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
+
 				m_buffer.push_back(jobHandle);
-#else
-				const uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				if (b >= m_buffer.size())
-					return false;
-
-				m_buffer[b & MASK] = jobHandle;
-
-				// Make sure the handle is written before we update the bottom
-				std::atomic_thread_fence(std::memory_order_release);
-
-				m_bottom.store(b + 1, std::memory_order_release);
-#endif
-
 				return true;
 			}
 
@@ -14408,49 +14469,13 @@ namespace gaia {
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock lock(m_bufferLock);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.empty())
 					return false;
 
 				m_buffer.pop_front(jobHandle);
-#else
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
-				if (b > 0) {
-					b = b - 1;
-					m_bottom.store(b, std::memory_order_release);
-				}
-
-				std::atomic_thread_fence(std::memory_order_release);
-
-				uint32_t t = m_top.load(std::memory_order_acquire);
-
-				// Queue already empty
-				if (t > b) {
-					m_bottom.store(t, std::memory_order_release);
-					return false;
-				}
-
-				jobHandle = m_buffer[b & MASK];
-
-				// The last item in the queue
-				if (t == b) {
-					if (t == 0) {
-						return false; // Queue is empty, nothing to pop
-					}
-					// Should multiple thread fight for the last item the atomic
-					// CAS ensures this last item is extracted only once.
-
-					uint32_t expectedTop = t;
-					const uint32_t nextTop = t + 1;
-					const uint32_t desiredTop = nextTop;
-
-					bool ret = m_top.compare_exchange_strong(expectedTop, desiredTop, std::memory_order_acq_rel);
-					m_bottom.store(nextTop, std::memory_order_release);
-					return ret;
-				}
-#endif
-
 				return true;
 			}
 
@@ -14459,32 +14484,280 @@ namespace gaia {
 			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_steal);
 
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock lock(m_bufferLock);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::scoped_lock lock(mtx);
+
 				if (m_buffer.empty())
 					return false;
 
 				m_buffer.pop_back(jobHandle);
-#else
-				uint32_t t = m_top.load(std::memory_order_acquire);
+				return true;
+			}
+		};
 
+		//! Lock-less job stealing queue. FIFO, fixed size. Inspired heavily by:
+		//! http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
+		template <const uint32_t N = 1 << 12>
+		class JobQueueLockFree {
+			static_assert(N >= 2);
+			static_assert((N & (N - 1)) == 0, "Extent of JobQueueLockFree must be a power of 2");
+			static constexpr uint32_t MASK = N - 1;
+
+			// MSVC might warn about applying additional padding to an instance of StackAllocator.
+			// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4324)
+
+			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
+			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
+
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom = 0;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top = 0;
+
+			GAIA_MSVC_WARNING_POP()
+
+		public:
+			//! Checks if there are any items in the queue.
+			//! \return True if the queue is empty. False otherwise.
+			bool empty() const {
+				GAIA_PROF_SCOPE(JobQueueLockFree::empty);
+
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+				std::atomic_thread_fence(std::memory_order_seq_cst);
+				const uint32_t b = m_bottom.load(std::memory_order_acquire);
+
+				return (t >= b);
+			}
+
+			//! Tries adding a job to the queue. FIFO.
+			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
+			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
+				GAIA_PROF_SCOPE(JobQueueLockFree::try_push);
+
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+
+				if (b - t > MASK)
+					return false;
+
+				m_buffer[b & MASK].store(jobHandle.value(), std::memory_order_relaxed);
+
+				// Make sure the handle is written before we update the bottom
 				std::atomic_thread_fence(std::memory_order_release);
 
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
+				m_bottom.store(b + 1, std::memory_order_relaxed);
+				return true;
+			}
 
-				// Return false when empty
+			//! Tries retrieving a job to the queue. FIFO.
+			//! \return True if the job was retrieved. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueueLockFree::try_pop);
+
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed) - 1;
+				m_bottom.store(b, std::memory_order_relaxed);
+
+				std::atomic_thread_fence(std::memory_order_seq_cst);
+
+				uint32_t jobHandleValue = ((JobHandle)JobNull_t{}).value();
+
+				uint32_t t = m_top.load(std::memory_order_relaxed);
+				if (t <= b) {
+					// non-empty queue
+					jobHandleValue = m_buffer[b & MASK].load(std::memory_order_relaxed);
+
+					if (t == b) {
+						// last element in the queue
+						const bool ret =
+								m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
+						m_bottom.store(b + 1, std::memory_order_relaxed);
+						jobHandle = JobHandle(jobHandleValue);
+						return ret; // false = failed race, don't use jobHandle; true = found a result
+					}
+				} else {
+					// empty queue
+					m_bottom.store(b + 1, std::memory_order_relaxed);
+					return false; // false = empty, don't use jobHandle
+				}
+
+				jobHandle = JobHandle(jobHandleValue);
+
+				// Make sure an invalid handle is not returned for true
+				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
+
+				return true; // true = found a result
+			}
+
+			//! Tries stealing a job from the queue. LIFO.
+			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_steal);
+
+				uint32_t t = m_top.load(std::memory_order_acquire);
+				std::atomic_thread_fence(std::memory_order_seq_cst);
+				const uint32_t b = m_bottom.load(std::memory_order_acquire);
+
 				if (t >= b)
-					return false;
+					return false; // false = empty, don't use jobHandle
 
-				jobHandle = m_buffer[t & MASK];
+				uint32_t jobHandleValue = m_buffer[t & MASK].load(std::memory_order_relaxed);
 
-				const uint32_t tNext = t + 1;
-				uint32_t tDesired = tNext;
 				// We fail if concurrent pop()/steal() operation changed the current top
-				if (!m_top.compare_exchange_weak(t, tDesired, std::memory_order_acq_rel))
-					return false;
-#endif
+				const bool ret = m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
+				jobHandle = JobHandle(jobHandleValue);
+				return ret; // false = failed race, don't use jobHandle; true = found a result
+			}
+		};
 
+		//! Multi-producer-multi-consumer queue. FIFO, fixed size. Inspired heavily by:
+		//! http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue
+		template <class T, const uint32_t N = 1 << 12>
+		class MpmcQueue {
+			static_assert(N >= 2);
+			static_assert((N & (N - 1)) == 0, "Extent of MpmcQueue must be a power of 2");
+			static constexpr uint32_t MASK = N - 1;
+
+			struct Node {
+				std::atomic_uint32_t sequence{};
+				T item;
+			};
+			using view_policy = mem::data_view_policy_aos<Node>;
+
+			static constexpr uint32_t extent = N;
+			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
+
+			// MSVC might warn about applying additional padding to an instance of StackAllocator.
+			// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4324)
+
+			mem::raw_data_holder<Node, allocated_bytes> m_data;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_pushPos;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_popPos;
+
+			GAIA_MSVC_WARNING_POP()
+
+		public:
+			MpmcQueue() {
+				init();
+			}
+			~MpmcQueue() {
+				free();
+			}
+
+			MpmcQueue(MpmcQueue&&) = delete;
+			MpmcQueue(const MpmcQueue&) = delete;
+			MpmcQueue& operator=(MpmcQueue&&) = delete;
+			MpmcQueue& operator=(const MpmcQueue&) = delete;
+
+		private:
+			GAIA_NODISCARD constexpr Node* data() noexcept {
+				return GAIA_ACC((Node*)&m_data[0]);
+			}
+
+			GAIA_NODISCARD constexpr const Node* data() const noexcept {
+				return GAIA_ACC((const Node*)&m_data[0]);
+			}
+
+			void init() {
+				Node* pNodes = data();
+
+				GAIA_FOR(extent) {
+					Node* pNode = &pNodes[i];
+					core::call_ctor(&pNode->sequence, i);
+				}
+
+				m_pushPos.store(0, std::memory_order_relaxed);
+				m_popPos.store(0, std::memory_order_relaxed);
+			}
+
+			void free() {
+				Node* pNodes = data();
+
+				uint32_t enqPos = m_pushPos.load(std::memory_order_relaxed);
+				uint32_t deqPos = m_popPos.load(std::memory_order_relaxed);
+				for (uint32_t pos = deqPos; pos != enqPos; ++pos) {
+					Node* pNode = &pNodes[pos & MASK];
+					if (pNode->sequence.load(std::memory_order_relaxed) == pos + 1)
+						pNode->item.~T();
+				}
+
+				GAIA_FOR(extent) {
+					Node* pNode = &pNodes[i];
+					core::call_dtor(&pNode->sequence);
+				}
+			}
+
+		public:
+			//! Checks if there are any items in the queue.
+			//! \return True if the queue is empty. False otherwise.
+			bool empty() const {
+				GAIA_PROF_SCOPE(MpmcQueue::empty);
+
+				const uint32_t pos = m_popPos.load(std::memory_order_relaxed);
+				const auto* pNode = &data()[pos & MASK];
+				const uint32_t seq = pNode->sequence.load(std::memory_order_acquire);
+				return pos >= seq;
+			}
+
+			//! Tries to push an item onto the queue.
+			//! \param item Item that will be moved onto the queue if possible.
+			//! \return True if an item was popped. False otherwise (aka full).
+			bool try_push(T&& item) {
+				GAIA_PROF_SCOPE(MpmcQueue::try_push);
+
+				Node* pNodes = data();
+
+				Node* pNode = nullptr;
+				uint32_t pos = m_pushPos.load(std::memory_order_relaxed);
+				while (true) {
+					pNode = &pNodes[pos & MASK];
+					uint32_t seq = pNode->sequence.load(std::memory_order_acquire);
+					int32_t diff = int32_t(seq) - int32_t(pos);
+					if (diff == 0) {
+						if (m_pushPos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
+							break;
+					} else if (diff < 0) {
+						// The queue is full, we can't push
+						return false;
+					} else {
+						pos = m_pushPos.load(std::memory_order_relaxed);
+					}
+				}
+
+				core::call_ctor(&pNode->item, GAIA_MOV(item));
+				pNode->sequence.store(pos + 1, std::memory_order_release);
+				return true;
+			}
+
+			//! Tries to pop an item from the queue.
+			//! \param[out] item Destination to which the output will be moved if possible.
+			//! \return True if an item was popped. False otherwise (aka empty).
+			bool try_pop(T& item) {
+				GAIA_PROF_SCOPE(MpmcQueue::try_pop);
+
+				Node* pNodes = data();
+
+				Node* pNode = nullptr;
+				uint32_t pos = m_popPos.load(std::memory_order_relaxed);
+				while (true) {
+					pNode = &pNodes[pos & MASK];
+					uint32_t seq = pNode->sequence.load(std::memory_order_acquire);
+					int32_t diff = int32_t(seq) - int32_t(pos + 1);
+					if (diff == 0) {
+						if (m_popPos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
+							break;
+					} else if (diff < 0) {
+						// The queue is empty, we can't pop
+						return false;
+					} else {
+						pos = m_popPos.load(std::memory_order_relaxed);
+					}
+				}
+
+				item = GAIA_MOV(pNode->item);
+				core::call_dtor(&pNode->item);
+				pNode->sequence.store(pos + MASK + 1, std::memory_order_release);
 				return true;
 			}
 		};
@@ -14525,12 +14798,12 @@ namespace gaia {
 			//! How many jobs are currently being processed
 			std::atomic_uint32_t m_jobsPending[JobPriorityCnt]{};
 			//! Mutex protecting the access to a given queue
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock0);
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock1);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv0);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv1);
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
 			//! Array of pending user jobs
-			JobQueue m_jobQueue[JobPriorityCnt];
+			JobQueue<1024> m_jobQueue[JobPriorityCnt];
 
 		private:
 			ThreadPool() {
@@ -14660,13 +14933,12 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
+			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				m_jobManager.submit(jobHandle);
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
@@ -14679,7 +14951,7 @@ namespace gaia {
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
 
-				// Wake some worker thread
+				auto& cv = m_cv[(uint32_t)prio];
 				cv.notify_one();
 			}
 
@@ -14694,11 +14966,10 @@ namespace gaia {
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle resubmittion (submit, update).
+					// Let the other parts of the code handle the resubmit (submit(), update()).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
 					return;
@@ -14709,7 +14980,7 @@ namespace gaia {
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
 
-				// Wake some worker thread
+				auto& cv = m_cv[(uint32_t)prio];
 				cv.notify_one();
 			}
 
@@ -14776,8 +15047,20 @@ namespace gaia {
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
 
 				// No group size was given, make a guess based on the set size
-				if (groupSize == 0)
+				if (groupSize == 0) {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+					// If there are too many items we split them into multiple jobs.
+					// This way, if we wait for the result and some workers finish
+					// with our task faster, the finished worker can pick up a new
+					// job faster.
+					// On the other hand, too little items probably don't deserve
+					// multiple jobs.
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize <= 0)
+						groupSize = 1;
+				}
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				// Internal jobs + 1 for the groupHandle
@@ -14785,6 +15068,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({{}, prio});
 
+				auto* pHandles = (JobHandle*)alloca(jobs * sizeof(JobHandle));
 				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
@@ -14799,9 +15083,12 @@ namespace gaia {
 						job.func(args);
 					};
 
-					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc, prio});
+					JobHandle jobHandle = pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
 					dep(groupHandle, jobHandle);
-					submit(jobHandle);
+				}
+
+				GAIA_FOR_(jobs, jobIndex) {
+					submit(pHandles[jobIndex]);
 				}
 
 				submit(groupHandle);
@@ -15200,8 +15487,8 @@ namespace gaia {
 			//! \param prio Target worker queue defined by job priority
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[prio];
-				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
+				auto& cv = m_cv[(uint32_t)prio];
+				auto& cvLock = prio == JobPriority::High ? m_mtx_cv0 : m_mtx_cv1;
 
 				bool ready = false;
 				while (!m_stop) {
@@ -15293,12 +15580,12 @@ namespace gaia {
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cnt = m_workerCnt[job.priority];
+				const auto cnt = m_workerCnt[(uint32_t)job.priority];
 				return cnt > 0
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)((job.priority + 1U) % (uint32_t)JobPriorityCnt);
+									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 		};
 	} // namespace mt
@@ -20443,6 +20730,8 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
+				//! World pointer
+				const World* m_pWorld = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -20458,9 +20747,24 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
+				void set_world(const World* pWorld) {
+					GAIA_ASSERT(pWorld != nullptr);
+					m_pWorld = pWorld;
+				}
+
+				const World* world() const {
+					GAIA_ASSERT(m_pWorld != nullptr);
+					return m_pWorld;
+				}
+
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+				}
+
+				const Chunk* chunk() const {
+					GAIA_ASSERT(m_pChunk != nullptr);
+					return m_pChunk;
 				}
 
 				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
@@ -20603,14 +20907,18 @@ namespace gaia {
 					return m_pChunk->has<T>();
 				}
 
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_enabled();
+					else if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_disabled();
+					else
+						return pChunk->size();
+				}
+
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_enabled();
-					else if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return size(m_pChunk);
 				}
 
 				//! Returns the absolute index that should be used to access an item in the chunk.
@@ -20680,8 +20988,8 @@ namespace gaia {
 /*** Start of inlined file: world.h ***/
 #pragma once
 
-#include <cstdint>
 #include <cstdarg>
+#include <cstdint>
 #include <type_traits>
 
 
@@ -22187,9 +22495,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD World* world() {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return const_cast<World*>(m_ctx.w);
 			}
 			GAIA_NODISCARD const World* world() const {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return m_ctx.w;
 			}
 
@@ -22547,6 +22857,17 @@ namespace gaia {
 		bool is_base(const World& world, Entity entity);
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
+		enum class QueryExecType : uint32_t {
+			// Default - main thread
+			Default,
+			// Parallel, any core
+			Parallel,
+			// Parallel, perf cores only
+			ParallelPerf,
+			// Parallel, efficiency cores only
+			ParallelEff
+		};
+
 		namespace detail {
 			//! Query command types
 			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
@@ -22866,6 +23187,7 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				static constexpr uint32_t SchedParBatchSize = 8;
 
 				struct ChunkBatch {
 					Chunk* pChunk;
@@ -22918,6 +23240,9 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+				//! Batches used for parallel query processing
+				//! TODO: This is just temporary until a smarter system is introduced
+				cnt::darray<ChunkBatch> m_batches;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -23218,28 +23543,39 @@ namespace gaia {
 					return false;
 				}
 
-				//! Execute functors in batches
+				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing
+					return !archetype.is_req_del();
+				}
+
+				//--------------------------------------------------------------------------------
+
+				//! Execute the functor for a given chunk batch
 				template <typename Func, typename TIter>
-				static void run_query_func(Func func, TIter& it, ChunkBatchArray& chunks) {
+				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
+					auto* pChunk = batch.pChunk;
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+					TIter it;
+					it.set_world(pWorld);
+					it.set_group_id(batch.groupId);
+					it.set_remapping_indices(batch.pIndicesMapping);
+					it.set_chunk(pChunk);
+					func(it);
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(false);
+#endif
+				}
+
+				//! Execute the functor in batches
+				template <typename Func, typename TIter>
+				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
-					const auto chunkCnt = chunks.size();
+					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
-
-					auto runFunc = [&](ChunkBatch& batch) {
-						auto* pChunk = batch.pChunk;
-
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(true);
-#endif
-						it.set_group_id(batch.groupId);
-						it.set_remapping_indices(batch.pIndicesMapping);
-						it.set_chunk(pChunk);
-						func(it);
-#if GAIA_ASSERT_ENABLED
-						pChunk->lock(false);
-#endif
-					};
 
 					// This is what the function is doing:
 					// for (auto *pChunk: chunks) {
@@ -23247,12 +23583,10 @@ namespace gaia {
 					//	runFunc(pChunk);
 					//  pChunk->lock(false);
 					// }
-					// chunks.clear();
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						runFunc(chunks[0]);
-						chunks.clear();
+						run_query_func<Func, TIter>(pWorld, func, batches[0]);
 						return;
 					}
 
@@ -23264,77 +23598,33 @@ namespace gaia {
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
-					gaia::prefetch(&chunks[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-					runFunc(chunks[0]);
+					gaia::prefetch(&batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+					run_query_func<Func, TIter>(pWorld, func, batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
-						gaia::prefetch(&chunks[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-						runFunc(chunks[chunkIdx]);
+						gaia::prefetch(&batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+						run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 					}
 
-					runFunc(chunks[chunkIdx]);
-
-					chunks.clear();
-				}
-
-				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
-					// Archetypes requested for deletion are skipped for processing
-					return !archetype.is_req_del();
+					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
-				void run_query(const QueryInfo& queryInfo, Func func) {
-					ChunkBatchArray chunkBatch;
-					TIter it;
+				void run_query_batch_no_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
-					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
+					// We are batching by chunks. Some of them might contain only few items but this state is only
+					// temporary because defragmentation runs constantly and keeps things clean.
+					ChunkBatchArray chunkBatches;
 
-					// TODO: Have archetype cache as double-linked list with pointers only.
-					//       Have chunk cache as double-linked list with pointers only.
-					//       Make it so only valid pointers are linked together.
-					//       This means one less indirection + we won't need to call can_process_archetype()
-					//       and pChunk.size()==0 here.
-					auto cache_view = queryInfo.cache_archetype_view();
-					auto cache_data_view = queryInfo.cache_data_view();
+					auto cacheView = queryInfo.cache_archetype_view();
 
-					// Determine the range of archetypes we will iterate.
-					// Use the entire range by default.
-					uint32_t idx_from = 0;
-					uint32_t idx_to = (uint32_t)cache_view.size();
-
-					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
-					if (isGroupBy && isGroupSet) {
-						// We wish to iterate only a certain group
-						auto group_data_view = queryInfo.group_data_view();
-						GAIA_EACH(group_data_view) {
-							if (group_data_view[i].groupId == queryInfo.data().groupIdSet) {
-								idx_from = group_data_view[i].idxFirst;
-								idx_to = group_data_view[i].idxLast + 1;
-								goto groupSetFound;
-							}
-						}
-						return;
-					}
-
-				groupSetFound:
-					ArchetypeCacheData dummyCacheData{};
-
-					for (uint32_t i = idx_from; i < idx_to; ++i) {
-						auto* pArchetype = cache_view[i];
-
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
-
-						const auto& cacheData = isGroupBy ? cache_data_view[i] : dummyCacheData;
-						GAIA_ASSERT(
-								// Either no grouping is used...
-								!isGroupBy ||
-								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
-								// ... or the groupId must match the requested one
-								cache_data_view[i].groupId == queryInfo.data().groupIdSet);
 
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
@@ -23342,13 +23632,12 @@ namespace gaia {
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
 						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
 							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								it.set_chunk(pChunk);
-								if GAIA_UNLIKELY (it.size() == 0)
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -23356,11 +23645,13 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatch.push_back({pChunk, indices_view.data(), cacheData.groupId});
+								chunkBatches.push_back({pChunk, indices_view.data(), 0});
 							}
 
-							if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-								run_query_func(func, it, chunkBatch);
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
+							}
 
 							itemsLeft -= batchSize;
 							chunkOffset += batchSize;
@@ -23368,20 +23659,249 @@ namespace gaia {
 					}
 
 					// Take care of any leftovers not processed during run_query
-					if (!chunkBatch.empty())
-						run_query_func(func, it, chunkBatch);
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 				}
 
-				template <typename TIter, typename Func>
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_no_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					uint32_t entityCnt = 0;
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							const auto cnt = TIter::size(pChunk);
+							if GAIA_UNLIKELY (cnt == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), 0});
+							entityCnt += cnt;
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					tp.wait(jobHandle);
+					m_batches.clear();
+				}
+
+				template <bool HasFilters, typename TIter, typename Func>
+				void run_query_batch_with_group_id(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id);
+
+					ChunkBatchArray chunkBatches;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& chunks = pArchetype->chunks();
+						const auto& data = dataView[i];
+
+						uint32_t chunkOffset = 0;
+						uint32_t itemsLeft = chunks.size();
+						while (itemsLeft > 0) {
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+							for (auto* pChunk: chunkSpan) {
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								chunkBatches.push_back({pChunk, indices_view.data(), data.groupId});
+							}
+
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								chunkBatches.clear();
+							}
+
+							itemsLeft -= batchSize;
+							chunkOffset += batchSize;
+						}
+					}
+
+					// Take care of any leftovers not processed during run_query
+					if (!chunkBatches.empty())
+						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+				}
+
+				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				void run_query_batch_with_group_id_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id_par);
+
+					ChunkBatchArray chunkBatch;
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
+
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						const auto& data = dataView[i];
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+					}
+#endif
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const Archetype* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							continue;
+
+						auto indices_view = queryInfo.indices_mapping_view(i);
+						const auto& data = dataView[i];
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo))
+									continue;
+							}
+
+							m_batches.push_back({pChunk, indices_view.data(), data.groupId});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					mt::JobParallel j;
+
+					// Use efficiency cores for low-level priority jobs
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func<Func, TIter>(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
+					tp.wait(jobHandle);
+					m_batches.clear();
+				}
+
+				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
+				void run_query(const QueryInfo& queryInfo, Func func) {
+					GAIA_PROF_SCOPE(query::run_query);
+
+					// TODO: Have archetype cache as double-linked list with pointers only.
+					//       Have chunk cache as double-linked list with pointers only.
+					//       Make it so only valid pointers are linked together.
+					//       This means one less indirection + we won't need to call can_process_archetype()
+					//       or pChunk.size()==0 in run_query_batch functions.
+					auto cache_view = queryInfo.cache_archetype_view();
+					if (cache_view.empty())
+						return;
+
+					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					if (!isGroupBy || !isGroupSet) {
+						// No group requested or group filtering is currently turned off
+						const auto idxFrom = 0;
+						const auto idxTo = (uint32_t)cache_view.size();
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_no_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+						else
+							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+					} else {
+						// We wish to iterate only a certain group
+						// TODO: Cache the indices so we don't have to iterate. In situations with many
+						//       groups this could save a bit of performance.
+						auto group_data_view = queryInfo.group_data_view();
+						GAIA_EACH(group_data_view) {
+							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
+								continue;
+
+							const auto idxFrom = group_data_view[i].idxFirst;
+							const auto idxTo = group_data_view[i].idxLast + 1;
+							if constexpr (ExecType != QueryExecType::Default)
+								run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							else
+								run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							return;
+						}
+					}
+				}
+
+				template <QueryExecType ExecType, typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)
-						run_query<true, TIter>(queryInfo, func);
+						run_query<true, ExecType, TIter>(queryInfo, func);
 					else
-						run_query<false, TIter>(queryInfo, func);
+						run_query<false, ExecType, TIter>(queryInfo, func);
 
 					// Update the query version with the current world's version
 					queryInfo.set_world_version(*m_worldVersion);
@@ -23411,6 +23931,69 @@ namespace gaia {
 					}
 				}
 
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(QueryInfo& queryInfo, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					// in query.
+					// Example 1:
+					//   auto q = w.query().all<MyType>(); // immutable access requested
+					//   q.each([](MyType val)) {}); // okay
+					//   q.each([](const MyType& val)) {}); // okay
+					//   q.each([](MyType& val)) {}); // error
+					// Example 2:
+					//   auto q = w.query().all<MyType&>(); // mutable access requested
+					//   q.each([](MyType val)) {}); // error
+					//   q.each([](const MyType& val)) {}); // error
+					//   q.each([](MyType& val)) {}); // okay
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						run_query_on_chunk(it, func, InputArgs{});
+					});
+				}
+
+				template <
+						QueryExecType ExecType, typename Func, bool FuncEnabled = UseCaching,
+						typename std::enable_if<FuncEnabled>::type* = nullptr>
+				void each_inter(QueryId queryId, Func func) {
+					// Make sure the query was created by World.query()
+					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+					GAIA_ASSERT(queryId != QueryIdBad);
+
+					auto& queryInfo = m_storage.m_queryCache->get(queryId);
+					each_inter(queryInfo, func);
+				}
+
+				template <QueryExecType ExecType, typename Func>
+				void each_inter(Func func) {
+					auto& queryInfo = fetch();
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_chunks<ExecType, IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func);
+							func(it);
+						});
+					} else
+						each_inter<ExecType>(queryInfo, func);
+				}
+
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					for (const auto* pArchetype: queryInfo) {
@@ -23421,6 +24004,7 @@ namespace gaia {
 
 						const auto& chunks = pArchetype->chunks();
 						TIter it;
+						it.set_world(queryInfo.world());
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
@@ -23441,6 +24025,7 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					uint32_t cnt = 0;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23477,6 +24062,7 @@ namespace gaia {
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 					TIter it;
+					it.set_world(queryInfo.world());
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -23763,65 +24349,29 @@ namespace gaia {
 				//------------------------------------------------
 
 				template <typename Func>
-				void each(QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-#if GAIA_ASSERT_ENABLED
-					// Make sure we only use components specified in the query.
-					// Constness is respected. Therefore, if a type is const when registered to query,
-					// it has to be const (or immutable) also in each().
-					// in query.
-					// Example 1:
-					//   auto q = w.query().all<MyType>(); // immutable access requested
-					//   q.each([](MyType val)) {}); // okay
-					//   q.each([](const MyType& val)) {}); // okay
-					//   q.each([](MyType& val)) {}); // error
-					// Example 2:
-					//   auto q = w.query().all<MyType&>(); // mutable access requested
-					//   q.each([](MyType val)) {}); // error
-					//   q.each([](const MyType& val)) {}); // error
-					//   q.each([](MyType& val)) {}); // okay
-					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-#endif
-
-					run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(it, func, InputArgs{});
-					});
+				void each(Func func) {
+					each_inter<QueryExecType::Default, Func>(func);
 				}
 
 				template <typename Func>
-				void each(Func func) {
-					auto& queryInfo = fetch();
-
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						run_query_on_chunks<IterAll>(queryInfo, [&](IterAll& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						run_query_on_chunks<Iter>(queryInfo, [&](Iter& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						run_query_on_chunks<IterDisabled>(queryInfo, [&](IterDisabled& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else
-						each(queryInfo, func);
+				void each(Func func, QueryExecType execType) {
+					switch (execType) {
+						case QueryExecType::Parallel:
+							each_inter<QueryExecType::Parallel, Func>(func);
+							break;
+						case QueryExecType::ParallelPerf:
+							each_inter<QueryExecType::ParallelPerf, Func>(func);
+							break;
+						case QueryExecType::ParallelEff:
+							each_inter<QueryExecType::ParallelEff, Func>(func);
+							break;
+						default:
+							each_inter<QueryExecType::Default, Func>(func);
+							break;
+					}
 				}
 
-				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
-				void each(QueryId queryId, Func func) {
-					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
-					GAIA_ASSERT(queryId != QueryIdBad);
-
-					auto& queryInfo = m_storage.m_queryCache->get(queryId);
-					each(queryInfo, func);
-				}
+				//------------------------------------------------
 
 				//!	Returns true or false depending on whether there are any entities matching the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
@@ -25329,7 +25879,8 @@ namespace gaia {
 
 				// If no length was given, we have to find it ourselves
 				if (len == 0) {
-					while (name[len] != '\0') ++len;
+					while (name[len] != '\0')
+						++len;
 				}
 				std::span<const char> str(name, len);
 
@@ -25338,6 +25889,9 @@ namespace gaia {
 					posDot = core::get_index(str, '.');
 					if (posDot == BadIndex)
 						return name_to_entity(str);
+
+					if (posDot == 0)
+						return EntityBad;
 
 					parent = name_to_entity(str.subspan(0, posDot));
 					if (parent == EntityBad)
@@ -25359,6 +25913,9 @@ namespace gaia {
 
 						return child;
 					}
+
+					if (posDot == 0)
+						return EntityBad;
 
 					// B) More dots in the string
 					child = name_to_entity(str.subspan(0, posDot));
@@ -27540,9 +28097,9 @@ namespace gaia {
 
 				// Make sure the name does not contain a dot because this character is reserved for
 				// hierarchical lookups, e.g. "parent.child.subchild".
-				#ifdef GAIA_ASSERT_ENABLED
+#ifdef GAIA_ASSERT_ENABLED
 				{
-					const char *pName = name;
+					const char* pName = name;
 					while (*pName != '\0') {
 						const bool hasInvalidCharacter = *pName == '.';
 						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
@@ -27551,7 +28108,7 @@ namespace gaia {
 						++pName;
 					}
 				}
-				#endif
+#endif
 
 				// Make sure EntityDesc is added
 				add<EntityDesc>(entity);
@@ -28056,6 +28613,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 
+	#if GAIA_PROFILER_CPU
+		inline constexpr const char* sc_query_func_str = "System2_exec";
+		const char* entity_name(const World& world, Entity entity);
+	#endif
+
 		struct System2_ {
 			using TSystemIterFunc = std::function<void(Iter&)>;
 
@@ -28065,10 +28627,32 @@ namespace gaia {
 			TSystemIterFunc on_each_func;
 			//! Query associated with the system
 			Query query;
+			//! Execution type
+			QueryExecType execType;
 
 			void exec() {
 				auto& queryInfo = query.fetch();
-				query.run_query_on_chunks<Iter>(queryInfo, on_each_func);
+
+	#if GAIA_PROFILER_CPU
+				const char* pName = entity_name(*queryInfo.world(), entity);
+				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
+				GAIA_PROF_SCOPE2(pScopeName);
+	#endif
+
+				switch (execType) {
+					case QueryExecType::Parallel:
+						query.run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelPerf:
+						query.run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, on_each_func);
+						break;
+					case QueryExecType::ParallelEff:
+						query.run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, on_each_func);
+						break;
+					default:
+						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
+						break;
+				}
 			}
 		};
 
@@ -28090,6 +28674,7 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
+			QueryExecType m_execType;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
@@ -28129,14 +28714,19 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& mode(QueryExecType type) {
+				m_execType = type;
+				return *this;
+			}
+
 			template <typename Func>
 			SystemBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = data();
+				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
 						func(it);
 					};
 				} else {
@@ -28150,13 +28740,12 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [&w = m_world, e = m_entity, func](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
+					ctx.on_each_func = [e = m_entity, func](Iter& it) {
 						// NOTE: We can't directly use data().query here because the function relies
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
 						//       They are then used to get to the query stored inside System2_.
-						auto ss = w.acc_mut(e);
+						auto ss = const_cast<World*>(it.world())->acc_mut(e);
 						auto& sys = ss.smut<System2_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};

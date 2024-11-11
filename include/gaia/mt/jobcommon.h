@@ -5,7 +5,7 @@
 
 namespace gaia {
 	namespace mt {
-		enum JobPriority : uint32_t {
+		enum class JobPriority : uint32_t {
 			//! High priority job. If available it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores

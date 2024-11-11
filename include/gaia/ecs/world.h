@@ -1,8 +1,8 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cstdint>
 #include <cstdarg>
+#include <cstdint>
 #include <type_traits>
 
 #include "../cnt/darray.h"
@@ -1404,7 +1404,7 @@ namespace gaia {
 			//! \return Entity assigned the given name. EntityBad if there is nothing to return.
 			GAIA_NODISCARD Entity get(const char* name, uint32_t len = 0) const {
 				if (name == nullptr || name[0] == 0)
-					return EntityBad;				
+					return EntityBad;
 
 				Entity parent = EntityBad;
 				Entity child = EntityBad;
@@ -1412,7 +1412,8 @@ namespace gaia {
 
 				// If no length was given, we have to find it ourselves
 				if (len == 0) {
-					while (name[len] != '\0') ++len;
+					while (name[len] != '\0')
+						++len;
 				}
 				std::span<const char> str(name, len);
 
@@ -1430,7 +1431,7 @@ namespace gaia {
 						return EntityBad;
 				}
 
-				str = str.subspan(posDot + 1); 
+				str = str.subspan(posDot + 1);
 				while (!str.empty()) {
 					posDot = core::get_index(str, '.');
 
@@ -1475,7 +1476,7 @@ namespace gaia {
 				const auto it = m_nameToEntity.find(key);
 				if (it != m_nameToEntity.end())
 					return it->second;
-				
+
 				// Name not found. This might be a component so check the component cache
 				const auto* pItem = m_compCache.find(name, len);
 				if (pItem != nullptr)
@@ -3629,9 +3630,9 @@ namespace gaia {
 
 				// Make sure the name does not contain a dot because this character is reserved for
 				// hierarchical lookups, e.g. "parent.child.subchild".
-				#ifdef GAIA_ASSERT_ENABLED
+#ifdef GAIA_ASSERT_ENABLED
 				{
-					const char *pName = name;
+					const char* pName = name;
 					while (*pName != '\0') {
 						const bool hasInvalidCharacter = *pName == '.';
 						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
@@ -3640,7 +3641,7 @@ namespace gaia {
 						++pName;
 					}
 				}
-				#endif
+#endif
 
 				// Make sure EntityDesc is added
 				add<EntityDesc>(entity);

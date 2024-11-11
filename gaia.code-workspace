@@ -123,6 +123,7 @@
 			"picobench",
 			"prefetchnta",
 			"Reimplementation",
+			"SANI",
 			"SIMD",
 			"subviews",
 			"Unpoison",

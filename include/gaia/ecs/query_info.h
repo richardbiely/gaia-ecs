@@ -505,9 +505,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD World* world() {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return const_cast<World*>(m_ctx.w);
 			}
 			GAIA_NODISCARD const World* world() const {
+				GAIA_ASSERT(m_ctx.w != nullptr);
 				return m_ctx.w;
 			}
 

@@ -1,4 +1,7 @@
 #include <gaia.h>
+#include <gaia/external/random.h>
+#include <thread>
+#include <type_traits>
 
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
@@ -1959,31 +1962,59 @@ TEST_CASE("each_pack") {
 }
 
 template <bool IsRuntime, typename C>
-void sort_descending(C arr) {
+void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	for (TValue i = 0; i < (TValue)arr.size(); ++i)
-		arr[i] = i;
-	if constexpr (IsRuntime)
-		core::sort(arr, core::is_greater<TValue>());
-	else
-		core::sort_ct(arr, core::is_greater<TValue>());
-	for (uint32_t i = 1; i < arr.size(); ++i)
-		REQUIRE(arr[i - 1] > arr[i]);
+	SECTION("sort1") {
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		if constexpr (IsRuntime)
+			core::sort(arr, core::is_greater<TValue>());
+		else
+			core::sort_ct(arr, core::is_greater<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
+	if constexpr (IsRuntime) {
+		SECTION("sort2") {
+			for (TValue i = 0; i < (TValue)arr.size(); ++i)
+				arr[i] = i;
+			core::sort(arr, core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
+				core::swap(arr[a], arr[b]);
+			});
+			for (uint32_t i = 1; i < arr.size(); ++i)
+				REQUIRE(arr[i - 1] > arr[i]);
+		}
+	}
 }
 
 template <bool IsRuntime, typename C>
-void sort_ascending(C arr) {
+void sort_ascending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	for (TValue i = 0; i < (TValue)arr.size(); ++i)
-		arr[i] = i;
-	if constexpr (IsRuntime)
-		core::sort(arr, core::is_smaller<TValue>());
-	else
-		core::sort_ct(arr, core::is_smaller<TValue>());
-	for (uint32_t i = 1; i < arr.size(); ++i)
-		REQUIRE(arr[i - 1] < arr[i]);
+	SECTION("sort1") {
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		if constexpr (IsRuntime)
+			core::sort(arr, core::is_smaller<TValue>());
+		else
+			core::sort_ct(arr, core::is_smaller<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
+	if constexpr (IsRuntime) {
+		SECTION("sort2") {
+			for (TValue i = 0; i < (TValue)arr.size(); ++i)
+				arr[i] = i;
+			core::sort(arr, core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
+				core::swap(arr[a], arr[b]);
+			});
+			for (uint32_t i = 1; i < arr.size(); ++i)
+				REQUIRE(arr[i - 1] < arr[i]);
+		}
+	}
 }
 
 TEST_CASE("Compile-time sort descending") {
@@ -5287,7 +5318,6 @@ TEST_CASE("Entity name - copy") {
 	}
 }
 
-
 TEST_CASE("Entity name - hierarchy") {
 	TestWorld twld;
 
@@ -7509,6 +7539,294 @@ TEST_CASE("Serialization - arrays") {
 //------------------------------------------------------------------------------
 // Multithreading
 //------------------------------------------------------------------------------
+
+template <typename TQueue>
+void TestJobQueue_PushPopSteal(bool reverse) {
+	mt::JobHandle handle;
+	TQueue q;
+
+	{
+		REQUIRE(q.empty());
+		q.try_push(mt::JobHandle(1, 0, 0));
+		REQUIRE_FALSE(q.empty());
+		q.try_push(mt::JobHandle(2, 0, 0));
+		REQUIRE_FALSE(q.empty());
+
+		auto res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
+
+	{
+		q.try_push(mt::JobHandle(1, 0, 0));
+		REQUIRE_FALSE(q.empty());
+		q.try_push(mt::JobHandle(2, 0, 0));
+		REQUIRE_FALSE(q.empty());
+
+		auto res = q.try_steal(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_steal(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_steal(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
+}
+
+template <typename TQueue>
+void TestJobQueue_PushPop(bool reverse) {
+	mt::JobHandle handle;
+	TQueue q;
+
+	{
+		q.try_push(mt::JobHandle(1, 0, 0));
+		q.try_push(mt::JobHandle(2, 0, 0));
+
+		auto res = q.try_pop(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 1);
+		else
+			REQUIRE(handle.id() == 2);
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		if (reverse)
+			REQUIRE(handle.id() == 2);
+		else
+			REQUIRE(handle.id() == 1);
+
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+	}
+}
+
+constexpr uint32_t JobQueueMTTesterItems = 500;
+
+template <typename TQueue>
+struct JobQueueMTTester_PushPopSteal {
+	using QueueType = TQueue;
+
+	TQueue* q;
+	bool* terminate;
+	uint32_t thread_idx;
+
+	std::thread t;
+	uint32_t processed = 0;
+
+	JobQueueMTTester_PushPopSteal(TQueue* q_, bool* terminate_, uint32_t idx):
+			q(q_), terminate(terminate_), thread_idx(idx) {}
+	JobQueueMTTester_PushPopSteal() = default;
+
+	void init() {
+		processed = 0;
+		t = std::thread([this]() {
+			run();
+		});
+	}
+
+	void fini() {
+		if (t.joinable())
+			t.join();
+	}
+
+	void run() {
+		mt::JobHandle handle;
+
+		if (0 == thread_idx) {
+			rnd::random_xoshiro128 rng{};
+			uint32_t itemsToInsert = JobQueueMTTesterItems;
+
+			// This thread generates 2 items per tick and consumes one
+			while (itemsToInsert > 0) {
+				// Keep inserting items
+				if (!q->try_push(mt::JobHandle(itemsToInsert, 0, 0))) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				--itemsToInsert;
+
+				if (rng.range(0, 1) == 0)
+					std::this_thread::yield();
+
+				if (!q->try_pop(handle))
+					std::this_thread::yield();
+				else
+					++processed;
+			}
+
+			// Make sure all items are consumed
+			while (!q->empty())
+				std::this_thread::yield();
+			*terminate = true;
+		} else {
+			while (!*terminate) {
+				// Other threads steal work
+				if (!q->try_steal(handle)) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				++processed;
+			}
+		}
+	}
+};
+
+template <typename TQueue>
+struct JobQueueMTTester_PushPop {
+	using QueueType = TQueue;
+
+	TQueue* q;
+	bool* terminate;
+	uint32_t thread_idx;
+
+	std::thread t;
+	uint32_t processed = 0;
+
+	JobQueueMTTester_PushPop(TQueue* q_, bool* terminate_, uint32_t idx): q(q_), terminate(terminate_), thread_idx(idx) {}
+	JobQueueMTTester_PushPop() = default;
+
+	void init() {
+		processed = 0;
+		t = std::thread([this]() {
+			run();
+		});
+	}
+
+	void fini() {
+		if (t.joinable())
+			t.join();
+	}
+
+	void run() {
+		mt::JobHandle handle;
+
+		if (0 == thread_idx) {
+			rnd::random_xoshiro128 rng{};
+			uint32_t itemsToInsert = JobQueueMTTesterItems;
+
+			// This thread generates 2 items per tick and consumes one
+			while (itemsToInsert > 0) {
+				// Keep inserting items
+				if (!q->try_push(mt::JobHandle(itemsToInsert, 0, 0))) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				--itemsToInsert;
+
+				if (rng.range(0, 1) == 0)
+					std::this_thread::yield();
+
+				if (!q->try_pop(handle))
+					std::this_thread::yield();
+				else
+					++processed;
+			}
+
+			// Make sure all items are consumed
+			while (!q->empty())
+				std::this_thread::yield();
+			*terminate = true;
+		} else {
+			while (!*terminate) {
+				// Other threads steal work
+				if (!q->try_pop(handle)) {
+					std::this_thread::yield();
+					continue;
+				}
+
+				++processed;
+			}
+		}
+	}
+};
+
+template <typename TTestType>
+void TestJobQueueMT(uint32_t threadCnt) {
+	REQUIRE(threadCnt > 1);
+
+	typename TTestType::QueueType q;
+	bool terminate = false;
+	cnt::darray<TTestType> testers;
+	GAIA_FOR(threadCnt) testers.push_back(TTestType(&q, &terminate, i));
+
+	GAIA_FOR_(100, j) {
+		GAIA_FOR(threadCnt) testers[i].init();
+		GAIA_FOR(threadCnt) testers[i].fini();
+		uint32_t total = 0;
+		GAIA_FOR(threadCnt) {
+			// GAIA_LOG_N("worker:%u, processed:%u", i, testers[i].processed);
+			total += testers[i].processed;
+		}
+		REQUIRE(total == JobQueueMTTesterItems);
+		terminate = false;
+	}
+}
+
+TEST_CASE("JobQueue") {
+	using jc = mt::JobQueue<1024>;
+	using jclf = mt::JobQueueLockFree<1024>;
+	using mpmc = mt::MpmcQueue<mt::JobHandle, 1024>;
+
+	SECTION("Basic") {
+		TestJobQueue_PushPopSteal<jc>(true);
+		TestJobQueue_PushPopSteal<jclf>(false);
+		TestJobQueue_PushPop<mpmc>(true);
+	}
+
+	using mttester_jc = JobQueueMTTester_PushPopSteal<jc>;
+	using mttester_jclf = JobQueueMTTester_PushPopSteal<jclf>;
+	using mttester_mpmc = JobQueueMTTester_PushPop<mpmc>;
+
+	SECTION("MT - 2 threads") {
+		TestJobQueueMT<mttester_jc>(2);
+		TestJobQueueMT<mttester_jclf>(2);
+		TestJobQueueMT<mttester_mpmc>(2);
+	}
+
+	SECTION("MT - 4 threads") {
+		TestJobQueueMT<mttester_jc>(4);
+		TestJobQueueMT<mttester_jclf>(4);
+		TestJobQueueMT<mttester_mpmc>(4);
+	}
+
+	SECTION("MT - 16 threads") {
+		TestJobQueueMT<mttester_jc>(16);
+		TestJobQueueMT<mttester_jclf>(16);
+		TestJobQueueMT<mttester_mpmc>(16);
+	}
+}
 
 static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;

@@ -16,6 +16,7 @@
 	#define GAIA_THREAD pthread_t
 #endif
 
+#include <alloca.h>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -65,12 +66,12 @@ namespace gaia {
 			//! How many jobs are currently being processed
 			std::atomic_uint32_t m_jobsPending[JobPriorityCnt]{};
 			//! Mutex protecting the access to a given queue
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock0);
-			GAIA_PROF_MUTEX(std::mutex, m_cvLock1);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv0);
+			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv1);
 			//! Signals for given workers to wake up
 			std::condition_variable m_cv[JobPriorityCnt];
 			//! Array of pending user jobs
-			JobQueue m_jobQueue[JobPriorityCnt];
+			JobQueue<1024> m_jobQueue[JobPriorityCnt];
 
 		private:
 			ThreadPool() {
@@ -200,13 +201,12 @@ namespace gaia {
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
+			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				m_jobManager.submit(jobHandle);
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
@@ -219,7 +219,7 @@ namespace gaia {
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
 
-				// Wake some worker thread
+				auto& cv = m_cv[(uint32_t)prio];
 				cv.notify_one();
 			}
 
@@ -234,11 +234,10 @@ namespace gaia {
 
 				const auto prio = (JobPriority)jobHandle.prio();
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
 
 				if GAIA_UNLIKELY (m_workers.empty()) {
 					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle resubmittion (submit, update).
+					// Let the other parts of the code handle the resubmit (submit(), update()).
 					// Otherwise, we would enter an endless recursion and stack overflow here.
 					// -->  main_thread_tick(prio);
 					return;
@@ -249,7 +248,7 @@ namespace gaia {
 				while (!jobQueue.try_push(jobHandle))
 					poll(prio);
 
-				// Wake some worker thread
+				auto& cv = m_cv[(uint32_t)prio];
 				cv.notify_one();
 			}
 
@@ -316,8 +315,20 @@ namespace gaia {
 				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
 
 				// No group size was given, make a guess based on the set size
-				if (groupSize == 0)
+				if (groupSize == 0) {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+					// If there are too many items we split them into multiple jobs.
+					// This way, if we wait for the result and some workers finish
+					// with our task faster, the finished worker can pick up a new
+					// job faster.
+					// On the other hand, too little items probably don't deserve
+					// multiple jobs.
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize <= 0)
+						groupSize = 1;
+				}
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				// Internal jobs + 1 for the groupHandle
@@ -325,6 +336,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({{}, prio});
 
+				auto* pHandles = (JobHandle*)alloca(jobs * sizeof(JobHandle));
 				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
@@ -339,9 +351,12 @@ namespace gaia {
 						job.func(args);
 					};
 
-					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc, prio});
+					JobHandle jobHandle = pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
 					dep(groupHandle, jobHandle);
-					submit(jobHandle);
+				}
+
+				GAIA_FOR_(jobs, jobIndex) {
+					submit(pHandles[jobIndex]);
 				}
 
 				submit(groupHandle);
@@ -740,8 +755,8 @@ namespace gaia {
 			//! \param prio Target worker queue defined by job priority
 			void worker_loop(JobPriority prio) {
 				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[prio];
-				auto& cvLock = prio == 0 ? m_cvLock0 : m_cvLock1;
+				auto& cv = m_cv[(uint32_t)prio];
+				auto& cvLock = prio == JobPriority::High ? m_mtx_cv0 : m_mtx_cv1;
 
 				bool ready = false;
 				while (!m_stop) {
@@ -833,12 +848,12 @@ namespace gaia {
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cnt = m_workerCnt[job.priority];
+				const auto cnt = m_workerCnt[(uint32_t)job.priority];
 				return cnt > 0
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)((job.priority + 1U) % (uint32_t)JobPriorityCnt);
+									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 		};
 	} // namespace mt

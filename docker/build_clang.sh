@@ -82,7 +82,7 @@ fi
 
 # Debug mode - address sanitizers
 cmake -E make_directory ${PATH_DEBUG_ADDR}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_DEBUG_ADDR}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_DEBUG_ADDR}
 if ! cmake --build ${PATH_DEBUG_ADDR} --config Debug; then
     echo "${PATH_DEBUG_ADDR} build failed"
     exit 1
@@ -90,7 +90,7 @@ fi
 
 # Debug mode - memory sanitizers
 cmake -E make_directory ${PATH_DEBUG_MEM}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_DEBUG_MEM}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_DEBUG_MEM}
 if ! cmake --build ${PATH_DEBUG_MEM} --config Debug; then
     echo "${PATH_DEBUG_MEM} build failed"
     exit 1
@@ -98,7 +98,7 @@ fi
 
 # Release mode - address sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_RELEASE_ADDR}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_ADDR} -S .. -B ${PATH_RELEASE_ADDR}
 if ! cmake --build ${PATH_RELEASE_ADDR} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_ADDR} build failed"
     exit 1
@@ -106,7 +106,7 @@ fi
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_RELEASE_MEM}
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DGAIA_USE_SANITIZER=${SANI_MEM} -S .. -B ${PATH_RELEASE_MEM}
 if ! cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo; then
     echo "${PATH_RELEASE_MEM} build failed"
     exit 1
@@ -120,6 +120,7 @@ PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
 PERF_ITER_PATH="src/perf/iter/gaia_perf_iter"
 PERF_DUEL_PATH="src/perf/duel/gaia_perf_duel"
 PERF_APP_PATH="src/perf/app/gaia_perf_app"
+PERF_MT_PATH="src/perf/mp/gaia_perf_mt"
 
 echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
 echo "Debug mode + addr sanitizer"
@@ -176,3 +177,17 @@ ${PATH_RELEASE_ADDR}/${PERF_APP_PATH} -s
 echo "Release mode + mem sanitizer"
 chmod +x ${PATH_RELEASE_MEM}/${PERF_APP_PATH}
 ${PATH_RELEASE_MEM}/${PERF_APP_PATH} -s
+
+echo ${PATH_DEBUG_ADDR}/${PERF_MT_PATH}
+echo "Debug mode + addr sanitizer"
+chmod +x ${PATH_DEBUG_ADDR}/${PERF_MT_PATH}
+${PATH_DEBUG_ADDR}/${PERF_MT_PATH} -s
+echo "Debug mode + mem sanitizer"
+chmod +x ${PATH_DEBUG_MEM}/${PERF_MT_PATH}
+${PATH_DEBUG_MEM}/${PERF_MT_PATH} -s
+echo "Release mode + addr sanitizer"
+chmod +x ${PATH_RELEASE_ADDR}/${PERF_MT_PATH}
+${PATH_RELEASE_ADDR}/${PERF_MT_PATH} -s
+echo "Release mode + mem sanitizer"
+chmod +x ${PATH_RELEASE_MEM}/${PERF_MT_PATH}
+${PATH_RELEASE_MEM}/${PERF_MT_PATH} -s

@@ -30,6 +30,8 @@ namespace gaia {
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
+				//! World pointer
+				const World* m_pWorld = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -45,9 +47,24 @@ namespace gaia {
 				ChunkIterImpl(const ChunkIterImpl&) = delete;
 				ChunkIterImpl& operator=(const ChunkIterImpl&) = delete;
 
+				void set_world(const World* pWorld) {
+					GAIA_ASSERT(pWorld != nullptr);
+					m_pWorld = pWorld;
+				}
+
+				const World* world() const {
+					GAIA_ASSERT(m_pWorld != nullptr);
+					return m_pWorld;
+				}
+
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+				}
+
+				const Chunk* chunk() const {
+					GAIA_ASSERT(m_pChunk != nullptr);
+					return m_pChunk;
 				}
 
 				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
@@ -190,14 +207,18 @@ namespace gaia {
 					return m_pChunk->has<T>();
 				}
 
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_enabled();
+					else if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_disabled();
+					else
+						return pChunk->size();
+				}
+
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_enabled();
-					else if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return size(m_pChunk);
 				}
 
 				//! Returns the absolute index that should be used to access an item in the chunk.

@@ -2,10 +2,9 @@
 
 #define PICOBENCH_IMPLEMENT
 #include <gaia.h>
+#include <gaia/external/random.h>
 #include <picobench/picobench.hpp>
 #include <string_view>
-
-#include "random.h"
 
 using namespace gaia;
 
