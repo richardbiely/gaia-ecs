@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "../core/utility.h"
 #include "darray.h"
 
 namespace gaia {
@@ -19,6 +20,34 @@ namespace gaia {
 
 			ilist_item() = default;
 			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
+
+			ilist_item(const ilist_item& other) {
+				idx = other.idx;
+				gen = other.gen;
+			}
+			ilist_item& operator=(const ilist_item& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				idx = other.idx;
+				gen = other.gen;
+				return *this;
+			}
+
+			ilist_item(ilist_item&& other) {
+				idx = other.idx;
+				gen = other.gen;
+
+				other.idx = (uint32_t)-1;
+				other.gen = (uint32_t)-1;
+			}
+			ilist_item& operator=(ilist_item&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				idx = other.idx;
+				gen = other.gen;
+
+				other.idx = (uint32_t)-1;
+				other.gen = (uint32_t)-1;
+				return *this;
+			}
 		};
 
 		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked

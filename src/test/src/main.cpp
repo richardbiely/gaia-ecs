@@ -7544,6 +7544,65 @@ template <typename TQueue>
 void TestJobQueue_PushPopSteal(bool reverse) {
 	mt::JobHandle handle;
 	TQueue q;
+	bool res;
+
+	for (uint32_t i = 0; i < 5; ++i) {
+		REQUIRE(q.empty());
+		res = q.try_push(mt::JobHandle(1, 0, 0));
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_push(mt::JobHandle(2, 0, 0));
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_push(mt::JobHandle(3, 0, 0));
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
+
+	{
+		mt::JobHandle handles[3] = {mt::JobHandle(1, 0, 0), mt::JobHandle(2, 0, 0), mt::JobHandle(3, 0, 0)};
+		res = q.try_push(std::span(handles, 3));
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE_FALSE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+		res = q.try_pop(handle);
+		REQUIRE_FALSE(res);
+		REQUIRE(q.empty());
+	}
 
 	{
 		REQUIRE(q.empty());
@@ -7552,7 +7611,7 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 		q.try_push(mt::JobHandle(2, 0, 0));
 		REQUIRE_FALSE(q.empty());
 
-		auto res = q.try_pop(handle);
+		res = q.try_pop(handle);
 		REQUIRE(res);
 		REQUIRE_FALSE(q.empty());
 		if (reverse)
@@ -7579,7 +7638,7 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 		q.try_push(mt::JobHandle(2, 0, 0));
 		REQUIRE_FALSE(q.empty());
 
-		auto res = q.try_steal(handle);
+		res = q.try_steal(handle);
 		REQUIRE(res);
 		REQUIRE_FALSE(q.empty());
 		if (reverse)
@@ -7596,7 +7655,8 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 			REQUIRE(handle.id() == 2);
 
 		res = q.try_steal(handle);
-		REQUIRE_FALSE(res);
+		REQUIRE(res);
+		REQUIRE(handle == (mt::JobHandle)mt::JobNull_t{});
 		REQUIRE(q.empty());
 	}
 }
@@ -7691,11 +7751,19 @@ struct JobQueueMTTester_PushPopSteal {
 		} else {
 			while (!*terminate) {
 				// Other threads steal work
-				if (!q->try_steal(handle)) {
+				const bool res = q->try_steal(handle);
+
+				// Failed race, try again
+				if (!res)
+					continue;
+
+				// Empty queue, wait a bit and try again
+				if (res && handle == (mt::JobHandle)mt::JobNull_t{}) {
 					std::this_thread::yield();
 					continue;
 				}
 
+				// Processed
 				++processed;
 			}
 		}
@@ -7786,7 +7854,6 @@ void TestJobQueueMT(uint32_t threadCnt) {
 		GAIA_FOR(threadCnt) testers[i].fini();
 		uint32_t total = 0;
 		GAIA_FOR(threadCnt) {
-			// GAIA_LOG_N("worker:%u, processed:%u", i, testers[i].processed);
 			total += testers[i].processed;
 		}
 		REQUIRE(total == JobQueueMTTesterItems);
@@ -7796,34 +7863,28 @@ void TestJobQueueMT(uint32_t threadCnt) {
 
 TEST_CASE("JobQueue") {
 	using jc = mt::JobQueue<1024>;
-	using jclf = mt::JobQueueLockFree<1024>;
 	using mpmc = mt::MpmcQueue<mt::JobHandle, 1024>;
 
 	SECTION("Basic") {
-		TestJobQueue_PushPopSteal<jc>(true);
-		TestJobQueue_PushPopSteal<jclf>(false);
+		TestJobQueue_PushPopSteal<jc>(false);
 		TestJobQueue_PushPop<mpmc>(true);
 	}
 
 	using mttester_jc = JobQueueMTTester_PushPopSteal<jc>;
-	using mttester_jclf = JobQueueMTTester_PushPopSteal<jclf>;
 	using mttester_mpmc = JobQueueMTTester_PushPop<mpmc>;
 
 	SECTION("MT - 2 threads") {
 		TestJobQueueMT<mttester_jc>(2);
-		TestJobQueueMT<mttester_jclf>(2);
 		TestJobQueueMT<mttester_mpmc>(2);
 	}
 
 	SECTION("MT - 4 threads") {
 		TestJobQueueMT<mttester_jc>(4);
-		TestJobQueueMT<mttester_jclf>(4);
 		TestJobQueueMT<mttester_mpmc>(4);
 	}
 
 	SECTION("MT - 16 threads") {
 		TestJobQueueMT<mttester_jc>(16);
-		TestJobQueueMT<mttester_jclf>(16);
 		TestJobQueueMT<mttester_mpmc>(16);
 	}
 }
@@ -7838,6 +7899,9 @@ template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
 	auto& tp = mt::ThreadPool::get();
 
+	mt::Job sync;
+	auto syncHandle = tp.add(sync);
+
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&pArr, &pRes, i, ItemsPerJob, func]() {
@@ -7845,9 +7909,10 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		tp.sched(job);
+		tp.sched(job, syncHandle);
 	}
-	tp.wait_all();
+	tp.submit(syncHandle);
+	tp.wait(syncHandle);
 
 	GAIA_FOR(Jobs) REQUIRE(pRes[i] == ItemsPerJob);
 }
@@ -7901,7 +7966,6 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
 		tp.wait(jobHandle);
 		REQUIRE(sum1 == N);
-		tp.wait_all();
 	};
 
 	SECTION("Max workers") {
@@ -7980,8 +8044,8 @@ TEST_CASE("Multithreading - CompleteMany") {
 
 			const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
 
-			tp.dep(jobHandle[1], jobHandle[0]);
-			tp.dep(jobHandle[2], jobHandle[1]);
+			tp.dep(jobHandle[0], jobHandle[1]);
+			tp.dep(jobHandle[1], jobHandle[2]);
 
 			// 2, 0, 1 -> wrong sum
 			// Submit jobs in random order to make sure this doesn't work just by accident

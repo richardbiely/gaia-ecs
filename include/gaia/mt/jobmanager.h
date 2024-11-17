@@ -1,56 +1,130 @@
 #pragma once
 
 #include "../config/config.h"
+#include "../config/profiler.h"
 
+#include <atomic>
 #include <functional>
 #include <inttypes.h>
 #include <mutex>
 
 #include "../cnt/ilist.h"
-#include "../config/profiler.h"
 #include "../core/span.h"
+#include "../mem/mem_alloc.h"
 #include "jobcommon.h"
 #include "jobhandle.h"
+#include "threadpool.h"
+
+#define GAIA_LOG_JOB_STATES 0
 
 namespace gaia {
 	namespace mt {
-		enum JobInternalState : uint32_t {
+		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
-			DEP_BITS = 27,
-			DEP_BITS_MASK = (uint32_t)((1llu << DEP_BITS) - 1),
+			DEP_BITS = 28,
+			DEP_BITS_MASK = (uint32_t)((1u << DEP_BITS) - 1),
 
 			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
 			STATE_BITS = 4,
-			STATE_BITS_MASK = (uint32_t)(((1llu << STATE_BITS) - 1) << STATE_BITS_START),
-
-			PRIORITY_BITS_START = STATE_BITS_START + STATE_BITS,
-			PRIORITY_BITS = 1,
-			PRIORITY_BIT_MASK = (uint32_t)(((1llu << PRIORITY_BITS) - 1) << PRIORITY_BITS_START),
+			STATE_BITS_MASK = (uint32_t)(((1u << STATE_BITS) - 1) << STATE_BITS_START),
 
 			// STATE
 
 			//! Submitted
 			Submitted = 0x01 << STATE_BITS_START,
+			//! Processing has begun, the job is in one of the job buffers
+			Processing = 0x02 << STATE_BITS_START,
 			//! Being executed
-			Running = 0x02 << STATE_BITS_START,
+			Executing = 0x03 << STATE_BITS_START,
 			//! Finished executing
-			Done = 0x04 << STATE_BITS_START,
-			//! Job released. Not to be used anymore
-			Released = 0x08 << STATE_BITS_START,
-			//! Scheduled or being executed
-			Busy = Submitted | Running,
+			Done = 0x04 << STATE_BITS_START
+		};
 
-			// PRIORITY
+		struct JobContainer;
 
-			LowPriority = (uint32_t)(1llu << PRIORITY_BITS_START)
+		namespace detail {
+			inline void signal_edge(JobContainer& jobData);
+		}
+
+		struct JobEdges {
+			//! Dependency or an array of dependencies.
+			//! depCnt decides which one is used.
+			union {
+				JobHandle dep;
+				JobHandle* pDeps;
+			};
+			//! Number of dependencies
+			uint32_t depCnt;
 		};
 
 		struct JobContainer: cnt::ilist_item {
-			uint32_t dependencyIdx;
-			uint32_t state;
+			//! Current state of the job
+			//! Consist of upper and bottom part.
+			//! Least significant bits = special purpose.
+			//! Most significant bits = state.
+			//! JobCore states:
+			//!           x  | edge count
+			//!   Submitted  | edge count, must be 0 in order to move to Processing
+			//!   Processing | 0, pushed into one of the worker jobs queues
+			//!   Executing  | worker_idx of the worker executing the job
+			//!   Done       | 0, wait() stops when job reaches this state
+			std::atomic_uint32_t state;
+			//! Job priority
+			JobPriority prio;
+			//! If the the job can be waited on, false otherwise.
+			bool canWait;
+			//! Dependency graph
+			JobEdges edges;
+			//! Function to execute when running the job
 			std::function<void()> func;
 
 			JobContainer() = default;
+			~JobContainer() = default;
+
+			JobContainer(const JobContainer& other): cnt::ilist_item(other) {
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				edges = other.edges;
+				func = other.func;
+			}
+			JobContainer& operator=(const JobContainer& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				cnt::ilist_item::operator=(other);
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				edges = other.edges;
+				func = other.func;
+				return *this;
+			}
+
+			JobContainer(JobContainer&& other): cnt::ilist_item(GAIA_MOV(other)) {
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				func = GAIA_MOV(other.func);
+
+				// if (edges.depCnt > 0)
+				// 	detail::signal_edge(*this);
+				edges = other.edges;
+				other.edges.depCnt = 0;
+			}
+			JobContainer& operator=(JobContainer&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				cnt::ilist_item::operator=(GAIA_MOV(other));
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				func = GAIA_MOV(other.func);
+
+				// if (edges.depCnt > 0)
+				// 	detail::signal_edge(*this);
+				edges = other.edges;
+				other.edges.depCnt = 0;
+
+				return *this;
+			}
 
 			GAIA_NODISCARD static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
 				auto* ctx = (JobAllocCtx*)pCtx;
@@ -58,75 +132,27 @@ namespace gaia {
 				JobContainer jc{};
 				jc.idx = index;
 				jc.gen = generation;
-				jc.state = ctx->priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
-				// The rest of the values are set later on:
-				//   jc.dependencyIdx
-				//   jc.func
+				jc.prio = ctx->priority;
+				jc.state.store(0);
+
 				return jc;
 			}
 
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (jc.state & JobInternalState::LowPriority) != 0);
-			}
-		};
-
-		using DepHandle = JobHandle;
-
-		struct JobDependency: cnt::ilist_item {
-			uint32_t dependencyIdxNext;
-			JobHandle dependsOn;
-
-			JobDependency() = default;
-
-			GAIA_NODISCARD static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
-				JobDependency jd{};
-				jd.idx = index;
-				jd.gen = generation;
-				// The rest of the values are set later on:
-				//   jc.dependencyIdxNext
-				//   jc.dependsOn
-				return jd;
-			}
-
-			GAIA_NODISCARD static DepHandle handle(const JobDependency& jd) {
-				return DepHandle(
-						jd.idx, jd.gen,
-						// It does not matter what value we set for priority on dependencies,
-						// it is always going to be ignored.
-						1);
+				return JobHandle(jc.idx, jc.gen, (jc.prio == JobPriority::Low) != 0);
 			}
 		};
 
 		class JobManager {
-			GAIA_PROF_MUTEX(std::mutex, m_mtx);
-
 			//! Implicit list of jobs
-			cnt::ilist<JobContainer, JobHandle> m_jobs;
-			//! Implicit list of job dependencies
-			cnt::ilist<JobDependency, DepHandle> m_deps;
+			cnt::ilist<JobContainer, JobHandle> m_jobData;
 
 		public:
-			//! Cleans up any job allocations and dependencies associated with \param jobHandle
-			void wait(JobHandle jobHandle) {
-				// We need to release any dependencies related to this job
-				auto& job = m_jobs[jobHandle.id()];
-
-				// No need to wait for a dead job
-				if ((job.state & JobInternalState::Released) != 0)
-					return;
-
-				uint32_t depIdx = job.dependencyIdx;
-				while (depIdx != BadIndex) {
-					auto& dep = m_deps[depIdx];
-					const uint32_t depIdxNext = dep.dependencyIdxNext;
-					// const uint32_t depPrio = dep.;
-					wait(dep.dependsOn);
-					free_dep(DepHandle{depIdx, 0, jobHandle.prio()});
-					depIdx = depIdxNext;
-				}
-
-				// Deallocate the job itself
-				free_job(jobHandle);
+			JobContainer& data(JobHandle jobHandle) {
+				return m_jobData[jobHandle.id()];
+			}
+			const JobContainer& data(JobHandle jobHandle) const {
+				return m_jobData[jobHandle.id()];
 			}
 
 			//! Allocates a new job container identified by a unique JobHandle.
@@ -135,18 +161,15 @@ namespace gaia {
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				JobAllocCtx ctx{job.priority};
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
+				auto handle = m_jobData.alloc(&ctx);
+				auto& j = m_jobData[handle.id()];
 
-				auto handle = m_jobs.alloc(&ctx);
-				auto& j = m_jobs[handle.id()];
-				GAIA_ASSERT(
-						// No state yet
-						((j.state & JobInternalState::STATE_BITS_MASK) == 0) ||
-						// Released already
-						((j.state & JobInternalState::Released) != 0));
-				j.dependencyIdx = BadIndex;
-				j.state = ctx.priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
+				// Make sure there is not state yet
+				GAIA_ASSERT(j.state == 0);
+
+				j.edges = {};
+				j.prio = ctx.priority;
+				j.state.store(0);
 				j.func = job.func;
 				return handle;
 			}
@@ -155,190 +178,185 @@ namespace gaia {
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
-				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				// --> std::scoped_lock lock(mtx);
-				auto& job = m_jobs.free(jobHandle);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Released;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Released);
-			}
-
-			//! Allocates a new dependency identified by a unique DepHandle.
-			//! \return DepHandle
-			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD DepHandle alloc_dep() {
-				JobAllocCtx dummyCtx{};
-				return m_deps.alloc(&dummyCtx);
-			}
-
-			//! Invalidates \param depHandle by resetting its index in the dependency pool.
-			//! Every time a dependency is deallocated its generation is increased by one.
-			//! \warning Must be used from the main thread.
-			void free_dep(DepHandle depHandle) {
-				m_deps.free(depHandle);
+				auto& jobData = m_jobData.free(jobHandle);
+				GAIA_ASSERT(done(jobData));
+				jobData.state.store(0);
 			}
 
 			//! Resets the job pool.
 			void reset() {
-				// No need to lock. Called from the main thread only when all jobs have finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				// --> std::scoped_lock lock(mtx);
-				m_jobs.clear();
-				m_deps.clear();
+				m_jobData.clear();
 			}
 
-			void run(JobHandle jobHandle) {
-				std::function<void()> func;
+			//! Execute the functor associated with the job container
+			//! \param jobData Container with internal job specific data
+			static void run(JobContainer& jobData) {
+				if (jobData.func.operator bool())
+					jobData.func();
 
-				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-					std::scoped_lock lock(mtx);
-
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Running;
-					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Running);
-					func = job.func;
-				}
-
-				if (func.operator bool())
-					func();
-
-				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-					std::scoped_lock lock(mtx);
-
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Done;
-					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Done);
-				}
+				finalize(jobData);
 			}
 
-			//! Evaluates job dependencies.
-			//! \return True if job dependencies are met. False otherwise
-			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobManager::handle_deps);
+			static bool signal_edge(JobContainer& jobData) {
+				// Subtract from dependency counter
+				const auto state = jobData.state.fetch_sub(1) - 1;
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
+				// If the job is not submitted, we can't accept it
+				const auto s = state & JobState::STATE_BITS_MASK;
+				if (s != JobState::Submitted)
+					return false;
 
-				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == BadIndex)
-					return true;
-
-				uint32_t depsId = job.dependencyIdx;
-				{
-					// Iterate over all dependencies.
-					// The first busy dependency breaks the loop. At this point we also update
-					// the initial dependency index because we know all previous dependencies
-					// have already finished and there's no need to check them.
-					do {
-						JobDependency dep = m_deps[depsId];
-						if (!done(dep.dependsOn)) {
-							m_jobs[jobHandle.id()].dependencyIdx = depsId;
-							return false;
-						}
-
-						depsId = dep.dependencyIdxNext;
-					} while (depsId != BadIndex);
-				}
-
-				// No need to update the index because once we return true we execute the job.
-				// --> job.dependencyIdx = JobHandleInvalid.idx;
-				return true;
+				// If the job still has some dependencies left we can't accept it
+				const auto deps = state & JobState::DEP_BITS_MASK;
+				return deps == 0;
 			}
 
-			//! Makes \param jobHandle depend on \param dependsOn.
-			//! This means \param jobHandle will run only after \param dependsOn finishes.
-			//! \warning Must be used from the main thread.
+			static void free_edges(JobContainer& jobData) {
+				if (jobData.edges.depCnt > 1)
+					mem::AllocHelper::free(jobData.edges.pDeps);
+				// jobData.edges.depCnt = 0;
+			}
+
+			//! Makes \param jobSecond depend on \param jobFirst.
+			//! This means \param jobSecond will run only after \param jobFirst finishes.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, JobHandle dependsOn) {
+			void dep(JobHandle jobFirst, JobHandle jobSecond) {
+				dep(std::span(&jobFirst, 1), jobSecond);
+			}
+
+			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
+			//! This means \param jobSecond will run only after all \param jobsFirst finish.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(!jobsFirst.empty());
+
 				GAIA_PROF_SCOPE(JobManager::dep);
 
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(jobHandle != dependsOn);
-				GAIA_ASSERT(!busy(jobHandle));
-				GAIA_ASSERT(!busy(dependsOn));
-#endif
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				auto depHandle = alloc_dep();
-				auto& dep = m_deps[depHandle.id()];
-				dep.dependsOn = dependsOn;
-
-				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == BadIndex)
-					// First time adding a dependency to this job. Point it to the first allocated handle
-					dep.dependencyIdxNext = BadIndex;
-				else
-					// We have existing dependencies. Point the last known one to the first allocated handle
-					dep.dependencyIdxNext = job.dependencyIdx;
-
-				job.dependencyIdx = depHandle.id();
-			}
-
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				if (dependsOnSpan.empty())
-					return;
-
-				GAIA_PROF_SCOPE(JobManager::depMany);
+				auto& secondData = data(jobSecond);
 
 #if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(!busy(jobHandle));
-				for (auto dependsOn: dependsOnSpan) {
-					GAIA_ASSERT(jobHandle != dependsOn);
-					GAIA_ASSERT(!busy(dependsOn));
+				GAIA_ASSERT(!busy(const_cast<const JobContainer&>(secondData)));
+				for (auto jobFirst: jobsFirst) {
+					const auto& firstData = data(jobFirst);
+					GAIA_ASSERT(!busy(firstData));
 				}
 #endif
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
+				for (auto jobFirst: jobsFirst)
+					dep_internal(jobFirst, jobSecond);
 
-				auto& job = m_jobs[jobHandle.id()];
-				for (auto dependsOn: dependsOnSpan) {
-					auto depHandle = alloc_dep();
-					auto& dep = m_deps[depHandle.id()];
-					dep.dependsOn = dependsOn;
+				// Tell jobSecond that it has new dependencies
+				// secondData.canWait = true;
+				const uint32_t cnt = (uint32_t)jobsFirst.size();
+				[[maybe_unused]] const uint32_t statePrev = secondData.state.fetch_add(cnt);
+				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
+			}
 
-					if (job.dependencyIdx == BadIndex)
-						// First time adding a dependency to this job. Point it to the first allocated handle
-						dep.dependencyIdxNext = BadIndex;
-					else
-						// We have existing dependencies. Point the last known one to the first allocated handle
-						dep.dependencyIdxNext = job.dependencyIdx;
+			static uint32_t submit(JobContainer& jobData) {
+				[[maybe_unused]] const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				GAIA_ASSERT(state < JobState::Submitted);
+				const auto val = jobData.state.fetch_add(JobState::Submitted) + (uint32_t)JobState::Submitted;
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - SUBMITTED", jobData.idx, jobData.gen);
+#endif
+				return val;
+			}
 
-					job.dependencyIdx = depHandle.id();
+			static void processing(JobContainer& jobData) {
+				GAIA_ASSERT(submitted(const_cast<const JobContainer&>(jobData)));
+				jobData.state.store(JobState::Processing);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - PROCESSING", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void executing(JobContainer& jobData, uint32_t workerIdx) {
+				GAIA_ASSERT(processing(const_cast<const JobContainer&>(jobData)));
+				jobData.state.store(JobState::Executing | workerIdx);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - EXECUTING", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void finalize(JobContainer& jobData) {
+				jobData.state.store(JobState::Done);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - DONE", jobData.idx, jobData.gen);
+#endif
+			}
+
+			GAIA_NODISCARD bool is_clear(JobHandle jobHandle) const {
+				const auto& jobData = data(jobHandle);
+				const auto state = jobData.state.load();
+				return state == 0;
+			}
+
+			GAIA_NODISCARD static bool is_clear(JobContainer& jobData) {
+				const auto state = jobData.state.load();
+				return state == 0;
+			}
+
+			GAIA_NODISCARD static bool submitted(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Submitted;
+			}
+
+			GAIA_NODISCARD static bool processing(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Processing;
+			}
+
+			GAIA_NODISCARD static bool busy(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Executing || state == JobState::Processing;
+			}
+
+			GAIA_NODISCARD static bool done(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Done;
+			}
+
+		private:
+			void dep_internal(JobHandle jobFirst, JobHandle jobSecond) {
+				auto& firstData = data(jobFirst);
+				const auto depCnt0 = firstData.edges.depCnt;
+				const auto depCnt1 = ++firstData.edges.depCnt;
+
+				if (depCnt1 <= 1) {
+#if GAIA_LOG_JOB_STATES
+					GAIA_LOG_N(
+							"DEP %u.%u, %u -> %u.%u", jobFirst.id(), jobFirst.gen(), firstData.edges.depCnt, jobSecond.id(),
+							jobSecond.gen());
+#endif
+					firstData.edges.dep = jobSecond;
+				} else {
+					// Reallocate on a power of two
+					const bool isPow2 = (depCnt1 & (depCnt1 - 1)) == 0;
+					if (isPow2) {
+						if (depCnt0 == 1) {
+							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
+							firstData.edges.pDeps[0] = firstData.edges.dep;
+						} else {
+							auto* pPrev = firstData.edges.pDeps;
+							// TODO: Use custom allocator
+							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
+							if (pPrev != nullptr) {
+								GAIA_FOR2(0, depCnt0) firstData.edges.pDeps[i] = pPrev[i];
+								mem::AllocHelper::free(pPrev);
+							}
+						}
+					}
+
+					// Append new dependencies
+					firstData.edges.pDeps[depCnt0] = jobSecond;
 				}
-			}
-
-			void submit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) < JobInternalState::Submitted);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
-			}
-
-			void resubmit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) <= JobInternalState::Submitted);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
-			}
-
-			GAIA_NODISCARD bool busy(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return (job.state & JobInternalState::Busy) != 0;
-			}
-
-			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return (job.state & JobInternalState::Done) != 0;
 			}
 		};
+
+		namespace detail {
+			void signal_edge(JobContainer& jobData) {
+				JobManager::signal_edge(jobData);
+			}
+		} // namespace detail
 	} // namespace mt
 } // namespace gaia
