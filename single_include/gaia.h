@@ -13961,6 +13961,7 @@ namespace gaia {
 /*** Start of inlined file: event.h ***/
 #pragma once
 
+// #define GAIA_USE_MT_STD 1
 #if GAIA_USE_MT_STD
 	#include <condition_variable>
 	#include <mutex>
@@ -14050,11 +14051,7 @@ namespace gaia {
 #endif
 			}
 
-			GAIA_NODISCARD bool is_set()
-#if !GAIA_PROFILER_CPU
-					const
-#endif
-			{
+			GAIA_NODISCARD bool is_set() {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::unique_lock lock(mtx);
@@ -19829,6 +19826,8 @@ namespace gaia {
 			//! While locked, no new entities or component can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
 			void lock(bool value) {
+				// TODO: Rethink whether we really need this. Also, without making the variable
+				//       access atomic this won't be tread-safe.
 				// if (value) {
 				// 	GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
 				// 	++m_header.structuralChangesLocked;

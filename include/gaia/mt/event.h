@@ -2,6 +2,7 @@
 #include "../config/config.h"
 #include "../config/profiler.h"
 
+#define GAIA_USE_MT_STD 1
 #if GAIA_USE_MT_STD
 	#include <condition_variable>
 	#include <mutex>
@@ -91,11 +92,7 @@ namespace gaia {
 #endif
 			}
 
-			GAIA_NODISCARD bool is_set()
-#if !GAIA_PROFILER_CPU
-					const
-#endif
-			{
+			GAIA_NODISCARD bool is_set() {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
 				std::unique_lock lock(mtx);
