@@ -13961,7 +13961,10 @@ namespace gaia {
 /*** Start of inlined file: event.h ***/
 #pragma once
 
-// #define GAIA_USE_MT_STD 1
+#if GAIA_PLATFORM_WINDOWS
+	#define GAIA_USE_MT_STD 1
+#endif
+
 #if GAIA_USE_MT_STD
 	#include <condition_variable>
 	#include <mutex>
@@ -14360,8 +14363,14 @@ namespace gaia {
 
 /*** End of inlined file: jobhandle.h ***/
 
+// MSVC might warn about applying additional padding around alignas usage.
+// This is perfectly fine but can cause builds with warning-as-error turned on to fail.
+GAIA_MSVC_WARNING_PUSH()
+GAIA_MSVC_WARNING_DISABLE(4324)
+
 namespace gaia {
 	namespace mt {
+
 		//! Lock-less job stealing queue. FIFO, fixed size. Inspired heavily by:
 		//! http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
 		template <const uint32_t N = 1 << 12>
@@ -14370,17 +14379,10 @@ namespace gaia {
 			static_assert((N & (N - 1)) == 0, "Extent of JobQueue must be a power of 2");
 			static constexpr uint32_t MASK = N - 1;
 
-			// MSVC might warn about applying additional padding around alignas usage.
-			// This is perfectly fine but can cause builds with warning-as-error turned on to fail.
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(4324)
-
 			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
 			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top;
-
-			GAIA_MSVC_WARNING_POP()
 
 		public:
 			JobQueue() {
@@ -14665,6 +14667,9 @@ namespace gaia {
 		};
 	} // namespace mt
 } // namespace gaia
+
+GAIA_MSVC_WARNING_POP()
+
 /*** End of inlined file: jobqueue.h ***/
 
 namespace gaia {
@@ -15168,7 +15173,7 @@ namespace gaia {
 				BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
 				if (res == 0) {
 					DWORD err = ::GetLastError();
-					(void))err;
+					(void)err;
 				}
 #elif GAIA_PLATFORM_APPLE
 				do {
@@ -15405,12 +15410,12 @@ namespace gaia {
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_low_prio_inter(uint32_t& workerIdx, uint32_t count) {
 				const uint32_t realCnt = gaia::core::get_max(count, m_workers.size());
-				if (count == 0) {
+				if (realCnt == 0) {
 					m_workersCnt[0] = 0;
 					m_workersCnt[1] = 1; // main thread
 				} else {
-					m_workersCnt[0] = m_workers.size() - count;
-					m_workersCnt[1] = count + 1; // Main thread is always a priority worker;
+					m_workersCnt[0] = m_workers.size() - realCnt;
+					m_workersCnt[1] = realCnt + 1; // Main thread is always a priority worker;
 				}
 
 				// Create a new set of high and low priority threads (if any)
@@ -15638,7 +15643,7 @@ namespace gaia {
 					JobHandle otherJobHandle;
 					if (try_fetch_job(*ctx, otherJobHandle)) {
 						if (run(otherJobHandle, ctx)) {
-							// free_job(otherJobHandle);
+							free_job(otherJobHandle);
 							continue;
 						}
 					}
@@ -15663,7 +15668,7 @@ namespace gaia {
 				}
 
 				// Deallocate the job itself
-				// free_job(jobHandle);
+				free_job(jobHandle);
 			}
 
 			//! Uses the main thread to help with jobs processing.
@@ -15968,7 +15973,6 @@ namespace gaia {
 			//! \return True if a job was resubmitted or executed. False otherwise.
 			void main_thread_tick() {
 				auto& ctx = *detail::tl_workerCtx;
-				auto& jobQueue = ctx.jobQueue;
 
 				// Keep executing while there is work
 				while (true) {
@@ -15977,7 +15981,7 @@ namespace gaia {
 						break;
 
 					if (run(jobHandle, &ctx))
-						; // free_job(jobHandle);
+						free_job(jobHandle);
 				}
 			}
 
@@ -16022,8 +16026,6 @@ namespace gaia {
 			//! and executes it.
 			//! \param prio Target worker queue defined by job priority
 			void worker_loop(ThreadCtx& ctx) {
-				auto& jobQueue = ctx.jobQueue;
-
 				while (true) {
 					// Wait for work
 					m_sem.wait();
@@ -16035,7 +16037,7 @@ namespace gaia {
 							break;
 
 						if (run(jobHandle, detail::tl_workerCtx))
-							; // free_job(jobHandle);
+							free_job(jobHandle);
 					}
 
 					// Check if the worker can keep running
@@ -16062,7 +16064,7 @@ namespace gaia {
 				JobHandle jobHandle;
 				while (try_fetch_job(*ctx, jobHandle)) {
 					if (run(jobHandle, ctx))
-						; // free_job(jobHandle);
+						free_job(jobHandle);
 				}
 
 				detail::tl_workerCtx = nullptr;
@@ -16086,13 +16088,12 @@ namespace gaia {
 			}
 
 		private:
-			void free_job(JobHandle jobHandle) {
+			void free_job([[maybe_unused]] JobHandle jobHandle) {
 				// Allocs are done only from the main thread while there are no jobs running.
 				// Freeing can happen at any point from any thread. Therefore, we need to lock it.
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
-				std::lock_guard lock(mtx);
-
-				m_jobManager.free_job(jobHandle);
+				// auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				// std::lock_guard lock(mtx);
+				// m_jobManager.free_job(jobHandle);
 			}
 
 			void signal_edges(JobContainer& jobData) {
@@ -16157,7 +16158,7 @@ namespace gaia {
 					// wait just for that one.
 					if (!jobData.func.operator bool()) {
 						if (run(handle, ctx))
-							; // free_job(handle);
+							free_job(handle);
 					} else
 						pHandles[handlesCnt++] = handle;
 				}
@@ -16187,7 +16188,7 @@ namespace gaia {
 					if (!handles.empty()) {
 						// The queue was full. Execute the job right away.
 						if (run(handles[0], ctx))
-							; // free_job(handles[0]);
+							free_job(handles[0]);
 						handles = handles.subspan(1);
 					}
 				}
@@ -19825,7 +19826,7 @@ namespace gaia {
 			//! If true locks the chunk for structural changed.
 			//! While locked, no new entities or component can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
-			void lock(bool value) {
+			void lock([[maybe_unused]] bool value) {
 				// TODO: Rethink whether we really need this. Also, without making the variable
 				//       access atomic this won't be tread-safe.
 				// if (value) {
