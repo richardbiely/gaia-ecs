@@ -2163,7 +2163,7 @@ namespace gaia {
 			void del_empty_archetypes() {
 				GAIA_PROF_SCOPE(World::del_empty_archetypes);
 
-				cnt::sarr_ext<Archetype*, 512> tmp;
+				cnt::sarray_ext<Archetype*, 512> tmp;
 
 				// Remove all dead archetypes from query caches.
 				// Because the number of cached queries is way higher than the number of archetypes

@@ -7836,6 +7836,34 @@ namespace gaia {
 
 			ilist_item() = default;
 			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
+
+			ilist_item(const ilist_item& other) {
+				idx = other.idx;
+				gen = other.gen;
+			}
+			ilist_item& operator=(const ilist_item& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				idx = other.idx;
+				gen = other.gen;
+				return *this;
+			}
+
+			ilist_item(ilist_item&& other) {
+				idx = other.idx;
+				gen = other.gen;
+
+				other.idx = (uint32_t)-1;
+				other.gen = (uint32_t)-1;
+			}
+			ilist_item& operator=(ilist_item&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				idx = other.idx;
+				gen = other.gen;
+
+				other.idx = (uint32_t)-1;
+				other.gen = (uint32_t)-1;
+				return *this;
+			}
 		};
 
 		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
@@ -13907,8 +13935,6 @@ namespace gaia {
 /*** Start of inlined file: threadpool.h ***/
 #pragma once
 
-#include <alloca.h>
-
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
 	#include <windows.h>
@@ -13923,10 +13949,289 @@ namespace gaia {
 	#define GAIA_THREAD pthread_t
 #endif
 
+#if GAIA_PLATFORM_WINDOWS
+	#include <malloc.h>
+#else
+	#include <alloca.h>
+#endif
 #include <atomic>
-#include <condition_variable>
-#include <mutex>
 #include <thread>
+
+
+/*** Start of inlined file: event.h ***/
+#pragma once
+
+#if GAIA_USE_MT_STD
+	#include <condition_variable>
+	#include <mutex>
+#else
+	#include <pthread.h>
+#endif
+
+namespace gaia {
+	namespace mt {
+		class Event final {
+#if GAIA_USE_MT_STD
+			GAIA_PROF_MUTEX(std::mutex, m_mtx);
+			std::condition_variable m_cv;
+			bool m_set = false;
+#else
+			pthread_cond_t m_hCondHandle;
+			pthread_mutex_t m_hMutexHandle;
+			bool m_bReady;
+			bool m_bManualReset;
+#endif
+
+		public:
+#if !GAIA_USE_MT_STD
+			Event(bool manualReset = false, bool initialState = false) {
+				m_bManualReset = manualReset;
+				m_bReady = false;
+
+				int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
+				GAIA_ASSERT(ret == 0);
+				if (ret == 0) {
+					ret = pthread_cond_init(&m_hCondHandle, nullptr);
+					GAIA_ASSERT(ret == 0);
+					if (ret == 0 && initialState) {
+						set();
+					}
+				}
+
+				(void)ret;
+				// return (ret == 0);
+			}
+
+			~Event() {
+				int ret = pthread_cond_destroy(&m_hCondHandle);
+				GAIA_ASSERT(ret == 0);
+
+				ret = pthread_mutex_destroy(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+			}
+#endif
+
+			void set() {
+#if GAIA_USE_MT_STD
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::unique_lock lock(mtx);
+				m_set = true;
+				m_cv.notify_one();
+#else
+				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+				m_bReady = true;
+
+				// Depending on the event type, we either trigger everyone waiting or just one
+				if (m_bManualReset) {
+					ret = pthread_cond_broadcast(&m_hCondHandle);
+					GAIA_ASSERT(ret == 0);
+				} else {
+					ret = pthread_cond_signal(&m_hCondHandle);
+					GAIA_ASSERT(ret == 0);
+				}
+
+				ret = pthread_mutex_unlock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+#endif
+			}
+
+			void reset() {
+#if GAIA_USE_MT_STD
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::unique_lock lock(mtx);
+				m_set = false;
+#else
+				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+				m_bReady = false;
+				ret = pthread_mutex_unlock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+#endif
+			}
+
+			GAIA_NODISCARD bool is_set()
+#if !GAIA_PROFILER_CPU
+					const
+#endif
+			{
+#if GAIA_USE_MT_STD
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::unique_lock lock(mtx);
+				return m_set;
+#else
+				bool ready{};
+				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+				ready = m_bReady;
+				ret = pthread_mutex_unlock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+				return ready;
+#endif
+			}
+
+			void wait() {
+#if GAIA_USE_MT_STD
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				std::unique_lock lock(mtx);
+				m_cv.wait(lock, [&] {
+					return m_set;
+				});
+#else
+				[[maybe_unused]] int ret{};
+				auto wait = [&]() {
+					if (!m_bReady) {
+						do {
+							ret = pthread_cond_wait(&m_hCondHandle, &m_hMutexHandle);
+						} while (!ret && !m_bReady);
+
+						GAIA_ASSERT(ret != EINVAL);
+						if (!ret && !m_bManualReset)
+							m_bReady = false;
+					} else if (!m_bManualReset) {
+						m_bReady = false;
+						ret = 0;
+					}
+
+					return ret;
+				};
+
+				ret = pthread_mutex_lock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+
+				int res = wait(); // true: signaled, false: timeout or error
+				(void)res;
+
+				ret = pthread_mutex_unlock(&m_hMutexHandle);
+				GAIA_ASSERT(ret == 0);
+#endif
+			}
+		}; // namespace mt
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: event.h ***/
+
+
+/*** Start of inlined file: futex.h ***/
+#pragma once
+
+#include <atomic>
+#include <mutex>
+
+namespace gaia {
+	namespace mt {
+		namespace detail {
+			inline static constexpr uint32_t WaitMaskAll = 0x7FFFFFFF;
+			inline static constexpr uint32_t WaitMaskAny = ~0u;
+
+			struct FutexWaitNode {
+				FutexWaitNode* pNext = nullptr;
+				const std::atomic_uint32_t* pFutexValue = nullptr;
+				uint32_t waitMask = WaitMaskAny;
+				Event evt;
+			};
+
+			struct FutexBucket {
+				GAIA_PROF_MUTEX(std::mutex, mtx);
+				FutexWaitNode* pFirst = nullptr;
+
+				// Since there shouldn't be that many threads waiting at any one time, this seems like a good
+				// number of hash table buckets. Making it prime number for better spread.
+				static constexpr uint32_t BUCKET_SIZE = 37;
+
+				static FutexBucket& get(const std::atomic_uint32_t* pFutexValue) {
+					static FutexBucket s_buckets[BUCKET_SIZE];
+					return s_buckets[(uintptr_t(pFutexValue) >> 2) % BUCKET_SIZE];
+				}
+			};
+
+			inline thread_local FutexWaitNode t_WaitNode;
+
+		} // namespace detail
+
+		//! An implementation of a simple futex (fast userspace mutex).
+		//! Only wait and wake are implemented.
+		//!
+		//! The main advantage of futex is performance. It avoids kernel involvement in uncontended cases.
+		//! When there’s no contention, futexes allow threads to lock and unlock in userspace without entering
+		//! the kernel, making operations significantly faster and reducing context-switch overhead.
+		//! Only when there is contention does a futex use the kernel to put threads to sleep and wake them up,
+		//! resulting in a hybrid model that is more efficient than mutexes, which always require kernel calls.
+		//!
+		//! TODO: Consider using WaitOnAddress for Windows, futex call for Linux etc.
+		//!       The current solution is platform-agnostic but platform-specific solutions might be more performant.
+		struct Futex {
+			enum class Result {
+				//! Futex value didn't match the expected one
+				Change,
+				//! Futex woken up as a result of wake()
+				WakeUp
+			};
+
+			//! \param pFutexValue Target futex
+			//! \param expected Expected futex value
+			//! \param wakeMask Mask of waiters to wait for
+			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
+				GAIA_PROF_SCOPE(futex::wait);
+
+				GAIA_ASSERT(waitMask != 0);
+
+				auto& bucket = detail::FutexBucket::get(pFutexValue);
+				auto& node = detail::t_WaitNode;
+				node.pFutexValue = pFutexValue;
+				node.waitMask = waitMask;
+
+				{
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+					std::lock_guard lock(mtx);
+
+					const uint32_t futexValue = pFutexValue->load(std::memory_order_relaxed);
+					if (futexValue != expected)
+						return Result::Change;
+
+					node.pNext = bucket.pFirst;
+					bucket.pFirst = &node;
+				}
+
+				node.evt.wait();
+				return Result::WakeUp;
+			}
+
+			//! \param pFutexValue Target futex
+			//! \param wakeCount How many waiters are supposed to make up
+			//! \param wakeMask Mask of callers to wake
+			static uint32_t
+			wake(const std::atomic_uint32_t* pFutexValue, uint32_t wakeCount, uint32_t wakeMask = detail::WaitMaskAny) {
+				GAIA_PROF_SCOPE(futex::wake);
+
+				GAIA_ASSERT(wakeMask != 0);
+
+				auto& bucket = detail::FutexBucket::get(pFutexValue);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+				std::lock_guard lock(mtx);
+
+				uint32_t numAwoken = 0;
+				auto** ppNode = &bucket.pFirst;
+				for (auto* pNode = *ppNode; numAwoken < wakeCount && pNode != nullptr; pNode = *ppNode) {
+					if (pNode->pFutexValue == pFutexValue && (pNode->waitMask & wakeMask) != 0) {
+						++numAwoken;
+
+						// Unlink the node
+						*ppNode = pNode->pNext;
+						pNode->pNext = nullptr;
+
+						pNode->evt.set();
+					} else {
+						ppNode = &pNode->pNext;
+					}
+				}
+
+				return numAwoken;
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: futex.h ***/
 
 
 /*** Start of inlined file: jobcommon.h ***/
@@ -13935,37 +14240,12 @@ namespace gaia {
 #include <functional>
 #include <inttypes.h>
 
-namespace gaia {
-	namespace mt {
-		enum class JobPriority : uint32_t {
-			//! High priority job. If available it should target the CPU's performance cores
-			High = 0,
-			//! Low priority job. If available it should target the CPU's efficiency cores
-			Low = 1
-		};
-		static inline constexpr uint32_t JobPriorityCnt = 2;
 
-		struct JobAllocCtx {
-			JobPriority priority;
-		};
+/*** Start of inlined file: jobqueue.h ***/
+#pragma once
 
-		struct Job {
-			std::function<void()> func;
-			JobPriority priority = JobPriority::High;
-		};
-
-		struct JobArgs {
-			uint32_t idxStart;
-			uint32_t idxEnd;
-		};
-
-		struct JobParallel {
-			std::function<void(const JobArgs&)> func;
-			JobPriority priority = JobPriority::High;
-		};
-	} // namespace mt
-} // namespace gaia
-/*** End of inlined file: jobcommon.h ***/
+#include <atomic>
+#include <mutex>
 
 
 /*** Start of inlined file: jobhandle.h ***/
@@ -14083,370 +14363,54 @@ namespace gaia {
 
 /*** End of inlined file: jobhandle.h ***/
 
-
-/*** Start of inlined file: jobmanager.h ***/
-#pragma once
-
-#include <functional>
-#include <inttypes.h>
-#include <mutex>
-
 namespace gaia {
 	namespace mt {
-		enum JobInternalState : uint32_t {
-			DEP_BITS_START = 0,
-			DEP_BITS = 27,
-			DEP_BITS_MASK = (uint32_t)((1llu << DEP_BITS) - 1),
-
-			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
-			STATE_BITS = 4,
-			STATE_BITS_MASK = (uint32_t)(((1llu << STATE_BITS) - 1) << STATE_BITS_START),
-
-			PRIORITY_BITS_START = STATE_BITS_START + STATE_BITS,
-			PRIORITY_BITS = 1,
-			PRIORITY_BIT_MASK = (uint32_t)(((1llu << PRIORITY_BITS) - 1) << PRIORITY_BITS_START),
-
-			// STATE
-
-			//! Submitted
-			Submitted = 0x01 << STATE_BITS_START,
-			//! Being executed
-			Running = 0x02 << STATE_BITS_START,
-			//! Finished executing
-			Done = 0x04 << STATE_BITS_START,
-			//! Job released. Not to be used anymore
-			Released = 0x08 << STATE_BITS_START,
-			//! Scheduled or being executed
-			Busy = Submitted | Running,
-
-			// PRIORITY
-
-			LowPriority = (uint32_t)(1llu << PRIORITY_BITS_START)
-		};
-
-		struct JobContainer: cnt::ilist_item {
-			uint32_t dependencyIdx;
-			uint32_t state;
-			std::function<void()> func;
-
-			JobContainer() = default;
-
-			GAIA_NODISCARD static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
-				auto* ctx = (JobAllocCtx*)pCtx;
-
-				JobContainer jc{};
-				jc.idx = index;
-				jc.gen = generation;
-				jc.state = ctx->priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
-				// The rest of the values are set later on:
-				//   jc.dependencyIdx
-				//   jc.func
-				return jc;
-			}
-
-			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (jc.state & JobInternalState::LowPriority) != 0);
-			}
-		};
-
-		using DepHandle = JobHandle;
-
-		struct JobDependency: cnt::ilist_item {
-			uint32_t dependencyIdxNext;
-			JobHandle dependsOn;
-
-			JobDependency() = default;
-
-			GAIA_NODISCARD static JobDependency create(uint32_t index, uint32_t generation, [[maybe_unused]] void* pCtx) {
-				JobDependency jd{};
-				jd.idx = index;
-				jd.gen = generation;
-				// The rest of the values are set later on:
-				//   jc.dependencyIdxNext
-				//   jc.dependsOn
-				return jd;
-			}
-
-			GAIA_NODISCARD static DepHandle handle(const JobDependency& jd) {
-				return DepHandle(
-						jd.idx, jd.gen,
-						// It does not matter what value we set for priority on dependencies,
-						// it is always going to be ignored.
-						1);
-			}
-		};
-
-		class JobManager {
-			GAIA_PROF_MUTEX(std::mutex, m_mtx);
-
-			//! Implicit list of jobs
-			cnt::ilist<JobContainer, JobHandle> m_jobs;
-			//! Implicit list of job dependencies
-			cnt::ilist<JobDependency, DepHandle> m_deps;
-
-		public:
-			//! Cleans up any job allocations and dependencies associated with \param jobHandle
-			void wait(JobHandle jobHandle) {
-				// We need to release any dependencies related to this job
-				auto& job = m_jobs[jobHandle.id()];
-
-				// No need to wait for a dead job
-				if ((job.state & JobInternalState::Released) != 0)
-					return;
-
-				uint32_t depIdx = job.dependencyIdx;
-				while (depIdx != BadIndex) {
-					auto& dep = m_deps[depIdx];
-					const uint32_t depIdxNext = dep.dependencyIdxNext;
-					// const uint32_t depPrio = dep.;
-					wait(dep.dependsOn);
-					free_dep(DepHandle{depIdx, 0, jobHandle.prio()});
-					depIdx = depIdxNext;
-				}
-
-				// Deallocate the job itself
-				free_job(jobHandle);
-			}
-
-			//! Allocates a new job container identified by a unique JobHandle.
-			//! \return JobHandle
-			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
-				JobAllocCtx ctx{job.priority};
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				auto handle = m_jobs.alloc(&ctx);
-				auto& j = m_jobs[handle.id()];
-				GAIA_ASSERT(
-						// No state yet
-						((j.state & JobInternalState::STATE_BITS_MASK) == 0) ||
-						// Released already
-						((j.state & JobInternalState::Released) != 0));
-				j.dependencyIdx = BadIndex;
-				j.state = ctx.priority == JobPriority::High ? 0 : JobInternalState::LowPriority;
-				j.func = job.func;
-				return handle;
-			}
-
-			//! Invalidates \param jobHandle by resetting its index in the job pool.
-			//! Every time a job is deallocated its generation is increased by one.
-			//! \warning Must be used from the main thread.
-			void free_job(JobHandle jobHandle) {
-				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				// --> std::scoped_lock lock(mtx);
-				auto& job = m_jobs.free(jobHandle);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Released;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Released);
-			}
-
-			//! Allocates a new dependency identified by a unique DepHandle.
-			//! \return DepHandle
-			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD DepHandle alloc_dep() {
-				JobAllocCtx dummyCtx{};
-				return m_deps.alloc(&dummyCtx);
-			}
-
-			//! Invalidates \param depHandle by resetting its index in the dependency pool.
-			//! Every time a dependency is deallocated its generation is increased by one.
-			//! \warning Must be used from the main thread.
-			void free_dep(DepHandle depHandle) {
-				m_deps.free(depHandle);
-			}
-
-			//! Resets the job pool.
-			void reset() {
-				// No need to lock. Called from the main thread only when all jobs have finished already.
-				// --> auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				// --> std::scoped_lock lock(mtx);
-				m_jobs.clear();
-				m_deps.clear();
-			}
-
-			void run(JobHandle jobHandle) {
-				std::function<void()> func;
-
-				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-					std::scoped_lock lock(mtx);
-
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Running;
-					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Running);
-					func = job.func;
-				}
-
-				if (func.operator bool())
-					func();
-
-				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-					std::scoped_lock lock(mtx);
-
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Done;
-					GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Done);
-				}
-			}
-
-			//! Evaluates job dependencies.
-			//! \return True if job dependencies are met. False otherwise
-			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobManager::handle_deps);
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == BadIndex)
-					return true;
-
-				uint32_t depsId = job.dependencyIdx;
-				{
-					// Iterate over all dependencies.
-					// The first busy dependency breaks the loop. At this point we also update
-					// the initial dependency index because we know all previous dependencies
-					// have already finished and there's no need to check them.
-					do {
-						JobDependency dep = m_deps[depsId];
-						if (!done(dep.dependsOn)) {
-							m_jobs[jobHandle.id()].dependencyIdx = depsId;
-							return false;
-						}
-
-						depsId = dep.dependencyIdxNext;
-					} while (depsId != BadIndex);
-				}
-
-				// No need to update the index because once we return true we execute the job.
-				// --> job.dependencyIdx = JobHandleInvalid.idx;
-				return true;
-			}
-
-			//! Makes \param jobHandle depend on \param dependsOn.
-			//! This means \param jobHandle will run only after \param dependsOn finishes.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, JobHandle dependsOn) {
-				GAIA_PROF_SCOPE(JobManager::dep);
-
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(jobHandle != dependsOn);
-				GAIA_ASSERT(!busy(jobHandle));
-				GAIA_ASSERT(!busy(dependsOn));
-#endif
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				auto depHandle = alloc_dep();
-				auto& dep = m_deps[depHandle.id()];
-				dep.dependsOn = dependsOn;
-
-				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == BadIndex)
-					// First time adding a dependency to this job. Point it to the first allocated handle
-					dep.dependencyIdxNext = BadIndex;
-				else
-					// We have existing dependencies. Point the last known one to the first allocated handle
-					dep.dependencyIdxNext = job.dependencyIdx;
-
-				job.dependencyIdx = depHandle.id();
-			}
-
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				if (dependsOnSpan.empty())
-					return;
-
-				GAIA_PROF_SCOPE(JobManager::depMany);
-
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(!busy(jobHandle));
-				for (auto dependsOn: dependsOnSpan) {
-					GAIA_ASSERT(jobHandle != dependsOn);
-					GAIA_ASSERT(!busy(dependsOn));
-				}
-#endif
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				auto& job = m_jobs[jobHandle.id()];
-				for (auto dependsOn: dependsOnSpan) {
-					auto depHandle = alloc_dep();
-					auto& dep = m_deps[depHandle.id()];
-					dep.dependsOn = dependsOn;
-
-					if (job.dependencyIdx == BadIndex)
-						// First time adding a dependency to this job. Point it to the first allocated handle
-						dep.dependencyIdxNext = BadIndex;
-					else
-						// We have existing dependencies. Point the last known one to the first allocated handle
-						dep.dependencyIdxNext = job.dependencyIdx;
-
-					job.dependencyIdx = depHandle.id();
-				}
-			}
-
-			void submit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) < JobInternalState::Submitted);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
-			}
-
-			void resubmit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) <= JobInternalState::Submitted);
-				job.state = (job.state & (~JobInternalState::STATE_BITS_MASK)) | JobInternalState::Submitted;
-				GAIA_ASSERT((job.state & JobInternalState::STATE_BITS_MASK) == JobInternalState::Submitted);
-			}
-
-			GAIA_NODISCARD bool busy(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return (job.state & JobInternalState::Busy) != 0;
-			}
-
-			GAIA_NODISCARD bool done(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return (job.state & JobInternalState::Done) != 0;
-			}
-		};
-	} // namespace mt
-} // namespace gaia
-/*** End of inlined file: jobmanager.h ***/
-
-
-/*** Start of inlined file: jobqueue.h ***/
-#pragma once
-
-#include <atomic>
-#include <mutex>
-
-namespace gaia {
-	namespace mt {
+		//! Lock-less job stealing queue. FIFO, fixed size. Inspired heavily by:
+		//! http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
 		template <const uint32_t N = 1 << 12>
 		class JobQueue {
-			GAIA_PROF_MUTEX(std::mutex, m_mtx);
-			cnt::sringbuffer<JobHandle, N> m_buffer;
+			static_assert(N >= 2);
+			static_assert((N & (N - 1)) == 0, "Extent of JobQueue must be a power of 2");
+			static constexpr uint32_t MASK = N - 1;
+
+			// MSVC might warn about applying additional padding around alignas usage.
+			// This is perfectly fine but can cause builds with warning-as-error turned on to fail.
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4324)
+
+			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
+			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;
+			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top;
+
+			GAIA_MSVC_WARNING_POP()
 
 		public:
+			JobQueue() {
+				clear();
+			}
+
+			~JobQueue() = default;
+			JobQueue(const JobQueue&) = default;
+			JobQueue& operator=(const JobQueue&) = default;
+			JobQueue(JobQueue&&) noexcept = default;
+			JobQueue& operator=(JobQueue&&) noexcept = default;
+
+			void clear() {
+				m_bottom.store(0);
+				m_top.store(0);
+				for (auto& val: m_buffer)
+					val.store(((JobHandle)JobNull_t()).value());
+			}
+
 			//! Checks if there are any items in the queue.
 			//! \return True if the queue is empty. False otherwise.
-			bool empty() {
+			bool empty() const {
 				GAIA_PROF_SCOPE(JobQueue::empty);
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				return m_buffer.empty();
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				const uint32_t t = m_top.load(std::memory_order_relaxed);
+				return int32_t(b - t) <= 0; // b<=t, but handles overflows, too
 			}
 
 			//! Tries adding a job to the queue. FIFO.
@@ -14454,14 +14418,39 @@ namespace gaia {
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_push);
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				if (m_buffer.size() >= m_buffer.max_size())
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+				const uint32_t used = b - t;
+				if (used > MASK)
 					return false;
 
-				m_buffer.push_back(jobHandle);
+				m_buffer[b & MASK].store(jobHandle.value(), std::memory_order_relaxed);
+				// Make sure the handle is written before we update the bottom
+				std::atomic_thread_fence(std::memory_order_release);
+				m_bottom.store(b + 1, std::memory_order_relaxed);
+
 				return true;
+			}
+
+			//! Tries adding a job to the queue. FIFO.
+			//! \return The number of handles that were successfully added.
+			GAIA_NODISCARD uint32_t try_push(std::span<JobHandle> jobHandles) {
+				GAIA_PROF_SCOPE(JobQueue::try_push);
+
+				const uint32_t cnt = (uint32_t)jobHandles.size();
+				uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				const uint32_t t = m_top.load(std::memory_order_acquire);
+				const uint32_t used = b - t;
+				const uint32_t free = (MASK + 1) - used;
+				const uint32_t freeFinal = core::get_min(cnt, free);
+
+				for (uint32_t i = 0; i < freeFinal; i++, b++)
+					m_buffer[b & MASK].store(jobHandles[i].value(), std::memory_order_relaxed);
+				// Make sure handles are written before we update the bottom
+				std::atomic_thread_fence(std::memory_order_release);
+				m_bottom.store(b, std::memory_order_relaxed);
+
+				return freeFinal;
 			}
 
 			//! Tries retrieving a job to the queue. FIFO.
@@ -14469,100 +14458,14 @@ namespace gaia {
 			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				if (m_buffer.empty())
-					return false;
-
-				m_buffer.pop_front(jobHandle);
-				return true;
-			}
-
-			//! Tries stealing a job from the queue. LIFO.
-			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::try_steal);
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
-				std::scoped_lock lock(mtx);
-
-				if (m_buffer.empty())
-					return false;
-
-				m_buffer.pop_back(jobHandle);
-				return true;
-			}
-		};
-
-		//! Lock-less job stealing queue. FIFO, fixed size. Inspired heavily by:
-		//! http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
-		template <const uint32_t N = 1 << 12>
-		class JobQueueLockFree {
-			static_assert(N >= 2);
-			static_assert((N & (N - 1)) == 0, "Extent of JobQueueLockFree must be a power of 2");
-			static constexpr uint32_t MASK = N - 1;
-
-			// MSVC might warn about applying additional padding to an instance of StackAllocator.
-			// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(4324)
-
-			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
-			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
-
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom = 0;
-			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top = 0;
-
-			GAIA_MSVC_WARNING_POP()
-
-		public:
-			//! Checks if there are any items in the queue.
-			//! \return True if the queue is empty. False otherwise.
-			bool empty() const {
-				GAIA_PROF_SCOPE(JobQueueLockFree::empty);
-
-				const uint32_t t = m_top.load(std::memory_order_acquire);
-				std::atomic_thread_fence(std::memory_order_seq_cst);
-				const uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				return (t >= b);
-			}
-
-			//! Tries adding a job to the queue. FIFO.
-			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
-			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobQueueLockFree::try_push);
-
-				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
-				const uint32_t t = m_top.load(std::memory_order_acquire);
-
-				if (b - t > MASK)
-					return false;
-
-				m_buffer[b & MASK].store(jobHandle.value(), std::memory_order_relaxed);
-
-				// Make sure the handle is written before we update the bottom
-				std::atomic_thread_fence(std::memory_order_release);
-
-				m_bottom.store(b + 1, std::memory_order_relaxed);
-				return true;
-			}
-
-			//! Tries retrieving a job to the queue. FIFO.
-			//! \return True if the job was retrieved. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueueLockFree::try_pop);
+				uint32_t jobHandleValue = ((JobHandle)JobNull_t{}).value();
 
 				const uint32_t b = m_bottom.load(std::memory_order_relaxed) - 1;
 				m_bottom.store(b, std::memory_order_relaxed);
-
 				std::atomic_thread_fence(std::memory_order_seq_cst);
-
-				uint32_t jobHandleValue = ((JobHandle)JobNull_t{}).value();
-
 				uint32_t t = m_top.load(std::memory_order_relaxed);
-				if (t <= b) {
+
+				if (int(t - b) <= 0) { // t <= b, but handles overflows, too
 					// non-empty queue
 					jobHandleValue = m_buffer[b & MASK].load(std::memory_order_relaxed);
 
@@ -14572,20 +14475,18 @@ namespace gaia {
 								m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
 						m_bottom.store(b + 1, std::memory_order_relaxed);
 						jobHandle = JobHandle(jobHandleValue);
+						GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
 						return ret; // false = failed race, don't use jobHandle; true = found a result
 					}
-				} else {
-					// empty queue
-					m_bottom.store(b + 1, std::memory_order_relaxed);
-					return false; // false = empty, don't use jobHandle
+
+					jobHandle = JobHandle(jobHandleValue);
+					GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
+					return true;
 				}
 
-				jobHandle = JobHandle(jobHandleValue);
-
-				// Make sure an invalid handle is not returned for true
-				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
-
-				return true; // true = found a result
+				// empty queue
+				m_bottom.store(b + 1, std::memory_order_relaxed);
+				return false; // false = empty, don't use jobHandle
 			}
 
 			//! Tries stealing a job from the queue. LIFO.
@@ -14597,14 +14498,17 @@ namespace gaia {
 				std::atomic_thread_fence(std::memory_order_seq_cst);
 				const uint32_t b = m_bottom.load(std::memory_order_acquire);
 
-				if (t >= b)
-					return false; // false = empty, don't use jobHandle
+				if (int(b - t) <= 0) { // t >= b, but handles overflows, too
+					jobHandle = (JobHandle)JobNull_t{};
+					return true; // true + JobNull = empty, don't use jobHandle
+				}
 
-				uint32_t jobHandleValue = m_buffer[t & MASK].load(std::memory_order_relaxed);
+				const uint32_t jobHandleValue = m_buffer[t & MASK].load(std::memory_order_relaxed);
 
 				// We fail if concurrent pop()/steal() operation changed the current top
 				const bool ret = m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed);
 				jobHandle = JobHandle(jobHandleValue);
+				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
 				return ret; // false = failed race, don't use jobHandle; true = found a result
 			}
 		};
@@ -14703,7 +14607,8 @@ namespace gaia {
 			//! Tries to push an item onto the queue.
 			//! \param item Item that will be moved onto the queue if possible.
 			//! \return True if an item was popped. False otherwise (aka full).
-			bool try_push(T&& item) {
+			template <typename TT>
+			bool try_push(TT&& item) {
 				GAIA_PROF_SCOPE(MpmcQueue::try_push);
 
 				Node* pNodes = data();
@@ -14725,7 +14630,7 @@ namespace gaia {
 					}
 				}
 
-				core::call_ctor(&pNode->item, GAIA_MOV(item));
+				core::call_ctor(&pNode->item, GAIA_FWD(item));
 				pNode->sequence.store(pos + 1, std::memory_order_release);
 				return true;
 			}
@@ -14767,6 +14672,594 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+		enum class JobPriority : uint8_t {
+			//! High priority job. If available it should target the CPU's performance cores
+			High = 0,
+			//! Low priority job. If available it should target the CPU's efficiency cores
+			Low = 1
+		};
+		static inline constexpr uint32_t JobPriorityCnt = 2;
+
+		struct JobAllocCtx {
+			JobPriority priority;
+		};
+
+		struct Job {
+			std::function<void()> func;
+			JobPriority priority = JobPriority::High;
+		};
+
+		struct JobArgs {
+			uint32_t idxStart;
+			uint32_t idxEnd;
+		};
+
+		struct JobParallel {
+			std::function<void(const JobArgs&)> func;
+			JobPriority priority = JobPriority::High;
+		};
+
+		class ThreadPool;
+
+		struct ThreadCtx {
+			//! Thread pool pointer
+			ThreadPool* tp;
+			//! Worker index
+			uint32_t workerIdx;
+			//! Job priority
+			JobPriority prio;
+			//! Event signaled when a job is executed
+			Event event;
+			//! Lock-free work stealing queue for the jobs
+			JobQueue<512> jobQueue;
+
+			ThreadCtx() = default;
+			~ThreadCtx() = default;
+
+			void reset() {
+				event.reset();
+				jobQueue.clear();
+			}
+
+			ThreadCtx(const ThreadCtx& other) = delete;
+			ThreadCtx& operator=(const ThreadCtx& other) = delete;
+			ThreadCtx(ThreadCtx&& other) = delete;
+			ThreadCtx& operator=(ThreadCtx&& other) = delete;
+		};
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: jobcommon.h ***/
+
+
+/*** Start of inlined file: jobmanager.h ***/
+#pragma once
+
+#include <atomic>
+#include <functional>
+#include <inttypes.h>
+#include <mutex>
+
+#define GAIA_LOG_JOB_STATES 0
+
+namespace gaia {
+	namespace mt {
+		enum JobState : uint32_t {
+			DEP_BITS_START = 0,
+			DEP_BITS = 28,
+			DEP_BITS_MASK = (uint32_t)((1u << DEP_BITS) - 1),
+
+			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
+			STATE_BITS = 4,
+			STATE_BITS_MASK = (uint32_t)(((1u << STATE_BITS) - 1) << STATE_BITS_START),
+
+			// STATE
+
+			//! Submitted
+			Submitted = 0x01 << STATE_BITS_START,
+			//! Processing has begun, the job is in one of the job buffers
+			Processing = 0x02 << STATE_BITS_START,
+			//! Being executed
+			Executing = 0x03 << STATE_BITS_START,
+			//! Finished executing
+			Done = 0x04 << STATE_BITS_START
+		};
+
+		struct JobContainer;
+
+		namespace detail {
+			inline void signal_edge(JobContainer& jobData);
+		}
+
+		struct JobEdges {
+			//! Dependency or an array of dependencies.
+			//! depCnt decides which one is used.
+			union {
+				JobHandle dep;
+				JobHandle* pDeps;
+			};
+			//! Number of dependencies
+			uint32_t depCnt;
+		};
+
+		struct JobContainer: cnt::ilist_item {
+			//! Current state of the job
+			//! Consist of upper and bottom part.
+			//! Least significant bits = special purpose.
+			//! Most significant bits = state.
+			//! JobCore states:
+			//!           x  | edge count
+			//!   Submitted  | edge count, must be 0 in order to move to Processing
+			//!   Processing | 0, pushed into one of the worker jobs queues
+			//!   Executing  | worker_idx of the worker executing the job
+			//!   Done       | 0, wait() stops when job reaches this state
+			std::atomic_uint32_t state;
+			//! Job priority
+			JobPriority prio;
+			//! If the the job can be waited on, false otherwise.
+			bool canWait;
+			//! Dependency graph
+			JobEdges edges;
+			//! Function to execute when running the job
+			std::function<void()> func;
+
+			JobContainer() = default;
+			~JobContainer() = default;
+
+			JobContainer(const JobContainer& other): cnt::ilist_item(other) {
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				edges = other.edges;
+				func = other.func;
+			}
+			JobContainer& operator=(const JobContainer& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				cnt::ilist_item::operator=(other);
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				edges = other.edges;
+				func = other.func;
+				return *this;
+			}
+
+			JobContainer(JobContainer&& other): cnt::ilist_item(GAIA_MOV(other)) {
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				func = GAIA_MOV(other.func);
+
+				// if (edges.depCnt > 0)
+				// 	detail::signal_edge(*this);
+				edges = other.edges;
+				other.edges.depCnt = 0;
+			}
+			JobContainer& operator=(JobContainer&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+				cnt::ilist_item::operator=(GAIA_MOV(other));
+				state = other.state.load();
+				prio = other.prio;
+				canWait = other.canWait;
+				func = GAIA_MOV(other.func);
+
+				// if (edges.depCnt > 0)
+				// 	detail::signal_edge(*this);
+				edges = other.edges;
+				other.edges.depCnt = 0;
+
+				return *this;
+			}
+
+			GAIA_NODISCARD static JobContainer create(uint32_t index, uint32_t generation, void* pCtx) {
+				auto* ctx = (JobAllocCtx*)pCtx;
+
+				JobContainer jc{};
+				jc.idx = index;
+				jc.gen = generation;
+				jc.prio = ctx->priority;
+				jc.state.store(0);
+
+				return jc;
+			}
+
+			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
+				return JobHandle(jc.idx, jc.gen, (jc.prio == JobPriority::Low) != 0);
+			}
+		};
+
+		class JobManager {
+			//! Implicit list of jobs
+			cnt::ilist<JobContainer, JobHandle> m_jobData;
+
+		public:
+			JobContainer& data(JobHandle jobHandle) {
+				return m_jobData[jobHandle.id()];
+			}
+			const JobContainer& data(JobHandle jobHandle) const {
+				return m_jobData[jobHandle.id()];
+			}
+
+			//! Allocates a new job container identified by a unique JobHandle.
+			//! \return JobHandle
+			//! \warning Must be used from the main thread.
+			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
+				JobAllocCtx ctx{job.priority};
+
+				auto handle = m_jobData.alloc(&ctx);
+				auto& j = m_jobData[handle.id()];
+
+				// Make sure there is not state yet
+				GAIA_ASSERT(j.state == 0);
+
+				j.edges = {};
+				j.prio = ctx.priority;
+				j.state.store(0);
+				j.func = job.func;
+				return handle;
+			}
+
+			//! Invalidates \param jobHandle by resetting its index in the job pool.
+			//! Every time a job is deallocated its generation is increased by one.
+			//! \warning Must be used from the main thread.
+			void free_job(JobHandle jobHandle) {
+				auto& jobData = m_jobData.free(jobHandle);
+				GAIA_ASSERT(done(jobData));
+				jobData.state.store(0);
+			}
+
+			//! Resets the job pool.
+			void reset() {
+				m_jobData.clear();
+			}
+
+			//! Execute the functor associated with the job container
+			//! \param jobData Container with internal job specific data
+			static void run(JobContainer& jobData) {
+				if (jobData.func.operator bool())
+					jobData.func();
+
+				finalize(jobData);
+			}
+
+			static bool signal_edge(JobContainer& jobData) {
+				// Subtract from dependency counter
+				const auto state = jobData.state.fetch_sub(1) - 1;
+
+				// If the job is not submitted, we can't accept it
+				const auto s = state & JobState::STATE_BITS_MASK;
+				if (s != JobState::Submitted)
+					return false;
+
+				// If the job still has some dependencies left we can't accept it
+				const auto deps = state & JobState::DEP_BITS_MASK;
+				return deps == 0;
+			}
+
+			static void free_edges(JobContainer& jobData) {
+				if (jobData.edges.depCnt > 1)
+					mem::AllocHelper::free(jobData.edges.pDeps);
+				// jobData.edges.depCnt = 0;
+			}
+
+			//! Makes \param jobSecond depend on \param jobFirst.
+			//! This means \param jobSecond will run only after \param jobFirst finishes.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep(JobHandle jobFirst, JobHandle jobSecond) {
+				dep(std::span(&jobFirst, 1), jobSecond);
+			}
+
+			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
+			//! This means \param jobSecond will run only after all \param jobsFirst finish.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(!jobsFirst.empty());
+
+				GAIA_PROF_SCOPE(JobManager::dep);
+
+				auto& secondData = data(jobSecond);
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!busy(const_cast<const JobContainer&>(secondData)));
+				for (auto jobFirst: jobsFirst) {
+					const auto& firstData = data(jobFirst);
+					GAIA_ASSERT(!busy(firstData));
+				}
+#endif
+
+				for (auto jobFirst: jobsFirst)
+					dep_internal(jobFirst, jobSecond);
+
+				// Tell jobSecond that it has new dependencies
+				// secondData.canWait = true;
+				const uint32_t cnt = (uint32_t)jobsFirst.size();
+				[[maybe_unused]] const uint32_t statePrev = secondData.state.fetch_add(cnt);
+				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
+			}
+
+			static uint32_t submit(JobContainer& jobData) {
+				[[maybe_unused]] const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				GAIA_ASSERT(state < JobState::Submitted);
+				const auto val = jobData.state.fetch_add(JobState::Submitted) + (uint32_t)JobState::Submitted;
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - SUBMITTED", jobData.idx, jobData.gen);
+#endif
+				return val;
+			}
+
+			static void processing(JobContainer& jobData) {
+				GAIA_ASSERT(submitted(const_cast<const JobContainer&>(jobData)));
+				jobData.state.store(JobState::Processing);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - PROCESSING", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void executing(JobContainer& jobData, uint32_t workerIdx) {
+				GAIA_ASSERT(processing(const_cast<const JobContainer&>(jobData)));
+				jobData.state.store(JobState::Executing | workerIdx);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - EXECUTING", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void finalize(JobContainer& jobData) {
+				jobData.state.store(JobState::Done);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("%u.%u - DONE", jobData.idx, jobData.gen);
+#endif
+			}
+
+			GAIA_NODISCARD bool is_clear(JobHandle jobHandle) const {
+				const auto& jobData = data(jobHandle);
+				const auto state = jobData.state.load();
+				return state == 0;
+			}
+
+			GAIA_NODISCARD static bool is_clear(JobContainer& jobData) {
+				const auto state = jobData.state.load();
+				return state == 0;
+			}
+
+			GAIA_NODISCARD static bool submitted(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Submitted;
+			}
+
+			GAIA_NODISCARD static bool processing(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Processing;
+			}
+
+			GAIA_NODISCARD static bool busy(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Executing || state == JobState::Processing;
+			}
+
+			GAIA_NODISCARD static bool done(const JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				return state == JobState::Done;
+			}
+
+		private:
+			void dep_internal(JobHandle jobFirst, JobHandle jobSecond) {
+				auto& firstData = data(jobFirst);
+				const auto depCnt0 = firstData.edges.depCnt;
+				const auto depCnt1 = ++firstData.edges.depCnt;
+
+				if (depCnt1 <= 1) {
+#if GAIA_LOG_JOB_STATES
+					GAIA_LOG_N(
+							"DEP %u.%u, %u -> %u.%u", jobFirst.id(), jobFirst.gen(), firstData.edges.depCnt, jobSecond.id(),
+							jobSecond.gen());
+#endif
+					firstData.edges.dep = jobSecond;
+				} else {
+					// Reallocate on a power of two
+					const bool isPow2 = (depCnt1 & (depCnt1 - 1)) == 0;
+					if (isPow2) {
+						if (depCnt0 == 1) {
+							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
+							firstData.edges.pDeps[0] = firstData.edges.dep;
+						} else {
+							auto* pPrev = firstData.edges.pDeps;
+							// TODO: Use custom allocator
+							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
+							if (pPrev != nullptr) {
+								GAIA_FOR2(0, depCnt0) firstData.edges.pDeps[i] = pPrev[i];
+								mem::AllocHelper::free(pPrev);
+							}
+						}
+					}
+
+					// Append new dependencies
+					firstData.edges.pDeps[depCnt0] = jobSecond;
+				}
+			}
+		};
+
+		namespace detail {
+			void signal_edge(JobContainer& jobData) {
+				JobManager::signal_edge(jobData);
+			}
+		} // namespace detail
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: jobmanager.h ***/
+
+
+/*** Start of inlined file: semaphore_fast.h ***/
+#pragma once
+
+
+/*** Start of inlined file: semaphore.h ***/
+#pragma once
+
+#if GAIA_PLATFORM_WINDOWS
+	#include <windows.h>
+#elif GAIA_PLATFORM_APPLE
+	#include <TargetConditionals.h>
+	#include <dispatch/dispatch.h>
+	#include <pthread.h>
+#else
+	#include <pthread.h>
+	#include <semaphore.h>
+#endif
+
+namespace gaia {
+	namespace mt {
+		class Semaphore final {
+#if GAIA_PLATFORM_WINDOWS
+			void* m_handle;
+#elif GAIA_PLATFORM_APPLE
+			dispatch_semaphore_t m_handle;
+#else
+			sem_t m_handle;
+#endif
+
+			Semaphore(Semaphore&&) = delete;
+			Semaphore(const Semaphore&) = delete;
+			Semaphore& operator=(Semaphore&&) = delete;
+			Semaphore& operator=(const Semaphore&) = delete;
+
+			//! Initializes the semaphore.
+			//! \param count Initial count on semaphore.
+			void init(int32_t count) {
+#if GAIA_PLATFORM_WINDOWS
+				m_handle = (void*)::CreateSemaphoreExW(NULL, count, INT_MAX, NULL, 0, SEMAPHORE_ALL_ACCESS);
+				GAIA_ASSERT(m_handle != NULL);
+#elif GAIA_PLATFORM_APPLE
+				m_handle = dispatch_semaphore_create(count);
+				GAIA_ASSERT(m_handle != nullptr);
+#else
+				int ret = sem_init(&m_handle, 0, count);
+				GAIA_ASSERT(ret == 0);
+#endif
+			}
+
+			//! Destroys the semaphore.
+			void done() {
+#if GAIA_PLATFORM_WINDOWS
+				if (m_handle != NULL) {
+					::CloseHandle((HANDLE)m_handle);
+					m_handle = NULL;
+				}
+#elif GAIA_PLATFORM_APPLE
+				// NOTE: Dispatch objects are reference counted.
+				//       They are automatically released when no longer used.
+				// -> dispatch_release(m_handle);
+#else
+				int ret = sem_destroy(&m_handle);
+				GAIA_ASSERT(ret == 0);
+#endif
+			}
+
+		public:
+			explicit Semaphore(int32_t count = 0) {
+				init(count);
+			}
+
+			~Semaphore() {
+				done();
+			}
+
+			//! Increments semaphore count by the specified amount.
+			void release(int32_t count) {
+				GAIA_ASSERT(count > 0);
+
+#if GAIA_PLATFORM_WINDOWS
+				[[maybe_unused]] LONG prev = 0;
+				BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
+				if (res == 0) {
+					DWORD err = ::GetLastError();
+					(void))err;
+				}
+#elif GAIA_PLATFORM_APPLE
+				do {
+					dispatch_semaphore_signal(m_handle);
+				} while ((--count) != 0);
+#else
+				do {
+					[[maybe_unused]] const auto ret = sem_post(&m_handle);
+					GAIA_ASSERT(ret == 0);
+				} while ((--count) != 0);
+#endif
+			}
+
+			//! Decrements semaphore count by 1.
+			//! If the count is already 0, it waits indefinitely until semaphore count is incremented,
+			//! then decrements and returns. Returns false when an error occurs, otherwise returns true.
+			bool wait() {
+#if GAIA_PLATFORM_WINDOWS
+				GAIA_ASSERT(m_handle != (void*)ERROR_INVALID_HANDLE);
+				DWORD ret = ::WaitForSingleObject(m_handle, INFINITE);
+				GAIA_ASSERT(ret == WAIT_OBJECT_0);
+				return (ret == WAIT_OBJECT_0);
+#elif GAIA_PLATFORM_APPLE
+				const auto res = dispatch_semaphore_wait(m_handle, DISPATCH_TIME_FOREVER);
+				GAIA_ASSERT(res == 0);
+				return (res == 0);
+#else
+				int res;
+				do {
+					res = sem_wait(&m_handle);
+				} while (res == -1 && errno == EINTR); // handle interrupts
+
+				GAIA_ASSERT(res == 0);
+				return (res == 0);
+#endif
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: semaphore.h ***/
+
+#include <atomic>
+
+namespace gaia {
+	namespace mt {
+		//! An optimized version of Semaphore that avoids expensive system calls when the counter is greater than 0.
+		class SemaphoreFast final {
+			Semaphore m_sem;
+			std::atomic_int32_t m_cnt;
+
+			SemaphoreFast(SemaphoreFast&&) = delete;
+			SemaphoreFast(const SemaphoreFast&) = delete;
+			SemaphoreFast& operator=(SemaphoreFast&&) = delete;
+			SemaphoreFast& operator=(const SemaphoreFast&) = delete;
+
+		public:
+			explicit SemaphoreFast(int32_t count = 0): m_sem(count), m_cnt(0) {}
+			~SemaphoreFast() = default;
+
+			//! Increments semaphore count by the specified amount.
+			void release(int32_t count = 1) {
+				const int32_t prevCount = m_cnt.fetch_add(count, std::memory_order_release);
+				int32_t toRelease = -prevCount;
+				if (count < toRelease)
+					toRelease = count;
+
+				if (toRelease > 0)
+					m_sem.release(toRelease);
+			}
+
+			//! Decrements semaphore count by 1.
+			//! If the count is already 0, it waits indefinitely until semaphore count is incremented,
+			//! then decrements and returns. Returns false when an error occurs, otherwise returns true.
+			bool wait() {
+				const int32_t oldCount = m_cnt.fetch_sub(1, std::memory_order_acquire);
+				bool result = true;
+				if (oldCount <= 0)
+					result = m_sem.wait();
+
+				return result;
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: semaphore_fast.h ***/
+
+namespace gaia {
+	namespace mt {
 #if GAIA_PLATFORM_WINDOWS
 		extern "C" typedef HRESULT(WINAPI* TOSApiFunc_SetThreadDescription)(HANDLE, PCWSTR);
 
@@ -14780,33 +15273,49 @@ namespace gaia {
 	#pragma pack(pop)
 #endif
 
+		namespace detail {
+			//! Worker context for threads allocated by our thread pool
+			inline thread_local ThreadCtx* tl_workerCtx;
+		} // namespace detail
+
 		class ThreadPool final {
-			static constexpr uint32_t MaxWorkers = 31;
+			friend class JobManager;
+
+			//! Maximum number of worker threads of a given priority we can create.
+			//! TODO: The current implementation puts a hard limit on the number
+			//!       of workers. In the future consider revisiting this because
+			//!       the number of CPU cores is only going to increase.
+			static constexpr uint32_t MaxWorkers = JobState::DEP_BITS;
 
 			//! ID of the main thread
 			std::thread::id m_mainThreadId;
+
 			//! When true the pool is supposed to finish all work and terminate all threads
-			bool m_stop{};
+			std::atomic_bool m_stop{};
 			//! Array of worker threads
-			cnt::sarr_ext<GAIA_THREAD, MaxWorkers> m_workers;
+			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
+			//! Array of data associated with workers
+			ThreadCtx m_workerCtxMain;
+			cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
+			//! Global job queue
+			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! The number of workers dedicated for a given level of job priority
-			uint32_t m_workerCnt[JobPriorityCnt]{};
+			uint32_t m_workersCnt[JobPriorityCnt]{};
+			//! Semaphore use to
+			SemaphoreFast m_sem;
+
+			//! Futex counter
+			std::atomic_uint32_t m_blockedInWorkUntil;
 
 			//! Manager for internal jobs
 			JobManager m_jobManager;
-
-			//! How many jobs are currently being processed
-			std::atomic_uint32_t m_jobsPending[JobPriorityCnt]{};
-			//! Mutex protecting the access to a given queue
-			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv0);
-			GAIA_PROF_MUTEX(std::mutex, m_mtx_cv1);
-			//! Signals for given workers to wake up
-			std::condition_variable m_cv[JobPriorityCnt];
-			//! Array of pending user jobs
-			JobQueue<1024> m_jobQueue[JobPriorityCnt];
+			//! Job allocation mutex
+			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
 
 		private:
 			ThreadPool() {
+				m_stop.store(false);
+
 				make_main_thread();
 
 				const auto hwThreads = hw_thread_cnt();
@@ -14838,79 +15347,116 @@ namespace gaia {
 				return m_workers.size();
 			}
 
-			void update_workers_cnt(uint32_t count) {
-				if (count == 0) {
-					// Use one because we still have the main thread
-					m_workerCnt[0] = 1;
-					m_workerCnt[1] = 1;
-				} else {
-					m_workerCnt[0] = count;
-					m_workerCnt[1] = m_workers.size() - count;
-				}
-			}
-
-			//! Set the maximum number of works for this system.
+			//! Set the maximum number of workers for this system.
 			//! \param count Requested number of worker threads to create
 			//! \param countHighPrio HighPrio Number of high-priority workers to create.
 			//!                      Calculated as Max(count, countHighPrio).
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_max_workers(uint32_t count, uint32_t countHighPrio) {
-				const auto workersCnt = core::get_min(MaxWorkers, count);
-				countHighPrio = core::get_max(count, countHighPrio);
+				const auto workersCnt = core::get_max(core::get_min(MaxWorkers, count), 1U);
+				if (countHighPrio > count)
+					countHighPrio = count;
 
 				// Stop all threads first
 				reset();
-				m_workers.resize(workersCnt);
-				GAIA_EACH(m_workers) m_workers[i] = {};
+
+				// Reset previous worker contexts
+				for (auto& ctx: m_workersCtx)
+					ctx.reset();
+
+				// Resize or array
+				m_workersCtx.resize(workersCnt);
+				// We also have the main thread so there's always one less worker spawned
+				m_workers.resize(workersCnt - 1);
+
+				// First worker is considered the main thread.
+				// It is also assigned high priority but it doesn't really matter.
+				// The main thread can steal any jobs, both low and high priority.
+				detail::tl_workerCtx = &m_workersCtx[0];
+				m_workersCtx[0].tp = this;
+				m_workersCtx[0].workerIdx = 0;
+				m_workersCtx[0].prio = JobPriority::High;
+
+				// Reset the workers
+				for (auto& worker: m_workers)
+					worker = {};
 
 				// Create a new set of high and low priority threads (if any)
-				set_workers_high_prio(countHighPrio);
+				uint32_t workerIdx = 1;
+				set_workers_high_prio_inter(workerIdx, countHighPrio);
+			}
+
+			//! Updates the number of worker threads participating at high priority workloads
+			//! \param count Number of high priority workers
+			//! \warning All jobs are finished first before threads are recreated.
+			void set_workers_high_prio_inter(uint32_t& workerIdx, uint32_t count) {
+				count = gaia::core::get_min(count, m_workers.size());
+				if (count == 0) {
+					m_workersCnt[0] = 1; // main thread
+					m_workersCnt[1] = 0;
+				} else {
+					m_workersCnt[0] = count + 1; // Main thread is always a priority worker
+					m_workersCnt[1] = m_workers.size() - count;
+				}
+
+				// Create a new set of high and low priority threads (if any)
+				create_worker_threads(workerIdx, JobPriority::High, m_workersCnt[0] - 1);
+				create_worker_threads(workerIdx, JobPriority::Low, m_workersCnt[1]);
+			}
+
+			//! Updates the number of worker threads participating at low priority workloads
+			//! \warning All jobs are finished first before threads are recreated.
+			void set_workers_low_prio_inter(uint32_t& workerIdx, uint32_t count) {
+				const uint32_t realCnt = gaia::core::get_max(count, m_workers.size());
+				if (count == 0) {
+					m_workersCnt[0] = 0;
+					m_workersCnt[1] = 1; // main thread
+				} else {
+					m_workersCnt[0] = m_workers.size() - count;
+					m_workersCnt[1] = count + 1; // Main thread is always a priority worker;
+				}
+
+				// Create a new set of high and low priority threads (if any)
+				create_worker_threads(workerIdx, JobPriority::High, m_workersCnt[0]);
+				create_worker_threads(workerIdx, JobPriority::Low, m_workersCnt[1]);
 			}
 
 			//! Updates the number of worker threads participating at high priority workloads
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_high_prio(uint32_t count) {
-				const uint32_t realCnt = gaia::core::get_min(count, m_workers.size());
-
 				// Stop all threads first
 				reset();
 
-				update_workers_cnt(realCnt);
-
-				// Create a new set of high and low priority threads (if any)
-				set_workers_high_prio_inter(0, m_workerCnt[0]);
-				set_workers_low_prio_inter(m_workerCnt[0], m_workerCnt[1]);
+				uint32_t workerIdx = 1;
+				set_workers_high_prio_inter(workerIdx, count);
 			}
 
 			//! Updates the number of worker threads participating at low priority workloads
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_low_prio(uint32_t count) {
-				const uint32_t realCnt = gaia::core::get_max(count, m_workers.size());
-
 				// Stop all threads first
 				reset();
 
-				update_workers_cnt(m_workers.size() - realCnt);
-
-				// Create a new set of high and low priority threads (if any)
-				set_workers_high_prio_inter(0, m_workerCnt[0]);
-				set_workers_low_prio_inter(m_workerCnt[0], m_workerCnt[1]);
+				uint32_t workerIdx = 1;
+				set_workers_low_prio_inter(workerIdx, count);
 			}
 
-			//! Makes \param jobHandle depend on \param dependsOn.
-			//! This means \param jobHandle will run only after \param dependsOn finishes.
+			//! Makes \param jobSecond depend on \param jobFirst.
+			//! This means \param jobSecond will run only after \param jobFirst finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, JobHandle dependsOn) {
-				m_jobManager.dep(jobHandle, dependsOn);
+			void dep(JobHandle jobFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
 			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				m_jobManager.dep(jobHandle, dependsOnSpan);
+			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
 			//! Creates a job system job from \param job.
@@ -14925,7 +15471,6 @@ namespace gaia {
 
 				job.priority = final_prio(job);
 
-				++m_jobsPending[(uint32_t)job.priority];
 				return m_jobManager.alloc_job(job);
 			}
 
@@ -14934,57 +15479,39 @@ namespace gaia {
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
-			void submit(JobHandle jobHandle) {
-				m_jobManager.submit(jobHandle);
-
-				const auto prio = (JobPriority)jobHandle.prio();
-				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-
-				if GAIA_UNLIKELY (m_workers.empty()) {
-					(void)jobQueue.try_push(jobHandle);
-					main_thread_tick(prio);
+			void submit(std::span<JobHandle> jobHandles) {
+				if (jobHandles.empty())
 					return;
+
+				GAIA_PROF_SCOPE(tp::submit);
+
+				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * jobHandles.size());
+
+				uint32_t cnt = 0;
+				for (auto handle: jobHandles) {
+					auto& jobData = m_jobManager.data(handle);
+					const auto state = m_jobManager.submit(jobData) & JobState::DEP_BITS_MASK;
+					// Jobs that were already submitted won't be submitted again.
+					// We can only accept the job if it has no pending dependencies.
+					if (state != 0)
+						continue;
+
+					pHandles[cnt++] = handle;
 				}
 
-				// Try pushing a new job until we succeed.
-				// The thread is put to sleep if pushing the jobs fails.
-				while (!jobQueue.try_push(jobHandle))
-					poll(prio);
-
-				auto& cv = m_cv[(uint32_t)prio];
-				cv.notify_one();
+				auto* ctx = detail::tl_workerCtx;
+				process(std::span(pHandles, cnt), ctx);
 			}
 
-		private:
-			//! Resubmits \param jobHandle into the internal queue so worker threads
+			//! Pushes \param jobHandle into the internal queue so worker threads
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
-			//! \warning Internal usage only. Only worker threads can decide to resubmit.
-			void resubmit(JobHandle jobHandle) {
-				m_jobManager.resubmit(jobHandle);
-
-				const auto prio = (JobPriority)jobHandle.prio();
-				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-
-				if GAIA_UNLIKELY (m_workers.empty()) {
-					(void)jobQueue.try_push(jobHandle);
-					// Let the other parts of the code handle the resubmit (submit(), update()).
-					// Otherwise, we would enter an endless recursion and stack overflow here.
-					// -->  main_thread_tick(prio);
-					return;
-				}
-
-				// Try pushing a new job until we succeed.
-				// The thread is put to sleep if pushing the jobs fails.
-				while (!jobQueue.try_push(jobHandle))
-					poll(prio);
-
-				auto& cv = m_cv[(uint32_t)prio];
-				cv.notify_one();
+			//! \warning Once submitted, dependencies can't be modified for this job.
+			void submit(JobHandle jobHandle) {
+				submit(std::span(&jobHandle, 1));
 			}
 
-		public:
 			//! Schedules a job to run on a worker thread.
 			//! \param job Job descriptor
 			//! \warning Must be used from the main thread.
@@ -15005,19 +15532,6 @@ namespace gaia {
 			JobHandle sched(Job& job, JobHandle dependsOn) {
 				JobHandle jobHandle = add(job);
 				dep(jobHandle, dependsOn);
-				submit(jobHandle);
-				return jobHandle;
-			}
-
-			//! Schedules a job to run on a worker thread.
-			//! \param job Job descriptor
-			//! \param dependsOnSpan Jobs we depend on
-			//! \warning Must be used from the main thread.
-			//! \warning Dependencies can't be modified for this job.
-			//! \return Job handle of the scheduled job.
-			JobHandle sched(Job& job, std::span<const JobHandle> dependsOnSpan) {
-				JobHandle jobHandle = add(job);
-				dep(jobHandle, dependsOnSpan);
 				submit(jobHandle);
 				return jobHandle;
 			}
@@ -15044,11 +15558,10 @@ namespace gaia {
 				// Make sure the right priority is selected
 				const auto prio = job.priority = final_prio(job);
 
-				const uint32_t workerCount = m_workerCnt[(uint32_t)prio];
-
 				// No group size was given, make a guess based on the set size
 				if (groupSize == 0) {
-					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+					const auto cntWorkers = m_workersCnt[(uint32_t)prio];
+					groupSize = (itemsToProcess + cntWorkers - 1) / cntWorkers;
 
 					// If there are too many items we split them into multiple jobs.
 					// This way, if we wait for the result and some workers finish
@@ -15063,115 +15576,120 @@ namespace gaia {
 				}
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
-				// Internal jobs + 1 for the groupHandle
-				m_jobsPending[(uint32_t)prio] += (jobs + 1U);
 
-				JobHandle groupHandle = m_jobManager.alloc_job({{}, prio});
+				// Create one job per group
+				uint32_t jobIndex = 0;
+				auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
+					const uint32_t groupJobIdxStart = jobIndex * groupSize;
+					const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
+					const uint32_t groupJobIdxEnd =
+							groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
 
-				auto* pHandles = (JobHandle*)alloca(jobs * sizeof(JobHandle));
-				GAIA_FOR_(jobs, jobIndex) {
-					// Create one job per group
-					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
-						const uint32_t groupJobIdxStart = jobIndex * groupSize;
-						const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
-						const uint32_t groupJobIdxEnd =
-								groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
+					JobArgs args;
+					args.idxStart = groupJobIdxStart;
+					args.idxEnd = groupJobIdxEnd;
+					job.func(args);
+				};
 
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						job.func(args);
-					};
-
-					JobHandle jobHandle = pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
-					dep(groupHandle, jobHandle);
+				// Only one job is created, use the job directly.
+				// Generally, this is the case we would want to avoid because it means this particular case
+				// is not worth of being scheduled via sched_par. However, we can never know for sure what
+				// the reason for that is so let's stay silent.
+				if (jobs == 1) {
+					auto handle = m_jobManager.alloc_job({groupJobFunc, prio});
+					submit(handle);
+					return handle;
 				}
 
-				GAIA_FOR_(jobs, jobIndex) {
-					submit(pHandles[jobIndex]);
+				// Multiple jobs need to be parallelized.
+				// Create a waiting jobs and assign it as their dependency.
+				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
+				pHandles[jobs] = m_jobManager.alloc_job({{}, prio});
+				GAIA_ASSERT(m_jobManager.is_clear(pHandles[jobs]));
+
+				for (jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
+					GAIA_ASSERT(m_jobManager.is_clear(pHandles[jobIndex]));
 				}
 
-				submit(groupHandle);
-				return groupHandle;
+				auto& secondData = m_jobManager.data(pHandles[jobs]);
+				GAIA_ASSERT(m_jobManager.is_clear(secondData));
+
+				dep(std::span(pHandles, jobs), pHandles[jobs]);
+				submit(std::span(pHandles, jobs + 1));
+				return pHandles[jobs];
 			}
 
-			//! Waits for the job to finish.
-			//! \param jobHandle Job handle
-			//! \warning Must be used from the main thread.
+			//! Wait until a job associated with the jobHandle finishes executing.
+			//! Cleans up any job allocations and dependencies associated with \param jobHandle
+			//! The calling thread participate in job processing until \param jobHandle is done.
 			void wait(JobHandle jobHandle) {
-				// When no workers are available, execute all we have.
-				if GAIA_UNLIKELY (m_workers.empty()) {
-					update();
-					m_jobManager.reset();
-					return;
-				}
+				GAIA_PROF_SCOPE(tp::wait);
 
 				GAIA_ASSERT(main_thread());
 
-				while (m_jobManager.busy(jobHandle))
-					poll((JobPriority)jobHandle.prio());
+				auto* ctx = detail::tl_workerCtx;
+				auto& jobData = m_jobManager.data(jobHandle);
+				auto state = jobData.state.load();
 
-				GAIA_ASSERT(!m_jobManager.busy(jobHandle));
-				m_jobManager.wait(jobHandle);
-			}
+				// Waiting for a job that has not been initialized is nonsense.
+				GAIA_ASSERT(state != 0);
 
-			//! Waits for all jobs to finish.
-			//! \warning Must be used from the main thread.
-			void wait_all() {
-				// When no workers are available, execute all we have.
-				if GAIA_UNLIKELY (m_workers.empty()) {
-					update();
-					m_jobManager.reset();
-					return;
+				// Wait until done
+				for (; (state & JobState::STATE_BITS_MASK) != JobState::Done; state = jobData.state.load()) {
+					// The job we are waiting for is not finished yet, try running some other job in the meantime
+					JobHandle otherJobHandle;
+					if (try_fetch_job(*ctx, otherJobHandle)) {
+						if (run(otherJobHandle, ctx)) {
+							// free_job(otherJobHandle);
+							continue;
+						}
+					}
+
+					// The job we are waiting for is already running.
+					// Wait until it signals it's finished.
+					if ((state & JobState::STATE_BITS_MASK) == JobState::Executing) {
+						const auto workerId = (state & JobState::DEP_BITS_MASK);
+						auto* jobDoneEvent = &m_workersCtx[workerId].event;
+						jobDoneEvent->wait();
+						continue;
+					}
+
+					// The worst case scenario.
+					// We have nothing to do and the job we are waiting for is not executing still.
+					// Let's wait for any job to start executing.
+					const auto workerBit = 1 << ctx->workerIdx;
+					const auto oldBlockedMask = m_blockedInWorkUntil.fetch_or(workerBit);
+					if (jobData.state.load() == state) // still not JobState::Done?
+						Futex::wait(&m_blockedInWorkUntil, oldBlockedMask | workerBit, detail::WaitMaskAny);
+					m_blockedInWorkUntil.fetch_and(~workerBit);
 				}
 
-				GAIA_ASSERT(main_thread());
-
-				busy_poll_all();
-
-#if GAIA_ASSERT_ENABLED
-				// No jobs should be pending at this point
-				GAIA_FOR(JobPriorityCnt) {
-					GAIA_ASSERT(!busy((JobPriority)i));
-				}
-#endif
-
-				m_jobManager.reset();
+				// Deallocate the job itself
+				// free_job(jobHandle);
 			}
 
 			//! Uses the main thread to help with jobs processing.
 			void update() {
 				GAIA_ASSERT(main_thread());
-
-				bool moreWork = false;
-				do {
-					// Participate at processing of high-performance tasks.
-					// They have higher priority so execute them first.
-					moreWork = main_thread_tick(JobPriority::High);
-
-					// Participate at processing of low-performance tasks.
-					moreWork |= main_thread_tick(JobPriority::Low);
-				} while (moreWork);
+				main_thread_tick();
 			}
 
-			//! Returns the number of HW threads available on the system minus 1 (the main thread).
-			//! \return 0 if failed. Otherwise, the number of hardware threads minus 1 (1 is minimum).
+			//! Returns the number of HW threads available on the system. 1 is minimum.
+			//! \return The number of hardware threads or 1 if failed.
 			GAIA_NODISCARD static uint32_t hw_thread_cnt() {
-				auto hwThreads = (uint32_t)std::thread::hardware_concurrency();
-				if (hwThreads > 0)
-					return core::get_max(1U, hwThreads - 1U);
-				return hwThreads;
+				// auto hwThreads = (uint32_t)std::thread::hardware_concurrency();
+				// return core::get_max(1U, hwThreads);
+
+				// TODO: Threadpool is still not stable, use 1 thread for now
+				return 1;
 			}
 
 		private:
-			struct ThreadFuncCtx {
-				ThreadPool* tp;
-				uint32_t workerIdx;
-				JobPriority prio;
-			};
-
 			static void* thread_func(void* pCtx) {
-				const auto& ctx = *(const ThreadFuncCtx*)pCtx;
+				auto& ctx = *(ThreadCtx*)pCtx;
+
+				detail::tl_workerCtx = &ctx;
 
 				// Set the worker thread name.
 				// Needs to be called from inside the thread because some platforms
@@ -15182,13 +15700,10 @@ namespace gaia {
 				ctx.tp->set_thread_priority(ctx.workerIdx, ctx.prio);
 
 				// Process jobs
-				ctx.tp->worker_loop(ctx.prio);
+				ctx.tp->worker_loop(ctx);
 
-#if !GAIA_PLATFORM_WINDOWS
-				// Other platforms allocate the context dynamically
-				ctx.~ThreadFuncCtx();
-				mem::AllocHelper::free(pCtx);
-#endif
+				detail::tl_workerCtx = nullptr;
+
 				return nullptr;
 			}
 
@@ -15196,12 +15711,16 @@ namespace gaia {
 			//! \param workerIdx Worker index
 			//! \param prio Priority used for the thread
 			void create_thread(uint32_t workerIdx, JobPriority prio) {
-				if GAIA_UNLIKELY (workerIdx >= m_workers.size())
-					return;
+				// Idx 0 is reserved for the main thread
+				GAIA_ASSERT(workerIdx > 0);
+
+				auto& ctx = m_workersCtx[workerIdx];
+				ctx.tp = this;
+				ctx.workerIdx = workerIdx;
+				ctx.prio = prio;
 
 #if GAIA_PLATFORM_WINDOWS
-				ThreadFuncCtx ctx{this, workerIdx, prio};
-				m_workers[workerIdx] = std::thread([ctx]() {
+				m_workers[workerIdx - 1] = std::thread([&ctx]() {
 					thread_func((void*)&ctx);
 				});
 #else
@@ -15283,9 +15802,7 @@ namespace gaia {
 				}
 
 				// Create the thread with given attributes
-				auto* ctx = mem::AllocHelper::alloc<ThreadFuncCtx>();
-				(void)new (ctx) ThreadFuncCtx{this, workerIdx, prio};
-				ret = pthread_create(&m_workers[workerIdx], &attr, thread_func, ctx);
+				ret = pthread_create(&m_workers[workerIdx - 1], &attr, thread_func, (void*)&ctx);
 				if (ret != 0) {
 					GAIA_LOG_W("pthread_create failed for worker thread %u. ErrCode = %d", workerIdx, ret);
 				}
@@ -15304,30 +15821,23 @@ namespace gaia {
 					return;
 
 #if GAIA_PLATFORM_WINDOWS
-				auto& t = m_workers[workerIdx];
+				auto& t = m_workers[workerIdx - 1];
 				if (t.joinable())
 					t.join();
 #else
-				auto& t = m_workers[workerIdx];
+				auto& t = m_workers[workerIdx - 1];
 				pthread_join(t, nullptr);
 #endif
 			}
 
-			void set_workers_high_prio_inter(uint32_t from, uint32_t count) {
-				const uint32_t to = from + count;
-				for (uint32_t i = from; i < to; ++i)
-					create_thread(i, JobPriority::High);
-			}
-
-			void set_workers_low_prio_inter(uint32_t from, uint32_t count) {
-				const uint32_t to = from + count;
-				for (uint32_t i = from; i < to; ++i)
-					create_thread(i, JobPriority::Low);
+			void create_worker_threads(uint32_t& workerIdx, JobPriority prio, uint32_t count) {
+				for (uint32_t i = 0; i < count; ++i)
+					create_thread(workerIdx++, prio);
 			}
 
 			void set_thread_priority([[maybe_unused]] uint32_t workerIdx, [[maybe_unused]] JobPriority priority) {
 #if GAIA_PLATFORM_WINDOWS
-				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
+				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
 
 				THREAD_POWER_THROTTLING_STATE state{};
 				state.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
@@ -15365,7 +15875,7 @@ namespace gaia {
 				// it easier for the OS.
 
 				// #if GAIA_PLATFORM_WINDOWS
-				// 				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
+				// 				HANDLE nativeHandle = (HANDLE)m_workers[workerIdx-1].native_handle();
 				//
 				// 				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << workerIdx);
 				// 				if (mask <= 0)
@@ -15376,17 +15886,17 @@ namespace gaia {
 				// 				// TODO: Consider supporting this at least for Intel MAC as there are still
 				// 				//       quite of few of them out there.
 				// #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				// 				pthread_t nativeHandle = (pthread_t)m_workers[workerIdx].native_handle();
+				// 				pthread_t nativeHandle = (pthread_t)m_workers[workerIdx-1].native_handle();
 				//
-				// 				cpu_set_t cpuset;
-				// 				CPU_ZERO(&cpuset);
-				// 				CPU_SET(workerIdx, &cpuset);
+				// 				cpu_set_t cpuSet;
+				// 				CPU_ZERO(&cpuSet);
+				// 				CPU_SET(workerIdx, &cpuSet);
 				//
-				// 				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				// 				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuSet), &cpuSet);
 				// 				if (ret != 0)
 				// 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", workerIdx);
 				//
-				// 				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				// 				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuSet), &cpuSet);
 				// 				if (ret != 0)
 				// 					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", workerIdx);
 				// #endif
@@ -15401,7 +15911,7 @@ namespace gaia {
 				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 #elif GAIA_PLATFORM_WINDOWS
-				auto nativeHandle = (HANDLE)m_workers[workerIdx].native_handle();
+				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
 
 				TOSApiFunc_SetThreadDescription pSetThreadDescFunc = nullptr;
 				if (auto* pModule = GetModuleHandleA("kernel32.dll"))
@@ -15438,7 +15948,7 @@ namespace gaia {
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				auto nativeHandle = m_workers[workerIdx];
+				auto nativeHandle = m_workers[workerIdx - 1];
 
 				char threadName[16]{};
 				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
@@ -15459,133 +15969,265 @@ namespace gaia {
 			//! and executes it.
 			//! \param prio Target worker queue defined by job priority
 			//! \return True if a job was resubmitted or executed. False otherwise.
-			bool main_thread_tick(JobPriority prio) {
-				auto& jobQueue = m_jobQueue[(uint32_t)prio];
+			void main_thread_tick() {
+				auto& ctx = *detail::tl_workerCtx;
+				auto& jobQueue = ctx.jobQueue;
 
-				JobHandle jobHandle;
+				// Keep executing while there is work
+				while (true) {
+					JobHandle jobHandle;
+					if (!try_fetch_job(ctx, jobHandle))
+						break;
 
-				if (!jobQueue.try_pop(jobHandle))
-					return false;
+					if (run(jobHandle, &ctx))
+						; // free_job(jobHandle);
+				}
+			}
 
-				GAIA_ASSERT(busy(prio));
-
-				// Make sure we can execute the job.
-				// If it has dependencies which were not completed we need
-				// to reschedule and come back to it later.
-				if (!m_jobManager.handle_deps(jobHandle)) {
-					resubmit(jobHandle);
+			bool try_fetch_job(ThreadCtx& ctx, JobHandle& jobHandle) {
+				// Try getting a job from the local queue
+				if (ctx.jobQueue.try_pop(jobHandle))
 					return true;
+
+				// Try getting a job from the global queue
+				if (m_jobQueue[(uint32_t)ctx.prio].try_pop(jobHandle))
+					return true;
+
+				// Could not get a job, try stealing from other workers.
+				const auto workerCnt = m_workersCtx.size();
+				for (uint32_t i = 0; i < workerCnt;) {
+					// We need to skip our worker
+					if (i == ctx.workerIdx) {
+						++i;
+						continue;
+					}
+
+					// Try stealing a job
+					const auto res = m_workersCtx[i].jobQueue.try_steal(jobHandle);
+
+					// Race condition, try again from the same context
+					if (!res)
+						continue;
+
+					// Stealing can return true if the queue is empty.
+					// We return right away only if we receive a valid handle which means
+					// when there was an idle job in the queue.
+					if (res && jobHandle != (JobHandle)JobNull_t{})
+						return true;
+
+					++i;
 				}
 
-				m_jobManager.run(jobHandle);
-				--m_jobsPending[(uint32_t)prio];
-				return true;
+				return false;
 			}
 
 			//! Loop run by worker threads. Pops jobs from the given queue
 			//! and executes it.
 			//! \param prio Target worker queue defined by job priority
-			void worker_loop(JobPriority prio) {
-				auto& jobQueue = m_jobQueue[(uint32_t)prio];
-				auto& cv = m_cv[(uint32_t)prio];
-				auto& cvLock = prio == JobPriority::High ? m_mtx_cv0 : m_mtx_cv1;
+			void worker_loop(ThreadCtx& ctx) {
+				auto& jobQueue = ctx.jobQueue;
 
-				bool ready = false;
-				while (!m_stop) {
-					JobHandle jobHandle;
-					if (!jobQueue.try_pop(jobHandle)) {
-						ready = true;
+				while (true) {
+					// Wait for work
+					m_sem.wait();
 
-						auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, cvLock);
-						std::unique_lock lock(mtx);
-						cv.wait(lock, [&] {
-							return ready;
-						});
+					// Keep executing while there is work
+					while (true) {
+						JobHandle jobHandle;
+						if (!try_fetch_job(ctx, jobHandle))
+							break;
 
-						ready = false;
-						continue;
+						if (run(jobHandle, detail::tl_workerCtx))
+							; // free_job(jobHandle);
 					}
 
-					GAIA_ASSERT(busy(prio));
-
-					// Make sure we can execute the job.
-					// If it has dependencies which were not completed we need
-					// to reschedule and come back to it later.
-					if (!m_jobManager.handle_deps(jobHandle)) {
-						resubmit(jobHandle);
-						continue;
-					}
-
-					m_jobManager.run(jobHandle);
-					--m_jobsPending[(uint32_t)prio];
+					// Check if the worker can keep running
+					const bool stop = m_stop.load();
+					if (stop)
+						break;
 				}
 			}
 
 			//! Finishes all jobs and stops all worker threads
 			void reset() {
+				if (m_workers.empty())
+					return;
+
 				// Request stopping
-				m_stop = true;
+				m_stop.store(true);
 
-				// complete all remaining work
-				wait_all();
+				// Signal all threads
+				m_sem.release((int32_t)m_workers.size());
 
-				// Wake up any threads that were put to sleep
-				m_cv[0].notify_all();
-				m_cv[1].notify_all();
+				auto* ctx = detail::tl_workerCtx;
+
+				// Finish remaining jobs
+				JobHandle jobHandle;
+				while (try_fetch_job(*ctx, jobHandle)) {
+					if (run(jobHandle, ctx))
+						; // free_job(jobHandle);
+				}
+
+				detail::tl_workerCtx = nullptr;
 
 				// Join threads with the main one
-				GAIA_FOR(m_workers.size()) join_thread(i);
+				GAIA_FOR(m_workers.size()) join_thread(i + 1);
 
 				// All threads have been stopped. Allow new threads to run if necessary.
-				m_stop = false;
-			}
-
-			//! Checks whether workers are busy doing work.
-			//!	\return True if any workers are busy doing work.
-			GAIA_NODISCARD bool busy(JobPriority prio) const {
-				return m_jobsPending[(uint32_t)prio] > 0;
-			}
-
-			//! Wakes up some worker thread and reschedules the current one.
-			void poll(JobPriority prio) {
-				// Wake some worker thread
-				m_cv[(uint32_t)prio].notify_one();
-
-				// Allow this thread to be rescheduled
-				std::this_thread::yield();
-			}
-
-			//! Wakes up all worker threads and reschedules the current one.
-			void busy_poll_all() {
-				bool b0 = busy(JobPriority::High);
-				bool b1 = busy(JobPriority::Low);
-
-				while (b1 || b0) {
-					// Wake some priority worker thread
-					if (b0)
-						m_cv[0].notify_all();
-					// Wake some background worker thread
-					if (b1)
-						m_cv[1].notify_all();
-
-					// Allow this thread to be rescheduled
-					std::this_thread::yield();
-
-					// Check the status again
-					b0 = busy(JobPriority::High);
-					b1 = busy(JobPriority::Low);
-				}
+				m_stop.store(false);
 			}
 
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cnt = m_workerCnt[(uint32_t)job.priority];
-				return cnt > 0
+				const auto cntWorkers = m_workersCnt[(uint32_t)job.priority];
+				return cntWorkers > 0
 									 // If there is enough workers, keep the priority
 									 ? job.priority
 									 // Not enough workers, use the other priority that has workers
 									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
+			}
+
+		private:
+			void free_job(JobHandle jobHandle) {
+				// Allocs are done only from the main thread while there are no jobs running.
+				// Freeing can happen at any point from any thread. Therefore, we need to lock it.
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				std::lock_guard lock(mtx);
+
+				m_jobManager.free_job(jobHandle);
+			}
+
+			void signal_edges(JobContainer& jobData) {
+				const auto max = jobData.edges.depCnt;
+
+				// Nothing to do if there are no dependencies
+				if (max == 0)
+					return;
+
+				auto* ctx = detail::tl_workerCtx;
+
+				// One dependency
+				if (max == 1) {
+					auto depHandle = jobData.edges.dep;
+#if GAIA_LOG_JOB_STATES
+					GAIA_LOG_N("SIGNAL %u.%u -> %u.%u", jobData.idx, jobData.gen, depHandle.id(), depHandle.gen());
+#endif
+
+					// See the conditions can't be satisfied for us to submit the job we skip
+					auto& depData = m_jobManager.data(depHandle);
+					if (!JobManager::signal_edge(depData))
+						return;
+
+					// Submit all jobs that can are ready
+					process(std::span(&depHandle, 1), ctx);
+					return;
+				}
+
+				// Multiple dependencies. The array has to be set
+				GAIA_ASSERT(jobData.edges.pDeps != nullptr);
+
+				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * max);
+				uint32_t cnt = 0;
+				GAIA_FOR2(0, max) {
+					auto depHandle = jobData.edges.pDeps[i];
+
+					// See if all conditions were satisfied for us to submit the job
+					auto& depData = m_jobManager.data(depHandle);
+					if (!JobManager::signal_edge(depData))
+						continue;
+
+					pHandles[cnt++] = depHandle;
+				}
+
+				// Submit all jobs that can are ready
+				process(std::span(pHandles, cnt), ctx);
+			}
+
+			void process(std::span<JobHandle> jobHandles, ThreadCtx* ctx) {
+				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * jobHandles.size());
+				uint32_t handlesCnt = 0;
+
+				for (auto handle: jobHandles) {
+					auto& jobData = m_jobManager.data(handle);
+					m_jobManager.processing(jobData);
+
+					// Jobs that have no functor assigned don't need to be enqueued.
+					// We can "run" them right away. The only time where it makes
+					// sense to create such a job is to create a sync job. E.g. when you
+					// need to wait for N jobs, rather than waiting for each of them
+					// separately you make them a dependency of a dummy/sync job and
+					// wait just for that one.
+					if (!jobData.func.operator bool()) {
+						if (run(handle, ctx))
+							; // free_job(handle);
+					} else
+						pHandles[handlesCnt++] = handle;
+				}
+
+				std::span handles(pHandles, handlesCnt);
+				while (!handles.empty()) {
+					// Try pushing all jobs
+					uint32_t pushed = 0;
+					if (ctx != nullptr) {
+						pushed = ctx->jobQueue.try_push(handles);
+					} else {
+						for (auto handle: handles) {
+							if (m_jobQueue[(uint32_t)handle.prio()].try_push(handle))
+								pushed++;
+							else
+								break;
+						}
+					}
+
+					// Lock the semaphore with the number of jobs me managed to push.
+					// Number of workers if the upper bound.
+					const auto cntWorkers = m_workersCnt[(uint32_t)ctx->prio];
+					const auto cnt = (int32_t)core::get_min(pushed, cntWorkers);
+					m_sem.release(cnt);
+
+					handles = handles.subspan(pushed);
+					if (!handles.empty()) {
+						// The queue was full. Execute the job right away.
+						if (run(handles[0], ctx))
+							; // free_job(handles[0]);
+						handles = handles.subspan(1);
+					}
+				}
+			}
+
+			bool run(JobHandle jobHandle, ThreadCtx* ctx) {
+				if (jobHandle == (JobHandle)JobNull_t{})
+					return false;
+
+				auto& jobData = m_jobManager.data(jobHandle);
+				const bool canWait = jobData.canWait;
+				m_jobManager.executing(jobData, ctx->workerIdx);
+
+				if (m_blockedInWorkUntil.load() != 0) {
+					const auto blockedCnt = m_blockedInWorkUntil.exchange(0);
+					if (blockedCnt != 0)
+						Futex::wake(&m_blockedInWorkUntil, detail::WaitMaskAll);
+				}
+
+				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.gen != (uint32_t)-1);
+				// GAIA_ASSERT(jobData.idx <= 4 && jobData.idx > 0);
+
+				// Run the functor associated with the job
+				m_jobManager.run(jobData);
+
+				// Signal the edges and release memory allocated for them if possible
+				signal_edges(jobData);
+				m_jobManager.free_edges(jobData);
+
+				// Signal we finished
+				ctx->event.set();
+				if (canWait) {
+					const auto* pFutexValue = &jobData.state;
+					Futex::wake(pFutexValue, detail::WaitMaskAll);
+				}
+
+				return true;
 			}
 		};
 	} // namespace mt
@@ -16034,9 +16676,9 @@ namespace gaia {
 			~EntityLookupKey() = default;
 
 			EntityLookupKey(const EntityLookupKey&) = default;
-			EntityLookupKey(EntityLookupKey&&) = default;
+			EntityLookupKey(EntityLookupKey&&) noexcept = default;
 			EntityLookupKey& operator=(const EntityLookupKey&) = default;
-			EntityLookupKey& operator=(EntityLookupKey&&) = default;
+			EntityLookupKey& operator=(EntityLookupKey&&) noexcept = default;
 
 			Entity entity() const {
 				return m_entity;
@@ -17110,10 +17752,12 @@ namespace gaia {
 			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! Empty space for future use
 			uint16_t unused : 8;
+#if GAIA_ASSERT_ENABLED
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
+#endif
 
 			//! Number of generic entities/components
 			uint8_t genEntities;
@@ -17131,7 +17775,10 @@ namespace gaia {
 					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
+					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),
+#if GAIA_ASSERT_ENABLED
+					structuralChangesLocked(0),
+#endif
 					//
 					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right
@@ -19177,23 +19824,25 @@ namespace gaia {
 				return dying();
 			}
 
+#if GAIA_ASSERT_ENABLED
 			//! If true locks the chunk for structural changed.
 			//! While locked, no new entities or component can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
 			void lock(bool value) {
-				if (value) {
-					GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
-					++m_header.structuralChangesLocked;
-				} else {
-					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
-					--m_header.structuralChangesLocked;
-				}
+				// if (value) {
+				// 	GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
+				// 	++m_header.structuralChangesLocked;
+				// } else {
+				// 	GAIA_ASSERT(m_header.structuralChangesLocked > 0);
+				// 	--m_header.structuralChangesLocked;
+				// }
 			}
 
 			//! Checks if the chunk is locked for structural changes.
 			bool locked() const {
 				return m_header.structuralChangesLocked != 0;
 			}
+#endif
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool full() const {
@@ -19351,7 +20000,7 @@ namespace gaia {
 			};
 
 		private:
-			using AsPairsIndexBuffer = cnt::sarr<uint8_t, ChunkHeader::MAX_COMPONENTS>;
+			using AsPairsIndexBuffer = cnt::sarray<uint8_t, ChunkHeader::MAX_COMPONENTS>;
 
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups
@@ -21229,11 +21878,11 @@ namespace gaia {
 				struct QueryCompileCtx {
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 					//! Array of ops that can be evaluated with a ANY opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 					//! Array of ops that can be evaluated with a NOT opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 				};
 
 				inline uint32_t handle_last_archetype_match(
@@ -22644,7 +23293,7 @@ namespace gaia {
 		class QueryCache {
 			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
 			// TODO: Make m_queryArr allocate data in pages.
-			//       Currently ilist always uses a darr internally which keeps growing following
+			//       Currently ilist always uses a darray internally which keeps growing following
 			//       logic not suitable for this particular use case.
 			//       QueryInfo is quite big and we do not want to copying a lot of data every time
 			//       resizing is necessary.
@@ -23187,7 +23836,6 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
-				static constexpr uint32_t SchedParBatchSize = 8;
 
 				struct ChunkBatch {
 					Chunk* pChunk;
@@ -23577,13 +24225,6 @@ namespace gaia {
 					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
-					// This is what the function is doing:
-					// for (auto *pChunk: chunks) {
-					//  pChunk->lock(true);
-					//	runFunc(pChunk);
-					//  pChunk->lock(false);
-					// }
-
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
 						run_query_func<Func, TIter>(pWorld, func, batches[0]);
@@ -23670,7 +24311,6 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					uint32_t entityCnt = 0;
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
@@ -23680,8 +24320,7 @@ namespace gaia {
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							const auto cnt = TIter::size(pChunk);
-							if GAIA_UNLIKELY (cnt == 0)
+							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -23690,7 +24329,6 @@ namespace gaia {
 							}
 
 							m_batches.push_back({pChunk, indices_view.data(), 0});
-							entityCnt += cnt;
 						}
 					}
 
@@ -23844,7 +24482,7 @@ namespace gaia {
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), SchedParBatchSize);
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 				}
@@ -26630,7 +27268,7 @@ namespace gaia {
 			void del_empty_archetypes() {
 				GAIA_PROF_SCOPE(World::del_empty_archetypes);
 
-				cnt::sarr_ext<Archetype*, 512> tmp;
+				cnt::sarray_ext<Archetype*, 512> tmp;
 
 				// Remove all dead archetypes from query caches.
 				// Because the number of cached queries is way higher than the number of archetypes

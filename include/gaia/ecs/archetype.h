@@ -103,7 +103,7 @@ namespace gaia {
 			};
 
 		private:
-			using AsPairsIndexBuffer = cnt::sarr<uint8_t, ChunkHeader::MAX_COMPONENTS>;
+			using AsPairsIndexBuffer = cnt::sarray<uint8_t, ChunkHeader::MAX_COMPONENTS>;
 
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups

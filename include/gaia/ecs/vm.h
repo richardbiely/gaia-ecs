@@ -113,11 +113,11 @@ namespace gaia {
 				struct QueryCompileCtx {
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
 					//! Array of ops that can be evaluated with a ANY opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 					//! Array of ops that can be evaluated with a NOT opcode
-					cnt::sarr_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 				};
 
 				inline uint32_t handle_last_archetype_match(
