@@ -79,7 +79,7 @@ namespace gaia {
 				BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
 				if (res == 0) {
 					DWORD err = ::GetLastError();
-					(void))err;
+					(void)err;
 				}
 #elif GAIA_PLATFORM_APPLE
 				do {

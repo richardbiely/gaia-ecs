@@ -2,7 +2,10 @@
 #include "../config/config.h"
 #include "../config/profiler.h"
 
-#define GAIA_USE_MT_STD 1
+#if GAIA_PLATFORM_WINDOWS
+	#define GAIA_USE_MT_STD 1
+#endif
+
 #if GAIA_USE_MT_STD
 	#include <condition_variable>
 	#include <mutex>

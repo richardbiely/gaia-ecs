@@ -11,8 +11,14 @@
 #include "../core/utility.h"
 #include "jobhandle.h"
 
+// MSVC might warn about applying additional padding around alignas usage.
+// This is perfectly fine but can cause builds with warning-as-error turned on to fail.
+GAIA_MSVC_WARNING_PUSH()
+GAIA_MSVC_WARNING_DISABLE(4324)
+
 namespace gaia {
 	namespace mt {
+
 		//! Lock-less job stealing queue. FIFO, fixed size. Inspired heavily by:
 		//! http://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
 		template <const uint32_t N = 1 << 12>
@@ -21,17 +27,11 @@ namespace gaia {
 			static_assert((N & (N - 1)) == 0, "Extent of JobQueue must be a power of 2");
 			static constexpr uint32_t MASK = N - 1;
 
-			// MSVC might warn about applying additional padding around alignas usage.
-			// This is perfectly fine but can cause builds with warning-as-error turned on to fail.
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(4324)
 
 			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
 			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;
 			alignas(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_top;
-
-			GAIA_MSVC_WARNING_POP()
 
 		public:
 			JobQueue() {
@@ -316,3 +316,5 @@ namespace gaia {
 		};
 	} // namespace mt
 } // namespace gaia
+
+GAIA_MSVC_WARNING_POP()

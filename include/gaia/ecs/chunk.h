@@ -1232,7 +1232,7 @@ namespace gaia {
 			//! If true locks the chunk for structural changed.
 			//! While locked, no new entities or component can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
-			void lock(bool value) {
+			void lock([[maybe_unused]] bool value) {
 				// TODO: Rethink whether we really need this. Also, without making the variable
 				//       access atomic this won't be tread-safe.
 				// if (value) {
