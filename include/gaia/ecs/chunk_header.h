@@ -91,10 +91,12 @@ namespace gaia {
 			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! Empty space for future use
 			uint16_t unused : 8;
+#if GAIA_ASSERT_ENABLED
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
+#endif
 
 			//! Number of generic entities/components
 			uint8_t genEntities;
@@ -112,7 +114,10 @@ namespace gaia {
 					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), structuralChangesLocked(0), unused(0),
+					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),
+#if GAIA_ASSERT_ENABLED
+					structuralChangesLocked(0),
+#endif
 					//
 					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right

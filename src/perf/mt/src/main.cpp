@@ -33,12 +33,16 @@ static uint32_t BenchFunc_Complex(std::span<const Data> arr) {
 void Run_Schedule_Empty(uint32_t Jobs) {
 	auto& tp = mt::ThreadPool::get();
 
+	mt::Job sync;
+	auto syncHandle = tp.add(sync);
+
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = []() {};
-		tp.sched(job);
+		tp.sched(job, syncHandle);
 	}
-	tp.wait_all();
+	tp.submit(syncHandle);
+	tp.wait(syncHandle);
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
@@ -56,6 +60,9 @@ template <typename Func>
 void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
 	auto& tp = mt::ThreadPool::get();
 
+	mt::Job sync;
+	auto syncHandle = tp.add(sync);
+
 	std::atomic_uint32_t sum = 0;
 
 	GAIA_FOR(Jobs) {
@@ -65,9 +72,10 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			sum += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		tp.sched(job);
+		tp.sched(job, syncHandle);
 	}
-	tp.wait_all();
+	tp.submit(syncHandle);
+	tp.wait(syncHandle);
 
 	gaia::dont_optimize(sum);
 }
@@ -185,8 +193,8 @@ void Run_ScheduleParallel(const Data* pArr, uint32_t Items, Func func) {
 		sum += func({pArr + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	tp.sched_par(job, Items, 0);
-	tp.wait_all();
+	auto syncHandle = tp.sched_par(job, Items, 0);
+	tp.wait(syncHandle);
 
 	gaia::dont_optimize(sum);
 }
@@ -285,6 +293,7 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
 					.label("Par");
+			r.run_benchmarks();
 			return 0;
 		} else {
 			////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,6 +302,8 @@ int main(int argc, char* argv[]) {
 			// doesn't scale accordingly it is most likely due to scheduling overhead.
 			// We want to make this as small as possible.
 			////////////////////////////////////////////////////////////////////////////////////////////////
+
+			const auto workersCnt = mt::ThreadPool::get().workers();
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Measures job creation overhead.
@@ -322,10 +333,12 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | (8ll << 32))
 					.label("Schedule, 8");
-			PICOBENCH_REG(BM_Schedule_Simple)
-					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Trivial | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
-					.label("Schedule, MAX");
+			if (workersCnt > 8) {
+				PICOBENCH_REG(BM_Schedule_Simple)
+						.PICO_SETTINGS()
+						.user_data(ItemsToProcess_Trivial | ((uint64_t)workersCnt) << 32)
+						.label("Schedule, MAX");
+			}
 			PICOBENCH_REG(BM_ScheduleParallel_Simple)
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial)
@@ -351,10 +364,12 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | (8ll << 32))
 					.label("Schedule, 8");
-			PICOBENCH_REG(BM_Schedule_Simple)
-					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Simple | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
-					.label("Schedule, MAX");
+			if (workersCnt > 8) {
+				PICOBENCH_REG(BM_Schedule_Simple)
+						.PICO_SETTINGS()
+						.user_data(ItemsToProcess_Simple | ((uint64_t)workersCnt) << 32)
+						.label("Schedule, MAX");
+			}
 			PICOBENCH_REG(BM_ScheduleParallel_Simple)
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple)
@@ -380,10 +395,12 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | (8ll << 32))
 					.label("Schedule, 8");
-			PICOBENCH_REG(BM_Schedule_Complex)
-					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Complex | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
-					.label("Schedule, MAX");
+			if (workersCnt > 8) {
+				PICOBENCH_REG(BM_Schedule_Complex)
+						.PICO_SETTINGS()
+						.user_data(ItemsToProcess_Complex | ((uint64_t)workersCnt) << 32)
+						.label("Schedule, MAX");
+			}
 			PICOBENCH_REG(BM_ScheduleParallel_Complex)
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex)

@@ -3,9 +3,14 @@
 #include <functional>
 #include <inttypes.h>
 
+#include "../core/utility.h"
+
+#include "event.h"
+#include "jobqueue.h"
+
 namespace gaia {
 	namespace mt {
-		enum class JobPriority : uint32_t {
+		enum class JobPriority : uint8_t {
 			//! High priority job. If available it should target the CPU's performance cores
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores
@@ -30,6 +35,34 @@ namespace gaia {
 		struct JobParallel {
 			std::function<void(const JobArgs&)> func;
 			JobPriority priority = JobPriority::High;
+		};
+
+		class ThreadPool;
+
+		struct ThreadCtx {
+			//! Thread pool pointer
+			ThreadPool* tp;
+			//! Worker index
+			uint32_t workerIdx;
+			//! Job priority
+			JobPriority prio;
+			//! Event signaled when a job is executed
+			Event event;
+			//! Lock-free work stealing queue for the jobs
+			JobQueue<512> jobQueue;
+
+			ThreadCtx() = default;
+			~ThreadCtx() = default;
+
+			void reset() {
+				event.reset();
+				jobQueue.clear();
+			}
+
+			ThreadCtx(const ThreadCtx& other) = delete;
+			ThreadCtx& operator=(const ThreadCtx& other) = delete;
+			ThreadCtx(ThreadCtx&& other) = delete;
+			ThreadCtx& operator=(ThreadCtx&& other) = delete;
 		};
 	} // namespace mt
 } // namespace gaia

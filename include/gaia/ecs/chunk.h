@@ -1228,23 +1228,27 @@ namespace gaia {
 				return dying();
 			}
 
+#if GAIA_ASSERT_ENABLED
 			//! If true locks the chunk for structural changed.
 			//! While locked, no new entities or component can be added or removed.
 			//! While locked, no entities can be enabled or disabled.
 			void lock(bool value) {
-				if (value) {
-					GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
-					++m_header.structuralChangesLocked;
-				} else {
-					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
-					--m_header.structuralChangesLocked;
-				}
+				// TODO: Rethink whether we really need this. Also, without making the variable
+				//       access atomic this won't be tread-safe.
+				// if (value) {
+				// 	GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
+				// 	++m_header.structuralChangesLocked;
+				// } else {
+				// 	GAIA_ASSERT(m_header.structuralChangesLocked > 0);
+				// 	--m_header.structuralChangesLocked;
+				// }
 			}
 
 			//! Checks if the chunk is locked for structural changes.
 			bool locked() const {
 				return m_header.structuralChangesLocked != 0;
 			}
+#endif
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool full() const {

@@ -756,13 +756,6 @@ namespace gaia {
 					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
-					// This is what the function is doing:
-					// for (auto *pChunk: chunks) {
-					//  pChunk->lock(true);
-					//	runFunc(pChunk);
-					//  pChunk->lock(false);
-					// }
-
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
 						run_query_func<Func, TIter>(pWorld, func, batches[0]);

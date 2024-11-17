@@ -1586,16 +1586,6 @@ tp.wait(jobHandle0);
 tp.wait(jobHandle1);
 ```
 
->**NOTE:<br/>**
-It is important to call ***ThreadPool::wait*** for each scheduled ***JobHandle*** because it also performs cleanup.
-
-Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***ThreadPool::wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
-
-```cpp
-// Wait for all jobs to complete
-tp.wait_all();
-```
-
 When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ThreadPool::sched_par*** is for. 
 
 ```cpp
@@ -1630,27 +1620,6 @@ tp.wait(jobHandle);
 GAIA_LOG("Sum: %u\n", sum);
 ```
 
-A similar result can be achieved via ***ThreadPool::sched***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
-
-```cpp
-...
-constexpr uint32_t ItemsPerJob = 1234;
-constexpr uint32_t Jobs = (N + ItemsPerJob - 1) / ItemsPerJob;
-
-std::atomic_uint32_t sum = 0;
-GAIA_FOR(Jobs) { // for (uint32_t i=0; i<Jobs; ++i)
-  mt::Job job {[&arr, &sum, i, ItemsPerJob, func]() {
-    const auto idxStart = i * ItemsPerJob;
-    const auto idxEnd = std::min((i + 1) * ItemsPerJob, N);
-    sum += SumNumbers({arr.data() + idxStart, idxEnd - idxStart});
-  }};
-  tp.sched(job);
-}
-
-// Wait for all previous tasks to complete
-tp.wait_all();
-```
-
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
 >**NOTE:<br/>** 
 This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to.<br/>
@@ -1676,8 +1645,8 @@ auto job1Handle = tp.add(job1);
 auto job2Handle = tp.add(job2);
 
 // Create dependencies
-tp.dep(job1Handle, job0Handle);
-tp.dep(job2Handle, job1Handle);
+tp.dep(job0Handle, job1Handle);
+tp.dep(job1Handle, job2Handle);
 
 // Submit jobs so worker threads can pick them up.
 // The order in which jobs are submitted does not matter.
@@ -1686,7 +1655,6 @@ tp.submit(job1Handle);
 tp.submit(job0Handle);
 
 // Wait for the last job to complete.
-// Calling wait() for dependencies is not necessary. It is be done internally.
 tp.wait(job2Handle);
 ```
 

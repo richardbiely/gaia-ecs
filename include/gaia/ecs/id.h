@@ -357,9 +357,9 @@ namespace gaia {
 			~EntityLookupKey() = default;
 
 			EntityLookupKey(const EntityLookupKey&) = default;
-			EntityLookupKey(EntityLookupKey&&) = default;
+			EntityLookupKey(EntityLookupKey&&) noexcept = default;
 			EntityLookupKey& operator=(const EntityLookupKey&) = default;
-			EntityLookupKey& operator=(EntityLookupKey&&) = default;
+			EntityLookupKey& operator=(EntityLookupKey&&) noexcept = default;
 
 			Entity entity() const {
 				return m_entity;
