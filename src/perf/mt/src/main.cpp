@@ -34,6 +34,7 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	auto& tp = mt::ThreadPool::get();
 
 	mt::Job sync;
+	sync.flags = mt::JobCreationFlags::None;
 	auto syncHandle = tp.add(sync);
 
 	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
@@ -45,7 +46,6 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	pHandles[Jobs] = syncHandle;
 	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
-	tp.del(std::span(pHandles, Jobs + 1));
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
@@ -64,6 +64,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 	auto& tp = mt::ThreadPool::get();
 
 	mt::Job sync;
+	sync.flags = mt::JobCreationFlags::None;
 	auto syncHandle = tp.add(sync);
 
 	std::atomic_uint32_t sum = 0;
@@ -82,7 +83,6 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
 	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
-	tp.del(std::span(pHandles, Jobs + 1));
 
 	gaia::dont_optimize(sum);
 }
@@ -279,27 +279,27 @@ int main(int argc, char* argv[]) {
 		static constexpr uint32_t ItemsToProcess_Complex = 1'000'000;
 
 		if (profilingMode) {
-			PICOBENCH_SUITE("ECS");
+			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par");
-			PICOBENCH_REG(BM_Schedule_ECS_Complex)
+					.label("simple");
+			PICOBENCH_REG(BM_Schedule_ECS_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par");
+					.label("simple");
 			r.run_benchmarks();
 			return 0;
 		} else if (sanitizerMode) {
-			PICOBENCH_SUITE("ECS");
+			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par");
-			PICOBENCH_REG(BM_Schedule_ECS_Complex)
+					.label("complex");
+			PICOBENCH_REG(BM_Schedule_ECS_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par");
+					.label("complex");
 			r.run_benchmarks();
 			return 0;
 		} else {
@@ -315,124 +315,121 @@ int main(int argc, char* argv[]) {
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Measures job creation overhead.
 			////////////////////////////////////////////////////////////////////////////////////////////////
-			PICOBENCH_SUITE("Schedule - Empty");
-			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(1000).label("Schedule, 1000");
-			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(5000).label("Schedule, 5000");
-			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(10000).label("Schedule, 10000");
+			PICOBENCH_SUITE_REG("Schedule - Empty");
+			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(1000).label("sched, 1000");
+			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(5000).label("sched, 5000");
+			PICOBENCH_REG(BM_Schedule_Empty).PICO_SETTINGS().user_data(10000).label("sched, 10000");
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Low load most likely to show scheduling overhead.
 			////////////////////////////////////////////////////////////////////////////////////////////////
-			PICOBENCH_SUITE("Schedule/ScheduleParallel - Trivial");
-			PICOBENCH_REG(BM_Schedule_Simple)
+			PICOBENCH_SUITE_REG("Schedule/ScheduleParallel - Trivial");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | (1ll << 32))
-					.label("Schedule, 1");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 1");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | (2ll << 32))
-					.label("Schedule, 2");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 2");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | (4ll << 32))
-					.label("Schedule, 4");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 4");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | (8ll << 32))
-					.label("Schedule, 8");
+					.label("sched, 8");
 			if (workersCnt > 8) {
-				PICOBENCH_REG(BM_Schedule_Simple)
+				PICOBENCH_REG(BM_Schedule_Simple) //
 						.PICO_SETTINGS()
 						.user_data(ItemsToProcess_Trivial | ((uint64_t)workersCnt) << 32)
-						.label("Schedule, MAX");
+						.label("sched, MAX");
 			}
-			PICOBENCH_REG(BM_ScheduleParallel_Simple)
+			PICOBENCH_REG(BM_ScheduleParallel_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial)
-					.label("ScheduleParallel");
+					.label("sched_par");
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Medium load. Might show scheduling overhead.
 			////////////////////////////////////////////////////////////////////////////////////////////////
-			PICOBENCH_SUITE("Schedule/ScheduleParallel - Simple");
-			PICOBENCH_REG(BM_Schedule_Simple)
+			PICOBENCH_SUITE_REG("Schedule/ScheduleParallel - Simple");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | (1ll << 32))
-					.label("Schedule, 1");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 1");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | (2ll << 32))
-					.label("Schedule, 2");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 2");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | (4ll << 32))
-					.label("Schedule, 4");
-			PICOBENCH_REG(BM_Schedule_Simple)
+					.label("sched, 4");
+			PICOBENCH_REG(BM_Schedule_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | (8ll << 32))
-					.label("Schedule, 8");
+					.label("sched, 8");
 			if (workersCnt > 8) {
-				PICOBENCH_REG(BM_Schedule_Simple)
+				PICOBENCH_REG(BM_Schedule_Simple) //
 						.PICO_SETTINGS()
 						.user_data(ItemsToProcess_Simple | ((uint64_t)workersCnt) << 32)
-						.label("Schedule, MAX");
+						.label("sched, MAX");
 			}
-			PICOBENCH_REG(BM_ScheduleParallel_Simple)
+			PICOBENCH_REG(BM_ScheduleParallel_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple)
-					.label("ScheduleParallel");
+					.label("sched_par");
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Bigger load. Should not be a subject to scheduling overhead.
 			////////////////////////////////////////////////////////////////////////////////////////////////
-			PICOBENCH_SUITE("Schedule/ScheduleParallel - Complex");
-			PICOBENCH_REG(BM_Schedule_Complex)
+			PICOBENCH_SUITE_REG("Schedule/ScheduleParallel - Complex");
+			PICOBENCH_REG(BM_Schedule_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | (1ll << 32))
-					.label("Schedule, 1");
-			PICOBENCH_REG(BM_Schedule_Complex)
+					.label("sched, 1");
+			PICOBENCH_REG(BM_Schedule_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | (2ll << 32))
-					.label("Schedule, 2");
-			PICOBENCH_REG(BM_Schedule_Complex)
+					.label("sched, 2");
+			PICOBENCH_REG(BM_Schedule_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | (4ll << 32))
-					.label("Schedule, 4");
-			PICOBENCH_REG(BM_Schedule_Complex)
+					.label("sched, 4");
+			PICOBENCH_REG(BM_Schedule_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | (8ll << 32))
-					.label("Schedule, 8");
+					.label("sched, 8");
 			if (workersCnt > 8) {
-				PICOBENCH_REG(BM_Schedule_Complex)
+				PICOBENCH_REG(BM_Schedule_Complex) //
 						.PICO_SETTINGS()
 						.user_data(ItemsToProcess_Complex | ((uint64_t)workersCnt) << 32)
-						.label("Schedule, MAX");
+						.label("sched, MAX");
 			}
-			PICOBENCH_REG(BM_ScheduleParallel_Complex)
-					.PICO_SETTINGS()
-					.user_data(ItemsToProcess_Complex)
-					.label("ScheduleParallel");
+			PICOBENCH_REG(BM_ScheduleParallel_Complex).PICO_SETTINGS().user_data(ItemsToProcess_Complex).label("sched_par");
 
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// ECS
 			////////////////////////////////////////////////////////////////////////////////////////////////
-			PICOBENCH_SUITE("ECS");
+			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par, 1T");
+					.label("simple, 1T");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Simple | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par, 1M");
-			PICOBENCH_REG(BM_Schedule_ECS_Complex)
+					.label("simple, 1M");
+			PICOBENCH_REG(BM_Schedule_ECS_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Trivial | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par, 1T");
-			PICOBENCH_REG(BM_Schedule_ECS_Complex)
+					.label("complex, 1T");
+			PICOBENCH_REG(BM_Schedule_ECS_Complex) //
 					.PICO_SETTINGS()
 					.user_data(ItemsToProcess_Complex | ((uint64_t)ecs::QueryExecType::Parallel << 32))
-					.label("Par, 1M");
+					.label("complex, 1M");
 		}
 	}
 

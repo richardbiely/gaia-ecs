@@ -71,8 +71,8 @@ namespace gaia {
 			std::atomic_uint32_t state;
 			//! Job priority
 			JobPriority prio;
-			//! If the the job can be waited on, false otherwise.
-			bool canWait;
+			//! Job flags
+			JobCreationFlags flags;
 			//! Dependency graph
 			JobEdges edges;
 			//! Function to execute when running the job
@@ -84,7 +84,7 @@ namespace gaia {
 			JobContainer(const JobContainer& other): cnt::ilist_item(other) {
 				state = other.state.load();
 				prio = other.prio;
-				canWait = other.canWait;
+				flags = other.flags;
 				edges = other.edges;
 				func = other.func;
 			}
@@ -93,7 +93,7 @@ namespace gaia {
 				cnt::ilist_item::operator=(other);
 				state = other.state.load();
 				prio = other.prio;
-				canWait = other.canWait;
+				flags = other.flags;
 				edges = other.edges;
 				func = other.func;
 				return *this;
@@ -102,7 +102,7 @@ namespace gaia {
 			JobContainer(JobContainer&& other): cnt::ilist_item(GAIA_MOV(other)) {
 				state = other.state.load();
 				prio = other.prio;
-				canWait = other.canWait;
+				flags = other.flags;
 				func = GAIA_MOV(other.func);
 
 				// if (edges.depCnt > 0)
@@ -115,7 +115,7 @@ namespace gaia {
 				cnt::ilist_item::operator=(GAIA_MOV(other));
 				state = other.state.load();
 				prio = other.prio;
-				canWait = other.canWait;
+				flags = other.flags;
 				func = GAIA_MOV(other.func);
 
 				// if (edges.depCnt > 0)
@@ -171,6 +171,7 @@ namespace gaia {
 				j.prio = ctx.priority;
 				j.state.store(0);
 				j.func = job.func;
+				j.flags = job.flags;
 				return handle;
 			}
 

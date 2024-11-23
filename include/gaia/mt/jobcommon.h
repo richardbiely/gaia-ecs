@@ -11,12 +11,20 @@
 namespace gaia {
 	namespace mt {
 		enum class JobPriority : uint8_t {
-			//! High priority job. If available it should target the CPU's performance cores
+			//! High priority job. If available it should target the CPU's performance cores.
 			High = 0,
-			//! Low priority job. If available it should target the CPU's efficiency cores
+			//! Low priority job. If available it should target the CPU's efficiency cores.
 			Low = 1
 		};
 		static inline constexpr uint32_t JobPriorityCnt = 2;
+
+		enum JobCreationFlags : uint8_t {
+			None = 0,
+			//! The job is automatically deleted after it is executed. Can't be waited on.
+			AutoDelete = 0x01,
+			//! The job can wait for other job (one not set as dependency).
+			CanWait = 0x02
+		};
 
 		struct JobAllocCtx {
 			JobPriority priority;
@@ -25,6 +33,7 @@ namespace gaia {
 		struct Job {
 			std::function<void()> func;
 			JobPriority priority = JobPriority::High;
+			JobCreationFlags flags = JobCreationFlags::AutoDelete;
 		};
 
 		struct JobArgs {

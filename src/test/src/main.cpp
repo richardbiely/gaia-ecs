@@ -7902,6 +7902,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 	std::atomic_uint32_t cnt;
 
 	mt::Job sync;
+	sync.flags = mt::JobCreationFlags::None;
 	auto syncHandle = tp.add(sync);
 
 	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
@@ -7919,7 +7920,6 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
 	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
-	tp.del(std::span(pHandles, Jobs + 1));
 
 	GAIA_FOR(Jobs) REQUIRE(pRes[i] == ItemsPerJob);
 	REQUIRE(cnt == Jobs);
@@ -7973,7 +7973,6 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	auto work = [&]() {
 		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
 		tp.wait(jobHandle);
-		tp.del(jobHandle);
 		REQUIRE(sum1 == N);
 	};
 
@@ -8008,6 +8007,7 @@ TEST_CASE("Multithreading - complete") {
 
 		GAIA_FOR(Jobs) {
 			mt::Job job;
+			job.flags = mt::JobCreationFlags::None;
 			job.func = [&, i]() {
 				res[i] = i;
 				++cnt;
@@ -8022,7 +8022,6 @@ TEST_CASE("Multithreading - complete") {
 			REQUIRE(res[i] == i);
 		}
 
-		tp.del(std::span(handles.data(), handles.size()));
 		REQUIRE(cnt == Jobs);
 	};
 
@@ -8055,9 +8054,11 @@ TEST_CASE("Multithreading - CompleteMany") {
 			mt::Job job1{[&res, i]() {
 				res *= (i + 1);
 			}};
-			mt::Job job2{[&res, i]() {
+			mt::Job job2;
+			job2.flags = mt::JobCreationFlags::None;
+			job2.func = [&res, i]() {
 				res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
-			}};
+			};
 
 			const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
 
