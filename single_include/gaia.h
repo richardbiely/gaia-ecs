@@ -15672,7 +15672,7 @@ namespace gaia {
 					// The worst case scenario.
 					// We have nothing to do and the job we are waiting for is not executing still.
 					// Let's wait for any job to start executing.
-					const auto workerBit = 1 << ctx->workerIdx;
+					const auto workerBit = 1U << ctx->workerIdx;
 					const auto oldBlockedMask = m_blockedInWorkUntil.fetch_or(workerBit);
 					if (jobData.state.load() == state) // still not JobState::Done?
 						Futex::wait(&m_blockedInWorkUntil, oldBlockedMask | workerBit, detail::WaitMaskAny);
