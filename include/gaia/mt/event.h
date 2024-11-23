@@ -23,28 +23,18 @@ namespace gaia {
 #else
 			pthread_cond_t m_hCondHandle;
 			pthread_mutex_t m_hMutexHandle;
-			bool m_bReady;
-			bool m_bManualReset;
+			bool m_set = false;
 #endif
 
 		public:
 #if !GAIA_USE_MT_STD
-			Event(bool manualReset = false, bool initialState = false) {
-				m_bManualReset = manualReset;
-				m_bReady = false;
-
+			Event() {
 				int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
 				GAIA_ASSERT(ret == 0);
 				if (ret == 0) {
 					ret = pthread_cond_init(&m_hCondHandle, nullptr);
 					GAIA_ASSERT(ret == 0);
-					if (ret == 0 && initialState) {
-						set();
-					}
 				}
-
-				(void)ret;
-				// return (ret == 0);
 			}
 
 			~Event() {
@@ -65,16 +55,11 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				m_bReady = true;
+				m_set = true;
 
 				// Depending on the event type, we either trigger everyone waiting or just one
-				if (m_bManualReset) {
-					ret = pthread_cond_broadcast(&m_hCondHandle);
-					GAIA_ASSERT(ret == 0);
-				} else {
-					ret = pthread_cond_signal(&m_hCondHandle);
-					GAIA_ASSERT(ret == 0);
-				}
+				ret = pthread_cond_signal(&m_hCondHandle);
+				GAIA_ASSERT(ret == 0);
 
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
@@ -89,7 +74,7 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				m_bReady = false;
+				m_set = false;
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
 #endif
@@ -101,13 +86,13 @@ namespace gaia {
 				std::unique_lock lock(mtx);
 				return m_set;
 #else
-				bool ready{};
+				bool set{};
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				ready = m_bReady;
+				set = m_set;
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				return ready;
+				return set;
 #endif
 			}
 
@@ -121,16 +106,15 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret{};
 				auto wait = [&]() {
-					if (!m_bReady) {
+					if (!m_set) {
 						do {
 							ret = pthread_cond_wait(&m_hCondHandle, &m_hMutexHandle);
-						} while (!ret && !m_bReady);
+						} while (!ret && !m_set);
 
 						GAIA_ASSERT(ret != EINVAL);
-						if (!ret && !m_bManualReset)
-							m_bReady = false;
-					} else if (!m_bManualReset) {
-						m_bReady = false;
+						if (!ret)
+							m_set = false;
+					} else {
 						ret = 0;
 					}
 

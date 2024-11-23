@@ -36,13 +36,16 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	mt::Job sync;
 	auto syncHandle = tp.add(sync);
 
+	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = []() {};
-		tp.sched(job, syncHandle);
+		tp.dep(pHandles[i] = tp.add(job), syncHandle);
 	}
-	tp.submit(syncHandle);
+	pHandles[Jobs] = syncHandle;
+	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
+	tp.del(std::span(pHandles, Jobs + 1));
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
@@ -65,6 +68,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 
 	std::atomic_uint32_t sum = 0;
 
+	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&pArr, &sum, i, ItemsPerJob, func]() {
@@ -72,10 +76,13 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			sum += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		tp.sched(job, syncHandle);
+		pHandles[i] = tp.add(job);
 	}
-	tp.submit(syncHandle);
+	pHandles[Jobs] = syncHandle;
+	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
+	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
+	tp.del(std::span(pHandles, Jobs + 1));
 
 	gaia::dont_optimize(sum);
 }

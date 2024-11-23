@@ -1,7 +1,8 @@
+#include <atomic>
+#include <type_traits>
+
 #include <gaia.h>
 #include <gaia/external/random.h>
-#include <thread>
-#include <type_traits>
 
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
@@ -7898,23 +7899,30 @@ static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
 	auto& tp = mt::ThreadPool::get();
+	std::atomic_uint32_t cnt;
 
 	mt::Job sync;
 	auto syncHandle = tp.add(sync);
 
+	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
-		job.func = [&pArr, &pRes, i, ItemsPerJob, func]() {
+		job.func = [&, i, func]() {
 			const auto idxStart = i * ItemsPerJob;
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
+			++cnt;
 		};
-		tp.sched(job, syncHandle);
+		pHandles[i] = tp.add(job);
 	}
-	tp.submit(syncHandle);
+	pHandles[Jobs] = syncHandle;
+	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
+	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
+	tp.del(std::span(pHandles, Jobs + 1));
 
 	GAIA_FOR(Jobs) REQUIRE(pRes[i] == ItemsPerJob);
+	REQUIRE(cnt == Jobs);
 }
 
 TEST_CASE("Multithreading - Schedule") {
@@ -7965,6 +7973,7 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	auto work = [&]() {
 		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
 		tp.wait(jobHandle);
+		tp.del(jobHandle);
 		REQUIRE(sum1 == N);
 	};
 
@@ -7992,21 +8001,29 @@ TEST_CASE("Multithreading - complete") {
 	handles.resize(Jobs);
 	res.resize(Jobs);
 
+	std::atomic_uint32_t cnt = 0;
+
 	auto work = [&]() {
 		GAIA_EACH(res) res[i] = BadIndex;
 
 		GAIA_FOR(Jobs) {
 			mt::Job job;
-			job.func = [&res, i]() {
+			job.func = [&, i]() {
 				res[i] = i;
+				++cnt;
 			};
-			handles[i] = tp.sched(job);
+			handles[i] = tp.add(job);
 		}
+
+		tp.submit(std::span(handles.data(), handles.size()));
 
 		GAIA_FOR(Jobs) {
 			tp.wait(handles[i]);
 			REQUIRE(res[i] == i);
 		}
+
+		tp.del(std::span(handles.data(), handles.size()));
+		REQUIRE(cnt == Jobs);
 	};
 
 	SECTION("Max workers") {

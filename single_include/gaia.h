@@ -13982,28 +13982,18 @@ namespace gaia {
 #else
 			pthread_cond_t m_hCondHandle;
 			pthread_mutex_t m_hMutexHandle;
-			bool m_bReady;
-			bool m_bManualReset;
+			bool m_set = false;
 #endif
 
 		public:
 #if !GAIA_USE_MT_STD
-			Event(bool manualReset = false, bool initialState = false) {
-				m_bManualReset = manualReset;
-				m_bReady = false;
-
+			Event() {
 				int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
 				GAIA_ASSERT(ret == 0);
 				if (ret == 0) {
 					ret = pthread_cond_init(&m_hCondHandle, nullptr);
 					GAIA_ASSERT(ret == 0);
-					if (ret == 0 && initialState) {
-						set();
-					}
 				}
-
-				(void)ret;
-				// return (ret == 0);
 			}
 
 			~Event() {
@@ -14024,16 +14014,11 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				m_bReady = true;
+				m_set = true;
 
 				// Depending on the event type, we either trigger everyone waiting or just one
-				if (m_bManualReset) {
-					ret = pthread_cond_broadcast(&m_hCondHandle);
-					GAIA_ASSERT(ret == 0);
-				} else {
-					ret = pthread_cond_signal(&m_hCondHandle);
-					GAIA_ASSERT(ret == 0);
-				}
+				ret = pthread_cond_signal(&m_hCondHandle);
+				GAIA_ASSERT(ret == 0);
 
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
@@ -14048,7 +14033,7 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				m_bReady = false;
+				m_set = false;
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
 #endif
@@ -14060,13 +14045,13 @@ namespace gaia {
 				std::unique_lock lock(mtx);
 				return m_set;
 #else
-				bool ready{};
+				bool set{};
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				ready = m_bReady;
+				set = m_set;
 				ret = pthread_mutex_unlock(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
-				return ready;
+				return set;
 #endif
 			}
 
@@ -14080,16 +14065,15 @@ namespace gaia {
 #else
 				[[maybe_unused]] int ret{};
 				auto wait = [&]() {
-					if (!m_bReady) {
+					if (!m_set) {
 						do {
 							ret = pthread_cond_wait(&m_hCondHandle, &m_hMutexHandle);
-						} while (!ret && !m_bReady);
+						} while (!ret && !m_set);
 
 						GAIA_ASSERT(ret != EINVAL);
-						if (!ret && !m_bManualReset)
-							m_bReady = false;
-					} else if (!m_bManualReset) {
-						m_bReady = false;
+						if (!ret)
+							m_set = false;
+					} else {
 						ret = 0;
 					}
 
@@ -15461,7 +15445,7 @@ namespace gaia {
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
-			//! Creates a job system job from \param job.
+			//! Creates a threadpool job from \param job.
 			//! \warning Must be used from the main thread.
 			//! \return Job handle of the scheduled job.
 			JobHandle add(Job& job) {
@@ -15473,11 +15457,34 @@ namespace gaia {
 
 				job.priority = final_prio(job);
 
+				// auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				// std::lock_guard lock(mtx);
 				return m_jobManager.alloc_job(job);
 			}
 
-			//! Pushes \param jobHandle into the internal queue so worker threads
-			//! can pick it up and execute it.
+			//! Deletes a job handle \param jobHandle from the threadpool.
+			//! \warning Must be used from the main thread.
+			//! \warning Job handle must not be used by any worker thread and can not be used
+			//!          by any active job handles as a dependency.
+			// TODO: Figure out how to do this automatically without user intervention.
+			//       Only the private free_job should be used.
+			void del(JobHandle jobHandle) {
+				m_jobManager.free_job(jobHandle);
+			}
+
+			//! Deletes job handles \param jobHandles from the threadpool.
+			//! \warning Must be used from the main thread.
+			//! \warning Job handles must not be used by any worker thread and can not be used
+			//!          by any active job handles as a dependency.
+			// TODO: Figure out how to do this automatically without user intervention.
+			//       Only the private free_job should be used.
+			void del(std::span<JobHandle> jobHandles) {
+				for (auto jobHandle: jobHandles)
+					m_jobManager.free_job(jobHandle);
+			}
+
+			//! Pushes \param jobHandles into the internal queue so worker threads
+			//! can pick them up and execute them.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
@@ -15541,7 +15548,7 @@ namespace gaia {
 			//! Schedules a job to run on worker threads in parallel.
 			//! \param job Job descriptor
 			//! \param itemsToProcess Total number of work items
-			//! \param groupSize Group size per created job. If zero the job system decides the group size.
+			//! \param groupSize Group size per created job. If zero the threadpool decides the group size.
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled batch of jobs.
@@ -15604,20 +15611,25 @@ namespace gaia {
 				}
 
 				// Multiple jobs need to be parallelized.
-				// Create a waiting jobs and assign it as their dependency.
+				// Create a sync job and assign it as their dependency.
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
-				pHandles[jobs] = m_jobManager.alloc_job({{}, prio});
-				GAIA_ASSERT(m_jobManager.is_clear(pHandles[jobs]));
 
+				// Sync job
+				auto syncHandle = m_jobManager.alloc_job({{}, prio});
+				GAIA_ASSERT(m_jobManager.is_clear(syncHandle));
+
+				// Work jobs
 				for (jobIndex = 0; jobIndex < jobs; ++jobIndex) {
 					pHandles[jobIndex] = m_jobManager.alloc_job({groupJobFunc, prio});
 					GAIA_ASSERT(m_jobManager.is_clear(pHandles[jobIndex]));
 				}
+				pHandles[jobs] = syncHandle;
 
-				auto& secondData = m_jobManager.data(pHandles[jobs]);
-				GAIA_ASSERT(m_jobManager.is_clear(secondData));
-
+				// Assign the sync jobs as a dependency for work jobs
 				dep(std::span(pHandles, jobs), pHandles[jobs]);
+
+				// Sumbit the jobs to the threadpool.
+				// This is a point of no return. After this point no more changes to jobs are possible.
 				submit(std::span(pHandles, jobs + 1));
 				return pHandles[jobs];
 			}
@@ -15680,11 +15692,8 @@ namespace gaia {
 			//! Returns the number of HW threads available on the system. 1 is minimum.
 			//! \return The number of hardware threads or 1 if failed.
 			GAIA_NODISCARD static uint32_t hw_thread_cnt() {
-				// auto hwThreads = (uint32_t)std::thread::hardware_concurrency();
-				// return core::get_max(1U, hwThreads);
-
-				// TODO: Threadpool is still not stable, use 1 thread for now
-				return 1;
+				auto hwThreads = (uint32_t)std::thread::hardware_concurrency();
+				return core::get_max(1U, hwThreads);
 			}
 
 		private:
@@ -15819,7 +15828,7 @@ namespace gaia {
 			//! Joins a worker thread with the main thread (graceful thread termination)
 			//! \param workerIdx Worker index
 			void join_thread(uint32_t workerIdx) {
-				if GAIA_UNLIKELY (workerIdx >= m_workers.size())
+				if GAIA_UNLIKELY (workerIdx > m_workers.size())
 					return;
 
 #if GAIA_PLATFORM_WINDOWS
@@ -16209,7 +16218,6 @@ namespace gaia {
 				}
 
 				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.gen != (uint32_t)-1);
-				// GAIA_ASSERT(jobData.idx <= 4 && jobData.idx > 0);
 
 				// Run the functor associated with the job
 				m_jobManager.run(jobData);
