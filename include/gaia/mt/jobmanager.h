@@ -155,7 +155,7 @@ namespace gaia {
 			}
 		};
 
-		class ilist_sparse_storageset_wrapper: public cnt::sparse_storage<JobContainer, 256> {
+		class JobContainer_sparse_storage: public cnt::sparse_storage<JobContainer, 256> {
 		public:
 			void push_back(JobContainer&& container) {
 				add(GAIA_MOV(container));
@@ -164,7 +164,7 @@ namespace gaia {
 
 		class JobManager {
 			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
-			cnt::ilist<JobContainer, JobHandle, ilist_sparse_storageset_wrapper> m_jobData;
+			cnt::ilist<JobContainer, JobHandle, JobContainer_sparse_storage> m_jobData;
 
 		public:
 			JobContainer& data(JobHandle jobHandle) {

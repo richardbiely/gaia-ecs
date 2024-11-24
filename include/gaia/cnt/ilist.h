@@ -125,11 +125,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD iterator begin() const noexcept {
-				return {(pointer)m_items.data()};
+				return m_items.begin();
 			}
 
 			GAIA_NODISCARD iterator end() const noexcept {
-				return {(pointer)m_items.data() + size()};
+				return m_items.end();
 			}
 
 			void reserve(size_type cap) {
