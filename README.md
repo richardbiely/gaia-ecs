@@ -70,6 +70,7 @@
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
     * [Grouping](#grouping)
+    * [Parallel execution](#parallel-execution)
   * [Relationships](#relationships)
     * [Basics](#basics)
     * [Entity dependencies](#entity-dependencies)
@@ -86,6 +87,7 @@
   * [Serialization](#serialization)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
+    * [Job dependencies](#job-dependencies)
     * [Priorities](#priorities)
     * [Threads](#threads)
 * [Requirements](#requirements)
@@ -916,6 +918,28 @@ ecs::GroupId my_group_sort_func(const ecs::World& world, const ecs::Archetype& a
 q.group_by(eats, my_group_sort_func).each(...) { ... };
 ```
 
+### Parallel execution
+
+Queries can make use of (#multithreading). By default, all queries are handles by the thread that calls iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
+
+```cpp
+// Ordinary single-thread query (default)
+q.each([](ecs::Iter& iter) { ... });
+// Ordinary single-thread query (explicit)
+q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::Default);
+// Multi-thread query, use any cores available
+q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::Parallel);
+// Multi-thread query, use performance cores only
+q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelPerf);
+// Multi-thread query, use efficiency cores only
+q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelEff);
+```
+
+Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your systems's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
+
+>**NOTE:<br/>** 
+Dependencies are currently not possible. However, this is just a temporary limitation of the query API. The low-level threadpool API supports this as demonstrated [here](#job-dependencies).<br/>
+
 ## Relationships
 ### Basics
 Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way.
@@ -1620,6 +1644,8 @@ tp.wait(jobHandle);
 GAIA_LOG("Sum: %u\n", sum);
 ```
 
+### Job dependencies
+
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
 >**NOTE:<br/>** 
 This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to.<br/>
@@ -1682,6 +1708,20 @@ mt::Job job0;
 job0.priority = JobPriority::Low;
 job0.func = ...;
 tp.sched(job0);
+```
+
+### Job behavior
+
+Job behavior can be partial customized. For example, if we want to manage its lifetime manually, on its creation we can tell the threadpool.
+```cpp
+mt::Job job;
+// This job's lifetime won't be managed by the threadpool
+job.flags = mt::JobCreationFlags::ManualDelete;
+tp.func = ...;
+mt::JobHandle handle = tp.sched(job);
+tp.wait(handle);
+// We release the job handle ourselves
+tp.del(handle);
 ```
 
 ### Threads

@@ -90,6 +90,7 @@ namespace gaia {
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! Job allocation mutex
+			//! TODO: Remove this once JobManager implements paged allocation for m_jobData
 			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
 
 		private:
@@ -227,6 +228,7 @@ namespace gaia {
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
+
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
@@ -236,6 +238,7 @@ namespace gaia {
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
+
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
@@ -245,11 +248,11 @@ namespace gaia {
 			template <typename TJob>
 			JobHandle add(TJob&& job) {
 				GAIA_ASSERT(main_thread());
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 
 				job.priority = final_prio(job);
 
+				// Allocs are done only from the main thread while there are no jobs running.
+				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				return m_jobManager.alloc_job(GAIA_FWD(job));
@@ -258,16 +261,37 @@ namespace gaia {
 		private:
 			void add_n(JobPriority prio, std::span<JobHandle> jobHandles) {
 				GAIA_ASSERT(main_thread());
+				GAIA_ASSERT(!jobHandles.empty());
+
 				// Allocs are done only from the main thread while there are no jobs running.
 				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
-
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				for (auto& jobHandles: jobHandles)
-					jobHandles = m_jobManager.alloc_job({{}, prio, JobCreationFlags::AutoDelete});
+					jobHandles = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
 			}
 
 		public:
+			//! Deletes a job handle \param jobHandle from the threadpool.
+			//! \warning Job handle must not be used by any worker thread and can not be used
+			//!          by any active job handles as a dependency.
+			void del([[maybe_unused]] JobHandle jobHandle) {
+				GAIA_ASSERT(jobHandle != (JobHandle)JobNull_t{});
+
+#if GAIA_ASSERT_ENABLED
+				{
+					const auto& jobData = m_jobManager.data(jobHandle);
+					GAIA_ASSERT(jobData.state == 0 || m_jobManager.done(jobData));
+				}
+#endif
+
+				// Allocs are done only from the main thread while there are no jobs running.
+				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				std::lock_guard lock(mtx);
+				m_jobManager.free_job(jobHandle);
+			}
+
 			//! Pushes \param jobHandles into the internal queue so worker threads
 			//! can pick them up and execute them.
 			//! If there are more jobs than the queue can handle it puts the calling
@@ -283,6 +307,8 @@ namespace gaia {
 
 				uint32_t cnt = 0;
 				for (auto handle: jobHandles) {
+					GAIA_ASSERT(handle != (JobHandle)JobNull_t{});
+
 					auto& jobData = m_jobManager.data(handle);
 					const auto state = m_jobManager.submit(jobData) & JobState::DEP_BITS_MASK;
 					// Jobs that were already submitted won't be submitted again.
@@ -390,7 +416,7 @@ namespace gaia {
 				// is not worth of being scheduled via sched_par. However, we can never know for sure what
 				// the reason for that is so let's stay silent.
 				if (jobs == 1) {
-					auto handle = add(Job{groupJobFunc, prio, JobCreationFlags::None});
+					auto handle = add(Job{groupJobFunc, prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
@@ -417,7 +443,6 @@ namespace gaia {
 				{
 					auto& jobData = m_jobManager.data(pHandles[jobs]);
 					jobData.prio = prio;
-					jobData.flags = JobCreationFlags::None;
 				}
 
 				// Assign the sync jobs as a dependency for work jobs
@@ -443,11 +468,9 @@ namespace gaia {
 
 				// Waiting for a job that has not been initialized is nonsense.
 				GAIA_ASSERT(state != 0);
-				// Can't wait for an auto-delete job
-				GAIA_ASSERT((jobData.flags & JobCreationFlags::AutoDelete) == 0);
 
 				// Wait until done
-				for (; (state & JobState::STATE_BITS_MASK) != JobState::Done; state = jobData.state.load()) {
+				for (; (state & JobState::STATE_BITS_MASK) < JobState::Done; state = jobData.state.load()) {
 					// The job we are waiting for is not finished yet, try running some other job in the meantime
 					JobHandle otherJobHandle;
 					if (try_fetch_job(*ctx, otherJobHandle)) {
@@ -469,13 +492,11 @@ namespace gaia {
 					// Let's wait for any job to start executing.
 					const auto workerBit = 1U << ctx->workerIdx;
 					const auto oldBlockedMask = m_blockedInWorkUntil.fetch_or(workerBit);
-					if (jobData.state.load() == state) // still not JobState::Done?
+					const auto newState = jobData.state.load();
+					if (newState == state) // still not JobState::Done?
 						Futex::wait(&m_blockedInWorkUntil, oldBlockedMask | workerBit, detail::WaitMaskAny);
 					m_blockedInWorkUntil.fetch_and(~workerBit);
 				}
-
-				// Deallocate the job itself
-				del(jobHandle);
 			}
 
 			//! Uses the main thread to help with jobs processing.
@@ -890,18 +911,6 @@ namespace gaia {
 			}
 
 		private:
-			//! Deletes a job handle \param jobHandle from the threadpool.
-			//! \warning Job handle must not be used by any worker thread and can not be used
-			//!          by any active job handles as a dependency.
-			void del([[maybe_unused]] JobHandle jobHandle) {
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
-
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
-				std::lock_guard lock(mtx);
-				m_jobManager.free_job(jobHandle);
-			}
-
 			void signal_edges(JobContainer& jobData) {
 				const auto max = jobData.edges.depCnt;
 
@@ -1003,7 +1012,7 @@ namespace gaia {
 					return false;
 
 				auto& jobData = m_jobManager.data(jobHandle);
-				const bool autoDelete = (jobData.flags & JobCreationFlags::AutoDelete) != 0U;
+				const bool manualDelete = (jobData.flags & JobCreationFlags::ManualDelete) != 0U;
 				const bool canWait = (jobData.flags & JobCreationFlags::CanWait) != 0U;
 
 				m_jobManager.executing(jobData, ctx->workerIdx);
@@ -1030,7 +1039,7 @@ namespace gaia {
 					Futex::wake(pFutexValue, detail::WaitMaskAll);
 				}
 
-				if (autoDelete)
+				if (!manualDelete)
 					del(jobHandle);
 
 				return true;

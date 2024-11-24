@@ -19,9 +19,9 @@ namespace gaia {
 		static inline constexpr uint32_t JobPriorityCnt = 2;
 
 		enum JobCreationFlags : uint8_t {
-			None = 0,
-			//! The job is automatically deleted after it is executed. Can't be waited on.
-			AutoDelete = 0x01,
+			Default = 0,
+			//! The job is not deleted automatically. Has to be done by the used.
+			ManualDelete = 0x01,
 			//! The job can wait for other job (one not set as dependency).
 			CanWait = 0x02
 		};
@@ -33,7 +33,7 @@ namespace gaia {
 		struct Job {
 			std::function<void()> func;
 			JobPriority priority = JobPriority::High;
-			JobCreationFlags flags = JobCreationFlags::AutoDelete;
+			JobCreationFlags flags = JobCreationFlags::Default;
 		};
 
 		struct JobArgs {

@@ -34,7 +34,7 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	auto& tp = mt::ThreadPool::get();
 
 	mt::Job sync;
-	sync.flags = mt::JobCreationFlags::None;
+	sync.flags = mt::JobCreationFlags::ManualDelete;
 	auto syncHandle = tp.add(sync);
 
 	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
@@ -46,6 +46,7 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	pHandles[Jobs] = syncHandle;
 	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
+	tp.del(syncHandle);
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
@@ -64,7 +65,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 	auto& tp = mt::ThreadPool::get();
 
 	mt::Job sync;
-	sync.flags = mt::JobCreationFlags::None;
+	sync.flags = mt::JobCreationFlags::ManualDelete;
 	auto syncHandle = tp.add(sync);
 
 	std::atomic_uint32_t sum = 0;
@@ -83,6 +84,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
 	tp.submit(std::span(pHandles, Jobs + 1));
 	tp.wait(syncHandle);
+	tp.del(syncHandle);
 
 	gaia::dont_optimize(sum);
 }

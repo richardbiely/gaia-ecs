@@ -6,7 +6,6 @@
 #include <atomic>
 #include <functional>
 #include <inttypes.h>
-#include <mutex>
 
 #include "../cnt/ilist.h"
 #include "../core/span.h"
@@ -21,7 +20,7 @@ namespace gaia {
 	namespace mt {
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
-			DEP_BITS = 28,
+			DEP_BITS = 27,
 			DEP_BITS_MASK = (uint32_t)((1u << DEP_BITS) - 1),
 
 			STATE_BITS_START = DEP_BITS_START + DEP_BITS,
@@ -37,7 +36,9 @@ namespace gaia {
 			//! Being executed
 			Executing = 0x03 << STATE_BITS_START,
 			//! Finished executing
-			Done = 0x04 << STATE_BITS_START
+			Done = 0x04 << STATE_BITS_START,
+			//! Released
+			Released = 0x05 << STATE_BITS_START
 		};
 
 		struct JobContainer;
@@ -145,6 +146,7 @@ namespace gaia {
 
 		class JobManager {
 			//! Implicit list of jobs
+			//! TODO: Implement paged allocation
 			cnt::ilist<JobContainer, JobHandle> m_jobData;
 
 		public:
@@ -165,7 +167,7 @@ namespace gaia {
 				auto& j = m_jobData[handle.id()];
 
 				// Make sure there is not state yet
-				GAIA_ASSERT(j.state == 0);
+				GAIA_ASSERT(j.state == 0 || j.state == JobState::Released);
 
 				j.edges = {};
 				j.prio = ctx.priority;
@@ -181,7 +183,7 @@ namespace gaia {
 			void free_job(JobHandle jobHandle) {
 				auto& jobData = m_jobData.free(jobHandle);
 				GAIA_ASSERT(done(jobData));
-				jobData.state.store(0);
+				jobData.state.store(JobState::Released);
 			}
 
 			//! Resets the job pool.
@@ -215,7 +217,6 @@ namespace gaia {
 			static void free_edges(JobContainer& jobData) {
 				if (jobData.edges.depCnt > 1)
 					mem::AllocHelper::free(jobData.edges.pDeps);
-				// jobData.edges.depCnt = 0;
 			}
 
 			//! Makes \param jobSecond depend on \param jobFirst.
@@ -319,6 +320,9 @@ namespace gaia {
 
 		private:
 			void dep_internal(JobHandle jobFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(jobFirst != (JobHandle)JobNull_t{});
+				GAIA_ASSERT(jobSecond != (JobHandle)JobNull_t{});
+
 				auto& firstData = data(jobFirst);
 				const auto depCnt0 = firstData.edges.depCnt;
 				const auto depCnt1 = ++firstData.edges.depCnt;
