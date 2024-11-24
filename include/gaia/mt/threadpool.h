@@ -266,8 +266,8 @@ namespace gaia {
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
-				for (auto& jobHandles: jobHandles)
-					jobHandles = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
+				for (auto& jobHandle: jobHandles)
+					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
 			}
 
 		public:

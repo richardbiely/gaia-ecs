@@ -11603,8 +11603,8 @@ namespace gaia {
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
-			constexpr static detail::size_type page_mask = PageCapacity - 1;
-			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+			constexpr static sparse_id page_mask = PageCapacity - 1;
+			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
@@ -11701,8 +11701,8 @@ namespace gaia {
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
-			constexpr static detail::size_type page_mask = PageCapacity - 1;
-			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+			constexpr static sparse_id page_mask = PageCapacity - 1;
+			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
@@ -11793,8 +11793,8 @@ namespace gaia {
 		private:
 			static_assert(
 					(PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator_soa must be a power of 2");
-			constexpr static detail::size_type page_mask = PageCapacity - 1;
-			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+			constexpr static sparse_id page_mask = PageCapacity - 1;
+			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
@@ -12425,8 +12425,8 @@ namespace gaia {
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
-			constexpr static detail::size_type page_mask = PageCapacity - 1;
-			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+			constexpr static sparse_id page_mask = PageCapacity - 1;
+			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
 
 			//! Contains mappings to sparse storage inside pages
 			cnt::darray<sparse_id> m_dense;
@@ -12746,8 +12746,8 @@ namespace gaia {
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
-			constexpr static detail::size_type page_mask = PageCapacity - 1;
-			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+			constexpr static sparse_id page_mask = PageCapacity - 1;
+			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
 
 			//! Contains mappings to sparse storage inside pages
 			cnt::darray<sparse_id> m_dense;
@@ -15496,8 +15496,8 @@ namespace gaia {
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
-				for (auto& jobHandles: jobHandles)
-					jobHandles = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
+				for (auto& jobHandle: jobHandles)
+					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
 			}
 
 		public:
