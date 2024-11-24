@@ -12594,15 +12594,15 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				const auto sidLast = m_dense[m_cnt - 1];
-				const auto didLast = sidLast & page_mask;
+				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
-				page.set_id(didLast) = id;
+				page.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;
 				page.del_data(did);
-				m_dense[id] = sidLast;
+				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
 				--m_cnt;
@@ -12858,14 +12858,14 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				const auto sidLast = m_dense[m_cnt - 1];
-				const auto didLast = sidLast & page_mask;
+				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
-				page.set_id(didLast) = id;
+				page.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;
-				m_dense[id] = sidLast;
+				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
 				--m_cnt;
