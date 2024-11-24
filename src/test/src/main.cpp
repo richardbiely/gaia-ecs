@@ -7899,7 +7899,7 @@ static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
 	auto& tp = mt::ThreadPool::get();
-	std::atomic_uint32_t cnt;
+	std::atomic_uint32_t cnt = 0;
 
 	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
 	GAIA_FOR(Jobs) {
