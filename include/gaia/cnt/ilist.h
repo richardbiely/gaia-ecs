@@ -52,12 +52,13 @@ namespace gaia {
 
 		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
 		//! together through an internal indexing mechanism. To the outside world they are
-		//! presented as \tparam TItemHandle.
+		//! presented as \tparam TItemHandle. All items are stored in a container instance
+		//! of the type \tparam TInternalStorage.
 		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
 		//! that initializes them.
-		template <typename TListItem, typename TItemHandle>
+		template <typename TListItem, typename TItemHandle, typename TInternalStorage = cnt::darray<TListItem>>
 		struct ilist {
-			using internal_storage = cnt::darray<TListItem>;
+			using internal_storage = TInternalStorage;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 

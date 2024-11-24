@@ -90,7 +90,9 @@ namespace gaia {
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! Job allocation mutex
-			//! TODO: Remove this once JobManager implements paged allocation for m_jobData
+			// NOTE: Allocs are done only from the main thread while there are no jobs running.
+			//       Freeing can happen at any point from any thread. Therefore, we need to lock this point.
+			//       Access do job data is not thread-safe. No jobs should be added while there is any job running.
 			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
 
 		private:
@@ -244,6 +246,7 @@ namespace gaia {
 
 			//! Creates a threadpool job from \param job.
 			//! \warning Must be used from the main thread.
+			//! \warning Can't be called while there are any jobs being executed.
 			//! \return Job handle of the scheduled job.
 			template <typename TJob>
 			JobHandle add(TJob&& job) {
@@ -251,8 +254,6 @@ namespace gaia {
 
 				job.priority = final_prio(job);
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				return m_jobManager.alloc_job(GAIA_FWD(job));
@@ -263,8 +264,6 @@ namespace gaia {
 				GAIA_ASSERT(main_thread());
 				GAIA_ASSERT(!jobHandles.empty());
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				for (auto& jobHandles: jobHandles)
@@ -285,8 +284,6 @@ namespace gaia {
 				}
 #endif
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				m_jobManager.free_job(jobHandle);

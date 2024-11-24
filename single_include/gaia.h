@@ -7868,12 +7868,13 @@ namespace gaia {
 
 		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
 		//! together through an internal indexing mechanism. To the outside world they are
-		//! presented as \tparam TItemHandle.
+		//! presented as \tparam TItemHandle. All items are stored in a container instance
+		//! of the type \tparam TInternalStorage.
 		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
 		//! that initializes them.
-		template <typename TListItem, typename TItemHandle>
+		template <typename TListItem, typename TItemHandle, typename TInternalStorage = cnt::darray<TListItem>>
 		struct ilist {
-			using internal_storage = cnt::darray<TListItem>;
+			using internal_storage = TInternalStorage;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
@@ -11601,7 +11602,10 @@ namespace gaia {
 			using iterator = sparse_iterator;
 
 		private:
-			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
+			constexpr static detail::size_type page_mask = PageCapacity - 1;
+			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
 			uint32_t* m_pDense;
@@ -11613,14 +11617,14 @@ namespace gaia {
 			reference operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				auto& page = m_pPages[pid];
 				return page.set_data(did);
 			}
 			pointer operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				auto& page = m_pPages[pid];
 				return &page.set_data(did);
 			}
@@ -11696,7 +11700,10 @@ namespace gaia {
 			using iterator = sparse_iterator;
 
 		private:
-			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
+			constexpr static detail::size_type page_mask = PageCapacity - 1;
+			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
 			uint32_t* m_pDense;
@@ -11784,7 +11791,11 @@ namespace gaia {
 			using iterator = sparse_iterator_soa;
 
 		private:
-			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
+			static_assert(
+					(PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator_soa must be a power of 2");
+			constexpr static detail::size_type page_mask = PageCapacity - 1;
+			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
+
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
 			uint32_t* m_pDense;
@@ -11796,14 +11807,14 @@ namespace gaia {
 			value_type operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				const auto& page = m_pPages[pid];
 				return page.get_data(did);
 			}
 			value_type operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				const auto& page = m_pPages[pid];
 				return page.get_data(did);
 			}
@@ -12412,7 +12423,9 @@ namespace gaia {
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
 
 		private:
-			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
+			constexpr static detail::size_type page_mask = PageCapacity - 1;
+			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
 
 			//! Contains mappings to sparse storage inside pages
 			cnt::darray<sparse_id> m_dense;
@@ -12489,7 +12502,7 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) operator[](size_type sid) noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				auto& page = m_pages[pid];
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
@@ -12498,7 +12511,7 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) operator[](size_type sid) const noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				auto& page = m_pages[pid];
 				return view_policy::get({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
@@ -12515,7 +12528,7 @@ namespace gaia {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				const auto id = m_pages[pid].get_id(did);
 				return id != detail::InvalidId;
 			}
@@ -12537,14 +12550,14 @@ namespace gaia {
 						return;
 					else {
 						const auto pid = sid >> to_page_index;
-						const auto did = sid & (PageCapacity - 1);
+						const auto did = sid & page_mask;
 						auto& page = m_pages[pid];
 						return page.set_data(did);
 					}
 				}
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				try_grow(pid);
 				m_dense[m_cnt] = sid;
@@ -12566,14 +12579,14 @@ namespace gaia {
 						return;
 					else {
 						const auto pid = sid >> to_page_index;
-						const auto did = sid & (PageCapacity - 1);
+						const auto did = sid & page_mask;
 						auto& page = m_pages[pid];
 						return page.set_data(did);
 					}
 				}
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				try_grow(pid);
 				m_dense[m_cnt] = sid;
@@ -12592,7 +12605,7 @@ namespace gaia {
 				GAIA_ASSERT(has(sid));
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				auto& page = m_pages[pid];
 				return page.set_data(did);
@@ -12607,10 +12620,10 @@ namespace gaia {
 					return;
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				const auto sidLast = m_dense[m_cnt - 1];
-				const auto didLast = sidLast & (PageCapacity - 1);
+				const auto didLast = sidLast & page_mask;
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
@@ -12667,7 +12680,7 @@ namespace gaia {
 
 				const auto sid = m_dense[m_cnt - 1];
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				if constexpr (mem::is_soa_layout_v<T>)
 					return m_pages[pid].set_data(did);
@@ -12680,7 +12693,7 @@ namespace gaia {
 
 				const auto sid = m_dense[m_cnt - 1];
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				if constexpr (mem::is_soa_layout_v<T>)
 					return m_pages[pid].get_data(did);
@@ -12724,7 +12737,7 @@ namespace gaia {
 				for (size_type i = 0, cnt = 0; i < n && cnt < m_cnt; ++i, ++cnt) {
 					const auto sid = m_dense[i];
 					const auto pid = sid >> to_page_index;
-					const auto did = sid & (PageCapacity - 1);
+					const auto did = sid & page_mask;
 
 					const auto& item0 = m_pages[pid].get_data(did);
 					const auto& item1 = m_pages[pid].get_data(did);
@@ -12760,7 +12773,9 @@ namespace gaia {
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
 		private:
-			constexpr static detail::size_type to_page_index = core::count_bits(PageCapacity);
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
+			constexpr static detail::size_type page_mask = PageCapacity - 1;
+			constexpr static detail::size_type to_page_index = core::count_bits(page_mask);
 
 			//! Contains mappings to sparse storage inside pages
 			cnt::darray<sparse_id> m_dense;
@@ -12839,7 +12854,7 @@ namespace gaia {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 				const auto id = m_pages[pid].get_id(did);
 				return id != detail::InvalidId;
 			}
@@ -12851,7 +12866,7 @@ namespace gaia {
 					return;
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				try_grow(pid);
 				m_dense[m_cnt] = sid;
@@ -12869,10 +12884,10 @@ namespace gaia {
 					return;
 
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				const auto sidLast = m_dense[m_cnt - 1];
-				const auto didLast = sidLast & (PageCapacity - 1);
+				const auto didLast = sidLast & page_mask;
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
@@ -12916,7 +12931,7 @@ namespace gaia {
 
 				const auto sid = m_dense[m_cnt - 1];
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				return (reference)m_pages[pid].set_id(did);
 			}
@@ -12926,7 +12941,7 @@ namespace gaia {
 
 				const auto sid = m_dense[m_cnt - 1];
 				const auto pid = sid >> to_page_index;
-				const auto did = sid & (PageCapacity - 1);
+				const auto did = sid & page_mask;
 
 				return (const_reference)m_pages[pid].get_id(did);
 			}
@@ -14737,6 +14752,17 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+		struct JobContainer;
+	}
+
+	namespace cnt {
+		template <>
+		struct to_sparse_id<mt::JobContainer> {
+			static sparse_id get(const mt::JobContainer& item) noexcept;
+		};
+	} // namespace cnt
+
+	namespace mt {
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
 			DEP_BITS = 27,
@@ -14863,10 +14889,16 @@ namespace gaia {
 			}
 		};
 
+		class ilist_sparse_storageset_wrapper: public cnt::sparse_storage<JobContainer, 256> {
+		public:
+			void push_back(JobContainer&& container) {
+				add(GAIA_MOV(container));
+			}
+		};
+
 		class JobManager {
-			//! Implicit list of jobs
-			//! TODO: Implement paged allocation
-			cnt::ilist<JobContainer, JobHandle> m_jobData;
+			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
+			cnt::ilist<JobContainer, JobHandle, ilist_sparse_storageset_wrapper> m_jobData;
 
 		public:
 			JobContainer& data(JobHandle jobHandle) {
@@ -15083,6 +15115,12 @@ namespace gaia {
 			}
 		} // namespace detail
 	} // namespace mt
+
+	namespace cnt {
+		inline sparse_id to_sparse_id<mt::JobContainer>::get(const mt::JobContainer& item) noexcept {
+			return item.idx;
+		}
+	} // namespace cnt
 } // namespace gaia
 /*** End of inlined file: jobmanager.h ***/
 
@@ -15310,7 +15348,9 @@ namespace gaia {
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! Job allocation mutex
-			//! TODO: Remove this once JobManager implements paged allocation for m_jobData
+			// NOTE: Allocs are done only from the main thread while there are no jobs running.
+			//       Freeing can happen at any point from any thread. Therefore, we need to lock this point.
+			//       Access do job data is not thread-safe. No jobs should be added while there is any job running.
 			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
 
 		private:
@@ -15464,6 +15504,7 @@ namespace gaia {
 
 			//! Creates a threadpool job from \param job.
 			//! \warning Must be used from the main thread.
+			//! \warning Can't be called while there are any jobs being executed.
 			//! \return Job handle of the scheduled job.
 			template <typename TJob>
 			JobHandle add(TJob&& job) {
@@ -15471,8 +15512,6 @@ namespace gaia {
 
 				job.priority = final_prio(job);
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				return m_jobManager.alloc_job(GAIA_FWD(job));
@@ -15483,8 +15522,6 @@ namespace gaia {
 				GAIA_ASSERT(main_thread());
 				GAIA_ASSERT(!jobHandles.empty());
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				for (auto& jobHandles: jobHandles)
@@ -15505,8 +15542,6 @@ namespace gaia {
 				}
 #endif
 
-				// Allocs are done only from the main thread while there are no jobs running.
-				// Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				m_jobManager.free_job(jobHandle);

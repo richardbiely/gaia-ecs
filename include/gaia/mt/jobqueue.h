@@ -6,7 +6,6 @@
 #include <mutex>
 
 #include "../cnt/sarray.h"
-#include "../cnt/sringbuffer.h"
 #include "../config/profiler.h"
 #include "../core/utility.h"
 #include "jobhandle.h"
