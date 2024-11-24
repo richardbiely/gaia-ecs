@@ -120,7 +120,7 @@ PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
 PERF_ITER_PATH="src/perf/iter/gaia_perf_iter"
 PERF_DUEL_PATH="src/perf/duel/gaia_perf_duel"
 PERF_APP_PATH="src/perf/app/gaia_perf_app"
-PERF_MT_PATH="src/perf/mp/gaia_perf_mt"
+PERF_MT_PATH="src/perf/mt/gaia_perf_mt"
 
 echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
 echo "Debug mode + addr sanitizer"
