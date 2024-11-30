@@ -1266,26 +1266,33 @@ namespace gaia {
 
 			//! Checks if an item with a given sparse id \param sid exists
 			GAIA_NODISCARD bool has(sparse_id sid) const {
-				if (sid == detail::InvalidSparseId)
-					return false;
+				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
 				const auto pid = uint32_t(sid >> to_page_index);
+				const auto did = uint32_t(sid & page_mask);
+				return has_internal(pid, did);
+			}
+
+		private:
+			GAIA_NODISCARD bool has_internal(uint32_t pid, uint32_t did) const {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto did = uint32_t(sid & page_mask);
 				const auto id = m_pages[pid].get_id(did);
 				return id != detail::InvalidDenseId;
 			}
 
+		public:
 			//! Inserts the item \param arg into the storage.
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			void add(sparse_id sid) {
-				if (has(sid))
-					return;
+				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
+
+				if (has_internal(pid, did))
+					return;
 
 				try_grow(pid);
 				m_dense[m_cnt] = sid;
@@ -1299,11 +1306,11 @@ namespace gaia {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
-				if (!has(sid))
-					return;
-
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
+
+				if (!has_internal(pid, did))
+					return;
 
 				const auto sidPrev = m_dense[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
