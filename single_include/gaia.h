@@ -279,6 +279,24 @@ namespace gaia {
 	#endif
 #endif
 
+#if GAIA_ARCH == GAIA_ARCH_X86
+	#include <immintrin.h>
+	#define GAIA_PAUSE _mm_pause()
+#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#if GAIA_ARCH == GAIA_ARCH_ARM
+		#if GAIA_64 && !GAIA_PLATFORM_APPLE
+			#define GAIA_PAUSE __builtin_aarch64_yield()
+		#else
+			#define GAIA_PAUSE __builtin_arm_yield()
+		#endif
+	#endif
+#endif
+#if !defined(GAIA_PAUSE)
+	#define GAIA_PAUSE                                                                                                   \
+		do {                                                                                                               \
+		} while (0)
+#endif
+
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
@@ -594,10 +612,10 @@ namespace gaia {
 #endif
 
 namespace gaia {
-	// The dont_optimize(...) function can be used to prevent a value or
-	// expression from being optimized away by the compiler. This function is
-	// intended to add little to no overhead.
-	// See: https://youtu.be/nXaxk27zwlk?t=2441
+// The dont_optimize(...) function can be used to prevent a value or
+// expression from being optimized away by the compiler. This function is
+// intended to add little to no overhead.
+// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 	template <class T>
 	inline void dont_optimize(T const& value) {
@@ -971,6 +989,36 @@ GAIA_MSVC_WARNING_POP()
 
 namespace tracy {
 
+	template <class T>
+	class gaia_LockableExt: public Lockable<T> {
+	public:
+		tracy_force_inline gaia_LockableExt(const SourceLocationData* srcloc): Lockable<T>(srcloc) {}
+
+		//! Extracts reference to m_lockable from tracy::Lockable<T> because
+		//! they don't provide a getter for the internal mutex object.
+		//! This limits the API usability. E.g. we would not be able to use conditional variables easily,
+		//! also profiling various custom logs would be more complicated.
+		T& get_lock() {
+			// Assuming TLockable is non-virtual and the memory layout is as follows:
+			// 	T m_lockable;
+			// 	LockableCtx m_ctx;
+			//  ...
+			//
+			// m_lockable is the first member. We simply cast to it.
+			T* ptr_lockable = reinterpret_cast<T*>(this);
+			return (T&)*(ptr_lockable + 0);
+			// return (T&)m_lockable;
+		}
+	};
+	#define LockableBaseExt(type) tracy::gaia_LockableExt<type>
+	#define TracyLockableExt(type, varname)                                                                              \
+		tracy::gaia_LockableExt<type> varname {                                                                            \
+			[]() -> const tracy::SourceLocationData* {                                                                       \
+				static constexpr tracy::SourceLocationData srcloc{nullptr, #type " " #varname, TracyFile, TracyLine, 0};       \
+				return &srcloc;                                                                                                \
+			}()                                                                                                              \
+		}
+
 	//! Zone used for tracking zones with names first available in run-time
 	struct ZoneRT {
 		TracyCZoneCtx m_ctx;
@@ -1066,26 +1114,11 @@ namespace tracy {
 	#endif
 	//! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
-	//! Extracts reference to m_lockable from tracy::Lockable<T> because
-	//! they don't provide a getter for the internal mutex object.
-	//! Therefore, we would not be able to use conditional variables easily.
-template <class TLockable, class T>
-inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
-	// Assuming TLockable is non-virtual and the memory layout is as follows:
-	// 	T m_lockable;
-	// 	LockableCtx m_ctx;
-	//  ...
-	//
-	// m_lockable is the first member. We simply cast to it.
-	T* ptr_lockable = reinterpret_cast<T*>(&lockable);
-	return (T&)*(ptr_lockable + 0);
-	// return (T&)lockable;
-}
-		#define GAIA_PROF_EXTRACT_MUTEX(type, name) gaia_extract_lock_from_tracy_lockable<decltype(name), type>(name)
-		#define GAIA_PROF_MUTEX_BASE(type) LockableBase<type>
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name.get_lock()
+		#define GAIA_PROF_MUTEX_BASE(type) LockableBaseExt<type>
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_MUTEX(type, name) TracyLockable(type, name)
+		#define GAIA_PROF_MUTEX(type, name) TracyLockableExt(type, name)
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function
 	#if !defined(GAIA_PROF_USE_PROFILER_THREAD_NAME)
@@ -1121,7 +1154,7 @@ inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
 		#define GAIA_PROF_MUTEX_BASE(type) type
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_EXTRACT_MUTEX(type, name) name
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function
@@ -12819,26 +12852,33 @@ namespace gaia {
 
 			//! Checks if an item with a given sparse id \param sid exists
 			GAIA_NODISCARD bool has(sparse_id sid) const {
-				if (sid == detail::InvalidSparseId)
-					return false;
+				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
 				const auto pid = uint32_t(sid >> to_page_index);
+				const auto did = uint32_t(sid & page_mask);
+				return has_internal(pid, did);
+			}
+
+		private:
+			GAIA_NODISCARD bool has_internal(uint32_t pid, uint32_t did) const {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto did = uint32_t(sid & page_mask);
 				const auto id = m_pages[pid].get_id(did);
 				return id != detail::InvalidDenseId;
 			}
 
+		public:
 			//! Inserts the item \param arg into the storage.
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			void add(sparse_id sid) {
-				if (has(sid))
-					return;
+				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
+
+				if (has_internal(pid, did))
+					return;
 
 				try_grow(pid);
 				m_dense[m_cnt] = sid;
@@ -12852,11 +12892,11 @@ namespace gaia {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
-				if (!has(sid))
-					return;
-
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
+
+				if (!has_internal(pid, did))
+					return;
 
 				const auto sidPrev = m_dense[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
@@ -13994,7 +14034,7 @@ namespace gaia {
 
 			void set() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_set = true;
 				m_cv.notify_one();
@@ -14014,7 +14054,7 @@ namespace gaia {
 
 			void reset() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_set = false;
 #else
@@ -14028,7 +14068,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool is_set() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				return m_set;
 #else
@@ -14044,7 +14084,7 @@ namespace gaia {
 
 			void wait() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_cv.wait(lock, [&] {
 					return m_set;
@@ -14153,7 +14193,7 @@ namespace gaia {
 				node.waitMask = waitMask;
 
 				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
 					std::lock_guard lock(mtx);
 
 					const uint32_t futexValue = pFutexValue->load(std::memory_order_relaxed);
@@ -14178,7 +14218,7 @@ namespace gaia {
 				GAIA_ASSERT(wakeMask != 0);
 
 				auto& bucket = detail::FutexBucket::get(pFutexValue);
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
 				std::lock_guard lock(mtx);
 
 				uint32_t numAwoken = 0;
@@ -15268,6 +15308,48 @@ namespace gaia {
 } // namespace gaia
 /*** End of inlined file: semaphore_fast.h ***/
 
+
+/*** Start of inlined file: spinlock.h ***/
+#pragma once
+
+#include <atomic>
+
+namespace gaia {
+	namespace mt {
+		class SpinLock final {
+			std::atomic_int32_t m_value{};
+
+		public:
+			SpinLock() = default;
+			SpinLock(const SpinLock&) = delete;
+			SpinLock& operator=(const SpinLock&) = delete;
+
+			bool try_lock() {
+				// Attempt to acquire the lock without waiting
+				return 0 == m_value.exchange(1, std::memory_order::memory_order_acquire);
+			}
+
+			void lock() {
+				while (true) {
+					// The value has been changed, we successfully entered the lock
+					if (0 == m_value.exchange(1, std::memory_order::memory_order_acquire))
+						break;
+
+					// Yield until unlocked
+					while (m_value.load(std::memory_order::memory_order_relaxed) != 0)
+						GAIA_PAUSE;
+				}
+			}
+
+			void unlock() {
+				// Release the lock
+				m_value.store(0, std::memory_order_release);
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+/*** End of inlined file: spinlock.h ***/
+
 namespace gaia {
 	namespace mt {
 #if GAIA_PLATFORM_WINDOWS
@@ -15323,7 +15405,7 @@ namespace gaia {
 			// NOTE: Allocs are done only from the main thread while there are no jobs running.
 			//       Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 			//       Access do job data is not thread-safe. No jobs should be added while there is any job running.
-			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
+			GAIA_PROF_MUTEX(SpinLock, m_jobAllocMtx);
 
 		private:
 			ThreadPool() {
@@ -15484,7 +15566,7 @@ namespace gaia {
 
 				job.priority = final_prio(job);
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				return m_jobManager.alloc_job(GAIA_FWD(job));
 			}
@@ -15494,7 +15576,7 @@ namespace gaia {
 				GAIA_ASSERT(main_thread());
 				GAIA_ASSERT(!jobHandles.empty());
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				for (auto& jobHandle: jobHandles)
 					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
@@ -15514,7 +15596,7 @@ namespace gaia {
 				}
 #endif
 
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_jobAllocMtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
 				std::lock_guard lock(mtx);
 				m_jobManager.free_job(jobHandle);
 			}

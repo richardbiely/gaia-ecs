@@ -37,6 +37,7 @@
 #include "jobmanager.h"
 #include "jobqueue.h"
 #include "semaphore_fast.h"
+#include "spinlock.h"
 
 namespace gaia {
 	namespace mt {
@@ -93,7 +94,7 @@ namespace gaia {
 			// NOTE: Allocs are done only from the main thread while there are no jobs running.
 			//       Freeing can happen at any point from any thread. Therefore, we need to lock this point.
 			//       Access do job data is not thread-safe. No jobs should be added while there is any job running.
-			GAIA_PROF_MUTEX(std::mutex, m_jobAllocMtx);
+			GAIA_PROF_MUTEX(SpinLock, m_jobAllocMtx);
 
 		private:
 			ThreadPool() {

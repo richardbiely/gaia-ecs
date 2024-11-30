@@ -274,6 +274,24 @@ namespace gaia {
 	#endif
 #endif
 
+#if GAIA_ARCH == GAIA_ARCH_X86
+	#include <immintrin.h>
+	#define GAIA_PAUSE _mm_pause()
+#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#if GAIA_ARCH == GAIA_ARCH_ARM
+		#if GAIA_64 && !GAIA_PLATFORM_APPLE
+			#define GAIA_PAUSE __builtin_aarch64_yield()
+		#else
+			#define GAIA_PAUSE __builtin_arm_yield()
+		#endif
+	#endif
+#endif
+#if !defined(GAIA_PAUSE)
+	#define GAIA_PAUSE                                                                                                   \
+		do {                                                                                                               \
+		} while (0)
+#endif
+
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
@@ -589,10 +607,10 @@ namespace gaia {
 #endif
 
 namespace gaia {
-	// The dont_optimize(...) function can be used to prevent a value or
-	// expression from being optimized away by the compiler. This function is
-	// intended to add little to no overhead.
-	// See: https://youtu.be/nXaxk27zwlk?t=2441
+// The dont_optimize(...) function can be used to prevent a value or
+// expression from being optimized away by the compiler. This function is
+// intended to add little to no overhead.
+// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 	template <class T>
 	inline void dont_optimize(T const& value) {
