@@ -71,7 +71,7 @@ namespace gaia {
 				node.waitMask = waitMask;
 
 				{
-					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
 					std::lock_guard lock(mtx);
 
 					const uint32_t futexValue = pFutexValue->load(std::memory_order_relaxed);
@@ -96,7 +96,7 @@ namespace gaia {
 				GAIA_ASSERT(wakeMask != 0);
 
 				auto& bucket = detail::FutexBucket::get(pFutexValue);
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, bucket.mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
 				std::lock_guard lock(mtx);
 
 				uint32_t numAwoken = 0;

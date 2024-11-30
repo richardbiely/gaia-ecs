@@ -48,7 +48,7 @@ namespace gaia {
 
 			void set() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_set = true;
 				m_cv.notify_one();
@@ -68,7 +68,7 @@ namespace gaia {
 
 			void reset() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_set = false;
 #else
@@ -82,7 +82,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool is_set() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				return m_set;
 #else
@@ -98,7 +98,7 @@ namespace gaia {
 
 			void wait() {
 #if GAIA_USE_MT_STD
-				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(std::mutex, m_mtx);
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
 				m_cv.wait(lock, [&] {
 					return m_set;

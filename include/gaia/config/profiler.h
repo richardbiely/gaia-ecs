@@ -25,6 +25,36 @@ GAIA_MSVC_WARNING_POP()
 
 namespace tracy {
 
+	template <class T>
+	class gaia_LockableExt: public Lockable<T> {
+	public:
+		tracy_force_inline gaia_LockableExt(const SourceLocationData* srcloc): Lockable<T>(srcloc) {}
+
+		//! Extracts reference to m_lockable from tracy::Lockable<T> because
+		//! they don't provide a getter for the internal mutex object.
+		//! This limits the API usability. E.g. we would not be able to use conditional variables easily,
+		//! also profiling various custom logs would be more complicated.
+		T& get_lock() {
+			// Assuming TLockable is non-virtual and the memory layout is as follows:
+			// 	T m_lockable;
+			// 	LockableCtx m_ctx;
+			//  ...
+			//
+			// m_lockable is the first member. We simply cast to it.
+			T* ptr_lockable = reinterpret_cast<T*>(this);
+			return (T&)*(ptr_lockable + 0);
+			// return (T&)m_lockable;
+		}
+	};
+	#define LockableBaseExt(type) tracy::gaia_LockableExt<type>
+	#define TracyLockableExt(type, varname)                                                                              \
+		tracy::gaia_LockableExt<type> varname {                                                                            \
+			[]() -> const tracy::SourceLocationData* {                                                                       \
+				static constexpr tracy::SourceLocationData srcloc{nullptr, #type " " #varname, TracyFile, TracyLine, 0};       \
+				return &srcloc;                                                                                                \
+			}()                                                                                                              \
+		}
+
 	//! Zone used for tracking zones with names first available in run-time
 	struct ZoneRT {
 		TracyCZoneCtx m_ctx;
@@ -120,26 +150,11 @@ namespace tracy {
 	#endif
 	//! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
-	//! Extracts reference to m_lockable from tracy::Lockable<T> because
-	//! they don't provide a getter for the internal mutex object.
-	//! Therefore, we would not be able to use conditional variables easily.
-template <class TLockable, class T>
-inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
-	// Assuming TLockable is non-virtual and the memory layout is as follows:
-	// 	T m_lockable;
-	// 	LockableCtx m_ctx;
-	//  ...
-	//
-	// m_lockable is the first member. We simply cast to it.
-	T* ptr_lockable = reinterpret_cast<T*>(&lockable);
-	return (T&)*(ptr_lockable + 0);
-	// return (T&)lockable;
-}
-		#define GAIA_PROF_EXTRACT_MUTEX(type, name) gaia_extract_lock_from_tracy_lockable<decltype(name), type>(name)
-		#define GAIA_PROF_MUTEX_BASE(type) LockableBase<type>
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name.get_lock()
+		#define GAIA_PROF_MUTEX_BASE(type) LockableBaseExt<type>
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_MUTEX(type, name) TracyLockable(type, name)
+		#define GAIA_PROF_MUTEX(type, name) TracyLockableExt(type, name)
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function
 	#if !defined(GAIA_PROF_USE_PROFILER_THREAD_NAME)
@@ -175,7 +190,7 @@ inline T& gaia_extract_lock_from_tracy_lockable(TLockable& lockable) {
 		#define GAIA_PROF_MUTEX_BASE(type) type
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_EXTRACT_MUTEX(type, name) name
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function
