@@ -69,13 +69,13 @@ namespace gaia {
 		template <typename T>
 		constexpr T as_bits(T value) {
 			static_assert(std::is_integral_v<T>);
-			return value * 8;
+			return value * (T)8;
 		}
 
 		template <typename T>
 		constexpr T as_bytes(T value) {
 			static_assert(std::is_integral_v<T>);
-			return value / 8;
+			return value / (T)8;
 		}
 
 		//----------------------------------------------------------------------
@@ -85,8 +85,8 @@ namespace gaia {
 		template <typename T>
 		constexpr uint32_t count_bits(T number) {
 			uint32_t bits_needed = 0;
-			while (number > 0) {
-				number >>= 1;
+			while (number > 0U) {
+				number >>= 1U;
 				++bits_needed;
 			}
 			return bits_needed;

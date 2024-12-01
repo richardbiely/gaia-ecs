@@ -23,6 +23,7 @@
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/darray_ext.h"
 #include "gaia/cnt/dbitset.h"
+#include "gaia/cnt/fwd_llist.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/sarray.h"

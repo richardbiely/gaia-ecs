@@ -344,6 +344,101 @@ TEST_CASE("bit_view") {
 	}
 }
 
+TEST_CASE("fwd_llist") {
+	struct Foo: cnt::fwd_llist_base<Foo> {
+		uint32_t value = 0;
+	};
+
+	constexpr uint32_t N = 16;
+	cnt::darray<Foo*> foos;
+	foos.resize(N);
+	GAIA_FOR(N) {
+		auto*& f = foos[i];
+		f = new Foo();
+		f->value = i;
+	}
+
+	cnt::fwd_llist<Foo> list;
+	GAIA_FOR(N) list.link(foos[i]);
+
+	// Check forward pointers
+	{
+		REQUIRE(foos[0]->get_fwd_llist_link().next == nullptr);
+		GAIA_FOR(N - 1) {
+			REQUIRE(foos[i + 1]->get_fwd_llist_link().next == foos[i]);
+		}
+		GAIA_FOR(N) {
+			REQUIRE(foos[i]->get_fwd_llist_link().linked());
+		}
+	}
+
+	// Check via assigned indices
+	{
+		uint32_t idx = 0;
+		for (const auto& foo: list) {
+			const auto foosIdx = foos.size() - idx - 1;
+			const auto* f = foos[foosIdx];
+			REQUIRE(foo.value == f->value);
+			++idx;
+		}
+		REQUIRE(idx == N);
+	}
+
+	// Check forward pointers after a node from the middle of the list is removed
+	{
+		list.unlink(foos[5]);
+		REQUIRE_FALSE(foos[5]->get_fwd_llist_link().linked());
+		foos.retain([](const Foo* f) {
+			return f->value != 5;
+		});
+
+		uint32_t idx = 0;
+		for (const auto& foo: list) {
+			const auto foosIdx = foos.size() - idx - 1;
+			const auto* f = foos[foosIdx];
+			REQUIRE(foo.value == f->value);
+			++idx;
+		}
+		REQUIRE(idx == N - 1);
+	}
+
+	// Check forward pointers after a node at the end is removed
+	{
+		list.unlink(foos.back());
+		REQUIRE_FALSE(foos.back()->get_fwd_llist_link().linked());
+		foos.retain([](const Foo* f) {
+			return f->value != N - 1;
+		});
+
+		uint32_t idx = 0;
+		for (const auto& foo: list) {
+			const auto foosIdx = foos.size() - idx - 1;
+			const auto* f = foos[foosIdx];
+			REQUIRE(foo.value == f->value);
+			++idx;
+		}
+		REQUIRE(idx == N - 2);
+	}
+
+	// Check forward pointers after a node at the beginning is removed
+	{
+		list.unlink(foos.front());
+		REQUIRE_FALSE(foos.front()->get_fwd_llist_link().linked());
+		foos.retain([](const Foo* f) {
+			return f->value != 0;
+		});
+
+		uint32_t idx = 0;
+		for (const auto& foo: list) {
+			const auto foosIdx = foos.size() - idx - 1;
+			const auto* f = foos[foosIdx];
+			REQUIRE(foo.value == f->value);
+			++idx;
+		}
+		REQUIRE(idx == N - 3);
+	}
+}
+
 template <typename Container>
 void fixed_arr_test() {
 	using cont_item = typename Container::value_type;

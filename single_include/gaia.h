@@ -1950,13 +1950,13 @@ namespace gaia {
 		template <typename T>
 		constexpr T as_bits(T value) {
 			static_assert(std::is_integral_v<T>);
-			return value * 8;
+			return value * (T)8;
 		}
 
 		template <typename T>
 		constexpr T as_bytes(T value) {
 			static_assert(std::is_integral_v<T>);
-			return value / 8;
+			return value / (T)8;
 		}
 
 		//----------------------------------------------------------------------
@@ -1966,8 +1966,8 @@ namespace gaia {
 		template <typename T>
 		constexpr uint32_t count_bits(T number) {
 			uint32_t bits_needed = 0;
-			while (number > 0) {
-				number >>= 1;
+			while (number > 0U) {
+				number >>= 1U;
 				++bits_needed;
 			}
 			return bits_needed;
@@ -7848,6 +7848,177 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 /*** End of inlined file: dbitset.h ***/
+
+
+/*** Start of inlined file: fwd_llist.h ***/
+#pragma once
+
+namespace gaia {
+	namespace cnt {
+		template <class T>
+		struct fwd_llist_link {
+			//! Pointer the the next element
+			T* next = nullptr;
+			//! Pointer to the memory address of the previous node's "next". This is not meant for traversal.
+			//! It merely allows for maintaining the forward links of the list when removing an item and allows
+			//! O(1) removals even in a forward list.
+			T** prevs_next = nullptr;
+
+			//! Returns true if the node is linked with another
+			GAIA_NODISCARD bool linked() const {
+				return next != nullptr || prevs_next != nullptr;
+			}
+		};
+
+		//! Each fwd_llist node either has to inherit from fwd_llist_base
+		//! or it has to provide get_fwd_llist_link() member functions.
+		template <class T>
+		struct fwd_llist_base {
+			fwd_llist_link<T> fwd_link_GAIA;
+
+			fwd_llist_link<T>& get_fwd_llist_link() {
+				return fwd_link_GAIA;
+			}
+			const fwd_llist_link<T>& get_fwd_llist_link() const {
+				return fwd_link_GAIA;
+			}
+		};
+
+		template <typename T>
+		struct fwd_llist_iterator {
+			using iterator_category = core::forward_iterator_tag;
+			using value_type = T;
+			using pointer = T*;
+			using reference = T&;
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+			using iterator = fwd_llist_iterator;
+
+		private:
+			T* m_pNode;
+
+		public:
+			explicit fwd_llist_iterator(T* pNode): m_pNode(pNode) {}
+
+			reference operator*() const {
+				return *m_pNode;
+			}
+			pointer operator->() const {
+				return m_pNode;
+			}
+
+			iterator& operator++() {
+				auto& list = m_pNode->get_fwd_llist_link();
+				m_pNode = list.next;
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pNode == other.m_pNode;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pNode != other.m_pNode;
+			}
+		};
+
+		//! Forward list container.
+		//! No memory allocation is performed because the list is stored directly inside
+		//! the allocated nodes.
+		//! Inserts: O(1)
+		//! Removals: O(1)
+		//! Iteration: O(N)
+		template <class T>
+		struct fwd_llist {
+			uint32_t count = 0;
+			T* first = nullptr;
+
+			//! Clears the list.
+			void clear() {
+				count = 0;
+				first = nullptr;
+			}
+
+			//! Links the node in the list.
+			void link(T* pNode) {
+				GAIA_ASSERT(pNode != nullptr);
+
+				auto& link = pNode->get_fwd_llist_link();
+				link.next = first;
+				if (first != nullptr) {
+					auto& linkFirst = first->get_fwd_llist_link();
+					linkFirst.prevs_next = &(link.next);
+					first = pNode;
+				}
+				link.prevs_next = &first;
+				first = pNode;
+
+				++count;
+			}
+
+			//! Unlinks the node from the list.
+			void unlink(T* pNode) {
+				GAIA_ASSERT(pNode != nullptr);
+
+				auto& link = pNode->get_fwd_llist_link();
+				*(link.prevs_next) = link.next;
+				if (link.next != nullptr) {
+					auto& linkNext = link.next->get_fwd_llist_link();
+					linkNext.prevs_next = link.prevs_next;
+				}
+
+				// Reset the node's link
+				link = {};
+
+				--count;
+			}
+
+			//! Checks if the node \param pNode is linked in the list.
+			GAIA_NODISCARD bool has(T* pNode) const {
+				GAIA_ASSERT(pNode != nullptr);
+
+				for (auto& curr: *this) {
+					if (&curr == pNode)
+						return true;
+				}
+
+				return false;
+			}
+
+			//! Returns true if the list is empty. False otherwise.
+			GAIA_NODISCARD bool empty() const {
+				GAIA_ASSERT(count == 0);
+				return first == nullptr;
+			}
+
+			//! Returns the number of nodes linked in the list.
+			GAIA_NODISCARD uint32_t size() const {
+				return count;
+			}
+
+			fwd_llist_iterator<T> begin() {
+				return fwd_llist_iterator<T>(first);
+			}
+
+			fwd_llist_iterator<T> end() {
+				return fwd_llist_iterator<T>(nullptr);
+			}
+
+			fwd_llist_iterator<const T> begin() const {
+				return fwd_llist_iterator((const T*)first);
+			}
+
+			fwd_llist_iterator<const T> end() const {
+				return fwd_llist_iterator((const T*)nullptr);
+			}
+		};
+	} // namespace cnt
+} // namespace gaia
+/*** End of inlined file: fwd_llist.h ***/
 
 
 /*** Start of inlined file: ilist.h ***/
@@ -17429,18 +17600,23 @@ namespace gaia {
 			class ChunkAllocatorImpl {
 				friend ::gaia::ecs::ChunkAllocator;
 
-				struct MemoryPage {
-					static constexpr uint16_t NBlocks = 62;
+				struct MemoryPageHeader {
+					//! Pointer to data managed by page
+					void* m_data;
+
+					MemoryPageHeader(void* ptr): m_data(ptr) {}
+				};
+
+				struct MemoryPage: MemoryPageHeader, cnt::fwd_llist_base<MemoryPage> {
+					static constexpr uint16_t NBlocks = 48;
 					static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
 					static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 					static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
 					using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
 					using BitView = core::bit_view<NBlocks_Bits>;
 
-					//! Pointer to data managed by page
-					void* m_data;
-					//! Index in the list of pages
-					uint32_t m_idx;
+					//! Implicit list of blocks
+					BlockArray m_blocks;
 
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
@@ -17455,11 +17631,8 @@ namespace gaia {
 					//! Free bits to use in the future
 					// uint32_t m_unused : 7;
 
-					//! Implicit list of blocks
-					BlockArray m_blocks;
-
 					MemoryPage(void* ptr, uint8_t sizeType):
-							m_data(ptr), m_idx(0), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
+							MemoryPageHeader(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
 							m_freeBlocks(0) {
 						// One cacheline long on x86. The point is for this to be as small as possible
 						static_assert(sizeof(MemoryPage) <= 64);
@@ -17552,9 +17725,9 @@ namespace gaia {
 
 				struct MemoryPageContainer {
 					//! Array of available pages
-					cnt::darray<MemoryPage*> pagesFree;
+					cnt::fwd_llist<MemoryPage> pagesFree;
 					//! Array of full pages
-					cnt::darray<MemoryPage*> pagesFull;
+					cnt::fwd_llist<MemoryPage> pagesFull;
 
 					GAIA_NODISCARD bool empty() const {
 						return pagesFree.empty() && pagesFull.empty();
@@ -17605,16 +17778,16 @@ namespace gaia {
 					auto& container = m_pages[sizeType];
 
 					// Find first page with available space
-					for (auto* p: container.pagesFree) {
-						if (p->full())
+					for (auto& page: container.pagesFree) {
+						if (page.full())
 							continue;
-						pPage = p;
+						pPage = &page;
 						break;
 					}
 					if (pPage == nullptr) {
 						// Allocate a new page if no free page was found
 						pPage = alloc_page(sizeType);
-						container.pagesFree.push_back(pPage);
+						container.pagesFree.link(pPage);
 					}
 
 					// Allocate a new chunk of memory
@@ -17622,13 +17795,10 @@ namespace gaia {
 
 					// Handle full pages
 					if (pPage->full()) {
-						// Remove the page from the open list and update the swapped page's pointer
-						container.pagesFree.back()->m_idx = 0;
-						core::swap_erase(container.pagesFree, 0);
-
+						// Remove the page from the open list
+						container.pagesFree.unlink(pPage);
 						// Move our page to the full list
-						pPage->m_idx = (uint32_t)container.pagesFull.size();
-						container.pagesFull.push_back(pPage);
+						container.pagesFull.link(pPage);
 					}
 
 					return pBlock;
@@ -17650,14 +17820,10 @@ namespace gaia {
 
 	#if GAIA_ASSERT_ENABLED
 					if (wasFull) {
-						const auto res = core::has_if(container.pagesFull, [&](auto* page) {
-							return page == pPage;
-						});
+						const auto res = container.pagesFull.has(pPage);
 						GAIA_ASSERT(res && "Memory page couldn't be found among full pages");
 					} else {
-						const auto res = core::has_if(container.pagesFree, [&](auto* page) {
-							return page == pPage;
-						});
+						const auto res = container.pagesFree.has(pPage);
 						GAIA_ASSERT(res && "Memory page couldn't be found among free pages");
 					}
 	#endif
@@ -17667,13 +17833,10 @@ namespace gaia {
 
 					// Update lists
 					if (wasFull) {
-						// Our page is no longer full. Remove it from the full list and update the swapped page's pointer
-						container.pagesFull.back()->m_idx = pPage->m_idx;
-						core::swap_erase(container.pagesFull, pPage->m_idx);
-
+						// Our page is no longer full
+						container.pagesFull.unlink(pPage);
 						// Move our page to the open list
-						pPage->m_idx = (uint32_t)container.pagesFree.size();
-						container.pagesFree.push_back(pPage);
+						container.pagesFree.link(pPage);
 					}
 
 					// Special handling for the allocator signaled to destroy itself
@@ -17681,8 +17844,7 @@ namespace gaia {
 						// Remove the page right away
 						if (pPage->empty()) {
 							GAIA_ASSERT(!container.pagesFree.empty());
-							container.pagesFree.back()->m_idx = pPage->m_idx;
-							core::swap_erase(container.pagesFree, pPage->m_idx);
+							container.pagesFree.unlink(pPage);
 						}
 
 						try_delete_this();
@@ -17702,18 +17864,15 @@ namespace gaia {
 				//! Flushes unused memory
 				void flush() {
 					auto flushPages = [](MemoryPageContainer& container) {
-						for (uint32_t i = 0; i < container.pagesFree.size();) {
-							auto* pPage = container.pagesFree[i];
+						for (auto it = container.pagesFree.begin(); it != container.pagesFree.end();) {
+							auto* pPage = &(*it);
+							++it;
 
 							// Skip non-empty pages
-							if (!pPage->empty()) {
-								++i;
+							if (!pPage->empty())
 								continue;
-							}
 
-							GAIA_ASSERT(pPage->m_idx == i);
-							container.pagesFree.back()->m_idx = i;
-							core::swap_erase(container.pagesFree, i);
+							container.pagesFree.unlink(pPage);
 							free_page(pPage);
 						}
 					};
@@ -17750,6 +17909,8 @@ namespace gaia {
 				}
 
 				static void free_page(MemoryPage* pMemoryPage) {
+					GAIA_ASSERT(pMemoryPage != nullptr);
+
 					mem::AllocHelper::free_alig(s_strChunkAlloc_Chunk, pMemoryPage->m_data);
 					pMemoryPage->~MemoryPage();
 					mem::AllocHelper::free(s_strChunkAlloc_MemPage, pMemoryPage);
@@ -17775,8 +17936,10 @@ namespace gaia {
 					stats.num_pages_free = (uint32_t)container.pagesFree.size();
 					stats.mem_total = stats.num_pages * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
 					stats.mem_used = container.pagesFull.size() * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
-					for (auto* page: container.pagesFree)
-						stats.mem_used += page->used_blocks_cnt() * (size_t)MaxMemoryBlockSize;
+
+					const auto& pagesFree = container.pagesFree;
+					for (auto& page: pagesFree)
+						stats.mem_used += page.used_blocks_cnt() * (size_t)MaxMemoryBlockSize;
 					return stats;
 				};
 			};
