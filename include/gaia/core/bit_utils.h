@@ -1,8 +1,9 @@
 #pragma once
 #include "../config/config.h"
 
+#include <cstdint>
+
 #include "span.h"
-#include "utility.h"
 
 namespace gaia {
 	namespace core {
@@ -61,7 +62,7 @@ namespace gaia {
 			const uint32_t bxor = b0 ^ b1;
 			// Put the XOR bits back to their original positions
 			const uint32_t m = (bxor << left) | (bxor << right);
-			// XOR mask with the original one effectivelly swapping the bits
+			// XOR mask with the original one effectively swapping the bits
 			mask = mask ^ (uint8_t)m;
 		}
 	} // namespace core

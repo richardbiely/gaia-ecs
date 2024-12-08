@@ -1208,6 +1208,8 @@ namespace tracy {
 /*** Start of inlined file: bit_utils.h ***/
 #pragma once
 
+#include <cstdint>
+
 
 /*** Start of inlined file: span.h ***/
 #pragma once
@@ -1766,14 +1768,276 @@ namespace std {
 
 /*** End of inlined file: span.h ***/
 
+namespace gaia {
+	namespace core {
+		template <uint32_t BlockBits>
+		struct bit_view {
+			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
 
-/*** Start of inlined file: utility.h ***/
+			std::span<uint8_t> m_data;
+
+			void set(uint32_t bitPosition, uint8_t value) noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+				GAIA_ASSERT(value <= MaxValue);
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint32_t mask = ~(MaxValue << idxBit);
+				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint32_t shift2 = 8U - idxBit;
+					const uint32_t mask2 = ~(MaxValue >> shift2);
+					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
+				}
+			}
+
+			uint8_t get(uint32_t bitPosition) const noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint8_t byte1 = (m_data[idxByte] >> idxBit) & MaxValue;
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint32_t shift2 = uint8_t(8U - idxBit);
+					const uint32_t mask2 = MaxValue >> shift2;
+					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
+					return byte1 | byte2;
+				}
+
+				return byte1;
+			}
+		};
+
+		template <typename T>
+		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
+			// Swap the bits in the read-write mask
+			const uint32_t b0 = (mask >> left) & 1U;
+			const uint32_t b1 = (mask >> right) & 1U;
+			// XOR the two bits
+			const uint32_t bxor = b0 ^ b1;
+			// Put the XOR bits back to their original positions
+			const uint32_t m = (bxor << left) | (bxor << right);
+			// XOR mask with the original one effectively swapping the bits
+			mask = mask ^ (uint8_t)m;
+		}
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: bit_utils.h ***/
+
+
+/*** Start of inlined file: hashing_policy.h ***/
 #pragma once
 
-#include <cstdio>
-#include <tuple>
+#include <cstdint>
 #include <type_traits>
-#include <utility>
+
+namespace gaia {
+	namespace core {
+
+		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
+
+			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
+				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+			}
+			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+				hash_combine2_out(lhs, rhs);
+				return lhs;
+			}
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			using Type = T;
+
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
+
+		//! Combines hashes into another complex one
+		template <typename T, typename... Rest>
+		constexpr T hash_combine(T first, T next, Rest... rest) {
+			auto h = detail::hash_combine2(first, next);
+			(detail::hash_combine2_out(h, rest), ...);
+			return h;
+		}
+
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			uint64_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
+			}
+
+			return hash;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			for (uint64_t i = 0; i < length; ++i)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
+		}
+
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
+				constexpr uint64_t r = 47;
+
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
+				}
+
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
+
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return value;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str) {
+			uint64_t length = 0;
+			while (str[length] != '\0')
+				++length;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
+#endif
+
+	} // namespace core
+} // namespace gaia
+
+/*** End of inlined file: hashing_policy.h ***/
 
 
 /*** Start of inlined file: iterator.h ***/
@@ -1890,6 +2154,15 @@ namespace gaia {
 
 /*** End of inlined file: iterator.h ***/
 
+
+/*** Start of inlined file: utility.h ***/
+#pragma once
+
+#include <cstdio>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
@@ -1977,14 +2250,14 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1994,14 +2267,14 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Value-constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param
+		//! Value-constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param
 		//! pData.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {
@@ -3181,277 +3454,6 @@ namespace gaia {
 } // namespace gaia
 
 /*** End of inlined file: utility.h ***/
-
-namespace gaia {
-	namespace core {
-		template <uint32_t BlockBits>
-		struct bit_view {
-			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
-
-			std::span<uint8_t> m_data;
-
-			void set(uint32_t bitPosition, uint8_t value) noexcept {
-				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
-				GAIA_ASSERT(value <= MaxValue);
-
-				const uint32_t idxByte = bitPosition / 8;
-				const uint32_t idxBit = bitPosition % 8;
-
-				const uint32_t mask = ~(MaxValue << idxBit);
-				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
-
-				const bool overlaps = idxBit + BlockBits > 8;
-				if (overlaps) {
-					// Value spans over two bytes
-					const uint32_t shift2 = 8U - idxBit;
-					const uint32_t mask2 = ~(MaxValue >> shift2);
-					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
-				}
-			}
-
-			uint8_t get(uint32_t bitPosition) const noexcept {
-				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
-
-				const uint32_t idxByte = bitPosition / 8;
-				const uint32_t idxBit = bitPosition % 8;
-
-				const uint8_t byte1 = (m_data[idxByte] >> idxBit) & MaxValue;
-
-				const bool overlaps = idxBit + BlockBits > 8;
-				if (overlaps) {
-					// Value spans over two bytes
-					const uint32_t shift2 = uint8_t(8U - idxBit);
-					const uint32_t mask2 = MaxValue >> shift2;
-					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
-					return byte1 | byte2;
-				}
-
-				return byte1;
-			}
-		};
-
-		template <typename T>
-		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
-			// Swap the bits in the read-write mask
-			const uint32_t b0 = (mask >> left) & 1U;
-			const uint32_t b1 = (mask >> right) & 1U;
-			// XOR the two bits
-			const uint32_t bxor = b0 ^ b1;
-			// Put the XOR bits back to their original positions
-			const uint32_t m = (bxor << left) | (bxor << right);
-			// XOR mask with the original one effectivelly swapping the bits
-			mask = mask ^ (uint8_t)m;
-		}
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: bit_utils.h ***/
-
-
-/*** Start of inlined file: hashing_policy.h ***/
-#pragma once
-
-#include <cstdint>
-#include <type_traits>
-
-namespace gaia {
-	namespace core {
-
-		namespace detail {
-			template <typename, typename = void>
-			struct is_direct_hash_key: std::false_type {};
-			template <typename T>
-			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
-
-			//-----------------------------------------------------------------------------------
-
-			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-			}
-			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
-				hash_combine2_out(lhs, rhs);
-				return lhs;
-			}
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
-
-		template <typename T>
-		struct direct_hash_key {
-			using Type = T;
-
-			static_assert(std::is_integral_v<T>);
-			static constexpr bool IsDirectHashKey = true;
-
-			T hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		//! Combines hashes into another complex one
-		template <typename T, typename... Rest>
-		constexpr T hash_combine(T first, T next, Rest... rest) {
-			auto h = detail::hash_combine2(first, next);
-			(detail::hash_combine2_out(h, rest), ...);
-			return h;
-		}
-
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-
-		namespace detail {
-			namespace fnv1a {
-				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-				constexpr uint64_t prime_64_const = 0x100000001b3;
-			} // namespace fnv1a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			uint64_t i = 0;
-			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-				++i;
-			}
-
-			return hash;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			for (uint64_t i = 0; i < length; ++i)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-
-			return hash;
-		}
-
-#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
-
-		// Thank you https://gist.github.com/oteguro/10538695
-
-		GAIA_MSVC_WARNING_PUSH()
-		GAIA_MSVC_WARNING_DISABLE(4592)
-
-		namespace detail {
-			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
-				constexpr uint64_t r = 47;
-
-				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
-				}
-
-				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
-					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
-					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
-				}
-
-				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
-				}
-
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
-					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
-								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
-								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
-								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
-								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
-								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
-								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
-																		: StaticHashValueLast64_(h);
-				}
-
-				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
-					return (
-							i == 0 ? StaticHashValueRest64(h, len, data)
-										 : StaticHashValueLoop64(
-													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
-				}
-
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
-				}
-			} // namespace murmur2a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return value;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str) {
-			uint64_t length = 0;
-			while (str[length] != '\0')
-				++length;
-
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		GAIA_MSVC_WARNING_POP()
-
-#else
-	#error "Unknown hashing type defined"
-#endif
-
-	} // namespace core
-} // namespace gaia
-
-/*** End of inlined file: hashing_policy.h ***/
 
 
 /*** Start of inlined file: reflection.h ***/
@@ -5478,26 +5480,37 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
-		template <typename TBitset, bool IsInverse>
+		//! Bitset iterator
+		//! \tparam TBitset Iterator's bitset parent
+		//! \tparam IsFwd If true the iterator moves forward. Backwards iterations otherwise.
+		//! \tparam IsInverse If true, all values are inverse
+		template <typename TBitset, bool IsFwd, bool IsInverse>
 		class bitset_const_iterator {
 		public:
 			using value_type = uint32_t;
 			using size_type = typename TBitset::size_type;
 
 		private:
-			const TBitset& m_bitset;
+			const TBitset* m_bitset;
 			value_type m_pos;
 
-			size_type item(uint32_t wordIdx) const {
+			GAIA_NODISCARD size_type item(uint32_t wordIdx) const noexcept {
 				if constexpr (IsInverse)
-					return ~m_bitset.data(wordIdx);
+					return ~m_bitset->data(wordIdx);
 				else
-					return m_bitset.data(wordIdx);
+					return m_bitset->data(wordIdx);
 			}
 
-			uint32_t find_next_set_bit(uint32_t pos) const {
+			GAIA_NODISCARD bool check_bit(uint32_t pos) const noexcept {
+				if constexpr (IsInverse)
+					return !m_bitset->test(pos);
+				else
+					return m_bitset->test(pos);
+			}
+
+			GAIA_NODISCARD uint32_t find_next_set_bit(uint32_t pos) const noexcept {
 				value_type wordIndex = pos / TBitset::BitsPerItem;
-				const auto item_count = m_bitset.items();
+				const auto item_count = m_bitset->items();
 				GAIA_ASSERT(wordIndex < item_count);
 				size_type word = 0;
 
@@ -5526,9 +5539,9 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			uint32_t find_prev_set_bit(uint32_t pos) const {
+			GAIA_NODISCARD uint32_t find_prev_set_bit(uint32_t pos) const noexcept {
 				value_type wordIndex = pos / TBitset::BitsPerItem;
-				GAIA_ASSERT(wordIndex < m_bitset.items());
+				GAIA_ASSERT(wordIndex < m_bitset->items());
 
 				const size_type posInWord = pos % TBitset::BitsPerItem;
 				const size_type mask = (size_type(1) << posInWord) - 1;
@@ -5554,19 +5567,23 @@ namespace gaia {
 			}
 
 		public:
-			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+			bitset_const_iterator() = default;
+			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(&bitset), m_pos(pos) {
 				if (fwd) {
-					if constexpr (IsInverse) {
+					if constexpr (!IsFwd) {
 						// Find the first set bit
-						if (pos != 0 || bitset.test(0)) {
+						if (pos != 0 || !check_bit(0)) {
 							pos = find_next_set_bit(m_pos);
-							// Point beyond the last item if no set bit was found
+							// Point before the last item if no set bit was found
 							if (pos == m_pos)
-								pos = bitset.size();
-						}
+								pos = (value_type)-1;
+							else
+								--pos;
+						} else
+							--pos;
 					} else {
 						// Find the first set bit
-						if (pos != 0 || !bitset.test(0)) {
+						if (pos != 0 || !check_bit(0)) {
 							pos = find_next_set_bit(m_pos);
 							// Point beyond the last item if no set bit was found
 							if (pos == m_pos)
@@ -5582,20 +5599,17 @@ namespace gaia {
 					if (pos >= bitsetSize)
 						pos = bitsetSize - 1;
 
-					if constexpr (IsInverse) {
+					if constexpr (!IsFwd) {
 						// Find the last set bit
-						if (pos != lastBit || bitset.test(pos)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
+						if (pos != lastBit || !check_bit(pos)) {
+							const auto newPos = find_prev_set_bit(pos);
 							// Point one beyond the last found bit
-							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+							pos = (newPos == pos) ? bitsetSize - 1 : newPos;
 						}
-						// Point one beyond the last found bit
-						else
-							++pos;
 					} else {
 						// Find the last set bit
-						if (pos != lastBit || !bitset.test(pos)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
+						if (pos != lastBit || !check_bit(pos)) {
+							const auto newPos = find_prev_set_bit(pos);
 							// Point one beyond the last found bit
 							pos = (newPos == pos) ? bitsetSize : newPos + 1;
 						}
@@ -5621,11 +5635,23 @@ namespace gaia {
 			}
 
 			bitset_const_iterator& operator++() {
-				uint32_t newPos = find_next_set_bit(m_pos);
-				// Point one past the last item if no new bit was found
-				if (newPos == m_pos)
-					++newPos;
-				m_pos = newPos;
+				if constexpr (!IsFwd) {
+					if (m_pos == (value_type)-1)
+						return *this;
+
+					auto newPos = find_prev_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						--newPos;
+					m_pos = newPos;
+				} else {
+					auto newPos = find_next_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						++newPos;
+					m_pos = newPos;
+				}
+
 				return *this;
 			}
 
@@ -5643,13 +5669,21 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
+
+		template <typename TBitset>
+		using const_iterator = bitset_const_iterator<TBitset, true, false>;
+		template <typename TBitset>
+		using const_iterator_inverse = bitset_const_iterator<TBitset, true, true>;
+		template <typename TBitset>
+		using const_reverse_iterator = bitset_const_iterator<TBitset, false, false>;
+		template <typename TBitset>
+		using const_reverse_inverse_iterator = bitset_const_iterator<TBitset, false, true>;
 	} // namespace cnt
 } // namespace gaia
 /*** End of inlined file: bitset_iterator.h ***/
 
 namespace gaia {
 	namespace cnt {
-
 		template <uint32_t NBits>
 		class bitset {
 		public:
@@ -5680,10 +5714,15 @@ namespace gaia {
 			}
 
 		public:
-			using const_iterator = bitset_const_iterator<bitset<NBits>, false>;
-			friend const_iterator;
-			using const_iterator_inverse = bitset_const_iterator<bitset<NBits>, true>;
-			friend const_iterator_inverse;
+			using this_bitset = bitset<NBits>;
+			using iter = const_iterator<this_bitset>;
+			using iter_inv = const_iterator_inverse<this_bitset>;
+			using iter_rev = const_reverse_iterator<this_bitset>;
+			using iter_rev_inv = const_reverse_inverse_iterator<this_bitset>;
+			friend iter;
+			friend iter_inv;
+			friend iter_rev;
+			friend iter_rev_inv;
 
 			size_type* data() {
 				return &m_data[0];
@@ -5698,20 +5737,36 @@ namespace gaia {
 				return Items;
 			}
 
-			const_iterator begin() const {
-				return const_iterator(*this, 0, true);
+			iter begin() const {
+				return iter(*this, 0, true);
 			}
 
-			const_iterator end() const {
-				return const_iterator(*this, NBits, false);
+			iter end() const {
+				return iter(*this, NBits, false);
 			}
 
-			const_iterator_inverse begin_inverse() const {
-				return const_iterator_inverse(*this, 0, true);
+			iter_rev rbegin() const {
+				return iter_rev(*this, NBits, false);
 			}
 
-			const_iterator_inverse end_inverse() const {
-				return const_iterator_inverse(*this, NBits, false);
+			iter_rev rend() const {
+				return iter_rev(*this, 0, true);
+			}
+
+			iter_inv ibegin() const {
+				return iter_inv(*this, 0, true);
+			}
+
+			iter_inv iend() const {
+				return iter_inv(*this, NBits, false);
+			}
+
+			iter_rev_inv ribegin() const {
+				return iter_rev_inv(*this, NBits, false);
+			}
+
+			iter_rev_inv riend() const {
+				return iter_rev_inv(*this, 0, true);
 			}
 
 			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
@@ -5777,7 +5832,7 @@ namespace gaia {
 				GAIA_ASSERT(bitFrom <= bitTo);
 				GAIA_ASSERT(bitTo < size());
 
-				// The followign can't happen because we always have at least 1 bit
+				// The following can't happen because we always have at least 1 bit
 				// if GAIA_UNLIKELY (size() == 0)
 				// 	return *this;
 
@@ -7532,10 +7587,15 @@ namespace gaia {
 			}
 
 		public:
-			using const_iterator = bitset_const_iterator<dbitset, false>;
-			friend const_iterator;
-			using const_iterator_inverse = bitset_const_iterator<dbitset, true>;
-			friend const_iterator_inverse;
+			using iter = const_iterator<dbitset>;
+			using iter_inv = const_iterator_inverse<dbitset>;
+			using iter_rev = const_reverse_iterator<dbitset>;
+			using iter_rev_inv = const_reverse_inverse_iterator<dbitset>;
+
+			friend iter;
+			friend iter_inv;
+			friend iter_rev;
+			friend iter_rev_inv;
 
 			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
@@ -7643,20 +7703,36 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 			}
 
-			const_iterator begin() const {
-				return const_iterator(*this, 0, true);
+			iter begin() const {
+				return iter(*this, 0, true);
 			}
 
-			const_iterator end() const {
-				return const_iterator(*this, size(), false);
+			iter end() const {
+				return iter(*this, size(), false);
 			}
 
-			const_iterator_inverse begin_inverse() const {
-				return const_iterator_inverse(*this, 0, true);
+			iter_rev rbegin() const {
+				return iter_rev(*this, size(), false);
 			}
 
-			const_iterator_inverse end_inverse() const {
-				return const_iterator_inverse(*this, size(), false);
+			iter_rev rend() const {
+				return iter_rev(*this, 0, true);
+			}
+
+			iter_inv ibegin() const {
+				return iter_inv(*this, 0, true);
+			}
+
+			iter_inv iend() const {
+				return iter_inv(*this, size(), false);
+			}
+
+			iter_rev_inv ribegin() const {
+				return iter_rev_inv(*this, size(), false);
+			}
+
+			iter_rev_inv riend() const {
+				return iter_rev_inv(*this, 0, true);
 			}
 
 			GAIA_NODISCARD bool operator[](uint32_t pos) const {
@@ -10609,6 +10685,875 @@ namespace gaia {
 /*** End of inlined file: map.h ***/
 
 
+/*** Start of inlined file: paged_storage.h ***/
+#pragma once
+
+#include <cstddef>
+#include <initializer_list>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace cnt {
+		using page_storage_id = uint32_t;
+
+		namespace detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+
+			constexpr static page_storage_id InvalidPageStorageId = (page_storage_id)-1;
+
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class mem_page;
+		} // namespace detail
+
+		template <typename T>
+		struct to_page_storage_id {
+			static page_storage_id get(const T& item) noexcept {
+				(void)item;
+				static_assert(
+						std::is_empty_v<T>,
+						"Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
+				return detail::InvalidPageStorageId;
+			}
+		};
+
+		namespace detail {
+			template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+			struct mem_page_iterator {
+				using iterator_category = core::bidirectional_iterator_tag;
+				using value_type = T;
+				using pointer = T*;
+				using reference = T&;
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+				using iterator = mem_page_iterator;
+
+			private:
+				constexpr static uint32_t page_mask = PageCapacity - 1;
+				constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+				using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+				using bit_set_iter_type =
+						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+
+				page_type* m_pPage;
+				bit_set_iter_type m_it;
+
+			public:
+				mem_page_iterator() = default;
+				mem_page_iterator(page_type* pPage, bit_set_iter_type it): m_pPage(pPage), m_it(it) {}
+
+				reference operator*() const {
+					return m_pPage->set_data(*m_it);
+				}
+				pointer operator->() const {
+					return &m_pPage->set_data(*m_it);
+				}
+
+				iterator& operator++() {
+					++m_it;
+					return *this;
+				}
+				iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
+					return m_pPage == other.m_pPage && m_it == other.m_it;
+				}
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
+					return m_pPage != other.m_pPage && m_it != other.m_it;
+				}
+			};
+
+			template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+			struct mem_page_iterator_soa {
+				using iterator_category = core::bidirectional_iterator_tag;
+				using value_type = T;
+				// using pointer = T*; not supported
+				// using reference = T&; not supported
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+				using iterator = mem_page_iterator_soa;
+
+			private:
+				constexpr static uint32_t page_mask = PageCapacity - 1;
+				constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+				using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+				using bit_set_iter_type =
+						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+
+				page_type* m_pPage;
+				bit_set_iter_type m_it;
+
+			public:
+				mem_page_iterator_soa(page_type* pPage, bit_set_iter_type it): m_pPage(pPage), m_it(it) {}
+
+				value_type operator*() const {
+					return m_pPage->set_data(*m_it);
+				}
+				value_type operator->() const {
+					return &m_pPage->set_data(*m_it);
+				}
+
+				iterator& operator++() {
+					++m_it;
+					return *this;
+				}
+				iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				iterator& operator--() {
+					--m_it;
+					return *this;
+				}
+				iterator operator--(int) {
+					iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
+					return m_pPage == other.m_pPage && m_it == other.m_it;
+				}
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
+					return m_pPage != other.m_pPage && m_it != other.m_it;
+				}
+			};
+
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class mem_page {
+			public:
+				static_assert(!std::is_empty_v<T>, "It only makes sense to use page storage for data types with non-zero size");
+
+				using value_type = T;
+				using reference = T&;
+				using const_reference = const T&;
+				using pointer = T*;
+				using const_pointer = T*;
+				using view_policy = mem::auto_view_policy<T>;
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+
+				static constexpr uint32_t CalculateBitFieldSize() {
+					constexpr uint32_t MaxItems = PageCapacity / sizeof(T);
+					constexpr uint32_t BitsRequired = core::count_bits(MaxItems);
+					return BitsRequired;
+				}
+				static constexpr uint32_t ItemMaskBitCnt = CalculateBitFieldSize();
+
+				using bit_set = cnt::bitset<ItemMaskBitCnt>;
+				template <bool IsFwd>
+				using iterator_base = mem_page_iterator<T, PageCapacity, Allocator, IsFwd>;
+				using iterator = iterator_base<true>;
+				using iterator_reverse = iterator_base<false>;
+
+				template <bool IsFwd>
+				using iterator_soa_base = mem_page_iterator_soa<T, PageCapacity, Allocator, IsFwd>;
+				using iterator_soa = iterator_soa_base<true>;
+				using iterator_soa_reverse = iterator_soa_base<false>;
+
+				struct PageHeader {
+					//! How many items are allocated inside the page
+					size_type cnt = size_type(0);
+					//! Mask for used data
+					bit_set mask;
+				};
+
+				struct PageData {
+					//! Page header
+					PageHeader header;
+					//! Page data
+					T data[(PageCapacity - sizeof(PageHeader)) / sizeof(T)];
+				};
+
+				// private:
+				//! Pointer to page data
+				PageData* m_pData = nullptr;
+
+				void ensure() {
+					if (m_pData != nullptr)
+						return;
+
+					// Allocate memory for data
+					m_pData = (PageData*)view_policy::template alloc<Allocator>(1);
+				}
+
+				void dtr_data_inter(uint32_t idx) noexcept {
+					GAIA_ASSERT(!empty());
+
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						auto* ptr = &data()[idx];
+						core::call_dtor(ptr);
+					}
+
+					m_pData->header.mask.set(idx, false);
+					--m_pData->m_cnt;
+				}
+
+				void dtr_active_data() noexcept {
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						for (auto i: m_pData->header.mask) {
+							auto* ptr = &data()[i];
+							core::call_dtor(ptr);
+						}
+					}
+				}
+
+				void invalidate() {
+					if (m_pData == nullptr)
+						return;
+
+					// Destruct active items
+					dtr_active_data();
+
+					// Release allocated memory
+					view_policy::template free<Allocator>((void*)m_pData, 1);
+					m_pData = nullptr;
+				}
+
+			public:
+				mem_page() = default;
+
+				mem_page(const mem_page& other) {
+					// Copy new items over
+					if (other.m_pData == nullptr) {
+						invalidate();
+					} else {
+						ensure();
+
+						// Copy construct data
+						for (auto i: other.m_pData->header.mask)
+							add_data(i, other.get_data(i));
+
+						m_pData->header.mask = other.m_pData->header.mask;
+						m_pData->header.cnt = other.m_pData.header.cnt;
+					}
+				}
+
+				mem_page& operator=(const mem_page& other) {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					// Copy new items over if there are any
+					if (other.m_pData == nullptr) {
+						invalidate();
+					} else {
+						ensure();
+
+						// Remove current active items
+						if (m_pData != nullptr)
+							dtr_active_data();
+
+						// Copy data
+						for (auto i: other.m_pData->header.mask)
+							add_data(i, other.get_data(i));
+
+						m_pData->header.mask = other.m_pData->header.mask;
+						m_pData->header.cnt = other.m_pData->header.cnt;
+					}
+
+					return *this;
+				}
+
+				mem_page(mem_page&& other) noexcept {
+					m_pData = other.m_pData;
+					other.m_pData = nullptr;
+				}
+
+				mem_page& operator=(mem_page&& other) noexcept {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					invalidate();
+
+					m_pData = other.m_pData;
+					other.m_pData = nullptr;
+
+					return *this;
+				}
+
+				~mem_page() {
+					invalidate();
+				}
+
+				GAIA_CLANG_WARNING_PUSH()
+				// Memory is aligned so we can silence this warning
+				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+				GAIA_NODISCARD pointer data() noexcept {
+					return (pointer)m_pData->data;
+				}
+
+				GAIA_NODISCARD const_pointer data() const noexcept {
+					return (const_pointer)m_pData->data;
+				}
+
+				GAIA_NODISCARD decltype(auto) set_data(size_type pos) noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) get_data(size_type pos) const noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_CLANG_WARNING_POP()
+
+				void add() {
+					ensure();
+					++m_pData->header.cnt;
+				}
+
+				decltype(auto) add_data(uint32_t idx, const T& arg) {
+					m_pData->header.mask.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = arg;
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, arg);
+						return (reference)(*ptr);
+					}
+				}
+
+				decltype(auto) add_data(uint32_t idx, T&& arg) {
+					m_pData->header.mask.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = GAIA_MOV(arg);
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, GAIA_MOV(arg));
+						return (reference)(*ptr);
+					}
+				}
+
+				template <typename... Args>
+				decltype(auto) emplace_data(uint32_t idx, Args&&... args) {
+					m_pData->header.used.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = T(GAIA_MOV(args)...);
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, GAIA_MOV(args)...);
+						return (reference)(*ptr);
+					}
+				}
+
+				void del_data(uint32_t idx) noexcept {
+					dtr_data_inter(idx);
+
+					// If there is no more data, release the memory allocated by the page
+					if (m_pData->header.cnt == 0)
+						invalidate();
+				}
+
+				GAIA_NODISCARD bool has_data(uint32_t idx) const noexcept {
+					return m_pData ? m_pData->header.mask.test(idx) : false;
+				}
+
+				GAIA_NODISCARD size_type size() const noexcept {
+					return m_pData ? m_pData->header.cnt : 0;
+				}
+
+				GAIA_NODISCARD bool empty() const noexcept {
+					return size() == 0;
+				}
+
+				GAIA_NODISCARD decltype(auto) front() noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) front() const noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (const_reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) back() noexcept {
+					GAIA_ASSERT(!empty());
+					const auto idx = *m_pData->header.mask.rbegin();
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(idx);
+					else
+						return (reference)(set_data(idx));
+				}
+
+				GAIA_NODISCARD decltype(auto) back() const noexcept {
+					GAIA_ASSERT(!empty());
+					const auto idx = *m_pData->header.mask.rbegin();
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(idx);
+					else
+						return (const_reference)set_data(idx);
+				}
+
+				GAIA_NODISCARD auto begin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa((mem_page*)this, m_pData->header.mask.begin());
+					else
+						return iterator((mem_page*)this, m_pData->header.mask.begin());
+				}
+
+				GAIA_NODISCARD auto end() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa((mem_page*)this, m_pData->header.mask.end());
+					else
+						return iterator((mem_page*)this, m_pData->header.mask.end());
+				}
+
+				GAIA_NODISCARD auto rbegin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+					else
+						return iterator_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+				}
+
+				GAIA_NODISCARD auto rend() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rend());
+					else
+						return iterator_reverse((mem_page*)this, m_pData->header.mask.rend());
+				}
+
+				GAIA_NODISCARD bool operator==(const mem_page& other) const noexcept {
+					if (m_pData != other.m_pData)
+						return false;
+					if (m_pData->header.cnt != other.m_pData->header.cnt)
+						return false;
+					if (m_pData->header.mask != other.m_pData->header.mask)
+						return false;
+					for (auto i: m_pData->header.mask)
+						if (!(get_data(i) == other[i]))
+							return false;
+					return true;
+				}
+
+				GAIA_NODISCARD bool operator!=(const mem_page& other) const noexcept {
+					return !operator==(other);
+				}
+			};
+		} // namespace detail
+
+		template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+		struct page_iterator {
+			using iterator_category = core::bidirectional_iterator_tag;
+			using value_type = T;
+			using pointer = T*;
+			using reference = T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = page_iterator;
+
+		private:
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+			page_type* m_pPage;
+			page_type* m_pPageLast;
+			typename page_type::template iterator_base<IsFwd> m_it;
+
+		public:
+			page_iterator(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					auto it2 = m_pPage->rend();
+					(void)it2;
+					while (m_it == m_pPage->rend()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			reference operator*() const {
+				return m_it.operator*();
+			}
+			pointer operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					if (m_it == m_pPage->rend()) {
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					if (m_it == m_pPage->end()) {
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
+		template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+		struct page_iterator_soa {
+			using iterator_category = core::bidirectional_iterator_tag;
+			using value_type = T;
+			// using pointer = T*;
+			// using reference = T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = page_iterator_soa;
+
+		private:
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+			page_type* m_pPage;
+			page_type* m_pPageLast;
+			typename page_type::template iterator_soa_base<IsFwd> m_it;
+
+		public:
+			page_iterator_soa(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					while (m_it == m_pPage->rend()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			value_type operator*() const {
+				return m_it.operator*();
+			}
+			value_type operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					while (m_it == m_pPage->rend()) {
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					while (m_it == m_pPage->end()) {
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
+		//! Array with variable size of elements of type \tparam T allocated on heap.
+		//! Allocates enough memory to support \tparam PageCapacity elements.
+		//! Uses \tparam Allocator to allocate memory.
+		template <typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor>
+		class page_storage {
+		public:
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using view_policy = mem::auto_view_policy<T>;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+
+			using iterator = page_iterator<T, PageCapacity, Allocator, true>;
+			using iterator_reverse = page_iterator<T, PageCapacity, Allocator, false>;
+			using iterator_soa = page_iterator_soa<T, PageCapacity, Allocator, true>;
+			using iterator_soa_reverse = page_iterator_soa<T, PageCapacity, Allocator, false>;
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+		private:
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of page_storage must be a power of 2");
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			//! Contains pages with data
+			cnt::darray<page_type> m_pages;
+
+			void try_grow(uint32_t pid) {
+				// The page array has to be able to take any page index
+				if (pid >= m_pages.size())
+					m_pages.resize(pid + 1);
+
+				m_pages[pid].add();
+			}
+
+		public:
+			constexpr page_storage() noexcept = default;
+
+			page_storage(const page_storage& other) {
+				m_pages = other.m_pages;
+			}
+
+			page_storage& operator=(const page_storage& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_pages = other.m_pages;
+				return *this;
+			}
+
+			page_storage(page_storage&& other) noexcept {
+				m_pages = GAIA_MOV(other.m_pages);
+				other.m_pages = {};
+			}
+
+			page_storage& operator=(page_storage&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_pages = GAIA_MOV(other.m_pages);
+				other.m_pages = {};
+
+				return *this;
+			}
+
+			~page_storage() = default;
+
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
+				GAIA_ASSERT(has(id));
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+				auto& page = m_pages[pid];
+				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
+			}
+
+			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
+				GAIA_ASSERT(has(id));
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+				auto& page = m_pages[pid];
+				return view_policy::get({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
+			}
+
+			GAIA_CLANG_WARNING_POP()
+
+			//! Checks if an item with a given page id \param sid exists
+			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
+				const auto pid = size_type(id >> to_page_index);
+				if (pid >= m_pages.size())
+					return false;
+
+				const auto did = size_type(id & page_mask);
+				return m_pages[pid].has_data(did);
+			}
+
+			//! Checks if an item \param arg exists within the storage
+			GAIA_NODISCARD bool has(const T& arg) const noexcept {
+				const auto id = to_page_storage_id<T>::get(arg);
+				GAIA_ASSERT(id != detail::InvalidPageStorageId);
+				return has(id);
+			}
+
+			//! Inserts the item \param arg into the storage.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			template <typename TType>
+			decltype(auto) add(TType&& arg) {
+				const auto id = to_page_storage_id<T>::get(arg);
+				if (has(id)) {
+					if constexpr (mem::is_soa_layout_v<TType>)
+						return;
+					else {
+						const auto pid = size_type(id >> to_page_index);
+						const auto did = size_type(id & page_mask);
+						auto& page = m_pages[pid];
+						return page.set_data(did);
+					}
+				}
+
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+
+				try_grow(pid);
+
+				auto& page = m_pages[pid];
+				if constexpr (mem::is_soa_layout_v<TType>)
+					page.add_data(did, GAIA_FWD(arg));
+				else
+					return page.add_data(did, GAIA_FWD(arg));
+			}
+
+			//! Update the record at the index \param id.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			decltype(auto) set(page_storage_id id) {
+				GAIA_ASSERT(has(id));
+
+				const auto pid = uint32_t(id >> to_page_index);
+				const auto did = uint32_t(id & page_mask);
+
+				auto& page = m_pages[pid];
+				return page.set_data(did);
+			}
+
+			//! Removes the item at the index \param id from the storage.
+			void del(page_storage_id id) noexcept {
+				GAIA_ASSERT(!empty());
+				GAIA_ASSERT(id != detail::InvalidPageStorageId);
+
+				if (!has(id))
+					return;
+
+				const auto pid = uint32_t(id >> to_page_index);
+				const auto did = uint32_t(id & page_mask);
+
+				auto& page = m_pages[pid];
+				page.del_data(did);
+			}
+
+			//! Removes the item \param arg from the storage.
+			void del(const T& arg) noexcept {
+				const auto id = to_page_storage_id<T>::get(arg);
+				return del(id);
+			}
+
+			//! Clears the storage
+			void clear() {
+				m_pages.resize(0);
+			}
+
+			//! Returns the number of items inserted into the storage
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_pages.size();
+			}
+
+			//! Checks if the storage is empty (no items inserted)
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD decltype(auto) front() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) back() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference)*rbegin();
+			}
+
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference)*rbegin();
+			}
+
+			GAIA_NODISCARD auto begin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator(m_pages.data(), m_pages.data() + size());
+			}
+
+			GAIA_NODISCARD auto end() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator(m_pages.data() + size(), m_pages.data() + size());
+			}
+
+			GAIA_NODISCARD auto rbegin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator_reverse(m_pages.data() + size() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto rend() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator_reverse(m_pages.data() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD bool operator==(const page_storage& other) const noexcept {
+				return m_pages == other.m_pages;
+			}
+
+			GAIA_NODISCARD bool operator!=(const page_storage& other) const noexcept {
+				return !operator==(other);
+			}
+		};
+	} // namespace cnt
+
+} // namespace gaia
+/*** End of inlined file: paged_storage.h ***/
+
+
 /*** Start of inlined file: sarray.h ***/
 #pragma once
 
@@ -12120,18 +13065,16 @@ namespace gaia {
 					m_pData = view_policy::template alloc<Allocator>(PageCapacity);
 				}
 
-				void del_data_inter(uint32_t idx) noexcept {
+				void dtr_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
 					if constexpr (!mem::is_soa_layout_v<T>) {
 						auto* ptr = &data()[idx];
 						core::call_dtor(ptr);
 					}
-
-					--m_cnt;
 				}
 
-				void del_active_data() noexcept {
+				void dtr_active_data() noexcept {
 					GAIA_ASSERT(m_pSparse != nullptr);
 
 					for (uint32_t i = 0; m_cnt != 0 && i != PageCapacity; ++i) {
@@ -12143,8 +13086,6 @@ namespace gaia {
 							core::call_dtor(ptr);
 						}
 					}
-
-					m_cnt = 0;
 				}
 
 				void invalidate() {
@@ -12152,7 +13093,7 @@ namespace gaia {
 						return;
 
 					// Destruct active items
-					del_active_data();
+					dtr_active_data();
 
 					// Release allocated memory
 					mem::AllocHelper::free("SparsePage", m_pSparse);
@@ -12171,14 +13112,16 @@ namespace gaia {
 					if (other.m_pSparse == nullptr) {
 						invalidate();
 					} else {
+						ensure();
+
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
 							if (m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
-							// Copy data
-							set_data(i) = other.set_data(i);
+							// Copy construct data
+							add_data(i, other.set_data(i));
 						}
 
 						m_cnt = other.m_cnt;
@@ -12188,27 +13131,25 @@ namespace gaia {
 				sparse_page& operator=(const sparse_page& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
-					if (m_pData == nullptr && other.m_pData != nullptr)
-						ensure();
-
-					// Remove current active items
-					if (m_pSparse != nullptr)
-						del_active_data();
-
-					GAIA_ASSERT(m_cnt == 0);
-
-					// Copy new items over if there are any
 					if (other.m_pSparse == nullptr) {
+						// If the other array is empty, let's just invalidate this one
 						invalidate();
 					} else {
+						ensure();
+
+						// Remove current active items
+						if (m_pSparse != nullptr)
+							dtr_active_data();
+
+						// Copy new items over if there are any
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
 							if (other.m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
-							// Copy data
-							mem::copy_ctor_element<T>(m_pData, other.m_pData, i, i, PageCapacity, PageCapacity);
+							// Copy construct data
+							add_data(i, other.get_data(i));
 						}
 
 						m_cnt = other.m_cnt;
@@ -12218,10 +13159,6 @@ namespace gaia {
 				}
 
 				sparse_page(sparse_page&& other) noexcept {
-					// This is a newly constructed object.
-					// It can't have any memory allocated, yet.
-					GAIA_ASSERT(m_pData == nullptr);
-
 					m_pSparse = other.m_pSparse;
 					m_pData = other.m_pData;
 					m_cnt = other.m_cnt;
@@ -12307,7 +13244,10 @@ namespace gaia {
 				}
 
 				void del_data(uint32_t idx) noexcept {
-					del_data_inter(idx);
+					dtr_data_inter(idx);
+
+					GAIA_ASSERT(m_cnt > 0);
+					--m_cnt;
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -12397,7 +13337,7 @@ namespace gaia {
 				}
 			};
 
-			//! Spare page. Specialized for zero-size \tparam T
+			//! Sparse page. Specialized for zero-size \tparam T
 			template <typename T, uint32_t PageCapacity, typename Allocator>
 			class sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 			public:
@@ -12425,15 +13365,12 @@ namespace gaia {
 					}
 				}
 
-				void del_data_inter([[maybe_unused]] uint32_t idx) noexcept {
+				void dtr_data_inter([[maybe_unused]] uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
-					GAIA_ASSERT(idx < m_cnt);
-					--m_cnt;
 				}
 
-				void del_active_data() noexcept {
+				void dtr_active_data() noexcept {
 					GAIA_ASSERT(m_pSparse != nullptr);
-					m_cnt = 0;
 				}
 
 				void invalidate() {
@@ -12472,16 +13409,14 @@ namespace gaia {
 					if (m_pSparse == nullptr && other.m_pSparse != nullptr)
 						ensure();
 
-					// Remove current active items
-					if (m_pSparse != nullptr)
-						del_active_data();
-
-					GAIA_ASSERT(m_cnt == 0);
-
 					// Copy new items over if there are any
 					if (other.m_pSparse == nullptr) {
 						invalidate();
 					} else {
+						// Remove current active items
+						if (m_pSparse != nullptr)
+							dtr_active_data();
+
 						// Copy indices
 						for (uint32_t i = 0; i < PageCapacity; ++i)
 							m_pSparse[i] = other.m_pSparse[i];
@@ -12550,7 +13485,10 @@ namespace gaia {
 				}
 
 				void del_id(uint32_t idx) noexcept {
-					del_data_inter(idx);
+					dtr_data_inter(idx);
+
+					GAIA_ASSERT(m_cnt > 0);
+					--m_cnt;
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -12642,7 +13580,7 @@ namespace gaia {
 			void try_grow(uint32_t pid) {
 				m_dense.resize(m_cnt + 1);
 
-				// The spare array has to be able to take any sparse index
+				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
 					m_pages.resize(pid + 1);
 
@@ -12809,6 +13747,7 @@ namespace gaia {
 				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
+				GAIA_ASSERT(m_cnt > 0);
 				--m_cnt;
 			}
 
@@ -12963,7 +13902,7 @@ namespace gaia {
 			void try_grow(uint32_t pid) {
 				m_dense.resize(m_cnt + 1);
 
-				// The spare array has to be able to take any sparse index
+				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
 					m_pages.resize(pid + 1);
 
@@ -13079,6 +14018,7 @@ namespace gaia {
 				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
+				GAIA_ASSERT(m_cnt > 0);
 				--m_cnt;
 			}
 
@@ -18801,8 +19741,8 @@ namespace gaia {
 
 	namespace cnt {
 		template <>
-		struct to_sparse_id<ecs::EntityContainer> {
-			static sparse_id get(const ecs::EntityContainer& item) noexcept;
+		struct to_page_storage_id<ecs::EntityContainer> {
+			static page_storage_id get(const ecs::EntityContainer& item) noexcept;
 		};
 	} // namespace cnt
 
@@ -18891,7 +19831,7 @@ namespace gaia {
 			}
 		};
 
-		class EntityContainer_sparse_storage: public cnt::sparse_storage<EntityContainer, 4096> {
+		class EntityContainer_paged_storage: public cnt::page_storage<EntityContainer, 4096> {
 		public:
 			void push_back(EntityContainer&& container) {
 				add(GAIA_MOV(container));
@@ -18902,7 +19842,7 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::ilist<EntityContainer, Entity> entities;
-			// cnt::ilist<EntityContainer, Entity, EntityContainer_sparse_storage> entities;
+			// cnt::ilist<EntityContainer, Entity, EntityContainer_paged_storage> entities;
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
@@ -18922,12 +19862,8 @@ namespace gaia {
 	} // namespace ecs
 
 	namespace cnt {
-		inline sparse_id to_sparse_id<ecs::EntityContainer>::get(const ecs::EntityContainer& item) noexcept {
-			return ecs::Entity(
-								 item.idx, item.gen
-								 //, item.ent, item.pair, item.kind
-								 )
-					.value();
+		inline page_storage_id to_page_storage_id<ecs::EntityContainer>::get(const ecs::EntityContainer& item) noexcept {
+			return item.idx;
 		}
 	} // namespace cnt
 } // namespace gaia
@@ -18950,7 +19886,7 @@ namespace gaia {
 
 		private:
 			//! Pointer to where the chunk data starts.
-			//! Data layed out as following:
+			//! Data laid out as following:
 			//!			1) ComponentVersions
 			//!     2) EntityIds/ComponentIds
 			//!			3) ComponentRecords

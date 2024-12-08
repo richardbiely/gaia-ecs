@@ -26,6 +26,7 @@
 #include "gaia/cnt/fwd_llist.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/map.h"
+#include "gaia/cnt/paged_storage.h"
 #include "gaia/cnt/sarray.h"
 #include "gaia/cnt/sarray_ext.h"
 #include "gaia/cnt/set.h"

@@ -38,7 +38,7 @@ namespace gaia {
 
 		private:
 			//! Pointer to where the chunk data starts.
-			//! Data layed out as following:
+			//! Data laid out as following:
 			//!			1) ComponentVersions
 			//!     2) EntityIds/ComponentIds
 			//!			3) ComponentRecords

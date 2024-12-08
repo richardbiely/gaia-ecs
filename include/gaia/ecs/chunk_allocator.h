@@ -1,12 +1,12 @@
 #pragma once
 #include "../config/config.h"
+#include "../config/logging.h"
 
 #include <cinttypes>
 #include <cstdint>
 
 #include "../cnt/fwd_llist.h"
 #include "../cnt/sarray.h"
-#include "../config/logging.h"
 #include "../core/bit_utils.h"
 #include "../core/dyn_singleton.h"
 #include "../core/utility.h"

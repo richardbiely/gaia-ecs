@@ -96,14 +96,14 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -113,14 +113,14 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type \tparam T in the uninitialize storage at the memory address \param pData.
+		//! Value-constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs \param cnt objects of type \tparam T in the uninitialize storage at the memory address \param
+		//! Value-constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param
 		//! pData.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {

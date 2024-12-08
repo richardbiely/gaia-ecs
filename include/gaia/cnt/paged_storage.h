@@ -1,0 +1,873 @@
+#pragma once
+#include "../config/config.h"
+
+#include <cstddef>
+#include <initializer_list>
+#include <type_traits>
+#include <utility>
+
+#include "../cnt/bitset.h"
+#include "../cnt/darray.h"
+#include "../core/iterator.h"
+#include "../core/utility.h"
+#include "../mem/data_layout_policy.h"
+#include "../mem/mem_utils.h"
+
+namespace gaia {
+	namespace cnt {
+		using page_storage_id = uint32_t;
+
+		namespace detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+
+			constexpr static page_storage_id InvalidPageStorageId = (page_storage_id)-1;
+
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class mem_page;
+		} // namespace detail
+
+		template <typename T>
+		struct to_page_storage_id {
+			static page_storage_id get(const T& item) noexcept {
+				(void)item;
+				static_assert(
+						std::is_empty_v<T>,
+						"Sparse_storage items require a conversion function to be defined in gaia::cnt namespace");
+				return detail::InvalidPageStorageId;
+			}
+		};
+
+		namespace detail {
+			template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+			struct mem_page_iterator {
+				using iterator_category = core::bidirectional_iterator_tag;
+				using value_type = T;
+				using pointer = T*;
+				using reference = T&;
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+				using iterator = mem_page_iterator;
+
+			private:
+				constexpr static uint32_t page_mask = PageCapacity - 1;
+				constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+				using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+				using bit_set_iter_type =
+						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+
+				page_type* m_pPage;
+				bit_set_iter_type m_it;
+
+			public:
+				mem_page_iterator() = default;
+				mem_page_iterator(page_type* pPage, bit_set_iter_type it): m_pPage(pPage), m_it(it) {}
+
+				reference operator*() const {
+					return m_pPage->set_data(*m_it);
+				}
+				pointer operator->() const {
+					return &m_pPage->set_data(*m_it);
+				}
+
+				iterator& operator++() {
+					++m_it;
+					return *this;
+				}
+				iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
+					return m_pPage == other.m_pPage && m_it == other.m_it;
+				}
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
+					return m_pPage != other.m_pPage && m_it != other.m_it;
+				}
+			};
+
+			template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+			struct mem_page_iterator_soa {
+				using iterator_category = core::bidirectional_iterator_tag;
+				using value_type = T;
+				// using pointer = T*; not supported
+				// using reference = T&; not supported
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+				using iterator = mem_page_iterator_soa;
+
+			private:
+				constexpr static uint32_t page_mask = PageCapacity - 1;
+				constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+				using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+				using bit_set_iter_type =
+						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+
+				page_type* m_pPage;
+				bit_set_iter_type m_it;
+
+			public:
+				mem_page_iterator_soa(page_type* pPage, bit_set_iter_type it): m_pPage(pPage), m_it(it) {}
+
+				value_type operator*() const {
+					return m_pPage->set_data(*m_it);
+				}
+				value_type operator->() const {
+					return &m_pPage->set_data(*m_it);
+				}
+
+				iterator& operator++() {
+					++m_it;
+					return *this;
+				}
+				iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				iterator& operator--() {
+					--m_it;
+					return *this;
+				}
+				iterator operator--(int) {
+					iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
+					return m_pPage == other.m_pPage && m_it == other.m_it;
+				}
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
+					return m_pPage != other.m_pPage && m_it != other.m_it;
+				}
+			};
+
+			template <typename T, uint32_t PageCapacity, typename Allocator>
+			class mem_page {
+			public:
+				static_assert(!std::is_empty_v<T>, "It only makes sense to use page storage for data types with non-zero size");
+
+				using value_type = T;
+				using reference = T&;
+				using const_reference = const T&;
+				using pointer = T*;
+				using const_pointer = T*;
+				using view_policy = mem::auto_view_policy<T>;
+				using difference_type = detail::difference_type;
+				using size_type = detail::size_type;
+
+				static constexpr uint32_t CalculateBitFieldSize() {
+					constexpr uint32_t MaxItems = PageCapacity / sizeof(T);
+					constexpr uint32_t BitsRequired = core::count_bits(MaxItems);
+					return BitsRequired;
+				}
+				static constexpr uint32_t ItemMaskBitCnt = CalculateBitFieldSize();
+
+				using bit_set = cnt::bitset<ItemMaskBitCnt>;
+				template <bool IsFwd>
+				using iterator_base = mem_page_iterator<T, PageCapacity, Allocator, IsFwd>;
+				using iterator = iterator_base<true>;
+				using iterator_reverse = iterator_base<false>;
+
+				template <bool IsFwd>
+				using iterator_soa_base = mem_page_iterator_soa<T, PageCapacity, Allocator, IsFwd>;
+				using iterator_soa = iterator_soa_base<true>;
+				using iterator_soa_reverse = iterator_soa_base<false>;
+
+				struct PageHeader {
+					//! How many items are allocated inside the page
+					size_type cnt = size_type(0);
+					//! Mask for used data
+					bit_set mask;
+				};
+
+				struct PageData {
+					//! Page header
+					PageHeader header;
+					//! Page data
+					T data[(PageCapacity - sizeof(PageHeader)) / sizeof(T)];
+				};
+
+				// private:
+				//! Pointer to page data
+				PageData* m_pData = nullptr;
+
+				void ensure() {
+					if (m_pData != nullptr)
+						return;
+
+					// Allocate memory for data
+					m_pData = (PageData*)view_policy::template alloc<Allocator>(1);
+				}
+
+				void dtr_data_inter(uint32_t idx) noexcept {
+					GAIA_ASSERT(!empty());
+
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						auto* ptr = &data()[idx];
+						core::call_dtor(ptr);
+					}
+
+					m_pData->header.mask.set(idx, false);
+					--m_pData->m_cnt;
+				}
+
+				void dtr_active_data() noexcept {
+					if constexpr (!mem::is_soa_layout_v<T>) {
+						for (auto i: m_pData->header.mask) {
+							auto* ptr = &data()[i];
+							core::call_dtor(ptr);
+						}
+					}
+				}
+
+				void invalidate() {
+					if (m_pData == nullptr)
+						return;
+
+					// Destruct active items
+					dtr_active_data();
+
+					// Release allocated memory
+					view_policy::template free<Allocator>((void*)m_pData, 1);
+					m_pData = nullptr;
+				}
+
+			public:
+				mem_page() = default;
+
+				mem_page(const mem_page& other) {
+					// Copy new items over
+					if (other.m_pData == nullptr) {
+						invalidate();
+					} else {
+						ensure();
+
+						// Copy construct data
+						for (auto i: other.m_pData->header.mask)
+							add_data(i, other.get_data(i));
+
+						m_pData->header.mask = other.m_pData->header.mask;
+						m_pData->header.cnt = other.m_pData.header.cnt;
+					}
+				}
+
+				mem_page& operator=(const mem_page& other) {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					// Copy new items over if there are any
+					if (other.m_pData == nullptr) {
+						invalidate();
+					} else {
+						ensure();
+
+						// Remove current active items
+						if (m_pData != nullptr)
+							dtr_active_data();
+
+						// Copy data
+						for (auto i: other.m_pData->header.mask)
+							add_data(i, other.get_data(i));
+
+						m_pData->header.mask = other.m_pData->header.mask;
+						m_pData->header.cnt = other.m_pData->header.cnt;
+					}
+
+					return *this;
+				}
+
+				mem_page(mem_page&& other) noexcept {
+					m_pData = other.m_pData;
+					other.m_pData = nullptr;
+				}
+
+				mem_page& operator=(mem_page&& other) noexcept {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					invalidate();
+
+					m_pData = other.m_pData;
+					other.m_pData = nullptr;
+
+					return *this;
+				}
+
+				~mem_page() {
+					invalidate();
+				}
+
+				GAIA_CLANG_WARNING_PUSH()
+				// Memory is aligned so we can silence this warning
+				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+				GAIA_NODISCARD pointer data() noexcept {
+					return (pointer)m_pData->data;
+				}
+
+				GAIA_NODISCARD const_pointer data() const noexcept {
+					return (const_pointer)m_pData->data;
+				}
+
+				GAIA_NODISCARD decltype(auto) set_data(size_type pos) noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) get_data(size_type pos) const noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
+					GAIA_ASSERT(pos < size());
+					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+				}
+
+				GAIA_CLANG_WARNING_POP()
+
+				void add() {
+					ensure();
+					++m_pData->header.cnt;
+				}
+
+				decltype(auto) add_data(uint32_t idx, const T& arg) {
+					m_pData->header.mask.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = arg;
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, arg);
+						return (reference)(*ptr);
+					}
+				}
+
+				decltype(auto) add_data(uint32_t idx, T&& arg) {
+					m_pData->header.mask.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = GAIA_MOV(arg);
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, GAIA_MOV(arg));
+						return (reference)(*ptr);
+					}
+				}
+
+				template <typename... Args>
+				decltype(auto) emplace_data(uint32_t idx, Args&&... args) {
+					m_pData->header.used.set(idx);
+
+					if constexpr (mem::is_soa_layout_v<T>) {
+						set_data(idx) = T(GAIA_MOV(args)...);
+					} else {
+						auto* ptr = &set_data(idx);
+						core::call_ctor(ptr, GAIA_MOV(args)...);
+						return (reference)(*ptr);
+					}
+				}
+
+				void del_data(uint32_t idx) noexcept {
+					dtr_data_inter(idx);
+
+					// If there is no more data, release the memory allocated by the page
+					if (m_pData->header.cnt == 0)
+						invalidate();
+				}
+
+				GAIA_NODISCARD bool has_data(uint32_t idx) const noexcept {
+					return m_pData ? m_pData->header.mask.test(idx) : false;
+				}
+
+				GAIA_NODISCARD size_type size() const noexcept {
+					return m_pData ? m_pData->header.cnt : 0;
+				}
+
+				GAIA_NODISCARD bool empty() const noexcept {
+					return size() == 0;
+				}
+
+				GAIA_NODISCARD decltype(auto) front() noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) front() const noexcept {
+					GAIA_ASSERT(!empty());
+					if constexpr (mem::is_soa_layout_v<T>)
+						return *begin();
+					else
+						return (const_reference)*begin();
+				}
+
+				GAIA_NODISCARD decltype(auto) back() noexcept {
+					GAIA_ASSERT(!empty());
+					const auto idx = *m_pData->header.mask.rbegin();
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(idx);
+					else
+						return (reference)(set_data(idx));
+				}
+
+				GAIA_NODISCARD decltype(auto) back() const noexcept {
+					GAIA_ASSERT(!empty());
+					const auto idx = *m_pData->header.mask.rbegin();
+					if constexpr (mem::is_soa_layout_v<T>)
+						return set_data(idx);
+					else
+						return (const_reference)set_data(idx);
+				}
+
+				GAIA_NODISCARD auto begin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa((mem_page*)this, m_pData->header.mask.begin());
+					else
+						return iterator((mem_page*)this, m_pData->header.mask.begin());
+				}
+
+				GAIA_NODISCARD auto end() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa((mem_page*)this, m_pData->header.mask.end());
+					else
+						return iterator((mem_page*)this, m_pData->header.mask.end());
+				}
+
+				GAIA_NODISCARD auto rbegin() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+					else
+						return iterator_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+				}
+
+				GAIA_NODISCARD auto rend() const noexcept {
+					if constexpr (mem::is_soa_layout_v<T>)
+						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rend());
+					else
+						return iterator_reverse((mem_page*)this, m_pData->header.mask.rend());
+				}
+
+				GAIA_NODISCARD bool operator==(const mem_page& other) const noexcept {
+					if (m_pData != other.m_pData)
+						return false;
+					if (m_pData->header.cnt != other.m_pData->header.cnt)
+						return false;
+					if (m_pData->header.mask != other.m_pData->header.mask)
+						return false;
+					for (auto i: m_pData->header.mask)
+						if (!(get_data(i) == other[i]))
+							return false;
+					return true;
+				}
+
+				GAIA_NODISCARD bool operator!=(const mem_page& other) const noexcept {
+					return !operator==(other);
+				}
+			};
+		} // namespace detail
+
+		template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+		struct page_iterator {
+			using iterator_category = core::bidirectional_iterator_tag;
+			using value_type = T;
+			using pointer = T*;
+			using reference = T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = page_iterator;
+
+		private:
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+			page_type* m_pPage;
+			page_type* m_pPageLast;
+			typename page_type::template iterator_base<IsFwd> m_it;
+
+		public:
+			page_iterator(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					auto it2 = m_pPage->rend();
+					(void)it2;
+					while (m_it == m_pPage->rend()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			reference operator*() const {
+				return m_it.operator*();
+			}
+			pointer operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					if (m_it == m_pPage->rend()) {
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					if (m_it == m_pPage->end()) {
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
+		template <typename T, uint32_t PageCapacity, typename Allocator, bool IsFwd>
+		struct page_iterator_soa {
+			using iterator_category = core::bidirectional_iterator_tag;
+			using value_type = T;
+			// using pointer = T*;
+			// using reference = T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = page_iterator_soa;
+
+		private:
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+			page_type* m_pPage;
+			page_type* m_pPageLast;
+			typename page_type::template iterator_soa_base<IsFwd> m_it;
+
+		public:
+			page_iterator_soa(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					while (m_it == m_pPage->rend()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			value_type operator*() const {
+				return m_it.operator*();
+			}
+			value_type operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					while (m_it == m_pPage->rend()) {
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					while (m_it == m_pPage->end()) {
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
+		//! Array with variable size of elements of type \tparam T allocated on heap.
+		//! Allocates enough memory to support \tparam PageCapacity elements.
+		//! Uses \tparam Allocator to allocate memory.
+		template <typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor>
+		class page_storage {
+		public:
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using view_policy = mem::auto_view_policy<T>;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+
+			using iterator = page_iterator<T, PageCapacity, Allocator, true>;
+			using iterator_reverse = page_iterator<T, PageCapacity, Allocator, false>;
+			using iterator_soa = page_iterator_soa<T, PageCapacity, Allocator, true>;
+			using iterator_soa_reverse = page_iterator_soa<T, PageCapacity, Allocator, false>;
+			using page_type = detail::mem_page<T, PageCapacity, Allocator>;
+
+		private:
+			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of page_storage must be a power of 2");
+			constexpr static uint32_t page_mask = PageCapacity - 1;
+			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+
+			//! Contains pages with data
+			cnt::darray<page_type> m_pages;
+
+			void try_grow(uint32_t pid) {
+				// The page array has to be able to take any page index
+				if (pid >= m_pages.size())
+					m_pages.resize(pid + 1);
+
+				m_pages[pid].add();
+			}
+
+		public:
+			constexpr page_storage() noexcept = default;
+
+			page_storage(const page_storage& other) {
+				m_pages = other.m_pages;
+			}
+
+			page_storage& operator=(const page_storage& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_pages = other.m_pages;
+				return *this;
+			}
+
+			page_storage(page_storage&& other) noexcept {
+				m_pages = GAIA_MOV(other.m_pages);
+				other.m_pages = {};
+			}
+
+			page_storage& operator=(page_storage&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_pages = GAIA_MOV(other.m_pages);
+				other.m_pages = {};
+
+				return *this;
+			}
+
+			~page_storage() = default;
+
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
+				GAIA_ASSERT(has(id));
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+				auto& page = m_pages[pid];
+				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
+			}
+
+			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
+				GAIA_ASSERT(has(id));
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+				auto& page = m_pages[pid];
+				return view_policy::get({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
+			}
+
+			GAIA_CLANG_WARNING_POP()
+
+			//! Checks if an item with a given page id \param sid exists
+			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
+				const auto pid = size_type(id >> to_page_index);
+				if (pid >= m_pages.size())
+					return false;
+
+				const auto did = size_type(id & page_mask);
+				return m_pages[pid].has_data(did);
+			}
+
+			//! Checks if an item \param arg exists within the storage
+			GAIA_NODISCARD bool has(const T& arg) const noexcept {
+				const auto id = to_page_storage_id<T>::get(arg);
+				GAIA_ASSERT(id != detail::InvalidPageStorageId);
+				return has(id);
+			}
+
+			//! Inserts the item \param arg into the storage.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			template <typename TType>
+			decltype(auto) add(TType&& arg) {
+				const auto id = to_page_storage_id<T>::get(arg);
+				if (has(id)) {
+					if constexpr (mem::is_soa_layout_v<TType>)
+						return;
+					else {
+						const auto pid = size_type(id >> to_page_index);
+						const auto did = size_type(id & page_mask);
+						auto& page = m_pages[pid];
+						return page.set_data(did);
+					}
+				}
+
+				const auto pid = size_type(id >> to_page_index);
+				const auto did = size_type(id & page_mask);
+
+				try_grow(pid);
+
+				auto& page = m_pages[pid];
+				if constexpr (mem::is_soa_layout_v<TType>)
+					page.add_data(did, GAIA_FWD(arg));
+				else
+					return page.add_data(did, GAIA_FWD(arg));
+			}
+
+			//! Update the record at the index \param id.
+			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			decltype(auto) set(page_storage_id id) {
+				GAIA_ASSERT(has(id));
+
+				const auto pid = uint32_t(id >> to_page_index);
+				const auto did = uint32_t(id & page_mask);
+
+				auto& page = m_pages[pid];
+				return page.set_data(did);
+			}
+
+			//! Removes the item at the index \param id from the storage.
+			void del(page_storage_id id) noexcept {
+				GAIA_ASSERT(!empty());
+				GAIA_ASSERT(id != detail::InvalidPageStorageId);
+
+				if (!has(id))
+					return;
+
+				const auto pid = uint32_t(id >> to_page_index);
+				const auto did = uint32_t(id & page_mask);
+
+				auto& page = m_pages[pid];
+				page.del_data(did);
+			}
+
+			//! Removes the item \param arg from the storage.
+			void del(const T& arg) noexcept {
+				const auto id = to_page_storage_id<T>::get(arg);
+				return del(id);
+			}
+
+			//! Clears the storage
+			void clear() {
+				m_pages.resize(0);
+			}
+
+			//! Returns the number of items inserted into the storage
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_pages.size();
+			}
+
+			//! Checks if the storage is empty (no items inserted)
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD decltype(auto) front() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) back() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference)*rbegin();
+			}
+
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference)*rbegin();
+			}
+
+			GAIA_NODISCARD auto begin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator(m_pages.data(), m_pages.data() + size());
+			}
+
+			GAIA_NODISCARD auto end() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator(m_pages.data() + size(), m_pages.data() + size());
+			}
+
+			GAIA_NODISCARD auto rbegin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator_reverse(m_pages.data() + size() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto rend() const noexcept {
+				GAIA_ASSERT(!empty());
+				return iterator_reverse(m_pages.data() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD bool operator==(const page_storage& other) const noexcept {
+				return m_pages == other.m_pages;
+			}
+
+			GAIA_NODISCARD bool operator!=(const page_storage& other) const noexcept {
+				return !operator==(other);
+			}
+		};
+	} // namespace cnt
+
+} // namespace gaia

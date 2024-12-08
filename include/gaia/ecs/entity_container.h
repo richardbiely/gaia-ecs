@@ -6,7 +6,7 @@
 
 #include "../cnt/ilist.h"
 #include "../cnt/map.h"
-#include "../cnt/sparse_storage.h"
+#include "../cnt/paged_storage.h"
 #include "id.h"
 
 namespace gaia {
@@ -16,8 +16,8 @@ namespace gaia {
 
 	namespace cnt {
 		template <>
-		struct to_sparse_id<ecs::EntityContainer> {
-			static sparse_id get(const ecs::EntityContainer& item) noexcept;
+		struct to_page_storage_id<ecs::EntityContainer> {
+			static page_storage_id get(const ecs::EntityContainer& item) noexcept;
 		};
 	} // namespace cnt
 
@@ -106,7 +106,7 @@ namespace gaia {
 			}
 		};
 
-		class EntityContainer_sparse_storage: public cnt::sparse_storage<EntityContainer, 4096> {
+		class EntityContainer_paged_storage: public cnt::page_storage<EntityContainer, 4096> {
 		public:
 			void push_back(EntityContainer&& container) {
 				add(GAIA_MOV(container));
@@ -117,7 +117,7 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::ilist<EntityContainer, Entity> entities;
-			// cnt::ilist<EntityContainer, Entity, EntityContainer_sparse_storage> entities;
+			// cnt::ilist<EntityContainer, Entity, EntityContainer_paged_storage> entities;
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
@@ -137,12 +137,8 @@ namespace gaia {
 	} // namespace ecs
 
 	namespace cnt {
-		inline sparse_id to_sparse_id<ecs::EntityContainer>::get(const ecs::EntityContainer& item) noexcept {
-			return ecs::Entity(
-								 item.idx, item.gen
-								 //, item.ent, item.pair, item.kind
-								 )
-					.value();
+		inline page_storage_id to_page_storage_id<ecs::EntityContainer>::get(const ecs::EntityContainer& item) noexcept {
+			return item.idx;
 		}
 	} // namespace cnt
 } // namespace gaia
