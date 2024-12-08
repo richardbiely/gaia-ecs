@@ -363,18 +363,16 @@ namespace gaia {
 					m_pData = view_policy::template alloc<Allocator>(PageCapacity);
 				}
 
-				void del_data_inter(uint32_t idx) noexcept {
+				void dtr_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
 					if constexpr (!mem::is_soa_layout_v<T>) {
 						auto* ptr = &data()[idx];
 						core::call_dtor(ptr);
 					}
-
-					--m_cnt;
 				}
 
-				void del_active_data() noexcept {
+				void dtr_active_data() noexcept {
 					GAIA_ASSERT(m_pSparse != nullptr);
 
 					for (uint32_t i = 0; m_cnt != 0 && i != PageCapacity; ++i) {
@@ -386,8 +384,6 @@ namespace gaia {
 							core::call_dtor(ptr);
 						}
 					}
-
-					m_cnt = 0;
 				}
 
 				void invalidate() {
@@ -395,7 +391,7 @@ namespace gaia {
 						return;
 
 					// Destruct active items
-					del_active_data();
+					dtr_active_data();
 
 					// Release allocated memory
 					mem::AllocHelper::free("SparsePage", m_pSparse);
@@ -414,14 +410,16 @@ namespace gaia {
 					if (other.m_pSparse == nullptr) {
 						invalidate();
 					} else {
+						ensure();
+
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
 							if (m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
-							// Copy data
-							set_data(i) = other.set_data(i);
+							// Copy construct data
+							add_data(i, other.set_data(i));
 						}
 
 						m_cnt = other.m_cnt;
@@ -431,27 +429,25 @@ namespace gaia {
 				sparse_page& operator=(const sparse_page& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
-					if (m_pData == nullptr && other.m_pData != nullptr)
-						ensure();
-
-					// Remove current active items
-					if (m_pSparse != nullptr)
-						del_active_data();
-
-					GAIA_ASSERT(m_cnt == 0);
-
-					// Copy new items over if there are any
 					if (other.m_pSparse == nullptr) {
+						// If the other array is empty, let's just invalidate this one
 						invalidate();
 					} else {
+						ensure();
+
+						// Remove current active items
+						if (m_pSparse != nullptr)
+							dtr_active_data();
+
+						// Copy new items over if there are any
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
 							if (other.m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
-							// Copy data
-							mem::copy_ctor_element<T>(m_pData, other.m_pData, i, i, PageCapacity, PageCapacity);
+							// Copy construct data
+							add_data(i, other.get_data(i));
 						}
 
 						m_cnt = other.m_cnt;
@@ -461,10 +457,6 @@ namespace gaia {
 				}
 
 				sparse_page(sparse_page&& other) noexcept {
-					// This is a newly constructed object.
-					// It can't have any memory allocated, yet.
-					GAIA_ASSERT(m_pData == nullptr);
-
 					m_pSparse = other.m_pSparse;
 					m_pData = other.m_pData;
 					m_cnt = other.m_cnt;
@@ -550,7 +542,10 @@ namespace gaia {
 				}
 
 				void del_data(uint32_t idx) noexcept {
-					del_data_inter(idx);
+					dtr_data_inter(idx);
+
+					GAIA_ASSERT(m_cnt > 0);
+					--m_cnt;
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -640,7 +635,7 @@ namespace gaia {
 				}
 			};
 
-			//! Spare page. Specialized for zero-size \tparam T
+			//! Sparse page. Specialized for zero-size \tparam T
 			template <typename T, uint32_t PageCapacity, typename Allocator>
 			class sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 			public:
@@ -668,15 +663,12 @@ namespace gaia {
 					}
 				}
 
-				void del_data_inter([[maybe_unused]] uint32_t idx) noexcept {
+				void dtr_data_inter([[maybe_unused]] uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
-					GAIA_ASSERT(idx < m_cnt);
-					--m_cnt;
 				}
 
-				void del_active_data() noexcept {
+				void dtr_active_data() noexcept {
 					GAIA_ASSERT(m_pSparse != nullptr);
-					m_cnt = 0;
 				}
 
 				void invalidate() {
@@ -715,16 +707,14 @@ namespace gaia {
 					if (m_pSparse == nullptr && other.m_pSparse != nullptr)
 						ensure();
 
-					// Remove current active items
-					if (m_pSparse != nullptr)
-						del_active_data();
-
-					GAIA_ASSERT(m_cnt == 0);
-
 					// Copy new items over if there are any
 					if (other.m_pSparse == nullptr) {
 						invalidate();
 					} else {
+						// Remove current active items
+						if (m_pSparse != nullptr)
+							dtr_active_data();
+
 						// Copy indices
 						for (uint32_t i = 0; i < PageCapacity; ++i)
 							m_pSparse[i] = other.m_pSparse[i];
@@ -793,7 +783,10 @@ namespace gaia {
 				}
 
 				void del_id(uint32_t idx) noexcept {
-					del_data_inter(idx);
+					dtr_data_inter(idx);
+
+					GAIA_ASSERT(m_cnt > 0);
+					--m_cnt;
 
 					// If there is no more data, release the memory allocated by the page
 					if (m_cnt == 0)
@@ -885,7 +878,7 @@ namespace gaia {
 			void try_grow(uint32_t pid) {
 				m_dense.resize(m_cnt + 1);
 
-				// The spare array has to be able to take any sparse index
+				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
 					m_pages.resize(pid + 1);
 
@@ -1052,6 +1045,7 @@ namespace gaia {
 				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
+				GAIA_ASSERT(m_cnt > 0);
 				--m_cnt;
 			}
 
@@ -1206,7 +1200,7 @@ namespace gaia {
 			void try_grow(uint32_t pid) {
 				m_dense.resize(m_cnt + 1);
 
-				// The spare array has to be able to take any sparse index
+				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
 					m_pages.resize(pid + 1);
 
@@ -1322,6 +1316,7 @@ namespace gaia {
 				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
 
+				GAIA_ASSERT(m_cnt > 0);
 				--m_cnt;
 			}
 
