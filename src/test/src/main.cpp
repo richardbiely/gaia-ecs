@@ -1489,36 +1489,83 @@ void test_bitset() {
 			const uint32_t c = bs.count();
 
 			uint32_t i = 0;
-			for (auto val: bs) {
-				REQUIRE(vals[i] == val);
+			for (const auto val: bs) {
+				const auto valExpected = vals[i];
+				REQUIRE(valExpected == val);
 				++i;
 			}
 			REQUIRE(i == c);
 			REQUIRE(i == (uint32_t)vals.size());
 		};
+		auto fwd_iterator_test2 = [](std::span<uint32_t> vals) {
+			cnt::bitset<NBits> bs;
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+
+			uint32_t i = 0;
+			for (auto it = bs.begin(); it != bs.end(); ++it) {
+				const auto val = *it;
+				const auto valExpected = vals[i];
+				REQUIRE(valExpected == val);
+				++i;
+			}
+			REQUIRE(i == c);
+			REQUIRE(i == (uint32_t)vals.size());
+		};
+		auto bwd_iterator_test = [](std::span<uint32_t> vals) {
+			cnt::bitset<NBits> bs;
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+			const uint32_t valsN = (uint32_t)vals.size();
+
+			uint32_t i = 0;
+			auto itEnd = bs.rend();
+			for (auto it = bs.rbegin(); it != itEnd; ++it) {
+				const auto val = *it;
+				const auto valExpected = vals[valsN - i - 1U];
+				REQUIRE(valExpected == val);
+				++i;
+			}
+			REQUIRE(i == c);
+			REQUIRE(i == valsN);
+		};
 		{
 			uint32_t vals[]{1, 2, 3};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 2, 3};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{1, 3, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{1, NBits - 2, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 1, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 3, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 	}
 }
@@ -1759,29 +1806,75 @@ void test_dbitset() {
 			REQUIRE(i == c);
 			REQUIRE(i == (uint32_t)vals.size());
 		};
+		auto fwd_iterator_test2 = [](std::span<uint32_t> vals) {
+			cnt::dbitset bs;
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+
+			uint32_t i = 0;
+			for (auto it = bs.begin(); it != bs.end(); ++it) {
+				const auto val = *it;
+				const auto valExpected = vals[i];
+				REQUIRE(valExpected == val);
+				++i;
+			}
+			REQUIRE(i == c);
+			REQUIRE(i == (uint32_t)vals.size());
+		};
+		auto bwd_iterator_test = [](std::span<uint32_t> vals) {
+			cnt::dbitset bs;
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+			const uint32_t valsN = (uint32_t)vals.size();
+
+			uint32_t i = 0;
+			auto itEnd = bs.rend();
+			for (auto it = bs.rbegin(); it != itEnd; ++it) {
+				const auto val = *it;
+				const auto valExpected = vals[valsN - i - 1U];
+				REQUIRE(valExpected == val);
+				++i;
+			}
+			REQUIRE(i == c);
+			REQUIRE(i == valsN);
+		};
 		{
 			uint32_t vals[]{1, 2, 3};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 2, 3};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{1, 3, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{1, NBits - 2, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 1, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 		{
 			uint32_t vals[]{0, 3, NBits - 1};
 			fwd_iterator_test(vals);
+			fwd_iterator_test2(vals);
+			bwd_iterator_test(vals);
 		}
 	}
 }
@@ -8245,6 +8338,19 @@ TEST_CASE("StackAllocator") {
 		}
 	}
 }
+
+// TEST_CASE("PagedAllocator") {
+// 	struct TFoo {
+// 		int a;
+// 		bool b;
+// 	};
+
+// 	auto& a = mem::PagedAllocator<TFoo>::get();
+// 	{
+// 		auto* pPosN = a.alloc();
+// 		(void)pPosN;
+// 	}
+// }
 
 //------------------------------------------------------------------------------
 // Signals
