@@ -16481,6 +16481,9 @@ namespace gaia {
 			inline thread_local ThreadCtx* tl_workerCtx;
 		} // namespace detail
 
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4324)
+
 		class ThreadPool final {
 			friend class JobManager;
 
@@ -17465,6 +17468,8 @@ namespace gaia {
 				return true;
 			}
 		};
+
+		GAIA_MSVC_WARNING_POP()
 	} // namespace mt
 } // namespace gaia
 /*** End of inlined file: threadpool.h ***/
