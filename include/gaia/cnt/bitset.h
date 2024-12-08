@@ -8,7 +8,6 @@
 
 namespace gaia {
 	namespace cnt {
-
 		template <uint32_t NBits>
 		class bitset {
 		public:
@@ -39,10 +38,15 @@ namespace gaia {
 			}
 
 		public:
-			using const_iterator = bitset_const_iterator<bitset<NBits>, false>;
-			friend const_iterator;
-			using const_iterator_inverse = bitset_const_iterator<bitset<NBits>, true>;
-			friend const_iterator_inverse;
+			using this_bitset = bitset<NBits>;
+			using iter = const_iterator<this_bitset>;
+			using iter_inv = const_iterator_inverse<this_bitset>;
+			using iter_rev = const_reverse_iterator<this_bitset>;
+			using iter_rev_inv = const_reverse_inverse_iterator<this_bitset>;
+			friend iter;
+			friend iter_inv;
+			friend iter_rev;
+			friend iter_rev_inv;
 
 			size_type* data() {
 				return &m_data[0];
@@ -57,20 +61,36 @@ namespace gaia {
 				return Items;
 			}
 
-			const_iterator begin() const {
-				return const_iterator(*this, 0, true);
+			iter begin() const {
+				return iter(*this, 0, true);
 			}
 
-			const_iterator end() const {
-				return const_iterator(*this, NBits, false);
+			iter end() const {
+				return iter(*this, NBits, false);
 			}
 
-			const_iterator_inverse begin_inverse() const {
-				return const_iterator_inverse(*this, 0, true);
+			iter_rev rbegin() const {
+				return iter_rev(*this, NBits, false);
 			}
 
-			const_iterator_inverse end_inverse() const {
-				return const_iterator_inverse(*this, NBits, false);
+			iter_rev rend() const {
+				return iter_rev(*this, 0, true);
+			}
+
+			iter_inv ibegin() const {
+				return iter_inv(*this, 0, true);
+			}
+
+			iter_inv iend() const {
+				return iter_inv(*this, NBits, false);
+			}
+
+			iter_rev_inv ribegin() const {
+				return iter_rev_inv(*this, NBits, false);
+			}
+
+			iter_rev_inv riend() const {
+				return iter_rev_inv(*this, 0, true);
 			}
 
 			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
@@ -136,7 +156,7 @@ namespace gaia {
 				GAIA_ASSERT(bitFrom <= bitTo);
 				GAIA_ASSERT(bitTo < size());
 
-				// The followign can't happen because we always have at least 1 bit
+				// The following can't happen because we always have at least 1 bit
 				// if GAIA_UNLIKELY (size() == 0)
 				// 	return *this;
 

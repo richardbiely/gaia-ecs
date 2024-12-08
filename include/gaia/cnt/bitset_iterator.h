@@ -6,26 +6,37 @@
 
 namespace gaia {
 	namespace cnt {
-		template <typename TBitset, bool IsInverse>
+		//! Bitset iterator
+		//! \tparam TBitset Iterator's bitset parent
+		//! \tparam IsFwd If true the iterator moves forward. Backwards iterations otherwise.
+		//! \tparam IsInverse If true, all values are inverse
+		template <typename TBitset, bool IsFwd, bool IsInverse>
 		class bitset_const_iterator {
 		public:
 			using value_type = uint32_t;
 			using size_type = typename TBitset::size_type;
 
 		private:
-			const TBitset& m_bitset;
+			const TBitset* m_bitset;
 			value_type m_pos;
 
-			size_type item(uint32_t wordIdx) const {
+			GAIA_NODISCARD size_type item(uint32_t wordIdx) const noexcept {
 				if constexpr (IsInverse)
-					return ~m_bitset.data(wordIdx);
+					return ~m_bitset->data(wordIdx);
 				else
-					return m_bitset.data(wordIdx);
+					return m_bitset->data(wordIdx);
 			}
 
-			uint32_t find_next_set_bit(uint32_t pos) const {
+			GAIA_NODISCARD bool check_bit(uint32_t pos) const noexcept {
+				if constexpr (IsInverse)
+					return !m_bitset->test(pos);
+				else
+					return m_bitset->test(pos);
+			}
+
+			GAIA_NODISCARD uint32_t find_next_set_bit(uint32_t pos) const noexcept {
 				value_type wordIndex = pos / TBitset::BitsPerItem;
-				const auto item_count = m_bitset.items();
+				const auto item_count = m_bitset->items();
 				GAIA_ASSERT(wordIndex < item_count);
 				size_type word = 0;
 
@@ -54,9 +65,9 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			uint32_t find_prev_set_bit(uint32_t pos) const {
+			GAIA_NODISCARD uint32_t find_prev_set_bit(uint32_t pos) const noexcept {
 				value_type wordIndex = pos / TBitset::BitsPerItem;
-				GAIA_ASSERT(wordIndex < m_bitset.items());
+				GAIA_ASSERT(wordIndex < m_bitset->items());
 
 				const size_type posInWord = pos % TBitset::BitsPerItem;
 				const size_type mask = (size_type(1) << posInWord) - 1;
@@ -82,19 +93,23 @@ namespace gaia {
 			}
 
 		public:
-			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+			bitset_const_iterator() = default;
+			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(&bitset), m_pos(pos) {
 				if (fwd) {
-					if constexpr (IsInverse) {
+					if constexpr (!IsFwd) {
 						// Find the first set bit
-						if (pos != 0 || bitset.test(0)) {
+						if (pos != 0 || !check_bit(0)) {
 							pos = find_next_set_bit(m_pos);
-							// Point beyond the last item if no set bit was found
+							// Point before the last item if no set bit was found
 							if (pos == m_pos)
-								pos = bitset.size();
-						}
+								pos = (value_type)-1;
+							else
+								--pos;
+						} else
+							--pos;
 					} else {
 						// Find the first set bit
-						if (pos != 0 || !bitset.test(0)) {
+						if (pos != 0 || !check_bit(0)) {
 							pos = find_next_set_bit(m_pos);
 							// Point beyond the last item if no set bit was found
 							if (pos == m_pos)
@@ -110,20 +125,17 @@ namespace gaia {
 					if (pos >= bitsetSize)
 						pos = bitsetSize - 1;
 
-					if constexpr (IsInverse) {
+					if constexpr (!IsFwd) {
 						// Find the last set bit
-						if (pos != lastBit || bitset.test(pos)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
+						if (pos != lastBit || !check_bit(pos)) {
+							const auto newPos = find_prev_set_bit(pos);
 							// Point one beyond the last found bit
-							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+							pos = (newPos == pos) ? bitsetSize - 1 : newPos;
 						}
-						// Point one beyond the last found bit
-						else
-							++pos;
 					} else {
 						// Find the last set bit
-						if (pos != lastBit || !bitset.test(pos)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
+						if (pos != lastBit || !check_bit(pos)) {
+							const auto newPos = find_prev_set_bit(pos);
 							// Point one beyond the last found bit
 							pos = (newPos == pos) ? bitsetSize : newPos + 1;
 						}
@@ -149,11 +161,23 @@ namespace gaia {
 			}
 
 			bitset_const_iterator& operator++() {
-				uint32_t newPos = find_next_set_bit(m_pos);
-				// Point one past the last item if no new bit was found
-				if (newPos == m_pos)
-					++newPos;
-				m_pos = newPos;
+				if constexpr (!IsFwd) {
+					if (m_pos == (value_type)-1)
+						return *this;
+
+					auto newPos = find_prev_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						--newPos;
+					m_pos = newPos;
+				} else {
+					auto newPos = find_next_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						++newPos;
+					m_pos = newPos;
+				}
+
 				return *this;
 			}
 
@@ -171,5 +195,14 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
+
+		template <typename TBitset>
+		using const_iterator = bitset_const_iterator<TBitset, true, false>;
+		template <typename TBitset>
+		using const_iterator_inverse = bitset_const_iterator<TBitset, true, true>;
+		template <typename TBitset>
+		using const_reverse_iterator = bitset_const_iterator<TBitset, false, false>;
+		template <typename TBitset>
+		using const_reverse_inverse_iterator = bitset_const_iterator<TBitset, false, true>;
 	} // namespace cnt
 } // namespace gaia

@@ -80,10 +80,16 @@ namespace gaia {
 			}
 
 		public:
-			using const_iterator = bitset_const_iterator<dbitset, false>;
-			friend const_iterator;
-			using const_iterator_inverse = bitset_const_iterator<dbitset, true>;
-			friend const_iterator_inverse;
+			using iter = const_iterator<dbitset>;
+			using iter_inv = const_iterator_inverse<dbitset>;
+			using iter_rev = const_reverse_iterator<dbitset>;
+			using iter_rev_inv = const_reverse_inverse_iterator<dbitset>;
+
+			friend iter;
+			friend iter_inv;
+			friend iter_rev;
+			friend iter_rev_inv;
+			
 
 			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
@@ -191,20 +197,36 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 			}
 
-			const_iterator begin() const {
-				return const_iterator(*this, 0, true);
+			iter begin() const {
+				return iter(*this, 0, true);
 			}
 
-			const_iterator end() const {
-				return const_iterator(*this, size(), false);
+			iter end() const {
+				return iter(*this, size(), false);
 			}
 
-			const_iterator_inverse begin_inverse() const {
-				return const_iterator_inverse(*this, 0, true);
+			iter_rev rbegin() const {
+				return iter_rev(*this, size(), false);
 			}
 
-			const_iterator_inverse end_inverse() const {
-				return const_iterator_inverse(*this, size(), false);
+			iter_rev rend() const {
+				return iter_rev(*this, 0, true);
+			}
+
+			iter_inv ibegin() const {
+				return iter_inv(*this, 0, true);
+			}
+
+			iter_inv iend() const {
+				return iter_inv(*this, size(), false);
+			}
+
+			iter_rev_inv ribegin() const {
+				return iter_rev_inv(*this, size(), false);
+			}
+
+			iter_rev_inv riend() const {
+				return iter_rev_inv(*this, 0, true);
 			}
 
 			GAIA_NODISCARD bool operator[](uint32_t pos) const {
