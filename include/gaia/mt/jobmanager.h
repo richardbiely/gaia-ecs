@@ -4,11 +4,10 @@
 #include "../config/profiler.h"
 
 #include <atomic>
+#include <cinttypes>
 #include <functional>
-#include <inttypes.h>
 
 #include "../cnt/ilist.h"
-#include "../cnt/sparse_storage.h"
 #include "../core/span.h"
 #include "../mem/mem_alloc.h"
 #include "jobcommon.h"
@@ -17,17 +16,6 @@
 #define GAIA_LOG_JOB_STATES 0
 
 namespace gaia {
-	namespace mt {
-		struct JobContainer;
-	}
-
-	namespace cnt {
-		template <>
-		struct to_sparse_id<mt::JobContainer> {
-			static sparse_id get(const mt::JobContainer& item) noexcept;
-		};
-	} // namespace cnt
-
 	namespace mt {
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
@@ -155,16 +143,9 @@ namespace gaia {
 			}
 		};
 
-		class JobContainer_sparse_storage: public cnt::sparse_storage<JobContainer, 256> {
-		public:
-			void push_back(JobContainer&& container) {
-				add(GAIA_MOV(container));
-			}
-		};
-
 		class JobManager {
 			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
-			cnt::ilist<JobContainer, JobHandle, JobContainer_sparse_storage> m_jobData;
+			cnt::ilist<JobContainer, JobHandle> m_jobData;
 
 		public:
 			JobContainer& data(JobHandle jobHandle) {
@@ -381,10 +362,4 @@ namespace gaia {
 			}
 		} // namespace detail
 	} // namespace mt
-
-	namespace cnt {
-		inline sparse_id to_sparse_id<mt::JobContainer>::get(const mt::JobContainer& item) noexcept {
-			return item.idx;
-		}
-	} // namespace cnt
 } // namespace gaia
