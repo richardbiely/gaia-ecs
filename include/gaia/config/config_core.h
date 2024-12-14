@@ -274,20 +274,23 @@ namespace gaia {
 	#endif
 #endif
 
+// Yielding the CPU core. This is meant purely as a CPU function and has little to
+// do with yield functions available for your OS. No CPU time slice is yielded
+// to the operation system like pause(), sched_yield() or std::this_thread::yield()
+// would do. Don't mix them up. This is meant to be used with spinlocks and such,
+// and prevent the CPU from hammering on the cache line too much.
 #if GAIA_ARCH == GAIA_ARCH_X86
 	#include <immintrin.h>
-	#define GAIA_PAUSE _mm_pause()
-#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
-	#if GAIA_ARCH == GAIA_ARCH_ARM
-		#if GAIA_64 && !GAIA_PLATFORM_APPLE
-			#define GAIA_PAUSE __builtin_aarch64_yield()
-		#else
-			#define GAIA_PAUSE __builtin_arm_yield()
-		#endif
+	#define GAIA_YIELD_CPU _mm_pause()
+#elif GAIA_ARCH == GAIA_ARCH_ARM
+	#if GAIA_COMPILER_CLANG
+		#define GAIA_YIELD_CPU __builtin_arm_yield()
+	#elif GAIA_COMPILER_GCC
+		#define GAIA_YIELD_CPU __asm__ volatile("yield" ::: "memory");
 	#endif
 #endif
-#if !defined(GAIA_PAUSE)
-	#define GAIA_PAUSE                                                                                                   \
+#if !defined(GAIA_YIELD_CPU)
+	#define GAIA_YIELD_CPU                                                                                               \
 		do {                                                                                                               \
 		} while (0)
 #endif

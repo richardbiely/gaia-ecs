@@ -26,7 +26,7 @@ namespace gaia {
 
 					// Yield until unlocked
 					while (m_value.load(std::memory_order::memory_order_relaxed) != 0)
-						GAIA_PAUSE;
+						GAIA_YIELD_CPU;
 				}
 			}
 
