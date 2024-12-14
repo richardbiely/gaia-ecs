@@ -198,7 +198,7 @@ namespace gaia {
 				PageData* m_pData = nullptr;
 
 				void ensure() {
-					if (m_pData != nullptr)
+					if GAIA_LIKELY (m_pData != nullptr)
 						return;
 
 					// Allocate memory for data
@@ -214,7 +214,7 @@ namespace gaia {
 					}
 
 					m_pData->header.mask.set(idx, false);
-					--m_pData->m_cnt;
+					--m_pData->header.cnt;
 				}
 
 				void dtr_active_data() noexcept {
@@ -666,6 +666,8 @@ namespace gaia {
 
 			//! Contains pages with data
 			cnt::darray<page_type> m_pages;
+			//! Total number of items stored in all pages
+			uint32_t m_itemCnt = 0;
 
 			void try_grow(uint32_t pid) {
 				// The page array has to be able to take any page index
@@ -673,6 +675,7 @@ namespace gaia {
 					m_pages.resize(pid + 1);
 
 				m_pages[pid].add();
+				++m_itemCnt;
 			}
 
 		public:
@@ -680,17 +683,21 @@ namespace gaia {
 
 			page_storage(const page_storage& other) {
 				m_pages = other.m_pages;
+				m_itemCnt = other.m_itemCnt;
 			}
 
 			page_storage& operator=(const page_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pages = other.m_pages;
+				m_itemCnt = other.m_itemCnt;
 				return *this;
 			}
 
 			page_storage(page_storage&& other) noexcept {
 				m_pages = GAIA_MOV(other.m_pages);
+				m_itemCnt = other.m_itemCnt;
+
 				other.m_pages = {};
 			}
 
@@ -698,6 +705,8 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pages = GAIA_MOV(other.m_pages);
+				m_itemCnt = other.m_itemCnt;
+
 				other.m_pages = {};
 
 				return *this;
@@ -797,6 +806,7 @@ namespace gaia {
 
 				auto& page = m_pages[pid];
 				page.del_data(did);
+				--m_itemCnt;
 			}
 
 			//! Removes the item \param arg from the storage.
@@ -808,16 +818,17 @@ namespace gaia {
 			//! Clears the storage
 			void clear() {
 				m_pages.resize(0);
+				m_itemCnt = 0;
 			}
 
 			//! Returns the number of items inserted into the storage
 			GAIA_NODISCARD size_type size() const noexcept {
-				return m_pages.size();
+				return m_itemCnt;
 			}
 
 			//! Checks if the storage is empty (no items inserted)
 			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
+				return m_itemCnt == 0;
 			}
 
 			GAIA_NODISCARD decltype(auto) front() noexcept {
@@ -842,17 +853,17 @@ namespace gaia {
 
 			GAIA_NODISCARD auto begin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator(m_pages.data(), m_pages.data() + size());
+				return iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator(m_pages.data() + size(), m_pages.data() + size());
+				return iterator(m_pages.data() + m_pages.size(), m_pages.data() + m_pages.size());
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator_reverse(m_pages.data() + size() - 1, m_pages.data() - 1);
+				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {

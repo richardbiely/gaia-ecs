@@ -279,20 +279,27 @@ namespace gaia {
 	#endif
 #endif
 
+// Yielding the CPU core. This is meant purely as a CPU function and has little to
+// do with yield functions available for your OS. No CPU time slice is yielded
+// to the operation system like pause(), sched_yield() or std::this_thread::yield()
+// would do. Don't mix them up. This is meant to be used with spinlocks and such,
+// and prevent the CPU from hammering on the cache line too much.
 #if GAIA_ARCH == GAIA_ARCH_X86
 	#include <immintrin.h>
-	#define GAIA_PAUSE _mm_pause()
-#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
-	#if GAIA_ARCH == GAIA_ARCH_ARM
-		#if GAIA_64 && !GAIA_PLATFORM_APPLE
-			#define GAIA_PAUSE __builtin_aarch64_yield()
+	#define GAIA_YIELD_CPU _mm_pause()
+#elif GAIA_ARCH == GAIA_ARCH_ARM
+	#if GAIA_COMPILER_CLANG
+		#define GAIA_YIELD_CPU __builtin_arm_yield()
+	#elif GAIA_COMPILER_GCC
+		#if GAIA_64
+			#define GAIA_YIELD_CPU __builtin_aarch64_yield()
 		#else
-			#define GAIA_PAUSE __builtin_arm_yield()
+			#define GAIA_YIELD_CPU __builtin_arm_yield()
 		#endif
 	#endif
 #endif
-#if !defined(GAIA_PAUSE)
-	#define GAIA_PAUSE                                                                                                   \
+#if !defined(GAIA_YIELD_CPU)
+	#define GAIA_YIELD_CPU                                                                                               \
 		do {                                                                                                               \
 		} while (0)
 #endif
@@ -8146,13 +8153,23 @@ namespace gaia {
 			}
 		};
 
+		template <typename TListItem>
+		class darray_ilist_storage: public cnt::darray<TListItem> {
+		public:
+			void add_item(TListItem&& container) {
+				this->push_back(GAIA_MOV(container));
+			}
+
+			void del_item([[maybe_unused]] TListItem& container) {}
+		};
+
 		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
 		//! together through an internal indexing mechanism. To the outside world they are
 		//! presented as \tparam TItemHandle. All items are stored in a container instance
 		//! of the type \tparam TInternalStorage.
 		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
 		//! that initializes them.
-		template <typename TListItem, typename TItemHandle, typename TInternalStorage = cnt::darray<TListItem>>
+		template <typename TListItem, typename TItemHandle, typename TInternalStorage = darray_ilist_storage<TListItem>>
 		struct ilist {
 			using internal_storage = TInternalStorage;
 			// TODO: replace this iterator with a real list iterator
@@ -8245,7 +8262,7 @@ namespace gaia {
 					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back(TListItem::create(itemCnt, 0U, ctx));
+					m_items.add_item(TListItem::create(itemCnt, 0U, ctx));
 					return TListItem::handle(m_items.back());
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
@@ -8275,7 +8292,7 @@ namespace gaia {
 					GAIA_GCC_WARNING_DISABLE("-Wstringop-overflow");
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back(TListItem(itemCnt, 0U));
+					m_items.add_item(TListItem(itemCnt, 0U));
 					return {itemCnt, 0U};
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
@@ -8305,6 +8322,8 @@ namespace gaia {
 
 				m_nextFreeIdx = handle.id();
 				++m_freeItems;
+
+				m_items.del_item(item);
 
 				return item;
 			}
@@ -10878,7 +10897,7 @@ namespace gaia {
 				PageData* m_pData = nullptr;
 
 				void ensure() {
-					if (m_pData != nullptr)
+					if GAIA_LIKELY (m_pData != nullptr)
 						return;
 
 					// Allocate memory for data
@@ -10894,7 +10913,7 @@ namespace gaia {
 					}
 
 					m_pData->header.mask.set(idx, false);
-					--m_pData->m_cnt;
+					--m_pData->header.cnt;
 				}
 
 				void dtr_active_data() noexcept {
@@ -11180,6 +11199,9 @@ namespace gaia {
 
 		public:
 			page_iterator(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				if (pPage == nullptr)
+					return;
+
 				// Find first page with data
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
@@ -11346,6 +11368,8 @@ namespace gaia {
 
 			//! Contains pages with data
 			cnt::darray<page_type> m_pages;
+			//! Total number of items stored in all pages
+			uint32_t m_itemCnt = 0;
 
 			void try_grow(uint32_t pid) {
 				// The page array has to be able to take any page index
@@ -11353,6 +11377,7 @@ namespace gaia {
 					m_pages.resize(pid + 1);
 
 				m_pages[pid].add();
+				++m_itemCnt;
 			}
 
 		public:
@@ -11360,17 +11385,21 @@ namespace gaia {
 
 			page_storage(const page_storage& other) {
 				m_pages = other.m_pages;
+				m_itemCnt = other.m_itemCnt;
 			}
 
 			page_storage& operator=(const page_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pages = other.m_pages;
+				m_itemCnt = other.m_itemCnt;
 				return *this;
 			}
 
 			page_storage(page_storage&& other) noexcept {
 				m_pages = GAIA_MOV(other.m_pages);
+				m_itemCnt = other.m_itemCnt;
+
 				other.m_pages = {};
 			}
 
@@ -11378,6 +11407,8 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_pages = GAIA_MOV(other.m_pages);
+				m_itemCnt = other.m_itemCnt;
+
 				other.m_pages = {};
 
 				return *this;
@@ -11477,6 +11508,7 @@ namespace gaia {
 
 				auto& page = m_pages[pid];
 				page.del_data(did);
+				--m_itemCnt;
 			}
 
 			//! Removes the item \param arg from the storage.
@@ -11488,16 +11520,17 @@ namespace gaia {
 			//! Clears the storage
 			void clear() {
 				m_pages.resize(0);
+				m_itemCnt = 0;
 			}
 
 			//! Returns the number of items inserted into the storage
 			GAIA_NODISCARD size_type size() const noexcept {
-				return m_pages.size();
+				return m_itemCnt;
 			}
 
 			//! Checks if the storage is empty (no items inserted)
 			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
+				return m_itemCnt == 0;
 			}
 
 			GAIA_NODISCARD decltype(auto) front() noexcept {
@@ -11522,17 +11555,17 @@ namespace gaia {
 
 			GAIA_NODISCARD auto begin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator(m_pages.data(), m_pages.data() + size());
+				return iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator(m_pages.data() + size(), m_pages.data() + size());
+				return iterator(m_pages.data() + m_pages.size(), m_pages.data() + m_pages.size());
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				GAIA_ASSERT(!empty());
-				return iterator_reverse(m_pages.data() + size() - 1, m_pages.data() - 1);
+				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
@@ -13092,6 +13125,8 @@ namespace gaia {
 					if (m_pSparse == nullptr)
 						return;
 
+					GAIA_ASSERT(m_cnt > 0);
+
 					// Destruct active items
 					dtr_active_data();
 
@@ -13117,7 +13152,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
-							if (m_pSparse[i] == detail::InvalidDenseId)
+							if (other.m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
 							// Copy construct data
@@ -15868,23 +15903,12 @@ namespace gaia {
 #pragma once
 
 #include <atomic>
+#include <cinttypes>
 #include <functional>
-#include <inttypes.h>
 
 #define GAIA_LOG_JOB_STATES 0
 
 namespace gaia {
-	namespace mt {
-		struct JobContainer;
-	}
-
-	namespace cnt {
-		template <>
-		struct to_sparse_id<mt::JobContainer> {
-			static sparse_id get(const mt::JobContainer& item) noexcept;
-		};
-	} // namespace cnt
-
 	namespace mt {
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
@@ -16012,16 +16036,9 @@ namespace gaia {
 			}
 		};
 
-		class JobContainer_sparse_storage: public cnt::sparse_storage<JobContainer, 256> {
-		public:
-			void push_back(JobContainer&& container) {
-				add(GAIA_MOV(container));
-			}
-		};
-
 		class JobManager {
 			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
-			cnt::ilist<JobContainer, JobHandle, JobContainer_sparse_storage> m_jobData;
+			cnt::ilist<JobContainer, JobHandle> m_jobData;
 
 		public:
 			JobContainer& data(JobHandle jobHandle) {
@@ -16238,12 +16255,6 @@ namespace gaia {
 			}
 		} // namespace detail
 	} // namespace mt
-
-	namespace cnt {
-		inline sparse_id to_sparse_id<mt::JobContainer>::get(const mt::JobContainer& item) noexcept {
-			return item.idx;
-		}
-	} // namespace cnt
 } // namespace gaia
 /*** End of inlined file: jobmanager.h ***/
 
@@ -16448,7 +16459,7 @@ namespace gaia {
 
 					// Yield until unlocked
 					while (m_value.load(std::memory_order::memory_order_relaxed) != 0)
-						GAIA_PAUSE;
+						GAIA_YIELD_CPU;
 				}
 			}
 
@@ -19836,10 +19847,14 @@ namespace gaia {
 			}
 		};
 
-		class EntityContainer_paged_storage: public cnt::page_storage<EntityContainer, 4096> {
+		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer, 4096> {
 		public:
-			void push_back(EntityContainer&& container) {
-				add(GAIA_MOV(container));
+			void add_item(EntityContainer&& container) {
+				this->add(GAIA_MOV(container));
+			}
+
+			void del_item(EntityContainer& container) {
+				this->del(container);
 			}
 		};
 
@@ -19847,7 +19862,7 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::ilist<EntityContainer, Entity> entities;
-			// cnt::ilist<EntityContainer, Entity, EntityContainer_paged_storage> entities;
+			// cnt::ilist<EntityContainer, Entity, EntityContainer_paged_ilist_storage> entities;
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;

@@ -390,6 +390,8 @@ namespace gaia {
 					if (m_pSparse == nullptr)
 						return;
 
+					GAIA_ASSERT(m_cnt > 0);
+
 					// Destruct active items
 					dtr_active_data();
 
@@ -415,7 +417,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < PageCapacity; ++i) {
 							// Copy indices
 							m_pSparse[i] = other.m_pSparse[i];
-							if (m_pSparse[i] == detail::InvalidDenseId)
+							if (other.m_pSparse[i] == detail::InvalidDenseId)
 								continue;
 
 							// Copy construct data
