@@ -89,7 +89,6 @@ namespace gaia {
 			friend iter_inv;
 			friend iter_rev;
 			friend iter_rev_inv;
-			
 
 			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
@@ -105,7 +104,8 @@ namespace gaia {
 			}
 
 			dbitset(const dbitset& other) {
-				*this = other;
+				resize(other.m_cnt);
+				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
 			}
 
 			dbitset& operator=(const dbitset& other) {
@@ -117,7 +117,13 @@ namespace gaia {
 			}
 
 			dbitset(dbitset&& other) noexcept {
-				*this = GAIA_MOV(other);
+				m_pData = other.m_pData;
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
+				other.m_pData = nullptr;
+				other.m_cnt = 0;
+				other.m_cap = 0;
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {

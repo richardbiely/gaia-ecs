@@ -106,22 +106,28 @@ namespace gaia {
 			}
 		};
 
-		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer, 4096> {
+#if GAIA_USE_PAGED_ENTITY_CONTAINER
+		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer, 2048> {
 		public:
 			void add_item(EntityContainer&& container) {
 				this->add(GAIA_MOV(container));
 			}
 
 			void del_item(EntityContainer& container) {
-				this->del(container);
+				// TODO: This would also invalidate the ilist item itself. Don't use for now
+				// this->del(container);
 			}
 		};
+#endif
 
 		struct EntityContainers {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
+#if GAIA_USE_PAGED_ENTITY_CONTAINER
+			cnt::ilist<EntityContainer, Entity, EntityContainer_paged_ilist_storage> entities;
+#else
 			cnt::ilist<EntityContainer, Entity> entities;
-			// cnt::ilist<EntityContainer, Entity, EntityContainer_paged_ilist_storage> entities;
+#endif
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;

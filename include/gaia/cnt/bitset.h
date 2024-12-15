@@ -48,11 +48,11 @@ namespace gaia {
 			friend iter_rev;
 			friend iter_rev_inv;
 
-			size_type* data() {
+			constexpr size_type* data() {
 				return &m_data[0];
 			}
 
-			const size_type* data() const {
+			constexpr const size_type* data() const {
 				return &m_data[0];
 			}
 
@@ -61,35 +61,35 @@ namespace gaia {
 				return Items;
 			}
 
-			iter begin() const {
+			constexpr iter begin() const {
 				return iter(*this, 0, true);
 			}
 
-			iter end() const {
+			constexpr iter end() const {
 				return iter(*this, NBits, false);
 			}
 
-			iter_rev rbegin() const {
+			constexpr iter_rev rbegin() const {
 				return iter_rev(*this, NBits, false);
 			}
 
-			iter_rev rend() const {
+			constexpr iter_rev rend() const {
 				return iter_rev(*this, 0, true);
 			}
 
-			iter_inv ibegin() const {
+			constexpr iter_inv ibegin() const {
 				return iter_inv(*this, 0, true);
 			}
 
-			iter_inv iend() const {
+			constexpr iter_inv iend() const {
 				return iter_inv(*this, NBits, false);
 			}
 
-			iter_rev_inv ribegin() const {
+			constexpr iter_rev_inv ribegin() const {
 				return iter_rev_inv(*this, NBits, false);
 			}
 
-			iter_rev_inv riend() const {
+			constexpr iter_rev_inv riend() const {
 				return iter_rev_inv(*this, 0, true);
 			}
 

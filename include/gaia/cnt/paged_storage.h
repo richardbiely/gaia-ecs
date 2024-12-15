@@ -7,11 +7,13 @@
 #include <utility>
 
 #include "../cnt/bitset.h"
-#include "../cnt/darray.h"
+#include "../cnt/impl/darray_impl.h"
 #include "../core/iterator.h"
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
+#include "../mem/mem_alloc.h"
 #include "../mem/mem_utils.h"
+#include "../mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace cnt {
@@ -161,14 +163,7 @@ namespace gaia {
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 
-				static constexpr uint32_t CalculateBitFieldSize() {
-					constexpr uint32_t MaxItems = PageCapacity / sizeof(T);
-					constexpr uint32_t BitsRequired = core::count_bits(MaxItems);
-					return BitsRequired;
-				}
-				static constexpr uint32_t ItemMaskBitCnt = CalculateBitFieldSize();
-
-				using bit_set = cnt::bitset<ItemMaskBitCnt>;
+				using bit_set = cnt::bitset<PageCapacity>;
 				template <bool IsFwd>
 				using iterator_base = mem_page_iterator<T, PageCapacity, Allocator, IsFwd>;
 				using iterator = iterator_base<true>;
@@ -186,11 +181,13 @@ namespace gaia {
 					bit_set mask;
 				};
 
+				static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, PageCapacity);
+
 				struct PageData {
 					//! Page header
 					PageHeader header;
 					//! Page data
-					T data[(PageCapacity - sizeof(PageHeader)) / sizeof(T)];
+					mem::raw_data_holder<T, allocated_bytes> data;
 				};
 
 				// private:
@@ -202,7 +199,10 @@ namespace gaia {
 						return;
 
 					// Allocate memory for data
-					m_pData = (PageData*)view_policy::template alloc<Allocator>(1);
+					m_pData = mem::AllocHelper::alloc<PageData, Allocator>("PageData", 1);
+					(void)new (m_pData) PageData{};
+					// Prepare the item data region
+					core::call_ctor_raw_n(data(), PageCapacity);
 				}
 
 				void dtr_data_inter(uint32_t idx) noexcept {
@@ -234,7 +234,8 @@ namespace gaia {
 					dtr_active_data();
 
 					// Release allocated memory
-					view_policy::template free<Allocator>((void*)m_pData, 1);
+					m_pData->~PageData();
+					mem::AllocHelper::free<Allocator>("PageData", m_pData);
 					m_pData = nullptr;
 				}
 
@@ -306,31 +307,35 @@ namespace gaia {
 				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 				GAIA_NODISCARD pointer data() noexcept {
-					return (pointer)m_pData->data;
+					return GAIA_ACC((pointer)&m_pData->data[0]);
 				}
 
 				GAIA_NODISCARD const_pointer data() const noexcept {
-					return (const_pointer)m_pData->data;
+					return GAIA_ACC((const_pointer)&m_pData->data[0]);
 				}
 
 				GAIA_NODISCARD decltype(auto) set_data(size_type pos) noexcept {
 					GAIA_ASSERT(pos < size());
-					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+					return view_policy::set(
+							{GAIA_ACC((typename view_policy::TargetCastType) & m_pData->data[0]), PageCapacity}, pos);
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 					GAIA_ASSERT(pos < size());
-					return view_policy::set({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+					return view_policy::set(
+							{GAIA_ACC((typename view_policy::TargetCastType) & m_pData->data[0]), PageCapacity}, pos);
 				}
 
 				GAIA_NODISCARD decltype(auto) get_data(size_type pos) const noexcept {
 					GAIA_ASSERT(pos < size());
-					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+					return view_policy::get(
+							{GAIA_ACC((typename view_policy::TargetCastType) & m_pData->data[0]), PageCapacity}, pos);
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 					GAIA_ASSERT(pos < size());
-					return view_policy::get({(typename view_policy::TargetCastType)m_pData->data, PageCapacity}, pos);
+					return view_policy::get(
+							{GAIA_ACC((typename view_policy::TargetCastType) & m_pData->data[0]), PageCapacity}, pos);
 				}
 
 				GAIA_CLANG_WARNING_POP()
@@ -431,32 +436,35 @@ namespace gaia {
 						return (const_reference)set_data(idx);
 				}
 
+				static constexpr bit_set s_dummyBitSet{};
+
 				GAIA_NODISCARD auto begin() const noexcept {
 					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa((mem_page*)this, m_pData->header.mask.begin());
+						return iterator_soa((mem_page*)this, m_pData ? m_pData->header.mask.begin() : s_dummyBitSet.begin());
 					else
-						return iterator((mem_page*)this, m_pData->header.mask.begin());
+						return iterator((mem_page*)this, m_pData ? m_pData->header.mask.begin() : s_dummyBitSet.begin());
 				}
 
 				GAIA_NODISCARD auto end() const noexcept {
 					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa((mem_page*)this, m_pData->header.mask.end());
+						return iterator_soa((mem_page*)this, m_pData ? m_pData->header.mask.end() : s_dummyBitSet.end());
 					else
-						return iterator((mem_page*)this, m_pData->header.mask.end());
+						return iterator((mem_page*)this, m_pData ? m_pData->header.mask.end() : s_dummyBitSet.end());
 				}
 
 				GAIA_NODISCARD auto rbegin() const noexcept {
 					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+						return iterator_soa_reverse(
+								(mem_page*)this, m_pData ? m_pData->header.mask.rbegin() : s_dummyBitSet.rbegin());
 					else
-						return iterator_reverse((mem_page*)this, m_pData->header.mask.rbegin());
+						return iterator_reverse((mem_page*)this, m_pData ? m_pData->header.mask.rbegin() : s_dummyBitSet.rbegin());
 				}
 
 				GAIA_NODISCARD auto rend() const noexcept {
 					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa_reverse((mem_page*)this, m_pData->header.mask.rend());
+						return iterator_soa_reverse((mem_page*)this, m_pData ? m_pData->header.mask.rend() : s_dummyBitSet.rend());
 					else
-						return iterator_reverse((mem_page*)this, m_pData->header.mask.rend());
+						return iterator_reverse((mem_page*)this, m_pData ? m_pData->header.mask.rend() : s_dummyBitSet.rend());
 				}
 
 				GAIA_NODISCARD bool operator==(const mem_page& other) const noexcept {
@@ -503,8 +511,6 @@ namespace gaia {
 				// Find first page with data
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
-					auto it2 = m_pPage->rend();
-					(void)it2;
 					while (m_it == m_pPage->rend()) {
 						if (m_pPage == m_pPageLast)
 							break;
@@ -665,7 +671,7 @@ namespace gaia {
 			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
 
 			//! Contains pages with data
-			cnt::darray<page_type> m_pages;
+			cnt::darr<page_type> m_pages;
 			//! Total number of items stored in all pages
 			uint32_t m_itemCnt = 0;
 
@@ -743,7 +749,8 @@ namespace gaia {
 					return false;
 
 				const auto did = size_type(id & page_mask);
-				return m_pages[pid].has_data(did);
+				const auto val = page_type::bit_set::BitCount;
+				return did < val && m_pages[pid].has_data(did);
 			}
 
 			//! Checks if an item \param arg exists within the storage

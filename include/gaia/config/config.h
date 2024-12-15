@@ -42,6 +42,10 @@
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+#ifndef GAIA_USE_PAGED_ENTITY_CONTAINER
+	#define GAIA_USE_PAGED_ENTITY_CONTAINER 1
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

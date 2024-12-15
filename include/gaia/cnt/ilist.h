@@ -209,6 +209,7 @@ namespace gaia {
 			//! Every time an item is deallocated its generation is increased by one.
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
+				m_items.del_item(item);
 
 				// Update our implicit list
 				if GAIA_UNLIKELY (m_freeItems == 0)
@@ -219,8 +220,6 @@ namespace gaia {
 
 				m_nextFreeIdx = handle.id();
 				++m_freeItems;
-
-				m_items.del_item(item);
 
 				return item;
 			}
