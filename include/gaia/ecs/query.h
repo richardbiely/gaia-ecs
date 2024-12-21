@@ -38,14 +38,16 @@ namespace gaia {
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
 		enum class QueryExecType : uint32_t {
-			// Default - main thread
-			Default,
+			// Main thread
+			Serial,
 			// Parallel, any core
 			Parallel,
 			// Parallel, perf cores only
 			ParallelPerf,
 			// Parallel, efficiency cores only
-			ParallelEff
+			ParallelEff,
+			// Default execution type
+			Default = Serial,
 		};
 
 		namespace detail {
