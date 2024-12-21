@@ -16456,17 +16456,17 @@ namespace gaia {
 
 			bool try_lock() {
 				// Attempt to acquire the lock without waiting
-				return 0 == m_value.exchange(1, std::memory_order::memory_order_acquire);
+				return 0 == m_value.exchange(1, std::memory_order_acquire);
 			}
 
 			void lock() {
 				while (true) {
 					// The value has been changed, we successfully entered the lock
-					if (0 == m_value.exchange(1, std::memory_order::memory_order_acquire))
+					if (0 == m_value.exchange(1, std::memory_order_acquire))
 						break;
 
 					// Yield until unlocked
-					while (m_value.load(std::memory_order::memory_order_relaxed) != 0)
+					while (m_value.load(std::memory_order_relaxed) != 0)
 						GAIA_YIELD_CPU;
 				}
 			}
@@ -19862,7 +19862,7 @@ namespace gaia {
 				this->add(GAIA_MOV(container));
 			}
 
-			void del_item(EntityContainer& container) {
+			void del_item([[maybe_unused]] EntityContainer& container) {
 				// TODO: This would also invalidate the ilist item itself. Don't use for now
 				// this->del(container);
 			}

@@ -113,7 +113,7 @@ namespace gaia {
 				this->add(GAIA_MOV(container));
 			}
 
-			void del_item(EntityContainer& container) {
+			void del_item([[maybe_unused]] EntityContainer& container) {
 				// TODO: This would also invalidate the ilist item itself. Don't use for now
 				// this->del(container);
 			}

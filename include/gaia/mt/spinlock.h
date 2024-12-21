@@ -15,17 +15,17 @@ namespace gaia {
 
 			bool try_lock() {
 				// Attempt to acquire the lock without waiting
-				return 0 == m_value.exchange(1, std::memory_order::memory_order_acquire);
+				return 0 == m_value.exchange(1, std::memory_order_acquire);
 			}
 
 			void lock() {
 				while (true) {
 					// The value has been changed, we successfully entered the lock
-					if (0 == m_value.exchange(1, std::memory_order::memory_order_acquire))
+					if (0 == m_value.exchange(1, std::memory_order_acquire))
 						break;
 
 					// Yield until unlocked
-					while (m_value.load(std::memory_order::memory_order_relaxed) != 0)
+					while (m_value.load(std::memory_order_relaxed) != 0)
 						GAIA_YIELD_CPU;
 				}
 			}
