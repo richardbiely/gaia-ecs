@@ -45,6 +45,8 @@
 * thoroughly documented both public and internal code
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
+NOTE: Due to its extensive use of acceleration structures and caching, this library is not a good fit for hardware with very limited memory resources (measured in MiBs or less). Micro-controllers, retro gaming consoles, and similar platforms should consider alternative solutions.
+
 # Table of Contents
 
 * [Introduction](#introduction)
