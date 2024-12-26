@@ -92,6 +92,35 @@ namespace gaia {
 			return bits_needed;
 		}
 
+		template <typename T>
+		constexpr bool is_pow2(T number) {
+			static_assert(std::is_integral<T>::value, "is_pow2 must be used with integer types");
+
+			return (number & (number - 1)) == 0;
+		}
+
+		template <typename T>
+		constexpr T closest_pow2(T number) {
+			static_assert(std::is_integral<T>::value, "closest_pow2 must be used with integer types");
+
+			if (is_pow2(number))
+				return number;
+
+			// Collapse all bits below the highest set bit
+			number |= number >> 1;
+			number |= number >> 2;
+			number |= number >> 4;
+			if constexpr (sizeof(T) > 1)
+				number |= number >> 8;
+			if constexpr (sizeof(T) > 2)
+				number |= number >> 16;
+			if constexpr (sizeof(T) > 4)
+				number |= number >> 32;
+
+			// The result is now one less than the next power of two, so shift back
+			return number - (number >> 1);
+		}
+
 		//----------------------------------------------------------------------
 		// Element construction / destruction
 		//----------------------------------------------------------------------

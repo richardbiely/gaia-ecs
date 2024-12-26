@@ -9,6 +9,7 @@
 
 #include "../cnt/ilist.h"
 #include "../core/span.h"
+#include "../core/utility.h"
 #include "../mem/mem_alloc.h"
 #include "jobcommon.h"
 #include "jobhandle.h"
@@ -334,7 +335,7 @@ namespace gaia {
 					firstData.edges.dep = jobSecond;
 				} else {
 					// Reallocate on a power of two
-					const bool isPow2 = (depCnt1 & (depCnt1 - 1)) == 0;
+					const bool isPow2 = core::is_pow2(depCnt1);
 					if (isPow2) {
 						if (depCnt0 == 1) {
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);

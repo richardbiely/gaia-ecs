@@ -319,6 +319,54 @@ TEST_CASE("Memory allocation") {
 	}
 }
 
+TEST_CASE("pow2") {
+	SECTION("is_pow2") {
+		REQUIRE(core::is_pow2(0));
+		REQUIRE(core::is_pow2(1));
+		REQUIRE(core::is_pow2(2));
+		REQUIRE(core::is_pow2(4));
+		REQUIRE(core::is_pow2(8));
+		REQUIRE(core::is_pow2(16));
+		REQUIRE(core::is_pow2(32));
+		REQUIRE(core::is_pow2(64));
+		REQUIRE_FALSE(core::is_pow2(3));
+		REQUIRE_FALSE(core::is_pow2(5));
+		REQUIRE_FALSE(core::is_pow2(7));
+		REQUIRE_FALSE(core::is_pow2(9));
+		REQUIRE_FALSE(core::is_pow2(11));
+		REQUIRE_FALSE(core::is_pow2(13));
+		REQUIRE_FALSE(core::is_pow2(48));
+		REQUIRE_FALSE(core::is_pow2(96));
+		REQUIRE_FALSE(core::is_pow2(127));
+	}
+
+	SECTION("closest_pow2") {
+		constexpr uint8_t test0 = 0;
+		constexpr uint8_t test8 = 19;
+		constexpr uint16_t test16 = 1023;
+		constexpr uint32_t test32 = 123456;
+		constexpr uint64_t test64 = 123456789123456789ULL;
+
+		constexpr auto result0 = core::closest_pow2(test0);
+		constexpr auto result8 = core::closest_pow2(test8);
+		constexpr auto result16 = core::closest_pow2(test16);
+		constexpr auto result32 = core::closest_pow2(test32);
+		constexpr auto result64 = core::closest_pow2(test64);
+
+		constexpr auto result0_isPow2 = core::closest_pow2(test0);
+		constexpr auto result8_isPow2 = core::closest_pow2(test8);
+		constexpr auto result16_isPow2 = core::closest_pow2(test16);
+		constexpr auto result32_isPow2 = core::closest_pow2(test32);
+		constexpr auto result64_isPow2 = core::closest_pow2(test64);
+
+		REQUIRE(core::is_pow2(result0_isPow2));
+		REQUIRE(core::is_pow2(result8_isPow2));
+		REQUIRE(core::is_pow2(result16_isPow2));
+		REQUIRE(core::is_pow2(result32_isPow2));
+		REQUIRE(core::is_pow2(result64_isPow2));
+	}
+}
+
 TEST_CASE("bit_view") {
 	constexpr uint32_t BlockBits = 6;
 	using view = core::bit_view<BlockBits>;
