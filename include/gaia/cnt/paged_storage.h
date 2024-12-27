@@ -685,8 +685,7 @@ namespace gaia {
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 
-			using Allocator = mem::DefaultAllocatorAdaptor;
-			// using Allocator = mem::PagedAllocator<T>;
+			using Allocator = mem::PagedAllocator<T>;
 
 			using page_type = detail::mem_page<T, Allocator>;
 			static constexpr uint32_t PageCapacity = page_type::PageCapacity;
