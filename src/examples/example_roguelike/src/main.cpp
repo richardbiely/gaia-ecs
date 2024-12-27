@@ -336,20 +336,10 @@ public:
 #endif
 
 //----------------------------------------------------------------------
-// Global definitions.
-// Normally these would not be global but this is just a simple demo
-// in one source file.
-
-ecs::World g_ecs;
-ecs::SystemManager g_smPreSimulation(g_ecs);
-ecs::SystemManager g_smSimulation(g_ecs);
-ecs::SystemManager g_smPostSimulation(g_ecs);
-
-//----------------------------------------------------------------------
 // Game world
 //----------------------------------------------------------------------
 
-struct World {
+struct GameWorld {
 	ecs::World& w;
 	//! map tiles
 	char map[ScreenY][ScreenX]{};
@@ -358,7 +348,7 @@ struct World {
 	//! quit the game when true
 	bool terminate = false;
 
-	explicit World(ecs::World& world): w(world) {}
+	explicit GameWorld(ecs::World& world): w(world) {}
 
 	void init() {
 		InitWorldMap();
@@ -523,13 +513,24 @@ struct World {
 				.set<Health>({1, 1});
 	}
 };
-World g_world(g_ecs);
+
+GameWorld* g_pGameWorld = nullptr;
 
 //----------------------------------------------------------------------
-// System
+// Systems
 //----------------------------------------------------------------------
 
-class UpdateMapSystem final: public ecs::System {
+class GameSystem : public ecs::System {
+protected:
+	ecs::SystemManager* m_pSystemManager = nullptr;
+
+public:
+	void set_manager(ecs::SystemManager* pManager) {
+		m_pSystemManager = pManager;
+	}
+};
+
+class UpdateMapSystem final: public GameSystem {
 	ecs::Query m_q;
 
 public:
@@ -537,9 +538,9 @@ public:
 		m_q = world().query().all<Position, RigidBody>();
 	}
 	void OnUpdate() override {
-		g_world.content.clear();
+		g_pGameWorld->content.clear();
 		m_q.each([&](ecs::Entity e, const Position& p) {
-			g_world.content[p].push_back(e);
+			g_pGameWorld->content[p].push_back(e);
 		});
 	}
 };
@@ -555,7 +556,7 @@ struct CollisionData {
 	Velocity v;
 };
 
-class CollisionSystem final: public ecs::System {
+class CollisionSystem final: public GameSystem {
 	ecs::Query m_q;
 	cnt::darray<CollisionData> m_colliding;
 
@@ -604,14 +605,14 @@ public:
 				int naa = 0;
 				for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
 					// Stop on wall collisions
-					if (g_world.map[pp[1]][pp[0]] == TILE_WALL) {
+					if (g_pGameWorld->map[pp[1]][pp[0]] == TILE_WALL) {
 						m_colliding.push_back({e, ecs::IdentifierBad, Position{pp[0], pp[1]}, v});
 						goto onCollision;
 					}
 
 					// Skip when there's no content
-					auto it = g_world.content.find({pp[0], pp[1]});
-					if (it == g_world.content.end())
+					auto it = g_pGameWorld->content.find({pp[0], pp[1]});
+					if (it == g_pGameWorld->content.end())
 						continue;
 
 					// Generate content collision data
@@ -662,7 +663,7 @@ public:
 	}
 };
 
-class OrientationSystem final: public ecs::System {
+class OrientationSystem final: public GameSystem {
 	ecs::Query m_q;
 
 public:
@@ -685,7 +686,7 @@ public:
 	}
 };
 
-class MoveSystem final: public ecs::System {
+class MoveSystem final: public GameSystem {
 	ecs::Query m_q;
 
 public:
@@ -702,12 +703,12 @@ public:
 	}
 };
 
-class HandleDamageSystem final: public ecs::System {
+class HandleDamageSystem final: public GameSystem {
 	CollisionSystem* m_collisionSystem{};
 
 public:
 	void OnCreated() override {
-		m_collisionSystem = g_smSimulation.find<CollisionSystem>();
+		m_collisionSystem = m_pSystemManager->find<CollisionSystem>();
 	}
 
 	void OnUpdate() override {
@@ -742,16 +743,16 @@ public:
 	}
 
 	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == g_smSimulation.find<CollisionSystem>();
+		return system == m_pSystemManager->find<CollisionSystem>();
 	}
 };
 
-class HandleItemHitSystem final: public ecs::System {
+class HandleItemHitSystem final: public GameSystem {
 	CollisionSystem* m_collisionSystem{};
 
 public:
 	void OnCreated() override {
-		m_collisionSystem = g_smSimulation.find<CollisionSystem>();
+		m_collisionSystem = m_pSystemManager->find<CollisionSystem>();
 	}
 
 	void OnUpdate() override {
@@ -807,7 +808,7 @@ public:
 	}
 
 	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == g_smSimulation.find<CollisionSystem>();
+		return system == m_pSystemManager->find<CollisionSystem>();
 	}
 };
 
@@ -827,7 +828,7 @@ public:
 	}
 };
 
-class HandleDeathSystem final: public ecs::System {
+class HandleDeathSystem final: public GameSystem {
 	ecs::Query m_q;
 
 public:
@@ -840,8 +841,8 @@ public:
 			if (h.value > 0)
 				return;
 
-			g_world.map[p.y][p.x] = TILE_FREE;
-			g_smSimulation.AfterUpdateCmdBuffer().del(e);
+			g_pGameWorld->map[p.y][p.x] = TILE_FREE;
+			m_pSystemManager->AfterUpdateCmdBuffer().del(e);
 		});
 	}
 };
@@ -856,9 +857,9 @@ public:
 
 	void OnUpdate() override {
 		ClearScreen();
-		g_world.InitWorldMap();
+		g_pGameWorld->InitWorldMap();
 		m_q.each([&](const Position& p, const Sprite& s) {
-			g_world.map[p.y][p.x] = s.value;
+			g_pGameWorld->map[p.y][p.x] = s.value;
 		});
 	}
 };
@@ -868,7 +869,7 @@ public:
 	void OnUpdate() override {
 		GAIA_FOR_(ScreenY, y) {
 			GAIA_FOR_(ScreenX, x) {
-				putchar(g_world.map[y][x]);
+				putchar(g_pGameWorld->map[y][x]);
 			}
 			printf("\n");
 		}
@@ -915,20 +916,20 @@ public:
 		const bool hasNoPlayer = m_qp.empty();
 		if (m_hadPlayer && hasNoPlayer) {
 			printf("You are dead. Good job.\n");
-			g_world.terminate = true;
+			g_pGameWorld->terminate = true;
 		}
 		m_hadPlayer = !hasNoPlayer;
 
 		const bool hasNoEnemies = m_qe.empty();
 		if (m_hadEnemies && hasNoEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
-			g_world.terminate = true;
+			g_pGameWorld->terminate = true;
 		}
 		m_hadEnemies = !hasNoEnemies;
 	}
 };
 
-class InputSystem final: public ecs::System {
+class InputSystem final: public GameSystem {
 	ecs::Query m_q;
 
 public:
@@ -939,7 +940,7 @@ public:
 	void OnUpdate() override {
 		const char key = get_char();
 
-		g_world.terminate = key == KEY_QUIT;
+		g_pGameWorld->terminate = key == KEY_QUIT;
 
 		// Player movement
 		m_q.each([&](Velocity& v, const Position& p, const Orientation& o) {
@@ -953,7 +954,7 @@ public:
 			} else if (key == KEY_RIGHT) {
 				v = {1, 0};
 			} else if (key == KEY_SHOOT) {
-				g_world.CreateArrow({p.x, p.y}, {o.x, o.y});
+				g_pGameWorld->CreateArrow({p.x, p.y}, {o.x, o.y});
 			}
 		});
 	}
@@ -978,27 +979,34 @@ int main() {
 			"\nPress any key to continue...\n",
 			KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_SHOOT, KEY_QUIT, TILE_PLAYER, TILE_ENEMY_GOBLIN, TILE_ENEMY_ORC,
 			TILE_POTION, TILE_POISON, TILE_WALL);
+	
+	ecs::World g_ecs;
+	ecs::SystemManager g_smPreSimulation(g_ecs);
+	ecs::SystemManager g_smSimulation(g_ecs);
+	ecs::SystemManager g_smPostSimulation(g_ecs);
+	GameWorld g_world(g_ecs);
+	g_pGameWorld = &g_world;
 
 	// Pre-simulation step
-	g_smSimulation.add<InputSystem>();
-	g_smPreSimulation.add<UpdateMapSystem>();
+	g_smPreSimulation.add<InputSystem>()->set_manager(&g_smPreSimulation);
+	g_smPreSimulation.add<UpdateMapSystem>()->set_manager(&g_smPreSimulation);
 	// Simulation
-	g_smSimulation.add<OrientationSystem>();
-	g_smSimulation.add<CollisionSystem>();
-	g_smSimulation.add<MoveSystem>();
-	g_smSimulation.add<HandleDamageSystem>();
-	g_smSimulation.add<HandleItemHitSystem>();
+	g_smSimulation.add<OrientationSystem>()->set_manager(&g_smSimulation);
+	g_smSimulation.add<CollisionSystem>()->set_manager(&g_smSimulation);
+	g_smSimulation.add<MoveSystem>()->set_manager(&g_smSimulation);
+	g_smSimulation.add<HandleDamageSystem>()->set_manager(&g_smSimulation);
+	g_smSimulation.add<HandleItemHitSystem>()->set_manager(&g_smSimulation);
 	g_smSimulation.add<HandleHealthSystem>();
-	g_smSimulation.add<HandleDeathSystem>();
+	g_smSimulation.add<HandleDeathSystem>()->set_manager(&g_smSimulation);
 	// Post-simulation step
 	g_smPostSimulation.add<WriteSpritesToMapSystem>();
 	g_smPostSimulation.add<RenderSystem>();
 	g_smPostSimulation.add<UISystem>();
 	g_smPostSimulation.add<GameStateSystem>();
 
-	g_world.init();
+	g_pGameWorld->init();
 
-	while (!g_world.terminate) {
+	while (!g_pGameWorld->terminate) {
 		g_smPreSimulation.update();
 		g_smSimulation.update();
 		g_smPostSimulation.update();
