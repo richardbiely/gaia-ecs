@@ -111,6 +111,10 @@ struct TypeNonTrivial {
 	}
 };
 
+//------------------------------------------------------------------------------
+// Strings
+//------------------------------------------------------------------------------
+
 static constexpr const char* StringComponentDefaultValue =
 		"StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
 static constexpr const char* StringComponent2DefaultValue =
@@ -138,6 +142,24 @@ struct StringComponent2 {
 };
 GAIA_DEFINE_HAS_FUNCTION(foo)
 GAIA_DEFINE_HAS_FUNCTION(food)
+
+TEST_CASE("StringLookupKey") {
+	constexpr uint32_t MaxLen = 32;
+	char tmp0[MaxLen];
+	char tmp1[MaxLen];
+	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
+	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
+	core::StringLookupKey<128> l0(tmp0);
+	core::StringLookupKey<128> l1(tmp1);
+	REQUIRE(l0.len() == l1.len());
+	// Two different addresses in memory have to return the same hash if the string is the same
+	REQUIRE(l0.hash() == l1.hash());
+}
+
+//------------------------------------------------------------------------------
+// Utility functions
+//------------------------------------------------------------------------------
+
 struct Dummy0 {
 	Dummy0* foo(const Dummy0&) const {
 		return nullptr;
@@ -219,19 +241,6 @@ TEST_CASE("has_XYZ_equals_check") {
 	}
 }
 
-TEST_CASE("StringLookupKey") {
-	constexpr uint32_t MaxLen = 32;
-	char tmp0[MaxLen];
-	char tmp1[MaxLen];
-	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
-	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
-	core::StringLookupKey<128> l0(tmp0);
-	core::StringLookupKey<128> l1(tmp1);
-	REQUIRE(l0.len() == l1.len());
-	// Two different addresses in memory have to return the same hash if the string is the same
-	REQUIRE(l0.hash() == l1.hash());
-}
-
 TEST_CASE("Intrinsics") {
 	SECTION("POPCNT") {
 		const uint32_t zero32 = GAIA_POPCNT(0);
@@ -293,12 +302,6 @@ TEST_CASE("Intrinsics") {
 		const uint64_t val64_3 = GAIA_FFS64(0x00030020003002);
 		REQUIRE(val64_3 == 2);
 	}
-}
-
-TEST_CASE("EntityKinds") {
-	REQUIRE(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
-	REQUIRE(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
-	REQUIRE(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
 }
 
 TEST_CASE("Memory allocation") {
@@ -391,6 +394,10 @@ TEST_CASE("bit_view") {
 		REQUIRE(val == i);
 	}
 }
+
+//------------------------------------------------------------------------------
+// Containers
+//------------------------------------------------------------------------------
 
 TEST_CASE("fwd_llist") {
 	struct Foo: cnt::fwd_llist_base<Foo> {
@@ -792,6 +799,251 @@ TEST_CASE("Containers - darr_ext") {
 	}
 }
 
+//------------------------------------------------------------------------------
+// Signals
+//------------------------------------------------------------------------------
+
+using sig_func_t = void(ecs::Entity, ecs::Entity, uint32_t&);
+void test_func([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
+	GAIA_ASSERT(e1 == e2);
+	++cnt;
+}
+
+struct SigFoo {
+	void on_event([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
+		GAIA_ASSERT(e1 == e2);
+		++cnt;
+	}
+};
+
+TEST_CASE("Delegates") {
+	TestWorld twld;
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+
+	// free function
+	{
+		util::delegate<sig_func_t> d;
+		REQUIRE_FALSE(d.operator bool());
+		d.bind<test_func>();
+		REQUIRE(d.operator bool());
+
+		uint32_t i = 0;
+		d(e1, e1, i);
+		REQUIRE(i == 1);
+
+		d.reset();
+		REQUIRE_FALSE(d.operator bool());
+	}
+
+	// class
+	{
+		SigFoo f;
+		util::delegate<sig_func_t> d;
+		REQUIRE_FALSE(d.operator bool());
+		d.bind<&SigFoo::on_event>(f);
+		REQUIRE(d.operator bool());
+
+		uint32_t i = 0;
+		d(e1, e1, i);
+		REQUIRE(i == 1);
+	}
+
+	// non-capturing lambda-like construct
+	{
+		struct dummyCtx {
+			void operator()([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
+				GAIA_ASSERT(e1 == e2);
+				++cnt;
+			}
+		} dummy;
+		util::delegate<sig_func_t> d;
+		d.bind<&dummyCtx::operator()>(dummy);
+
+		uint32_t i = 0;
+		d(e1, e1, i);
+		REQUIRE(i);
+	}
+}
+
+TEST_CASE("Signals") {
+	TestWorld twld;
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	auto e3 = wld.add();
+	util::signal<sig_func_t> sig;
+
+	{
+		util::sink<sig_func_t> sink{sig};
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+
+		// No bindings, zero expected
+		uint32_t cnt = 0;
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Free function bound
+		cnt = 0;
+		sink.bind<test_func>();
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Unbind the function, zero expected
+		cnt = 0;
+		sink.unbind<test_func>();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Bind again
+		cnt = 0;
+		sink.bind<test_func>();
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Reset the sink object, zero expected
+		cnt = 0;
+		sink.reset();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+	}
+	{
+		SigFoo f;
+
+		util::sink<sig_func_t> sink{sig};
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+
+		// No bindings, zero expected
+		uint32_t cnt = 0;
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Free function bound
+		cnt = 0;
+		sink.bind<&SigFoo::on_event>(f);
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Unbind the function, zero expected
+		cnt = 0;
+		sink.unbind<&SigFoo::on_event>(f);
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+
+		// Bind again
+		cnt = 0;
+		sink.bind<&SigFoo::on_event>(f);
+		REQUIRE(sig.size() == 1);
+		REQUIRE(!sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 3);
+
+		// Reset the sink object, zero expected
+		cnt = 0;
+		sink.reset();
+		REQUIRE(sig.size() == 0);
+		REQUIRE(sig.empty());
+		sig.emit(e1, e1, cnt);
+		sig.emit(e2, e2, cnt);
+		sig.emit(e3, e3, cnt);
+		REQUIRE(cnt == 0);
+	}
+}
+
+//------------------------------------------------------------------------------
+// Allocators and storages
+//------------------------------------------------------------------------------
+
+TEST_CASE("StackAllocator") {
+	struct TFoo {
+		int a;
+		bool b;
+	};
+
+	mem::StackAllocator a;
+	{
+		auto* pPosN = a.alloc<PositionNonTrivial>(3);
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1);
+			REQUIRE(pPosN[i].y == 2);
+			REQUIRE(pPosN[i].z == 3);
+		}
+	}
+	a.reset();
+	{
+		auto* pInt = a.alloc<int>(1);
+		*pInt = 10;
+		a.free(pInt, 1);
+		pInt = a.alloc<int>(1);
+		REQUIRE(*pInt == 10);
+
+		auto* pPos = a.alloc<Position>(10);
+		GAIA_FOR(10) {
+			pPos[i].x = (float)i;
+			pPos[i].y = (float)i + 1.f;
+			pPos[i].z = (float)i + 2.f;
+		}
+		a.free(pPos, 10);
+		pPos = a.alloc<Position>(10);
+		GAIA_FOR(10) {
+			REQUIRE(pPos[i].x == (float)i);
+			REQUIRE(pPos[i].y == (float)i + 1.f);
+			REQUIRE(pPos[i].z == (float)i + 2.f);
+		}
+
+		auto* pPosN = a.alloc<PositionNonTrivial>(3);
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1.f);
+			REQUIRE(pPosN[i].y == 2.f);
+			REQUIRE(pPosN[i].z == 3.f);
+		}
+
+		// Alloc and release some more objects
+		auto* pFoo = a.alloc<TFoo>(1);
+		auto* pInt5 = a.alloc<int>(5);
+		a.free(pInt5, 5);
+		a.free(pFoo, 1);
+
+		// Make sure the previously stored positions are still intact
+		GAIA_FOR(3) {
+			REQUIRE(pPosN[i].x == 1);
+			REQUIRE(pPosN[i].y == 2);
+			REQUIRE(pPosN[i].z == 3);
+		}
+	}
+}
+
 struct SparseTestItem {
 	uint32_t id;
 	uint32_t data;
@@ -822,6 +1074,18 @@ namespace gaia {
 		template <>
 		struct to_sparse_id<SparseTestItem_NonTrivial> {
 			static sparse_id get(const SparseTestItem_NonTrivial& item) noexcept {
+				return item.id;
+			}
+		};
+		template <>
+		struct to_page_storage_id<SparseTestItem> {
+			static page_storage_id get(const SparseTestItem& item) noexcept {
+				return item.id;
+			}
+		};
+		template <>
+		struct to_page_storage_id<SparseTestItem_NonTrivial> {
+			static page_storage_id get(const SparseTestItem_NonTrivial& item) noexcept {
 				return item.id;
 			}
 		};
@@ -1167,6 +1431,210 @@ TEST_CASE("Containers - sparse_storage") {
 	SECTION("non_trivial_types") {
 		sparse_storage_test<NonTrivialT>(N);
 		sparse_storage_test<NonTrivialT>(M);
+	}
+}
+
+template <typename Container>
+void paged_storage_test(uint32_t N) {
+	using cont_item = typename Container::value_type;
+
+	auto to_sid = [](uint32_t i) {
+		return i;
+	};
+	auto new_item = [to_sid](uint32_t i) {
+		return cont_item{i, i};
+	};
+
+	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
+	Container arr;
+
+	GAIA_FOR(N) {
+		arr.add(new_item(i));
+		REQUIRE(arr[to_sid(i)].data == i);
+		REQUIRE(arr.back().data == i);
+	}
+
+	// Verify the values remain the same even after the internal buffer is reallocated
+	GAIA_FOR(N) REQUIRE(arr[to_sid(i)].data == i);
+	// Copy assignment
+	{
+		Container arrCopy = arr;
+		GAIA_FOR(N) {
+			const auto& item = arrCopy[to_sid(i)];
+			REQUIRE(item.data == i);
+		}
+	}
+	// Copy constructor
+	{
+		Container arrCopy(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+	}
+	// Move assignment
+	{
+		Container arrCopy = GAIA_MOV(arr);
+		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+	// Move constructor
+	{
+		Container arrCopy(GAIA_MOV(arr));
+		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		// move back
+		arr = GAIA_MOV(arrCopy);
+	}
+
+	// Container comparison
+	{
+		Container arrEmpty;
+		REQUIRE_FALSE(arrEmpty == arr);
+
+		Container arr2(arr);
+		REQUIRE(arr2 == arr);
+	}
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val.id == to_sid(cnt));
+		REQUIRE(val.data == cnt);
+		++cnt;
+	}
+	REQUIRE(cnt == N);
+	REQUIRE(cnt == arr.size());
+
+	REQUIRE(core::find(arr, cont_item{0U, 0U}) == arr.begin());
+	REQUIRE(core::find(arr, cont_item{N, N}) == arr.end());
+	REQUIRE(core::has(arr, cont_item{0U, 0U}));
+	REQUIRE_FALSE(core::has(arr, cont_item{N, N}));
+
+	// ------------------
+
+	arr.clear();
+	REQUIRE(arr.empty());
+	REQUIRE(arr.size() == 0);
+
+	arr.add(new_item(11));
+	arr.add(new_item(12));
+	arr.add(new_item(13));
+	arr.add(new_item(14));
+	arr.add(new_item(15));
+
+	REQUIRE_FALSE(arr.empty());
+	REQUIRE(arr.size() == 5);
+
+	arr.del(new_item(13));
+	REQUIRE(arr.size() == 4);
+	REQUIRE(arr[to_sid(11)].data == 11);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+	REQUIRE(arr[to_sid(15)].data == 15);
+
+	arr.del(new_item(11));
+	REQUIRE(arr.size() == 3);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+	REQUIRE(arr[to_sid(15)].data == 15);
+
+	arr.del(new_item(15));
+	REQUIRE(arr.size() == 2);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+
+	arr.add(new_item(9));
+	REQUIRE(arr.size() == 3);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+
+	arr.add(new_item(4000));
+	REQUIRE(arr.size() == 4);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+	REQUIRE(arr[to_sid(4000)].data == 4000);
+
+	arr.add(new_item(4001));
+	arr.add(new_item(4002));
+	arr.add(new_item(4003));
+	arr.add(new_item(4030));
+	REQUIRE(arr.size() == 8);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+	REQUIRE(arr[to_sid(4000)].data == 4000);
+	REQUIRE(arr[to_sid(4001)].data == 4001);
+	REQUIRE(arr[to_sid(4002)].data == 4002);
+	REQUIRE(arr[to_sid(4003)].data == 4003);
+	REQUIRE(arr[to_sid(4030)].data == 4030);
+
+	arr.del(new_item(4002));
+	REQUIRE(arr.size() == 7);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 14);
+	REQUIRE(arr[to_sid(4000)].data == 4000);
+	REQUIRE(arr[to_sid(4001)].data == 4001);
+	REQUIRE(arr[to_sid(4003)].data == 4003);
+	REQUIRE(arr[to_sid(4030)].data == 4030);
+
+	{
+		uint32_t indices[] = {9, 12, 14, 4000, 4001, 4003, 4030};
+		cnt = 0;
+		for (auto val: arr) {
+			const auto id = indices[cnt];
+			REQUIRE(val.id == to_sid(id));
+			REQUIRE(val.data == id);
+			++cnt;
+		}
+		REQUIRE(cnt == 7);
+	}
+
+	auto& ref = arr.set(to_sid(14));
+	ref.data = 400;
+	REQUIRE(arr.size() == 7);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 400);
+	REQUIRE(arr[to_sid(4000)].data == 4000);
+	REQUIRE(arr[to_sid(4001)].data == 4001);
+	REQUIRE(arr[to_sid(4003)].data == 4003);
+	REQUIRE(arr[to_sid(4030)].data == 4030);
+
+	{
+		uint32_t indices[] = {9, 12, 14, 4000, 4001, 4003, 4030};
+		uint32_t values[] = {9, 12, 400, 4000, 4001, 4003, 4030};
+		cnt = 0;
+		for (auto val: arr) {
+			REQUIRE(val.id == to_sid(indices[cnt]));
+			REQUIRE(val.data == values[cnt]);
+			++cnt;
+		}
+		REQUIRE(cnt == 7);
+	}
+
+	ref.data = 200;
+	REQUIRE(arr.size() == 7);
+	REQUIRE(arr[to_sid(9)].data == 9);
+	REQUIRE(arr[to_sid(12)].data == 12);
+	REQUIRE(arr[to_sid(14)].data == 200);
+	REQUIRE(arr[to_sid(4000)].data == 4000);
+	REQUIRE(arr[to_sid(4001)].data == 4001);
+	REQUIRE(arr[to_sid(4003)].data == 4003);
+	REQUIRE(arr[to_sid(4030)].data == 4030);
+}
+
+TEST_CASE("Containers - paged storage") {
+	constexpr uint32_t N = 100;
+	constexpr uint32_t M = 10000;
+	using TrivialT = cnt::page_storage<SparseTestItem>;
+	using NonTrivialT = cnt::page_storage<SparseTestItem_NonTrivial>;
+	SECTION("trivial_types") {
+		paged_storage_test<TrivialT>(N);
+		paged_storage_test<TrivialT>(M);
+	}
+	SECTION("non_trivial_types") {
+		paged_storage_test<NonTrivialT>(N);
+		paged_storage_test<NonTrivialT>(M);
 	}
 }
 
@@ -2068,6 +2536,10 @@ TEST_CASE("Containers - dbitset") {
 	}
 }
 
+//-----------------------------------------------------------------
+// Iteration
+//-----------------------------------------------------------------
+
 TEST_CASE("each") {
 	constexpr uint32_t N = 10;
 	SECTION("index argument") {
@@ -2198,6 +2670,10 @@ TEST_CASE("each_pack") {
 	REQUIRE(val == 99);
 }
 
+//-----------------------------------------------------------------
+// Sorting
+//-----------------------------------------------------------------
+
 template <bool IsRuntime, typename C>
 void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
@@ -2307,6 +2783,16 @@ TEST_CASE("Run-time sort - bubble sort") {
 TEST_CASE("Run-time sort - quick sort") {
 	sort_descending<true>(cnt::sarray<uint32_t, 45>{});
 	sort_ascending<true>(cnt::sarray<uint32_t, 45>{});
+}
+
+//-----------------------------------------------------------------
+// ECS
+//-----------------------------------------------------------------
+
+TEST_CASE("EntityKinds") {
+	REQUIRE(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
+	REQUIRE(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
+	REQUIRE(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
 }
 
 GAIA_GCC_WARNING_PUSH()
@@ -4267,7 +4753,7 @@ TEST_CASE("Enable") {
 		REQUIRE(wld.enabled(arr[1]));
 	}
 
-	SECTION("State persistance") {
+	SECTION("State persistence") {
 		wld.enable(arr[0], false);
 		REQUIRE_FALSE(wld.enabled(arr[0]));
 		auto e = arr[0];
@@ -5531,8 +6017,8 @@ TEST_CASE("Entity name - copy") {
 		cnt::darr<ecs::Entity> ents;
 		ents.reserve(N);
 
-		wld.copy_n(e1, N, [&ents](ecs::Entity ecopy) {
-			ents.push_back(ecopy);
+		wld.copy_n(e1, N, [&ents](ecs::Entity entity) {
+			ents.push_back(entity);
 		});
 
 		auto e = wld.get(pTestStr);
@@ -8107,22 +8593,22 @@ TEST_CASE("JobQueue") {
 		TestJobQueue_PushPop<mpmc>(true);
 	}
 
-	using mttester_jc = JobQueueMTTester_PushPopSteal<jc>;
-	using mttester_mpmc = JobQueueMTTester_PushPop<mpmc>;
+	using mt_tester_jc = JobQueueMTTester_PushPopSteal<jc>;
+	using mt_tester_mpmc = JobQueueMTTester_PushPop<mpmc>;
 
 	SECTION("MT - 2 threads") {
-		TestJobQueueMT<mttester_jc>(2);
-		TestJobQueueMT<mttester_mpmc>(2);
+		TestJobQueueMT<mt_tester_jc>(2);
+		TestJobQueueMT<mt_tester_mpmc>(2);
 	}
 
 	SECTION("MT - 4 threads") {
-		TestJobQueueMT<mttester_jc>(4);
-		TestJobQueueMT<mttester_mpmc>(4);
+		TestJobQueueMT<mt_tester_jc>(4);
+		TestJobQueueMT<mt_tester_mpmc>(4);
 	}
 
 	SECTION("MT - 16 threads") {
-		TestJobQueueMT<mttester_jc>(16);
-		TestJobQueueMT<mttester_mpmc>(16);
+		TestJobQueueMT<mt_tester_jc>(16);
+		TestJobQueueMT<mt_tester_mpmc>(16);
 	}
 }
 
@@ -8323,263 +8809,3 @@ TEST_CASE("Multithreading - CompleteMany") {
 		work();
 	}
 }
-
-//------------------------------------------------------------------------------
-// Allocators
-//------------------------------------------------------------------------------
-
-TEST_CASE("StackAllocator") {
-	struct TFoo {
-		int a;
-		bool b;
-	};
-
-	mem::StackAllocator a;
-	{
-		auto* pPosN = a.alloc<PositionNonTrivial>(3);
-		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1);
-			REQUIRE(pPosN[i].y == 2);
-			REQUIRE(pPosN[i].z == 3);
-		}
-	}
-	a.reset();
-	{
-		auto* pInt = a.alloc<int>(1);
-		*pInt = 10;
-		a.free(pInt, 1);
-		pInt = a.alloc<int>(1);
-		REQUIRE(*pInt == 10);
-
-		auto* pPos = a.alloc<Position>(10);
-		GAIA_FOR(10) {
-			pPos[i].x = (float)i;
-			pPos[i].y = (float)i + 1.f;
-			pPos[i].z = (float)i + 2.f;
-		}
-		a.free(pPos, 10);
-		pPos = a.alloc<Position>(10);
-		GAIA_FOR(10) {
-			REQUIRE(pPos[i].x == (float)i);
-			REQUIRE(pPos[i].y == (float)i + 1.f);
-			REQUIRE(pPos[i].z == (float)i + 2.f);
-		}
-
-		auto* pPosN = a.alloc<PositionNonTrivial>(3);
-		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1.f);
-			REQUIRE(pPosN[i].y == 2.f);
-			REQUIRE(pPosN[i].z == 3.f);
-		}
-
-		// Alloc and release some more objects
-		auto* pFoo = a.alloc<TFoo>(1);
-		auto* pInt5 = a.alloc<int>(5);
-		a.free(pInt5, 5);
-		a.free(pFoo, 1);
-
-		// Make sure the previously stored positions are still intact
-		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1);
-			REQUIRE(pPosN[i].y == 2);
-			REQUIRE(pPosN[i].z == 3);
-		}
-	}
-}
-
-// TEST_CASE("PagedAllocator") {
-// 	struct TFoo {
-// 		int a;
-// 		bool b;
-// 	};
-
-// 	auto& a = mem::PagedAllocator<TFoo>::get();
-// 	{
-// 		auto* pPosN = a.alloc();
-// 		(void)pPosN;
-// 	}
-// }
-
-//------------------------------------------------------------------------------
-// Signals
-//------------------------------------------------------------------------------
-
-using sig_func_t = void(ecs::Entity, ecs::Entity, uint32_t&);
-void test_func([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
-	GAIA_ASSERT(e1 == e2);
-	++cnt;
-}
-
-struct SigFoo {
-	void on_event([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
-		GAIA_ASSERT(e1 == e2);
-		++cnt;
-	}
-};
-
-TEST_CASE("Delegates") {
-	TestWorld twld;
-	auto e1 = wld.add();
-	auto e2 = wld.add();
-
-	// free function
-	{
-		util::delegate<sig_func_t> d;
-		REQUIRE_FALSE(d.operator bool());
-		d.bind<test_func>();
-		REQUIRE(d.operator bool());
-
-		uint32_t i = 0;
-		d(e1, e1, i);
-		REQUIRE(i == 1);
-
-		d.reset();
-		REQUIRE_FALSE(d.operator bool());
-	}
-
-	// class
-	{
-		SigFoo f;
-		util::delegate<sig_func_t> d;
-		REQUIRE_FALSE(d.operator bool());
-		d.bind<&SigFoo::on_event>(f);
-		REQUIRE(d.operator bool());
-
-		uint32_t i = 0;
-		d(e1, e1, i);
-		REQUIRE(i == 1);
-	}
-
-	// non-capturing lambda-like construct
-	{
-		struct dummyCtx {
-			void operator()([[maybe_unused]] ecs::Entity e1, [[maybe_unused]] ecs::Entity e2, uint32_t& cnt) {
-				GAIA_ASSERT(e1 == e2);
-				++cnt;
-			}
-		} dummy;
-		util::delegate<sig_func_t> d;
-		d.bind<&dummyCtx::operator()>(dummy);
-
-		uint32_t i = 0;
-		d(e1, e1, i);
-		REQUIRE(i);
-	}
-}
-
-TEST_CASE("Signals") {
-	TestWorld twld;
-	auto e1 = wld.add();
-	auto e2 = wld.add();
-	auto e3 = wld.add();
-	util::signal<sig_func_t> sig;
-
-	{
-		util::sink<sig_func_t> sink{sig};
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-
-		// No bindings, zero expected
-		uint32_t cnt = 0;
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-
-		// Free function bound
-		cnt = 0;
-		sink.bind<test_func>();
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
-
-		// Unbind the function, zero expected
-		cnt = 0;
-		sink.unbind<test_func>();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-
-		// Bind again
-		cnt = 0;
-		sink.bind<test_func>();
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
-
-		// Reset the sink object, zero expected
-		cnt = 0;
-		sink.reset();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-	}
-	{
-		SigFoo f;
-
-		util::sink<sig_func_t> sink{sig};
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-
-		// No bindings, zero expected
-		uint32_t cnt = 0;
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-
-		// Free function bound
-		cnt = 0;
-		sink.bind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
-
-		// Unbind the function, zero expected
-		cnt = 0;
-		sink.unbind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-
-		// Bind again
-		cnt = 0;
-		sink.bind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
-
-		// Reset the sink object, zero expected
-		cnt = 0;
-		sink.reset();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
-		sig.emit(e1, e1, cnt);
-		sig.emit(e2, e2, cnt);
-		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
-	}
-}
-
-//------------------------------------------------------------------------------

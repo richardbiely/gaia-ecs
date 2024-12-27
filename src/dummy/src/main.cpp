@@ -840,7 +840,7 @@ void test10b() {
 			sys3_run_before_sys1 = false;
 			sys3_run_before_sys2 = false;
 			wld.update();
-			//wld.diag_archetypes();
+			// wld.diag_archetypes();
 			GAIA_ASSERT(sys1_cnt == N);
 			// GAIA_ASSERT(sys2_cnt == N);
 			// GAIA_ASSERT(sys3_cnt == N);
@@ -855,7 +855,7 @@ void test10b() {
 			sys3_run_before_sys1 = false;
 			sys3_run_before_sys2 = false;
 			wld.update();
-			//wld.diag_archetypes();
+			// wld.diag_archetypes();
 			GAIA_ASSERT(sys1_cnt == N);
 			GAIA_ASSERT(sys2_cnt == N);
 			GAIA_ASSERT(sys3_cnt == N);
@@ -1122,7 +1122,8 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			[[maybe_unused]] const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			[[maybe_unused]] const bool isOK =
+					entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1141,7 +1142,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			[[maybe_unused]]  bool isOK = entity == animal || entity == herbivore;
+			[[maybe_unused]] bool isOK = entity == animal || entity == herbivore;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1155,7 +1156,7 @@ void test15() {
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
-			[[maybe_unused]]  bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
+			[[maybe_unused]] bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
 			GAIA_ASSERT(isOK);
 
 			++i;
@@ -1182,6 +1183,18 @@ void test15() {
 	}
 }
 
+void test16() {
+	const uint32_t N = 15'000;
+
+	ecs::World wld;
+
+	auto create = [&](uint32_t i) {
+		auto e = wld.add();
+		wld.add<Int3>(e, {i, i, i});
+	};
+	GAIA_FOR(N) create(i);
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -1199,13 +1212,14 @@ int main() {
 	// test8();
 	// test9();
 	// test10();
-	test10b();
+	// test10b();
 	// test11();
 	// test12();
 	// test12b();
 	// test13();
 	// test14();
 	// test15();
+	test16();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

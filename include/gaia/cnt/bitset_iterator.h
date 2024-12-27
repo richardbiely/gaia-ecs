@@ -17,8 +17,8 @@ namespace gaia {
 			using size_type = typename TBitset::size_type;
 
 		private:
-			const TBitset* m_bitset;
-			value_type m_pos;
+			const TBitset* m_bitset = nullptr;
+			value_type m_pos = 0;
 
 			GAIA_NODISCARD size_type item(uint32_t wordIdx) const noexcept {
 				if constexpr (IsInverse)

@@ -107,7 +107,7 @@ namespace gaia {
 		};
 
 #if GAIA_USE_PAGED_ENTITY_CONTAINER
-		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer, 2048> {
+		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
 		public:
 			void add_item(EntityContainer&& container) {
 				this->add(GAIA_MOV(container));
