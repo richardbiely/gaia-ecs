@@ -33,7 +33,7 @@ namespace gaia {
 		template <typename T, uint32_t RequestedBlockSize>
 		struct MemoryPage: MemoryPageHeader, cnt::fwd_llist_base<MemoryPage<T, RequestedBlockSize>> {
 			static constexpr uint32_t next_multiple_of_alignment(uint32_t num) {
-				return (num + (MemoryBlockAlignment - 1)) & (-MemoryBlockAlignment);
+				return (num + (MemoryBlockAlignment - 1)) & uint32_t(-(int32_t)MemoryBlockAlignment);
 			}
 			static constexpr uint32_t calculate_block_size() {
 				if constexpr (RequestedBlockSize == 0)
