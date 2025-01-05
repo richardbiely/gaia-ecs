@@ -1977,7 +1977,7 @@ Thank you for using the project. You rock! :)
 
 # License
 
-Code and documentation Copyright (c) 2021-2024 Richard Biely.
+Code and documentation Copyright (c) 2021-2025 Richard Biely.
 
 Code released under the [MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
 

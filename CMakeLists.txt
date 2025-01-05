@@ -20,7 +20,7 @@ project(
 
 message(STATUS "*************************************************************")
 message(STATUS "${PROJECT_NAME}-ecs v${PROJECT_VERSION} (${CMAKE_BUILD_TYPE})")
-message(STATUS "Copyright (c) 2024 Richard Biely <richardbiely@gmail.com>")
+message(STATUS "Copyright (c) 2025 Richard Biely <richardbiely@gmail.com>")
 message(STATUS "*************************************************************")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER}")
 message(STATUS "CPU: ${CMAKE_SYSTEM_PROCESSOR}")
