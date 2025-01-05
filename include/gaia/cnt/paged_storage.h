@@ -27,6 +27,8 @@ namespace gaia {
 
 			constexpr static page_storage_id InvalidPageStorageId = (page_storage_id)-1;
 
+			template <typename T>
+			struct mem_page_data;
 			template <typename T, typename Allocator>
 			class mem_page;
 		} // namespace detail
@@ -54,9 +56,10 @@ namespace gaia {
 				using iterator = mem_page_iterator;
 
 			private:
+				using page_data_type = detail::mem_page_data<T>;
 				using page_type = detail::mem_page<T, Allocator>;
-				using bit_set_iter_type =
-						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+				using bit_set_iter_type = std::conditional_t<
+						IsFwd, typename page_data_type::bit_set::iter, typename page_data_type::bit_set::iter_rev>;
 
 				page_type* m_pPage = nullptr;
 				bit_set_iter_type m_it;
@@ -102,9 +105,10 @@ namespace gaia {
 				using iterator = mem_page_iterator_soa;
 
 			private:
+				using page_data_type = detail::mem_page_data<T>;
 				using page_type = detail::mem_page<T, Allocator>;
-				using bit_set_iter_type =
-						std::conditional_t<IsFwd, typename page_type::bit_set::iter, typename page_type::bit_set::iter_rev>;
+				using bit_set_iter_type = std::conditional_t<
+						IsFwd, typename page_data_type::bit_set::iter, typename page_data_type::bit_set::iter_rev>;
 
 				page_type* m_pPage;
 				bit_set_iter_type m_it;
@@ -146,28 +150,32 @@ namespace gaia {
 				}
 			};
 
+			template <typename T>
+			struct mem_page_data {
+				static constexpr uint32_t PageCapacity = 4096;
+
+				using view_policy = mem::auto_view_policy<T>;
+				using bit_set = cnt::bitset<PageCapacity>;
+				static constexpr uint32_t AllocatedBytes = view_policy::get_min_byte_size(0, PageCapacity);
+
+				struct PageHeader {
+					//! How many items are allocated inside the page
+					size_type cnt = size_type(0);
+					//! Mask for used data
+					bit_set mask;
+				};
+
+				//! Page header
+				PageHeader header;
+				//! Page data
+				mem::raw_data_holder<T, AllocatedBytes> data;
+			};
+
 			template <typename T, typename Allocator>
 			class mem_page {
-				//! Calculate how many items along with their header we can fit into one block received from the allocator
-				//! \return Number of items we can fit
-				GAIA_NODISCARD static constexpr uint32_t calc_capacity() noexcept {
-					const auto maxItems = (gaia::mem::MemoryBlockBytes - gaia::mem::MemoryBlockUsableOffset) / sizeof(T);
-					const auto maxItemsBits = core::count_bits(maxItems);
-					// Bitbuffer size
-					const auto bitBufferSizeBytes = sizeof(decltype(cnt::bitset<maxItemsBits>()));
-					// Subtract the bitbuffer size from the capacity and then calculate the item count.
-					// This is not the most efficient approximate but it is good enough.
-					const auto maxItemsAdjusted =
-							(gaia::mem::MemoryBlockBytes - gaia::mem::MemoryBlockUsableOffset - bitBufferSizeBytes) / sizeof(T);
-					return maxItemsAdjusted;
-				}
-
-			public:
 				static_assert(!std::is_empty_v<T>, "It only makes sense to use page storage for data types with non-zero size");
 
-				static constexpr uint32_t PageCapacity = core::closest_pow2(calc_capacity());
-				static constexpr uint32_t PageCapacityFull = calc_capacity();
-
+			public:
 				using value_type = T;
 				using reference = T&;
 				using const_reference = const T&;
@@ -177,7 +185,6 @@ namespace gaia {
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 
-				using bit_set = cnt::bitset<PageCapacity>;
 				template <bool IsFwd>
 				using iterator_base = mem_page_iterator<T, Allocator, IsFwd>;
 				using iterator = iterator_base<true>;
@@ -188,21 +195,8 @@ namespace gaia {
 				using iterator_soa = iterator_soa_base<true>;
 				using iterator_soa_reverse = iterator_soa_base<false>;
 
-				struct PageHeader {
-					//! How many items are allocated inside the page
-					size_type cnt = size_type(0);
-					//! Mask for used data
-					bit_set mask;
-				};
-
-				static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, PageCapacity);
-
-				struct PageData {
-					//! Page header
-					PageHeader header;
-					//! Page data
-					mem::raw_data_holder<T, allocated_bytes> data;
-				};
+				using PageData = mem_page_data<T>;
+				static constexpr uint32_t PageCapacity = PageData::PageCapacity;
 
 				// private:
 				//! Pointer to page data
@@ -450,7 +444,7 @@ namespace gaia {
 						return (const_reference)set_data(idx);
 				}
 
-				static constexpr bit_set s_dummyBitSet{};
+				static constexpr typename PageData::bit_set s_dummyBitSet{};
 
 				GAIA_NODISCARD auto begin() const noexcept {
 					if constexpr (mem::is_soa_layout_v<T>)
@@ -685,8 +679,10 @@ namespace gaia {
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 
-			using Allocator = mem::PagedAllocator<T>;
+			static constexpr uint32_t AllocatorBlockSize = (uint32_t)sizeof(detail::mem_page_data<T>);
+			using Allocator = mem::PagedAllocator<T, AllocatorBlockSize>;
 
+			using page_data_type = detail::mem_page_data<T>;
 			using page_type = detail::mem_page<T, Allocator>;
 			static constexpr uint32_t PageCapacity = page_type::PageCapacity;
 
@@ -696,8 +692,8 @@ namespace gaia {
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
 
 		private:
-			constexpr static uint32_t page_mask = PageCapacity - 1;
-			constexpr static uint32_t to_page_index = core::count_bits(page_mask);
+			constexpr static uint32_t PageMask = PageCapacity - 1;
+			constexpr static uint32_t ToPageIndex = core::count_bits(PageMask);
 
 			//! Contains pages with data
 			cnt::darray<page_type> m_pages;
@@ -714,9 +710,7 @@ namespace gaia {
 			}
 
 		public:
-			constexpr page_storage() noexcept {
-				// GAIA_LOG_N("Cap: %u/%u", PageCapacity, page_type::PageCapacityFull);
-			}
+			constexpr page_storage() noexcept = default;
 
 			page_storage(const page_storage& other) {
 				m_pages = other.m_pages;
@@ -757,16 +751,16 @@ namespace gaia {
 
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
 				GAIA_ASSERT(has(id));
-				const auto pid = size_type(id >> to_page_index);
-				const auto did = size_type(id & page_mask);
+				const auto pid = size_type(id >> ToPageIndex);
+				const auto did = size_type(id & PageMask);
 				auto& page = m_pages[pid];
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
 
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
 				GAIA_ASSERT(has(id));
-				const auto pid = size_type(id >> to_page_index);
-				const auto did = size_type(id & page_mask);
+				const auto pid = size_type(id >> ToPageIndex);
+				const auto did = size_type(id & PageMask);
 				auto& page = m_pages[pid];
 				return view_policy::get({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
@@ -775,12 +769,12 @@ namespace gaia {
 
 			//! Checks if an item with a given page id \param sid exists
 			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
-				const auto pid = size_type(id >> to_page_index);
+				const auto pid = size_type(id >> ToPageIndex);
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto did = size_type(id & page_mask);
-				const auto val = page_type::bit_set::BitCount;
+				const auto did = size_type(id & PageMask);
+				const auto val = page_data_type::bit_set::BitCount;
 				return did < val && m_pages[pid].has_data(did);
 			}
 
@@ -800,15 +794,15 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<TType>)
 						return;
 					else {
-						const auto pid = size_type(id >> to_page_index);
-						const auto did = size_type(id & page_mask);
+						const auto pid = size_type(id >> ToPageIndex);
+						const auto did = size_type(id & PageMask);
 						auto& page = m_pages[pid];
 						return page.set_data(did);
 					}
 				}
 
-				const auto pid = size_type(id >> to_page_index);
-				const auto did = size_type(id & page_mask);
+				const auto pid = size_type(id >> ToPageIndex);
+				const auto did = size_type(id & PageMask);
 
 				try_grow(pid);
 
@@ -824,8 +818,8 @@ namespace gaia {
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
 
-				const auto pid = uint32_t(id >> to_page_index);
-				const auto did = uint32_t(id & page_mask);
+				const auto pid = uint32_t(id >> ToPageIndex);
+				const auto did = uint32_t(id & PageMask);
 
 				auto& page = m_pages[pid];
 				return page.set_data(did);
@@ -839,8 +833,8 @@ namespace gaia {
 				if (!has(id))
 					return;
 
-				const auto pid = uint32_t(id >> to_page_index);
-				const auto did = uint32_t(id & page_mask);
+				const auto pid = uint32_t(id >> ToPageIndex);
+				const auto did = uint32_t(id & PageMask);
 
 				auto& page = m_pages[pid];
 				page.del_data(did);
