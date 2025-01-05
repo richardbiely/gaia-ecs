@@ -356,11 +356,11 @@ TEST_CASE("pow2") {
 		constexpr auto result32 = core::closest_pow2(test32);
 		constexpr auto result64 = core::closest_pow2(test64);
 
-		constexpr auto result0_isPow2 = core::is_pow2(test0);
-		constexpr auto result8_isPow2 = core::is_pow2(test8);
-		constexpr auto result16_isPow2 = core::is_pow2(test16);
-		constexpr auto result32_isPow2 = core::is_pow2(test32);
-		constexpr auto result64_isPow2 = core::is_pow2(test64);
+		constexpr auto result0_isPow2 = core::is_pow2(result0);
+		constexpr auto result8_isPow2 = core::is_pow2(result8);
+		constexpr auto result16_isPow2 = core::is_pow2(result16);
+		constexpr auto result32_isPow2 = core::is_pow2(result32);
+		constexpr auto result64_isPow2 = core::is_pow2(result64);
 
 		REQUIRE(result0_isPow2);
 		REQUIRE(result8_isPow2);
