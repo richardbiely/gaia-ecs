@@ -252,6 +252,29 @@ w.name_raw(e, nullptr);
 w.name_raw(e, pUserManagedString);
 ```
 
+Hierarchical name lookup is also possible.
+```cpp
+auto europe = wld.add();
+auto slovakia = wld.add();
+auto bratislava = wld.add();
+
+wld.child(slovakia, europe);
+wld.child(bratislava, slovakia);
+
+wld.name(europe, "europe");
+wld.name(slovakia, "slovakia");
+wld.name(bratislava, "bratislava");
+
+auto e1 = wld.get("europe.slovakia"); // returns slovakia
+auto e2 = wld.get("europe.slovakia.bratislava"); // returns bratislava
+```
+
+Character '.' (dot) is used as a separator. Therefore, dots can not be used inside entity names.
+```cpp
+auto e = wld.add();
+wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignored
+```
+
 ### Add or remove component
 
 Components can be created using ***World::add<T>***. This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
@@ -922,7 +945,7 @@ q.group_by(eats, my_group_sort_func).each(...) { ... };
 
 ### Parallel execution
 
-Queries can make use of (#multithreading). By default, all queries are handles by the thread that calls iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
+Queries can make use of (#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
 
 ```cpp
 // Ordinary single-thread query (default)
