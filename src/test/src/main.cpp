@@ -356,17 +356,17 @@ TEST_CASE("pow2") {
 		constexpr auto result32 = core::closest_pow2(test32);
 		constexpr auto result64 = core::closest_pow2(test64);
 
-		constexpr auto result0_isPow2 = core::closest_pow2(test0);
-		constexpr auto result8_isPow2 = core::closest_pow2(test8);
-		constexpr auto result16_isPow2 = core::closest_pow2(test16);
-		constexpr auto result32_isPow2 = core::closest_pow2(test32);
-		constexpr auto result64_isPow2 = core::closest_pow2(test64);
+		constexpr auto result0_isPow2 = core::is_pow2(test0);
+		constexpr auto result8_isPow2 = core::is_pow2(test8);
+		constexpr auto result16_isPow2 = core::is_pow2(test16);
+		constexpr auto result32_isPow2 = core::is_pow2(test32);
+		constexpr auto result64_isPow2 = core::is_pow2(test64);
 
-		REQUIRE(core::is_pow2(result0_isPow2));
-		REQUIRE(core::is_pow2(result8_isPow2));
-		REQUIRE(core::is_pow2(result16_isPow2));
-		REQUIRE(core::is_pow2(result32_isPow2));
-		REQUIRE(core::is_pow2(result64_isPow2));
+		REQUIRE(result0_isPow2);
+		REQUIRE(result8_isPow2);
+		REQUIRE(result16_isPow2);
+		REQUIRE(result32_isPow2);
+		REQUIRE(result64_isPow2);
 	}
 }
 
