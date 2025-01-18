@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "iterator.h"
-#include "span.h"
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
@@ -38,6 +37,42 @@ namespace gaia {
 					std::bool_constant<
 							!std::is_const_v<typename rem_rp<T>::type> &&
 							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
+
+			template <typename, typename = size_t>
+			struct is_complete: std::false_type {};
+
+			template <typename T>
+			struct is_complete<T, decltype(sizeof(T))>: std::true_type {};
+
+			template <typename C>
+			constexpr auto size(C& c) noexcept -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename C>
+			constexpr auto size(const C& c) noexcept -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename T, auto N>
+			constexpr auto size(const T (&)[N]) noexcept {
+				return N;
+			}
+
+			template <typename C>
+			constexpr auto data(C& c) noexcept -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename C>
+			constexpr auto data(const C& c) noexcept -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename T, auto N>
+			constexpr T* data(T (&array)[N]) noexcept {
+				return array;
+			}
+			template <typename E>
+			constexpr const E* data(std::initializer_list<E> il) noexcept {
+				return il.begin();
+			}
 		} // namespace detail
 
 		template <class T>
@@ -52,6 +87,9 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
 
+		template <typename T>
+		inline constexpr bool is_complete_v = detail::is_complete<T>::value;
+
 		//! Obtains the actual address of the object \param obj or function arg, even in presence of overloaded operator&.
 		template <typename T>
 		constexpr T* addressof(T& obj) noexcept {
@@ -61,6 +99,17 @@ namespace gaia {
 		//! Rvalue overload is deleted to prevent taking the address of const rvalues.
 		template <class T>
 		const T* addressof(const T&&) = delete;
+
+		//----------------------------------------------------------------------
+		// Container identification
+		//----------------------------------------------------------------------
+
+		template <typename, typename = void>
+		struct has_data_and_size: std::false_type {};
+		template <typename T>
+		struct has_data_and_size<
+				T, std::void_t<decltype(detail::data(std::declval<T>())), decltype(detail::size(std::declval<T>()))>>:
+				std::true_type {};
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -663,7 +712,7 @@ namespace gaia {
 					if (first[i] == value)
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
+			} else if constexpr (is_random_iter_v<InputIt>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
@@ -1310,20 +1359,5 @@ namespace gaia {
 				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
 			}
 		}
-
-		//----------------------------------------------------------------------
-		// Strings
-		//----------------------------------------------------------------------
-
-		inline auto trim(std::span<const char> expr) {
-			uint32_t beg = 0;
-			while (expr[beg] == ' ')
-				++beg;
-			uint32_t end = (uint32_t)expr.size() - 1;
-			while (end > beg && expr[end] == ' ')
-				--end;
-			return expr.subspan(beg, end - beg + 1);
-		};
-
 	} // namespace core
 } // namespace gaia

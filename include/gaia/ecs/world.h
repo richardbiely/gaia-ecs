@@ -15,6 +15,7 @@
 #include "../core/hashing_policy.h"
 #include "../core/hashing_string.h"
 #include "../core/span.h"
+#include "../core/string.h"
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
 #include "../meta/type_info.h"

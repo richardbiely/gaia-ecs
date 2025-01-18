@@ -4,8 +4,8 @@
 #if GAIA_USE_STD_SPAN
 	#include <span>
 #else
-	#include "../external/span.hpp"
+	#include "impl/span_impl.h"
 namespace std {
-	using TCB_SPAN_NAMESPACE_NAME::span;
+	using gaia::core::span;
 }
 #endif

@@ -9,6 +9,7 @@
 #include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
 #include "../core/hashing_policy.h"
+#include "../core/string.h"
 #include "../core/utility.h"
 #include "../mt/threadpool.h"
 #include "../ser/serialization.h"

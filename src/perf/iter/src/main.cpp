@@ -64,9 +64,10 @@ auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArc
 	return types;
 }
 
-void prepare_query_types(ecs::EntitySpan in, std::span<ecs::Entity> out) {
-	GAIA_FOR((uint32_t)out.size()) {
-		out[i] = in[i];
+void prepare_query_types(ecs::EntitySpan in, ecs::EntitySpanMut out) {
+	const auto size = (uint32_t)out.size();
+	GAIA_FOR(size) {
+		out[i] = (const ecs::Entity)in[i];
 	}
 }
 

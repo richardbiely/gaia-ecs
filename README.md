@@ -163,7 +163,7 @@ The entire project is implemented inside gaia ***namespace***. It is further spl
 - ***mt*** - multithreading framework
 - ***ecs*** - the ECS part of the project
 
-A special part of the project is ***external***. It contains 3rd-party code such as C++17 [implementation of std::span](https://github.com/tcbrindle/span) and a modified [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map.
+A special part of the project is ***external***. It contains 3rd-party code such as a modified [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map or random number generator from [ETLCPP](https://github.com/ETLCPP/etl).
 
 # Usage
 ## Minimum requirements

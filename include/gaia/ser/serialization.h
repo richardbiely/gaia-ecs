@@ -44,34 +44,6 @@ namespace gaia {
 				Last = 255,
 			};
 
-			template <typename C>
-			constexpr auto size(C&& c) noexcept -> decltype(c.size()) {
-				return c.size();
-			}
-			template <typename T, auto N>
-			constexpr std::size_t size(const T (&)[N]) noexcept {
-				return N;
-			}
-
-			template <typename C>
-			constexpr auto data(C&& c) noexcept -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename T, auto N>
-			constexpr T* data(T (&array)[N]) noexcept {
-				return array;
-			}
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
-
-			template <typename, typename = void>
-			struct has_data_and_size: std::false_type {};
-			template <typename T>
-			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
-					std::true_type {};
-
 			GAIA_DEFINE_HAS_FUNCTION(resize);
 			GAIA_DEFINE_HAS_FUNCTION(bytes);
 			GAIA_DEFINE_HAS_FUNCTION(save);
@@ -157,7 +129,7 @@ namespace gaia {
 					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
-				else if constexpr (has_data_and_size<T>::value)
+				else if constexpr (core::has_data_and_size<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
@@ -182,7 +154,7 @@ namespace gaia {
 					size_in_bytes = (uint32_t)sizeof(U);
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
+				else if constexpr (core::has_data_and_size<U>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
@@ -214,7 +186,7 @@ namespace gaia {
 						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
+				else if constexpr (core::has_data_and_size<U>::value) {
 					if constexpr (Write) {
 						const auto size = arg.size();
 						s.save(size);

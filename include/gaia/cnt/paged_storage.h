@@ -47,13 +47,13 @@ namespace gaia {
 		namespace detail {
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator {
-				using iterator_category = core::bidirectional_iterator_tag;
 				using value_type = T;
 				using pointer = T*;
 				using reference = T&;
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 				using iterator = mem_page_iterator;
+				using iterator_category = core::bidirectional_iterator_tag;
 
 			private:
 				using page_data_type = detail::mem_page_data<T>;
@@ -96,13 +96,13 @@ namespace gaia {
 
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator_soa {
-				using iterator_category = core::bidirectional_iterator_tag;
 				using value_type = T;
 				// using pointer = T*; not supported
 				// using reference = T&; not supported
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 				using iterator = mem_page_iterator_soa;
+				using iterator_category = core::bidirectional_iterator_tag;
 
 			private:
 				using page_data_type = detail::mem_page_data<T>;
@@ -498,13 +498,13 @@ namespace gaia {
 
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator {
-			using iterator_category = core::bidirectional_iterator_tag;
 			using value_type = T;
 			using pointer = T*;
 			using reference = T&;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 			using iterator = page_iterator;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			using page_type = detail::mem_page<T, Allocator>;
@@ -588,13 +588,13 @@ namespace gaia {
 
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator_soa {
-			using iterator_category = core::bidirectional_iterator_tag;
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 			using iterator = page_iterator_soa;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			using page_type = detail::mem_page<T, Allocator>;
@@ -690,6 +690,7 @@ namespace gaia {
 			using iterator_reverse = page_iterator<T, Allocator, false>;
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			constexpr static uint32_t PageMask = PageCapacity - 1;

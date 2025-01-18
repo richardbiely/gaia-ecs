@@ -22,92 +22,7 @@ namespace gaia {
 		} // namespace sarr_ext_detail
 
 		template <typename T>
-		struct sarr_ext_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = sarr_ext_detail::size_type;
-			using size_type = sarr_ext_detail::size_type;
-
-			using iterator = sarr_ext_iterator;
-
-		private:
-			pointer m_ptr;
-
-		public:
-			constexpr sarr_ext_iterator(T* ptr): m_ptr(ptr) {}
-
-			constexpr T& operator*() const {
-				return *m_ptr;
-			}
-			constexpr T* operator->() const {
-				return m_ptr;
-			}
-			constexpr iterator operator[](size_type offset) const {
-				return {m_ptr + offset};
-			}
-
-			constexpr iterator& operator+=(size_type diff) {
-				m_ptr += diff;
-				return *this;
-			}
-			constexpr iterator& operator-=(size_type diff) {
-				m_ptr -= diff;
-				return *this;
-			}
-			constexpr iterator& operator++() {
-				++m_ptr;
-				return *this;
-			}
-			constexpr iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			constexpr iterator& operator--() {
-				--m_ptr;
-				return *this;
-			}
-			constexpr iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			constexpr iterator operator+(size_type offset) const {
-				return {m_ptr + offset};
-			}
-			constexpr iterator operator-(size_type offset) const {
-				return {m_ptr - offset};
-			}
-			constexpr difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_ptr - other.m_ptr);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
-				return m_ptr == other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
-				return m_ptr != other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
-				return m_ptr > other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
-				return m_ptr >= other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
-				return m_ptr < other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
-				return m_ptr <= other.m_ptr;
-			}
-		};
-
-		template <typename T>
 		struct sarr_ext_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
@@ -115,6 +30,7 @@ namespace gaia {
 			using size_type = sarr_ext_detail::size_type;
 
 			using iterator = sarr_ext_iterator_soa;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_ptr;
@@ -205,7 +121,6 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -215,8 +130,9 @@ namespace gaia {
 			using difference_type = sarr_ext_detail::difference_type;
 			using size_type = sarr_ext_detail::size_type;
 
-			using iterator = sarr_ext_iterator<T>;
+			using iterator = pointer;
 			using iterator_soa = sarr_ext_iterator_soa<T>;
+			using iterator_category = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
@@ -469,7 +385,7 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), first);
 				const auto idxDst = size();
-				const auto cnt = last - first;
+				const auto cnt = (size_type)(last - first);
 
 				mem::shift_elements_left_n<T>(m_data, idxDst, idxSrc, cnt, extent);
 				// Destroy if it's the last element

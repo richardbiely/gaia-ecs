@@ -72,7 +72,7 @@ namespace gaia {
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
-			using iterator_category = typename internal_storage::iterator::iterator_category;
+			using iterator_category = typename internal_storage::iterator_category;
 			using value_type = TListItem;
 			using reference = TListItem&;
 			using const_reference = const TListItem&;

@@ -26,7 +26,6 @@ namespace gaia {
 			static_assert((N & (N - 1)) == 0, "Extent of JobQueue must be a power of 2");
 			static constexpr uint32_t MASK = N - 1;
 
-
 			static_assert(sizeof(std::atomic_uint32_t) == sizeof(JobHandle));
 			cnt::sarray<std::atomic_uint32_t, N> m_buffer;
 			GAIA_ALIGNAS(GAIA_CACHELINE_SIZE) std::atomic_uint32_t m_bottom;

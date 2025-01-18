@@ -1225,826 +1225,19 @@ namespace tracy {
 	#include <span>
 #else
 
-/*** Start of inlined file: span.hpp ***/
-/*
-This is an implementation of C++20's std::span
-http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
-*/
-
-//          Copyright Tristan Brindle 2018.
+/*** Start of inlined file: span_impl.h ***/
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Span-compatible interface for c++17 based on:
+// https://github.com/tcbrindle/span
+// Copyright Tristan Brindle 2018.
 // Distributed under the Boost Software License, Version 1.0.
-//    (See accompanying file ../../LICENSE_1_0.txt or copy at
-//          https://www.boost.org/LICENSE_1_0.txt)
+// (See accompanying file ../../LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt)
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <initializer_list>
 #include <tuple>
 #include <type_traits>
-
-#ifndef TCB_SPAN_NO_EXCEPTIONS
-	// Attempt to discover whether we're being compiled with exception support
-	#if !(defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
-		#define TCB_SPAN_NO_EXCEPTIONS
-	#endif
-#endif
-
-#ifndef TCB_SPAN_NO_EXCEPTIONS
-	#include <cstdio>
-	#include <stdexcept>
-#endif
-
-namespace gaia {
-	namespace cnt {
-		template <typename T, uint32_t N>
-		class sarr;
-		template <typename T, uint32_t N>
-		using sarray = cnt::sarr<T, N>;
-	} // namespace cnt
-} // namespace gaia
-
-// Various feature test macros
-
-#ifndef TCB_SPAN_NAMESPACE_NAME
-	#define TCB_SPAN_NAMESPACE_NAME gaia::core
-#endif
-
-#if GAIA_CPP_VERSION(201703L)
-	#define TCB_SPAN_HAVE_CPP17
-#endif
-
-#if GAIA_CPP_VERSION(201402L)
-	#define TCB_SPAN_HAVE_CPP14
-#endif
-
-namespace TCB_SPAN_NAMESPACE_NAME {
-
-// Establish default contract checking behavior
-#if !defined(TCB_SPAN_THROW_ON_CONTRACT_VIOLATION) && !defined(TCB_SPAN_TERMINATE_ON_CONTRACT_VIOLATION) &&            \
-		!defined(TCB_SPAN_NO_CONTRACT_CHECKING)
-	#if defined(NDEBUG) || !defined(TCB_SPAN_HAVE_CPP14)
-		#define TCB_SPAN_NO_CONTRACT_CHECKING
-	#else
-		#define TCB_SPAN_TERMINATE_ON_CONTRACT_VIOLATION
-	#endif
-#endif
-
-#if defined(TCB_SPAN_THROW_ON_CONTRACT_VIOLATION)
-	struct contract_violation_error: std::logic_error {
-		explicit contract_violation_error(const char* msg): std::logic_error(msg) {}
-	};
-
-	inline void contract_violation(const char* msg) {
-		throw contract_violation_error(msg);
-	}
-
-#elif defined(TCB_SPAN_TERMINATE_ON_CONTRACT_VIOLATION)
-	inline void contract_violation(const char* str) {
-		GAIA_ASSERT(false && str);
-	}
-#endif
-
-#if !defined(TCB_SPAN_NO_CONTRACT_CHECKING)
-	#define TCB_SPAN_STRINGIFY(cond) #cond
-	#define TCB_SPAN_EXPECT(cond) cond ? (void)0 : contract_violation("Expected " TCB_SPAN_STRINGIFY(cond))
-#else
-	#define TCB_SPAN_EXPECT(cond)
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_inline_variables)
-	#define TCB_SPAN_INLINE_VAR inline
-#else
-	#define TCB_SPAN_INLINE_VAR
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP14) || (defined(__cpp_constexpr) && __cpp_constexpr >= 201304)
-	#define TCB_SPAN_HAVE_CPP14_CONSTEXPR
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP14_CONSTEXPR)
-	#define TCB_SPAN_CONSTEXPR14 constexpr
-#else
-	#define TCB_SPAN_CONSTEXPR14
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP14_CONSTEXPR) && (!defined(_MSC_VER) || _MSC_VER > 1900)
-	#define TCB_SPAN_CONSTEXPR_ASSIGN constexpr
-#else
-	#define TCB_SPAN_CONSTEXPR_ASSIGN
-#endif
-
-#if defined(TCB_SPAN_NO_CONTRACT_CHECKING)
-	#define TCB_SPAN_CONSTEXPR11 constexpr
-#else
-	#define TCB_SPAN_CONSTEXPR11 TCB_SPAN_CONSTEXPR14
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_deduction_guides)
-	#define TCB_SPAN_HAVE_DEDUCTION_GUIDES
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_byte)
-	#define TCB_SPAN_HAVE_STD_BYTE
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_array_constexpr)
-	#define TCB_SPAN_HAVE_CONSTEXPR_STD_ARRAY_ETC
-#endif
-
-#if defined(TCB_SPAN_HAVE_CONSTEXPR_STD_ARRAY_ETC)
-	#define TCB_SPAN_ARRAY_CONSTEXPR constexpr
-#else
-	#define TCB_SPAN_ARRAY_CONSTEXPR
-#endif
-
-#ifdef TCB_SPAN_HAVE_STD_BYTE
-	using byte = std::byte;
-#else
-	using byte = unsigned char;
-#endif
-
-#if defined(TCB_SPAN_HAVE_CPP17)
-	#define TCB_SPAN_NODISCARD [[nodiscard]]
-#else
-	#define TCB_SPAN_NODISCARD
-#endif
-
-	TCB_SPAN_INLINE_VAR constexpr std::size_t dynamic_extent = SIZE_MAX;
-
-	template <typename ElementKind, std::size_t Extent = dynamic_extent>
-	class span;
-
-	namespace detail {
-
-		template <typename E, std::size_t S>
-		struct span_storage {
-			constexpr span_storage() noexcept = default;
-
-			constexpr span_storage(E* p_ptr, std::size_t /*unused*/) noexcept: ptr(p_ptr) {}
-
-			E* ptr = nullptr;
-			static constexpr std::size_t size = S;
-		};
-
-		template <typename E>
-		struct span_storage<E, dynamic_extent> {
-			constexpr span_storage() noexcept = default;
-
-			constexpr span_storage(E* p_ptr, std::size_t p_size) noexcept: ptr(p_ptr), size(p_size) {}
-
-			E* ptr = nullptr;
-			std::size_t size = 0;
-		};
-
-// Reimplementation of C++17 std::size() and std::data()
-#if 0 // defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_nonmember_container_access)
-		using std::data;
-		using std::size;
-#else
-		template <typename C>
-		constexpr auto size(const C& c) -> decltype(c.size()) {
-			return c.size();
-		}
-
-		template <typename T, std::size_t N>
-		constexpr std::size_t size(const T (&)[N]) noexcept {
-			return N;
-		}
-
-		template <typename C>
-		constexpr auto data(C& c) -> decltype(c.data()) {
-			return c.data();
-		}
-
-		template <typename C>
-		constexpr auto data(const C& c) -> decltype(c.data()) {
-			return c.data();
-		}
-
-		template <typename T, std::size_t N>
-		constexpr T* data(T (&array)[N]) noexcept {
-			return array;
-		}
-
-		template <typename E>
-		constexpr const E* data(std::initializer_list<E> il) noexcept {
-			return il.begin();
-		}
-#endif // TCB_SPAN_HAVE_CPP17
-
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_void_t)
-		using std::void_t;
-#else
-		template <typename...>
-		using void_t = void;
-#endif
-
-		template <typename T>
-		using uncvref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-
-		template <typename>
-		struct is_span: std::false_type {};
-
-		template <typename T, std::size_t S>
-		struct is_span<span<T, S>>: std::true_type {};
-
-		template <typename>
-		struct is_std_array: std::false_type {};
-
-		template <typename T, auto N>
-		struct is_std_array<gaia::cnt::sarray<T, N>>: std::true_type {};
-
-		template <typename, typename = void>
-		struct has_size_and_data: std::false_type {};
-
-		template <typename T>
-		struct has_size_and_data<
-				T, void_t<decltype(detail::size(std::declval<T>())), decltype(detail::data(std::declval<T>()))>>:
-				std::true_type {};
-
-		template <typename C, typename U = uncvref_t<C>>
-		struct is_container {
-			static constexpr bool value =
-					!is_span<U>::value && !is_std_array<U>::value && !std::is_array<U>::value && has_size_and_data<C>::value;
-		};
-
-		template <typename T>
-		using remove_pointer_t = typename std::remove_pointer<T>::type;
-
-		template <typename, typename, typename = void>
-		struct is_container_element_kind_compatible: std::false_type {};
-
-		template <typename T, typename E>
-		struct is_container_element_kind_compatible<
-				T, E,
-				typename std::enable_if<
-						!std::is_same<typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value &&
-						std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]>::value>::
-						type>: std::true_type {};
-
-		template <typename, typename = size_t>
-		struct is_complete: std::false_type {};
-
-		template <typename T>
-		struct is_complete<T, decltype(sizeof(T))>: std::true_type {};
-
-	} // namespace detail
-
-	template <typename ElementKind, std::size_t Extent>
-	class span {
-		static_assert(
-				std::is_object<ElementKind>::value, "A span's ElementKind must be an object type (not a "
-																						"reference type or void)");
-		static_assert(
-				detail::is_complete<ElementKind>::value, "A span's ElementKind must be a complete type (not a forward "
-																								 "declaration)");
-		static_assert(!std::is_abstract<ElementKind>::value, "A span's ElementKind cannot be an abstract class type");
-
-		using storage_type = detail::span_storage<ElementKind, Extent>;
-
-	public:
-		// constants and types
-		using element_kind = ElementKind;
-		using value_type = typename std::remove_cv<ElementKind>::type;
-		using size_type = std::size_t;
-		using difference_type = std::ptrdiff_t;
-		using pointer = element_kind*;
-		using const_pointer = const element_kind*;
-		using reference = element_kind&;
-		using const_reference = const element_kind&;
-		using iterator = pointer;
-		// using reverse_iterator = std::reverse_iterator<iterator>;
-
-		static constexpr size_type extent = Extent;
-
-		// [span.cons], span constructors, copy, assignment, and destructor
-		template <std::size_t E = Extent, typename std::enable_if<(E == dynamic_extent || E <= 0), int>::type = 0>
-		constexpr span() noexcept {}
-
-		TCB_SPAN_CONSTEXPR11 span(pointer ptr, size_type count): storage_(ptr, count) {
-			TCB_SPAN_EXPECT(extent == dynamic_extent || count == extent);
-		}
-
-		TCB_SPAN_CONSTEXPR11 span(pointer first_elem, pointer last_elem): storage_(first_elem, last_elem - first_elem) {
-			TCB_SPAN_EXPECT(extent == dynamic_extent || last_elem - first_elem == static_cast<std::ptrdiff_t>(extent));
-		}
-
-		template <
-				std::size_t N, std::size_t E = Extent,
-				typename std::enable_if<
-						(E == dynamic_extent || N == E) &&
-								detail::is_container_element_kind_compatible<element_kind (&)[N], ElementKind>::value,
-						int>::type = 0>
-		constexpr span(element_kind (&arr)[N]) noexcept: storage_(arr, N) {}
-
-		// template <
-		// 		typename T, std::size_t N, std::size_t E = Extent,
-		// 		typename std::enable_if<
-		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_kind_compatible<gaia::cnt::sarray<T, N>&, ElementKind>::value,
-		// 				int>::type = 0>
-		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::cnt::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
-
-		// template <
-		// 		typename T, std::size_t N, std::size_t E = Extent,
-		// 		typename std::enable_if<
-		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_kind_compatible<const gaia::cnt::sarray<T, N>&,
-		// ElementKind>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::cnt::sarray<T, N>&
-		// arr) noexcept: storage_(arr.data(), N) {}
-
-		template <
-				typename Container, std::size_t E = Extent,
-				typename std::enable_if<
-						E == dynamic_extent && detail::is_container<Container>::value &&
-								detail::is_container_element_kind_compatible<Container&, ElementKind>::value,
-						int>::type = 0>
-		constexpr span(Container& cont): storage_(detail::data(cont), detail::size(cont)) {}
-
-		template <
-				typename Container, std::size_t E = Extent,
-				typename std::enable_if<
-						E == dynamic_extent && detail::is_container<Container>::value &&
-								detail::is_container_element_kind_compatible<const Container&, ElementKind>::value,
-						int>::type = 0>
-		constexpr span(const Container& cont): storage_(detail::data(cont), detail::size(cont)) {}
-
-		constexpr span(const span& other) noexcept = default;
-
-		template <
-				typename OtherElementKind, std::size_t OtherExtent,
-				typename std::enable_if<
-						(Extent == dynamic_extent || OtherExtent == dynamic_extent || Extent == OtherExtent) &&
-								std::is_convertible<OtherElementKind (*)[], ElementKind (*)[]>::value,
-						int>::type = 0>
-		constexpr span(const span<OtherElementKind, OtherExtent>& other) noexcept: storage_(other.data(), other.size()) {}
-
-		~span() noexcept = default;
-
-		TCB_SPAN_CONSTEXPR_ASSIGN span& operator=(const span& other) noexcept = default;
-
-		// [span.sub], span subviews
-		template <std::size_t Count>
-		TCB_SPAN_CONSTEXPR11 span<element_kind, Count> first() const {
-			TCB_SPAN_EXPECT(Count <= size());
-			return {data(), Count};
-		}
-
-		template <std::size_t Count>
-		TCB_SPAN_CONSTEXPR11 span<element_kind, Count> last() const {
-			TCB_SPAN_EXPECT(Count <= size());
-			return {data() + (size() - Count), Count};
-		}
-
-		template <std::size_t Offset, std::size_t Count = dynamic_extent>
-		using subspan_return_t = span<
-				ElementKind, Count != dynamic_extent ? Count : (Extent != dynamic_extent ? Extent - Offset : dynamic_extent)>;
-
-		template <std::size_t Offset, std::size_t Count = dynamic_extent>
-		TCB_SPAN_CONSTEXPR11 subspan_return_t<Offset, Count> subspan() const {
-			TCB_SPAN_EXPECT(Offset <= size() && (Count == dynamic_extent || Offset + Count <= size()));
-			return {data() + Offset, Count != dynamic_extent ? Count : size() - Offset};
-		}
-
-		TCB_SPAN_CONSTEXPR11 span<element_kind, dynamic_extent> first(size_type count) const {
-			TCB_SPAN_EXPECT(count <= size());
-			return {data(), count};
-		}
-
-		TCB_SPAN_CONSTEXPR11 span<element_kind, dynamic_extent> last(size_type count) const {
-			TCB_SPAN_EXPECT(count <= size());
-			return {data() + (size() - count), count};
-		}
-
-		TCB_SPAN_CONSTEXPR11 span<element_kind, dynamic_extent>
-		subspan(size_type offset, size_type count = dynamic_extent) const {
-			TCB_SPAN_EXPECT(offset <= size() && (count == dynamic_extent || offset + count <= size()));
-			return {data() + offset, count == dynamic_extent ? size() - offset : count};
-		}
-
-		// [span.obs], span observers
-		constexpr size_type size() const noexcept {
-			return storage_.size;
-		}
-
-		constexpr size_type bytes() const noexcept {
-			return size() * sizeof(element_kind);
-		}
-
-		TCB_SPAN_NODISCARD constexpr bool empty() const noexcept {
-			return size() == 0;
-		}
-
-		// [span.elem], span element access
-		TCB_SPAN_CONSTEXPR11 reference operator[](size_type idx) const {
-			TCB_SPAN_EXPECT(idx < size());
-			return *(data() + idx);
-		}
-
-		TCB_SPAN_CONSTEXPR11 reference front() const {
-			TCB_SPAN_EXPECT(!empty());
-			return *data();
-		}
-
-		TCB_SPAN_CONSTEXPR11 reference back() const {
-			TCB_SPAN_EXPECT(!empty());
-			return *(data() + (size() - 1));
-		}
-
-		constexpr pointer data() const noexcept {
-			return storage_.ptr;
-		}
-
-		// [span.iterators], span iterator support
-		constexpr iterator begin() const noexcept {
-			return data();
-		}
-
-		constexpr iterator end() const noexcept {
-			return data() + size();
-		}
-
-		// TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rbegin() const noexcept {
-		// 	return reverse_iterator(end());
-		// }
-
-		// TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rend() const noexcept {
-		// 	return reverse_iterator(begin());
-		// }
-
-	private:
-		storage_type storage_{};
-	};
-
-#ifdef TCB_SPAN_HAVE_DEDUCTION_GUIDES
-
-	/* Deduction Guides */
-	template <typename T, size_t N>
-	span(T (&)[N]) -> span<T, N>;
-
-	template <typename T, size_t N>
-	span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
-
-	template <typename T, size_t N>
-	span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
-
-	template <typename Container>
-	span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
-
-	template <typename Container>
-	span(const Container&) -> span<const typename Container::value_type>;
-
-#endif // TCB_HAVE_DEDUCTION_GUIDES
-
-	template <typename ElementKind, std::size_t Extent>
-	constexpr span<ElementKind, Extent> make_span(span<ElementKind, Extent> s) noexcept {
-		return s;
-	}
-
-	template <typename T, std::size_t N>
-	constexpr span<T, N> make_span(T (&arr)[N]) noexcept {
-		return {arr};
-	}
-
-	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<T, N> make_span(gaia::cnt::sarray<T, N>& arr) noexcept {
-		return {arr};
-	}
-
-	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N> make_span(const gaia::cnt::sarray<T, N>& arr) noexcept {
-		return {arr};
-	}
-
-	template <typename Container>
-	constexpr span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>
-	make_span(Container& cont) {
-		return {cont};
-	}
-
-	template <typename Container>
-	constexpr span<const typename Container::value_type> make_span(const Container& cont) {
-		return {cont};
-	}
-
-	template <typename ElementKind, std::size_t Extent>
-	span<const byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementKind) * Extent)>
-	as_bytes(span<ElementKind, Extent> s) noexcept {
-		return {reinterpret_cast<const byte*>(s.data()), s.bytes()};
-	}
-
-	template <
-			class ElementKind, size_t Extent, typename std::enable_if<!std::is_const<ElementKind>::value, int>::type = 0>
-	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementKind) * Extent)>
-	as_writable_bytes(span<ElementKind, Extent> s) noexcept {
-		return {reinterpret_cast<byte*>(s.data()), s.bytes()};
-	}
-
-	template <std::size_t N, typename E, std::size_t S>
-	constexpr auto get(span<E, S> s) -> decltype(s[N]) {
-		return s[N];
-	}
-
-} // namespace TCB_SPAN_NAMESPACE_NAME
-
-namespace std {
-
-	template <typename ElementKind, size_t Extent>
-	struct tuple_size<TCB_SPAN_NAMESPACE_NAME::span<ElementKind, Extent>>: public integral_constant<size_t, Extent> {};
-
-	template <typename ElementKind>
-	struct tuple_size<TCB_SPAN_NAMESPACE_NAME::span<ElementKind, TCB_SPAN_NAMESPACE_NAME::dynamic_extent>>; // not defined
-
-	template <size_t I, typename ElementKind, size_t Extent>
-	struct tuple_element<I, TCB_SPAN_NAMESPACE_NAME::span<ElementKind, Extent>> {
-		static_assert(Extent != TCB_SPAN_NAMESPACE_NAME::dynamic_extent && I < Extent, "");
-		using type = ElementKind;
-	};
-
-} // end namespace std
-
-/*** End of inlined file: span.hpp ***/
-
-
-namespace std {
-	using TCB_SPAN_NAMESPACE_NAME::span;
-}
-#endif
-
-/*** End of inlined file: span.h ***/
-
-namespace gaia {
-	namespace core {
-		template <uint32_t BlockBits>
-		struct bit_view {
-			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
-
-			std::span<uint8_t> m_data;
-
-			void set(uint32_t bitPosition, uint8_t value) noexcept {
-				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
-				GAIA_ASSERT(value <= MaxValue);
-
-				const uint32_t idxByte = bitPosition / 8;
-				const uint32_t idxBit = bitPosition % 8;
-
-				const uint32_t mask = ~(MaxValue << idxBit);
-				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
-
-				const bool overlaps = idxBit + BlockBits > 8;
-				if (overlaps) {
-					// Value spans over two bytes
-					const uint32_t shift2 = 8U - idxBit;
-					const uint32_t mask2 = ~(MaxValue >> shift2);
-					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
-				}
-			}
-
-			uint8_t get(uint32_t bitPosition) const noexcept {
-				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
-
-				const uint32_t idxByte = bitPosition / 8;
-				const uint32_t idxBit = bitPosition % 8;
-
-				const uint8_t byte1 = (m_data[idxByte] >> idxBit) & MaxValue;
-
-				const bool overlaps = idxBit + BlockBits > 8;
-				if (overlaps) {
-					// Value spans over two bytes
-					const uint32_t shift2 = uint8_t(8U - idxBit);
-					const uint32_t mask2 = MaxValue >> shift2;
-					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
-					return byte1 | byte2;
-				}
-
-				return byte1;
-			}
-		};
-
-		template <typename T>
-		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
-			// Swap the bits in the read-write mask
-			const uint32_t b0 = (mask >> left) & 1U;
-			const uint32_t b1 = (mask >> right) & 1U;
-			// XOR the two bits
-			const uint32_t bxor = b0 ^ b1;
-			// Put the XOR bits back to their original positions
-			const uint32_t m = (bxor << left) | (bxor << right);
-			// XOR mask with the original one effectively swapping the bits
-			mask = mask ^ (uint8_t)m;
-		}
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: bit_utils.h ***/
-
-
-/*** Start of inlined file: hashing_policy.h ***/
-#pragma once
-
-#include <cstdint>
-#include <type_traits>
-
-namespace gaia {
-	namespace core {
-
-		namespace detail {
-			template <typename, typename = void>
-			struct is_direct_hash_key: std::false_type {};
-			template <typename T>
-			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
-
-			//-----------------------------------------------------------------------------------
-
-			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-			}
-			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
-				hash_combine2_out(lhs, rhs);
-				return lhs;
-			}
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
-
-		template <typename T>
-		struct direct_hash_key {
-			using Type = T;
-
-			static_assert(std::is_integral_v<T>);
-			static constexpr bool IsDirectHashKey = true;
-
-			T hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		//! Combines hashes into another complex one
-		template <typename T, typename... Rest>
-		constexpr T hash_combine(T first, T next, Rest... rest) {
-			auto h = detail::hash_combine2(first, next);
-			(detail::hash_combine2_out(h, rest), ...);
-			return h;
-		}
-
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-
-		namespace detail {
-			namespace fnv1a {
-				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-				constexpr uint64_t prime_64_const = 0x100000001b3;
-			} // namespace fnv1a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			uint64_t i = 0;
-			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-				++i;
-			}
-
-			return hash;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			for (uint64_t i = 0; i < length; ++i)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-
-			return hash;
-		}
-
-#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
-
-		// Thank you https://gist.github.com/oteguro/10538695
-
-		GAIA_MSVC_WARNING_PUSH()
-		GAIA_MSVC_WARNING_DISABLE(4592)
-
-		namespace detail {
-			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
-				constexpr uint64_t r = 47;
-
-				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
-				}
-
-				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
-					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
-					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
-				}
-
-				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
-				}
-
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
-					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
-								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
-								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
-								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
-								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
-								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
-								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
-																		: StaticHashValueLast64_(h);
-				}
-
-				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
-					return (
-							i == 0 ? StaticHashValueRest64(h, len, data)
-										 : StaticHashValueLoop64(
-													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
-				}
-
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
-				}
-			} // namespace murmur2a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return value;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str) {
-			uint64_t length = 0;
-			while (str[length] != '\0')
-				++length;
-
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		GAIA_MSVC_WARNING_POP()
-
-#else
-	#error "Unknown hashing type defined"
-#endif
-
-	} // namespace core
-} // namespace gaia
-
-/*** End of inlined file: hashing_policy.h ***/
 
 
 /*** Start of inlined file: iterator.h ***/
@@ -2103,33 +1296,36 @@ namespace gaia {
 
 			template <typename It>
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
-
-			template <typename T, typename = void>
-			[[maybe_unused]] constexpr bool is_iterator_v = false;
-
-			template <typename T>
-			[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
-
-			template <typename T>
-			struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
-
-			template <typename It>
-			[[maybe_unused]] constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
-
-			template <typename It>
-			[[maybe_unused]] constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
-
-			template <typename It>
-			[[maybe_unused]] constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
-
-			template <typename It>
-			[[maybe_unused]] constexpr bool is_bidi_iter_v =
-					std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
-
-			template <typename It>
-			[[maybe_unused]] constexpr bool is_random_iter_v =
-					std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
 		} // namespace detail
+
+		template <typename T, typename = void>
+		[[maybe_unused]] constexpr bool is_iterator_v = false;
+
+		template <typename T>
+		[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<detail::iterator_cat_t<T>>> = true;
+
+		template <typename T>
+		struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
+
+		template <typename It>
+		[[maybe_unused]] constexpr bool is_input_iter_v =
+				std::is_convertible_v<detail::iterator_cat_t<It>, input_iterator_tag>;
+
+		template <typename It>
+		[[maybe_unused]] constexpr bool is_fwd_iter_v =
+				std::is_convertible_v<detail::iterator_cat_t<It>, forward_iterator_tag>;
+
+		template <typename It>
+		[[maybe_unused]] constexpr bool is_rev_iter_v =
+				std::is_convertible_v<detail::iterator_cat_t<It>, reverse_iterator_tag>;
+
+		template <typename It>
+		[[maybe_unused]] constexpr bool is_bidi_iter_v =
+				std::is_convertible_v<detail::iterator_cat_t<It>, bidirectional_iterator_tag>;
+
+		template <typename It>
+		[[maybe_unused]] constexpr bool is_random_iter_v =
+				std::is_convertible_v<detail::iterator_cat_t<It>, random_access_iterator_tag>;
 
 		template <typename It>
 		using iterator_ref_t = typename detail::iterator_traits<It>::reference;
@@ -2145,7 +1341,7 @@ namespace gaia {
 
 		template <typename It>
 		constexpr iterator_diff_t<It> distance(It first, It last) {
-			if constexpr (std::is_pointer_v<It> || detail::is_random_iter_v<It>)
+			if constexpr (std::is_pointer_v<It> || is_random_iter_v<It>)
 				return last - first;
 			else {
 				iterator_diff_t<It> offset{};
@@ -2199,6 +1395,42 @@ namespace gaia {
 					std::bool_constant<
 							!std::is_const_v<typename rem_rp<T>::type> &&
 							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
+
+			template <typename, typename = size_t>
+			struct is_complete: std::false_type {};
+
+			template <typename T>
+			struct is_complete<T, decltype(sizeof(T))>: std::true_type {};
+
+			template <typename C>
+			constexpr auto size(C& c) noexcept -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename C>
+			constexpr auto size(const C& c) noexcept -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename T, auto N>
+			constexpr auto size(const T (&)[N]) noexcept {
+				return N;
+			}
+
+			template <typename C>
+			constexpr auto data(C& c) noexcept -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename C>
+			constexpr auto data(const C& c) noexcept -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename T, auto N>
+			constexpr T* data(T (&array)[N]) noexcept {
+				return array;
+			}
+			template <typename E>
+			constexpr const E* data(std::initializer_list<E> il) noexcept {
+				return il.begin();
+			}
 		} // namespace detail
 
 		template <class T>
@@ -2213,6 +1445,9 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
 
+		template <typename T>
+		inline constexpr bool is_complete_v = detail::is_complete<T>::value;
+
 		//! Obtains the actual address of the object \param obj or function arg, even in presence of overloaded operator&.
 		template <typename T>
 		constexpr T* addressof(T& obj) noexcept {
@@ -2222,6 +1457,17 @@ namespace gaia {
 		//! Rvalue overload is deleted to prevent taking the address of const rvalues.
 		template <class T>
 		const T* addressof(const T&&) = delete;
+
+		//----------------------------------------------------------------------
+		// Container identification
+		//----------------------------------------------------------------------
+
+		template <typename, typename = void>
+		struct has_data_and_size: std::false_type {};
+		template <typename T>
+		struct has_data_and_size<
+				T, std::void_t<decltype(detail::data(std::declval<T>())), decltype(detail::size(std::declval<T>()))>>:
+				std::true_type {};
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -2824,7 +2070,7 @@ namespace gaia {
 					if (first[i] == value)
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
+			} else if constexpr (is_random_iter_v<InputIt>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
@@ -3471,25 +2717,560 @@ namespace gaia {
 				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
 			}
 		}
-
-		//----------------------------------------------------------------------
-		// Strings
-		//----------------------------------------------------------------------
-
-		inline auto trim(std::span<const char> expr) {
-			uint32_t beg = 0;
-			while (expr[beg] == ' ')
-				++beg;
-			uint32_t end = (uint32_t)expr.size() - 1;
-			while (end > beg && expr[end] == ' ')
-				--end;
-			return expr.subspan(beg, end - beg + 1);
-		};
-
 	} // namespace core
 } // namespace gaia
 
 /*** End of inlined file: utility.h ***/
+
+namespace gaia {
+	namespace core {
+		using span_diff_type = size_t;
+		using span_size_type = size_t;
+	} // namespace core
+
+	namespace cnt {
+		template <typename T, uint32_t N>
+		class sarr;
+		template <typename T, uint32_t N>
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
+
+	namespace core {
+		inline constexpr span_size_type DynamicSpanExtent = (span_size_type)-1;
+
+		template <typename T, span_size_type Extent = DynamicSpanExtent>
+		class span;
+
+		namespace detail {
+			template <typename T, span_size_type Extent>
+			struct span_storage {
+				constexpr span_storage() noexcept = default;
+				constexpr span_storage(const span_storage&) noexcept = default;
+				constexpr span_storage(span_storage&&) noexcept = default;
+				constexpr span_storage& operator=(const span_storage&) noexcept = default;
+				constexpr span_storage& operator=(span_storage&&) noexcept = default;
+				constexpr span_storage(T* ptr_, span_size_type /*unused*/) noexcept: beg(ptr_), end(ptr_ + Extent) {}
+				~span_storage() noexcept = default;
+
+				T* beg = nullptr;
+				T* end = nullptr;
+				static constexpr span_size_type size = Extent;
+			};
+
+			template <typename T>
+			struct span_storage<T, DynamicSpanExtent> {
+				constexpr span_storage() noexcept = default;
+				constexpr span_storage(const span_storage&) noexcept = default;
+				constexpr span_storage(span_storage&&) noexcept = default;
+				constexpr span_storage& operator=(const span_storage&) noexcept = default;
+				constexpr span_storage& operator=(span_storage&&) noexcept = default;
+				constexpr span_storage(T* ptr_, span_size_type size_) noexcept: beg(ptr_), end(ptr_ + size_) {}
+				~span_storage() noexcept = default;
+
+				T* beg = nullptr;
+				T* end = nullptr;
+			};
+
+			template <typename>
+			struct is_span: std::false_type {};
+
+			template <typename T, span_size_type S>
+			struct is_span<span<T, S>>: std::true_type {};
+
+			template <typename>
+			struct is_std_array: std::false_type {};
+
+			template <typename T, auto N>
+			struct is_std_array<gaia::cnt::sarray<T, N>>: std::true_type {};
+
+			template <typename C, typename U = raw_t<C>>
+			struct is_container {
+				static constexpr bool value =
+						!is_span<U>::value && !is_std_array<U>::value && !std::is_array<U>::value && has_data_and_size<C>::value;
+			};
+
+			template <typename, typename, typename = void>
+			struct is_container_element_kind_compatible: std::false_type {};
+
+			template <typename T, typename E>
+			struct is_container_element_kind_compatible<
+					T, E,
+					typename std::enable_if<
+							!std::is_same<typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value &&
+							std::is_convertible<
+									typename std::remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[],
+									E (*)[]>::value>::type>: std::true_type {};
+		} // namespace detail
+
+		template <typename T, span_size_type Extent>
+		class span {
+			static_assert(
+					std::is_object<T>::value, "A span's T must be an object type (not a "
+																		"reference type or void)");
+			static_assert(
+					detail::is_complete<T>::value, "A span's T must be a complete type (not a forward "
+																				 "declaration)");
+			static_assert(!std::is_abstract<T>::value, "A span's T cannot be an abstract class type");
+
+			using m_datatype = detail::span_storage<T, Extent>;
+
+		public:
+			using element_kind = T;
+			using value_type = typename std::remove_cv<T>::type;
+			using size_type = span_size_type;
+			using difference_type = span_diff_type;
+			using pointer = element_kind*;
+			using const_pointer = const element_kind*;
+			using reference = element_kind&;
+			using const_reference = const element_kind&;
+
+			using iterator = pointer;
+			using iterator_type = core::random_access_iterator_tag;
+
+			static constexpr size_type extent = Extent;
+
+		private:
+			m_datatype m_data{};
+
+		public:
+			template <span_size_type E = Extent, typename std::enable_if<(E == DynamicSpanExtent || E <= 0), int>::type = 0>
+			constexpr span() noexcept {}
+
+			constexpr span(pointer ptr, size_type count): m_data(ptr, count) {
+				GAIA_ASSERT(extent == DynamicSpanExtent || extent == count);
+			}
+
+			constexpr span(pointer begin, pointer end): m_data(begin, end - begin) {
+				GAIA_ASSERT(extent == DynamicSpanExtent || ((uintptr_t)(end - begin) == (uintptr_t)extent));
+			}
+
+			template <
+					span_size_type N, span_size_type E = Extent,
+					typename std::enable_if<
+							(E == DynamicSpanExtent || N == E) &&
+									detail::is_container_element_kind_compatible<element_kind (&)[N], T>::value,
+							int>::type = 0>
+			constexpr span(element_kind (&arr)[N]) noexcept: m_data(arr, N) {}
+
+			template <
+					typename Container, span_size_type E = Extent,
+					typename std::enable_if<
+							E == DynamicSpanExtent && detail::is_container<Container>::value &&
+									detail::is_container_element_kind_compatible<Container&, T>::value,
+							int>::type = 0>
+			constexpr span(Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
+
+			template <
+					typename Container, span_size_type E = Extent,
+					typename std::enable_if<
+							E == DynamicSpanExtent && detail::is_container<Container>::value &&
+									detail::is_container_element_kind_compatible<const Container&, T>::value,
+							int>::type = 0>
+			constexpr span(const Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
+
+			constexpr span(const span& other) noexcept = default;
+			constexpr span& operator=(const span& other) noexcept = default;
+
+			template <
+					typename T2, span_size_type Extent2,
+					typename std::enable_if<
+							(Extent == DynamicSpanExtent || Extent2 == DynamicSpanExtent || Extent == Extent2) &&
+									std::is_convertible<T2 (*)[], T (*)[]>::value,
+							int>::type = 0>
+			constexpr span(const span<T2, Extent2>& other) noexcept: m_data(other.data(), other.size()) {}
+
+			~span() noexcept = default;
+
+			GAIA_NODISCARD constexpr pointer data() const noexcept {
+				return m_data.beg;
+			}
+
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
+				return size_type(m_data.end - m_data.beg);
+			}
+
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
+				return m_data.beg == m_data.end;
+			}
+
+			GAIA_NODISCARD constexpr reference operator[](size_type index) const {
+				GAIA_ASSERT((uintptr_t)m_data.beg + index < (uintptr_t)m_data.end);
+				return *(m_data.beg + index);
+			}
+
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
+				return {m_data.beg};
+			}
+
+			GAIA_NODISCARD constexpr iterator end() const noexcept {
+				return {m_data.end};
+			}
+
+			template <span_size_type Count>
+			GAIA_NODISCARD constexpr span<element_kind, Count> first() const {
+				GAIA_ASSERT(Count <= size());
+				return {m_data.beg, Count};
+			}
+
+			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> first(size_type count) const {
+				GAIA_ASSERT(count <= size());
+				return {m_data.beg, count};
+			}
+
+			template <span_size_type Count>
+			GAIA_NODISCARD constexpr span<element_kind, Count> last() const {
+				GAIA_ASSERT(Count <= size());
+				return {m_data.beg + (size() - Count), Count};
+			}
+
+			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> last(size_type count) const {
+				GAIA_ASSERT(count <= size());
+				return {m_data.beg + (size() - count), count};
+			}
+
+			GAIA_NODISCARD constexpr reference front() const {
+				GAIA_ASSERT(!empty());
+				return *m_data.beg;
+			}
+
+			GAIA_NODISCARD constexpr reference back() const {
+				GAIA_ASSERT(!empty());
+				return *(m_data.beg + (size() - 1));
+			}
+
+			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
+			using subspan_return_t = span<
+					T, Count != DynamicSpanExtent ? Count : (Extent != DynamicSpanExtent ? Extent - Offset : DynamicSpanExtent)>;
+
+			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
+			GAIA_NODISCARD constexpr subspan_return_t<Offset, Count> subspan() const {
+				GAIA_ASSERT(Offset <= size() && (Count == DynamicSpanExtent || Offset + Count <= size()));
+				return {m_data.beg + Offset, Count != DynamicSpanExtent ? Count : size() - Offset};
+			}
+
+			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent>
+			subspan(size_type offset, size_type count = DynamicSpanExtent) const {
+				GAIA_ASSERT(offset <= size() && (count == DynamicSpanExtent || offset + count <= size()));
+				return {m_data.beg + offset, count != DynamicSpanExtent ? count : size() - offset};
+			}
+		};
+
+		template <typename T, size_t N>
+		span(T (&)[N]) -> span<T, N>;
+
+		template <typename T, size_t N>
+		span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
+
+		template <typename T, size_t N>
+		span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
+
+		template <typename Container>
+		span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
+
+		template <typename Container>
+		span(const Container&) -> span<const typename Container::value_type>;
+
+		template <span_size_type N, typename E, span_size_type S>
+		constexpr auto get(span<E, S> s) -> decltype(s[N]) {
+			return s[N];
+		}
+	} // namespace core
+} // namespace gaia
+
+namespace std {
+	template <typename T, size_t Extent>
+	struct tuple_size<gaia::core::span<T, Extent>>: public integral_constant<size_t, Extent> {};
+
+	template <typename T>
+	struct tuple_size<gaia::core::span<T, gaia::core::DynamicSpanExtent>>; // not defined
+
+	template <size_t I, typename T, size_t Extent>
+	struct tuple_element<I, gaia::core::span<T, Extent>> {
+		static_assert(Extent != gaia::core::DynamicSpanExtent && I < Extent, "");
+		using type = T;
+	};
+} // end namespace std
+
+/*** End of inlined file: span_impl.h ***/
+
+
+namespace std {
+	using gaia::core::span;
+}
+#endif
+
+/*** End of inlined file: span.h ***/
+
+namespace gaia {
+	namespace core {
+		template <uint32_t BlockBits>
+		struct bit_view {
+			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
+
+			std::span<uint8_t> m_data;
+
+			void set(uint32_t bitPosition, uint8_t value) noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+				GAIA_ASSERT(value <= MaxValue);
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint32_t mask = ~(MaxValue << idxBit);
+				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint32_t shift2 = 8U - idxBit;
+					const uint32_t mask2 = ~(MaxValue >> shift2);
+					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
+				}
+			}
+
+			uint8_t get(uint32_t bitPosition) const noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint8_t byte1 = (m_data[idxByte] >> idxBit) & MaxValue;
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint32_t shift2 = uint8_t(8U - idxBit);
+					const uint32_t mask2 = MaxValue >> shift2;
+					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
+					return byte1 | byte2;
+				}
+
+				return byte1;
+			}
+		};
+
+		template <typename T>
+		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
+			// Swap the bits in the read-write mask
+			const uint32_t b0 = (mask >> left) & 1U;
+			const uint32_t b1 = (mask >> right) & 1U;
+			// XOR the two bits
+			const uint32_t bxor = b0 ^ b1;
+			// Put the XOR bits back to their original positions
+			const uint32_t m = (bxor << left) | (bxor << right);
+			// XOR mask with the original one effectively swapping the bits
+			mask = mask ^ (uint8_t)m;
+		}
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: bit_utils.h ***/
+
+
+/*** Start of inlined file: hashing_policy.h ***/
+#pragma once
+
+#include <cstdint>
+#include <type_traits>
+
+namespace gaia {
+	namespace core {
+
+		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
+
+			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
+				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+			}
+			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+				hash_combine2_out(lhs, rhs);
+				return lhs;
+			}
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			using Type = T;
+
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
+
+		//! Combines hashes into another complex one
+		template <typename T, typename... Rest>
+		constexpr T hash_combine(T first, T next, Rest... rest) {
+			auto h = detail::hash_combine2(first, next);
+			(detail::hash_combine2_out(h, rest), ...);
+			return h;
+		}
+
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			uint64_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
+			}
+
+			return hash;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			for (uint64_t i = 0; i < length; ++i)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
+		}
+
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
+				constexpr uint64_t r = 47;
+
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
+				}
+
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
+
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return value;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str) {
+			uint64_t length = 0;
+			while (str[length] != '\0')
+				++length;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
+#endif
+
+	} // namespace core
+} // namespace gaia
+
+/*** End of inlined file: hashing_policy.h ***/
 
 
 /*** Start of inlined file: reflection.h ***/
@@ -5996,92 +5777,7 @@ namespace gaia {
 		} // namespace darr_detail
 
 		template <typename T>
-		struct darr_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = darr_detail::difference_type;
-			using size_type = darr_detail::size_type;
-
-			using iterator = darr_iterator;
-
-		private:
-			pointer m_ptr;
-
-		public:
-			darr_iterator(T* ptr): m_ptr(ptr) {}
-
-			T& operator*() const {
-				return *m_ptr;
-			}
-			T* operator->() const {
-				return m_ptr;
-			}
-			iterator operator[](size_type offset) const {
-				return {m_ptr + offset};
-			}
-
-			iterator& operator+=(size_type diff) {
-				m_ptr += diff;
-				return *this;
-			}
-			iterator& operator-=(size_type diff) {
-				m_ptr -= diff;
-				return *this;
-			}
-			iterator& operator++() {
-				++m_ptr;
-				return *this;
-			}
-			iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			iterator& operator--() {
-				--m_ptr;
-				return *this;
-			}
-			iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			iterator operator+(size_type offset) const {
-				return {m_ptr + offset};
-			}
-			iterator operator-(size_type offset) const {
-				return {m_ptr - offset};
-			}
-			difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_ptr - other.m_ptr);
-			}
-
-			GAIA_NODISCARD bool operator==(const iterator& other) const {
-				return m_ptr == other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator!=(const iterator& other) const {
-				return m_ptr != other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator>(const iterator& other) const {
-				return m_ptr > other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator>=(const iterator& other) const {
-				return m_ptr >= other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator<(const iterator& other) const {
-				return m_ptr < other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator<=(const iterator& other) const {
-				return m_ptr <= other.m_ptr;
-			}
-		};
-
-		template <typename T>
 		struct darr_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
@@ -6089,6 +5785,7 @@ namespace gaia {
 			using size_type = darr_detail::size_type;
 
 			using iterator = darr_iterator_soa;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_ptr;
@@ -6186,8 +5883,9 @@ namespace gaia {
 			using difference_type = darr_detail::difference_type;
 			using size_type = darr_detail::size_type;
 
-			using iterator = darr_iterator<T>;
+			using iterator = pointer;
 			using iterator_soa = darr_iterator_soa<T>;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_pData = nullptr;
@@ -6544,7 +6242,7 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), first);
 				const auto idxDst = size();
-				const auto cnt = last - first;
+				const auto cnt = (size_type)(last - first);
 
 				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
@@ -6750,92 +6448,7 @@ namespace gaia {
 		} // namespace darr_ext_detail
 
 		template <typename T>
-		struct darr_ext_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = darr_ext_detail::difference_type;
-			using size_type = darr_ext_detail::size_type;
-
-			using iterator = darr_ext_iterator;
-
-		private:
-			pointer m_ptr;
-
-		public:
-			darr_ext_iterator(T* ptr): m_ptr(ptr) {}
-
-			T& operator*() const {
-				return *m_ptr;
-			}
-			T* operator->() const {
-				return m_ptr;
-			}
-			iterator operator[](size_type offset) const {
-				return {m_ptr + offset};
-			}
-
-			iterator& operator+=(size_type diff) {
-				m_ptr += diff;
-				return *this;
-			}
-			iterator& operator-=(size_type diff) {
-				m_ptr -= diff;
-				return *this;
-			}
-			iterator& operator++() {
-				++m_ptr;
-				return *this;
-			}
-			iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			iterator& operator--() {
-				--m_ptr;
-				return *this;
-			}
-			iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			iterator operator+(size_type offset) const {
-				return {m_ptr + offset};
-			}
-			iterator operator-(size_type offset) const {
-				return {m_ptr - offset};
-			}
-			difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_ptr - other.m_ptr);
-			}
-
-			GAIA_NODISCARD bool operator==(const iterator& other) const {
-				return m_ptr == other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator!=(const iterator& other) const {
-				return m_ptr != other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator>(const iterator& other) const {
-				return m_ptr > other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator>=(const iterator& other) const {
-				return m_ptr >= other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator<(const iterator& other) const {
-				return m_ptr < other.m_ptr;
-			}
-			GAIA_NODISCARD bool operator<=(const iterator& other) const {
-				return m_ptr <= other.m_ptr;
-			}
-		};
-
-		template <typename T>
 		struct darr_ext_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
@@ -6843,6 +6456,7 @@ namespace gaia {
 			using size_type = darr_ext_detail::size_type;
 
 			using iterator = darr_ext_iterator_soa;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_ptr;
@@ -6935,7 +6549,6 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -6945,8 +6558,9 @@ namespace gaia {
 			using difference_type = darr_ext_detail::difference_type;
 			using size_type = darr_ext_detail::size_type;
 
-			using iterator = darr_ext_iterator<T>;
+			using iterator = pointer;
 			using iterator_soa = darr_ext_iterator_soa<T>;
+			using iterator_category = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
@@ -7334,7 +6948,7 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), first);
 				const auto idxDst = size();
-				const auto cnt = last - first;
+				const auto cnt = (size_type)(last - first);
 
 				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
@@ -8211,7 +7825,7 @@ namespace gaia {
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
-			using iterator_category = typename internal_storage::iterator::iterator_category;
+			using iterator_category = typename internal_storage::iterator_category;
 			using value_type = TListItem;
 			using reference = TListItem&;
 			using const_reference = const TListItem&;
@@ -10778,92 +10392,7 @@ namespace gaia {
 		} // namespace sarr_detail
 
 		template <typename T>
-		struct sarr_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = sarr_detail::difference_type;
-			using size_type = sarr_detail::size_type;
-
-			using iterator = sarr_iterator;
-
-		private:
-			pointer m_ptr;
-
-		public:
-			constexpr sarr_iterator(pointer ptr): m_ptr(ptr) {}
-
-			constexpr reference operator*() const {
-				return *m_ptr;
-			}
-			constexpr pointer operator->() const {
-				return m_ptr;
-			}
-			constexpr iterator operator[](size_type offset) const {
-				return {m_ptr + offset};
-			}
-
-			constexpr iterator& operator+=(size_type diff) {
-				m_ptr += diff;
-				return *this;
-			}
-			constexpr iterator& operator-=(size_type diff) {
-				m_ptr -= diff;
-				return *this;
-			}
-			constexpr iterator& operator++() {
-				++m_ptr;
-				return *this;
-			}
-			constexpr iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			constexpr iterator& operator--() {
-				--m_ptr;
-				return *this;
-			}
-			constexpr iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			constexpr iterator operator+(size_type offset) const {
-				return {m_ptr + offset};
-			}
-			constexpr iterator operator-(size_type offset) const {
-				return {m_ptr - offset};
-			}
-			constexpr difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_ptr - other.m_ptr);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
-				return m_ptr == other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
-				return m_ptr != other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
-				return m_ptr > other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
-				return m_ptr >= other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
-				return m_ptr < other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
-				return m_ptr <= other.m_ptr;
-			}
-		};
-
-		template <typename T>
 		struct sarr_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
@@ -10871,6 +10400,7 @@ namespace gaia {
 			using size_type = sarr_detail::size_type;
 
 			using iterator = sarr_iterator_soa;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_ptr;
@@ -10970,8 +10500,9 @@ namespace gaia {
 			using difference_type = sarr_detail::difference_type;
 			using size_type = sarr_detail::size_type;
 
-			using iterator = sarr_iterator<T>;
+			using iterator = pointer;
 			using iterator_soa = sarr_iterator_soa<T>;
+			using iterator_category = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
@@ -11665,13 +11196,13 @@ namespace gaia {
 		namespace detail {
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator {
-				using iterator_category = core::bidirectional_iterator_tag;
 				using value_type = T;
 				using pointer = T*;
 				using reference = T&;
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 				using iterator = mem_page_iterator;
+				using iterator_category = core::bidirectional_iterator_tag;
 
 			private:
 				using page_data_type = detail::mem_page_data<T>;
@@ -11714,13 +11245,13 @@ namespace gaia {
 
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator_soa {
-				using iterator_category = core::bidirectional_iterator_tag;
 				using value_type = T;
 				// using pointer = T*; not supported
 				// using reference = T&; not supported
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 				using iterator = mem_page_iterator_soa;
+				using iterator_category = core::bidirectional_iterator_tag;
 
 			private:
 				using page_data_type = detail::mem_page_data<T>;
@@ -12116,13 +11647,13 @@ namespace gaia {
 
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator {
-			using iterator_category = core::bidirectional_iterator_tag;
 			using value_type = T;
 			using pointer = T*;
 			using reference = T&;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 			using iterator = page_iterator;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			using page_type = detail::mem_page<T, Allocator>;
@@ -12206,13 +11737,13 @@ namespace gaia {
 
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator_soa {
-			using iterator_category = core::bidirectional_iterator_tag;
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 			using iterator = page_iterator_soa;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			using page_type = detail::mem_page<T, Allocator>;
@@ -12308,6 +11839,7 @@ namespace gaia {
 			using iterator_reverse = page_iterator<T, Allocator, false>;
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
+			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
 			constexpr static uint32_t PageMask = PageCapacity - 1;
@@ -12557,92 +12089,7 @@ namespace gaia {
 		} // namespace sarr_ext_detail
 
 		template <typename T>
-		struct sarr_ext_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = sarr_ext_detail::size_type;
-			using size_type = sarr_ext_detail::size_type;
-
-			using iterator = sarr_ext_iterator;
-
-		private:
-			pointer m_ptr;
-
-		public:
-			constexpr sarr_ext_iterator(T* ptr): m_ptr(ptr) {}
-
-			constexpr T& operator*() const {
-				return *m_ptr;
-			}
-			constexpr T* operator->() const {
-				return m_ptr;
-			}
-			constexpr iterator operator[](size_type offset) const {
-				return {m_ptr + offset};
-			}
-
-			constexpr iterator& operator+=(size_type diff) {
-				m_ptr += diff;
-				return *this;
-			}
-			constexpr iterator& operator-=(size_type diff) {
-				m_ptr -= diff;
-				return *this;
-			}
-			constexpr iterator& operator++() {
-				++m_ptr;
-				return *this;
-			}
-			constexpr iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			constexpr iterator& operator--() {
-				--m_ptr;
-				return *this;
-			}
-			constexpr iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			constexpr iterator operator+(size_type offset) const {
-				return {m_ptr + offset};
-			}
-			constexpr iterator operator-(size_type offset) const {
-				return {m_ptr - offset};
-			}
-			constexpr difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_ptr - other.m_ptr);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
-				return m_ptr == other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
-				return m_ptr != other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
-				return m_ptr > other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
-				return m_ptr >= other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
-				return m_ptr < other.m_ptr;
-			}
-			GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
-				return m_ptr <= other.m_ptr;
-			}
-		};
-
-		template <typename T>
 		struct sarr_ext_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
@@ -12650,6 +12097,7 @@ namespace gaia {
 			using size_type = sarr_ext_detail::size_type;
 
 			using iterator = sarr_ext_iterator_soa;
+			using iterator_category = core::random_access_iterator_tag;
 
 		private:
 			uint8_t* m_ptr;
@@ -12740,7 +12188,6 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -12750,8 +12197,9 @@ namespace gaia {
 			using difference_type = sarr_ext_detail::difference_type;
 			using size_type = sarr_ext_detail::size_type;
 
-			using iterator = sarr_ext_iterator<T>;
+			using iterator = pointer;
 			using iterator_soa = sarr_ext_iterator_soa<T>;
+			using iterator_category = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
@@ -13004,7 +12452,7 @@ namespace gaia {
 
 				const auto idxSrc = (size_type)core::distance(begin(), first);
 				const auto idxDst = size();
-				const auto cnt = last - first;
+				const auto cnt = (size_type)(last - first);
 
 				mem::shift_elements_left_n<T>(m_data, idxDst, idxSrc, cnt, extent);
 				// Destroy if it's the last element
@@ -15368,34 +14816,6 @@ namespace gaia {
 				Last = 255,
 			};
 
-			template <typename C>
-			constexpr auto size(C&& c) noexcept -> decltype(c.size()) {
-				return c.size();
-			}
-			template <typename T, auto N>
-			constexpr std::size_t size(const T (&)[N]) noexcept {
-				return N;
-			}
-
-			template <typename C>
-			constexpr auto data(C&& c) noexcept -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename T, auto N>
-			constexpr T* data(T (&array)[N]) noexcept {
-				return array;
-			}
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
-
-			template <typename, typename = void>
-			struct has_data_and_size: std::false_type {};
-			template <typename T>
-			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
-					std::true_type {};
-
 			GAIA_DEFINE_HAS_FUNCTION(resize);
 			GAIA_DEFINE_HAS_FUNCTION(bytes);
 			GAIA_DEFINE_HAS_FUNCTION(save);
@@ -15481,7 +14901,7 @@ namespace gaia {
 					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
-				else if constexpr (has_data_and_size<T>::value)
+				else if constexpr (core::has_data_and_size<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
@@ -15506,7 +14926,7 @@ namespace gaia {
 					size_in_bytes = (uint32_t)sizeof(U);
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
+				else if constexpr (core::has_data_and_size<U>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
@@ -15538,7 +14958,7 @@ namespace gaia {
 						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (has_data_and_size<U>::value) {
+				else if constexpr (core::has_data_and_size<U>::value) {
 					if constexpr (Write) {
 						const auto size = arg.size();
 						s.save(size);
@@ -19785,7 +19205,7 @@ namespace gaia {
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! If component is SoA, this stores how many bytes each of the elements take
-			uint8_t soaSizes[meta::StructToTupleMaxTypes];
+			cnt::sarr<uint8_t, meta::StructToTupleMaxTypes> soaSizes;
 
 			//! Component name
 			SymbolLookupKey name;
@@ -19882,7 +19302,7 @@ namespace gaia {
 						// component id
 						detail::ComponentDesc<T>::id(),
 						// soa
-						detail::ComponentDesc<T>::soa(cci->soaSizes),
+						detail::ComponentDesc<T>::soa({cci->soaSizes.data(), cci->soaSizes.size()}),
 						// size in bytes
 						detail::ComponentDesc<T>::size(),
 						// alignment
@@ -23373,6 +22793,25 @@ namespace gaia {
 #include <cstdarg>
 #include <cstdint>
 #include <type_traits>
+
+
+/*** Start of inlined file: string.h ***/
+#pragma once
+
+namespace gaia {
+	namespace core {
+		inline auto trim(std::span<const char> expr) {
+			uint32_t beg = 0;
+			while (expr[beg] == ' ')
+				++beg;
+			uint32_t end = (uint32_t)expr.size() - 1;
+			while (end > beg && expr[end] == ' ')
+				--end;
+			return expr.subspan(beg, end - beg + 1);
+		}
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: string.h ***/
 
 
 /*** Start of inlined file: component_getter.h ***/
