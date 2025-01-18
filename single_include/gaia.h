@@ -1221,24 +1221,9 @@ namespace tracy {
 /*** Start of inlined file: span.h ***/
 #pragma once
 
-#if GAIA_USE_STD_SPAN
-	#include <span>
-#else
-
-/*** Start of inlined file: span_impl.h ***/
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// Span-compatible interface for c++17 based on:
-// https://github.com/tcbrindle/span
-// Copyright Tristan Brindle 2018.
-// Distributed under the Boost Software License, Version 1.0.
-// (See accompanying file ../../LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt)
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-#pragma once
-
-#include <tuple>
-#include <type_traits>
-
+// The same gaia headers used inside span_impl.h must be included here.
+// Amalgamated file would not be generated properly otherwise
+// because of the conditional nature of usage of this file's usage.
 
 /*** Start of inlined file: iterator.h ***/
 #pragma once
@@ -1356,6 +1341,7 @@ namespace gaia {
 } // namespace gaia
 
 /*** End of inlined file: iterator.h ***/
+
 
 
 /*** Start of inlined file: utility.h ***/
@@ -2722,6 +2708,24 @@ namespace gaia {
 
 /*** End of inlined file: utility.h ***/
 
+#if GAIA_USE_STD_SPAN
+	#include <span>
+#else
+
+/*** Start of inlined file: span_impl.h ***/
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Span-compatible interface for c++17 based on:
+// https://github.com/tcbrindle/span
+// Copyright Tristan Brindle 2018.
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file ../../LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt)
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include <tuple>
+#include <type_traits>
+
 namespace gaia {
 	namespace core {
 		using span_diff_type = size_t;
@@ -3337,7 +3341,7 @@ namespace gaia {
 		//! Converts a struct to a tuple. The struct must support brace-initialization
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = typename core::raw_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();

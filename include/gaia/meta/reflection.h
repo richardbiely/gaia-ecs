@@ -64,7 +64,7 @@ namespace gaia {
 		//! Converts a struct to a tuple. The struct must support brace-initialization
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = typename core::raw_t<T>;
+			using type = core::raw_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();
