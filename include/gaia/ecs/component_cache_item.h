@@ -4,14 +4,9 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/darray.h"
-#include "../cnt/map.h"
-#include "../cnt/sarray.h"
-#include "../config/logging.h"
 #include "../core/hashing_string.h"
 #include "../mem/mem_alloc.h"
 #include "../mem/mem_utils.h"
-#include "../meta/type_info.h"
 #include "component.h"
 #include "component_desc.h"
 #include "id.h"
@@ -35,7 +30,7 @@ namespace gaia {
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! If component is SoA, this stores how many bytes each of the elements take
-			cnt::sarr<uint8_t, meta::StructToTupleMaxTypes> soaSizes;
+			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
 			SymbolLookupKey name;
@@ -132,7 +127,7 @@ namespace gaia {
 						// component id
 						detail::ComponentDesc<T>::id(),
 						// soa
-						detail::ComponentDesc<T>::soa({cci->soaSizes.data(), cci->soaSizes.size()}),
+						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
 						detail::ComponentDesc<T>::size(),
 						// alignment

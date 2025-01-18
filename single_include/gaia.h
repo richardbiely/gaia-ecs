@@ -19205,7 +19205,7 @@ namespace gaia {
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! If component is SoA, this stores how many bytes each of the elements take
-			cnt::sarr<uint8_t, meta::StructToTupleMaxTypes> soaSizes;
+			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
 			SymbolLookupKey name;
@@ -19302,7 +19302,7 @@ namespace gaia {
 						// component id
 						detail::ComponentDesc<T>::id(),
 						// soa
-						detail::ComponentDesc<T>::soa({cci->soaSizes.data(), cci->soaSizes.size()}),
+						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
 						detail::ComponentDesc<T>::size(),
 						// alignment
