@@ -8329,9 +8329,9 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 
 	{
 		REQUIRE(q.empty());
-		q.try_push(mt::JobHandle(1, 0, 0));
+		(void)q.try_push(mt::JobHandle(1, 0, 0));
 		REQUIRE_FALSE(q.empty());
-		q.try_push(mt::JobHandle(2, 0, 0));
+		(void)q.try_push(mt::JobHandle(2, 0, 0));
 		REQUIRE_FALSE(q.empty());
 
 		res = q.try_pop(handle);
@@ -8356,9 +8356,9 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 	}
 
 	{
-		q.try_push(mt::JobHandle(1, 0, 0));
+		(void)q.try_push(mt::JobHandle(1, 0, 0));
 		REQUIRE_FALSE(q.empty());
-		q.try_push(mt::JobHandle(2, 0, 0));
+		(void)q.try_push(mt::JobHandle(2, 0, 0));
 		REQUIRE_FALSE(q.empty());
 
 		res = q.try_steal(handle);

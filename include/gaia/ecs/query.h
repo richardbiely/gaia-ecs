@@ -1306,7 +1306,7 @@ namespace gaia {
 				}
 
 				void destroy() {
-					m_storage.try_del_from_cache();
+					(void)m_storage.try_del_from_cache();
 				}
 
 				//! Returns true if the query is stored in the query cache

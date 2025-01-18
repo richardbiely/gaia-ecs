@@ -1,0 +1,2 @@
+CompileFlags:
+      Add: [-std=c++17, -Wall, -Wextra, -Wextra-semi, -Wextra-tokens, -pedantic, -pedantic-errors, -Wpadded, -Wpadded-bitfield, -Wshadow, -Wcast-align, -Wunused, -Wconversion, -Wsign-conversion, -Wnull-dereference, -Wdouble-promotion, -Wformat=2, -Wimplicit-fallthrough, -Wduplicated-cond, -Wduplicated-branches, -Wlogical-op, -Wuseless-cast, -Wunused-parameter, -Wunused-local-typedef]  

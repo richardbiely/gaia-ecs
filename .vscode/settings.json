@@ -1,4 +1,6 @@
 {
     "cmake.configureOnOpen": false,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.cppStandard": "c++17"
 }
