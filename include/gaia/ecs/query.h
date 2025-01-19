@@ -1049,7 +1049,8 @@ namespace gaia {
 						// TODO: Cache the indices so we don't have to iterate. In situations with many
 						//       groups this could save a bit of performance.
 						auto group_data_view = queryInfo.group_data_view();
-						GAIA_EACH(group_data_view) {
+						const auto cnt = group_data_view.size();
+						GAIA_FOR(cnt) {
 							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
 								continue;
 
@@ -1082,6 +1083,8 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					const auto cnt = it.size();
+
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
@@ -1092,14 +1095,14 @@ namespace gaia {
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
-						//		GAIA_EACH(it) func(p[i], v[i]);
+						//		GAIA_FOR(0, cnt) func(p[i], v[i]);
 
-						GAIA_EACH(it) {
+						GAIA_FOR(cnt) {
 							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
 						}
 					} else {
 						// No functor parameters. Do an empty loop.
-						GAIA_EACH(it) func();
+						GAIA_FOR(cnt) func();
 					}
 				}
 
@@ -1248,7 +1251,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
-							if (it.size() == 0)
+
+							const auto cnt = it.size();
+							if (cnt == 0)
 								continue;
 
 							// Filters
@@ -1258,7 +1263,7 @@ namespace gaia {
 							}
 
 							const auto dataView = it.template view<ContainerItemType>();
-							GAIA_EACH(it) {
+							GAIA_FOR(cnt) {
 								outArray.push_back(dataView[it.template acc_index<ContainerItemType>(i)]);
 							}
 						}

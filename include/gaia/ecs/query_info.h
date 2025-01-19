@@ -227,7 +227,8 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 
 					const auto& ids = data.ids;
-					GAIA_EACH(ids) {
+					const auto cnt = ids.size();
+					GAIA_FOR(cnt) {
 						const auto id = ids[i];
 
 						// Build the Is mask.
@@ -358,7 +359,8 @@ namespace gaia {
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
-				GAIA_EACH(queryIds) {
+				const auto cnt = queryIds.size();
+				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
@@ -396,7 +398,8 @@ namespace gaia {
 				if (m_archetypeGroupData.empty()) {
 					m_archetypeGroupData.push_back({groupId, 0, 0, false});
 				} else {
-					GAIA_EACH(m_archetypeGroupData) {
+					const auto cnt = m_archetypeGroupData.size();
+					GAIA_FOR(cnt) {
 						if (groupId < m_archetypeGroupData[i].groupId) {
 							// Insert the new group before one with a lower groupId.
 							// 2 3 5 10 20 25 [7]<-new group

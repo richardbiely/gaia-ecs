@@ -2643,8 +2643,9 @@ namespace gaia {
 				cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> entsNew;
 				{
 					auto entsOld = pArchetypeLeft->ids_view();
+					const auto entsOldCnt = entsOld.size();
 					entsNew.resize((uint32_t)entsOld.size() + 1);
-					GAIA_EACH(entsOld) entsNew[i] = entsOld[i];
+					GAIA_FOR(entsOldCnt) entsNew[i] = entsOld[i];
 					entsNew[(uint32_t)entsOld.size()] = entity;
 				}
 
@@ -4370,7 +4371,8 @@ namespace gaia {
 		inline void World::systems_run() {
 			m_systemsQuery.each([](ecs::Iter& it) {
 				auto se_view = it.sview_mut<ecs::System2_>(0);
-				GAIA_EACH(it) {
+				const auto cnt = se_view.size();
+				GAIA_FOR(cnt) {
 					auto& sys = se_view[i];
 					sys.exec();
 				}

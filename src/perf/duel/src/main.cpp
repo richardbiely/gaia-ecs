@@ -331,7 +331,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) {
+				GAIA_FOR(cnt) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
@@ -353,7 +353,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) {
+				GAIA_FOR(cnt) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -373,7 +373,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) v[i].y += 9.81f * dt;
+				GAIA_FOR(cnt) v[i].y += 9.81f * dt;
 			});
 		}
 	};
@@ -390,7 +390,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 
 				uint32_t a = 0;
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) {
+				GAIA_FOR(cnt) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -461,9 +461,9 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvz = v.get<2>();
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) ppx[i] += vvx[i] * dt;
-				GAIA_FOR2(0, cnt) ppy[i] += vvy[i] * dt;
-				GAIA_FOR2(0, cnt) ppz[i] += vvz[i] * dt;
+				GAIA_FOR(cnt) ppx[i] += vvx[i] * dt;
+				GAIA_FOR(cnt) ppy[i] += vvy[i] * dt;
+				GAIA_FOR(cnt) ppz[i] += vvz[i] * dt;
 			});
 		}
 	};
@@ -483,7 +483,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.set<1>();
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) {
+				GAIA_FOR(cnt) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
@@ -505,7 +505,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.set<1>();
 
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) vvy[i] += dt * 9.81f;
+				GAIA_FOR(cnt) vvy[i] += dt * 9.81f;
 			});
 		}
 	};
@@ -522,7 +522,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 
 				uint32_t a = 0;
 				const auto cnt = it.size();
-				GAIA_FOR2(0, cnt) {
+				GAIA_FOR(cnt) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -1090,7 +1090,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 	struct UnitDynamic {
 		static void update_pos(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
-			GAIA_EACH(p) {
+			const auto cnt = p.size();
+			GAIA_FOR(cnt) {
 				p[i].x += v[i].x * deltaTime;
 				p[i].y += v[i].y * deltaTime;
 				p[i].z += v[i].z * deltaTime;
@@ -1101,7 +1102,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(p[0].z);
 		}
 		static void handle_collision(cnt::darray<Position>& p, cnt::darray<Velocity>& v) {
-			GAIA_EACH(p) {
+			const auto cnt = p.size();
+			GAIA_FOR(cnt) {
 				if (p[i].y < 0.0f) {
 					p[i].y = 0.0f;
 					v[i].y = 0.0f;
@@ -1113,14 +1115,19 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 
 		static void apply_gravity(cnt::darray<Velocity>& v, float deltaTime) {
-			GAIA_EACH(v) v[i].y += 9.81f * deltaTime;
+			const auto cnt = v.size();
+			GAIA_FOR(cnt) {
+				v[i].y += 9.81f * deltaTime;
+			}
 
 			gaia::dont_optimize(v[0].y);
 		}
 
 		static uint32_t calc_alive_units(const cnt::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			GAIA_EACH(h) {
+
+			const auto cnt = h.size();
+			GAIA_FOR(cnt) {
 				if (h[i].value > 0)
 					++aliveUnits;
 			}
@@ -1242,9 +1249,10 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto vvy = vv.get<1>();
 			auto vvz = vv.get<2>();
 
-			GAIA_EACH(ppx) ppx[i] += vvx[i] * dt;
-			GAIA_EACH(ppy) ppy[i] += vvy[i] * dt;
-			GAIA_EACH(ppz) ppz[i] += vvz[i] * dt;
+			const auto cnt = p.size();
+			GAIA_FOR(cnt) ppx[i] += vvx[i] * dt;
+			GAIA_FOR(cnt) ppy[i] += vvy[i] * dt;
+			GAIA_FOR(cnt) ppz[i] += vvz[i] * dt;
 
 			gaia::dont_optimize(ppx[0]);
 			gaia::dont_optimize(ppy[0]);
@@ -1260,7 +1268,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
 
-			GAIA_EACH(ppy) {
+			const auto cnt = p.size();
+			GAIA_FOR(cnt) {
 				if (ppy[i] < 0.0f) {
 					ppy[i] = 0.0f;
 					vvy[i] = 0.0f;
@@ -1278,7 +1287,10 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 			auto vvy = vv.set<1>();
 
-			GAIA_EACH(vvy) vvy[i] += 9.81f * dt;
+			const auto cnt = v.size();
+			GAIA_FOR(cnt) {
+				vvy[i] += 9.81f * dt;
+			}
 
 			gaia::dont_optimize(vvy[0]);
 		}
@@ -1287,7 +1299,9 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			GAIA_PROF_SCOPE(calc_alive_units);
 
 			uint32_t aliveUnits = 0;
-			GAIA_EACH(h) {
+
+			const auto cnt = h.size();
+			GAIA_FOR(cnt) {
 				if (h[i].value > 0)
 					++aliveUnits;
 			}

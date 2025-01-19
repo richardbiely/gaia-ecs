@@ -520,7 +520,7 @@ GameWorld* g_pGameWorld = nullptr;
 // Systems
 //----------------------------------------------------------------------
 
-class GameSystem : public ecs::System {
+class GameSystem: public ecs::System {
 protected:
 	ecs::SystemManager* m_pSystemManager = nullptr;
 
@@ -578,7 +578,8 @@ public:
 			auto vel = iter.view_mut<Velocity>();
 			auto pos = iter.view<Position>();
 
-			GAIA_EACH(iter) {
+			const auto cnt = iter.size();
+			GAIA_FOR(cnt) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
@@ -979,7 +980,7 @@ int main() {
 			"\nPress any key to continue...\n",
 			KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_SHOOT, KEY_QUIT, TILE_PLAYER, TILE_ENEMY_GOBLIN, TILE_ENEMY_ORC,
 			TILE_POTION, TILE_POISON, TILE_WALL);
-	
+
 	ecs::World g_ecs;
 	ecs::SystemManager g_smPreSimulation(g_ecs);
 	ecs::SystemManager g_smSimulation(g_ecs);

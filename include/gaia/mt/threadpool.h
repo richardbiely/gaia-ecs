@@ -943,7 +943,7 @@ namespace gaia {
 
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * max);
 				uint32_t cnt = 0;
-				GAIA_FOR2(0, max) {
+				GAIA_FOR(max) {
 					auto depHandle = jobData.edges.pDeps[i];
 
 					// See if all conditions were satisfied for us to submit the job

@@ -345,7 +345,7 @@ namespace gaia {
 							// TODO: Use custom allocator
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
 							if (pPrev != nullptr) {
-								GAIA_FOR2(0, depCnt0) firstData.edges.pDeps[i] = pPrev[i];
+								GAIA_FOR(depCnt0) firstData.edges.pDeps[i] = pPrev[i];
 								mem::AllocHelper::free(pPrev);
 							}
 						}

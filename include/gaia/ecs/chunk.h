@@ -107,7 +107,8 @@ namespace gaia {
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
 					auto recs = comp_rec_view();
-					GAIA_EACH(recs) {
+					const auto recs_cnt = recs.size();
+					GAIA_FOR(recs_cnt) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0)
 							continue;
@@ -865,7 +866,7 @@ namespace gaia {
 
 				// Swap component data
 				auto recView = comp_rec_view();
-				GAIA_FOR2(0, m_header.genEntities) {
+				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recView[i];
 					if (rec.comp.size() == 0U)
 						continue;
@@ -977,7 +978,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
 
 				auto recs = comp_rec_view();
-				GAIA_FOR2(0, m_header.genEntities) {
+				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recs[i];
 
 					const auto* pItem = rec.pItem;
@@ -997,7 +998,8 @@ namespace gaia {
 
 				auto ids = ids_view();
 				auto recs = comp_rec_view();
-				GAIA_EACH(recs) {
+				const auto recs_cnt = recs.size();
+				GAIA_FOR(recs_cnt) {
 					const auto& rec = recs[i];
 
 					const auto* pItem = rec.pItem;

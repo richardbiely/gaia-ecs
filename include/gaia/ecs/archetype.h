@@ -32,12 +32,15 @@ namespace gaia {
 
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
+				const auto s0 = comps.size();
+				const auto s1 = compsOther.size();
+
 				// Size has to match
-				if (comps.size() != compsOther.size())
+				if (s0 != s1)
 					return false;
 
 				// Elements have to match
-				GAIA_EACH(comps) {
+				GAIA_FOR(s0) {
 					if (comps[i] != compsOther[i])
 						return false;
 				}
@@ -313,7 +316,7 @@ namespace gaia {
 
 				// Prepare m_comps array
 				auto comps = std::span(&newArch->m_comps[0], cnt);
-				GAIA_EACH(ids) {
+				GAIA_FOR(cnt) {
 					if (ids[i].pair()) {
 						// When using pairs we need to decode the storage type from them.
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
@@ -338,7 +341,7 @@ namespace gaia {
 				const auto& offs = newArch->m_dataOffsets;
 
 				// Calculate the number of pairs
-				GAIA_EACH(ids) {
+				GAIA_FOR(cnt) {
 					if (!ids[i].pair())
 						continue;
 

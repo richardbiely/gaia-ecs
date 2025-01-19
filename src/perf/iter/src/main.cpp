@@ -122,13 +122,14 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 
 		state.start_timer();
 
-		uint32_t cnt = 0;
+		uint32_t iters = 0;
 		query.each([&](TIter& it) {
-			GAIA_EACH(it) {
-				++cnt;
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
+				++iters;
 			}
 		});
-		gaia::dont_optimize(cnt);
+		gaia::dont_optimize(iters);
 
 		state.stop_timer();
 	}
@@ -172,7 +173,8 @@ void bench_query_each_view(picobench::state& state, ecs::World& w) {
 
 		state.stop_timer();
 		q.each([&](ecs::Iter& it) {
-			GAIA_EACH(it) {
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
 				state.start_timer();
 
 				if constexpr (ViewWithIndex) {

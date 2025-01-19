@@ -632,10 +632,11 @@ namespace gaia {
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
 
-						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
+						const auto cnt = comp.ids_any.size();
+						ctx.idsToMatch = std::span{comp.ids_any.data(), cnt};
 
 						// Try find matches with optional components.
-						GAIA_EACH(comp.ids_any) {
+						GAIA_FOR(cnt) {
 							ctx.ent = comp.ids_any[i];
 
 							// First viable item is not related to an Is relationship
@@ -784,7 +785,8 @@ namespace gaia {
 					if (!terms_all.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_all);
 
-						GAIA_EACH(terms_all) {
+						const auto cnt = terms_all.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
 							if (p.src == EntityBad) {
 								m_compCtx.ids_all.push_back(p.id);
@@ -809,7 +811,9 @@ namespace gaia {
 						GAIA_PROF_SCOPE(vm::compile_any);
 
 						uint32_t archetypesWithId = 0;
-						GAIA_EACH(terms_any) {
+
+						const auto cnt = terms_any.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_any[i];
 							if (p.src != EntityBad) {
 								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
@@ -840,7 +844,8 @@ namespace gaia {
 					if (!terms_not.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_not);
 
-						GAIA_EACH(terms_not) {
+						const auto cnt = terms_not.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
 							if (p.src != EntityBad)
 								continue;

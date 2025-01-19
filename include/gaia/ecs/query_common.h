@@ -349,13 +349,15 @@ namespace gaia {
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
 			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-			GAIA_EACH(data.terms) {
+			const auto& terms = data.terms;
+			const auto termsCnt = terms.size();
+
+			GAIA_FOR(termsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
 				data.remapping[i] = idxBeforeRemapping;
 			}
 
-			const auto& terms = data.terms;
-			if (!terms.empty()) {
+			if (termsCnt > 0) {
 				uint32_t i = 0;
 				while (i < terms.size() && terms[i].op == QueryOpKind::All)
 					++i;

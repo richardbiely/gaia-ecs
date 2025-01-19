@@ -16270,7 +16270,7 @@ namespace gaia {
 							// TODO: Use custom allocator
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
 							if (pPrev != nullptr) {
-								GAIA_FOR2(0, depCnt0) firstData.edges.pDeps[i] = pPrev[i];
+								GAIA_FOR(depCnt0) firstData.edges.pDeps[i] = pPrev[i];
 								mem::AllocHelper::free(pPrev);
 							}
 						}
@@ -17409,7 +17409,7 @@ namespace gaia {
 
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * max);
 				uint32_t cnt = 0;
-				GAIA_FOR2(0, max) {
+				GAIA_FOR(max) {
 					auto depHandle = jobData.edges.pDeps[i];
 
 					// See if all conditions were satisfied for us to submit the job
@@ -19968,7 +19968,8 @@ namespace gaia {
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
 					auto recs = comp_rec_view();
-					GAIA_EACH(recs) {
+					const auto recs_cnt = recs.size();
+					GAIA_FOR(recs_cnt) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0)
 							continue;
@@ -20726,7 +20727,7 @@ namespace gaia {
 
 				// Swap component data
 				auto recView = comp_rec_view();
-				GAIA_FOR2(0, m_header.genEntities) {
+				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recView[i];
 					if (rec.comp.size() == 0U)
 						continue;
@@ -20838,7 +20839,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(Chunk::call_gen_ctors);
 
 				auto recs = comp_rec_view();
-				GAIA_FOR2(0, m_header.genEntities) {
+				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recs[i];
 
 					const auto* pItem = rec.pItem;
@@ -20858,7 +20859,8 @@ namespace gaia {
 
 				auto ids = ids_view();
 				auto recs = comp_rec_view();
-				GAIA_EACH(recs) {
+				const auto recs_cnt = recs.size();
+				GAIA_FOR(recs_cnt) {
 					const auto& rec = recs[i];
 
 					const auto* pItem = rec.pItem;
@@ -21196,12 +21198,15 @@ namespace gaia {
 
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
+				const auto s0 = comps.size();
+				const auto s1 = compsOther.size();
+
 				// Size has to match
-				if (comps.size() != compsOther.size())
+				if (s0 != s1)
 					return false;
 
 				// Elements have to match
-				GAIA_EACH(comps) {
+				GAIA_FOR(s0) {
 					if (comps[i] != compsOther[i])
 						return false;
 				}
@@ -21477,7 +21482,7 @@ namespace gaia {
 
 				// Prepare m_comps array
 				auto comps = std::span(&newArch->m_comps[0], cnt);
-				GAIA_EACH(ids) {
+				GAIA_FOR(cnt) {
 					if (ids[i].pair()) {
 						// When using pairs we need to decode the storage type from them.
 						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
@@ -21502,7 +21507,7 @@ namespace gaia {
 				const auto& offs = newArch->m_dataOffsets;
 
 				// Calculate the number of pairs
-				GAIA_EACH(ids) {
+				GAIA_FOR(cnt) {
 					if (!ids[i].pair())
 						continue;
 
@@ -22543,13 +22548,15 @@ namespace gaia {
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
 			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-			GAIA_EACH(data.terms) {
+			const auto& terms = data.terms;
+			const auto termsCnt = terms.size();
+
+			GAIA_FOR(termsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
 				data.remapping[i] = idxBeforeRemapping;
 			}
 
-			const auto& terms = data.terms;
-			if (!terms.empty()) {
+			if (termsCnt > 0) {
 				uint32_t i = 0;
 				while (i < terms.size() && terms[i].op == QueryOpKind::All)
 					++i;
@@ -23683,10 +23690,11 @@ namespace gaia {
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
 
-						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
+						const auto cnt = comp.ids_any.size();
+						ctx.idsToMatch = std::span{comp.ids_any.data(), cnt};
 
 						// Try find matches with optional components.
-						GAIA_EACH(comp.ids_any) {
+						GAIA_FOR(cnt) {
 							ctx.ent = comp.ids_any[i];
 
 							// First viable item is not related to an Is relationship
@@ -23835,7 +23843,8 @@ namespace gaia {
 					if (!terms_all.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_all);
 
-						GAIA_EACH(terms_all) {
+						const auto cnt = terms_all.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
 							if (p.src == EntityBad) {
 								m_compCtx.ids_all.push_back(p.id);
@@ -23860,7 +23869,9 @@ namespace gaia {
 						GAIA_PROF_SCOPE(vm::compile_any);
 
 						uint32_t archetypesWithId = 0;
-						GAIA_EACH(terms_any) {
+
+						const auto cnt = terms_any.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_any[i];
 							if (p.src != EntityBad) {
 								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
@@ -23891,7 +23902,8 @@ namespace gaia {
 					if (!terms_not.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_not);
 
-						GAIA_EACH(terms_not) {
+						const auto cnt = terms_not.size();
+						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
 							if (p.src != EntityBad)
 								continue;
@@ -24152,7 +24164,8 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 
 					const auto& ids = data.ids;
-					GAIA_EACH(ids) {
+					const auto cnt = ids.size();
+					GAIA_FOR(cnt) {
 						const auto id = ids[i];
 
 						// Build the Is mask.
@@ -24283,7 +24296,8 @@ namespace gaia {
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				const auto& queryIds = ids();
-				GAIA_EACH(queryIds) {
+				const auto cnt = queryIds.size();
+				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
@@ -24321,7 +24335,8 @@ namespace gaia {
 				if (m_archetypeGroupData.empty()) {
 					m_archetypeGroupData.push_back({groupId, 0, 0, false});
 				} else {
-					GAIA_EACH(m_archetypeGroupData) {
+					const auto cnt = m_archetypeGroupData.size();
+					GAIA_FOR(cnt) {
 						if (groupId < m_archetypeGroupData[i].groupId) {
 							// Insert the new group before one with a lower groupId.
 							// 2 3 5 10 20 25 [7]<-new group
@@ -25803,7 +25818,8 @@ namespace gaia {
 						// TODO: Cache the indices so we don't have to iterate. In situations with many
 						//       groups this could save a bit of performance.
 						auto group_data_view = queryInfo.group_data_view();
-						GAIA_EACH(group_data_view) {
+						const auto cnt = group_data_view.size();
+						GAIA_FOR(cnt) {
 							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
 								continue;
 
@@ -25836,6 +25852,8 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					const auto cnt = it.size();
+
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
@@ -25846,14 +25864,14 @@ namespace gaia {
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
-						//		GAIA_EACH(it) func(p[i], v[i]);
+						//		GAIA_FOR(0, cnt) func(p[i], v[i]);
 
-						GAIA_EACH(it) {
+						GAIA_FOR(cnt) {
 							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
 						}
 					} else {
 						// No functor parameters. Do an empty loop.
-						GAIA_EACH(it) func();
+						GAIA_FOR(cnt) func();
 					}
 				}
 
@@ -26002,7 +26020,9 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
-							if (it.size() == 0)
+
+							const auto cnt = it.size();
+							if (cnt == 0)
 								continue;
 
 							// Filters
@@ -26012,7 +26032,7 @@ namespace gaia {
 							}
 
 							const auto dataView = it.template view<ContainerItemType>();
-							GAIA_EACH(it) {
+							GAIA_FOR(cnt) {
 								outArray.push_back(dataView[it.template acc_index<ContainerItemType>(i)]);
 							}
 						}
@@ -29036,8 +29056,9 @@ namespace gaia {
 				cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> entsNew;
 				{
 					auto entsOld = pArchetypeLeft->ids_view();
+					const auto entsOldCnt = entsOld.size();
 					entsNew.resize((uint32_t)entsOld.size() + 1);
-					GAIA_EACH(entsOld) entsNew[i] = entsOld[i];
+					GAIA_FOR(entsOldCnt) entsNew[i] = entsOld[i];
 					entsNew[(uint32_t)entsOld.size()] = entity;
 				}
 
@@ -30935,7 +30956,8 @@ namespace gaia {
 		inline void World::systems_run() {
 			m_systemsQuery.each([](ecs::Iter& it) {
 				auto se_view = it.sview_mut<ecs::System2_>(0);
-				GAIA_EACH(it) {
+				const auto cnt = se_view.size();
+				GAIA_FOR(cnt) {
 					auto& sys = se_view[i];
 					sys.exec();
 				}

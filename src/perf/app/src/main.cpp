@@ -188,7 +188,9 @@ namespace sys {
 					const int totalDamage = core::get_max(damage.atk - damage.def, 0);
 					health.hp -= totalDamage;
 				};
-				GAIA_EACH(it) update(health[i], damage[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) update(health[i], damage[i]);
 			});
 		}
 
@@ -214,7 +216,9 @@ namespace sys {
 					data.mingy = !data.mingy;
 					data.numgy = data.rng();
 				};
-				GAIA_EACH(it) update(data[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) update(data[i]);
 			});
 		}
 
@@ -234,7 +238,9 @@ namespace sys {
 		void OnUpdate() override {
 			m_q.each([&](ecs::Iter& it) {
 				auto health = it.view_mut<HealthComponent>(0);
-				GAIA_EACH(it)::sysbase::updateHealth(health[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt)::sysbase::updateHealth(health[i]);
 			});
 		}
 
@@ -268,7 +274,9 @@ namespace sys {
 						}
 					}
 				};
-				GAIA_EACH(it) update(position[i], direction[i], data[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) update(position[i], direction[i], data[i]);
 			});
 		}
 
@@ -300,7 +308,8 @@ namespace sys {
 				// Data
 				auto vd = iter.view_mut<DataComponent>(2);
 
-				GAIA_EACH(iter) {
+				const auto cnt = iter.size();
+				GAIA_FOR(cnt) {
 					if ((vd[i].thingy % 10) == 0) {
 						if (px[i] > py[i]) {
 							vx[i] = (float)vd[i].rng.range(3, 19) - 10.0f;
@@ -331,7 +340,9 @@ namespace sys {
 			m_q.each([&](ecs::Iter& it) {
 				auto position = it.view_mut<PositionComponent>(0);
 				auto direction = it.view<VelocityComponent>(1);
-				GAIA_EACH(it) {
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) {
 					position[i].x += direction[i].x * dt;
 					position[i].y += direction[i].y * dt;
 				}
@@ -363,10 +374,11 @@ namespace sys {
 				auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
 				auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
 
+				const auto cnt = iter.size();
 				// Handle x coordinates
-				GAIA_EACH(iter) px[i] += vx[i] * dt;
+				GAIA_FOR(cnt) px[i] += vx[i] * dt;
 				// Handle y coordinates
-				GAIA_EACH(iter) py[i] += vy[i] * dt;
+				GAIA_FOR(cnt) py[i] += vy[i] * dt;
 			});
 		}
 
@@ -393,7 +405,11 @@ namespace sys {
 			m_q.each([&](ecs::Iter& it) {
 				auto position = it.view<PositionComponent>(0);
 				auto sprite = it.view_mut<SpriteComponent>(1);
-				GAIA_EACH(it)::sysbase::renderSprite(*m_frameBuffer, position[i].x, position[i].y, sprite[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) {
+					::sysbase::renderSprite(*m_frameBuffer, position[i].x, position[i].y, sprite[i]);
+				}
 			});
 		}
 
@@ -425,7 +441,10 @@ namespace sys {
 				// Sprite
 				auto vs = it.view<SpriteComponent>(1);
 
-				GAIA_EACH(it)::sysbase::renderSprite(*m_frameBuffer, px[i], py[i], vs[i]);
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) {
+					::sysbase::renderSprite(*m_frameBuffer, px[i], py[i], vs[i]);
+				}
 			});
 		}
 
@@ -448,7 +467,11 @@ namespace sys {
 				auto sprite = it.view_mut<SpriteComponent>(0);
 				auto player = it.view<PlayerComponent>(1);
 				auto health = it.view<HealthComponent>(2);
-				GAIA_EACH(it) sysbase::updateSprite(sprite[i], player[i], health[i]);
+
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) {
+					sysbase::updateSprite(sprite[i], player[i], health[i]);
+				}
 			});
 		}
 

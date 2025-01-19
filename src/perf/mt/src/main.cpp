@@ -9,21 +9,27 @@ struct Data {
 };
 
 static uint32_t BenchFunc_Simple(std::span<const Data> arr) {
+	const auto cnt = arr.size();
+
 	uint32_t sum = 0;
-	GAIA_EACH(arr) sum += arr[i].val;
+	GAIA_FOR(cnt) {
+		sum += arr[i].val;
+	}
 	return sum;
 }
 
 static uint32_t BenchFunc_Complex(std::span<const Data> arr) {
+	const auto cnt = arr.size();
+
 	uint32_t sum = 0;
-	GAIA_EACH(arr) sum += arr[i].val;
-	GAIA_EACH(arr) sum *= arr[i].val;
-	GAIA_EACH(arr) {
+	GAIA_FOR(cnt) sum += arr[i].val;
+	GAIA_FOR(cnt) sum *= arr[i].val;
+	GAIA_FOR(cnt) {
 		if (arr[i].val != 0)
 			sum %= arr[i].val;
 	}
-	GAIA_EACH(arr) sum *= arr[i].val;
-	GAIA_EACH(arr) {
+	GAIA_FOR(cnt) sum *= arr[i].val;
+	GAIA_FOR(cnt) {
 		if (arr[i].val != 0)
 			sum /= arr[i].val;
 	}

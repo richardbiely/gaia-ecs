@@ -73,7 +73,9 @@ public:
 			auto p = it.view_mut<Position>();
 			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(it) {
+
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
@@ -98,7 +100,9 @@ public:
 			auto p = it.view_mut<Position>();
 			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(it) {
+
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
@@ -123,7 +127,9 @@ public:
 			auto p = it.view_mut<Position>();
 			auto v = it.view<Velocity>();
 			const float dt = 0.01f;
-			GAIA_EACH(it) {
+
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
