@@ -258,7 +258,7 @@ namespace gaia {
 						ensure();
 
 						m_pData->header.mask = other.m_pData->header.mask;
-						m_pData->header.cnt = other.m_pData.header.cnt;
+						m_pData->header.cnt = other.m_pData->header.cnt;
 
 						// Copy construct data
 						for (auto i: other.m_pData->header.mask)
