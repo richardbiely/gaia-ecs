@@ -1696,8 +1696,19 @@ TEST_CASE("Containers - alignment check") {
 
 TEST_CASE("Containers - sringbuffer") {
 	{
+		cnt::sarray<uint32_t, 5> comparearr = {0, 1, 2, 3, 4};
 		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 		uint32_t val{};
+
+		// Iteration
+		{
+			uint32_t i = 0;
+			for (auto curr: arr) {
+				const auto expected = comparearr[i++];
+				REQUIRE(curr == expected);
+			}
+			REQUIRE(i == 5);
+		}
 
 		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 0);
@@ -1737,6 +1748,16 @@ TEST_CASE("Containers - sringbuffer") {
 		uint32_t val{};
 
 		REQUIRE(arr.empty());
+
+		// Iteration
+		{
+			uint32_t i = 0;
+			for ([[maybe_unused]] auto curr: arr) {
+				++i;
+			}
+			REQUIRE(i == 0);
+		}
+
 		{
 			arr.push_back(0);
 			REQUIRE_FALSE(arr.empty());
