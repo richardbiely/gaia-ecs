@@ -15084,7 +15084,7 @@ namespace gaia {
 		public:
 #if !GAIA_USE_MT_STD
 			Event() {
-				int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
+				[[maybe_unused]] int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
 				GAIA_ASSERT(ret == 0);
 				if (ret == 0) {
 					ret = pthread_cond_init(&m_hCondHandle, nullptr);
@@ -15093,7 +15093,7 @@ namespace gaia {
 			}
 
 			~Event() {
-				int ret = pthread_cond_destroy(&m_hCondHandle);
+				[[maybe_unused]] int ret = pthread_cond_destroy(&m_hCondHandle);
 				GAIA_ASSERT(ret == 0);
 
 				ret = pthread_mutex_destroy(&m_hMutexHandle);
@@ -16226,7 +16226,7 @@ namespace gaia {
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
 #else
-				int ret = sem_init(&m_handle, 0, count);
+				[[maybe_unused]] int ret = sem_init(&m_handle, 0, count);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}
@@ -16243,7 +16243,7 @@ namespace gaia {
 				//       They are automatically released when no longer used.
 				// -> dispatch_release(m_handle);
 #else
-				int ret = sem_destroy(&m_handle);
+				[[maybe_unused]] int ret = sem_destroy(&m_handle);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}

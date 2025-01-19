@@ -29,7 +29,7 @@ namespace gaia {
 		public:
 #if !GAIA_USE_MT_STD
 			Event() {
-				int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
+				[[maybe_unused]] int ret = pthread_mutex_init(&m_hMutexHandle, nullptr);
 				GAIA_ASSERT(ret == 0);
 				if (ret == 0) {
 					ret = pthread_cond_init(&m_hCondHandle, nullptr);
@@ -38,9 +38,9 @@ namespace gaia {
 			}
 
 			~Event() {
-				int ret = pthread_cond_destroy(&m_hCondHandle);
+				[[maybe_unused]] int ret = pthread_cond_destroy(&m_hCondHandle);
 				GAIA_ASSERT(ret == 0);
-
+				
 				ret = pthread_mutex_destroy(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
 			}

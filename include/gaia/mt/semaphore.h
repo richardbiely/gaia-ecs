@@ -39,7 +39,7 @@ namespace gaia {
 				m_handle = dispatch_semaphore_create(count);
 				GAIA_ASSERT(m_handle != nullptr);
 #else
-				int ret = sem_init(&m_handle, 0, count);
+				[[maybe_unused]] int ret = sem_init(&m_handle, 0, count);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}
@@ -56,7 +56,7 @@ namespace gaia {
 				//       They are automatically released when no longer used.
 				// -> dispatch_release(m_handle);
 #else
-				int ret = sem_destroy(&m_handle);
+				[[maybe_unused]] int ret = sem_destroy(&m_handle);
 				GAIA_ASSERT(ret == 0);
 #endif
 			}
