@@ -330,7 +330,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto v = it.view<Velocity>();
 #endif
 
-				GAIA_EACH(it) {
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
@@ -351,7 +352,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto v = it.view_mut<Velocity>();
 #endif
 
-				GAIA_EACH(it) {
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -370,7 +372,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto v = it.view_mut<Velocity>();
 #endif
 
-				GAIA_EACH(it) v[i].y += 9.81f * dt;
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) v[i].y += 9.81f * dt;
 			});
 		}
 	};
@@ -386,7 +389,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				uint32_t a = 0;
-				GAIA_EACH(it) {
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -456,9 +460,10 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				GAIA_EACH(it) ppx[i] += vvx[i] * dt;
-				GAIA_EACH(it) ppy[i] += vvy[i] * dt;
-				GAIA_EACH(it) ppz[i] += vvz[i] * dt;
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) ppx[i] += vvx[i] * dt;
+				GAIA_FOR2(0, cnt) ppy[i] += vvy[i] * dt;
+				GAIA_FOR2(0, cnt) ppz[i] += vvz[i] * dt;
 			});
 		}
 	};
@@ -477,7 +482,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				GAIA_EACH(it) {
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
@@ -498,7 +504,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 
 				auto vvy = v.set<1>();
 
-				GAIA_EACH(it) vvy[i] += dt * 9.81f;
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) vvy[i] += dt * 9.81f;
 			});
 		}
 	};
@@ -514,7 +521,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 #endif
 
 				uint32_t a = 0;
-				GAIA_EACH(it) {
+				const auto cnt = it.size();
+				GAIA_FOR2(0, cnt) {
 					if (h[i].value > 0)
 						++a;
 				}
