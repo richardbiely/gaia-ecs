@@ -127,6 +127,7 @@
 			"picobench",
 			"prefetchnta",
 			"reimplementation",
+			"Ringbuffer",
 			"SANI",
 			"setaffinity",
 			"SIMD",

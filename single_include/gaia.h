@@ -524,7 +524,7 @@ namespace gaia {
 #endif
 
 #ifdef __has_cpp_attribute
-	#if __has_cpp_attribute(assume) >= 202207L
+	#if __has_cpp_attribute(assume) >= 202207L && GAIA_CPP_VERSION(202207L)
 		#define GAIA_ASSUME(...) [[assume(__VA_ARGS__)]]
 	#endif
 #endif
