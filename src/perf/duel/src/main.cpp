@@ -179,15 +179,15 @@ void BM_ECS(picobench::state& state) {
 	srand(0);
 	for (auto _: state) {
 		(void)_;
-		dt = CalculateDelta(state);
+		const float cdt = CalculateDelta(state);
 
 		// Update position
 		{
 			GAIA_PROF_SCOPE(update_pos);
 			queryPosCVel.each([&](Position& p, const Velocity& v) {
-				p.x += v.x * dt;
-				p.y += v.y * dt;
-				p.z += v.z * dt;
+				p.x += v.x * cdt;
+				p.y += v.y * cdt;
+				p.z += v.z * cdt;
 			});
 		}
 		// Handle ground collision
@@ -204,7 +204,7 @@ void BM_ECS(picobench::state& state) {
 		{
 			GAIA_PROF_SCOPE(apply_gravity);
 			queryVel.each([&](Velocity& v) {
-				v.y += 9.81f * dt;
+				v.y += 9.81f * cdt;
 			});
 		}
 		// Calculate the number of units alive
@@ -241,10 +241,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](Position& p, const Velocity& v) {
-				p.x += v.x * dt;
-				p.y += v.y * dt;
-				p.z += v.z * dt;
+			m_q->each([cdt = dt](Position& p, const Velocity& v) {
+				p.x += v.x * cdt;
+				p.y += v.y * cdt;
+				p.z += v.z * cdt;
 			});
 		}
 	};
@@ -262,8 +262,8 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](Velocity& v) {
-				v.y += 9.81f * dt;
+			m_q->each([cdt = dt](Velocity& v) {
+				v.y += 9.81f * cdt;
 			});
 		}
 	};
@@ -331,10 +331,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				const auto cnt = it.size();
+				const auto cdt = dt;
 				GAIA_FOR(cnt) {
-					p[i].x += v[i].x * dt;
-					p[i].y += v[i].y * dt;
-					p[i].z += v[i].z * dt;
+					p[i].x += v[i].x * cdt;
+					p[i].y += v[i].y * cdt;
+					p[i].z += v[i].z * cdt;
 				}
 			});
 		}
@@ -373,7 +374,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 #endif
 
 				const auto cnt = it.size();
-				GAIA_FOR(cnt) v[i].y += 9.81f * dt;
+				const auto cdt = dt;
+				GAIA_FOR(cnt) v[i].y += 9.81f * cdt;
 			});
 		}
 	};
@@ -461,9 +463,10 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvz = v.get<2>();
 
 				const auto cnt = it.size();
-				GAIA_FOR(cnt) ppx[i] += vvx[i] * dt;
-				GAIA_FOR(cnt) ppy[i] += vvy[i] * dt;
-				GAIA_FOR(cnt) ppz[i] += vvz[i] * dt;
+				const float cdt = dt;
+				GAIA_FOR(cnt) ppx[i] += vvx[i] * cdt;
+				GAIA_FOR(cnt) ppy[i] += vvy[i] * cdt;
+				GAIA_FOR(cnt) ppz[i] += vvz[i] * cdt;
 			});
 		}
 	};
@@ -505,7 +508,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.set<1>();
 
 				const auto cnt = it.size();
-				GAIA_FOR(cnt) vvy[i] += dt * 9.81f;
+				const float cdt = dt * 9.81f;
+				GAIA_FOR(cnt) vvy[i] += cdt;
 			});
 		}
 	};
@@ -572,7 +576,7 @@ namespace NonECS {
 		Scale s;
 		//! This is a bunch of generic data that keeps getting added
 		//! to the base class over its lifetime and is rarely used ever.
-		Dummy dummy;
+		Dummy dummy[4];
 
 		IUnit() noexcept = default;
 		virtual ~IUnit() = default;
@@ -882,7 +886,7 @@ namespace NonECS_BetterMemoryLayout {
 		Scale s;
 		//! This is a bunch of generic data that keeps getting added
 		//! to the base class over its lifetime and is rarely used ever.
-		Dummy dummy;
+		Dummy dummy[4];
 	};
 
 	struct UnitStatic: UnitData {
@@ -1089,7 +1093,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD);
 
 	struct UnitDynamic {
-		static void update_pos(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
+		static void update_pos(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, const float deltaTime) {
 			const auto cnt = p.size();
 			GAIA_FOR(cnt) {
 				p[i].x += v[i].x * deltaTime;
@@ -1114,7 +1118,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(v[0].y);
 		}
 
-		static void apply_gravity(cnt::darray<Velocity>& v, float deltaTime) {
+		static void apply_gravity(cnt::darray<Velocity>& v, const float deltaTime) {
 			const auto cnt = v.size();
 			GAIA_FOR(cnt) {
 				v[i].y += 9.81f * deltaTime;
@@ -1250,9 +1254,10 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto vvz = vv.get<2>();
 
 			const auto cnt = p.size();
-			GAIA_FOR(cnt) ppx[i] += vvx[i] * dt;
-			GAIA_FOR(cnt) ppy[i] += vvy[i] * dt;
-			GAIA_FOR(cnt) ppz[i] += vvz[i] * dt;
+			const auto cdt = dt;
+			GAIA_FOR(cnt) ppx[i] += vvx[i] * cdt;
+			GAIA_FOR(cnt) ppy[i] += vvy[i] * cdt;
+			GAIA_FOR(cnt) ppz[i] += vvz[i] * cdt;
 
 			gaia::dont_optimize(ppx[0]);
 			gaia::dont_optimize(ppy[0]);
@@ -1288,8 +1293,9 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto vvy = vv.set<1>();
 
 			const auto cnt = v.size();
+			const auto cdt = dt;
 			GAIA_FOR(cnt) {
-				vvy[i] += 9.81f * dt;
+				vvy[i] += 9.81f * cdt;
 			}
 
 			gaia::dont_optimize(vvy[0]);
