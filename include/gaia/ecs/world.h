@@ -963,6 +963,8 @@ namespace gaia {
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}
 
+						pDstChunk->update_versions();
+
 						left -= toCreate;
 					} while (left > 0);
 				} else {
@@ -1026,6 +1028,8 @@ namespace gaia {
 							auto entities = pDstChunk->entity_view();
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}
+
+						pDstChunk->update_versions();
 
 						left -= toCreate;
 					} while (left > 0);
@@ -2374,7 +2378,7 @@ namespace gaia {
 						auto& ec = m_recs[entity];
 
 						const auto srcRow = ec.row;
-						const auto dstRow = pDstChunk->add_entity_raw(entity);
+						const auto dstRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
@@ -2996,6 +3000,8 @@ namespace gaia {
 			void move_to_archetype(Archetype& srcArchetype, Archetype& dstArchetype) {
 				GAIA_ASSERT(&srcArchetype != &dstArchetype);
 
+				bool updated = false;
+
 				for (auto* pSrcChunk: srcArchetype.chunks()) {
 					auto srcEnts = pSrcChunk->entity_view();
 					if (srcEnts.empty())
@@ -3011,14 +3017,26 @@ namespace gaia {
 					//       with a pointer to another one. The same goes for archetypes. Component data
 					//       would not have to move at all internal chunk header pointers would remain unchanged.
 
-					int i = (int)(srcEnts.size() - 1);
-					while (i >= 0) {
+					uint32_t i = (uint32_t)srcEnts.size();
+					while (i != 0) {
 						auto* pDstChunk = dstArchetype.foc_free_chunk();
-						move_entity(srcEnts[(uint32_t)i], dstArchetype, *pDstChunk);
+						const uint32_t dstSpaceLeft = pDstChunk->capacity() - pDstChunk->size();
+						const uint32_t cnt = core::get_min(dstSpaceLeft, i);
+						for (uint32_t j = 0; j < cnt; ++j)
+							move_entity(srcEnts[i - j - 1], dstArchetype, *pDstChunk);
 
-						--i;
+						pDstChunk->update_world_version();
+
+						GAIA_ASSERT(cnt <= i);
+						i -= cnt;
 					}
+
+					pSrcChunk->update_world_version();
+					updated = true;
 				}
+
+				if (updated)
+					update_version(m_worldVersion);
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing \param entity.
@@ -3536,6 +3554,11 @@ namespace gaia {
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
+
+				// Update world versions
+				ec.pChunk->update_world_version();
+				pDstChunk->update_world_version();
+				update_version(m_worldVersion);
 			}
 
 			void validate_archetype_edges([[maybe_unused]] const Archetype* pArchetype) const {
@@ -3794,6 +3817,7 @@ namespace gaia {
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(m_recs.entities[entity.id()], entity, &archetype, pChunk);
+				pChunk->update_versions();
 				archetype.try_update_free_chunk_idx();
 
 				// Call constructors for the generic components on the newly added entity if necessary
@@ -3830,6 +3854,7 @@ namespace gaia {
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(ec, entity, &archetype, pChunk);
+				pChunk->update_versions();
 				archetype.try_update_free_chunk_idx();
 
 				m_recs.pairs.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
@@ -3901,6 +3926,8 @@ namespace gaia {
 						auto entities = pChunk->entity_view();
 						GAIA_FOR2(originalChunkSize, pChunk->size()) func(entities[i]);
 					}
+
+					pChunk->update_versions();
 
 					left -= toCreate;
 				} while (left > 0);

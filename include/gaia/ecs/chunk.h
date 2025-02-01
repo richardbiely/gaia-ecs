@@ -558,9 +558,8 @@ namespace gaia {
 			}
 
 			//! Make \param entity a part of the chunk at the version of the world.
-			//! \note Doesn't trigger a change of world version
 			//! \return Row of entity within the chunk.
-			GAIA_NODISCARD uint16_t add_entity_raw(Entity entity) {
+			GAIA_NODISCARD uint16_t add_entity(Entity entity) {
 				const auto row = m_header.count++;
 
 				// Zero after increase of value means an overflow!
@@ -569,15 +568,6 @@ namespace gaia {
 				++m_header.countEnabled;
 				entity_view_mut()[row] = entity;
 
-				return row;
-			}
-
-			//! Make \param entity a part of the chunk at the version of the world.
-			//! \note Trigger a change of world version
-			//! \return Row of entity within the chunk.
-			GAIA_NODISCARD uint16_t add_entity(Entity entity) {
-				const auto row = add_entity_raw(entity);
-				update_versions();
 				return row;
 			}
 
