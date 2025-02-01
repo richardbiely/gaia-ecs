@@ -540,11 +540,14 @@ namespace gaia {
 					++m_firstFreeChunkIdx;
 			}
 
-			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
+			void remove_entity_raw(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				chunk.remove_entity(row, recs);
-				chunk.update_versions();
-
 				try_update_free_chunk_idx(chunk);
+			}
+
+			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
+				remove_entity_raw(chunk, row, recs);
+				chunk.update_versions();
 			}
 
 			GAIA_NODISCARD const Properties& props() const {

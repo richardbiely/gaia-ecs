@@ -2374,7 +2374,7 @@ namespace gaia {
 						auto& ec = m_recs[entity];
 
 						const auto srcRow = ec.row;
-						const auto dstRow = pDstChunk->add_entity(entity);
+						const auto dstRow = pDstChunk->add_entity_raw(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
@@ -2385,8 +2385,13 @@ namespace gaia {
 						// Move data from the old chunk to the new one
 						pDstChunk->move_entity_data(entity, dstRow, m_recs);
 
-						// Remove the entity record from the old chunk
-						remove_entity(archetype, *pSrcChunk, srcRow);
+						// Remove the entity record from the old chunk.
+						// Normally we'd call remove_entity but we don't want to trigger world
+						// version updated all the time. It's enough to do it just once at the
+						// end of defragmentation.
+						// remove_entity(archetype, *pSrcChunk, srcRow);
+						archetype.remove_entity_raw(*pSrcChunk, srcRow, m_recs);
+						try_enqueue_chunk_for_deletion(archetype, *pSrcChunk);
 
 						// Bring the entity container record up-to-date
 						ec.pChunk = pDstChunk;
@@ -2394,6 +2399,13 @@ namespace gaia {
 
 						// Transfer the original enabled state to the new chunk
 						archetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
+					}
+
+					// Update world versions
+					if (entitiesToMove > 0) {
+						pSrcChunk->update_world_version();
+						pDstChunk->update_world_version();
+						update_version(m_worldVersion);
 					}
 
 					maxEntities -= entitiesToMove;

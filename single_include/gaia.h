@@ -3305,7 +3305,7 @@ namespace gaia {
 			};
 
 			template <typename T, typename... TArgs>
-			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
+			decltype((void)T{std::declval<TArgs>()...}, std::true_type{}) is_braces_constructible(int);
 
 			template <typename, typename...>
 			std::false_type is_braces_constructible(...);
@@ -20419,8 +20419,9 @@ namespace gaia {
 			}
 
 			//! Make \param entity a part of the chunk at the version of the world.
+			//! \note Doesn't trigger a change of world version
 			//! \return Row of entity within the chunk.
-			GAIA_NODISCARD uint16_t add_entity(Entity entity) {
+			GAIA_NODISCARD uint16_t add_entity_raw(Entity entity) {
 				const auto row = m_header.count++;
 
 				// Zero after increase of value means an overflow!
@@ -20429,9 +20430,15 @@ namespace gaia {
 				++m_header.countEnabled;
 				entity_view_mut()[row] = entity;
 
-				::gaia::ecs::update_version(m_header.worldVersion);
-				update_world_version();
+				return row;
+			}
 
+			//! Make \param entity a part of the chunk at the version of the world.
+			//! \note Trigger a change of world version
+			//! \return Row of entity within the chunk.
+			GAIA_NODISCARD uint16_t add_entity(Entity entity) {
+				const auto row = add_entity_raw(entity);
+				update_versions();
 				return row;
 			}
 
@@ -21284,8 +21291,6 @@ namespace gaia {
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
-			//! Index of the first chunk with enough space to add at least one entity
-			uint32_t m_firstFreeChunkIdx = 0;
 			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -21304,6 +21309,8 @@ namespace gaia {
 			//! Array of components offset indices
 			ChunkDataOffset m_compOffs[ChunkHeader::MAX_COMPONENTS];
 
+			//! Index of the first chunk with enough space to add at least one entity
+			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
 			uint32_t m_listIdx;
 
@@ -21706,11 +21713,14 @@ namespace gaia {
 					++m_firstFreeChunkIdx;
 			}
 
-			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
+			void remove_entity_raw(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				chunk.remove_entity(row, recs);
-				chunk.update_versions();
-
 				try_update_free_chunk_idx(chunk);
+			}
+
+			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
+				remove_entity_raw(chunk, row, recs);
+				chunk.update_versions();
 			}
 
 			GAIA_NODISCARD const Properties& props() const {
@@ -28787,7 +28797,7 @@ namespace gaia {
 						auto& ec = m_recs[entity];
 
 						const auto srcRow = ec.row;
-						const auto dstRow = pDstChunk->add_entity(entity);
+						const auto dstRow = pDstChunk->add_entity_raw(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
@@ -28798,8 +28808,13 @@ namespace gaia {
 						// Move data from the old chunk to the new one
 						pDstChunk->move_entity_data(entity, dstRow, m_recs);
 
-						// Remove the entity record from the old chunk
-						remove_entity(archetype, *pSrcChunk, srcRow);
+						// Remove the entity record from the old chunk.
+						// Normally we'd call remove_entity but we don't want to trigger world
+						// version updated all the time. It's enough to do it just once at the
+						// end of defragmentation.
+						// remove_entity(archetype, *pSrcChunk, srcRow);
+						archetype.remove_entity_raw(*pSrcChunk, srcRow, m_recs);
+						try_enqueue_chunk_for_deletion(archetype, *pSrcChunk);
 
 						// Bring the entity container record up-to-date
 						ec.pChunk = pDstChunk;
@@ -28807,6 +28822,13 @@ namespace gaia {
 
 						// Transfer the original enabled state to the new chunk
 						archetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
+					}
+
+					// Update world versions
+					if (entitiesToMove > 0) {
+						pSrcChunk->update_world_version();
+						pDstChunk->update_world_version();
+						update_version(m_worldVersion);
 					}
 
 					maxEntities -= entitiesToMove;
