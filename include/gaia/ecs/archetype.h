@@ -118,8 +118,6 @@ namespace gaia {
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
-			//! Index of the first chunk with enough space to add at least one entity
-			uint32_t m_firstFreeChunkIdx = 0;
 			//! Array of chunks allocated by this archetype
 			cnt::darray<Chunk*> m_chunks;
 			//! Mask of chunks with disabled entities
@@ -138,6 +136,8 @@ namespace gaia {
 			//! Array of components offset indices
 			ChunkDataOffset m_compOffs[ChunkHeader::MAX_COMPONENTS];
 
+			//! Index of the first chunk with enough space to add at least one entity
+			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
 			uint32_t m_listIdx;
 

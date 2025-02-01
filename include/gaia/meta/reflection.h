@@ -28,7 +28,7 @@ namespace gaia {
 			};
 
 			template <typename T, typename... TArgs>
-			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
+			decltype((void)T{std::declval<TArgs>()...}, std::true_type{}) is_braces_constructible(int);
 
 			template <typename, typename...>
 			std::false_type is_braces_constructible(...);
