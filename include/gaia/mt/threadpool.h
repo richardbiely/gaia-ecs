@@ -11,9 +11,16 @@
 	#include <pthread.h>
 	#include <pthread/sched.h>
 	#include <sys/qos.h>
+	#include <sys/sysctl.h>
 	#define GAIA_THREAD pthread_t
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+#elif GAIA_PLATFORM_LINUX
+	#include <fcntl.h>
 	#include <pthread.h>
+	#include <unistd.h>
+	#define GAIA_THREAD pthread_t
+#elif GAIA_PLATFORM_FREEBSD
+	#include <pthread.h>
+	#include <sys/sysctl.h>
 	#define GAIA_THREAD pthread_t
 #endif
 
@@ -106,7 +113,12 @@ namespace gaia {
 				make_main_thread();
 
 				const auto hwThreads = hw_thread_cnt();
-				set_max_workers(hwThreads, hwThreads);
+				const auto hwEffThreads = hw_efficiency_cores_cnt();
+				uint32_t lowPrioWorkers = hwThreads;
+				if (hwEffThreads < hwThreads)
+					lowPrioWorkers -= hwEffThreads;
+
+				set_max_workers(hwThreads, hwThreads - lowPrioWorkers);
 			}
 
 			ThreadPool(ThreadPool&&) = delete;
@@ -159,7 +171,7 @@ namespace gaia {
 				// First worker is considered the main thread.
 				// It is also assigned high priority but it doesn't really matter.
 				// The main thread can steal any jobs, both low and high priority.
-				detail::tl_workerCtx = &m_workersCtx[0];
+				detail::tl_workerCtx = m_workersCtx.data();
 				m_workersCtx[0].tp = this;
 				m_workersCtx[0].workerIdx = 0;
 				m_workersCtx[0].prio = JobPriority::High;
@@ -551,6 +563,105 @@ namespace gaia {
 			GAIA_NODISCARD static uint32_t hw_thread_cnt() {
 				auto hwThreads = (uint32_t)std::thread::hardware_concurrency();
 				return core::get_max(1U, hwThreads);
+			}
+
+			//! Returns the number of efficiency cores of the system.
+			//! \return The number of efficiency cores. 0 if failed, or if there are no such cores.
+			GAIA_NODISCARD static uint32_t hw_efficiency_cores_cnt() {
+				uint32_t efficiencyCores = 0;
+#if GAIA_PLATFORM_APPLE
+				size_t size = sizeof(efficiencyCores);
+				if (sysctlbyname("hw.perflevel1.logicalcpu", &efficiencyCores, &size, nullptr, 0) != 0)
+					return 0;
+#elif GAIA_PLATFORM_FREEBSD
+				int cpuIndex = 0;
+				char oidName[32];
+				int coreType;
+				size_t size = sizeof(coreType);
+				while (true) {
+					snprintf(oidName, sizeof(oidName), "dev.cpu.%d.coretype", cpuIndex);
+					if (sysctlbyname(oidName, &coreType, &size, nullptr, 0) != 0)
+						break; // Stop on the last CPU index
+
+					// 0 = performance core
+					// 1 = efficiency core
+					if (coreType == 1)
+						++efficiencyCores;
+
+					++cpuIndex;
+				}
+#elif GAIA_PLATFORM_WINDOWS
+				DWORD length = 0;
+
+				// First, determine required buffer size
+				if (!GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &length))
+					return 0;
+
+				// Allocate enough memory
+				auto* pBuffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)malloc(length);
+				if (pBuffer == nullptr)
+					return 0;
+
+				// Retrieve the data
+				if (!GetLogicalProcessorInformationEx(RelationProcessorCore, pBuffer, &length)) {
+					free(pBuffer);
+					return 0;
+				}
+
+				uint32_t heterogenousCnt = 0;
+
+				// Iterate over processor core entries.
+				// On Windows we can't directly tell  whether a core is an efficiency core or a performance core.
+				// Instead:
+				// - lower EfficiencyClass values correspond to more efficient cores
+				// - higher EfficiencyClass values correspond to higher performance cores
+				// - EfficiencyClass is zero for homogeneous CPU architectures
+				// Therefore, to count efficiency cores on Windows, we will count cores where EfficiencyClass == 0.
+				// On heterogeneous this should gives us the correct results.
+				// On homogenous architectures, the value is always 0 so rather than calculating the number of efficiency
+				// cores, we would calculate the number of performance cores. For the sake of correctness, if all cores return
+				// 0, we use 0 for the number of efficiency cores.
+				for (char* ptr = (char*)pBuffer; ptr < (char*)pBuffer + length;
+						 ptr += ((SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr)->Size) {
+					auto* entry = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
+					if (entry->Relationship == RelationProcessorCore) {
+						if (entry->Processor.EfficiencyClass == 0)
+							++efficiencyCores;
+						else
+							++heterogenousCnt;
+					}
+				}
+
+				if (heterogenousCnt == 0)
+					efficiencyCores = 0;
+
+				free(pBuffer);
+#elif GAIA_PLATFORM_LINUX
+				char buffer[128] = {0};
+
+				// Open the file
+				int fd = open("/sys/devices/system/cpu/cpu0/topology/core_cpus_list", O_RDONLY);
+				if (fd == -1)
+					return 0;
+
+				// Read contents
+				ssize_t bytesRead = read(fd, buffer, sizeof(buffer) - 1);
+				close(fd);
+				if (bytesRead <= 0)
+					return 0;
+
+				// Parse the buffer manually
+				char* ptr = buffer;
+				while (*ptr) {
+					if (*ptr >= '0' && *ptr <= '9') {
+						++efficiencyCores;
+						while (*ptr >= '0' && *ptr <= '9')
+							++ptr; // Skip the number
+					} else
+						++ptr;
+				}
+#endif
+				return efficiencyCores;
 			}
 
 		private:
