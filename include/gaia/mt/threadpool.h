@@ -14,6 +14,7 @@
 	#include <sys/sysctl.h>
 	#define GAIA_THREAD pthread_t
 #elif GAIA_PLATFORM_LINUX
+	#include <dirent.h>
 	#include <fcntl.h>
 	#include <pthread.h>
 	#include <unistd.h>
@@ -637,28 +638,35 @@ namespace gaia {
 
 				free(pBuffer);
 #elif GAIA_PLATFORM_LINUX
-				char buffer[128] = {0};
+				{
+					// Intel has /sys/devices/cpu_core/cpus, /sys/devices/cpu_atom/cpus on some systems
+					DIR* dir = opendir("/sys/devices/cpu_atom/cpus/");
+					if (dir == nullptr)
+						return 0;
 
-				// Open the file
-				int fd = open("/sys/devices/system/cpu/cpu0/topology/core_cpus_list", O_RDONLY);
-				if (fd == -1)
-					return 0;
+					dirent* entry;
+					while ((entry = readdir(dir)) != nullptr) {
+						if (strncmp(entry->d_name, "cpu", 3) == 0 && entry->d_name[3] >= '0' && entry->d_name[3] <= '9')
+							++efficiencyCores;
+					}
 
-				// Read contents
-				ssize_t bytesRead = read(fd, buffer, sizeof(buffer) - 1);
-				close(fd);
-				if (bytesRead <= 0)
-					return 0;
+					closedir(dir);
+				}
 
-				// Parse the buffer manually
-				char* ptr = buffer;
-				while (*ptr) {
-					if (*ptr >= '0' && *ptr <= '9') {
-						++efficiencyCores;
-						while (*ptr >= '0' && *ptr <= '9')
-							++ptr; // Skip the number
-					} else
-						++ptr;
+				if (efficiencyCores == 0) {
+					// TODO: Go through all CPUs packages and CPUs and determine the differences between them.
+					//       There are many metrics.
+					//       1) We will assume all CPUs to be of the same architecture.
+					//       2) Same CPU architecture but different cache sizes. Smaller ones are "efficiency" cores.
+					//          This is the AMD way. Still, these are about the same things so maybe we would just treat
+					//          all such cores as performance cores.
+					//       3) Different max frequencies on different cores. This might be indicative enough.
+					//       There is also an optional parameter present on ARM CPUs:
+					//       https://www.kernel.org/doc/Documentation/devicetree/bindings/arm/cpu-capacity.txt
+					//       In this case, we'd treat CPUs with the highest capacity-dmips-mhz as performance cores,
+					//       and consider the rest as efficiency cores.
+
+					// ...
 				}
 #endif
 				return efficiencyCores;
