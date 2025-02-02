@@ -248,6 +248,30 @@ namespace gaia {
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
+			//! Makes \param jobSecond depend on \param jobFirst.
+			//! This means \param jobSecond will run only after \param jobFirst finishes.
+			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
+			//!       This is the function to call after job handles states were reset and their reused is wanted.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(JobHandle jobFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+
+				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
+			//!       This is the function to call after job handles states were reset and their reused is wanted.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+
+				m_jobManager.dep_refresh(jobsFirst, jobSecond);
+			}
+
 			//! Creates a threadpool job from \param job.
 			//! \warning Must be used from the main thread.
 			//! \warning Can't be called while there are any jobs being executed.
@@ -331,6 +355,22 @@ namespace gaia {
 			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				submit(std::span(&jobHandle, 1));
+			}
+
+			void reset_state(std::span<JobHandle> jobHandles) {
+				if (jobHandles.empty())
+					return;
+
+				GAIA_PROF_SCOPE(tp::reset);
+
+				for (auto handle: jobHandles) {
+					auto& jobData = m_jobManager.data(handle);
+					m_jobManager.reset_state(jobData);
+				}
+			}
+
+			void reset_state(JobHandle jobHandle) {
+				reset_state(std::span(&jobHandle, 1));
 			}
 
 			//! Schedules a job to run on a worker thread.

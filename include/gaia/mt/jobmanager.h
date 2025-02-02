@@ -253,12 +253,42 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
+			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
+			//! This means \param jobSecond will run only after all \param jobsFirst finish.
+			//! \note Rather than calling dep() this is the call that needs to be made when
+			//!       provided job handles are reused.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(!jobsFirst.empty());
+
+				GAIA_PROF_SCOPE(JobManager::dep_refresh);
+
+				auto& secondData = data(jobSecond);
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!busy(const_cast<const JobContainer&>(secondData)));
+				for (auto jobFirst: jobsFirst) {
+					const auto& firstData = data(jobFirst);
+					GAIA_ASSERT(!busy(firstData));
+				}
+
+				for (auto jobFirst: jobsFirst)
+					dep_refresh_internal(jobFirst, jobSecond);
+#endif
+
+				// Tell jobSecond that it has new dependencies
+				// secondData.canWait = true;
+				const uint32_t cnt = (uint32_t)jobsFirst.size();
+				[[maybe_unused]] const uint32_t statePrev = secondData.state.fetch_add(cnt);
+				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
+			}
+
 			static uint32_t submit(JobContainer& jobData) {
 				[[maybe_unused]] const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
 				GAIA_ASSERT(state < JobState::Submitted);
 				const auto val = jobData.state.fetch_add(JobState::Submitted) + (uint32_t)JobState::Submitted;
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - SUBMITTED", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - SUBMITTED", jobData.idx, jobData.gen);
 #endif
 				return val;
 			}
@@ -267,7 +297,7 @@ namespace gaia {
 				GAIA_ASSERT(submitted(const_cast<const JobContainer&>(jobData)));
 				jobData.state.store(JobState::Processing);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - PROCESSING", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - PROCESSING", jobData.idx, jobData.gen);
 #endif
 			}
 
@@ -275,14 +305,24 @@ namespace gaia {
 				GAIA_ASSERT(processing(const_cast<const JobContainer&>(jobData)));
 				jobData.state.store(JobState::Executing | workerIdx);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - EXECUTING", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - EXECUTING", jobData.idx, jobData.gen);
 #endif
 			}
 
 			static void finalize(JobContainer& jobData) {
 				jobData.state.store(JobState::Done);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - DONE", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - DONE", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void reset_state(JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				// The job needs to be either clear or finalize for us to allow a reset
+				GAIA_ASSERT(state == 0 || state == JobState::Done);
+				jobData.state.store(0);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("JobHandle %u.%u - RESET_STATE", jobData.idx, jobData.gen);
 #endif
 			}
 
@@ -338,6 +378,8 @@ namespace gaia {
 					const bool isPow2 = core::is_pow2(depCnt1);
 					if (isPow2) {
 						if (depCnt0 == 1) {
+							// If the following assert is hit we probably set the same dependency twice
+							GAIA_ASSERT(firstData.edges.pDeps == nullptr);
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
 							firstData.edges.pDeps[0] = firstData.edges.dep;
 						} else {
@@ -355,6 +397,30 @@ namespace gaia {
 					firstData.edges.pDeps[depCnt0] = jobSecond;
 				}
 			}
+
+#if GAIA_ASSERT_ENABLED
+			void dep_refresh_internal(JobHandle jobFirst, JobHandle jobSecond) const {
+				GAIA_ASSERT(jobFirst != (JobHandle)JobNull_t{});
+				GAIA_ASSERT(jobSecond != (JobHandle)JobNull_t{});
+
+				const auto& firstData = data(jobFirst);
+				const auto depCnt = firstData.edges.depCnt;
+
+				if (depCnt <= 1) {
+					GAIA_ASSERT(firstData.edges.dep == jobSecond);
+				} else {
+					GAIA_ASSERT(firstData.edges.pDeps != nullptr);
+					bool found = false;
+					GAIA_FOR(firstData.edges.depCnt) {
+						if (firstData.edges.pDeps[i] == jobSecond) {
+							found = true;
+							break;
+						}
+					}
+					GAIA_ASSERT(found);
+				}
+			}
+#endif
 		};
 
 		namespace detail {

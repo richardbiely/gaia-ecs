@@ -74,7 +74,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Grouping](#grouping)
     * [Parallel execution](#parallel-execution)
   * [Relationships](#relationships)
-    * [Basics](#basics)
+    * [Relationship basics](#relationship-basics)
     * [Entity dependencies](#entity-dependencies)
     * [Combination constraints](#combination-constraints)
     * [Exclusivity](#exclusivity)
@@ -85,6 +85,9 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Systems](#systems)
+    * [System basics](#system-basics)
+    * [System dependencies](#system-dependencies)
+    * [Systems and jobs](#system-jobs)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
   * [Multithreading](#multithreading)
@@ -888,7 +891,7 @@ GAIA_FOR(6) ents[i] = wld.add();
 }
 
 // This query is going to group entities by what they eat.
-auto qq = wld.query().all<Position>().group_by(eats);
+ecs::Query qq = wld.query().all<Position>().group_by(eats);
 
 // The query cache is going to contain following 6 archetypes in 3 groups as follows:
 //  - Eats:carrot:
@@ -930,7 +933,7 @@ q.group_id(carrot).each([&](ecs::Iter& it) {
 Custom sorting function can be provided if needed.
 
 ```cpp
-ecs::GroupId my_group_sort_func(const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
+ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
   if (archetype.pairs() > 0) {
     auto ids = archetype.ids_view();
     for (auto id: ids) {
@@ -968,11 +971,10 @@ q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelEff);
 
 Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your systems's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
 
->**NOTE:<br/>** 
-Dependencies are currently not possible. However, this is just a temporary limitation of the query API. The low-level threadpool API supports this as demonstrated [here](#job-dependencies).<br/>
+Queries can't make use of job dependencies directly. To do that, you need to use [systems](#system-jobs).
 
 ## Relationships
-### Basics
+### Relationship basics
 Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way.
 Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.
 
@@ -1336,6 +1338,7 @@ cb.commit(&w);
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Systems
+### System basics
 Systems are were your programs logic is executed. This usually means logic that is performed every frame / all the time. You can either spin your own mechanism for executing this logic or use the build-in one.
 
 Creating a system is very similar to creating a [query](#query). In fact, the built-in systems are queries internally. Ones which are performed at a later point in time. For each system an entity is created.
@@ -1371,6 +1374,7 @@ w.update();
 ```
 Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve any dependencies and execute the systems in the right order.
 
+### System dependencies
 By default, the order in which the systems are run depends on their entity id. The lower the id the earlier the system is executed. If a different order is needed, there are multiple ways to influence it.
 
 One of them is adding the DependsOn relationship to a system's entity.
@@ -1398,6 +1402,42 @@ SystemBuilder system3 = w.system().all ...
 w.add(system1.entity(), ecs::Pair{ChildOf, group2});
 w.add(system2.entity(), ecs::Pair{ChildOf, group2});
 w.add(system3.entity(), ecs::Pair{ChildOf, group1});
+```
+
+### System jobs
+Systems support parallel execution and creating various job dependencies among them because they make use of the jobs internally. To learn more about jobs, navigate [here](#job-dependencies). The logic is virtually the same as shown in the job dependencies example:
+```cpp
+SystemBuilder system1 = w.system().all ...
+SystemBuilder system2 = w.system().all ...
+
+// Get system job handles
+mt::JobHandle job1Handle = system1.job_handle();
+mt::JobHandle job2Handle = system2.job_handle();
+
+// Create dependencies between systems
+tp.dep(job1Handle, job2Handle);
+
+// Submit jobs so worker threads can pick them up.
+// The order in which jobs are submitted does not matter.
+tp.submit(job2Handle);
+tp.submit(job1Handle);
+
+// Wait for the last job to complete.
+tp.wait(job1Handle);
+```
+
+Job handles created by the systems stay active until their system is deleted. Therefore, when managing system dependencies manually and their repeated use is wanted, job handles need to be refreshed before the next iteration:
+```cpp
+GAIA_FOR(1000) {
+  tp.submit(job2Handle);
+  tp.submit(job1Handle);
+  tp.wait(job1Handle);
+
+  // Work is complete, let's prepare for the next iteration
+  tp.reset_state(job1handle);
+  tp.reset_state(job2handle);
+  tp.dep_refresh(job1Handle, job2Handle);
+}
 ```
 
 ## Data layouts

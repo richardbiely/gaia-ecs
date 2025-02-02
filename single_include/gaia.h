@@ -16178,12 +16178,42 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
+			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
+			//! This means \param jobSecond will run only after all \param jobsFirst finish.
+			//! \note Rather than calling dep() this is the call that needs to be made when
+			//!       provided job handles are reused.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(!jobsFirst.empty());
+
+				GAIA_PROF_SCOPE(JobManager::dep_refresh);
+
+				auto& secondData = data(jobSecond);
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!busy(const_cast<const JobContainer&>(secondData)));
+				for (auto jobFirst: jobsFirst) {
+					const auto& firstData = data(jobFirst);
+					GAIA_ASSERT(!busy(firstData));
+				}
+
+				for (auto jobFirst: jobsFirst)
+					dep_refresh_internal(jobFirst, jobSecond);
+#endif
+
+				// Tell jobSecond that it has new dependencies
+				// secondData.canWait = true;
+				const uint32_t cnt = (uint32_t)jobsFirst.size();
+				[[maybe_unused]] const uint32_t statePrev = secondData.state.fetch_add(cnt);
+				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
+			}
+
 			static uint32_t submit(JobContainer& jobData) {
 				[[maybe_unused]] const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
 				GAIA_ASSERT(state < JobState::Submitted);
 				const auto val = jobData.state.fetch_add(JobState::Submitted) + (uint32_t)JobState::Submitted;
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - SUBMITTED", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - SUBMITTED", jobData.idx, jobData.gen);
 #endif
 				return val;
 			}
@@ -16192,7 +16222,7 @@ namespace gaia {
 				GAIA_ASSERT(submitted(const_cast<const JobContainer&>(jobData)));
 				jobData.state.store(JobState::Processing);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - PROCESSING", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - PROCESSING", jobData.idx, jobData.gen);
 #endif
 			}
 
@@ -16200,14 +16230,24 @@ namespace gaia {
 				GAIA_ASSERT(processing(const_cast<const JobContainer&>(jobData)));
 				jobData.state.store(JobState::Executing | workerIdx);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - EXECUTING", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - EXECUTING", jobData.idx, jobData.gen);
 #endif
 			}
 
 			static void finalize(JobContainer& jobData) {
 				jobData.state.store(JobState::Done);
 #if GAIA_LOG_JOB_STATES
-				GAIA_LOG_N("%u.%u - DONE", jobData.idx, jobData.gen);
+				GAIA_LOG_N("JobHandle %u.%u - DONE", jobData.idx, jobData.gen);
+#endif
+			}
+
+			static void reset_state(JobContainer& jobData) {
+				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				// The job needs to be either clear or finalize for us to allow a reset
+				GAIA_ASSERT(state == 0 || state == JobState::Done);
+				jobData.state.store(0);
+#if GAIA_LOG_JOB_STATES
+				GAIA_LOG_N("JobHandle %u.%u - RESET_STATE", jobData.idx, jobData.gen);
 #endif
 			}
 
@@ -16263,6 +16303,8 @@ namespace gaia {
 					const bool isPow2 = core::is_pow2(depCnt1);
 					if (isPow2) {
 						if (depCnt0 == 1) {
+							// If the following assert is hit we probably set the same dependency twice
+							GAIA_ASSERT(firstData.edges.pDeps == nullptr);
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
 							firstData.edges.pDeps[0] = firstData.edges.dep;
 						} else {
@@ -16280,6 +16322,30 @@ namespace gaia {
 					firstData.edges.pDeps[depCnt0] = jobSecond;
 				}
 			}
+
+#if GAIA_ASSERT_ENABLED
+			void dep_refresh_internal(JobHandle jobFirst, JobHandle jobSecond) const {
+				GAIA_ASSERT(jobFirst != (JobHandle)JobNull_t{});
+				GAIA_ASSERT(jobSecond != (JobHandle)JobNull_t{});
+
+				const auto& firstData = data(jobFirst);
+				const auto depCnt = firstData.edges.depCnt;
+
+				if (depCnt <= 1) {
+					GAIA_ASSERT(firstData.edges.dep == jobSecond);
+				} else {
+					GAIA_ASSERT(firstData.edges.pDeps != nullptr);
+					bool found = false;
+					GAIA_FOR(firstData.edges.depCnt) {
+						if (firstData.edges.pDeps[i] == jobSecond) {
+							found = true;
+							break;
+						}
+					}
+					GAIA_ASSERT(found);
+				}
+			}
+#endif
 		};
 
 		namespace detail {
@@ -16714,6 +16780,30 @@ namespace gaia {
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
+			//! Makes \param jobSecond depend on \param jobFirst.
+			//! This means \param jobSecond will run only after \param jobFirst finishes.
+			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
+			//!       This is the function to call after job handles states were reset and their reused is wanted.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(JobHandle jobFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+
+				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
+			//!       This is the function to call after job handles states were reset and their reused is wanted.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
+				GAIA_ASSERT(main_thread());
+
+				m_jobManager.dep_refresh(jobsFirst, jobSecond);
+			}
+
 			//! Creates a threadpool job from \param job.
 			//! \warning Must be used from the main thread.
 			//! \warning Can't be called while there are any jobs being executed.
@@ -16797,6 +16887,22 @@ namespace gaia {
 			//! \warning Once submitted, dependencies can't be modified for this job.
 			void submit(JobHandle jobHandle) {
 				submit(std::span(&jobHandle, 1));
+			}
+
+			void reset_state(std::span<JobHandle> jobHandles) {
+				if (jobHandles.empty())
+					return;
+
+				GAIA_PROF_SCOPE(tp::reset);
+
+				for (auto handle: jobHandles) {
+					auto& jobData = m_jobManager.data(handle);
+					m_jobManager.reset_state(jobData);
+				}
+			}
+
+			void reset_state(JobHandle jobHandle) {
+				reset_state(std::span(&jobHandle, 1));
 			}
 
 			//! Schedules a job to run on a worker thread.
@@ -30615,6 +30721,21 @@ namespace gaia {
 			Query query;
 			//! Execution type
 			QueryExecType execType;
+			//! Query job dependency handle
+			mt::JobHandle m_jobHandle = mt::JobNull;
+
+			System2_() = default;
+
+			~System2_() {
+				// If the query contains a job handle we can only
+				// destroy the query once the task associated with the handle is finished.
+				if (m_jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					tp.wait(m_jobHandle);
+					// Job handles created by queries are MANUAL_DELETE so delete it explicitly.
+					tp.del(m_jobHandle);
+				}
+			}
 
 			void exec() {
 				auto& queryInfo = query.fetch();
@@ -30639,6 +30760,20 @@ namespace gaia {
 						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
 						break;
 				}
+			}
+
+			//! Returns the job handle associated with the system
+			GAIA_NODISCARD mt::JobHandle job_handle() {
+				if (m_jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					mt::Job syncJob;
+					syncJob.func = [&]() {
+						exec();
+					};
+					syncJob.flags = mt::JobCreationFlags::ManualDelete;
+					m_jobHandle = tp.add(syncJob);
+				}
+				return m_jobHandle;
 			}
 		};
 
@@ -30669,6 +30804,12 @@ namespace gaia {
 			System2_& data() {
 				auto ss = m_world.acc_mut(m_entity);
 				auto& sys = ss.smut<System2_>();
+				return sys;
+			}
+
+			const System2_& data() const {
+				auto ss = m_world.acc(m_entity);
+				const auto& sys = ss.get<System2_>();
 				return sys;
 			}
 
@@ -30747,6 +30888,11 @@ namespace gaia {
 			void exec() {
 				auto& ctx = data();
 				ctx.exec();
+			}
+
+			GAIA_NODISCARD mt::JobHandle job_handle() {
+				auto& ctx = data();
+				return ctx.job_handle();
 			}
 		};
 

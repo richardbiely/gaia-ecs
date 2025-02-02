@@ -7559,84 +7559,26 @@ TEST_CASE("Query Filter - systems") {
 	sm.update();
 }
 
-#if GAIA_SYSTEMS_ENABLED
+struct Eats {};
+struct Healthy {};
+ecs::GroupId
+group_by_relation([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
+	if (archetype.pairs() > 0) {
+		auto ids = archetype.ids_view();
+		for (auto id: ids) {
+			if (!id.pair() || id.id() != groupBy.id())
+				continue;
 
-TEST_CASE("System - simple") {
-	TestWorld twld;
-
-	constexpr uint32_t N = 10;
-	{
-		auto e = wld.add();
-		wld.add<Position>(e, {0, 100, 0});
-		wld.add<Acceleration>(e, {1, 0, 0});
-		GAIA_FOR(N - 1) {
-			[[maybe_unused]] auto newEntity = wld.copy(e);
+			// Consider the pair's target the groupId
+			return id.gen();
 		}
 	}
 
-	int sys1_cnt = 0;
-	int sys2_cnt = 0;
-	int sys3_cnt = 0;
-	bool sys3_run_before_sys1 = false;
-	bool sys3_run_before_sys2 = false;
-
-	auto testRun = [&]() {
-		GAIA_FOR(100) {
-			sys3_run_before_sys1 = false;
-			sys3_run_before_sys2 = false;
-			wld.update();
-			REQUIRE(sys1_cnt == N);
-			REQUIRE(sys2_cnt == N);
-			REQUIRE(sys3_cnt == N);
-			sys1_cnt = 0;
-			sys2_cnt = 0;
-			sys3_cnt = 0;
-		}
-	};
-
-	// Our systems
-	auto sys1 = wld.system()
-									.all<Position, Acceleration>() //
-									.on_each([&](Position, Acceleration) {
-										if (sys1_cnt == 0 && sys3_cnt == 0)
-											sys3_run_before_sys1 = true;
-										++sys1_cnt;
-									});
-	auto sys2 = wld.system()
-									.all<Position>() //
-									.on_each([&](ecs::Iter& it) {
-										if (sys2_cnt == 0 && sys3_cnt == 0)
-											sys3_run_before_sys2 = true;
-										GAIA_EACH(it)++ sys2_cnt;
-									});
-	auto sys3 = wld.system()
-									.all<Acceleration>() //
-									.on_each([&](ecs::Iter& it) {
-										GAIA_EACH(it)++ sys3_cnt;
-									});
-
-	testRun();
-
-	// Make sure to execute sys2 before sys1
-	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
-	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
-
-	testRun();
-
-	// TODO: Ordering still needs implementing
-	// REQUIRE(sys3_run_before_sys1);
-	// REQUIRE(sys3_run_before_sys2);
+	// No group
+	return 0;
 }
 
-struct Eats {};
-struct Healthy {};
-ecs::Entity group_by_relation(ecs::World& w, ecs::Entity id) {
-	auto eats = w.add<Eats>().entity;
-	auto tgt = w.target(id, eats);
-	return (tgt != ecs::EntityBad) ? ((ecs::Entity)ecs::Pair(eats, tgt)).value() : ecs::EntityBad;
-}
-
-TEST_CASE("System - group") {
+TEST_CASE("Query - group") {
 	TestWorld twld;
 
 	ecs::Entity eats = wld.add(); // 16
@@ -7709,6 +7651,89 @@ TEST_CASE("System - group") {
 		qq.group_id(apple);
 		checkQuery(qq, {&ents_expected[4], 2});
 	}
+
+	{
+		auto qq = wld.query().all<Position>().group_by(eats, group_by_relation);
+
+		// Grouping on, no group enforced
+		checkQuery(qq, {&ents_expected[0], 6});
+		// Grouping on, a group is enforced
+		qq.group_id(carrot);
+		checkQuery(qq, {&ents_expected[0], 2});
+		qq.group_id(salad);
+		checkQuery(qq, {&ents_expected[2], 2});
+		qq.group_id(apple);
+		checkQuery(qq, {&ents_expected[4], 2});
+	}
+}
+
+#if GAIA_SYSTEMS_ENABLED
+
+TEST_CASE("System - simple") {
+	TestWorld twld;
+
+	constexpr uint32_t N = 10;
+	{
+		auto e = wld.add();
+		wld.add<Position>(e, {0, 100, 0});
+		wld.add<Acceleration>(e, {1, 0, 0});
+		GAIA_FOR(N - 1) {
+			[[maybe_unused]] auto newEntity = wld.copy(e);
+		}
+	}
+
+	int sys1_cnt = 0;
+	int sys2_cnt = 0;
+	int sys3_cnt = 0;
+	bool sys3_run_before_sys1 = false;
+	bool sys3_run_before_sys2 = false;
+
+	auto testRun = [&]() {
+		GAIA_FOR(100) {
+			sys3_run_before_sys1 = false;
+			sys3_run_before_sys2 = false;
+			wld.update();
+			REQUIRE(sys1_cnt == N);
+			REQUIRE(sys2_cnt == N);
+			REQUIRE(sys3_cnt == N);
+			sys1_cnt = 0;
+			sys2_cnt = 0;
+			sys3_cnt = 0;
+		}
+	};
+
+	// Our systems
+	auto sys1 = wld.system()
+									.all<Position, Acceleration>() //
+									.on_each([&](Position, Acceleration) {
+										if (sys1_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys1 = true;
+										++sys1_cnt;
+									});
+	auto sys2 = wld.system()
+									.all<Position>() //
+									.on_each([&](ecs::Iter& it) {
+										if (sys2_cnt == 0 && sys3_cnt == 0)
+											sys3_run_before_sys2 = true;
+										GAIA_EACH(it)++ sys2_cnt;
+									});
+	auto sys3 = wld.system()
+									.all<Acceleration>() //
+									.on_each([&](ecs::Iter& it) {
+										GAIA_EACH(it)++ sys3_cnt;
+									});
+
+	testRun();
+
+	// Make sure to execute sys2 before sys1
+	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
+	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
+
+	testRun();
+
+	// TODO: Ordering still needs implementing
+	// REQUIRE(sys3_run_before_sys1);
+	// REQUIRE(sys3_run_before_sys2);
 }
 
 #endif
@@ -8805,7 +8830,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 
 			// 2, 0, 1 -> wrong sum
 			// Submit jobs in random order to make sure this doesn't work just by accident
-			const uint32_t startIdx0 = rand() % 3;
+			const uint32_t startIdx0 = (uint32_t)rand() % 3;
 			const uint32_t startIdx1 = (startIdx0 + 1) % 3;
 			const uint32_t startIdx2 = (startIdx0 + 2) % 3;
 			tp.submit(jobHandle[startIdx0]);
@@ -8830,3 +8855,74 @@ TEST_CASE("Multithreading - CompleteMany") {
 		work();
 	}
 }
+
+#if GAIA_SYSTEMS_ENABLED
+
+struct SomeData1 {
+	uint32_t val;
+};
+struct SomeData2 {
+	uint32_t val;
+};
+
+TEST_CASE("Multithreading - Systems") {
+	auto& tp = mt::ThreadPool::get();
+	TestWorld twld;
+
+	constexpr uint32_t Iters = 15000;
+
+	{
+		// 10k of SomeData1
+		auto e = wld.add();
+		wld.add<SomeData1>(e, {0});
+		wld.copy_n(e, 9999);
+
+		// 10k of SomeData1, SomeData2
+		auto e2 = wld.add();
+		wld.add<SomeData1>(e2, {0});
+		wld.add<SomeData2>(e2, {0});
+		wld.copy_n(e2, 9999);
+	}
+
+	uint32_t data1 = 0;
+	uint32_t data2 = 0;
+
+	auto sys1 = wld.system()
+									.all<SomeData1, SomeData2>() //
+									.on_each([&](SomeData1, SomeData2) {
+										++data1;
+										++data2;
+									});
+	auto sys2 = wld.system()
+									.all<SomeData1>() //
+									.on_each([&](SomeData1) {
+										++data1;
+									});
+
+	auto handle1 = sys1.job_handle();
+	auto handle2 = sys2.job_handle();
+
+	tp.dep(handle1, handle2);
+	GAIA_FOR(Iters - 1) {
+		tp.submit(handle2);
+		tp.submit(handle1);
+		tp.wait(handle2);
+		GAIA_ASSERT(data1 == 30000);
+		GAIA_ASSERT(data2 == 10000);
+
+		data1 = 0;
+		data2 = 0;
+		tp.reset_state(handle1);
+		tp.reset_state(handle2);
+		tp.dep_refresh(handle1, handle2);
+	}
+	{
+		tp.submit(handle2);
+		tp.submit(handle1);
+		tp.wait(handle2);
+		GAIA_ASSERT(data1 == 30000);
+		GAIA_ASSERT(data2 == 10000);
+	}
+}
+
+#endif

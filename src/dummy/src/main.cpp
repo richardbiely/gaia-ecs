@@ -899,7 +899,6 @@ void test10b() {
 	testRun1();
 
 	// Make sure to execute sys2 before sys1
-	// TODO: Bugged, sys2_cnt == 0 instead of 10! This needs fixing ASAP
 	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
 	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
 
@@ -1218,14 +1217,14 @@ int main() {
 	// test8();
 	// test9();
 	// test10();
-	// test10b();
+	test10b();
 	// test11();
 	// test12();
 	// test12b();
 	// test13();
 	// test14();
 	// test15();
-	test16();
+	// test16();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

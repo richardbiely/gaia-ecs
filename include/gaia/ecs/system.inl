@@ -12,6 +12,8 @@ namespace gaia {
 	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
 
+	#include "../mt/jobhandle.h"
+	#include "../mt/jobmanager.h"
 	#include "chunk_iterator.h"
 	#include "id.h"
 	#include "query.h"
@@ -35,6 +37,21 @@ namespace gaia {
 			Query query;
 			//! Execution type
 			QueryExecType execType;
+			//! Query job dependency handle
+			mt::JobHandle m_jobHandle = mt::JobNull;
+
+			System2_() = default;
+
+			~System2_() {
+				// If the query contains a job handle we can only
+				// destroy the query once the task associated with the handle is finished.
+				if (m_jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					tp.wait(m_jobHandle);
+					// Job handles created by queries are MANUAL_DELETE so delete it explicitly.
+					tp.del(m_jobHandle);
+				}
+			}
 
 			void exec() {
 				auto& queryInfo = query.fetch();
@@ -59,6 +76,20 @@ namespace gaia {
 						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
 						break;
 				}
+			}
+
+			//! Returns the job handle associated with the system
+			GAIA_NODISCARD mt::JobHandle job_handle() {
+				if (m_jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					mt::Job syncJob;
+					syncJob.func = [&]() {
+						exec();
+					};
+					syncJob.flags = mt::JobCreationFlags::ManualDelete;
+					m_jobHandle = tp.add(syncJob);
+				}
+				return m_jobHandle;
 			}
 		};
 
@@ -89,6 +120,12 @@ namespace gaia {
 			System2_& data() {
 				auto ss = m_world.acc_mut(m_entity);
 				auto& sys = ss.smut<System2_>();
+				return sys;
+			}
+
+			const System2_& data() const {
+				auto ss = m_world.acc(m_entity);
+				const auto& sys = ss.get<System2_>();
 				return sys;
 			}
 
@@ -167,6 +204,11 @@ namespace gaia {
 			void exec() {
 				auto& ctx = data();
 				ctx.exec();
+			}
+
+			GAIA_NODISCARD mt::JobHandle job_handle() {
+				auto& ctx = data();
+				return ctx.job_handle();
 			}
 		};
 
