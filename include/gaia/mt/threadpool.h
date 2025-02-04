@@ -115,11 +115,11 @@ namespace gaia {
 
 				const auto hwThreads = hw_thread_cnt();
 				const auto hwEffThreads = hw_efficiency_cores_cnt();
-				uint32_t lowPrioWorkers = hwThreads;
+				uint32_t hiPrioWorkers = hwThreads;
 				if (hwEffThreads < hwThreads)
-					lowPrioWorkers -= hwEffThreads;
+					hiPrioWorkers -= hwEffThreads;
 
-				set_max_workers(hwThreads, hwThreads - lowPrioWorkers);
+				set_max_workers(hwThreads, hiPrioWorkers);
 			}
 
 			ThreadPool(ThreadPool&&) = delete;
