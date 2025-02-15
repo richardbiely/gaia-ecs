@@ -1382,7 +1382,7 @@ One of them is adding the DependsOn relationship to a system's entity.
 ```cpp
 SystemBuilder system1 = w.system().all ...
 SystemBuilder system2 = w.system().all ...
-// Make system1 depend on system2. This way, system1 is always executed after system1.
+// Make system1 depend on system2. This way, system1 is always executed after system2.
 w.add(system1.entity(), ecs::Pair{DependsOn, system2});
 ```
 
