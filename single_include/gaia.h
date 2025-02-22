@@ -22900,6 +22900,11 @@ namespace gaia {
 					m_pWorld = pWorld;
 				}
 
+				World* world() {
+					GAIA_ASSERT(m_pWorld != nullptr);
+					return const_cast<World*>(m_pWorld);
+				}
+
 				const World* world() const {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return m_pWorld;
@@ -30935,6 +30940,11 @@ namespace gaia {
 		public:
 			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
+			SystemBuilder& add(QueryInput item) {
+				validate();
+				data().query.add(item);
+				return *this;
+			}
 			template <typename... T>
 			SystemBuilder& all() {
 				validate();

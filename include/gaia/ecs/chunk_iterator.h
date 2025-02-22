@@ -52,6 +52,11 @@ namespace gaia {
 					m_pWorld = pWorld;
 				}
 
+				World* world() {
+					GAIA_ASSERT(m_pWorld != nullptr);
+					return const_cast<World*>(m_pWorld);
+				}
+
 				const World* world() const {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return m_pWorld;

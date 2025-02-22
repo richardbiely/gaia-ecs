@@ -132,6 +132,11 @@ namespace gaia {
 		public:
 			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
+			SystemBuilder& add(QueryInput item) {
+				validate();
+				data().query.add(item);
+				return *this;
+			}
 			template <typename... T>
 			SystemBuilder& all() {
 				validate();
