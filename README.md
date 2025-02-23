@@ -371,12 +371,16 @@ Component hooks are unique. Each component can have at most one add hook, and on
 ecs::World w;
 const ecs::ComponentCacheItem& pos_item = w.add<Position>();
 ecs::ComponentCache::hooks(pos_item).func_add = [](ecs::IterAll& iter) {
-	auto vp = iter.view<Position>();
-	auto ve = iter.view<ecs::Entity>();
-	const auto cnt = iter.size();
-	GAIA_FOR(cnt) {
-		GAIA_LOG_N("Entity %u.%u -> pos=[%.2f, %.2f, %.2f]", ve[i].id(), ve[i].gen(), vp[i].x, vp[i].y, vp[i].z);
-	}
+  // Entities are always safe to access on the iterator
+  auto ve = iter.view<ecs::Entity>();
+  // Positions are safe to access because this is a Position hook.
+  // Therefore, we know that the Position is present.
+  auto vp = iter.view<Position>();
+
+  const auto cnt = iter.size();
+  GAIA_FOR(cnt) {
+    GAIA_LOG_N("Entity %u.%u -> pos=[%.2f, %.2f, %.2f]", ve[i].id(), ve[i].gen(), vp[i].x, vp[i].y, vp[i].z);
+  }
 };
 
 ecs::Entity e = w.add();
