@@ -60,6 +60,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Name entity](#name-entity)
     * [Add or remove component](#add-or-remove-component)
     * [Component presence](#component-presence)
+    * [Component hooks](#component-hooks)
     * [Bulk editing](#bulk-editing)
     * [Set or get component value](#set-or-get-component-value)
     * [Copy entity](#copy-entity)
@@ -326,6 +327,7 @@ w.add(e, velocity, Velocity{0, 0, 1});
 // Remove Velocity from the entity.
 w.del(e, velocity);
 ```
+
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
 
@@ -358,6 +360,38 @@ q.each([&](ecs::Iter& it) {
   const bool hasVelocity = it.has(v);
   ...
 });
+```
+
+### Component hooks
+
+It is possible to register add/del hooks for components. Whenever a given component is added to an entity, or deleted from it, the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component.
+Component hooks are unique. Each component can have at most one add hook, and one delete hook.
+
+```cpp
+ecs::World w;
+const ecs::ComponentCacheItem& pos_item = w.add<Position>();
+ecs::ComponentCache::hooks(pos_item).func_add = [](ecs::IterAll& iter) {
+	auto vp = iter.view<Position>();
+	auto ve = iter.view<ecs::Entity>();
+	const auto cnt = iter.size();
+	GAIA_FOR(cnt) {
+		GAIA_LOG_N("Entity %u.%u -> pos=[%.2f, %.2f, %.2f]", ve[i].id(), ve[i].gen(), vp[i].x, vp[i].y, vp[i].z);
+	}
+};
+
+ecs::Entity e = w.add();
+// The add hook will trigger
+w.add<Position>(e);
+```
+
+Hooks can easily be removed:
+```cpp
+const ecs::ComponentCacheItem& pos_item = w.add<Position>();
+ecs::ComponentCache::hooks(pos_item).func_add = nullptr;
+
+ecs::Entity e = w.add();
+// The add hook will not be triggered because we removed the hook
+w.add<Position>(e);
 ```
 
 ### Bulk editing

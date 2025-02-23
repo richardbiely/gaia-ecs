@@ -13,6 +13,8 @@
 
 namespace gaia {
 	namespace ecs {
+		class IterAll;
+
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
@@ -22,6 +24,9 @@ namespace gaia {
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
+
+			using FuncOnAdd = void(IterAll&);
+			using FuncOnDel = void(IterAll&);
 
 			//! Component entity
 			Entity entity;
@@ -50,6 +55,14 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp{};
+
+			struct Hooks {
+				//! Function to call whenever a component is added to an entity
+				FuncOnAdd* func_add{};
+				//! Function to call whenever a component is deleted from an entity
+				FuncOnDel* func_del{};
+			};
+			Hooks comp_hooks;
 
 		private:
 			ComponentCacheItem() = default;
@@ -99,6 +112,14 @@ namespace gaia {
 				GAIA_ASSERT(pLeft != pRight);
 				GAIA_ASSERT(func_cmp != nullptr);
 				return func_cmp(pLeft, pRight);
+			}
+
+			Hooks& hooks() {
+				return comp_hooks;
+			}
+
+			const Hooks& hooks() const {
+				return comp_hooks;
 			}
 
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {

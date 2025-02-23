@@ -7862,75 +7862,173 @@ void comp_cache_verify(ecs::World& w, const ecs::ComponentCacheItem& other) {
 TEST_CASE("Component cache") {
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<Position>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<Position>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<const Position>(wld, desc);
-		comp_cache_verify<Position&>(wld, desc);
-		comp_cache_verify<const Position&>(wld, desc);
-		comp_cache_verify<Position*>(wld, desc);
-		comp_cache_verify<const Position*>(wld, desc);
+		comp_cache_verify<const Position>(wld, item);
+		comp_cache_verify<Position&>(wld, item);
+		comp_cache_verify<const Position&>(wld, item);
+		comp_cache_verify<Position*>(wld, item);
+		comp_cache_verify<const Position*>(wld, item);
 	}
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<const Position>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<const Position>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<Position>(wld, desc);
-		comp_cache_verify<Position&>(wld, desc);
-		comp_cache_verify<const Position&>(wld, desc);
-		comp_cache_verify<Position*>(wld, desc);
-		comp_cache_verify<const Position*>(wld, desc);
+		comp_cache_verify<Position>(wld, item);
+		comp_cache_verify<Position&>(wld, item);
+		comp_cache_verify<const Position&>(wld, item);
+		comp_cache_verify<Position*>(wld, item);
+		comp_cache_verify<const Position*>(wld, item);
 	}
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<Position&>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<Position&>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<Position>(wld, desc);
-		comp_cache_verify<const Position>(wld, desc);
-		comp_cache_verify<const Position&>(wld, desc);
-		comp_cache_verify<Position*>(wld, desc);
-		comp_cache_verify<const Position*>(wld, desc);
+		comp_cache_verify<Position>(wld, item);
+		comp_cache_verify<const Position>(wld, item);
+		comp_cache_verify<const Position&>(wld, item);
+		comp_cache_verify<Position*>(wld, item);
+		comp_cache_verify<const Position*>(wld, item);
 	}
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<const Position&>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<const Position&>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<Position>(wld, desc);
-		comp_cache_verify<const Position>(wld, desc);
-		comp_cache_verify<Position&>(wld, desc);
-		comp_cache_verify<Position*>(wld, desc);
-		comp_cache_verify<const Position*>(wld, desc);
+		comp_cache_verify<Position>(wld, item);
+		comp_cache_verify<const Position>(wld, item);
+		comp_cache_verify<Position&>(wld, item);
+		comp_cache_verify<Position*>(wld, item);
+		comp_cache_verify<const Position*>(wld, item);
 	}
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<Position*>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<Position*>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<Position>(wld, desc);
-		comp_cache_verify<const Position>(wld, desc);
-		comp_cache_verify<Position&>(wld, desc);
-		comp_cache_verify<const Position&>(wld, desc);
-		comp_cache_verify<const Position*>(wld, desc);
+		comp_cache_verify<Position>(wld, item);
+		comp_cache_verify<const Position>(wld, item);
+		comp_cache_verify<Position&>(wld, item);
+		comp_cache_verify<const Position&>(wld, item);
+		comp_cache_verify<const Position*>(wld, item);
 	}
 	{
 		TestWorld twld;
-		const auto& desc = wld.add<const Position*>();
-		auto ent = desc.entity;
+		const auto& item = wld.add<const Position*>();
+		auto ent = item.entity;
 		REQUIRE_FALSE(ent.entity());
 
-		comp_cache_verify<Position>(wld, desc);
-		comp_cache_verify<const Position>(wld, desc);
-		comp_cache_verify<Position&>(wld, desc);
-		comp_cache_verify<const Position&>(wld, desc);
-		comp_cache_verify<Position*>(wld, desc);
+		comp_cache_verify<Position>(wld, item);
+		comp_cache_verify<const Position>(wld, item);
+		comp_cache_verify<Position&>(wld, item);
+		comp_cache_verify<const Position&>(wld, item);
+		comp_cache_verify<Position*>(wld, item);
+	}
+}
+
+//------------------------------------------------------------------------------
+// Hooks
+//------------------------------------------------------------------------------
+
+static thread_local int hook_trigger_cnt = 0;
+
+TEST_CASE("Hooks") {
+	SECTION("add") {
+		TestWorld twld;
+		const auto& pitem = wld.add<Position>();
+		hook_trigger_cnt = 0;
+
+		auto e = wld.add();
+		wld.add<Position>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+		wld.add<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+
+		// Set up a hook for adding a Position component
+		// ecs::ComponentCache::hooks(pitem).func_add = position_hook;
+		ecs::ComponentCache::hooks(pitem).func_add = []([[maybe_unused]] ecs::IterAll& it) {
+			++hook_trigger_cnt;
+		};
+
+		// Components were added already so we don't expect the hook to trigger yet
+		wld.add<Position>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+		wld.add<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+
+		// The component has been removed, and added again. Triggering the hook is expected
+		wld.del<Position>(e);
+		wld.add<Position>(e);
+		REQUIRE(hook_trigger_cnt == 1);
+
+		// No trigger on Rotation expected because no such trigger has been registered
+		wld.del<Rotation>(e);
+		wld.add<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 1);
+
+		// Trigger for new additions
+		wld.add<Position>(wld.add());
+		wld.add<Position>(wld.add());
+		REQUIRE(hook_trigger_cnt == 3);
+	}
+
+	SECTION("del") {
+		TestWorld twld;
+		const auto& pitem = wld.add<Position>();
+		hook_trigger_cnt = 0;
+
+		auto e = wld.add();
+
+		// Set up a hook for deleting a Position component
+		ecs::ComponentCache::hooks(pitem).func_del = []([[maybe_unused]] ecs::IterAll& it) {
+			++hook_trigger_cnt;
+		};
+
+#if !GAIA_ASSERT_ENABLED
+		// No components were added yet so we don't expect the hook to trigger
+		wld.del<Position>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+		wld.del<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+#endif
+
+		// The component has been added. No triggering yet
+		wld.add<Rotation>(e);
+		wld.add<Position>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+
+		// Don't trigger for components without a hook
+		wld.del<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+
+		// Trigger now
+		wld.del<Position>(e);
+		REQUIRE(hook_trigger_cnt == 1);
+
+#if !GAIA_ASSERT_ENABLED
+		// Don't trigger again
+		wld.del<Position>(e);
+		REQUIRE(hook_trigger_cnt == 1);
+#endif
+
+		// Component added and removed. Trigger again.
+		wld.add<Position>(e);
+		wld.del<Position>(e);
+		REQUIRE(hook_trigger_cnt == 2);
+
+#if !GAIA_ASSERT_ENABLED
+		// Don't trigger again
+		wld.del<Position>(e);
+		REQUIRE(hook_trigger_cnt == 2);
+#endif
 	}
 }
 

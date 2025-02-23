@@ -302,6 +302,10 @@ namespace gaia {
 				return data.pair != 0;
 			}
 
+			GAIA_NODISCARD constexpr bool comp() const noexcept {
+				return (data.pair | data.ent) == 0;
+			}
+
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
 				return (EntityKind)data.kind;
 			}

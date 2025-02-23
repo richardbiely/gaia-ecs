@@ -18130,6 +18130,10 @@ namespace gaia {
 				return data.pair != 0;
 			}
 
+			GAIA_NODISCARD constexpr bool comp() const noexcept {
+				return (data.pair | data.ent) == 0;
+			}
+
 			GAIA_NODISCARD constexpr auto kind() const noexcept {
 				return (EntityKind)data.kind;
 			}
@@ -19386,13 +19390,6 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 				using DescU = typename CT::TypeFull;
 
-				using FuncCtor = void(void*, uint32_t);
-				using FuncDtor = void(void*, uint32_t);
-				using FuncCopy = void(void*, void*);
-				using FuncMove = void(void*, void*);
-				using FuncSwap = void(void*, void*);
-				using FuncCmp = bool(const void*, const void*);
-
 				static ComponentDescId id() {
 					return meta::type_info::id<DescU>();
 				}
@@ -19527,6 +19524,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class IterAll;
+
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
@@ -19536,6 +19535,9 @@ namespace gaia {
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
+
+			using FuncOnAdd = void(IterAll&);
+			using FuncOnDel = void(IterAll&);
 
 			//! Component entity
 			Entity entity;
@@ -19564,6 +19566,14 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp{};
+
+			struct Hooks {
+				//! Function to call whenever a component is added to an entity
+				FuncOnAdd* func_add{};
+				//! Function to call whenever a component is deleted from an entity
+				FuncOnDel* func_del{};
+			};
+			Hooks comp_hooks;
 
 		private:
 			ComponentCacheItem() = default;
@@ -19613,6 +19623,14 @@ namespace gaia {
 				GAIA_ASSERT(pLeft != pRight);
 				GAIA_ASSERT(func_cmp != nullptr);
 				return func_cmp(pLeft, pRight);
+			}
+
+			Hooks& hooks() {
+				return comp_hooks;
+			}
+
+			const Hooks& hooks() const {
+				return comp_hooks;
 			}
 
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
@@ -19929,6 +19947,13 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				const auto compDescId = detail::ComponentDesc<T>::id();
 				return get(compDescId);
+			}
+
+			//! Gives access to hooks that can be defined for a given component.
+			//! \param cacheItem Cache item of a component.
+			//! \return Reference to component hooks.
+			static ComponentCacheItem::Hooks& hooks(const ComponentCacheItem& cacheItem) noexcept {
+				return const_cast<ComponentCacheItem&>(cacheItem).hooks();
 			}
 
 			void diag() const {
@@ -26830,11 +26855,18 @@ namespace gaia {
 				friend class World;
 
 				World& m_world;
+				Chunk* m_ChunkOriginal;
 				Archetype* m_pArchetype;
 				Entity m_entity;
 
-				EntityBuilder(World& world, Entity entity):
-						m_world(world), m_pArchetype(world.fetch(entity).pArchetype), m_entity(entity) {}
+				static inline thread_local cnt::sarray_ext<Entity, 32> tl_new_comps;
+				static inline thread_local cnt::sarray_ext<Entity, 32> tl_del_comps;
+
+				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
+					const auto& ec = world.fetch(entity);
+					m_ChunkOriginal = ec.pChunk;
+					m_pArchetype = ec.pArchetype;
+				}
 
 				EntityBuilder(const EntityBuilder&) = default;
 				EntityBuilder(EntityBuilder&&) = delete;
@@ -26851,8 +26883,14 @@ namespace gaia {
 					if (m_pArchetype == nullptr)
 						return;
 
+					// Trigger remove hooks if there are any
+					trigger_del_hooks(m_ChunkOriginal);
+
 					// Now that we have the final archetype move the entity to it
-					m_world.move_entity(m_entity, *m_pArchetype);
+					auto* pChunk = m_world.move_entity(m_entity, *m_pArchetype);
+
+					// Trigger add hooks if there are any
+					trigger_add_hooks(pChunk);
 
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
@@ -26948,6 +26986,54 @@ namespace gaia {
 				}
 
 			private:
+				//! Triggers add hooks for the component if there are any
+				//! \param pChunk Chunk use to initialize the iterator passed to the hook
+				void trigger_add_hooks(Chunk* pChunk) {
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+
+					for (auto entity: tl_new_comps) {
+						const auto& item = m_world.comp_cache().get(entity);
+						const auto& hooks = ComponentCache::hooks(item);
+						if (hooks.func_add != nullptr) {
+							IterAll it;
+							it.set_world(&m_world);
+							it.set_chunk(pChunk);
+							hooks.func_add(it);
+						}
+					}
+					tl_new_comps.clear();
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(false);
+#endif
+				}
+
+				//! Triggers del hooks for the component if there are any
+				//! \param pChunk Chunk use to initialize the iterator passed to the hook
+				void trigger_del_hooks(Chunk* pChunk) {
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+
+					for (auto entity: tl_del_comps) {
+						const auto& item = m_world.comp_cache().get(entity);
+						const auto& hooks = ComponentCache::hooks(item);
+						if (hooks.func_del != nullptr) {
+							IterAll it;
+							it.set_world(&m_world);
+							it.set_chunk(pChunk);
+							hooks.func_del(it);
+						}
+					}
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+					tl_del_comps.clear();
+				}
+
 				bool handle_add_entity(Entity entity) {
 					cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> targets;
 
@@ -27030,7 +27116,7 @@ namespace gaia {
 
 						for (auto e: targets) {
 							auto* pArchetype = m_pArchetype;
-							handle_add(e);
+							handle_add<false>(e);
 							if (m_pArchetype != pArchetype)
 								handle_add_entity(e);
 						}
@@ -27185,7 +27271,7 @@ namespace gaia {
 					// }
 				}
 
-				template <bool IsBootstrap = false>
+				template <bool IsBootstrap>
 				bool handle_add(Entity entity) {
 #if GAIA_ASSERT_ENABLED
 					World::verify_add(m_world, *m_pArchetype, m_entity, entity);
@@ -27224,6 +27310,9 @@ namespace gaia {
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
 					}
+
+					if (entity.comp())
+						tl_new_comps.push_back(entity);
 
 					return true;
 				}
@@ -27278,6 +27367,9 @@ namespace gaia {
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
+
+					if (entity.comp())
+						tl_del_comps.push_back(entity);
 				}
 
 				void add_inter(Entity entity) {
@@ -27291,7 +27383,7 @@ namespace gaia {
 					if (!handle_add_entity(entity))
 						return;
 
-					handle_add(entity);
+					handle_add<false>(entity);
 				}
 
 				void add_inter_init(Entity entity) {
@@ -27308,7 +27400,7 @@ namespace gaia {
 					handle_add<true>(entity);
 				}
 
-				GAIA_NODISCARD bool can_del(Entity entity) const {
+				GAIA_NODISCARD bool can_del(Entity entity) const noexcept {
 					if (has_Requires_tgt(entity))
 						return false;
 
@@ -30189,11 +30281,11 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
-			void move_entity(Entity entity, Archetype& dstArchetype) {
+			Chunk* move_entity(Entity entity, Archetype& dstArchetype) {
 				// Archetypes need to be different
 				const auto& ec = fetch(entity);
 				if (ec.pArchetype == &dstArchetype)
-					return;
+					return nullptr;
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
@@ -30202,6 +30294,8 @@ namespace gaia {
 				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
+
+				return pDstChunk;
 			}
 
 			void validate_archetype_edges([[maybe_unused]] const Archetype* pArchetype) const {

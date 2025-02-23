@@ -13,7 +13,6 @@ namespace gaia {
 	#include <functional>
 
 	#include "../mt/jobhandle.h"
-	#include "../mt/jobmanager.h"
 	#include "chunk_iterator.h"
 	#include "id.h"
 	#include "query.h"

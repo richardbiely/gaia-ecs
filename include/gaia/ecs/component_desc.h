@@ -25,13 +25,6 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 				using DescU = typename CT::TypeFull;
 
-				using FuncCtor = void(void*, uint32_t);
-				using FuncDtor = void(void*, uint32_t);
-				using FuncCopy = void(void*, void*);
-				using FuncMove = void(void*, void*);
-				using FuncSwap = void(void*, void*);
-				using FuncCmp = bool(const void*, const void*);
-
 				static ComponentDescId id() {
 					return meta::type_info::id<DescU>();
 				}

@@ -124,6 +124,7 @@
 			"mpmc",
 			"nullptr",
 			"PATHFINDING",
+			"PICO",
 			"picobench",
 			"prefetchnta",
 			"reimplementation",

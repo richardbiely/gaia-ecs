@@ -231,6 +231,13 @@ namespace gaia {
 				return get(compDescId);
 			}
 
+			//! Gives access to hooks that can be defined for a given component.
+			//! \param cacheItem Cache item of a component.
+			//! \return Reference to component hooks.
+			static ComponentCacheItem::Hooks& hooks(const ComponentCacheItem& cacheItem) noexcept {
+				return const_cast<ComponentCacheItem&>(cacheItem).hooks();
+			}
+
 			void diag() const {
 				const auto registeredTypes = m_itemArr.size();
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
