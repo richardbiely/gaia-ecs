@@ -1396,9 +1396,9 @@ SystemBuilder mySystem = w.system()
 // Retrieve the entity representing the system.
 Entity mySystemEntity = mySystem.entity();
 // Disable the entity. This effectively disables the system.
-w.disable(mySystemEntity);
+w.enable(mySystemEntity, false);
 // Enable the entity. This effectively makes the system runnable again.
-w.enable(mySystemEntity);
+w.enable(mySystemEntity, true);
 ```
 
 The system can be run manually or automatically.
