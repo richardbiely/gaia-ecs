@@ -54,9 +54,10 @@ namespace gaia {
 			Chunk() = default;
 
 			Chunk(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
+					const World& wld, const ComponentCache& cc, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st, //
 					uint32_t& worldVersion): //
-					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
+					m_header(wld, cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -220,8 +221,13 @@ namespace gaia {
 					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
 
 					// Update version number if necessary so we know RW access was used on the chunk
-					if constexpr (WorldVersionUpdateWanted)
+					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
+
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
@@ -245,8 +251,13 @@ namespace gaia {
 					const auto compIdx = comp_idx(comp);
 
 					// Update version number if necessary so we know RW access was used on the chunk
-					if constexpr (WorldVersionUpdateWanted)
+					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
+
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
@@ -322,7 +333,8 @@ namespace gaia {
 			//! \param chunkIndex Index of this chunk within the parent archetype
 			//! \return Newly allocated chunk
 			static Chunk* create(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities,
+					const World& wld, const ComponentCache& cc, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities, //
 					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
@@ -336,13 +348,13 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				(void)new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
-				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
 				pChunk->init((uint32_t)cntEntities, ids, comps, offsets, compOffs);

@@ -7954,9 +7954,13 @@ TEST_CASE("Hooks") {
 
 		// Set up a hook for adding a Position component
 		// ecs::ComponentCache::hooks(pitem).func_add = position_hook;
-		ecs::ComponentCache::hooks(pitem).func_add = []([[maybe_unused]] ecs::IterAll& it) {
-			++hook_trigger_cnt;
-		};
+		ecs::ComponentCache::hooks(pitem).func_add = //
+				[](const ecs::World& w, const ecs::ComponentCacheItem& cci, ecs::Entity src) {
+					(void)w;
+					(void)cci;
+					(void)src;
+					++hook_trigger_cnt;
+				};
 
 		// Components were added already so we don't expect the hook to trigger yet
 		wld.add<Position>(e);
@@ -7988,9 +7992,13 @@ TEST_CASE("Hooks") {
 		auto e = wld.add();
 
 		// Set up a hook for deleting a Position component
-		ecs::ComponentCache::hooks(pitem).func_del = []([[maybe_unused]] ecs::IterAll& it) {
-			++hook_trigger_cnt;
-		};
+		ecs::ComponentCache::hooks(pitem).func_del = //
+				[](const ecs::World& w, const ecs::ComponentCacheItem& cci, ecs::Entity src) {
+					(void)w;
+					(void)cci;
+					(void)src;
+					++hook_trigger_cnt;
+				};
 
 #if !GAIA_ASSERT_ENABLED
 		// No components were added yet so we don't expect the hook to trigger
@@ -8029,6 +8037,72 @@ TEST_CASE("Hooks") {
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 2);
 #endif
+	}
+
+	SECTION("set") {
+		TestWorld twld;
+		const auto& pitem = wld.add<Position>();
+		hook_trigger_cnt = 0;
+
+		auto e = wld.add();
+		wld.add<Position>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+		wld.add<Rotation>(e);
+		REQUIRE(hook_trigger_cnt == 0);
+
+		// Set up a hook for setting a Position component
+		ecs::ComponentCache::hooks(pitem).func_set = //
+				[](const ecs::World& w, const ecs::ComponentRecord& rec, ecs::Chunk& chunk) {
+					(void)w;
+					(void)rec;
+					(void)chunk;
+					++hook_trigger_cnt;
+				};
+
+		// Adding shouldn't trigger the set trigger
+		{
+			wld.add<Position>(e);
+			REQUIRE(hook_trigger_cnt == 0);
+			wld.add<Rotation>(e);
+			REQUIRE(hook_trigger_cnt == 0);
+
+			wld.del<Position>(e);
+			wld.add<Position>(e);
+			REQUIRE(hook_trigger_cnt == 0);
+
+			wld.del<Rotation>(e);
+			wld.add<Rotation>(e);
+			REQUIRE(hook_trigger_cnt == 0);
+		}
+
+		// Don't trigger when setting a different component
+		{
+			wld.set<Rotation>(e) = {};
+			REQUIRE(hook_trigger_cnt == 0);
+			(void)wld.acc(e).get<Rotation>();
+			REQUIRE(hook_trigger_cnt == 0);
+			(void)wld.acc_mut(e).get<Rotation>();
+			REQUIRE(hook_trigger_cnt == 0);
+			wld.acc_mut(e).set<Rotation>({});
+			REQUIRE(hook_trigger_cnt == 0);
+			wld.acc_mut(e).sset<Rotation>({});
+			REQUIRE(hook_trigger_cnt == 0);
+		}
+
+		// Trigger for mutable access
+		{
+			wld.set<Position>(e) = {};
+			REQUIRE(hook_trigger_cnt == 1);
+			(void)wld.acc(e).get<Position>();
+			REQUIRE(hook_trigger_cnt == 1);
+			(void)wld.acc_mut(e).get<Position>();
+			REQUIRE(hook_trigger_cnt == 1);
+			wld.acc_mut(e).set<Position>({});
+			REQUIRE(hook_trigger_cnt == 2);
+			// Silent set doesn't trigger
+			wld.acc_mut(e).sset<Position>({});
+			REQUIRE(hook_trigger_cnt == 2);
+		}
 	}
 }
 

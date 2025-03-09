@@ -19132,6 +19132,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class World;
 		class ComponentCache;
 		struct ComponentCacheItem;
 
@@ -19184,6 +19185,8 @@ namespace gaia {
 			//! Number of locks the chunk can acquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
+			//! Parent world
+			const World* world;
 			//! Component cache reference
 			const ComponentCache* cc;
 			//! Chunk index in its archetype list
@@ -19229,9 +19232,9 @@ namespace gaia {
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
 			ChunkHeader(
-					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
-					uint32_t& version):
-					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
+					uint16_t st, uint32_t& version):
+					world(&wld), cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),
@@ -19524,7 +19527,9 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class IterAll;
+		class World;
+		class Chunk;
+		struct ComponentRecord;
 
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
@@ -19536,8 +19541,9 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
-			using FuncOnAdd = void(IterAll&);
-			using FuncOnDel = void(IterAll&);
+			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
+			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
+			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
 			//! Component entity
 			Entity entity;
@@ -19572,6 +19578,8 @@ namespace gaia {
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+				//! Function to call whenever a component is accessed for modification
+				FuncOnSet* func_set{};
 			};
 			Hooks comp_hooks;
 
@@ -20165,9 +20173,10 @@ namespace gaia {
 			Chunk() = default;
 
 			Chunk(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st,
+					const World& wld, const ComponentCache& cc, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st, //
 					uint32_t& worldVersion): //
-					m_header(cc, chunkIndex, capacity, genEntities, st, worldVersion) {
+					m_header(wld, cc, chunkIndex, capacity, genEntities, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -20331,8 +20340,13 @@ namespace gaia {
 					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
 
 					// Update version number if necessary so we know RW access was used on the chunk
-					if constexpr (WorldVersionUpdateWanted)
+					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
+
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
@@ -20356,8 +20370,13 @@ namespace gaia {
 					const auto compIdx = comp_idx(comp);
 
 					// Update version number if necessary so we know RW access was used on the chunk
-					if constexpr (WorldVersionUpdateWanted)
+					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
+
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						GAIA_ASSERT(from == 0);
@@ -20433,7 +20452,8 @@ namespace gaia {
 			//! \param chunkIndex Index of this chunk within the parent archetype
 			//! \return Newly allocated chunk
 			static Chunk* create(
-					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities,
+					const World& wld, const ComponentCache& cc, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities, //
 					uint16_t dataBytes, uint32_t& worldVersion,
 					// data offsets
 					const ChunkDataOffsets& offsets,
@@ -20447,13 +20467,13 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				(void)new (pChunk) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
-				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
 #endif
 
 				pChunk->init((uint32_t)cntEntities, ids, comps, offsets, compOffs);
@@ -21526,6 +21546,8 @@ namespace gaia {
 			LookupHash m_hashLookup = {0};
 
 			Properties m_properties{};
+			//! Pointer to the parent world
+			const World& m_world;
 			//! Component cache reference
 			const ComponentCache& m_cc;
 			//! Stable reference to parent world's world version
@@ -21570,8 +21592,8 @@ namespace gaia {
 			// uint32_t m_unused : 6;
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
-			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
+			Archetype(const World& world, const ComponentCache& cc, uint32_t& worldVersion):
+					m_world(world), m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
 					m_deleteReq(0), m_dead(0), //
 					m_lifespanCountdownMax(1), m_lifespanCountdown(0), //
 					m_pairCnt(0), m_pairCnt_is(0) {}
@@ -21711,7 +21733,7 @@ namespace gaia {
 				const auto& cc = comp_cache(world);
 
 				auto* newArch = mem::AllocHelper::alloc<Archetype>("Archetype");
-				(void)new (newArch) Archetype(cc, worldVersion);
+				(void)new (newArch) Archetype(world, cc, worldVersion);
 
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
@@ -21911,7 +21933,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, //
+						m_world, m_cc, chunkCnt, //
 						m_properties.capacity, m_properties.cntEntities, //
 						m_properties.genEntities, m_properties.chunkDataBytes, //
 						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
@@ -26996,12 +27018,8 @@ namespace gaia {
 					for (auto entity: tl_new_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_add != nullptr) {
-							IterAll it;
-							it.set_world(&m_world);
-							it.set_chunk(pChunk);
-							hooks.func_add(it);
-						}
+						if (hooks.func_add != nullptr)
+							hooks.func_add(m_world, item, m_entity);
 					}
 					tl_new_comps.clear();
 
@@ -27020,12 +27038,8 @@ namespace gaia {
 					for (auto entity: tl_del_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_del != nullptr) {
-							IterAll it;
-							it.set_world(&m_world);
-							it.set_chunk(pChunk);
-							hooks.func_del(it);
-						}
+						if (hooks.func_del != nullptr)
+							hooks.func_del(m_world, item, m_entity);
 					}
 
 #if GAIA_ASSERT_ENABLED

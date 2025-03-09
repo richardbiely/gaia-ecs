@@ -113,6 +113,8 @@ namespace gaia {
 			LookupHash m_hashLookup = {0};
 
 			Properties m_properties{};
+			//! Pointer to the parent world
+			const World& m_world;
 			//! Component cache reference
 			const ComponentCache& m_cc;
 			//! Stable reference to parent world's world version
@@ -157,8 +159,8 @@ namespace gaia {
 			// uint32_t m_unused : 6;
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
-			Archetype(const ComponentCache& cc, uint32_t& worldVersion):
-					m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
+			Archetype(const World& world, const ComponentCache& cc, uint32_t& worldVersion):
+					m_world(world), m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
 					m_deleteReq(0), m_dead(0), //
 					m_lifespanCountdownMax(1), m_lifespanCountdown(0), //
 					m_pairCnt(0), m_pairCnt_is(0) {}
@@ -298,7 +300,7 @@ namespace gaia {
 				const auto& cc = comp_cache(world);
 
 				auto* newArch = mem::AllocHelper::alloc<Archetype>("Archetype");
-				(void)new (newArch) Archetype(cc, worldVersion);
+				(void)new (newArch) Archetype(world, cc, worldVersion);
 
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
@@ -498,7 +500,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_cc, chunkCnt, //
+						m_world, m_cc, chunkCnt, //
 						m_properties.capacity, m_properties.cntEntities, //
 						m_properties.genEntities, m_properties.chunkDataBytes, //
 						m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);

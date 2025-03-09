@@ -12,6 +12,7 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
 		class ComponentCache;
 		struct ComponentCacheItem;
 
@@ -64,6 +65,8 @@ namespace gaia {
 			//! Number of locks the chunk can acquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
+			//! Parent world
+			const World* world;
 			//! Component cache reference
 			const ComponentCache* cc;
 			//! Chunk index in its archetype list
@@ -109,9 +112,9 @@ namespace gaia {
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
 			ChunkHeader(
-					const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt, uint16_t st,
-					uint32_t& version):
-					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
+					uint16_t st, uint32_t& version):
+					world(&wld), cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),

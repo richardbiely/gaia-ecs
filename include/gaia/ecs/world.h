@@ -328,12 +328,8 @@ namespace gaia {
 					for (auto entity: tl_new_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_add != nullptr) {
-							IterAll it;
-							it.set_world(&m_world);
-							it.set_chunk(pChunk);
-							hooks.func_add(it);
-						}
+						if (hooks.func_add != nullptr)
+							hooks.func_add(m_world, item, m_entity);
 					}
 					tl_new_comps.clear();
 
@@ -352,12 +348,8 @@ namespace gaia {
 					for (auto entity: tl_del_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_del != nullptr) {
-							IterAll it;
-							it.set_world(&m_world);
-							it.set_chunk(pChunk);
-							hooks.func_del(it);
-						}
+						if (hooks.func_del != nullptr)
+							hooks.func_del(m_world, item, m_entity);
 					}
 
 #if GAIA_ASSERT_ENABLED

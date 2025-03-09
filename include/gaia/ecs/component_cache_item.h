@@ -13,7 +13,9 @@
 
 namespace gaia {
 	namespace ecs {
-		class IterAll;
+		class World;
+		class Chunk;
+		struct ComponentRecord;
 
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
@@ -25,8 +27,9 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
-			using FuncOnAdd = void(IterAll&);
-			using FuncOnDel = void(IterAll&);
+			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
+			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
+			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
 			//! Component entity
 			Entity entity;
@@ -61,6 +64,8 @@ namespace gaia {
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+				//! Function to call whenever a component is accessed for modification
+				FuncOnSet* func_set{};
 			};
 			Hooks comp_hooks;
 

@@ -370,17 +370,9 @@ Component hooks are unique. Each component can have at most one add hook, and on
 ```cpp
 ecs::World w;
 const ecs::ComponentCacheItem& pos_item = w.add<Position>();
-ecs::ComponentCache::hooks(pos_item).func_add = [](ecs::IterAll& iter) {
-  // Entities are always safe to access on the iterator
-  auto ve = iter.view<ecs::Entity>();
-  // Positions are safe to access because this is a Position hook.
-  // Therefore, we know that the Position is present.
-  auto vp = iter.view<Position>();
-
-  const auto cnt = iter.size();
-  GAIA_FOR(cnt) {
-    GAIA_LOG_N("Entity %u.%u -> pos=[%.2f, %.2f, %.2f]", ve[i].id(), ve[i].gen(), vp[i].x, vp[i].y, vp[i].z);
-  }
+ecs::ComponentCache::hooks(pos_item).func_add = [](const ecs::World& w, const ecs::ComponentCacheItem& cci, ecs::Entity src) {
+  // Position component added to entity "src"
+  // ...
 };
 
 ecs::Entity e = w.add();
@@ -397,6 +389,24 @@ ecs::Entity e = w.add();
 // The add hook will not be triggered because we removed the hook
 w.add<Position>(e);
 ```
+
+It is also possible to set up a "set" hook. These are triggered whenever write access to component is requested.
+```cpp
+ecs::World w;
+const ecs::ComponentCacheItem& pos_item = w.add<Position>();
+ecs::ComponentCache::hooks(pos_item).func_set = [](const ecs::World& w, const ecs::ComponentRecord& rec, Chunk& chunk) {
+  // Position component value change has been requested
+  // ...
+};
+
+ecs::Entity e = w.add();
+w.add<Position>(e); // Don't trigger the set hook, yet
+w.set<Position>(e) = {}; // Trigger the set hook
+w.acc(e).set<Position>({}); // Trigger the set hook
+w.acc(e).sset<Position>({}); // Don't trigger the set hook
+```
+
+Unlike *add* and *del* hooks, *set* hooks will not tell you what entity the hook triggered for. This is because any write access is done for the entire chunk, not just one of its entities. If one-entity behavior is required, the best thing you can do is moving your entity to a separate archetype (e.g. by adding some unique tag component to it).
 
 ### Bulk editing
 
