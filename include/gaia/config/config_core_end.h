@@ -58,20 +58,14 @@
 			{                                                                                                                \
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
-				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                        \
-						assert((cond));                                                                                            \
-					}();                                                                                                         \
+				assert((cond));                                                                                                \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
 		#define GAIA_ASSERT2(cond, msg)                                                                                    \
 			{                                                                                                                \
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
-				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[&] {                                                                                                        \
-						assert((cond) && (msg));                                                                                   \
-					}();                                                                                                         \
+				assert((cond) && (msg));                                                                                       \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
 	#else
