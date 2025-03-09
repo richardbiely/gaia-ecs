@@ -456,7 +456,7 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap);
+						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
 						m_storage.m_q.handle = queryInfo.handle(queryInfo);
 						m_storage.allow_to_destroy_again();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());

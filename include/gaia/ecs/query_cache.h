@@ -113,7 +113,10 @@ namespace gaia {
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
 			//! \return Reference a newly created or an already existing QueryInfo object.
-			QueryInfo& add(QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap) {
+			QueryInfo&
+			add(QueryCtx&& ctx, //
+					const EntityToArchetypeMap& entityToArchetypeMap, //
+					const ArchetypeDArray& allArchetypes) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
@@ -127,9 +130,10 @@ namespace gaia {
 				}
 
 				// No record exists, let us create a new one
-				QueryInfoCreationCtx creationCtx;
+				QueryInfoCreationCtx creationCtx{};
 				creationCtx.pQueryCtx = &ctx;
 				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				creationCtx.pAllArchetypes = &allArchetypes;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
 				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer
