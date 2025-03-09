@@ -14412,12 +14412,59 @@ namespace gaia {
 /*** Start of inlined file: signal.h ***/
 #pragma once
 
-// TODO: Needed only for std::invoke. Possibly replace it somehow?
-#include <functional>
-
 #include <tuple>
 #include <typeinfo>
 #include <utility>
+
+
+/*** Start of inlined file: func.h ***/
+#pragma once
+
+#include <type_traits>
+
+namespace gaia {
+	namespace detail {
+		template <class T>
+		struct is_reference_wrapper: std::false_type {};
+		template <class U>
+		struct is_reference_wrapper<std::reference_wrapper<U>>: std::true_type {};
+
+		template <class C, class Pointed, class Object, class... Args>
+		constexpr decltype(auto) invoke_memptr(Pointed C::* member, Object&& object, Args&&... args) {
+			using object_t = std::decay_t<Object>;
+			constexpr bool is_member_function = std::is_function_v<Pointed>;
+			constexpr bool is_wrapped = is_reference_wrapper<object_t>::value;
+			constexpr bool is_derived_object = std::is_same_v<C, object_t> || std::is_base_of_v<C, object_t>;
+
+			if constexpr (is_member_function) {
+				if constexpr (is_derived_object)
+					return (GAIA_FWD(object).*member)(GAIA_FWD(args)...);
+				else if constexpr (is_wrapped)
+					return (object.get().*member)(GAIA_FWD(args)...);
+				else
+					return ((*GAIA_FWD(object)).*member)(GAIA_FWD(args)...);
+			} else {
+				static_assert(std::is_object_v<Pointed> && sizeof...(args) == 0);
+				if constexpr (is_derived_object)
+					return GAIA_FWD(object).*member;
+				else if constexpr (is_wrapped)
+					return object.get().*member;
+				else
+					return (*GAIA_FWD(object)).*member;
+			}
+		}
+	} // namespace detail
+
+	template <class F, class... Args>
+	constexpr decltype(auto)
+	invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
+		if constexpr (std::is_member_pointer_v<std::decay_t<F>>)
+			return detail::invoke_memptr(f, GAIA_FWD(args)...);
+		else
+			return GAIA_FWD(f)(GAIA_FWD(args)...);
+	}
+} // namespace gaia
+/*** End of inlined file: func.h ***/
 
 namespace gaia {
 	namespace util {
@@ -14512,7 +14559,7 @@ namespace gaia {
 
 				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Args...>) {
 					m_fnc = [](const void*, Args... args) {
-						return Ret(std::invoke(FuncToBind, GAIA_FWD(args)...));
+						return Ret(invoke(FuncToBind, GAIA_FWD(args)...));
 					};
 				} else if constexpr (std::is_member_pointer_v<decltype(FuncToBind)>) {
 					m_fnc = wrap<FuncToBind>(detail::index_sequence_for<std::tuple_element_t<0, std::tuple<Args...>>>(
@@ -14536,7 +14583,7 @@ namespace gaia {
 					using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
 					m_fnc = [](const void* ctx, Args... args) {
 						auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-						return Ret(std::invoke(FuncToBind, *pType, GAIA_FWD(args)...));
+						return Ret(invoke(FuncToBind, *pType, GAIA_FWD(args)...));
 					};
 				} else {
 					m_fnc = wrap<FuncToBind>(
@@ -14556,7 +14603,7 @@ namespace gaia {
 					using const_or_not_type = std::conditional_t<std::is_const_v<Type>, const void*, void*>;
 					m_fnc = [](const void* ctx, Args... args) {
 						auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-						return Ret(std::invoke(FuncToBind, pType, GAIA_FWD(args)...));
+						return Ret(invoke(FuncToBind, pType, GAIA_FWD(args)...));
 					};
 				} else {
 					m_fnc = wrap<FuncToBind>(
@@ -14625,7 +14672,7 @@ namespace gaia {
 			GAIA_NODISCARD auto wrap(std::index_sequence<Index...>) noexcept {
 				return [](const void*, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
-					return Ret(std::invoke(FuncToBind, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, GAIA_FWD(std::get<Index>(argsFwd))...));
 				};
 			}
 
@@ -14635,7 +14682,7 @@ namespace gaia {
 				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-					return Ret(std::invoke(FuncToBind, *pType, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, *pType, GAIA_FWD(std::get<Index>(argsFwd))...));
 				};
 			}
 
@@ -14645,7 +14692,7 @@ namespace gaia {
 				return [](const void* ctx, Args... args) {
 					[[maybe_unused]] const auto argsFwd = std::forward_as_tuple(GAIA_FWD(args)...);
 					auto pType = static_cast<Type*>(const_cast<const_or_not_type>(ctx));
-					return Ret(std::invoke(FuncToBind, pType, GAIA_FWD(std::get<Index>(argsFwd))...));
+					return Ret(invoke(FuncToBind, pType, GAIA_FWD(std::get<Index>(argsFwd))...));
 				};
 			}
 		};
@@ -15429,8 +15476,9 @@ namespace gaia {
 /*** Start of inlined file: jobcommon.h ***/
 #pragma once
 
-#include <functional>
 #include <inttypes.h>
+// TODO: Currently necessary due to std::function. Replace them!
+#include <functional>
 
 
 /*** Start of inlined file: jobqueue.h ***/
@@ -15939,6 +15987,7 @@ namespace gaia {
 
 #include <atomic>
 #include <cinttypes>
+// TODO: Currently necessary due to std::function. Replace them!
 #include <functional>
 
 #define GAIA_LOG_JOB_STATES 0

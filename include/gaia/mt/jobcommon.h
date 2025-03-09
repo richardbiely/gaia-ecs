@@ -1,7 +1,8 @@
 #pragma once
 
-#include <functional>
 #include <inttypes.h>
+// TODO: Currently necessary due to std::function. Replace them!
+#include <functional>
 
 #include "../core/utility.h"
 
