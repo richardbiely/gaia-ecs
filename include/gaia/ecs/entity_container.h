@@ -57,7 +57,7 @@ namespace gaia {
 			///////////////////////////////////////////////////////////////////
 
 			//! Generation ID of the record
-			uint32_t gen : 27;
+			uint32_t gen : 28;
 			//! 0-component, 1-entity
 			uint32_t ent : 1;
 			//! 0-ordinary, 1-pair
