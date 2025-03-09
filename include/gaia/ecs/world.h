@@ -187,16 +187,23 @@ namespace gaia {
 				friend class World;
 
 				World& m_world;
-				Chunk* m_ChunkOriginal;
+#if GAIA_ASSERT_ENABLED
+				//! Original chunk m_entity belonged to
+				Chunk* m_pChunkOriginal;
+#endif
+				//! Target archetype we want to move to
 				Archetype* m_pArchetype;
+				//! Source entity
 				Entity m_entity;
 
-				static inline thread_local cnt::sarray_ext<Entity, 32> tl_new_comps;
-				static inline thread_local cnt::sarray_ext<Entity, 32> tl_del_comps;
+				cnt::sarray_ext<Entity, 32> tl_new_comps;
+				cnt::sarray_ext<Entity, 32> tl_del_comps;
 
 				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
 					const auto& ec = world.fetch(entity);
-					m_ChunkOriginal = ec.pChunk;
+#if GAIA_ASSERT_ENABLED
+					m_pChunkOriginal = ec.pChunk;
+#endif
 					m_pArchetype = ec.pArchetype;
 				}
 
@@ -212,17 +219,28 @@ namespace gaia {
 				//! Commits all gathered changes and performs an archetype movement.
 				//! \warning Once called, the object is returned to its default state (as if no add/remove was ever called).
 				void commit() {
+					// No requests to change the archetype were made
 					if (m_pArchetype == nullptr)
 						return;
 
-					// Trigger remove hooks if there are any
-					trigger_del_hooks(m_ChunkOriginal);
+					const auto& ec = m_world.fetch(m_entity);
+					// Change in archetype detected
+					if (ec.pArchetype != m_pArchetype) {
+						// Trigger remove hooks if there are any
+						trigger_del_hooks();
 
-					// Now that we have the final archetype move the entity to it
-					auto* pChunk = m_world.move_entity(m_entity, *m_pArchetype);
+						// Now that we have the final archetype move the entity to it
+						auto* pChunk = m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
 
-					// Trigger add hooks if there are any
-					trigger_add_hooks(pChunk);
+						// Trigger add hooks if there are any
+						trigger_add_hooks(pChunk);
+					}
+#if GAIA_ASSERT_ENABLED
+					// Archetype is still the same. Make sure no chunk movement has happened.
+					else {
+						GAIA_ASSERT(ec.pChunk == m_pChunkOriginal);
+					}
+#endif
 
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
@@ -340,11 +358,7 @@ namespace gaia {
 
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_del_hooks(Chunk* pChunk) {
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
-
+				void trigger_del_hooks() {
 					for (auto entity: tl_del_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
@@ -352,9 +366,6 @@ namespace gaia {
 							hooks.func_del(m_world, item, m_entity);
 					}
 
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
 					tl_del_comps.clear();
 				}
 
@@ -633,10 +644,9 @@ namespace gaia {
 
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
+						if (entity.comp())
+							tl_new_comps.push_back(entity);
 					}
-
-					if (entity.comp())
-						tl_new_comps.push_back(entity);
 
 					return true;
 				}
@@ -1403,7 +1413,7 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. If it is not this function does nothing.
-			//! \warning The name can't contain the character '.'. This character is reserved for hierachical lookups
+			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
 			void name(Entity entity, const char* name, uint32_t len = 0) {
 				name_inter<true>(entity, name, len);
@@ -1416,7 +1426,7 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning The name is expected to be unique. If it is not this function does nothing.
-			//! \warning The name can't contain the character '.'. This character is reserved for hierachical lookups
+			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
 			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
 			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
@@ -3601,6 +3611,20 @@ namespace gaia {
 				validate_chunk(pSrcChunk);
 				validate_chunk(pDstChunk);
 				validate_entities();
+			}
+
+			//! Moves an entity along with all its generic components from its current chunk to another one in a new
+			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
+			Chunk* move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
+				auto* pDstChunk = dstArchetype.foc_free_chunk();
+				move_entity(entity, dstArchetype, *pDstChunk);
+
+				// Update world versions
+				ec.pChunk->update_world_version();
+				pDstChunk->update_world_version();
+				update_version(m_worldVersion);
+
+				return pDstChunk;
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new

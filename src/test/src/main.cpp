@@ -3264,6 +3264,51 @@ TEST_CASE("Add - many components, bulk") {
 	GAIA_FOR(N) create();
 }
 
+TEST_CASE("Add - many components, bulk 2") {
+	TestWorld twld;
+	auto e = wld.add();
+
+	auto checkInt3 = [&]() {
+		REQUIRE(wld.has<Int3>(e));
+		wld.acc_mut(e).set<Int3>({3, 3, 3});
+
+		{
+			auto val = wld.get<Int3>(e);
+			REQUIRE(val.x == 3);
+			REQUIRE(val.y == 3);
+			REQUIRE(val.z == 3);
+		}
+
+		{
+			auto setter = wld.acc_mut(e);
+			auto& pos = setter.mut<Int3>();
+			pos = {30, 30, 30};
+
+			{
+				auto val = wld.get<Int3>(e);
+				REQUIRE(val.x == 30);
+				REQUIRE(val.y == 30);
+				REQUIRE(val.z == 30);
+
+				val = setter.get<Int3>();
+				REQUIRE(val.x == 30);
+				REQUIRE(val.y == 30);
+				REQUIRE(val.z == 30);
+			}
+		}
+	};
+
+	// This should result in adding just Int3
+	wld.build(e).add<Position>().add<Int3>().del<Position>();
+	REQUIRE_FALSE(wld.has<Position>(e));
+	checkInt3();
+
+	// This should do nothing
+	wld.build(e).add<Position>().del<Position>();
+	REQUIRE_FALSE(wld.has<Position>(e));
+	checkInt3();
+}
+
 TEST_CASE("Pair") {
 	{
 		TestWorld twld;
