@@ -460,7 +460,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_mut(uint16_t from, uint16_t to) {
 				using U = typename actual_type_t<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 
 				// Always consider full range for SoA
 				if constexpr (mem::is_soa_layout_v<U>)
@@ -472,7 +472,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_mut_raw(void* ptr, uint32_t size) const {
 				using U = typename actual_type_t<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 
 				return mem::auto_view_policy_set<U>{std::span{(uint8_t*)ptr, size}};
 			}
@@ -1103,7 +1103,7 @@ namespace gaia {
 						"Set providing a row can only be used with generic components");
 
 				GAIA_ASSERT(row < m_header.capacity);
-				return view_mut<T>()[row];
+				return sview_mut<T>()[row];
 			}
 
 			//! Sets the value of a generic entity \param type at the position \param row in the chunk.
@@ -1129,7 +1129,7 @@ namespace gaia {
 				// const uint32_t col = comp_idx(type);
 				//(void)col;
 
-				return view_mut<T>()[row];
+				return sview_mut<T>()[row];
 			}
 
 			//----------------------------------------------------------------------
