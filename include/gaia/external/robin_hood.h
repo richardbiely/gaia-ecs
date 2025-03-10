@@ -484,8 +484,8 @@ namespace robin_hood {
 		// constructor called from the std::piecewise_construct_t ctor
 		template <typename... U1, size_t... I1, typename... U2, size_t... I2>
 		pair(std::tuple<U1...>& a, std::tuple<U2...>& b, std::index_sequence<I1...> /*unused*/, std::index_sequence<I2...> /*unused*/) noexcept(
-				noexcept(T1(std::forward<U1>(std::get<I1>(std::declval<std::tuple<U1...>&>()))...)) &&
-				noexcept(T2(std::forward<U2>(std::get<I2>(std::declval<std::tuple<U2...>&>()))...))):
+				noexcept(T1(GAIA_FWD(std::get<I1>(std::declval<std::tuple<U1...>&>()))...)) &&
+				noexcept(T2(GAIA_FWD(std::get<I2>(std::declval<std::tuple<U2...>&>()))...))):
 				first(GAIA_FWD(std::get<I1>(a))...), second(GAIA_FWD(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a & b.
 			// Visual studio's pair implementation disables warning 4100.
