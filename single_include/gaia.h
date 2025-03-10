@@ -24398,7 +24398,7 @@ namespace gaia {
 				m_archetypeSet = {};
 				m_archetypeCache = {};
 				m_archetypeCacheData = {};
-				m_archetypeCacheData = {};
+				m_archetypeGroupData = {};
 				m_lastArchetypeId = 0;
 
 				m_ctx.data.lastMatchedArchetypeIdx_All = {};
