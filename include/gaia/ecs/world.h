@@ -227,7 +227,7 @@ namespace gaia {
 					// Change in archetype detected
 					if (ec.pArchetype != m_pArchetype) {
 						// Trigger remove hooks if there are any
-						trigger_del_hooks();
+						trigger_del_hooks(ec.pChunk);
 
 						// Now that we have the final archetype move the entity to it
 						auto* pChunk = m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
@@ -338,7 +338,7 @@ namespace gaia {
 			private:
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_add_hooks(Chunk* pChunk) {
+				void trigger_add_hooks([[maybe_unused]] Chunk* pChunk) {
 #if GAIA_ASSERT_ENABLED
 					pChunk->lock(true);
 #endif
@@ -358,7 +358,11 @@ namespace gaia {
 
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_del_hooks() {
+				void trigger_del_hooks([[maybe_unused]] Chunk* pChunk) {
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(true);
+#endif
+
 					for (auto entity: tl_del_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
 						const auto& hooks = ComponentCache::hooks(item);
@@ -367,6 +371,10 @@ namespace gaia {
 					}
 
 					tl_del_comps.clear();
+
+#if GAIA_ASSERT_ENABLED
+					pChunk->lock(false);
+#endif
 				}
 
 				bool handle_add_entity(Entity entity) {

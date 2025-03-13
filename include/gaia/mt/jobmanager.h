@@ -318,7 +318,7 @@ namespace gaia {
 			}
 
 			static void reset_state(JobContainer& jobData) {
-				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+				[[maybe_unused]] const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
 				// The job needs to be either clear or finalize for us to allow a reset
 				GAIA_ASSERT(state == 0 || state == JobState::Done);
 				jobData.state.store(0);
