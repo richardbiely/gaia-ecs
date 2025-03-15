@@ -27164,7 +27164,7 @@ namespace gaia {
 					return true;
 				}
 
-				bool has_Requires_tgt(Entity entity) const {
+				GAIA_NODISCARD bool has_Requires_tgt(Entity entity) const {
 					// Don't allow to delete entity if something in the archetype requires it
 					auto ids = m_pArchetype->ids_view();
 					for (auto e: ids) {
@@ -28383,7 +28383,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			bool as_relations_trav_if(Entity target, Func func) const {
+			GAIA_NODISCARD bool as_relations_trav_if(Entity target, Func func) const {
 				GAIA_ASSERT(valid(target));
 				if (!valid(target))
 					return false;
@@ -28589,7 +28589,7 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return True it the entity is enabled. False otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			bool enabled(Entity entity) const {
+			GAIA_NODISCARD bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
@@ -28873,11 +28873,13 @@ namespace gaia {
 				--m_structuralChangesLocked;
 			}
 
+		public:
 			//! Checks if the chunk is locked for structural changes.
-			bool locked() const {
+			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
 			}
 
+		private:
 			//! Sorts archetypes in the archetype list with their ids in ascending order
 			void sort_archetypes() {
 				struct sort_cond {
@@ -30987,22 +30989,22 @@ namespace gaia {
 		}
 
 		template <typename Func>
-		void as_relations_trav(const World& world, Entity target, Func func) {
+		inline void as_relations_trav(const World& world, Entity target, Func func) {
 			world.as_relations_trav(target, func);
 		}
 
 		template <typename Func>
-		bool as_relations_trav_if(const World& world, Entity target, Func func) {
+		inline bool as_relations_trav_if(const World& world, Entity target, Func func) {
 			return world.as_relations_trav_if(target, func);
 		}
 
 		template <typename Func>
-		void as_targets_trav(const World& world, Entity relation, Func func) {
+		inline void as_targets_trav(const World& world, Entity relation, Func func) {
 			world.as_targets_trav(relation, func);
 		}
 
 		template <typename Func>
-		void as_targets_trav_if(const World& world, Entity relation, Func func) {
+		inline bool as_targets_trav_if(const World& world, Entity relation, Func func) {
 			return world.as_targets_trav_if(relation, func);
 		}
 
@@ -31015,6 +31017,9 @@ namespace gaia {
 		}
 		inline void unlock(World& world) {
 			world.unlock();
+		}
+		GAIA_NODISCARD inline bool locked(const World& world) {
+			return world.locked();
 		}
 	} // namespace ecs
 } // namespace gaia
