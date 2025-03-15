@@ -19224,10 +19224,6 @@ namespace gaia {
 			//! Number of ticks before empty chunks are removed
 			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
-			static constexpr uint16_t CHUNK_LOCKS_BITS = 3;
-			//! Number of locks the chunk can acquire
-			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
-
 			//! Parent world
 			const World* world;
 			//! Component cache reference
@@ -19258,11 +19254,7 @@ namespace gaia {
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
 			//! Empty space for future use
-			uint16_t unused : 8;
-#if GAIA_ASSERT_ENABLED
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint16_t structuralChangesLocked: CHUNK_LOCKS_BITS;
-#endif
+			uint16_t unused : 11;
 
 			//! Number of generic entities/components
 			uint8_t genEntities;
@@ -19281,9 +19273,6 @@ namespace gaia {
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),
-#if GAIA_ASSERT_ENABLED
-					structuralChangesLocked(0),
-#endif
 					//
 					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right
@@ -20104,6 +20093,9 @@ namespace gaia {
 			uint16_t row;
 			//! Flags
 			uint16_t flags = 0;
+
+			//! Currently unused area
+			uint32_t unused = 0;
 
 			//! Archetype (stable address)
 			Archetype* pArchetype;
@@ -20978,10 +20970,6 @@ namespace gaia {
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
 			void remove_entity(uint16_t row, EntityContainers& recs) {
-				GAIA_ASSERT(
-						!locked() && "Entities can't be removed while their chunk is being iterated "
-												 "(structural changes are forbidden during this time!)");
-
 				if GAIA_UNLIKELY (m_header.count == 0)
 					return;
 
@@ -21056,9 +21044,6 @@ namespace gaia {
 			//! \param enableEntity Enables or disabled the entity
 			//! \param entities Span of entity container records
 			void enable_entity(uint16_t row, bool enableEntity, EntityContainers& recs) {
-				GAIA_ASSERT(
-						!locked() && "Entities can't be enable while their chunk is being iterated "
-												 "(structural changes are forbidden during this time!)");
 				GAIA_ASSERT(row < m_header.count && "Entity chunk row out of bounds!");
 
 				if (enableEntity) {
@@ -21400,28 +21385,6 @@ namespace gaia {
 				--m_header.lifespanCountdown;
 				return dying();
 			}
-
-#if GAIA_ASSERT_ENABLED
-			//! If true locks the chunk for structural changed.
-			//! While locked, no new entities or component can be added or removed.
-			//! While locked, no entities can be enabled or disabled.
-			void lock([[maybe_unused]] bool value) {
-				// TODO: Rethink whether we really need this. Also, without making the variable
-				//       access atomic this won't be tread-safe.
-				// if (value) {
-				// 	GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
-				// 	++m_header.structuralChangesLocked;
-				// } else {
-				// 	GAIA_ASSERT(m_header.structuralChangesLocked > 0);
-				// 	--m_header.structuralChangesLocked;
-				// }
-			}
-
-			//! Checks if the chunk is locked for structural changes.
-			bool locked() const {
-				return m_header.structuralChangesLocked != 0;
-			}
-#endif
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool full() const {
@@ -25130,6 +25093,8 @@ namespace gaia {
 		const ComponentCacheItem& comp_cache_add(World& world);
 		bool is_base(const World& world, Entity entity);
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
+		void lock(World& world);
+		void unlock(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -25830,18 +25795,12 @@ namespace gaia {
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					auto* pChunk = batch.pChunk;
 
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
 					TIter it;
 					it.set_world(pWorld);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
 					it.set_chunk(pChunk);
 					func(it);
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(false);
-#endif
 				}
 
 				//! Execute the functor in batches
@@ -25890,7 +25849,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -25940,7 +25899,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -25989,29 +25948,22 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
 
-#if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
-
-						const auto& data = dataView[i];
-						GAIA_ASSERT(
-								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
-								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
-					}
-#endif
-
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 						const auto& data = dataView[i];
+
+#if GAIA_ASSERT_ENABLED
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+#endif
 
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
@@ -26620,11 +26572,17 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
+					lock(*m_storage.world());
+
 					each_inter<QueryExecType::Default, Func>(func);
+
+					unlock(*m_storage.world());
 				}
 
 				template <typename Func>
 				void each(Func func, QueryExecType execType) {
+					lock(*m_storage.world());
+
 					switch (execType) {
 						case QueryExecType::Parallel:
 							each_inter<QueryExecType::Parallel, Func>(func);
@@ -26639,6 +26597,8 @@ namespace gaia {
 							each_inter<QueryExecType::Default, Func>(func);
 							break;
 					}
+
+					unlock(*m_storage.world());
 				}
 
 				//------------------------------------------------
@@ -26778,6 +26738,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class SystemBuilder;
+		class World;
+
+		extern void lock(World& world);
+		extern void unlock(World& world);
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -26785,6 +26749,8 @@ namespace gaia {
 			friend class CommandBuffer;
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
+			friend void lock(World&);
+			friend void unlock(World&);
 
 			using TFunc_Void_With_Entity = void(Entity);
 			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
@@ -26871,6 +26837,8 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
+
+			uint32_t m_structuralChangesLocked = 0;
 
 		public:
 			//! Provides a query set up to work with the parent world.
@@ -26964,13 +26932,13 @@ namespace gaia {
 					// Change in archetype detected
 					if (ec.pArchetype != m_pArchetype) {
 						// Trigger remove hooks if there are any
-						trigger_del_hooks(ec.pChunk);
+						trigger_del_hooks();
 
 						// Now that we have the final archetype move the entity to it
-						auto* pChunk = m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
+						m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
 
 						// Trigger add hooks if there are any
-						trigger_add_hooks(pChunk);
+						trigger_add_hooks();
 					}
 #if GAIA_ASSERT_ENABLED
 					// Archetype is still the same. Make sure no chunk movement has happened.
@@ -27075,10 +27043,8 @@ namespace gaia {
 			private:
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_add_hooks([[maybe_unused]] Chunk* pChunk) {
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
+				void trigger_add_hooks() {
+					m_world.lock();
 
 					for (auto entity: tl_new_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
@@ -27088,17 +27054,13 @@ namespace gaia {
 					}
 					tl_new_comps.clear();
 
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(false);
-#endif
+					m_world.unlock();
 				}
 
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_del_hooks([[maybe_unused]] Chunk* pChunk) {
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
+				void trigger_del_hooks() {
+					m_world.lock();
 
 					for (auto entity: tl_del_comps) {
 						const auto& item = m_world.comp_cache().get(entity);
@@ -27106,12 +27068,9 @@ namespace gaia {
 						if (hooks.func_del != nullptr)
 							hooks.func_del(m_world, item, m_entity);
 					}
-
 					tl_del_comps.clear();
 
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(false);
-#endif
+					m_world.unlock();
 				}
 
 				bool handle_add_entity(Entity entity) {
@@ -28619,13 +28578,10 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(
-						(ec.pChunk && !ec.pChunk->locked()) &&
-						"Entities can't be enabled/disabled while their chunk is being iterated "
-						"(structural changes are forbidden during this time!)");
-
 				auto& archetype = *ec.pArchetype;
+#if GAIA_ASSERT_ENABLED
+				verify_enable(*this, archetype, entity);
+#endif
 				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
 			}
 
@@ -28899,6 +28855,27 @@ namespace gaia {
 					return false;
 
 				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+			}
+
+			//! Locks the chunk for structural changes.
+			//! While locked, no new entities or components can be added or removed.
+			//! While locked, no entities can be enabled or disabled.
+			void lock() {
+				GAIA_ASSERT(m_structuralChangesLocked != (uint32_t)-1);
+				++m_structuralChangesLocked;
+			}
+
+			//! Unlocks the chunk for structural changes.
+			//! While locked, no new entities or components can be added or removed.
+			//! While locked, no entities can be enabled or disabled.
+			void unlock() {
+				GAIA_ASSERT(m_structuralChangesLocked > 0);
+				--m_structuralChangesLocked;
+			}
+
+			//! Checks if the chunk is locked for structural changes.
+			bool locked() const {
+				return m_structuralChangesLocked != 0;
 			}
 
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -29424,12 +29401,21 @@ namespace gaia {
 			}
 
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
+				// Make sure the world is not locked
+				if (world.locked()) {
+					GAIA_ASSERT2(false, "Trying to add an entity while the world is locked");
+					GAIA_LOG_W("Trying to add an entity [%u:%u] while the world is locked", entity.id(), entity.gen());
+					print_archetype_entities(world, archetype, entity, false);
+					return;
+				}
+
 				// Makes sure no wildcard entities are added
 				if (is_wildcard(addEntity)) {
 					GAIA_ASSERT2(false, "Adding wildcard pairs is not supported");
 					print_archetype_entities(world, archetype, addEntity, true);
 					return;
 				}
+
 				// Make sure not to add too many entities/components
 				auto ids = archetype.ids_view();
 				if GAIA_UNLIKELY (ids.size() + 1 >= ChunkHeader::MAX_COMPONENTS) {
@@ -29441,10 +29427,36 @@ namespace gaia {
 			}
 
 			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity delEntity) {
+				// Make sure the world is not locked
+				if (world.locked()) {
+					GAIA_ASSERT2(false, "Trying to delete an entity while the world is locked");
+					GAIA_LOG_W("Trying to delete an entity [%u:%u] while the world is locked", entity.id(), entity.gen());
+					print_archetype_entities(world, archetype, entity, false);
+					return;
+				}
+
+				// Make sure the entity is present on the archetype
 				if GAIA_UNLIKELY (!archetype.has(delEntity)) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
 					print_archetype_entities(world, archetype, delEntity, false);
+					return;
+				}
+			}
+
+			static void verify_enable(const World& world, Archetype& archetype, Entity entity) {
+				if (world.locked()) {
+					GAIA_ASSERT2(false, "Trying to enable/disable an entity while the world is locked");
+					GAIA_LOG_W("Trying to enable/disable an entity [%u:%u] while the world is locked", entity.id(), entity.gen());
+					print_archetype_entities(world, archetype, entity, false);
+				}
+			}
+
+			static void verify_move(const World& world, Archetype& archetype, Entity entity) {
+				if (world.locked()) {
+					GAIA_ASSERT2(false, "Trying to move an entity while the world is locked");
+					GAIA_LOG_W("Trying to move an entity [%u:%u] while the world is locked", entity.id(), entity.gen());
+					print_archetype_entities(world, archetype, entity, false);
 				}
 			}
 #endif
@@ -30295,8 +30307,8 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->locked() && "Entities can't be added while their chunk is being iterated "
-																 "(structural changes are forbidden during this time!)");
+						!locked() && "Entities can't be stored while the world is locked "
+												 "(structural changes are forbidden during this time!)");
 
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
@@ -30324,6 +30336,9 @@ namespace gaia {
 				const bool wasEnabled = !ec.dis;
 
 				auto& srcArchetype = *ec.pArchetype;
+#if GAIA_ASSERT_ENABLED
+				verify_move(*this, srcArchetype, entity);
+#endif
 
 				// Make sure the old entity becomes enabled now
 				srcArchetype.enable_entity(pSrcChunk, srcRow0, true, m_recs);
@@ -30360,7 +30375,7 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
-			Chunk* move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
+			void move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
 
@@ -30368,8 +30383,6 @@ namespace gaia {
 				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
-
-				return pDstChunk;
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
@@ -30995,7 +31008,14 @@ namespace gaia {
 
 		inline Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw) {
 			return world.expr_to_entity(args, exprRaw);
-		};
+		}
+
+		inline void lock(World& world) {
+			world.lock();
+		}
+		inline void unlock(World& world) {
+			world.unlock();
+		}
 	} // namespace ecs
 } // namespace gaia
 

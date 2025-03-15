@@ -37,6 +37,8 @@ namespace gaia {
 		const ComponentCacheItem& comp_cache_add(World& world);
 		bool is_base(const World& world, Entity entity);
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
+		void lock(World& world);
+		void unlock(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -737,18 +739,12 @@ namespace gaia {
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					auto* pChunk = batch.pChunk;
 
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(true);
-#endif
 					TIter it;
 					it.set_world(pWorld);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
 					it.set_chunk(pChunk);
 					func(it);
-#if GAIA_ASSERT_ENABLED
-					pChunk->lock(false);
-#endif
 				}
 
 				//! Execute the functor in batches
@@ -797,7 +793,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -847,7 +843,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -896,29 +892,22 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
 
-#if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
-
-						const auto& data = dataView[i];
-						GAIA_ASSERT(
-								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
-								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
-					}
-#endif
-
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
 						auto indices_view = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 						const auto& data = dataView[i];
+
+#if GAIA_ASSERT_ENABLED
+						GAIA_ASSERT(
+								// ... or no groupId is set...
+								queryInfo.data().groupIdSet == 0 ||
+								// ... or the groupId must match the requested one
+								data.groupId == queryInfo.data().groupIdSet);
+#endif
 
 						uint32_t chunkOffset = 0;
 						uint32_t itemsLeft = chunks.size();
@@ -1527,11 +1516,17 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
+					lock(*m_storage.world());
+
 					each_inter<QueryExecType::Default, Func>(func);
+
+					unlock(*m_storage.world());
 				}
 
 				template <typename Func>
 				void each(Func func, QueryExecType execType) {
+					lock(*m_storage.world());
+
 					switch (execType) {
 						case QueryExecType::Parallel:
 							each_inter<QueryExecType::Parallel, Func>(func);
@@ -1546,6 +1541,8 @@ namespace gaia {
 							each_inter<QueryExecType::Default, Func>(func);
 							break;
 					}
+
+					unlock(*m_storage.world());
 				}
 
 				//------------------------------------------------

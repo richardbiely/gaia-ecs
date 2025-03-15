@@ -816,10 +816,6 @@ namespace gaia {
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
 			void remove_entity(uint16_t row, EntityContainers& recs) {
-				GAIA_ASSERT(
-						!locked() && "Entities can't be removed while their chunk is being iterated "
-												 "(structural changes are forbidden during this time!)");
-
 				if GAIA_UNLIKELY (m_header.count == 0)
 					return;
 
@@ -894,9 +890,6 @@ namespace gaia {
 			//! \param enableEntity Enables or disabled the entity
 			//! \param entities Span of entity container records
 			void enable_entity(uint16_t row, bool enableEntity, EntityContainers& recs) {
-				GAIA_ASSERT(
-						!locked() && "Entities can't be enable while their chunk is being iterated "
-												 "(structural changes are forbidden during this time!)");
 				GAIA_ASSERT(row < m_header.count && "Entity chunk row out of bounds!");
 
 				if (enableEntity) {
@@ -1238,28 +1231,6 @@ namespace gaia {
 				--m_header.lifespanCountdown;
 				return dying();
 			}
-
-#if GAIA_ASSERT_ENABLED
-			//! If true locks the chunk for structural changed.
-			//! While locked, no new entities or component can be added or removed.
-			//! While locked, no entities can be enabled or disabled.
-			void lock([[maybe_unused]] bool value) {
-				// TODO: Rethink whether we really need this. Also, without making the variable
-				//       access atomic this won't be tread-safe.
-				// if (value) {
-				// 	GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
-				// 	++m_header.structuralChangesLocked;
-				// } else {
-				// 	GAIA_ASSERT(m_header.structuralChangesLocked > 0);
-				// 	--m_header.structuralChangesLocked;
-				// }
-			}
-
-			//! Checks if the chunk is locked for structural changes.
-			bool locked() const {
-				return m_header.structuralChangesLocked != 0;
-			}
-#endif
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool full() const {

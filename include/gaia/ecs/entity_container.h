@@ -76,6 +76,9 @@ namespace gaia {
 			//! Flags
 			uint16_t flags = 0;
 
+			//! Currently unused area
+			uint32_t unused = 0;
+
 			//! Archetype (stable address)
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in (stable address)
