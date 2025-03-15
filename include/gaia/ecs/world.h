@@ -24,6 +24,7 @@
 #include "archetype_graph.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
+#include "command_buffer_fwd.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
@@ -43,8 +44,8 @@ namespace gaia {
 		class SystemBuilder;
 		class World;
 
-		extern void lock(World& world);
-		extern void unlock(World& world);
+		void lock(World& world);
+		void unlock(World& world);
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -124,6 +125,8 @@ namespace gaia {
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
+			//! Command buffer for commands executed from a locked world
+			CommandBuffer* m_pCmdBuffer;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
@@ -758,11 +761,13 @@ namespace gaia {
 			};
 
 			World() {
+				m_pCmdBuffer = cmd_buffer_create(*this);
 				init();
 			}
 
 			~World() {
 				done();
+				cmd_buffer_destroy(*m_pCmdBuffer);
 			}
 
 			World(World&&) = delete;
@@ -1853,6 +1858,12 @@ namespace gaia {
 				}
 
 				return false;
+			}
+
+			//----------------------------------------------------------------------
+
+			CommandBuffer& cmd_buffer() const {
+				return *m_pCmdBuffer;
 			}
 
 			//----------------------------------------------------------------------
@@ -4323,6 +4334,16 @@ namespace gaia {
 		}
 		GAIA_NODISCARD inline bool locked(const World& world) {
 			return world.locked();
+		}
+
+		GAIA_NODISCARD inline CommandBuffer& cmd_buffer(World& world) {
+			return world.cmd_buffer();
+		}
+
+		inline void commit_cmd_buffer(World& world) {
+			if (world.locked())
+				return;
+			cmd_buffer_commit(world.cmd_buffer());
 		}
 	} // namespace ecs
 } // namespace gaia

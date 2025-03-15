@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "../core/iterator.h"
 #include "../mem/data_layout_policy.h"
 #include "archetype.h"
 #include "chunk.h"
@@ -17,9 +16,11 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		class CommandBuffer;
 
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
+		CommandBuffer& cmd_buffer(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -82,6 +83,10 @@ namespace gaia {
 
 				GAIA_NODISCARD GroupId group_id() const {
 					return m_groupId;
+				}
+
+				GAIA_NODISCARD CommandBuffer& cmd_buffer() const {
+					return cmd_buffer();
 				}
 
 				//! Returns a read-only entity or component view.

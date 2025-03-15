@@ -39,6 +39,7 @@ namespace gaia {
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 		void lock(World& world);
 		void unlock(World& world);
+		void commit_cmd_buffer(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -792,6 +793,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 
+					lock(*m_storage.world());
+
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -832,6 +835,9 @@ namespace gaia {
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -865,6 +871,8 @@ namespace gaia {
 					if (m_batches.empty())
 						return;
 
+					lock(*m_storage.world());
+
 					mt::JobParallel j;
 
 					// Use efficiency cores for low-level priority jobs
@@ -880,6 +888,9 @@ namespace gaia {
 					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
@@ -891,6 +902,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
+
+					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
@@ -941,6 +954,9 @@ namespace gaia {
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -993,6 +1009,8 @@ namespace gaia {
 					if (m_batches.empty())
 						return;
 
+					lock(*m_storage.world());
+
 					mt::JobParallel j;
 
 					// Use efficiency cores for low-level priority jobs
@@ -1008,6 +1026,9 @@ namespace gaia {
 					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>

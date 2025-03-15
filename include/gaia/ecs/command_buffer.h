@@ -8,6 +8,7 @@
 #include "../cnt/sarray_ext.h"
 #include "../ser/serialization.h"
 #include "archetype.h"
+#include "command_buffer_fwd.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
@@ -232,7 +233,7 @@ namespace gaia {
 			}
 
 		public:
-			CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
+			explicit CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;
@@ -474,5 +475,15 @@ namespace gaia {
 				m_ctx.reset();
 			} // namespace ecs
 		};
+
+		inline CommandBuffer* cmd_buffer_create(World& world) {
+			return new CommandBuffer(world);
+		}
+		inline void cmd_buffer_destroy(CommandBuffer& cmdBuffer) {
+			delete &cmdBuffer;
+		}
+		inline void cmd_buffer_commit(CommandBuffer& cmdBuffer) {
+			cmdBuffer.commit();
+		}
 	} // namespace ecs
 } // namespace gaia

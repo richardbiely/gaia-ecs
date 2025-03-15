@@ -22918,9 +22918,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		class CommandBuffer;
 
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
+		CommandBuffer& cmd_buffer(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -22983,6 +22985,10 @@ namespace gaia {
 
 				GAIA_NODISCARD GroupId group_id() const {
 					return m_groupId;
+				}
+
+				GAIA_NODISCARD CommandBuffer& cmd_buffer() const {
+					return cmd_buffer();
 				}
 
 				//! Returns a read-only entity or component view.
@@ -23189,6 +23195,23 @@ namespace gaia {
 
 #include <cstdint>
 #include <type_traits>
+
+
+/*** Start of inlined file: command_buffer_fwd.h ***/
+#pragma once
+
+namespace gaia {
+	namespace ecs {
+		class World;
+		class CommandBuffer;
+
+		CommandBuffer* cmd_buffer_create(World& world);
+		void cmd_buffer_destroy(CommandBuffer& cmdBuffer);
+		void cmd_buffer_commit(CommandBuffer& cmdBuffer);
+	} // namespace ecs
+} // namespace gaia
+
+/*** End of inlined file: command_buffer_fwd.h ***/
 
 
 /*** Start of inlined file: world.h ***/
@@ -25095,6 +25118,7 @@ namespace gaia {
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 		void lock(World& world);
 		void unlock(World& world);
+		void commit_cmd_buffer(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -25848,6 +25872,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 
+					lock(*m_storage.world());
+
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -25888,6 +25914,9 @@ namespace gaia {
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -25921,6 +25950,8 @@ namespace gaia {
 					if (m_batches.empty())
 						return;
 
+					lock(*m_storage.world());
+
 					mt::JobParallel j;
 
 					// Use efficiency cores for low-level priority jobs
@@ -25936,6 +25967,9 @@ namespace gaia {
 					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
@@ -25947,6 +25981,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
+
+					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
@@ -25997,6 +26033,9 @@ namespace gaia {
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -26049,6 +26088,8 @@ namespace gaia {
 					if (m_batches.empty())
 						return;
 
+					lock(*m_storage.world());
+
 					mt::JobParallel j;
 
 					// Use efficiency cores for low-level priority jobs
@@ -26064,6 +26105,9 @@ namespace gaia {
 					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer(*m_storage.world());
 				}
 
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
@@ -26740,8 +26784,8 @@ namespace gaia {
 		class SystemBuilder;
 		class World;
 
-		extern void lock(World& world);
-		extern void unlock(World& world);
+		void lock(World& world);
+		void unlock(World& world);
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -26821,6 +26865,8 @@ namespace gaia {
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
+			//! Command buffer for commands executed from a locked world
+			CommandBuffer* m_pCmdBuffer;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
@@ -27455,11 +27501,13 @@ namespace gaia {
 			};
 
 			World() {
+				m_pCmdBuffer = cmd_buffer_create(*this);
 				init();
 			}
 
 			~World() {
 				done();
+				cmd_buffer_destroy(*m_pCmdBuffer);
 			}
 
 			World(World&&) = delete;
@@ -28550,6 +28598,12 @@ namespace gaia {
 				}
 
 				return false;
+			}
+
+			//----------------------------------------------------------------------
+
+			CommandBuffer& cmd_buffer() const {
+				return *m_pCmdBuffer;
 			}
 
 			//----------------------------------------------------------------------
@@ -31021,6 +31075,16 @@ namespace gaia {
 		GAIA_NODISCARD inline bool locked(const World& world) {
 			return world.locked();
 		}
+
+		GAIA_NODISCARD inline CommandBuffer& cmd_buffer(World& world) {
+			return world.cmd_buffer();
+		}
+
+		inline void commit_cmd_buffer(World& world) {
+			if (world.locked())
+				return;
+			cmd_buffer_commit(world.cmd_buffer());
+		}
 	} // namespace ecs
 } // namespace gaia
 
@@ -31727,7 +31791,7 @@ namespace gaia {
 			}
 
 		public:
-			CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
+			explicit CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;
@@ -31969,6 +32033,16 @@ namespace gaia {
 				m_ctx.reset();
 			} // namespace ecs
 		};
+
+		inline CommandBuffer* cmd_buffer_create(World& world) {
+			return new CommandBuffer(world);
+		}
+		inline void cmd_buffer_destroy(CommandBuffer& cmdBuffer) {
+			delete &cmdBuffer;
+		}
+		inline void cmd_buffer_commit(CommandBuffer& cmdBuffer) {
+			cmdBuffer.commit();
+		}
 	} // namespace ecs
 } // namespace gaia
 
