@@ -30,10 +30,10 @@ namespace gaia {
 		class CommandBuffer final {
 			struct CommandBufferCtx: SerializationBuffer {
 				ecs::World& world;
-				uint32_t entities;
 				cnt::map<uint32_t, Entity> entityMap;
+				uint32_t entities = 0;
 
-				CommandBufferCtx(ecs::World& w): world(w), entities(0) {}
+				CommandBufferCtx(ecs::World& w): world(w) {}
 
 				using SerializationBuffer::reset;
 				void reset() {
@@ -217,7 +217,7 @@ namespace gaia {
 			friend class World;
 
 			CommandBufferCtx m_ctx;
-			uint32_t m_entities;
+			uint32_t m_entities = 0;
 
 			//! Requests a new entity to be created from archetype
 			//! \return Entity that will be created. The id is not usable right away. It
@@ -233,7 +233,7 @@ namespace gaia {
 			}
 
 		public:
-			explicit CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
+			explicit CommandBuffer(World& world): m_ctx(world) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;

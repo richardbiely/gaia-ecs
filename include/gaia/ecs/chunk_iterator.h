@@ -20,7 +20,7 @@ namespace gaia {
 
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
-		CommandBuffer& cmd_buffer(World& world);
+		CommandBuffer& cmd_buffer_get(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -86,7 +86,8 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD CommandBuffer& cmd_buffer() const {
-					return cmd_buffer();
+					auto* pWorld = const_cast<World*>(m_pWorld);
+					return cmd_buffer_get(*pWorld);
 				}
 
 				//! Returns a read-only entity or component view.

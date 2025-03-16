@@ -4336,7 +4336,7 @@ namespace gaia {
 			return world.locked();
 		}
 
-		GAIA_NODISCARD inline CommandBuffer& cmd_buffer(World& world) {
+		GAIA_NODISCARD inline CommandBuffer& cmd_buffer_get(World& world) {
 			return world.cmd_buffer();
 		}
 
