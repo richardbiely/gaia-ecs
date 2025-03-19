@@ -26792,8 +26792,6 @@ namespace gaia {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
 			friend class CommandBuffer;
-			friend void* AllocateChunkMemory(World& world);
-			friend void ReleaseChunkMemory(World& world, void* mem);
 			friend void lock(World&);
 			friend void unlock(World&);
 
@@ -29168,7 +29166,7 @@ namespace gaia {
 				if (maxEntities == 0)
 					return;
 
-				auto& chunks = archetype.chunks();
+				const auto& chunks = archetype.chunks();
 				if (chunks.size() < 2)
 					return;
 
