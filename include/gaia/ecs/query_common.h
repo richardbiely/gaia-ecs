@@ -417,7 +417,7 @@ namespace gaia {
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
 		}
 
-		//! Located the index at which the provided component id is located in the component array
+		//! Finds the index at which the provided component id is located in the component array
 		//! \param pComps Pointer to the start of the component array
 		//! \param entity Entity we search for
 		//! \return Index of the component id in the array

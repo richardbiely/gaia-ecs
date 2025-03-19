@@ -20648,6 +20648,51 @@ namespace gaia {
 				return sview_mut<T>(0, m_header.count);
 			}
 
+			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+			//! an update at user's whim.
+			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			template <typename T, bool TriggerHooks>
+			GAIA_FORCEINLINE void modify() {
+				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "mod can't be used to modify Entity");
+
+				if constexpr (is_pair<T>::value) {
+					using TT = typename T::type;
+					using U = typename component_type_t<TT>::Type;
+					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
+
+					constexpr auto kind = entity_kind_v<TT>;
+					const auto rel = m_header.cc->get<typename T::rel>().entity;
+					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
+					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
+
+					// Update version number if necessary so we know RW access was used on the chunk
+					update_world_version(compIdx);
+
+					if constexpr (TriggerHooks) {
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
+				} else {
+					using U = typename component_type_t<T>::Type;
+					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
+
+					constexpr auto kind = entity_kind_v<T>;
+					const auto comp = m_header.cc->get<T>().entity;
+					GAIA_ASSERT(comp.kind() == kind);
+					const auto compIdx = comp_idx(comp);
+
+					// Update version number if necessary so we know RW access was used on the chunk
+					update_world_version(compIdx);
+
+					if constexpr (TriggerHooks) {
+						const auto& rec = m_records.pRecords[compIdx];
+						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+					}
+				}
+			}
+
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
@@ -22894,7 +22939,7 @@ namespace gaia {
 			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
 		}
 
-		//! Located the index at which the provided component id is located in the component array
+		//! Finds the index at which the provided component id is located in the component array
 		//! \param pComps Pointer to the start of the component array
 		//! \param entity Entity we search for
 		//! \return Index of the component id in the array
@@ -23068,6 +23113,14 @@ namespace gaia {
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
 						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
+				}
+
+				//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+				//! an update at user's whim.
+				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+				template <typename T, bool TriggerHooks>
+				void modify() {
+					m_pChunk->modify<T, TriggerHooks>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -27949,6 +28002,19 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
+			//! to manually trigger an update at user's whim.
+			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			template <typename T, bool TriggerHooks>
+			void modify(Entity entity) {
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+				ec.pChunk->template modify<T, TriggerHooks>();
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Starts a bulk set operation on \param entity.
 			//! \param entity Entity
 			//! \return ComponentSetter
@@ -27983,6 +28049,20 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).smut<T>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				return acc_mut(entity).mut<T>();
 			}
 
 			//----------------------------------------------------------------------

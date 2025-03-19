@@ -1208,6 +1208,19 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
+			//! to manually trigger an update at user's whim.
+			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			template <typename T, bool TriggerHooks>
+			void modify(Entity entity) {
+				GAIA_ASSERT(valid(entity));
+
+				auto& ec = m_recs.entities[entity.id()];
+				ec.pChunk->template modify<T, TriggerHooks>();
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Starts a bulk set operation on \param entity.
 			//! \param entity Entity
 			//! \return ComponentSetter
@@ -1242,6 +1255,20 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).smut<T>();
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				return acc_mut(entity).mut<T>();
 			}
 
 			//----------------------------------------------------------------------

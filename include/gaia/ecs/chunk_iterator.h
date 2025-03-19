@@ -168,6 +168,14 @@ namespace gaia {
 					}
 				}
 
+				//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+				//! an update at user's whim.
+				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+				template <typename T, bool TriggerHooks>
+				void modify() {
+					m_pChunk->modify<T, TriggerHooks>();
+				}
+
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
 				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
