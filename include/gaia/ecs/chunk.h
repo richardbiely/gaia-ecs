@@ -506,7 +506,9 @@ namespace gaia {
 					using U = typename component_type_t<TT>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
 
-					constexpr auto kind = entity_kind_v<TT>;
+#if GAIA_ASSERT_ENABLED
+					// constexpr auto kind = entity_kind_v<TT>;
+#endif
 					const auto rel = m_header.cc->get<typename T::rel>().entity;
 					const auto tgt = m_header.cc->get<typename T::tgt>().entity;
 					const auto compIdx = comp_idx((Entity)Pair(rel, tgt));
@@ -523,7 +525,9 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
 
+#if GAIA_ASSERT_ENABLED
 					constexpr auto kind = entity_kind_v<T>;
+#endif
 					const auto comp = m_header.cc->get<T>().entity;
 					GAIA_ASSERT(comp.kind() == kind);
 					const auto compIdx = comp_idx(comp);
