@@ -23,7 +23,7 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [language]: https://en.wikipedia.org/wiki/C%2B%2B17
 [actions]: https://github.com/richardbiely/gaia-ecs/actions
-[discord]: https://discord.gg/YdWV84GG
+[discord]: https://discord.gg/wJjK72yze2
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 [sponsors]: https://github.com/sponsors/richardbiely
 
