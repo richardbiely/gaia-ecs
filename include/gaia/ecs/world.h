@@ -348,6 +348,7 @@ namespace gaia {
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_add_hooks() {
+#if GAIA_ENABLE_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_new_comps) {
@@ -359,11 +360,13 @@ namespace gaia {
 					tl_new_comps.clear();
 
 					m_world.unlock();
+#endif
 				}
 
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_del_hooks() {
+#if GAIA_ENABLE_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_del_comps) {
@@ -375,6 +378,7 @@ namespace gaia {
 					tl_del_comps.clear();
 
 					m_world.unlock();
+#endif
 				}
 
 				bool handle_add_entity(Entity entity) {
@@ -1211,12 +1215,24 @@ namespace gaia {
 			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
-			template <typename T, bool TriggerHooks>
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerHooks
+#endif
+					>
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
 				auto& ec = m_recs.entities[entity.id()];
-				ec.pChunk->template modify<T, TriggerHooks>();
+				ec.pChunk->template modify<
+						T
+#if GAIA_ENABLE_HOOKS
+						,
+						TriggerHooks
+#endif
+						>();
 			}
 
 			//----------------------------------------------------------------------

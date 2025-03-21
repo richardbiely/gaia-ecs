@@ -224,9 +224,11 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
 					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -254,9 +256,11 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
 					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -497,7 +501,13 @@ namespace gaia {
 			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
-			template <typename T, bool TriggerHooks>
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerHooks
+#endif
+					>
 			GAIA_FORCEINLINE void modify() {
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "mod can't be used to modify Entity");
 
@@ -516,11 +526,13 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
 					}
+#endif
 				} else {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
@@ -535,11 +547,13 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
 					}
+#endif
 				}
 			}
 

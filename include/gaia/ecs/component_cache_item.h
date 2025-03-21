@@ -59,6 +59,7 @@ namespace gaia {
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp{};
 
+#if GAIA_ENABLE_HOOKS
 			struct Hooks {
 				//! Function to call whenever a component is added to an entity
 				FuncOnAdd* func_add{};
@@ -68,6 +69,7 @@ namespace gaia {
 				FuncOnSet* func_set{};
 			};
 			Hooks comp_hooks;
+#endif
 
 		private:
 			ComponentCacheItem() = default;
@@ -119,6 +121,8 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
+#if GAIA_ENABLE_HOOKS
+
 			Hooks& hooks() {
 				return comp_hooks;
 			}
@@ -126,6 +130,8 @@ namespace gaia {
 			const Hooks& hooks() const {
 				return comp_hooks;
 			}
+
+#endif
 
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
 				if (comp.soa() == 0) {

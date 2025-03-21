@@ -707,12 +707,21 @@ namespace gaia {
 	#define GAIA_USE_PREFETCH 1
 #endif
 
+//! If enabled, systems as entities are enabled
 #ifndef GAIA_SYSTEMS_ENABLED
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
+//! is always the same. Blocks of fixed size and stable memory address  are allocated for entity records.
 #ifndef GAIA_USE_PAGED_ENTITY_CONTAINER
 	#define GAIA_USE_PAGED_ENTITY_CONTAINER 1
+#endif
+
+//! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
+//! an entity, they can be triggered. Set hooks for when component value is changed are possible, too.
+#ifndef GAIA_ENABLE_HOOKS
+	#define GAIA_ENABLE_HOOKS 1
 #endif
 
 //------------------------------------------------------------------------------
@@ -19605,6 +19614,7 @@ namespace gaia {
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp{};
 
+#if GAIA_ENABLE_HOOKS
 			struct Hooks {
 				//! Function to call whenever a component is added to an entity
 				FuncOnAdd* func_add{};
@@ -19614,6 +19624,7 @@ namespace gaia {
 				FuncOnSet* func_set{};
 			};
 			Hooks comp_hooks;
+#endif
 
 		private:
 			ComponentCacheItem() = default;
@@ -19665,6 +19676,8 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
+#if GAIA_ENABLE_HOOKS
+
 			Hooks& hooks() {
 				return comp_hooks;
 			}
@@ -19672,6 +19685,8 @@ namespace gaia {
 			const Hooks& hooks() const {
 				return comp_hooks;
 			}
+
+#endif
 
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
 				if (comp.soa() == 0) {
@@ -19989,12 +20004,16 @@ namespace gaia {
 				return get(compDescId);
 			}
 
+#if GAIA_ENABLE_HOOKS
+
 			//! Gives access to hooks that can be defined for a given component.
 			//! \param cacheItem Cache item of a component.
 			//! \return Reference to component hooks.
 			static ComponentCacheItem::Hooks& hooks(const ComponentCacheItem& cacheItem) noexcept {
 				return const_cast<ComponentCacheItem&>(cacheItem).hooks();
 			}
+
+#endif
 
 			void diag() const {
 				const auto registeredTypes = m_itemArr.size();
@@ -20378,9 +20397,11 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
 					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -20408,9 +20429,11 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
 					}
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -20651,7 +20674,13 @@ namespace gaia {
 			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
-			template <typename T, bool TriggerHooks>
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerHooks
+#endif
+					>
 			GAIA_FORCEINLINE void modify() {
 				static_assert(!std::is_same_v<core::raw_t<T>, Entity>, "mod can't be used to modify Entity");
 
@@ -20670,11 +20699,13 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
 					}
+#endif
 				} else {
 					using U = typename component_type_t<T>::Type;
 					static_assert(!std::is_empty_v<U>, "mut can't be used to modify tag components");
@@ -20689,11 +20720,13 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
+#if GAIA_ENABLE_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
 					}
+#endif
 				}
 			}
 
@@ -27146,6 +27179,7 @@ namespace gaia {
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_add_hooks() {
+#if GAIA_ENABLE_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_new_comps) {
@@ -27157,11 +27191,13 @@ namespace gaia {
 					tl_new_comps.clear();
 
 					m_world.unlock();
+#endif
 				}
 
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_del_hooks() {
+#if GAIA_ENABLE_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_del_comps) {
@@ -27173,6 +27209,7 @@ namespace gaia {
 					tl_del_comps.clear();
 
 					m_world.unlock();
+#endif
 				}
 
 				bool handle_add_entity(Entity entity) {
@@ -28009,12 +28046,24 @@ namespace gaia {
 			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
-			template <typename T, bool TriggerHooks>
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerHooks
+#endif
+					>
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
 				auto& ec = m_recs.entities[entity.id()];
-				ec.pChunk->template modify<T, TriggerHooks>();
+				ec.pChunk->template modify<
+						T
+#if GAIA_ENABLE_HOOKS
+						,
+						TriggerHooks
+#endif
+						>();
 			}
 
 			//----------------------------------------------------------------------

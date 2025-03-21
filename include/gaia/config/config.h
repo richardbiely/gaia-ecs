@@ -38,12 +38,21 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
+//! If enabled, systems as entities are enabled
 #ifndef GAIA_SYSTEMS_ENABLED
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
+//! is always the same. Blocks of fixed size and stable memory address  are allocated for entity records.
 #ifndef GAIA_USE_PAGED_ENTITY_CONTAINER
 	#define GAIA_USE_PAGED_ENTITY_CONTAINER 1
+#endif
+
+//! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
+//! an entity, they can be triggered. Set hooks for when component value is changed are possible, too.
+#ifndef GAIA_ENABLE_HOOKS
+	#define GAIA_ENABLE_HOOKS 1
 #endif
 
 //------------------------------------------------------------------------------
