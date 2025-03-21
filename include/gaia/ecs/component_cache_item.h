@@ -65,8 +65,10 @@ namespace gaia {
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+	#if GAIA_ENABLE_SET_HOOKS
 				//! Function to call whenever a component is accessed for modification
 				FuncOnSet* func_set{};
+	#endif
 			};
 			Hooks comp_hooks;
 #endif

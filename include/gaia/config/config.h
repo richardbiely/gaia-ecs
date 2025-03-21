@@ -54,6 +54,7 @@
 #ifndef GAIA_ENABLE_HOOKS
 	#define GAIA_ENABLE_HOOKS 1
 #endif
+#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
 
 //------------------------------------------------------------------------------
 

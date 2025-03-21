@@ -224,7 +224,7 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -256,7 +256,7 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -526,7 +526,7 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
@@ -547,7 +547,7 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)

@@ -723,6 +723,7 @@ namespace gaia {
 #ifndef GAIA_ENABLE_HOOKS
 	#define GAIA_ENABLE_HOOKS 1
 #endif
+#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
 
 //------------------------------------------------------------------------------
 
@@ -19620,8 +19621,10 @@ namespace gaia {
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+	#if GAIA_ENABLE_SET_HOOKS
 				//! Function to call whenever a component is accessed for modification
 				FuncOnSet* func_set{};
+	#endif
 			};
 			Hooks comp_hooks;
 #endif
@@ -20397,7 +20400,7 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -20429,7 +20432,7 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted) {
 						update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -20699,7 +20702,7 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
@@ -20720,7 +20723,7 @@ namespace gaia {
 					// Update version number if necessary so we know RW access was used on the chunk
 					update_world_version(compIdx);
 
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_SET_HOOKS
 					if constexpr (TriggerHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
