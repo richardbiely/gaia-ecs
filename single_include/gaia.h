@@ -29215,8 +29215,8 @@ namespace gaia {
 				for (uint32_t i = 0; i < m_archetypesToDel.size();) {
 					auto* pArchetype = m_archetypesToDel[i];
 
-					// Skip reclaimed archetypes or archetypes than became immortal
-					if (!pArchetype->empty() || pArchetype->max_lifespan()==0) {
+					// Skip reclaimed archetypes or archetypes that became immortal
+					if (!pArchetype->empty() || pArchetype->max_lifespan() == 0) {
 						revive_archetype(*pArchetype);
 						core::swap_erase(m_archetypesToDel, i);
 						continue;
