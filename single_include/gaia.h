@@ -22218,7 +22218,6 @@ namespace gaia {
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(uint32_t lifespan) {
-				GAIA_ASSERT(lifespan > 0);
 				GAIA_ASSERT(lifespan <= MAX_ARCHETYPE_LIFESPAN);
 
 				m_lifespanCountdownMax = lifespan;
@@ -23024,6 +23023,8 @@ namespace gaia {
 
 				//! World pointer
 				const World* m_pWorld = nullptr;
+				//! Currently iterated archetype
+				Archetype* m_pArchetype = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -23044,14 +23045,29 @@ namespace gaia {
 					m_pWorld = pWorld;
 				}
 
-				World* world() {
+				GAIA_NODISCARD World* world() {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return const_cast<World*>(m_pWorld);
 				}
 
-				const World* world() const {
+				GAIA_NODISCARD const World* world() const {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return m_pWorld;
+				}
+
+				void set_archetype(Archetype* pArchetype) {
+					GAIA_ASSERT(pArchetype != nullptr);
+					m_pArchetype = pArchetype;
+				}
+
+				GAIA_NODISCARD Archetype* archetype() {
+					GAIA_ASSERT(m_pArchetype != nullptr);
+					return m_pArchetype;
+				}
+
+				GAIA_NODISCARD const Archetype* archetype() const {
+					GAIA_ASSERT(m_pArchetype != nullptr);
+					return m_pArchetype;
 				}
 
 				void set_chunk(Chunk* pChunk) {
@@ -23059,7 +23075,7 @@ namespace gaia {
 					m_pChunk = pChunk;
 				}
 
-				const Chunk* chunk() const {
+				GAIA_NODISCARD const Chunk* chunk() const {
 					GAIA_ASSERT(m_pChunk != nullptr);
 					return m_pChunk;
 				}
@@ -25552,6 +25568,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 32;
 
 				struct ChunkBatch {
+					Archetype* pArchetype;
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
 					GroupId groupId;
@@ -25915,13 +25932,12 @@ namespace gaia {
 				//! Execute the functor for a given chunk batch
 				template <typename Func, typename TIter>
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
-					auto* pChunk = batch.pChunk;
-
 					TIter it;
 					it.set_world(pWorld);
+					it.set_archetype(batch.pArchetype);
+					it.set_chunk(batch.pChunk);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
-					it.set_chunk(pChunk);
 					func(it);
 				}
 
@@ -25973,7 +25989,7 @@ namespace gaia {
 					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const auto* pArchetype = cacheView[i];
+						auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -25996,7 +26012,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pChunk, indices_view.data(), 0});
+								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -26026,7 +26042,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const auto* pArchetype = cacheView[i];
+						auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -26041,7 +26057,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pChunk, indices_view.data(), 0});
+							m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0});
 						}
 					}
 
@@ -26083,7 +26099,7 @@ namespace gaia {
 					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const auto* pArchetype = cacheView[i];
+						auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -26115,7 +26131,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pChunk, indices_view.data(), data.groupId});
+								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -26163,7 +26179,7 @@ namespace gaia {
 #endif
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						const Archetype* pArchetype = cacheView[i];
+						Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -26179,7 +26195,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pChunk, indices_view.data(), data.groupId});
+							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId});
 						}
 					}
 
@@ -26358,7 +26374,7 @@ namespace gaia {
 
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
-					for (const auto* pArchetype: queryInfo) {
+					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -26367,6 +26383,7 @@ namespace gaia {
 						const auto& chunks = pArchetype->chunks();
 						TIter it;
 						it.set_world(queryInfo.world());
+						it.set_archetype(pArchetype);
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
@@ -26394,6 +26411,8 @@ namespace gaia {
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
+
+						it.set_archetype(pArchetype);
 
 						// No mapping for count(). It doesn't need to access data cache.
 						// auto indices_view = queryInfo.indices_mapping_view(aid);
@@ -26431,6 +26450,8 @@ namespace gaia {
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
+
+						it.set_archetype(pArchetype);
 
 						// No mapping for arr(). It doesn't need to access data cache.
 						// auto indices_view = queryInfo.indices_mapping_view(aid);
@@ -29235,7 +29256,7 @@ namespace gaia {
 			}
 
 			void try_enqueue_archetype_for_deletion(Archetype& archetype) {
-				if (archetype.dying() || !archetype.empty())
+				if (!archetype.ready_to_die())
 					return;
 
 				// When the chunk is emptied we want it to be removed. We can't do it

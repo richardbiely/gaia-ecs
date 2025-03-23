@@ -2397,7 +2397,7 @@ namespace gaia {
 			}
 
 			void try_enqueue_archetype_for_deletion(Archetype& archetype) {
-				if (archetype.dying() || !archetype.empty())
+				if (!archetype.ready_to_die())
 					return;
 
 				// When the chunk is emptied we want it to be removed. We can't do it

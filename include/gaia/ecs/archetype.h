@@ -690,7 +690,6 @@ namespace gaia {
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(uint32_t lifespan) {
-				GAIA_ASSERT(lifespan > 0);
 				GAIA_ASSERT(lifespan <= MAX_ARCHETYPE_LIFESPAN);
 
 				m_lifespanCountdownMax = lifespan;
