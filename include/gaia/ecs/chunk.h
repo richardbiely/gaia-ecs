@@ -30,13 +30,12 @@ namespace gaia {
 			using ComponentArray = cnt::sarray_ext<Component, ChunkHeader::MAX_COMPONENTS>;
 			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, ChunkHeader::MAX_COMPONENTS>;
 
-			// TODO: Make this private
+		private:
 			//! Chunk header
 			ChunkHeader m_header;
 			//! Pointers to various parts of data inside chunk
 			ChunkRecords m_records;
 
-		private:
 			//! Pointer to where the chunk data starts.
 			//! Data laid out as following:
 			//!			1) ComponentVersions
@@ -1330,6 +1329,11 @@ namespace gaia {
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint16_t capacity() const {
 				return m_header.capacity;
+			}
+
+			//! Returns the total number of generic entities/components in the chunk
+			GAIA_NODISCARD uint8_t size_generic() const {
+				return m_header.genEntities;
 			}
 
 			//! Returns the number of bytes the chunk spans over

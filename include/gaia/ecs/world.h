@@ -1092,7 +1092,7 @@ namespace gaia {
 							auto srcRecs = pSrcChunk->comp_rec_view();
 
 							// Copy generic component data from reference entity to our new entity
-							GAIA_FOR(pSrcChunk->m_header.genEntities) {
+							GAIA_FOR(pSrcChunk->size_generic() > 0) {
 								const auto& rec = srcRecs[i];
 								if (rec.comp.size() == 0U)
 									continue;
@@ -2495,7 +2495,7 @@ namespace gaia {
 					pSrcChunk = chunks[back];
 
 					const uint32_t entitiesInSrcChunk = pSrcChunk->size();
-					const uint32_t spaceInDstChunk = pDstChunk->m_header.capacity - pDstChunk->size();
+					const uint32_t spaceInDstChunk = pDstChunk->capacity() - pDstChunk->size();
 					const uint32_t entitiesToMoveSrc = core::get_min(entitiesInSrcChunk, maxEntities);
 					const uint32_t entitiesToMove = core::get_min(entitiesToMoveSrc, spaceInDstChunk);
 
