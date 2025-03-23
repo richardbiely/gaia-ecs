@@ -33,6 +33,8 @@ namespace gaia {
 
 				//! World pointer
 				const World* m_pWorld = nullptr;
+				//! Currently iterated archetype
+				Archetype* m_pArchetype = nullptr;
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
@@ -53,14 +55,29 @@ namespace gaia {
 					m_pWorld = pWorld;
 				}
 
-				World* world() {
+				GAIA_NODISCARD World* world() {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return const_cast<World*>(m_pWorld);
 				}
 
-				const World* world() const {
+				GAIA_NODISCARD const World* world() const {
 					GAIA_ASSERT(m_pWorld != nullptr);
 					return m_pWorld;
+				}
+
+				void set_archetype(Archetype* pArchetype) {
+					GAIA_ASSERT(pArchetype != nullptr);
+					m_pArchetype = pArchetype;
+				}
+
+				GAIA_NODISCARD Archetype* archetype() {
+					GAIA_ASSERT(m_pArchetype != nullptr);
+					return m_pArchetype;
+				}
+
+				GAIA_NODISCARD const Archetype* archetype() const {
+					GAIA_ASSERT(m_pArchetype != nullptr);
+					return m_pArchetype;
 				}
 
 				void set_chunk(Chunk* pChunk) {
@@ -68,7 +85,7 @@ namespace gaia {
 					m_pChunk = pChunk;
 				}
 
-				const Chunk* chunk() const {
+				GAIA_NODISCARD const Chunk* chunk() const {
 					GAIA_ASSERT(m_pChunk != nullptr);
 					return m_pChunk;
 				}
