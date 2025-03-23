@@ -1996,7 +1996,13 @@ namespace gaia {
 					return;
 
 				auto& ec = fetch(entity);
+				const auto prevLifespan = ec.pArchetype->max_lifespan();
 				ec.pArchetype->set_max_lifespan(lifespan);
+
+				if (prevLifespan == 0) {
+					// The archetype used to be immortal but not anymore
+					try_enqueue_archetype_for_deletion(*ec.pArchetype);
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -2343,8 +2349,8 @@ namespace gaia {
 				for (uint32_t i = 0; i < m_archetypesToDel.size();) {
 					auto* pArchetype = m_archetypesToDel[i];
 
-					// Skip reclaimed archetypes
-					if (!pArchetype->empty()) {
+					// Skip reclaimed archetypes or archetypes that became immortal
+					if (!pArchetype->empty() || pArchetype->max_lifespan() == 0) {
 						revive_archetype(*pArchetype);
 						core::swap_erase(m_archetypesToDel, i);
 						continue;

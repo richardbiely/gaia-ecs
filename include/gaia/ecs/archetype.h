@@ -695,6 +695,12 @@ namespace gaia {
 				m_lifespanCountdownMax = lifespan;
 			}
 
+			//! Returns the maximal lifespan of the archetype.
+			//! If zero, the archetype it kept indefinitely.
+			GAIA_NODISCARD uint32_t max_lifespan() const {
+				return m_lifespanCountdownMax;
+			}
+
 			//! Checks is this chunk is dying
 			GAIA_NODISCARD bool dying() const {
 				return m_lifespanCountdown > 0;
@@ -727,6 +733,7 @@ namespace gaia {
 			//! \return True if there is some lifespan left, false otherwise.
 			GAIA_NODISCARD bool progress_death() {
 				GAIA_ASSERT(dying());
+				GAIA_ASSERT(m_lifespanCountdownMax > 0);
 				--m_lifespanCountdown;
 				return dying();
 			}
