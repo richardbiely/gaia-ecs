@@ -6,6 +6,7 @@
 
 #include "../cnt/map.h"
 #include "../cnt/sarray_ext.h"
+#include "../mt/spinlock.h"
 #include "../ser/serialization.h"
 #include "archetype.h"
 #include "command_buffer_fwd.h"
@@ -22,11 +23,29 @@ namespace gaia {
 			uint32_t id;
 		};
 
+		struct AccessContextST {
+			void lock() {}
+			void unlock() {}
+		};
+
+		struct AccessContextMT {
+			mt::SpinLock m_lock;
+
+			void lock() {
+				m_lock.lock();
+			}
+
+			void unlock() {
+				m_lock.unlock();
+			}
+		};
+
 		//! Buffer for deferred execution of some operations on entities.
 		//!
 		//! Adding and removing components and entities inside World::each or can result
 		//! in changes of archetypes or chunk structure. This would lead to undefined behavior.
 		//! Therefore, such operations have to be executed after the loop is done.
+		template <typename AccessContext>
 		class CommandBuffer final {
 			struct CommandBufferCtx: SerializationBuffer {
 				ecs::World& world;
@@ -216,6 +235,7 @@ namespace gaia {
 
 			friend class World;
 
+			AccessContext m_acc;
 			CommandBufferCtx m_ctx;
 			uint32_t m_entities = 0;
 
@@ -245,6 +265,8 @@ namespace gaia {
 			//! \return Entity that will be created. The id is not usable right away. It
 			//!         will be filled with proper data after commit().
 			GAIA_NODISCARD TempEntity add() {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(CREATE_ENTITY);
 
 				return {m_entities++};
@@ -254,6 +276,8 @@ namespace gaia {
 			//! \return Entity that will be created. The id is not usable right away. It
 			//!         will be filled with proper data after commit()
 			GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
 				CreateEntityFromEntityCmd cmd;
@@ -265,6 +289,8 @@ namespace gaia {
 
 			//! Requests an existing \param entity to be removed.
 			void del(Entity entity) {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(DELETE_ENTITY);
 
 				DeleteEntityCmd cmd;
@@ -276,6 +302,8 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -293,6 +321,8 @@ namespace gaia {
 			void add(TempEntity entity) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -308,6 +338,8 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -326,6 +358,8 @@ namespace gaia {
 			void add(TempEntity entity, T&& value) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -342,6 +376,8 @@ namespace gaia {
 			template <typename T>
 			void set(Entity entity, T&& value) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -360,6 +396,8 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -376,6 +414,8 @@ namespace gaia {
 			template <typename T>
 			void del(Entity entity) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -460,6 +500,8 @@ namespace gaia {
 		public:
 			//! Commits all queued changes.
 			void commit() {
+				core::lock_scope lock(m_acc);
+
 				if (m_ctx.empty())
 					return;
 
@@ -476,13 +518,26 @@ namespace gaia {
 			} // namespace ecs
 		};
 
-		inline CommandBuffer* cmd_buffer_create(World& world) {
-			return new CommandBuffer(world);
+		using CommandBufferST = CommandBuffer<AccessContextST>;
+		using CommandBufferMT = CommandBuffer<AccessContextMT>;
+
+		inline CommandBufferST* cmd_buffer_st_create(World& world) {
+			return new CommandBufferST(world);
 		}
-		inline void cmd_buffer_destroy(CommandBuffer& cmdBuffer) {
+		inline void cmd_buffer_destroy(CommandBufferST& cmdBuffer) {
 			delete &cmdBuffer;
 		}
-		inline void cmd_buffer_commit(CommandBuffer& cmdBuffer) {
+		inline void cmd_buffer_commit(CommandBufferST& cmdBuffer) {
+			cmdBuffer.commit();
+		}
+
+		inline CommandBufferMT* cmd_buffer_mt_create(World& world) {
+			return new CommandBufferMT(world);
+		}
+		inline void cmd_buffer_destroy(CommandBufferMT& cmdBuffer) {
+			delete &cmdBuffer;
+		}
+		inline void cmd_buffer_commit(CommandBufferMT& cmdBuffer) {
 			cmdBuffer.commit();
 		}
 	} // namespace ecs

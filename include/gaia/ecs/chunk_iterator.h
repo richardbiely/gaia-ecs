@@ -8,6 +8,7 @@
 #include "../mem/data_layout_policy.h"
 #include "archetype.h"
 #include "chunk.h"
+#include "command_buffer_fwd.h"
 #include "component.h"
 #include "component_cache_item.h"
 #include "id.h"
@@ -16,11 +17,11 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-		class CommandBuffer;
 
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
-		CommandBuffer& cmd_buffer_get(World& world);
+		CommandBufferST& cmd_buffer_st_get(World& world);
+		CommandBufferMT& cmd_buffer_mt_get(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -102,9 +103,14 @@ namespace gaia {
 					return m_groupId;
 				}
 
-				GAIA_NODISCARD CommandBuffer& cmd_buffer() const {
+				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);
-					return cmd_buffer_get(*pWorld);
+					return cmd_buffer_st_get(*pWorld);
+				}
+
+				GAIA_NODISCARD CommandBufferMT& cmd_buffer_mt() const {
+					auto* pWorld = const_cast<World*>(m_pWorld);
+					return cmd_buffer_mt_get(*pWorld);
 				}
 
 				//! Returns a read-only entity or component view.

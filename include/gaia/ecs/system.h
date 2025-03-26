@@ -13,17 +13,17 @@ namespace gaia {
 		};
 
 		class SystemManager final: public BaseSystemManager {
-			CommandBuffer m_beforeUpdateCmdBuffer;
-			CommandBuffer m_afterUpdateCmdBuffer;
+			CommandBufferST m_beforeUpdateCmdBuffer;
+			CommandBufferST m_afterUpdateCmdBuffer;
 
 		public:
 			SystemManager(World& world):
 					BaseSystemManager(world), m_beforeUpdateCmdBuffer(world), m_afterUpdateCmdBuffer(world) {}
 
-			CommandBuffer& BeforeUpdateCmdBuffer() {
+			CommandBufferST& BeforeUpdateCmdBuffer() {
 				return m_beforeUpdateCmdBuffer;
 			}
-			CommandBuffer& AfterUpdateCmdBuffer() {
+			CommandBufferST& AfterUpdateCmdBuffer() {
 				return m_afterUpdateCmdBuffer;
 			}
 

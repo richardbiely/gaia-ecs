@@ -100,6 +100,23 @@ namespace gaia {
 		template <class T>
 		const T* addressof(const T&&) = delete;
 
+		template <typename T>
+		struct lock_scope {
+			T& m_ctx;
+
+			lock_scope(T& ctx): m_ctx(ctx) {
+				ctx.lock();
+			}
+			~lock_scope() {
+				m_ctx.unlock();
+			}
+
+			lock_scope(const lock_scope&) = delete;
+			lock_scope& operator=(const lock_scope&) = delete;
+			lock_scope(lock_scope&&) = delete;
+			lock_scope& operator=(lock_scope&&) = delete;
+		};
+
 		//----------------------------------------------------------------------
 		// Container identification
 		//----------------------------------------------------------------------

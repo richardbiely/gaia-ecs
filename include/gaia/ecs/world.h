@@ -50,7 +50,8 @@ namespace gaia {
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
-			friend class CommandBuffer;
+			friend CommandBufferST;
+			friend CommandBufferMT;
 			friend void lock(World&);
 			friend void unlock(World&);
 
@@ -123,8 +124,10 @@ namespace gaia {
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
-			//! Command buffer for commands executed from a locked world
-			CommandBuffer* m_pCmdBuffer;
+			//! Command buffer for commands executed from a locked world. Not thread-safe
+			CommandBufferST* m_pCmdBufferST;
+			//! Command buffer for commands executed from a locked world. Thread-safe
+			CommandBufferMT* m_pCmdBufferMT;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
@@ -763,13 +766,15 @@ namespace gaia {
 			};
 
 			World() {
-				m_pCmdBuffer = cmd_buffer_create(*this);
+				m_pCmdBufferST = cmd_buffer_st_create(*this);
+				m_pCmdBufferMT = cmd_buffer_mt_create(*this);
 				init();
 			}
 
 			~World() {
 				done();
-				cmd_buffer_destroy(*m_pCmdBuffer);
+				cmd_buffer_destroy(*m_pCmdBufferST);
+				cmd_buffer_destroy(*m_pCmdBufferMT);
 			}
 
 			World(World&&) = delete;
@@ -1903,8 +1908,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			CommandBuffer& cmd_buffer() const {
-				return *m_pCmdBuffer;
+			CommandBufferST& cmd_buffer_st() const {
+				return *m_pCmdBufferST;
+			}
+
+			CommandBufferMT& cmd_buffer_mt() const {
+				return *m_pCmdBufferMT;
 			}
 
 			//----------------------------------------------------------------------
@@ -4383,14 +4392,24 @@ namespace gaia {
 			return world.locked();
 		}
 
-		GAIA_NODISCARD inline CommandBuffer& cmd_buffer_get(World& world) {
-			return world.cmd_buffer();
+		GAIA_NODISCARD inline CommandBufferST& cmd_buffer_st_get(World& world) {
+			return world.cmd_buffer_st();
 		}
 
-		inline void commit_cmd_buffer(World& world) {
+		GAIA_NODISCARD inline CommandBufferMT& cmd_buffer_mt_get(World& world) {
+			return world.cmd_buffer_mt();
+		}
+
+		inline void commit_cmd_buffer_st(World& world) {
 			if (world.locked())
 				return;
-			cmd_buffer_commit(world.cmd_buffer());
+			cmd_buffer_commit(world.cmd_buffer_st());
+		}
+
+		inline void commit_cmd_buffer_mt(World& world) {
+			if (world.locked())
+				return;
+			cmd_buffer_commit(world.cmd_buffer_mt());
 		}
 	} // namespace ecs
 } // namespace gaia

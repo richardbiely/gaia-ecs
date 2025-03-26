@@ -39,7 +39,8 @@ namespace gaia {
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 		void lock(World& world);
 		void unlock(World& world);
-		void commit_cmd_buffer(World& world);
+		void commit_cmd_buffer_st(World& world);
+		void commit_cmd_buffer_mt(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -837,7 +838,10 @@ namespace gaia {
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -890,7 +894,10 @@ namespace gaia {
 					m_batches.clear();
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
@@ -956,7 +963,10 @@ namespace gaia {
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -1028,7 +1038,10 @@ namespace gaia {
 					m_batches.clear();
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>

@@ -1448,6 +1448,23 @@ namespace gaia {
 		template <class T>
 		const T* addressof(const T&&) = delete;
 
+		template <typename T>
+		struct lock_scope {
+			T& m_ctx;
+
+			lock_scope(T& ctx): m_ctx(ctx) {
+				ctx.lock();
+			}
+			~lock_scope() {
+				m_ctx.unlock();
+			}
+
+			lock_scope(const lock_scope&) = delete;
+			lock_scope& operator=(const lock_scope&) = delete;
+			lock_scope(lock_scope&&) = delete;
+			lock_scope& operator=(lock_scope&&) = delete;
+		};
+
 		//----------------------------------------------------------------------
 		// Container identification
 		//----------------------------------------------------------------------
@@ -22426,6 +22443,34 @@ namespace gaia {
 #include <type_traits>
 
 
+/*** Start of inlined file: command_buffer_fwd.h ***/
+#pragma once
+
+namespace gaia {
+	namespace ecs {
+		class World;
+
+		struct AccessContextST;
+		struct AccessContextMT;
+
+		template <typename AccessContext>
+		class CommandBuffer;
+
+		using CommandBufferST = CommandBuffer<AccessContextST>;
+		using CommandBufferMT = CommandBuffer<AccessContextMT>;
+
+		CommandBufferST* cmd_buffer_st_create(World& world);
+		CommandBufferMT* cmd_buffer_mt_create(World& world);
+		void cmd_buffer_destroy(CommandBufferST& cmdBuffer);
+		void cmd_buffer_commit(CommandBufferST& cmdBuffer);
+		void cmd_buffer_destroy(CommandBufferMT& cmdBuffer);
+		void cmd_buffer_commit(CommandBufferMT& cmdBuffer);
+	} // namespace ecs
+} // namespace gaia
+
+/*** End of inlined file: command_buffer_fwd.h ***/
+
+
 /*** Start of inlined file: query_common.h ***/
 #pragma once
 
@@ -23013,11 +23058,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
-		class CommandBuffer;
 
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
-		CommandBuffer& cmd_buffer_get(World& world);
+		CommandBufferST& cmd_buffer_st_get(World& world);
+		CommandBufferMT& cmd_buffer_mt_get(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -23099,9 +23144,14 @@ namespace gaia {
 					return m_groupId;
 				}
 
-				GAIA_NODISCARD CommandBuffer& cmd_buffer() const {
+				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);
-					return cmd_buffer_get(*pWorld);
+					return cmd_buffer_st_get(*pWorld);
+				}
+
+				GAIA_NODISCARD CommandBufferMT& cmd_buffer_mt() const {
+					auto* pWorld = const_cast<World*>(m_pWorld);
+					return cmd_buffer_mt_get(*pWorld);
 				}
 
 				//! Returns a read-only entity or component view.
@@ -23316,23 +23366,6 @@ namespace gaia {
 
 #include <cstdint>
 #include <type_traits>
-
-
-/*** Start of inlined file: command_buffer_fwd.h ***/
-#pragma once
-
-namespace gaia {
-	namespace ecs {
-		class World;
-		class CommandBuffer;
-
-		CommandBuffer* cmd_buffer_create(World& world);
-		void cmd_buffer_destroy(CommandBuffer& cmdBuffer);
-		void cmd_buffer_commit(CommandBuffer& cmdBuffer);
-	} // namespace ecs
-} // namespace gaia
-
-/*** End of inlined file: command_buffer_fwd.h ***/
 
 
 /*** Start of inlined file: world.h ***/
@@ -25239,7 +25272,8 @@ namespace gaia {
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 		void lock(World& world);
 		void unlock(World& world);
-		void commit_cmd_buffer(World& world);
+		void commit_cmd_buffer_st(World& world);
+		void commit_cmd_buffer_mt(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -26037,7 +26071,10 @@ namespace gaia {
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -26090,7 +26127,10 @@ namespace gaia {
 					m_batches.clear();
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func>
@@ -26156,7 +26196,10 @@ namespace gaia {
 						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
@@ -26228,7 +26271,10 @@ namespace gaia {
 					m_batches.clear();
 
 					unlock(*m_storage.world());
-					commit_cmd_buffer(*m_storage.world());
+					// Commit the command buffer.
+					// TODO: Smart handling necessary
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
@@ -26916,7 +26962,8 @@ namespace gaia {
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
-			friend class CommandBuffer;
+			friend CommandBufferST;
+			friend CommandBufferMT;
 			friend void lock(World&);
 			friend void unlock(World&);
 
@@ -26989,8 +27036,10 @@ namespace gaia {
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
-			//! Command buffer for commands executed from a locked world
-			CommandBuffer* m_pCmdBuffer;
+			//! Command buffer for commands executed from a locked world. Not thread-safe
+			CommandBufferST* m_pCmdBufferST;
+			//! Command buffer for commands executed from a locked world. Thread-safe
+			CommandBufferMT* m_pCmdBufferMT;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 
@@ -27629,13 +27678,15 @@ namespace gaia {
 			};
 
 			World() {
-				m_pCmdBuffer = cmd_buffer_create(*this);
+				m_pCmdBufferST = cmd_buffer_st_create(*this);
+				m_pCmdBufferMT = cmd_buffer_mt_create(*this);
 				init();
 			}
 
 			~World() {
 				done();
-				cmd_buffer_destroy(*m_pCmdBuffer);
+				cmd_buffer_destroy(*m_pCmdBufferST);
+				cmd_buffer_destroy(*m_pCmdBufferMT);
 			}
 
 			World(World&&) = delete;
@@ -28769,8 +28820,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			CommandBuffer& cmd_buffer() const {
-				return *m_pCmdBuffer;
+			CommandBufferST& cmd_buffer_st() const {
+				return *m_pCmdBufferST;
+			}
+
+			CommandBufferMT& cmd_buffer_mt() const {
+				return *m_pCmdBufferMT;
 			}
 
 			//----------------------------------------------------------------------
@@ -31249,14 +31304,24 @@ namespace gaia {
 			return world.locked();
 		}
 
-		GAIA_NODISCARD inline CommandBuffer& cmd_buffer_get(World& world) {
-			return world.cmd_buffer();
+		GAIA_NODISCARD inline CommandBufferST& cmd_buffer_st_get(World& world) {
+			return world.cmd_buffer_st();
 		}
 
-		inline void commit_cmd_buffer(World& world) {
+		GAIA_NODISCARD inline CommandBufferMT& cmd_buffer_mt_get(World& world) {
+			return world.cmd_buffer_mt();
+		}
+
+		inline void commit_cmd_buffer_st(World& world) {
 			if (world.locked())
 				return;
-			cmd_buffer_commit(world.cmd_buffer());
+			cmd_buffer_commit(world.cmd_buffer_st());
+		}
+
+		inline void commit_cmd_buffer_mt(World& world) {
+			if (world.locked())
+				return;
+			cmd_buffer_commit(world.cmd_buffer_mt());
 		}
 	} // namespace ecs
 } // namespace gaia
@@ -31753,11 +31818,29 @@ namespace gaia {
 			uint32_t id;
 		};
 
+		struct AccessContextST {
+			void lock() {}
+			void unlock() {}
+		};
+
+		struct AccessContextMT {
+			mt::SpinLock m_lock;
+
+			void lock() {
+				m_lock.lock();
+			}
+
+			void unlock() {
+				m_lock.unlock();
+			}
+		};
+
 		//! Buffer for deferred execution of some operations on entities.
 		//!
 		//! Adding and removing components and entities inside World::each or can result
 		//! in changes of archetypes or chunk structure. This would lead to undefined behavior.
 		//! Therefore, such operations have to be executed after the loop is done.
+		template <typename AccessContext>
 		class CommandBuffer final {
 			struct CommandBufferCtx: SerializationBuffer {
 				ecs::World& world;
@@ -31947,6 +32030,7 @@ namespace gaia {
 
 			friend class World;
 
+			AccessContext m_acc;
 			CommandBufferCtx m_ctx;
 			uint32_t m_entities = 0;
 
@@ -31976,6 +32060,8 @@ namespace gaia {
 			//! \return Entity that will be created. The id is not usable right away. It
 			//!         will be filled with proper data after commit().
 			GAIA_NODISCARD TempEntity add() {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(CREATE_ENTITY);
 
 				return {m_entities++};
@@ -31985,6 +32071,8 @@ namespace gaia {
 			//! \return Entity that will be created. The id is not usable right away. It
 			//!         will be filled with proper data after commit()
 			GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
 				CreateEntityFromEntityCmd cmd;
@@ -31996,6 +32084,8 @@ namespace gaia {
 
 			//! Requests an existing \param entity to be removed.
 			void del(Entity entity) {
+				core::lock_scope lock(m_acc);
+
 				m_ctx.save(DELETE_ENTITY);
 
 				DeleteEntityCmd cmd;
@@ -32007,6 +32097,8 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -32024,6 +32116,8 @@ namespace gaia {
 			void add(TempEntity entity) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -32039,6 +32133,8 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -32057,6 +32153,8 @@ namespace gaia {
 			void add(TempEntity entity, T&& value) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -32073,6 +32171,8 @@ namespace gaia {
 			template <typename T>
 			void set(Entity entity, T&& value) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -32091,6 +32191,8 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				verify_comp<T>();
 
+				core::lock_scope lock(m_acc);
+
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
@@ -32107,6 +32209,8 @@ namespace gaia {
 			template <typename T>
 			void del(Entity entity) {
 				verify_comp<T>();
+
+				core::lock_scope lock(m_acc);
 
 				// Make sure the component is registered
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
@@ -32191,6 +32295,8 @@ namespace gaia {
 		public:
 			//! Commits all queued changes.
 			void commit() {
+				core::lock_scope lock(m_acc);
+
 				if (m_ctx.empty())
 					return;
 
@@ -32207,13 +32313,26 @@ namespace gaia {
 			} // namespace ecs
 		};
 
-		inline CommandBuffer* cmd_buffer_create(World& world) {
-			return new CommandBuffer(world);
+		using CommandBufferST = CommandBuffer<AccessContextST>;
+		using CommandBufferMT = CommandBuffer<AccessContextMT>;
+
+		inline CommandBufferST* cmd_buffer_st_create(World& world) {
+			return new CommandBufferST(world);
 		}
-		inline void cmd_buffer_destroy(CommandBuffer& cmdBuffer) {
+		inline void cmd_buffer_destroy(CommandBufferST& cmdBuffer) {
 			delete &cmdBuffer;
 		}
-		inline void cmd_buffer_commit(CommandBuffer& cmdBuffer) {
+		inline void cmd_buffer_commit(CommandBufferST& cmdBuffer) {
+			cmdBuffer.commit();
+		}
+
+		inline CommandBufferMT* cmd_buffer_mt_create(World& world) {
+			return new CommandBufferMT(world);
+		}
+		inline void cmd_buffer_destroy(CommandBufferMT& cmdBuffer) {
+			delete &cmdBuffer;
+		}
+		inline void cmd_buffer_commit(CommandBufferMT& cmdBuffer) {
 			cmdBuffer.commit();
 		}
 	} // namespace ecs
@@ -32534,17 +32653,17 @@ namespace gaia {
 		};
 
 		class SystemManager final: public BaseSystemManager {
-			CommandBuffer m_beforeUpdateCmdBuffer;
-			CommandBuffer m_afterUpdateCmdBuffer;
+			CommandBufferST m_beforeUpdateCmdBuffer;
+			CommandBufferST m_afterUpdateCmdBuffer;
 
 		public:
 			SystemManager(World& world):
 					BaseSystemManager(world), m_beforeUpdateCmdBuffer(world), m_afterUpdateCmdBuffer(world) {}
 
-			CommandBuffer& BeforeUpdateCmdBuffer() {
+			CommandBufferST& BeforeUpdateCmdBuffer() {
 				return m_beforeUpdateCmdBuffer;
 			}
-			CommandBuffer& AfterUpdateCmdBuffer() {
+			CommandBufferST& AfterUpdateCmdBuffer() {
 				return m_afterUpdateCmdBuffer;
 			}
 

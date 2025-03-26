@@ -1365,7 +1365,7 @@ Typically you use them when there is a need to perform structural changes (addin
 
 Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
 
-You can use either a command buffer provided by the iterator or one you created.
+You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - ecs::CommandBufferST that is not thread-safe and should only be used on one thread, and ecs::CommandBufferMT that is safe to access from multiple threads at once.
 
 The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.
 
@@ -1376,7 +1376,7 @@ The command buffer provided by the iterator is committed in a safe manner when t
 // This is the recommended way for most use cases.
 ecs::Query q = w.query().add<Position>();
 q.each([&](ecs::Iter& it) {
-  ecs::CommandBuffer& cb = it.cmd_buffer();
+  ecs::CommandBufferST& cb = it.cmd_buffer_st();
 
   auto vp = it.view<Position>();
   GAIA_EACH(it) {
@@ -1395,7 +1395,7 @@ With custom command buffer you need to manage things yourself. However, if might
 ecs::World w;
 ...
 // Custom command buffer
-ecs::CommandBuffer cb(w);
+ecs::CommandBufferST cb(w);
 q.each([&](Entity e, const Position& p) {
   if (p.y < 0.0f) {
     // Queue entity e for deletion if its Y position falls below zero
