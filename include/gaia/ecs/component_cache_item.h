@@ -154,6 +154,12 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
+				constexpr auto componentSize = detail::ComponentDesc<T>::size();
+				static_assert(
+						componentSize < Component::MaxComponentSizeInBytes,
+						"Trying to register a component larger than the maximum allowed component size! In the future this "
+						"restriction won't apply to components not stored inside archetype chunks.");
+
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
@@ -163,7 +169,7 @@ namespace gaia {
 						// soa
 						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
-						detail::ComponentDesc<T>::size(),
+						componentSize,
 						// alignment
 						detail::ComponentDesc<T>::alig());
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();

@@ -33,7 +33,7 @@ namespace gaia {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
 			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
-			static constexpr uint32_t MaxComponentSize_Bits = 8;
+			static constexpr uint32_t MaxComponentSize_Bits = 12;
 			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
 
 			struct InternalData {
@@ -47,7 +47,7 @@ namespace gaia {
 				//! Component alignment
 				IdentifierData alig: MaxAlignment_Bits;
 				//! Unused part
-				IdentifierData unused : 10;
+				IdentifierData unused : 6;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 

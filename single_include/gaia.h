@@ -17931,7 +17931,7 @@ namespace gaia {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
 			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
-			static constexpr uint32_t MaxComponentSize_Bits = 8;
+			static constexpr uint32_t MaxComponentSize_Bits = 12;
 			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
 
 			struct InternalData {
@@ -17945,7 +17945,7 @@ namespace gaia {
 				//! Component alignment
 				IdentifierData alig: MaxAlignment_Bits;
 				//! Unused part
-				IdentifierData unused : 10;
+				IdentifierData unused : 6;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -19727,6 +19727,12 @@ namespace gaia {
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
+				constexpr auto componentSize = detail::ComponentDesc<T>::size();
+				static_assert(
+						componentSize < Component::MaxComponentSizeInBytes,
+						"Trying to register a component larger than the maximum allowed component size! In the future this "
+						"restriction won't apply to components not stored inside archetype chunks.");
+
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
@@ -19736,7 +19742,7 @@ namespace gaia {
 						// soa
 						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
-						detail::ComponentDesc<T>::size(),
+						componentSize,
 						// alignment
 						detail::ComponentDesc<T>::alig());
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
@@ -27772,8 +27778,8 @@ namespace gaia {
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
 
-				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				add_entity_n(*ec.pArchetype, count, func);
 			}
@@ -27882,8 +27888,8 @@ namespace gaia {
 				GAIA_ASSERT(valid(srcEntity));
 
 				auto& ec = m_recs.entities[srcEntity.id()];
-				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				auto* pDstArchetype = ec.pArchetype;
 

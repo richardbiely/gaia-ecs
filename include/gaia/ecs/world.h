@@ -860,8 +860,8 @@ namespace gaia {
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
 
-				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				add_entity_n(*ec.pArchetype, count, func);
 			}
@@ -970,8 +970,8 @@ namespace gaia {
 				GAIA_ASSERT(valid(srcEntity));
 
 				auto& ec = m_recs.entities[srcEntity.id()];
-				GAIA_ASSERT(ec.pChunk != nullptr);
 				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				auto* pDstArchetype = ec.pArchetype;
 
