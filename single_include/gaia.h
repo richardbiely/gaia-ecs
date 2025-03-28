@@ -31223,6 +31223,8 @@ namespace gaia {
 			}
 		};
 
+		using EntityBuilder = World::EntityBuilder;
+
 		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
 			return world.query_buffer(serId);
 		}
