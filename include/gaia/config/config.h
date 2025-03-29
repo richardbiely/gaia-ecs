@@ -54,7 +54,21 @@
 #ifndef GAIA_ENABLE_HOOKS
 	#define GAIA_ENABLE_HOOKS 1
 #endif
-#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
+#ifndef GAIA_ENABLE_SET_HOOKS
+	#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
+#else
+// If GAIA_ENABLE_SET_HOOKS is defined and GAIA_ENABLE_HOOKS is not, unset it
+	#ifndef GAIA_ENABLE_HOOKS
+		#undef GAIA_ENABLE_SET_HOOKS
+		#define GAIA_ENABLE_SET_HOOKS 0
+	#endif
+#endif
+
+//! If enabled, reference counting of entities is enabled. This gives you access to ecs::SafeEntity
+//! and similar features.
+#ifndef GAIA_USE_ENTITY_REFCNT
+	#define GAIA_USE_ENTITY_REFCNT 1
+#endif
 
 //------------------------------------------------------------------------------
 

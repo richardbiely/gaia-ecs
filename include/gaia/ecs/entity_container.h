@@ -7,6 +7,7 @@
 #include "../cnt/ilist.h"
 #include "../cnt/map.h"
 #include "../cnt/paged_storage.h"
+#include "api.h"
 #include "id.h"
 
 namespace gaia {
@@ -24,6 +25,7 @@ namespace gaia {
 	namespace ecs {
 		class Chunk;
 		class Archetype;
+		class World;
 
 		struct EntityContainerCtx {
 			bool isEntity;
@@ -45,6 +47,7 @@ namespace gaia {
 			HasAliasOf = 1 << 9,
 			IsSingleton = 1 << 10,
 			DeleteRequested = 1 << 11,
+			RefDecreased = 1 << 12, // GAIA_USE_ENTITY_REFCNT
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -76,8 +79,14 @@ namespace gaia {
 			//! Flags
 			uint16_t flags = 0;
 
+#if GAIA_USE_ENTITY_REFCNT
+			//! Number of references held to this entity.
+			//! The entity won't be deleted unless the reference count is zero.
+			uint32_t refCnt = 1;
+#else
 			//! Currently unused area
 			uint32_t unused = 0;
+#endif
 
 			//! Archetype (stable address)
 			Archetype* pArchetype;
@@ -147,6 +156,72 @@ namespace gaia {
 									 : entities[entity.id()];
 			}
 		};
+
+#if GAIA_USE_ENTITY_REFCNT
+		//! SafeEntity is a wrapper over Entity that makes sure that so long it is around
+		//! a given entity will not be deleted. When the last SafeEntity referencing this
+		//! entity goes out of scope, only then can the entity be deleted.
+		class SafeEntity {
+			World* m_w;
+			Entity m_entity;
+
+		public:
+			SafeEntity(World& w, Entity entity): m_w(&w), m_entity(entity) {
+				auto& ec = fetch_mut(w, entity);
+				++ec.refCnt;
+			}
+
+			~SafeEntity() {
+				// EntityContainer can be null only from moved-from SharedEntities.
+				// This is not a common occurrence.
+				if GAIA_UNLIKELY (m_w == nullptr)
+					return;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				GAIA_ASSERT(ec.refCnt > 0);
+				--ec.refCnt;
+				if (ec.refCnt == 0)
+					del(*m_w, m_entity);
+			}
+
+			SafeEntity(const SafeEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
+				auto& ec = fetch_mut(*m_w, m_entity);
+				++ec.refCnt;
+			}
+			SafeEntity& operator=(const SafeEntity& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_w = other.m_w;
+				m_entity = other.m_entity;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				++ec.refCnt;
+				return *this;
+			}
+
+			SafeEntity(SafeEntity&& other): m_w(other.m_w), m_entity(other.m_entity) {
+				other.m_w = nullptr;
+				other.m_entity = {};
+			}
+			SafeEntity& operator=(SafeEntity&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_w = other.m_w;
+				m_entity = other.m_entity;
+
+				other.m_w = nullptr;
+				other.m_entity = {};
+				return *this;
+			}
+
+			GAIA_NODISCARD operator Entity() const noexcept {
+				return m_entity;
+			}
+			GAIA_NODISCARD Entity entity() const noexcept {
+				return m_entity;
+			}
+		};
+#endif
 	} // namespace ecs
 
 	namespace cnt {

@@ -19,6 +19,7 @@
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
 #include "../meta/type_info.h"
+#include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
@@ -765,9 +766,11 @@ namespace gaia {
 				}
 			};
 
-			World() {
-				m_pCmdBufferST = cmd_buffer_st_create(*this);
-				m_pCmdBufferMT = cmd_buffer_mt_create(*this);
+			World():
+					// Command buffer for the main thread
+					m_pCmdBufferST(cmd_buffer_st_create(*this)),
+					// Command buffer safe for concurrent access
+					m_pCmdBufferMT(cmd_buffer_mt_create(*this)) {
 				init();
 			}
 
@@ -3071,7 +3074,6 @@ namespace gaia {
 				auto on_delete = [this](Entity entityToDel) {
 					auto& ec = fetch(entityToDel);
 					handle_del_entity(ec, entityToDel);
-					req_del(ec, entityToDel);
 				};
 
 				if (is_wildcard(entity)) {
@@ -3469,29 +3471,41 @@ namespace gaia {
 			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
-			void handle_del_entity(const EntityContainer& ec, Entity entity) {
+			void handle_del_entity(EntityContainer& ec, Entity entity) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
 				GAIA_ASSERT(!is_wildcard(entity));
 
 				if (entity.pair()) {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
+						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
 						GAIA_LOG_E(
-								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted", entity.id(), entity.gen(),
-								name(entity), EntityKindString[entity.kind()]);
+								"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted", entity.id(),
+								entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
 
 					const auto tgt = get(entity.gen());
 					const auto& ecTgt = fetch(tgt);
 					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (target restriction)");
+						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted (target restriction)");
 						GAIA_LOG_E(
-								"Trying to delete pair [%u.%u] %s [%s] that is forbidden to be deleted (target restriction)",
+								"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted (target restriction)",
 								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
+
+#if GAIA_USE_ENTITY_REFCNT
+					// Decrement the ref count at this point.
+					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
+						--ec.refCnt;
+						ec.flags |= EntityContainerFlags::RefDecreased;
+					}
+
+					// Don't delete so long something still references us
+					if (ec.refCnt != 0)
+						return;
+#endif
 
 					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
 						// Delete all entities referencing this one as a relationship pair's target
@@ -3501,7 +3515,7 @@ namespace gaia {
 						rem_from_entities(Pair(All, tgt));
 					}
 
-					// This entity is supposed to be deleted. Nothing more for us to do here
+					// This entity has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec))
 						return;
 
@@ -3514,20 +3528,32 @@ namespace gaia {
 					}
 				} else {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted");
+						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted");
 						GAIA_LOG_E(
-								"Trying to delete entity [%u.%u] %s [%s] that is forbidden to be deleted", entity.id(), entity.gen(),
-								name(entity), EntityKindString[entity.kind()]);
+								"Trying to delete an entity [%u.%u] %s [%s] that is forbidden from being deleted", entity.id(),
+								entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
 
 					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0) {
-						GAIA_ASSERT2(false, "Trying to delete entity that is forbidden to be deleted (a pair's target)");
+						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted (a pair's target)");
 						GAIA_LOG_E(
-								"Trying to delete entity [%u.%u] %s [%s] that is forbidden to be deleted (a pair's target)",
+								"Trying to delete an entity [%u.%u] %s [%s] that is forbidden from being deleted (a pair's target)",
 								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
 						return;
 					}
+
+#if GAIA_USE_ENTITY_REFCNT
+					// Decrement the ref count at this point.
+					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
+						--ec.refCnt;
+						ec.flags |= EntityContainerFlags::RefDecreased;
+					}
+
+					// Don't delete so long something still references us
+					if (ec.refCnt != 0)
+						return;
+#endif
 
 					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0) {
 						// Delete all entities referencing this one as a relationship pair's target
@@ -3537,7 +3563,7 @@ namespace gaia {
 						rem_from_entities(Pair(All, entity));
 					}
 
-					// This entity is supposed to be deleted. Nothing more for us to do here
+					// This entity is has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec))
 						return;
 
@@ -3549,6 +3575,9 @@ namespace gaia {
 						rem_from_entities(entity);
 					}
 				}
+
+				// Mark the entity with the "delete requested" flag
+				req_del(ec, entity);
 			}
 
 			//! Removes a graph connection with the surrounding archetypes.
@@ -4307,6 +4336,18 @@ namespace gaia {
 
 		using EntityBuilder = World::EntityBuilder;
 
+		GAIA_NODISCARD inline const EntityContainer& fetch(const World& world, Entity entity) {
+			return world.fetch(entity);
+		}
+
+		GAIA_NODISCARD inline EntityContainer& fetch_mut(World& world, Entity entity) {
+			return world.fetch(entity);
+		}
+
+		inline void del(World& world, Entity entity) {
+			world.del(entity);
+		}
+
 		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {
 			return world.query_buffer(serId);
 		}
@@ -4380,7 +4421,7 @@ namespace gaia {
 			return world.as_targets_trav_if(relation, func);
 		}
 
-		inline Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw) {
+		GAIA_NODISCARD inline Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw) {
 			return world.expr_to_entity(args, exprRaw);
 		}
 

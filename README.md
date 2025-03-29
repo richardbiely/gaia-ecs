@@ -544,6 +544,45 @@ w.copy_n(e, 1000, [](Entity newEntity) {
   // ...
 });
 ```
+### Entity lifespan
+
+Entities usually only live until ***World::del*** is called on them. However, their lifetime can be extended. Any attempts to delete an entity will fail until the last ***ecs::SafeEntity*** goes out of scope. This is done by incrementing an internal reference counter on the container associated with the entity. Any newly created entity starts with a reference counter value of 1. When ecs::SafeEntity comes into scope it increments this reference counter. When it goes out of scope it decrements the reference counter. Once the reference counter value reaches zero, the entity is automatically deleted.
+
+```cpp
+ecs::World w;
+// Create an entity. Its reference counter is 1.
+ecs::Entity player = w.add();
+{
+  // Make sure the entity survives so long playerSafe exists. Reference counter is incremented to 2.
+  ecs::SafeEntity playerSafe = ecs::SafeEntity(w, player);
+
+  // Try to delete the player entity. The reference counter is decremented to 1.
+  // It is not zero and therefore the entity player is not deleted.
+  w.del(player);
+  bool isValid = w.valid(player); // true
+  // We can try deleting the entity again but the request is ignored this time.
+  // Calling del on an entity decrements the reference counter only once. Further
+  // calls are dropped. Hence, the reference counter remains 1.
+  w.del(player);
+  isValid = w.valid(player); // true
+}
+
+// Here, playerSafe is out of scope. Reference counter is decremented to 0.
+// Internally, w.del(player) is called.
+// ... it's not safe to use player at this point anymore.
+bool isValid = w.valid(player); // false
+```
+
+ecs::SafeEntity can be used just like any other ecs::Entity and is fully compatible with it.
+
+```cpp
+ecs::World w;
+ecs::Entity player = w.add();
+auto playerSafe = ecs::SafeEntity(w, player);
+// Add a Position component to playerSafe (player)
+w.add<Position>(playerSafe);
+// w.add<Position>(player) <-- this would do the same thing
+```
 
 ### Archetype lifespan
 
