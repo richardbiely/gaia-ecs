@@ -3005,6 +3005,213 @@ TEST_CASE("Entity copy") {
 	REQUIRE(wld.has(e3, e2));
 }
 
+#if GAIA_USE_SAFE_ENTITY
+TEST_CASE("Entity safe") {
+	SECTION("safe, no delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		{
+			auto se = ecs::SafeEntity(wld, e);
+			REQUIRE(wld.valid(se));
+			REQUIRE(wld.has(se));
+			REQUIRE(wld.valid(e));
+			REQUIRE(wld.has(e));
+		}
+
+		// SafeEntity went out of scope but we didn't request delete.
+		// The entity needs to stay alive.
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+	}
+
+	SECTION("safe with delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		{
+			auto se = ecs::SafeEntity(wld, e);
+			REQUIRE(wld.valid(se));
+			REQUIRE(wld.has(se));
+			REQUIRE(wld.valid(e));
+			REQUIRE(wld.has(e));
+
+			// We can call del as many times as we want. So long a SafeEntity is around,
+			// we won't be able to delete the entity.
+			GAIA_FOR(10) {
+				wld.del(e);
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+			}
+		}
+
+		// SafeEntity went out of scope and we did request delete.
+		// The entity needs to be dead now.
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+	}
+
+	SECTION("many safes with delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		{
+			auto se0 = ecs::SafeEntity(wld, e);
+
+			{
+				auto se = ecs::SafeEntity(wld, e);
+				REQUIRE(wld.valid(se));
+				REQUIRE(wld.has(se));
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+
+				// We can call del as many times as we want. So long a SafeEntity is around,
+				// we won't be able to delete the entity.
+				GAIA_FOR(10) {
+					wld.del(e);
+					REQUIRE(wld.valid(e));
+					REQUIRE(wld.has(e));
+				}
+			}
+
+			// SafeEntity went out of scope and we did request delete.
+			// However, se0 is still in scope, so no delete should happen no matter
+			// how many times we try.
+			GAIA_FOR(10) {
+				wld.del(e);
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+			}
+		}
+
+		// SafeEntity went out of scope and we did request delete.
+		// The entity needs to be dead now.
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+	}
+}
+#endif
+
+#if GAIA_USE_WEAK_ENTITY
+TEST_CASE("Entity weak") {
+	SECTION("weak, no delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		auto we = ecs::WeakEntity(wld, e);
+		REQUIRE(wld.valid(we));
+		REQUIRE(wld.has(we));
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		wld.del(e);
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+		REQUIRE_FALSE(wld.valid(we));
+		REQUIRE_FALSE(wld.has(we));
+	}
+
+	SECTION("weak with delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		auto we = ecs::WeakEntity(wld, e);
+
+		{
+			auto se = ecs::SafeEntity(wld, e);
+
+			REQUIRE(wld.valid(we));
+			REQUIRE(wld.has(we));
+			REQUIRE(wld.valid(e));
+			REQUIRE(wld.has(e));
+
+			// We can call del as many times as we want. So long a SafeEntity is around,
+			// we won't be able to delete the entity.
+			GAIA_FOR(10) {
+				wld.del(e);
+				REQUIRE(wld.valid(we));
+				REQUIRE(wld.has(we));
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+			}
+		}
+
+		// SafeEntity went out of scope and we did request delete.
+		// The entity needs to be dead now.
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+		REQUIRE_FALSE(wld.valid(we));
+		REQUIRE_FALSE(wld.has(we));
+	}
+
+	SECTION("weak, safes with delete") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		auto we = ecs::WeakEntity(wld, e);
+
+		{
+			auto se0 = ecs::SafeEntity(wld, e);
+
+			{
+				auto se = ecs::SafeEntity(wld, e);
+
+				REQUIRE(wld.valid(we));
+				REQUIRE(wld.has(we));
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+
+				// We can call del as many times as we want. So long a SafeEntity is around,
+				// we won't be able to delete the entity.
+				GAIA_FOR(10) {
+					wld.del(e);
+					REQUIRE(wld.valid(we));
+					REQUIRE(wld.has(we));
+					REQUIRE(wld.valid(e));
+					REQUIRE(wld.has(e));
+				}
+			}
+
+			// SafeEntity went out of scope and we did request delete.
+			// However, se0 is still in scope, so no delete should happen no matter
+			// how many times we try.
+			GAIA_FOR(10) {
+				wld.del(e);
+				REQUIRE(wld.valid(we));
+				REQUIRE(wld.has(we));
+				REQUIRE(wld.valid(e));
+				REQUIRE(wld.has(e));
+			}
+		}
+
+		// SafeEntity went out of scope and we did request delete.
+		// The entity needs to be dead now.
+		REQUIRE_FALSE(wld.valid(we));
+		REQUIRE_FALSE(wld.has(we));
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+	}
+}
+#endif
+
 TEST_CASE("Add - no components") {
 	const uint32_t N = 1'500;
 
@@ -3199,6 +3406,8 @@ TEST_CASE("Add - many components, bulk") {
 	auto create = [&]() {
 		auto e = wld.add();
 
+		auto b = wld.build(e);
+		(void)b;
 		wld.build(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
 
 		REQUIRE(wld.has<Int3>(e));
@@ -7074,7 +7283,7 @@ TEST_CASE("Components - non trivial") {
 TEST_CASE("CommandBuffer") {
 	SECTION("Entity creation") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		const uint32_t N = 100;
 		GAIA_FOR(N) {
@@ -7088,7 +7297,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Entity creation from another entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto mainEntity = wld.add();
 
@@ -7105,7 +7314,7 @@ TEST_CASE("CommandBuffer") {
 	SECTION("Entity creation from another entity with a component") {
 		{
 			TestWorld twld;
-			ecs::CommandBuffer cb(wld);
+			ecs::CommandBufferST cb(wld);
 			auto mainEntity = wld.add();
 
 			wld.add<Position>(mainEntity, {1, 2, 3});
@@ -7135,7 +7344,7 @@ TEST_CASE("CommandBuffer") {
 
 		{
 			TestWorld twld;
-			ecs::CommandBuffer cb(wld);
+			ecs::CommandBufferST cb(wld);
 			auto mainEntity = wld.add();
 
 			wld.add<Position>(mainEntity, {1, 2, 3});
@@ -7159,7 +7368,7 @@ TEST_CASE("CommandBuffer") {
 	SECTION("Entity creation from another entity with a SoA component") {
 		{
 			TestWorld twld;
-			ecs::CommandBuffer cb(wld);
+			ecs::CommandBufferST cb(wld);
 			auto mainEntity = wld.add();
 
 			wld.add<PositionSoA>(mainEntity, {1, 2, 3});
@@ -7189,7 +7398,7 @@ TEST_CASE("CommandBuffer") {
 
 		{
 			TestWorld twld;
-			ecs::CommandBuffer cb(wld);
+			ecs::CommandBufferST cb(wld);
 			auto mainEntity = wld.add();
 
 			wld.add<PositionSoA>(mainEntity, {1, 2, 3});
@@ -7212,7 +7421,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component addition to an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 		cb.add<Position>(e);
@@ -7223,7 +7432,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component addition to a to-be-created entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add(); // core + 0 (no new entity created yet)
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1);
@@ -7236,7 +7445,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component setting of an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 
@@ -7255,7 +7464,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed 2 components setting of an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 
@@ -7283,7 +7492,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component setting of a to-be-created entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
@@ -7303,7 +7512,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed 2 components setting of a to-be-created entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
@@ -7331,7 +7540,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component add with setting of a to-be-created entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
@@ -7350,7 +7559,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
@@ -7376,7 +7585,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed component removal from an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 		wld.add<Position>(e, {1, 2, 3});
@@ -7396,7 +7605,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed 2 component removal from an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 		wld.add<Position>(e, {1, 2, 3});
@@ -7425,7 +7634,7 @@ TEST_CASE("CommandBuffer") {
 
 	SECTION("Delayed non-trivial component setting of an existing entity") {
 		TestWorld twld;
-		ecs::CommandBuffer cb(wld);
+		ecs::CommandBufferST cb(wld);
 
 		auto e = wld.add();
 
@@ -7983,6 +8192,8 @@ TEST_CASE("Component cache") {
 // Hooks
 //------------------------------------------------------------------------------
 
+#if GAIA_ENABLE_HOOKS
+
 static thread_local int hook_trigger_cnt = 0;
 
 TEST_CASE("Hooks") {
@@ -8045,13 +8256,13 @@ TEST_CASE("Hooks") {
 					++hook_trigger_cnt;
 				};
 
-#if !GAIA_ASSERT_ENABLED
+	#if !GAIA_ASSERT_ENABLED
 		// No components were added yet so we don't expect the hook to trigger
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 0);
 		wld.del<Rotation>(e);
 		REQUIRE(hook_trigger_cnt == 0);
-#endif
+	#endif
 
 		// The component has been added. No triggering yet
 		wld.add<Rotation>(e);
@@ -8066,24 +8277,25 @@ TEST_CASE("Hooks") {
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 1);
 
-#if !GAIA_ASSERT_ENABLED
+	#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 1);
-#endif
+	#endif
 
 		// Component added and removed. Trigger again.
 		wld.add<Position>(e);
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 2);
 
-#if !GAIA_ASSERT_ENABLED
+	#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
 		REQUIRE(hook_trigger_cnt == 2);
-#endif
+	#endif
 	}
 
+	#if GAIA_ENABLE_SET_HOOKS
 	SECTION("set") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();
@@ -8106,6 +8318,7 @@ TEST_CASE("Hooks") {
 
 		// Adding shouldn't trigger the set trigger
 		{
+			hook_trigger_cnt = 0;
 			wld.add<Position>(e);
 			REQUIRE(hook_trigger_cnt == 0);
 			wld.add<Rotation>(e);
@@ -8122,6 +8335,7 @@ TEST_CASE("Hooks") {
 
 		// Don't trigger when setting a different component
 		{
+			hook_trigger_cnt = 0;
 			wld.set<Rotation>(e) = {};
 			REQUIRE(hook_trigger_cnt == 0);
 			(void)wld.acc(e).get<Rotation>();
@@ -8132,10 +8346,17 @@ TEST_CASE("Hooks") {
 			REQUIRE(hook_trigger_cnt == 0);
 			wld.acc_mut(e).sset<Rotation>({});
 			REQUIRE(hook_trigger_cnt == 0);
+			// Modify + no hooks doesn't trigger
+			wld.modify<Rotation, false>(e);
+			REQUIRE(hook_trigger_cnt == 0);
+			// Modify + hooks would trigger but we don't have any trigger set for Rotation
+			wld.modify<Rotation, true>(e);
+			REQUIRE(hook_trigger_cnt == 0);
 		}
 
 		// Trigger for mutable access
 		{
+			hook_trigger_cnt = 0;
 			wld.set<Position>(e) = {};
 			REQUIRE(hook_trigger_cnt == 1);
 			(void)wld.acc(e).get<Position>();
@@ -8147,9 +8368,18 @@ TEST_CASE("Hooks") {
 			// Silent set doesn't trigger
 			wld.acc_mut(e).sset<Position>({});
 			REQUIRE(hook_trigger_cnt == 2);
+			// Modify + no hooks doesn't trigger
+			wld.modify<Position, false>(e);
+			REQUIRE(hook_trigger_cnt == 2);
+			// Modify + hooks does trigger
+			wld.modify<Position, true>(e);
+			REQUIRE(hook_trigger_cnt == 3);
 		}
 	}
+	#endif
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 // Multiple worlds
