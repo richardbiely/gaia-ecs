@@ -169,10 +169,11 @@ namespace gaia {
 		//! a given entity will not be deleted. When the last SafeEntity referencing this
 		//! entity goes out of scope, only then can the entity be deleted.
 		class SafeEntity {
-			World* m_w;
+			World* m_w = nullptr;
 			Entity m_entity;
 
 		public:
+			SafeEntity() = default;
 			SafeEntity(World& w, Entity entity): m_w(&w), m_entity(entity) {
 				auto& ec = fetch_mut(w, entity);
 				++ec.refCnt;
@@ -253,11 +254,12 @@ namespace gaia {
 			friend class World;
 			friend struct WeakEntityTracker;
 
-			World* m_w;
-			WeakEntityTracker* m_pTracker;
+			World* m_w = nullptr;
+			WeakEntityTracker* m_pTracker = nullptr;
 			Entity m_entity;
 
 		public:
+			WeakEntity() = default;
 			WeakEntity(World& w, Entity entity): m_w(&w), m_pTracker(new WeakEntityTracker()), m_entity(entity) {
 				m_pTracker->pWeakEntity = this;
 

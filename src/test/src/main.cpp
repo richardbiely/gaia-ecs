@@ -3098,6 +3098,33 @@ TEST_CASE("Entity safe") {
 		REQUIRE_FALSE(wld.valid(e));
 		REQUIRE_FALSE(wld.has(e));
 	}
+
+	SECTION("component") {
+		TestWorld twld;
+
+		struct SafeComponent {
+			ecs::SafeEntity entity;
+		};
+
+		auto e = wld.add();
+
+		auto e2 = wld.add();
+		wld.add<SafeComponent>(e2, {ecs::SafeEntity(wld, e)});
+
+		const auto& sc = wld.get<SafeComponent>(e2);
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		// Nothings gets deleted because the reference is held in the component
+		wld.del(e);
+		REQUIRE(wld.valid(e));
+		REQUIRE(wld.has(e));
+
+		// Delete the entity holding the ref
+		wld.del(e2);
+		REQUIRE_FALSE(wld.valid(e));
+		REQUIRE_FALSE(wld.has(e));
+	}
 }
 #endif
 
@@ -3208,6 +3235,27 @@ TEST_CASE("Entity weak") {
 		REQUIRE_FALSE(wld.has(we));
 		REQUIRE_FALSE(wld.valid(e));
 		REQUIRE_FALSE(wld.has(e));
+	}
+
+	SECTION("component") {
+		TestWorld twld;
+
+		struct WeakComponent {
+			ecs::WeakEntity entity;
+		};
+
+		auto e = wld.add();
+
+		auto e2 = wld.add();
+		wld.add<WeakComponent>(e2, {ecs::WeakEntity(wld, e)});
+
+		const auto& wc = wld.get<WeakComponent>(e2);
+		REQUIRE(wld.valid(wc.entity));
+		REQUIRE(wld.has(wc.entity));
+
+		wld.del(e);
+		REQUIRE_FALSE(wld.valid(wc.entity));
+		REQUIRE_FALSE(wld.has(wc.entity));
 	}
 }
 #endif

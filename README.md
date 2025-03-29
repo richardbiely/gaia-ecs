@@ -59,6 +59,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Set or get component value](#set-or-get-component-value)
     * [Copy entity](#copy-entity)
     * [Batched creation](#batched-creation)
+    * [Entity lifespan](#entity-lifespan)
     * [Archetype lifespan](#archetype-lifespan)
   * [Data processing](#data-processing)
     * [Query](#query)
@@ -129,14 +130,12 @@ The actual movement is handled by [systems](#systems). Those that match the Flyi
 On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could ever be both in terms of latency and absolute performance. At the cost of data safety.
 
 The main strengths of an ECS done right could be summarized as:
-1) *modularity and reusability* - promotes modular and reusable code with self-contained components
-2) *decoupling of logic* - separates data from logic
-7) *facilitation of system design* - encourages a data-driven design approach for cleaner and more organized code
-3) *flexibility* - allows dynamic object behavior through composition of entities with specific components
-4) *scalability* - scales well with a predictable performance impact as the number of entities increases
-5) *ease of maintenance* - promotes less spaghetti code with a modular structure that is easier to debug
-6) *adaptability* - easily adapts to changing project requirements through component and system modifications
-8) *performance* - optimized for data locality, supports data- and thread-level parallelism almost out-of-the-box
+* *decoupling of logic* - separates data (components) from logic (systems)
+* *modularity and reusability* - promotes modular and reusable code with self-contained components
+* *ease of maintenance* - promotes less spaghetti code with a modular structure that is easier to debug
+* *flexibility* - allows dynamic object behavior through composition of entities with specific components
+* *adaptability* - easily adapts to changing project requirements through component and system modifications
+* *performance* - optimized for data locality, supports data- and thread-level parallelism almost out-of-the-box; scales well with a predictable performance impact as the number of entities increases
 
 ## Implementation
 **Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
