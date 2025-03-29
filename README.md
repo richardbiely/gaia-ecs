@@ -322,9 +322,10 @@ w.del(e, velocity);
 ```
 
 When adding components following restrictions apply:
-1) There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
-2) Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storages types are introduced this restriction won't apply to them.
-3) [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
+* There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
+* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storages types are introduced this restriction won't apply to them.
+* [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
+* Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. data from some 3rd party library that are beyond your control) you need to work this around by storing pointers to this data or come up with different means of accessing it.
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
