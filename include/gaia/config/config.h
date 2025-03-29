@@ -66,8 +66,14 @@
 
 //! If enabled, reference counting of entities is enabled. This gives you access to ecs::SafeEntity
 //! and similar features.
-#ifndef GAIA_USE_ENTITY_REFCNT
-	#define GAIA_USE_ENTITY_REFCNT 1
+#ifndef GAIA_USE_SAFE_ENTITY
+	#define GAIA_USE_SAFE_ENTITY 1
+#endif
+
+//! If enabled, reference counting of entities is enabled. This gives you access to ecs::SafeEntity
+//! and similar features.
+#ifndef GAIA_USE_WEAK_ENTITY
+	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
 //------------------------------------------------------------------------------

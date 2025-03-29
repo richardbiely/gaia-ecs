@@ -735,8 +735,14 @@ namespace gaia {
 
 //! If enabled, reference counting of entities is enabled. This gives you access to ecs::SafeEntity
 //! and similar features.
-#ifndef GAIA_USE_ENTITY_REFCNT
-	#define GAIA_USE_ENTITY_REFCNT 1
+#ifndef GAIA_USE_SAFE_ENTITY
+	#define GAIA_USE_SAFE_ENTITY 1
+#endif
+
+//! If enabled, reference counting of entities is enabled. This gives you access to ecs::SafeEntity
+//! and similar features.
+#ifndef GAIA_USE_WEAK_ENTITY
+	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
 //------------------------------------------------------------------------------
@@ -20098,6 +20104,8 @@ namespace gaia {
 		GAIA_NODISCARD const EntityContainer& fetch(const World& world, Entity entity);
 		GAIA_NODISCARD EntityContainer& fetch_mut(World& world, Entity entity);
 
+		GAIA_NODISCARD bool valid(const World& world, Entity entity);
+
 		void del(World& world, Entity entity);
 	} // namespace ecs
 } // namespace gaia
@@ -20119,6 +20127,9 @@ namespace gaia {
 		class Chunk;
 		class Archetype;
 		class World;
+#if GAIA_USE_WEAK_ENTITY
+		struct WeakEntityTracker;
+#endif
 
 		struct EntityContainerCtx {
 			bool isEntity;
@@ -20140,7 +20151,7 @@ namespace gaia {
 			HasAliasOf = 1 << 9,
 			IsSingleton = 1 << 10,
 			DeleteRequested = 1 << 11,
-			RefDecreased = 1 << 12, // GAIA_USE_ENTITY_REFCNT
+			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -20172,13 +20183,17 @@ namespace gaia {
 			//! Flags
 			uint16_t flags = 0;
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 			//! Number of references held to this entity.
 			//! The entity won't be deleted unless the reference count is zero.
 			uint32_t refCnt = 1;
 #else
 			//! Currently unused area
 			uint32_t unused = 0;
+#endif
+
+#if GAIA_USE_WEAK_ENTITY
+			WeakEntityTracker* pWeakTracker = nullptr;
 #endif
 
 			//! Archetype (stable address)
@@ -20250,7 +20265,7 @@ namespace gaia {
 			}
 		};
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 		//! SafeEntity is a wrapper over Entity that makes sure that so long it is around
 		//! a given entity will not be deleted. When the last SafeEntity referencing this
 		//! entity goes out of scope, only then can the entity be deleted.
@@ -20294,7 +20309,7 @@ namespace gaia {
 
 			SafeEntity(SafeEntity&& other): m_w(other.m_w), m_entity(other.m_entity) {
 				other.m_w = nullptr;
-				other.m_entity = {};
+				other.m_entity = EntityBad;
 			}
 			SafeEntity& operator=(SafeEntity&& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
@@ -20303,15 +20318,134 @@ namespace gaia {
 				m_entity = other.m_entity;
 
 				other.m_w = nullptr;
-				other.m_entity = {};
+				other.m_entity = EntityBad;
 				return *this;
 			}
 
+			GAIA_NODISCARD Entity entity() const noexcept {
+				return m_entity;
+			}
 			GAIA_NODISCARD operator Entity() const noexcept {
 				return m_entity;
 			}
+		};
+#endif
+
+#if GAIA_USE_WEAK_ENTITY
+		class WeakEntity;
+
+		struct WeakEntityTracker {
+			WeakEntityTracker* next = nullptr;
+			WeakEntityTracker* prev = nullptr;
+			WeakEntity* pWeakEntity = nullptr;
+		};
+
+		//! WeakEntity is a wrapper over Entity that makes sure that when the entity is deleted,
+		//! this wrapper will start acting as EntityBad. Use when you are afraid that the linked
+		//! entity might be recycled multiple times. In that case, the linked entity would suddenly
+		//! become something different from would you would expect.
+		//! The chance of this happening is rather slim. However, e.g. if you decided to tweak
+		//! the value of Entity::gen to a lower number (28 bits for generation by default), WeakEntity
+		//! could come handy.
+		//! A more useful use case, however, would be if you need an entity identifier that gets automatically
+		//! reset when the entity gets deleted without any setup necessary from your end. Certain situations
+		//! can be complex and using WeakEntity just might be the one way for you to address them.
+		class WeakEntity {
+			friend class World;
+			friend struct WeakEntityTracker;
+
+			World* m_w;
+			WeakEntityTracker* m_pTracker;
+			Entity m_entity;
+
+		public:
+			WeakEntity(World& w, Entity entity): m_w(&w), m_pTracker(new WeakEntityTracker()), m_entity(entity) {
+				m_pTracker->pWeakEntity = this;
+
+				auto& ec = fetch_mut(w, entity);
+				if (ec.pWeakTracker != nullptr) {
+					ec.pWeakTracker->prev = m_pTracker;
+					m_pTracker->next = ec.pWeakTracker;
+				} else
+					ec.pWeakTracker = m_pTracker;
+			}
+			~WeakEntity() {
+				if (m_pTracker == nullptr)
+					return;
+
+				if (m_pTracker->next != nullptr)
+					m_pTracker->next->prev = m_pTracker->prev;
+				if (m_pTracker->prev != nullptr)
+					m_pTracker->prev->next = m_pTracker->next;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				if (ec.pWeakTracker == m_pTracker)
+					ec.pWeakTracker = nullptr;
+
+				delete m_pTracker;
+				m_pTracker = nullptr;
+			}
+
+			WeakEntity(const WeakEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
+				if (other.m_entity == EntityBad)
+					return;
+
+				m_pTracker = new WeakEntityTracker();
+				m_pTracker->pWeakEntity = this;
+
+				auto& ec = fetch_mut(*other.m_w, other.m_entity);
+				if (ec.pWeakTracker != nullptr) {
+					ec.pWeakTracker->prev = m_pTracker;
+					m_pTracker->next = ec.pWeakTracker;
+				} else
+					ec.pWeakTracker = m_pTracker;
+			}
+			WeakEntity& operator=(const WeakEntity& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_w = other.m_w;
+				m_entity = other.m_entity;
+
+				if (other.m_entity != EntityBad) {
+					m_pTracker = new WeakEntityTracker();
+					m_pTracker->pWeakEntity = this;
+
+					auto& ec = fetch_mut(*other.m_w, other.m_entity);
+					if (ec.pWeakTracker != nullptr) {
+						ec.pWeakTracker->prev = m_pTracker;
+						m_pTracker->next = ec.pWeakTracker;
+					} else
+						ec.pWeakTracker = m_pTracker;
+				}
+
+				return *this;
+			}
+
+			WeakEntity(WeakEntity&& other): m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
+				other.m_w = nullptr;
+				other.m_pTracker->pWeakEntity = this;
+				other.m_pTracker = nullptr;
+				other.m_entity = EntityBad;
+			}
+			WeakEntity& operator=(WeakEntity&& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				m_w = other.m_w;
+				m_pTracker = other.m_pTracker;
+				m_entity = other.m_entity;
+
+				other.m_w = nullptr;
+				other.m_pTracker->pWeakEntity = this;
+				other.m_pTracker = nullptr;
+				other.m_entity = EntityBad;
+				return *this;
+			}
+
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;
+			}
+			GAIA_NODISCARD operator Entity() const noexcept {
+				return entity();
 			}
 		};
 #endif
@@ -30517,7 +30651,7 @@ namespace gaia {
 						return;
 					}
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
 					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
 						--ec.refCnt;
@@ -30565,7 +30699,7 @@ namespace gaia {
 						return;
 					}
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
 					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
 						--ec.refCnt;
@@ -30600,6 +30734,30 @@ namespace gaia {
 
 				// Mark the entity with the "delete requested" flag
 				req_del(ec, entity);
+
+#if GAIA_USE_WEAK_ENTITY
+				auto invalidateWeakEntity = [](WeakEntityTracker* pTracker) {
+					GAIA_ASSERT(pTracker->pWeakEntity->m_pTracker == pTracker);
+					pTracker->pWeakEntity->m_pTracker = nullptr;
+					pTracker->pWeakEntity->m_entity = EntityBad;
+					delete pTracker;
+				};
+
+				// Invalidate WeakEntities
+				if (ec.pWeakTracker != nullptr) {
+					auto* pTracker = ec.pWeakTracker->next;
+					while (pTracker != nullptr) {
+						invalidateWeakEntity(pTracker);
+						pTracker = pTracker->next;
+					}
+					pTracker = ec.pWeakTracker->prev;
+					while (pTracker != nullptr) {
+						invalidateWeakEntity(pTracker);
+						pTracker = pTracker->prev;
+					}
+					invalidateWeakEntity(ec.pWeakTracker);
+				}
+#endif
 			}
 
 			//! Removes a graph connection with the surrounding archetypes.

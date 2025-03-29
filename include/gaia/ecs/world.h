@@ -3495,7 +3495,7 @@ namespace gaia {
 						return;
 					}
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
 					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
 						--ec.refCnt;
@@ -3543,7 +3543,7 @@ namespace gaia {
 						return;
 					}
 
-#if GAIA_USE_ENTITY_REFCNT
+#if GAIA_USE_SAFE_ENTITY
 					// Decrement the ref count at this point.
 					if ((ec.flags & EntityContainerFlags::RefDecreased) == 0) {
 						--ec.refCnt;
@@ -3578,6 +3578,30 @@ namespace gaia {
 
 				// Mark the entity with the "delete requested" flag
 				req_del(ec, entity);
+
+#if GAIA_USE_WEAK_ENTITY
+				auto invalidateWeakEntity = [](WeakEntityTracker* pTracker) {
+					GAIA_ASSERT(pTracker->pWeakEntity->m_pTracker == pTracker);
+					pTracker->pWeakEntity->m_pTracker = nullptr;
+					pTracker->pWeakEntity->m_entity = EntityBad;
+					delete pTracker;
+				};
+
+				// Invalidate WeakEntities
+				if (ec.pWeakTracker != nullptr) {
+					auto* pTracker = ec.pWeakTracker->next;
+					while (pTracker != nullptr) {
+						invalidateWeakEntity(pTracker);
+						pTracker = pTracker->next;
+					}
+					pTracker = ec.pWeakTracker->prev;
+					while (pTracker != nullptr) {
+						invalidateWeakEntity(pTracker);
+						pTracker = pTracker->prev;
+					}
+					invalidateWeakEntity(ec.pWeakTracker);
+				}
+#endif
 			}
 
 			//! Removes a graph connection with the surrounding archetypes.

@@ -433,7 +433,7 @@ w.build(e)
  .add<Something1, Something2, Something3>();
 ```
 
-It is also possible to manually commit all changes by calling ***EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
+It is also possible to manually commit all changes by calling ***ecs::EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
 ecs::EntityBuilder builder = w.build(e);
@@ -447,7 +447,7 @@ if (some_condition) {
 builder.commit();
 ```
 
->**NOTE:**<br/>Once ***EntityBuilder::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
+>**NOTE:**<br/>Once ***ecs::EntityBuilder::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
 
 ### Set or get component value
 
@@ -470,7 +470,7 @@ w.acc_mut(e)
   .set...;
 ```
 
-Similar to ***EntityBuilder::build*** you can also use the setter object in scenarios with complex logic.
+Similar to ***ecs::EntityBuilder::build*** you can also use the setter object in scenarios with complex logic.
 
 ```cpp
 ecs::ComponentSetter setter = w.acc_mut(e);
@@ -546,7 +546,10 @@ w.copy_n(e, 1000, [](Entity newEntity) {
 ```
 ### Entity lifespan
 
-Entities usually only live until ***World::del*** is called on them. However, their lifetime can be extended. Any attempts to delete an entity will fail until the last ***ecs::SafeEntity*** goes out of scope. This is done by incrementing an internal reference counter on the container associated with the entity. Any newly created entity starts with a reference counter value of 1. When ecs::SafeEntity comes into scope it increments this reference counter. When it goes out of scope it decrements the reference counter. Once the reference counter value reaches zero, the entity is automatically deleted.
+Every entity in the world is reference counted. When an entity is created, the value of this counter is 1. When ***ecs::World::del*** is called the value of this counter is decremented. When it reaches zero, the entity is deleted. However, the lifetime of entities can be extended. Calling ***ecs::World::del*** any number of times on the same entity is safe because the reference counter is decremented only on the first attempt. Any further attempts are ignored.
+
+#### SafeEntity
+***ecs::SafeEntity*** is a wrapper above ***ecs::Entity*** that makes sure that an entity stays alive until the last ***ecs::SafeEntity*** referencing the entity goes out of scope. When the wrapper is instantiated it increments the entity's reference counter by 1. When it goes out of scope it decrements the counter by 1. In terms of functionality, this is reminiscent of a C++ smart pointer, std::shared_ptr.
 
 ```cpp
 ecs::World w;
@@ -554,7 +557,7 @@ ecs::World w;
 ecs::Entity player = w.add();
 {
   // Make sure the entity survives so long playerSafe exists. Reference counter is incremented to 2.
-  ecs::SafeEntity playerSafe = ecs::SafeEntity(w, player);
+  auto playerSafe = ecs::SafeEntity(w, player);
 
   // Try to delete the player entity. The reference counter is decremented to 1.
   // It is not zero and therefore the entity player is not deleted.
@@ -573,7 +576,7 @@ ecs::Entity player = w.add();
 bool isValid = w.valid(player); // false
 ```
 
-ecs::SafeEntity can be used just like any other ecs::Entity and is fully compatible with it.
+ecs::SafeEntity is fully compatible with ecs::Entity and can be used just like it in all scenarios.
 
 ```cpp
 ecs::World w;
@@ -584,9 +587,42 @@ w.add<Position>(playerSafe);
 // w.add<Position>(player) <-- this would do the same thing
 ```
 
+#### WeakEntity
+***ecs::WeakEntity*** is a wrapper above ***ecs::Entity*** that makes sure that when the entity it references is deleted, it automatically starts acting as ***ecs::EntityBad***. In terms of functionality, this is reminiscent of a C++ smart pointer, std::weak_ptr.
+
+***ecs::WeakEntity*** is fully compatible with ***ecs::Entity*** and can be used just like it in all scenarios. As a result, you have to keep in mind that it can become invalid at any point.
+
+```cpp
+ecs::World w;
+// Create an entity. Its reference counter is 1.
+ecs::Entity player = w.add();
+
+// Create a "weak reference" to the entity player
+auto playerSafe = ecs::WeakEntity(w, player);
+
+// Add a Position component to playerSafe (player)
+w.add<Position>(playerSafe);
+// w.add<Position>(player) <-- this would do the same thing
+
+// Calling del decrements the reference count of entity by 1. In this case, the reference counter
+// becomes 0 and therefore the entity is deleted.
+// Our playerSafe automatically becomes EntityBad.
+w.del(player);
+
+bool isValid;
+isValid = w.valid(player); // false
+isValid = w.valid(playerSafe); // false
+```
+
+Technically, ***ecs::WeakEntity*** is almost the same thing as ***ecs::Entity*** with one nuance difference. Because entity ids are recycled, in theory, ***ecs::Entity*** left lying around somewhere could end up being multiple different things over time. This is not an issue with ***ecs::WeakEntity*** because the moment the entity linked with it gets deleted, it is reset to ***ecs::EntityBad***.
+
+This is an edge-case scenario, unlikely to happen even, but should you ever need it ***ec::WeakEntity*** is there to help. If you decided to change the amount of bits allocated to ***Entity::gen*** to a lower number you will increase the likelihood of double-recycling happening and increase usefulness of ***ecs::WeakEntity***.
+
+A more useful use case, however, would be if you need an entity identifier that gets automatically reset when the entity gets deleted without any setup necessary from your end. Certain situations can be complex and using ***ecs::WeakEntity*** just might be the one way for you to address them.
+
 ### Archetype lifespan
 
-Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ecs::World::update(). However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
+Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ***ecs::World::update***. However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
 
 For instance, you might often end up deleting all entities of a given archetype only to create new ones seconds later. In this case, keeping the archetype around can have several performance benefits:
 1) no need to recreate the archetype
