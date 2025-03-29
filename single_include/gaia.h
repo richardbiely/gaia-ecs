@@ -28256,7 +28256,7 @@ namespace gaia {
 							auto srcRecs = pSrcChunk->comp_rec_view();
 
 							// Copy generic component data from reference entity to our new entity
-							GAIA_FOR(pSrcChunk->size_generic() > 0) {
+							GAIA_FOR(pSrcChunk->size_generic()) {
 								const auto& rec = srcRecs[i];
 								if (rec.comp.size() == 0U)
 									continue;
