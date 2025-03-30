@@ -8,6 +8,7 @@
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "../mem/mem_utils.h"
+#include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "component.h"
@@ -20,8 +21,6 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 		class World;
-
-		bool is_base(const World& world, Entity entity);
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {

@@ -5,6 +5,7 @@
 
 #include "../cnt/map.h"
 #include "../config/logging.h"
+#include "api.h"
 #include "archetype_common.h"
 #include "component.h"
 #include "id.h"
@@ -12,8 +13,6 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-		const char* entity_name(const World& world, Entity entity);
-		const char* entity_name(const World& world, EntityId entityId);
 
 		using ArchetypeGraphEdge = ArchetypeIdHashPair;
 

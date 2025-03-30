@@ -10,6 +10,7 @@
 #include "../cnt/sarray_ext.h"
 #include "../core/hashing_policy.h"
 #include "../mem/mem_alloc.h"
+#include "api.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
 #include "chunk.h"
@@ -24,11 +25,6 @@ namespace gaia {
 		class World;
 		class Archetype;
 		struct EntityContainer;
-
-		const ComponentCache& comp_cache(const World& world);
-		Entity entity_from_id(const World& world, EntityId id);
-		const char* entity_name(const World& world, Entity entity);
-		const char* entity_name(const World& world, EntityId entityId);
 
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {

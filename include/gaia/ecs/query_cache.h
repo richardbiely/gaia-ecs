@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config_core_end.h"
+#include "../config/config.h"
 
 #include "../cnt/darray.h"
 #include "../cnt/map.h"

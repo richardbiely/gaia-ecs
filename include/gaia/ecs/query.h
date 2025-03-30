@@ -13,6 +13,7 @@
 #include "../core/utility.h"
 #include "../mt/threadpool.h"
 #include "../ser/serialization.h"
+#include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "chunk.h"
@@ -29,18 +30,6 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-
-		QuerySerBuffer& query_buffer(World& world);
-		const ComponentCache& comp_cache(const World& world);
-		ComponentCache& comp_cache_mut(World& world);
-		template <typename T>
-		const ComponentCacheItem& comp_cache_add(World& world);
-		bool is_base(const World& world, Entity entity);
-		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
-		void lock(World& world);
-		void unlock(World& world);
-		void commit_cmd_buffer_st(World& world);
-		void commit_cmd_buffer_mt(World& world);
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -138,7 +127,7 @@ namespace gaia {
 					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-						auto compName = ctx.cc->get(comp).name.str();
+						const auto *compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 						return;
 					}
@@ -162,7 +151,7 @@ namespace gaia {
 
 					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-					auto compName = ctx.cc->get(comp).name.str();
+					const auto *compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 				}

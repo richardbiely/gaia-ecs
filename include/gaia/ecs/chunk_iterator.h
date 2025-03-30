@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "../mem/data_layout_policy.h"
+#include "api.h"
 #include "archetype.h"
 #include "chunk.h"
 #include "command_buffer_fwd.h"
@@ -17,11 +18,6 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-
-		template <typename T>
-		const ComponentCacheItem& comp_cache_add(World& world);
-		CommandBufferST& cmd_buffer_st_get(World& world);
-		CommandBufferMT& cmd_buffer_mt_get(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };

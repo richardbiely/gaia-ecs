@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 
 #include <type_traits>
 
@@ -12,6 +13,7 @@
 #include "component.h"
 #include "data_buffer.h"
 #include "id.h"
+#include "query_fwd.h"
 
 namespace gaia {
 	namespace ecs {
@@ -35,15 +37,11 @@ namespace gaia {
 
 		GAIA_GCC_WARNING_POP()
 
-		using QueryId = uint32_t;
-		using GroupId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QueryOpArray = cnt::sarray_ext<QueryOpKind, MAX_ITEMS_IN_QUERY>;
-		using QuerySerBuffer = SerializationBufferDyn;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
-		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;

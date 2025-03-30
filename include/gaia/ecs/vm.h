@@ -8,6 +8,7 @@
 #include "../cnt/set.h"
 #include "../config/profiler.h"
 #include "../core/utility.h"
+#include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "data_buffer.h"
@@ -16,15 +17,6 @@
 
 namespace gaia {
 	namespace ecs {
-		extern Archetype* archetype_from_entity(const World& world, Entity entity);
-		extern GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
-		extern bool is(const World& world, Entity entity, Entity baseEntity);
-
-		template <typename Func>
-		void as_relations_trav(const World& world, Entity target, Func func);
-		template <typename Func>
-		bool as_relations_trav_if(const World& world, Entity target, Func func);
-
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 
 		namespace vm {

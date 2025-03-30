@@ -8,6 +8,7 @@
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
+#include "id_fwd.h"
 
 namespace gaia {
 	namespace ecs {
@@ -16,13 +17,6 @@ namespace gaia {
 		using Identifier = uint64_t;
 		inline constexpr Identifier IdentifierBad = (Identifier)-1;
 		inline constexpr Identifier EntityCompMask = IdentifierBad << 1;
-
-		using IdentifierId = uint32_t;
-		using IdentifierData = uint32_t;
-
-		using EntityId = IdentifierId;
-		using ComponentId = IdentifierId;
-
 		inline constexpr IdentifierId IdentifierIdBad = (IdentifierId)-1;
 
 		// ------------------------------------------------------------------------------------

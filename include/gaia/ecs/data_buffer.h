@@ -149,7 +149,7 @@ namespace gaia {
 		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
 		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
 
-		using SerializationBuffer = detail::SerializationBufferImpl<SerializationBuffer_DArrExt>;
-		using SerializationBufferDyn = detail::SerializationBufferImpl<SerializationBuffer_DArr>;
+		class SerializationBuffer: public detail::SerializationBufferImpl<SerializationBuffer_DArrExt> {};
+		class SerializationBufferDyn: public detail::SerializationBufferImpl<SerializationBuffer_DArr> {};
 	} // namespace ecs
 } // namespace gaia
