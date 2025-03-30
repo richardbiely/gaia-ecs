@@ -543,6 +543,15 @@ w.copy_n(e, 1000, [](Entity newEntity) {
   // Do something with the new entity
   // ...
 });
+w.copy_n(e, 1000, [](ecs::CopyIter& it) {
+  auto entityView = it.view<ecs::Entity>();
+  // You can also access the view of components attached to the entity
+  auto someView = it.view<SomeComponent>();
+  GAIA_EACH(it) {
+    // Do something with the new entities
+    // ...
+  }
+});
 ```
 ### Entity lifespan
 

@@ -999,7 +999,8 @@ namespace gaia {
 			//! Creates \param count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
-			//! \param func void(Entity copy) functor executed every time a copy is created
+			//! \param func Functor executed every time a copy is created.
+			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
 			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
@@ -1049,7 +1050,14 @@ namespace gaia {
 						}
 
 						// Call functors
-						{
+						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+							CopyIter it;
+							it.set_world(this);
+							it.set_archetype(pDstArchetype);
+							it.set_chunk(pDstChunk);
+							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
+							func(it);
+						} else {
 							auto entities = pDstChunk->entity_view();
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}
@@ -1115,7 +1123,14 @@ namespace gaia {
 						}
 
 						// Call functors
-						{
+						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+							CopyIter it;
+							it.set_world(this);
+							it.set_archetype(pDstArchetype);
+							it.set_chunk(pDstChunk);
+							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
+							func(it);
+						} else {
 							auto entities = pDstChunk->entity_view();
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}

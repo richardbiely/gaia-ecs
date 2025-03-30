@@ -23584,13 +23584,13 @@ namespace gaia {
 		} // namespace detail
 
 		//! Iterator for iterating enabled entities
-		using Iter = detail::ChunkIterImpl<Constraints::EnabledOnly>;
+		class Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
 		//! Iterator for iterating disabled entities
-		using IterDisabled = detail::ChunkIterImpl<Constraints::DisabledOnly>;
+		class IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
 
 		//! Iterator for iterating both enabled and disabled entities.
 		//! Disabled entities always precede enabled ones.
-		class IterAll: public detail::ChunkIterImpl<Constraints::AcceptAll> {
+		class IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
 			//! Returns the number of enabled entities accessible via the iterator.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
@@ -23601,6 +23601,193 @@ namespace gaia {
 			//! Can be read also as "the index of the first enabled entity".
 			GAIA_NODISCARD uint16_t size_disabled() const noexcept {
 				return m_pChunk->size_disabled();
+			}
+		};
+
+		//! Iterator used when copying entities.
+		class CopyIter final {
+		protected:
+			using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
+
+			//! World pointer
+			const World* m_pWorld = nullptr;
+			//! Currently iterated archetype
+			Archetype* m_pArchetype = nullptr;
+			//! Chunk currently associated with the iterator
+			Chunk* m_pChunk = nullptr;
+			//! Row of the first entity we iterate from
+			uint16_t m_from;
+			//! The number of entities accessible via the iterator
+			uint16_t m_cnt;
+
+		public:
+			CopyIter() = default;
+			~CopyIter() = default;
+			CopyIter(CopyIter&&) noexcept = default;
+			CopyIter& operator=(CopyIter&&) noexcept = default;
+			CopyIter(const CopyIter&) = delete;
+			CopyIter& operator=(const CopyIter&) = delete;
+
+			//! Sets the iterator's range.
+			//! \param from Row of the first entity we want to iterate from
+			//! \param cnt Number of entities we are going to iterate
+			void set_range(uint16_t from, uint16_t cnt) {
+				GAIA_ASSERT(from < m_pChunk->size());
+				GAIA_ASSERT(from + cnt <= m_pChunk->size());
+				m_from = from;
+				m_cnt = cnt;
+			}
+
+			void set_world(const World* pWorld) {
+				GAIA_ASSERT(pWorld != nullptr);
+				m_pWorld = pWorld;
+			}
+
+			GAIA_NODISCARD World* world() {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				return const_cast<World*>(m_pWorld);
+			}
+
+			GAIA_NODISCARD const World* world() const {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				return m_pWorld;
+			}
+
+			void set_archetype(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				m_pArchetype = pArchetype;
+			}
+
+			GAIA_NODISCARD Archetype* archetype() {
+				GAIA_ASSERT(m_pArchetype != nullptr);
+				return m_pArchetype;
+			}
+
+			GAIA_NODISCARD const Archetype* archetype() const {
+				GAIA_ASSERT(m_pArchetype != nullptr);
+				return m_pArchetype;
+			}
+
+			void set_chunk(Chunk* pChunk) {
+				GAIA_ASSERT(pChunk != nullptr);
+				m_pChunk = pChunk;
+			}
+
+			GAIA_NODISCARD const Chunk* chunk() const {
+				GAIA_ASSERT(m_pChunk != nullptr);
+				return m_pChunk;
+			}
+
+			GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
+				auto* pWorld = const_cast<World*>(m_pWorld);
+				return cmd_buffer_st_get(*pWorld);
+			}
+
+			GAIA_NODISCARD CommandBufferMT& cmd_buffer_mt() const {
+				auto* pWorld = const_cast<World*>(m_pWorld);
+				return cmd_buffer_mt_get(*pWorld);
+			}
+
+			//! Returns a read-only entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity of component view with read-only access
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return m_pChunk->view<T>(from(), to());
+			}
+
+			//! Returns a mutable entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return m_pChunk->view_mut<T>(from(), to());
+			}
+
+			//! Returns a mutable component view.
+			//! Doesn't update the world version when the access is acquired.
+			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \tparam T Component
+			//! \return Component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return m_pChunk->sview_mut<T>(from(), to());
+			}
+
+			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+			//! an update at user's whim.
+			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			template <typename T, bool TriggerHooks>
+			void modify() {
+				m_pChunk->modify<T, TriggerHooks>();
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return m_pChunk->view_auto<T>(from(), to());
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! Doesn't update the world version when read-write access is acquired.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return m_pChunk->sview_auto<T>(from(), to());
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool enabled(uint32_t index) const {
+				const auto row = (uint16_t)(from() + index);
+				return m_pChunk->enabled(row);
+			}
+
+			//! Checks if entity \param entity is present in the chunk.
+			//! \param entity Entity
+			//! \return True if the component is present. False otherwise.
+			GAIA_NODISCARD bool has(Entity entity) const {
+				return m_pChunk->has(entity);
+			}
+
+			//! Checks if relationship pair \param pair is present in the chunk.
+			//! \param pair Relationship pair
+			//! \return True if the component is present. False otherwise.
+			GAIA_NODISCARD bool has(Pair pair) const {
+				return m_pChunk->has((Entity)pair);
+			}
+
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool has() const {
+				return m_pChunk->has<T>();
+			}
+
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint16_t size() const noexcept {
+				return m_cnt;
+			}
+
+		private:
+			//! Returns the starting index of the iterator
+			GAIA_NODISCARD uint16_t from() const noexcept {
+				return m_from;
+			}
+
+			//! Returns the ending index of the iterator (one past the last valid index)
+			GAIA_NODISCARD uint16_t to() const noexcept {
+				return m_from + m_cnt;
 			}
 		};
 	} // namespace ecs
@@ -28157,7 +28344,8 @@ namespace gaia {
 			//! Creates \param count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
-			//! \param func void(Entity copy) functor executed every time a copy is created
+			//! \param func Functor executed every time a copy is created.
+			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
 			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
@@ -28207,7 +28395,14 @@ namespace gaia {
 						}
 
 						// Call functors
-						{
+						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+							CopyIter it;
+							it.set_world(this);
+							it.set_archetype(pDstArchetype);
+							it.set_chunk(pDstChunk);
+							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
+							func(it);
+						} else {
 							auto entities = pDstChunk->entity_view();
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}
@@ -28273,7 +28468,14 @@ namespace gaia {
 						}
 
 						// Call functors
-						{
+						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+							CopyIter it;
+							it.set_world(this);
+							it.set_archetype(pDstArchetype);
+							it.set_chunk(pDstChunk);
+							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
+							func(it);
+						} else {
 							auto entities = pDstChunk->entity_view();
 							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 						}

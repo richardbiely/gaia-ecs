@@ -6306,6 +6306,11 @@ TEST_CASE("Entity name - copy") {
 
 	constexpr const char* pTestStr = "text";
 
+	// An entity with some values. We won't be copying it.
+	auto e0 = wld.add();
+	wld.add<PositionNonTrivial>(e0, {10.f, 20.f, 30.f});
+
+	// An entity we want to copy.
 	auto e1 = wld.add();
 	wld.add<PositionNonTrivial>(e1, {1.f, 2.f, 3.f});
 	wld.name_raw(e1, pTestStr);
@@ -6337,29 +6342,69 @@ TEST_CASE("Entity name - copy") {
 	SECTION("many entities") {
 		constexpr uint32_t N = 1'500;
 
-		cnt::darr<ecs::Entity> ents;
-		ents.reserve(N);
+		SECTION("entity") {
+			cnt::darr<ecs::Entity> ents;
+			ents.reserve(N);
+			wld.copy_n(e1, N, [&ents](ecs::Entity entity) {
+				ents.push_back(entity);
+			});
 
-		wld.copy_n(e1, N, [&ents](ecs::Entity entity) {
-			ents.push_back(entity);
-		});
+			auto e = wld.get(pTestStr);
+			REQUIRE(e == e1);
+			const auto* e1name = wld.name(e1);
+			REQUIRE(e1name == pTestStr);
+			const auto& p1 = wld.get<PositionNonTrivial>(e1);
+			REQUIRE(p1.x == 1.f);
+			REQUIRE(p1.y == 2.f);
+			REQUIRE(p1.z == 3.f);
 
-		auto e = wld.get(pTestStr);
-		REQUIRE(e == e1);
-		const auto* e1name = wld.name(e1);
-		REQUIRE(e1name == pTestStr);
-		const auto& p1 = wld.get<PositionNonTrivial>(e1);
-		REQUIRE(p1.x == 1.f);
-		REQUIRE(p1.y == 2.f);
-		REQUIRE(p1.z == 3.f);
+			for (auto ent: ents) {
+				const auto* e2name = wld.name(ent);
+				REQUIRE(e2name == nullptr);
+				const auto& p2 = wld.get<PositionNonTrivial>(ent);
+				REQUIRE(p2.x == 1.f);
+				REQUIRE(p2.y == 2.f);
+				REQUIRE(p2.z == 3.f);
+			}
+		}
 
-		for (auto ent: ents) {
-			const auto* e2name = wld.name(ent);
-			REQUIRE(e2name == nullptr);
-			const auto& p2 = wld.get<PositionNonTrivial>(ent);
-			REQUIRE(p2.x == 1.f);
-			REQUIRE(p2.y == 2.f);
-			REQUIRE(p2.z == 3.f);
+		SECTION("iterator") {
+			cnt::darr<ecs::Entity> ents;
+			ents.reserve(N);
+			uint32_t counter = 0;
+			wld.copy_n(e1, N, [&](ecs::CopyIter& it) {
+				GAIA_EACH(it) {
+					auto ev = it.view<ecs::Entity>();
+					auto pv = it.view<PositionNonTrivial>();
+
+					const auto& p1 = pv[i];
+					REQUIRE(p1.x == 1.f);
+					REQUIRE(p1.y == 2.f);
+					REQUIRE(p1.z == 3.f);
+
+					ents.push_back(ev[i]);
+					++counter;
+				}
+			});
+			REQUIRE(counter == N);
+
+			auto e = wld.get(pTestStr);
+			REQUIRE(e == e1);
+			const auto* e1name = wld.name(e1);
+			REQUIRE(e1name == pTestStr);
+			const auto& p1 = wld.get<PositionNonTrivial>(e1);
+			REQUIRE(p1.x == 1.f);
+			REQUIRE(p1.y == 2.f);
+			REQUIRE(p1.z == 3.f);
+
+			for (auto ent: ents) {
+				const auto* e2name = wld.name(ent);
+				REQUIRE(e2name == nullptr);
+				const auto& p2 = wld.get<PositionNonTrivial>(ent);
+				REQUIRE(p2.x == 1.f);
+				REQUIRE(p2.y == 2.f);
+				REQUIRE(p2.z == 3.f);
+			}
 		}
 	}
 }
