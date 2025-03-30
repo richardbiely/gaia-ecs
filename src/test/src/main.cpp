@@ -3037,6 +3037,8 @@ TEST_CASE("Entity safe") {
 
 		{
 			auto se = ecs::SafeEntity(wld, e);
+			REQUIRE(se == e);
+
 			REQUIRE(wld.valid(se));
 			REQUIRE(wld.has(se));
 			REQUIRE(wld.valid(e));
@@ -3069,6 +3071,9 @@ TEST_CASE("Entity safe") {
 
 			{
 				auto se = ecs::SafeEntity(wld, e);
+				REQUIRE(se == e);
+				REQUIRE(se == se0);
+
 				REQUIRE(wld.valid(se));
 				REQUIRE(wld.has(se));
 				REQUIRE(wld.valid(e));
@@ -3112,6 +3117,8 @@ TEST_CASE("Entity safe") {
 		wld.add<SafeComponent>(e2, {ecs::SafeEntity(wld, e)});
 
 		const auto& sc = wld.get<SafeComponent>(e2);
+		REQUIRE(sc.entity == e);
+
 		REQUIRE(wld.valid(e));
 		REQUIRE(wld.has(e));
 
@@ -3138,6 +3145,8 @@ TEST_CASE("Entity weak") {
 		REQUIRE(wld.has(e));
 
 		auto we = ecs::WeakEntity(wld, e);
+		REQUIRE(we == e);
+
 		REQUIRE(wld.valid(we));
 		REQUIRE(wld.has(we));
 		REQUIRE(wld.valid(e));
@@ -3161,6 +3170,7 @@ TEST_CASE("Entity weak") {
 
 		{
 			auto se = ecs::SafeEntity(wld, e);
+			REQUIRE(se == e);
 
 			REQUIRE(wld.valid(we));
 			REQUIRE(wld.has(we));
@@ -3200,6 +3210,7 @@ TEST_CASE("Entity weak") {
 
 			{
 				auto se = ecs::SafeEntity(wld, e);
+				REQUIRE(se == e);
 
 				REQUIRE(wld.valid(we));
 				REQUIRE(wld.has(we));
@@ -3250,6 +3261,8 @@ TEST_CASE("Entity weak") {
 		wld.add<WeakComponent>(e2, {ecs::WeakEntity(wld, e)});
 
 		const auto& wc = wld.get<WeakComponent>(e2);
+		REQUIRE(wc.entity == e);
+
 		REQUIRE(wld.valid(wc.entity));
 		REQUIRE(wld.has(wc.entity));
 

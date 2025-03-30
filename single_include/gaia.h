@@ -20329,7 +20329,25 @@ namespace gaia {
 			GAIA_NODISCARD operator Entity() const noexcept {
 				return m_entity;
 			}
+
+			bool operator==(const SafeEntity& other) const noexcept {
+				return m_entity == other.entity();
+			}
 		};
+
+		inline bool operator==(const SafeEntity& e1, Entity e2) noexcept {
+			return e1.entity() == e2;
+		}
+		inline bool operator==(Entity e1, const SafeEntity& e2) noexcept {
+			return e1 == e2.entity();
+		}
+
+		inline bool operator!=(const SafeEntity& e1, Entity e2) noexcept {
+			return e1.entity() != e2;
+		}
+		inline bool operator!=(Entity e1, const SafeEntity& e2) noexcept {
+			return e1 != e2.entity();
+		}
 #endif
 
 #if GAIA_USE_WEAK_ENTITY
@@ -20449,7 +20467,25 @@ namespace gaia {
 			GAIA_NODISCARD operator Entity() const noexcept {
 				return entity();
 			}
+
+			bool operator==(const WeakEntity& other) const noexcept {
+				return m_entity == other.entity();
+			}
 		};
+
+		inline bool operator==(const WeakEntity& e1, Entity e2) noexcept {
+			return e1.entity() == e2;
+		}
+		inline bool operator==(Entity e1, const WeakEntity& e2) noexcept {
+			return e1 == e2.entity();
+		}
+
+		inline bool operator!=(const WeakEntity& e1, Entity e2) noexcept {
+			return e1.entity() != e2;
+		}
+		inline bool operator!=(Entity e1, const WeakEntity& e2) noexcept {
+			return e1 != e2.entity();
+		}
 #endif
 	} // namespace ecs
 
