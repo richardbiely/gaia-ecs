@@ -27,12 +27,13 @@
 * based on [C++17](https://en.cppreference.com/w/cpp/17) with no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
-* supports [run-time defined tags](#create-or-delete-entity)
-* supports [entity relationships](#relationships)
 * supports applications with large number of components and archetypes
 * automatic component registration
+* supports [run-time defined tags](#create-or-delete-entity)
+* supports [entity relationships](#relationships)
+* supports smart pointer-like [entity lifespan](#entity-lifespan) management
 * integrated [compile-time serialization](#serialization)
-* comes with [multithreading](#multithreading) support with job-dependencies 
+* comes with [multithreading](#multithreading) support with job-dependencies, supported on the [ECS level](#parallel-execution), too
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiles almost instantly
 * stability and correctness secured by running thousands of [unit tests](#unit-testing) and debug-mode asserts in the code
