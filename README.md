@@ -896,6 +896,8 @@ q.each([](ecs::IterAll& it) {
 }
 ```
 
+>**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simpy expect that the functor might be triggered mulitple times per a call to ***each"***.
+
 ### Constraints
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
 
