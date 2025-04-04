@@ -1157,7 +1157,7 @@ q1.each([]()) {
   // Triggers for rabbit, hare and wolf.
 }
 
-ecs::Query q2 = w.query().all(ecs::Pair(All, eats));
+ecs::Query q2 = w.query().all(ecs::Pair(All, carrot));
 q2.each([]()) {
   // Called for each entity implementing (*, carrot) relationship.
   // This can be read as "anything that has something with carrot".
@@ -1338,7 +1338,7 @@ w.as(rabbit, animal);
 
 // Check if an entity is inheriting from something
 bool animal_is_animal = w.is(animal, animal); // true
-bool rabbit_is_animal = w.is(herbivore, animal); // true
+bool rabbit_is_animal = w.is(rabit, animal); // true
 bool wall_is_animal = w.is(wall, animal); // false
 ```
 
@@ -1351,25 +1351,29 @@ q.each([](ecs::Entity entity) {
   // entity = animal, rabbit
 });
 
-// Iterate everything that is animal but skip wolfs
+// Iterate everything that is animal but skip the "animal" itself
 ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(animal);
 q2.each([](ecs::Entity entity) {
   // entity = rabbit
 });
 ```
 
-This also means the entity inherits all ids which are present on the entity we inherit from.
+>**NOTE:<br/>**
+Currently inheritance works only for checking if something is something else.
+In the future, all ids that are present on the entity we inherit from will also be presnet on the inherited entity.
 
 ```cpp
+// NOT YET IMPLEMENTED, BUT THIS IS WHAT WILL HAPPEN IN THE FUTURE RELEASES.
 struct Age { int value; };
 ...
 w.add<Age>(animal, {10});
 // We did not add the Age component to hare but we added it to the entity it inherits from.
 // Therefore, we can ask its age.
-Age age = w.get<Age>(hare);
+Age age_hare = w.get<Age>(hare);
 // We can decide to override the value with a custom one.
 // This will only affect the hare entity (and any entity inheriting from it).
 w.set<Age>(hare, {20});
+Age age_animal = w.get<Age>(animal); // age_animal.value is still equal to 10
 ```
 
 ### Cleanup rules
