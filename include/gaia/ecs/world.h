@@ -958,6 +958,26 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Removes any component or entity attached to \param entity.
+			//! \param entity Entity we want to remove any attached component or entity from
+			//! \warning It is expected \param entity is not a pair. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			void clear(Entity entity) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(valid(entity));
+
+				EntityBuilder eb(*this, entity);
+
+				// Remove back to front because it's better for the archetype graph
+				auto ids = eb.m_pArchetype->ids_view();
+				for (uint32_t i = (uint32_t)ids.size() - 1; i != (uint32_t)-1; --i)
+					eb.del(ids[i]);
+
+				eb.commit();
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Creates a new entity by cloning an already existing one.
 			//! \param srcEntity Entity to clone
 			//! \return New entity

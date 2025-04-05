@@ -53,12 +53,13 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Basic operations](#basic-operations)
     * [Create or delete entity](#create-or-delete-entity)
     * [Name entity](#name-entity)
-    * [Add or remove component](#add-or-remove-component)
+    * [Add or remove component](#add-or-remove-component)]
     * [Component presence](#component-presence)
     * [Component hooks](#component-hooks)
     * [Bulk editing](#bulk-editing)
     * [Set or get component value](#set-or-get-component-value)
     * [Copy entity](#copy-entity)
+    * [Entity cleanup](#entity-cleanup)
     * [Batched creation](#batched-creation)
     * [Entity lifespan](#entity-lifespan)
     * [Archetype lifespan](#archetype-lifespan)
@@ -512,6 +513,24 @@ w.add(e, velocity, Velocity{0, 0, 1});
 // Value of Velocity on "e2" will be {0, 0, 1}.
 ecs::Entity e2 = w.copy(e);
 ```
+### Entity cleanup
+
+Anything attached to an entity can be easily removed using ***World::clear***. This is useful when you need to quickly reset your entity and still want to keep your Entity's id (deleting the entity would mean that as some point it could be recycled and its id could be used by some newly created entity).
+
+```cpp
+ecs::Entity e = w.add();
+ecs::Entity something = w.add();
+// Add a Position component to our entity
+w.add<Position>(e, {0, 100, 0});
+// Add the "something" entity to our entity
+w.add(e, something);
+// Remove anything attached to out entity
+w.clear(e);
+
+bool hasPosition = w.has<Position>(e); // false
+bool hasSomething = w.has(e, something); // false
+```
+
 ### Batched creation
 
 Another way to create entities is by creating many of them at once. This is more performant than creating entities one by one.
