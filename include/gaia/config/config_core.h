@@ -18,7 +18,7 @@
 	#define GAIA_DEVMODE 0
 #endif
 #if !defined(GAIA_USE_SANITIZER)
-	#define GAIA_USEGAIA_USE_SANITIZER 0
+	#define GAIA_USE_SANITIZER 0
 #endif
 
 //------------------------------------------------------------------------------
