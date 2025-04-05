@@ -312,7 +312,7 @@ namespace gaia {
 #endif
 
 #if GAIA_COMPILER_MSVC
-	#if _MSV_VER <= 1916
+	#if _MSC_VER <= 1916
 		#include <intrin.h>
 	#endif
 	// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
