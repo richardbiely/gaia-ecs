@@ -28419,6 +28419,7 @@ namespace gaia {
 
 				EntityBuilder eb(*this, entity);
 
+				// Remove back to front because it's better for the archetype graph
 				auto ids = eb.m_pArchetype->ids_view();
 				for (uint32_t i = (uint32_t)ids.size() - 1; i != (uint32_t)-1; --i)
 					eb.del(ids[i]);
