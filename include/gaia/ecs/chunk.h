@@ -128,7 +128,7 @@ namespace gaia {
 				}
 			}
 
-			GAIA_MSVC_WARNING_POP()
+			GAIA_CLANG_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
 				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};

@@ -16,6 +16,17 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// CMake-only settings
+//------------------------------------------------------------------------------
+
+#if !defined(GAIA_DEVMODE)
+	#define GAIA_DEVMODE 0
+#endif
+#if !defined(GAIA_USE_SANITIZER)
+	#define GAIA_USEGAIA_USE_SANITIZER 0
+#endif
+
+//------------------------------------------------------------------------------
 // Features
 //------------------------------------------------------------------------------
 
@@ -3726,7 +3737,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto hash() noexcept {
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4307)
 #endif
@@ -3734,7 +3745,7 @@ namespace gaia {
 				auto n = name<T>();
 				return core::calculate_hash64(n.data(), n.size());
 
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
 #endif
 			}
@@ -20727,7 +20738,7 @@ namespace gaia {
 				}
 			}
 
-			GAIA_MSVC_WARNING_POP()
+			GAIA_CLANG_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
 				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
