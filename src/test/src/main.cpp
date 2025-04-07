@@ -3528,6 +3528,14 @@ TEST_CASE("Add - many components, bulk") {
 				REQUIRE(val.z == 30);
 			}
 		}
+
+		wld.clear(e);
+		REQUIRE_FALSE(wld.has<Int3>(e));
+		REQUIRE_FALSE(wld.has<Position>(e));
+		REQUIRE_FALSE(wld.has<Empty>(e));
+		REQUIRE_FALSE(wld.has<Else>(e));
+		REQUIRE_FALSE(wld.has<Rotation>(e));
+		REQUIRE_FALSE(wld.has<Scale>(e));
 	};
 
 	const uint32_t N = 1'500;
