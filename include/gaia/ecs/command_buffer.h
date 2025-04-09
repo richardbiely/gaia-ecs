@@ -417,34 +417,24 @@ namespace gaia {
 				template <typename T>
 				void add(Entity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					add(entity, compEntity);
+					add(entity, item.entity);
 				}
 
 				//! Requests a component \tparam T to be added to a temporary entity.
 				template <typename T>
 				void add(TempEntity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					add(entity, compEntity);
+					add(entity, item.entity);
 				}
 
 				//! Requests an entity \param other to be added to entity \param entity.
@@ -499,92 +489,72 @@ namespace gaia {
 				template <typename T>
 				void add(Entity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
 					m_ctx.save(ADD_COMPONENT_DATA);
 
 					AddComponentWithDataCmd cmd;
 					cmd.entity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
 				template <typename T>
 				void add(TempEntity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
 					m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 					AddComponent01Cmd cmd;
 					cmd.tempEntity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests component data to be set to given values for a given entity.
 				template <typename T>
 				void set(Entity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
 					m_ctx.save(SET_COMPONENT);
 
 					SetComponentCmd cmd;
 					cmd.entity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests component data to be set to given values for a given temp entity.
 				template <typename T>
 				void set(TempEntity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
 					m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
 					SetComponentOnTempEntityCmd cmd;
 					cmd.tempEntity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests removal of component \tparam T from \param entity
@@ -631,17 +601,12 @@ namespace gaia {
 				template <typename T>
 				void del(Entity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					del(entity, compEntity);
+					del(entity, item.entity);
 				}
 
 			private:

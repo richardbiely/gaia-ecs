@@ -85,9 +85,8 @@ namespace gaia {
 
 				//! Writes \param value to the buffer
 				template <typename T>
-				void save_comp(const ComponentCache& cc, T&& value) {
-					const auto& desc = cc.get<T>();
-					const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
+				void save_comp(const ComponentCacheItem& item, T&& value) {
+					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
 					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
 					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
@@ -96,7 +95,7 @@ namespace gaia {
 
 					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
 					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && desc.func_move_ctor != nullptr) {
+					if (isRValue && item.func_move_ctor != nullptr) {
 						if constexpr (mem::is_movable<T>())
 							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
 						else

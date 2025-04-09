@@ -22944,9 +22944,8 @@ namespace gaia {
 
 				//! Writes \param value to the buffer
 				template <typename T>
-				void save_comp(const ComponentCache& cc, T&& value) {
-					const auto& desc = cc.get<T>();
-					const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
+				void save_comp(const ComponentCacheItem& item, T&& value) {
+					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
 					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
 					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
@@ -22955,7 +22954,7 @@ namespace gaia {
 
 					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
 					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && desc.func_move_ctor != nullptr) {
+					if (isRValue && item.func_move_ctor != nullptr) {
 						if constexpr (mem::is_movable<T>())
 							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
 						else
@@ -32870,34 +32869,24 @@ namespace gaia {
 				template <typename T>
 				void add(Entity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					add(entity, compEntity);
+					add(entity, item.entity);
 				}
 
 				//! Requests a component \tparam T to be added to a temporary entity.
 				template <typename T>
 				void add(TempEntity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					add(entity, compEntity);
+					add(entity, item.entity);
 				}
 
 				//! Requests an entity \param other to be added to entity \param entity.
@@ -32952,92 +32941,72 @@ namespace gaia {
 				template <typename T>
 				void add(Entity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
 					m_ctx.save(ADD_COMPONENT_DATA);
 
 					AddComponentWithDataCmd cmd;
 					cmd.entity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
 				template <typename T>
 				void add(TempEntity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache_add<T>(m_ctx.world);
 
 					m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 					AddComponent01Cmd cmd;
 					cmd.tempEntity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests component data to be set to given values for a given entity.
 				template <typename T>
 				void set(Entity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
 					m_ctx.save(SET_COMPONENT);
 
 					SetComponentCmd cmd;
 					cmd.entity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests component data to be set to given values for a given temp entity.
 				template <typename T>
 				void set(TempEntity entity, T&& value) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
-
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
 					m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
 					SetComponentOnTempEntityCmd cmd;
 					cmd.tempEntity = entity;
-					cmd.object = compEntity;
+					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(m_ctx.world.comp_cache(), GAIA_FWD(value));
+					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
 				//! Requests removal of component \tparam T from \param entity
@@ -33084,17 +33053,12 @@ namespace gaia {
 				template <typename T>
 				void del(Entity entity) {
 					verify_comp<T>();
+					core::lock_scope lock(m_acc);
 
-					Entity compEntity;
-					{
-						core::lock_scope lock(m_acc);
+					// Make sure the component is registered
+					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
-						// Make sure the component is registered
-						const auto& desc = comp_cache_add<T>(m_ctx.world);
-						compEntity = desc.entity;
-					}
-
-					del(entity, compEntity);
+					del(entity, item.entity);
 				}
 
 			private:

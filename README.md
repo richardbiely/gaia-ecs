@@ -1472,15 +1472,15 @@ w.add<ecs::uni<GridPosition>>(e1, {1, 0});
 ```
 
 ## Delayed execution
-Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.
+Sometimes you need to delay executing a part of the code for later. This can be achieved via command buffers.
 
-CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.
+Command buffer is a container used to record commands in the order in which they were requested at a later point in time.
 
-Typically you use them when there is a need to perform structural changes (adding or removing an entity or component) while iterating chunks.
+Typically you use them when there is a need to perform structural changes (adding or removing an entity or component) while iterating queries.
 
-Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
+Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.
 
-You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - ecs::CommandBufferST that is not thread-safe and should only be used on one thread, and ecs::CommandBufferMT that is safe to access from multiple threads at once.
+You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - ***ecs::CommandBufferST*** that is not thread-safe and should only be used by one thread, and ***ecs::CommandBufferMT*** that is safe to access from multiple threads at once.
 
 The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.
 
@@ -1522,6 +1522,14 @@ cb.commit(&w);
 ```
 
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
+
+>**NOTE:<br/>** 
+There is one situation to be wary about with command buffers. Function ***add*** accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are a subject to race conditions. To avoid them, make sure that the component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, you need to call this anywhere before you run your system or a query:
+```cpp
+// Register the component YourComponent in the world
+world.add<YourComponent>();
+```
+>Technically, template versions of functions ***set*** and ***del*** experience a similar issue. However, calling neither ***set*** nor ***del*** makes sense without a previous call to ***add***. Such attempts are undefined behaviors (and reported by triggering an assertion).
 
 ## Systems
 ### System basics
