@@ -47,7 +47,7 @@ class PositionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query<false>().all<Position&, Velocity>();
+		m_q = world().query<false>().all<Position&>().all<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -65,7 +65,7 @@ class PositionSystem_All final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position&, Velocity>();
+		m_q = world().query().all<Position&>().all<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -92,7 +92,7 @@ class PositionSystem_All2 final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position&, Velocity>();
+		m_q = world().query().all<Position&>().all<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -119,7 +119,7 @@ class PositionSystem_DisabledOnly final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position&, Velocity>();
+		m_q = world().query().all<Position&>().all<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -656,7 +656,7 @@ void test7e() {
 		auto e = wld.add();
 
 		auto b = wld.build(e);
-		b.add<Position, Scale>();
+		b.add<Position>().add<Scale>();
 		if (i % 2 == 0)
 			b.add<Something>();
 		b.commit();
@@ -669,7 +669,7 @@ void test7e() {
 	// auto q2 = wld.query<UseCachedQuery>().all<Rotation>();
 	// auto q3 = wld.query<UseCachedQuery>().all<Position, Rotation>();
 	// auto q4 = wld.query<UseCachedQuery>().all<Position, Scale>();
-	auto q5 = wld.query<UseCachedQuery>().all<Position, Scale, Something>();
+	auto q5 = wld.query<UseCachedQuery>().all<Position>().all<Scale>().all<Something>();
 
 	auto pos = wld.get<Position>();
 	auto sca = wld.get<Scale>();
@@ -707,7 +707,7 @@ void test7f() {
 	wld.add<Acceleration>(e3, {});
 	wld.add<Scale>(e3, {});
 	{
-		ecs::Query q = wld.query().any<Position, Acceleration>();
+		ecs::Query q = wld.query().any<Position>().any<Acceleration>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -770,7 +770,8 @@ void test10() {
 	int sys1_cnt = 0;
 	int sys2_cnt = 0;
 	auto sys2 = w.system()
-									.all<Position&, Velocity>() //
+									.all<Position&>()
+									.all<Velocity>() //
 									.on_each([&sys1_cnt](Position& p, const Velocity& v) {
 										const float dt = 0.01f;
 										p.x += v.x * dt;
@@ -874,7 +875,8 @@ void test10b() {
 
 	// Our systems
 	auto sys1 = wld.system()
-									.all<Position, Acceleration>() //
+									.all<Position>() //
+									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
 										if (sys1_cnt == 0 && sys3_cnt == 0)
 											sys3_run_before_sys1 = true;
@@ -1200,6 +1202,30 @@ void test16() {
 	GAIA_FOR(N) create(i);
 }
 
+void test17() {
+	ecs::World wld;
+
+	auto e0 = wld.add();
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+
+	wld.add<Position>(e0, {0, 0, 0});
+	wld.add<Position>(e1, {1, 1, 1});
+
+	wld.system() //
+			.all<Position>()
+			.on_each([](ecs::Iter& it) {
+				auto& cb = it.cmd_buffer_st();
+				auto pos = it.view<Position>();
+				auto ent = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					cb.add<Rotation>(ent[i], {pos[i].x, pos[i].y, pos[i].z});
+				}
+			});
+
+	GAIA_FOR(100) wld.update();
+}
+
 int main() {
 	// test0();
 	// test1();
@@ -1217,7 +1243,7 @@ int main() {
 	// test8();
 	// test9();
 	// test10();
-	test10b();
+	// test10b();
 	// test11();
 	// test12();
 	// test12b();
@@ -1225,6 +1251,7 @@ int main() {
 	// test14();
 	// test15();
 	// test16();
+	test17();
 
 	// g_test_0.getters();
 	// g_test_0.setters();

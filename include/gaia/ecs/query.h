@@ -127,7 +127,7 @@ namespace gaia {
 					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-						const auto *compName = ctx.cc->get(comp).name.str();
+						const auto* compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 						return;
 					}
@@ -151,7 +151,7 @@ namespace gaia {
 
 					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-					const auto *compName = ctx.cc->get(comp).name.str();
+					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 				}
@@ -1450,12 +1450,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& all() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::All), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& all() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::All);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -1467,12 +1476,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& any() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::Any), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& any() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::Any);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -1481,12 +1499,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& no() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::Not), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& no() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::Not);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -1495,12 +1522,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& changed() {
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& changed() {
+					// Add commands to the command buffer
+					changed_inter<T>();
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 

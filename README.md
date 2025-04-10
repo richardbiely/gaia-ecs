@@ -430,9 +430,7 @@ w.build(e)
  // remove Position from entity e
  .del<Position>()
  // add Rotation to entity e
- .add<Rotation>()
- // add a bunch of other components to entity e
- .add<Something1, Something2, Something3>();
+ .add<Rotation>();
 ```
 
 It is also possible to manually commit all changes by calling ***ecs::EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
@@ -441,10 +439,9 @@ It is also possible to manually commit all changes by calling ***ecs::EntityBuil
 ecs::EntityBuilder builder = w.build(e);
 builder
   .add<Velocity>()
-  .del<Position>()
-  .add<Rotation>();
+  .del<Position>();
 if (some_condition) {
-  builder.add<Something1, Something2, Something3>();
+  builder.add<Rotation>();
 }
 builder.commit();
 ```

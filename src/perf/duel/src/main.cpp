@@ -158,8 +158,8 @@ void BM_ECS(picobench::state& state) {
 
 	ecs::World w;
 
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+	auto queryPosVel = w.query().all<Position&>().all<Velocity&>();
 	auto queryVel = w.query().all<Velocity&>();
 	auto queryCHealth = w.query().all<Health>();
 
@@ -279,8 +279,8 @@ void BM_ECS_WithSystems(picobench::state& state) {
 		}
 	};
 
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+	auto queryPosVel = w.query().all<Position&>().all<Velocity&>();
 	auto queryVel = w.query().all<Velocity&>();
 	auto queryCHealth = w.query().all<Health>();
 
@@ -402,8 +402,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		}
 	};
 
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+	auto queryPosVel = w.query().all<Position&>().all<Velocity&>();
 	auto queryVel = w.query().all<Velocity&>();
 	auto queryCHealth = w.query().all<Health>();
 
@@ -445,72 +445,78 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
+			m_q->each(
+					[](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-				auto p = it.view_mut<PositionSoA>(0);
-				auto v = it.view<VelocitySoA>(1);
+						auto p = it.view_mut<PositionSoA>(0);
+						auto v = it.view<VelocitySoA>(1);
 #else
-				auto p = it.view_mut<PositionSoA>();
-				auto v = it.view<VelocitySoA>();
+						auto p = it.view_mut<PositionSoA>();
+						auto v = it.view<VelocitySoA>();
 #endif
 
-				auto ppx = p.set<0>();
-				auto ppy = p.set<1>();
-				auto ppz = p.set<2>();
+						auto ppx = p.set<0>();
+						auto ppy = p.set<1>();
+						auto ppz = p.set<2>();
 
-				auto vvx = v.get<0>();
-				auto vvy = v.get<1>();
-				auto vvz = v.get<2>();
+						auto vvx = v.get<0>();
+						auto vvy = v.get<1>();
+						auto vvz = v.get<2>();
 
-				const auto cnt = it.size();
-				const float cdt = dt;
-				GAIA_FOR(cnt) ppx[i] += vvx[i] * cdt;
-				GAIA_FOR(cnt) ppy[i] += vvy[i] * cdt;
-				GAIA_FOR(cnt) ppz[i] += vvz[i] * cdt;
-			});
+						const auto cnt = it.size();
+						const float cdt = dt;
+						GAIA_FOR(cnt) ppx[i] += vvx[i] * cdt;
+						GAIA_FOR(cnt) ppy[i] += vvy[i] * cdt;
+						GAIA_FOR(cnt) ppz[i] += vvz[i] * cdt;
+					},
+					ecs::QueryExecType::Parallel);
 		}
 	};
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
+			m_q->each(
+					[](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-				auto p = it.view_mut<PositionSoA>(0);
-				auto v = it.view_mut<VelocitySoA>(1);
+						auto p = it.view_mut<PositionSoA>(0);
+						auto v = it.view_mut<VelocitySoA>(1);
 #else
-				auto p = it.view_mut<PositionSoA>();
-				auto v = it.view_mut<VelocitySoA>();
+						auto p = it.view_mut<PositionSoA>();
+						auto v = it.view_mut<VelocitySoA>();
 #endif
 
-				auto ppy = p.set<1>();
-				auto vvy = v.set<1>();
+						auto ppy = p.set<1>();
+						auto vvy = v.set<1>();
 
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					if (ppy[i] < 0.0f) {
-						ppy[i] = 0.0f;
-						vvy[i] = 0.0f;
-					}
-				}
-			});
+						const auto cnt = it.size();
+						GAIA_FOR(cnt) {
+							if (ppy[i] < 0.0f) {
+								ppy[i] = 0.0f;
+								vvy[i] = 0.0f;
+							}
+						}
+					},
+					ecs::QueryExecType::ParallelPerf);
 		}
 	};
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
+			m_q->each(
+					[](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-				auto v = it.view_mut<VelocitySoA>(0);
+						auto v = it.view_mut<VelocitySoA>(0);
 #else
-				auto v = it.view_mut<VelocitySoA>();
+						auto v = it.view_mut<VelocitySoA>();
 #endif
 
-				auto vvy = v.set<1>();
+						auto vvy = v.set<1>();
 
-				const auto cnt = it.size();
-				const float cdt = dt * 9.81f;
-				GAIA_FOR(cnt) vvy[i] += cdt;
-			});
+						const auto cnt = it.size();
+						const float cdt = dt * 9.81f;
+						GAIA_FOR(cnt) vvy[i] += cdt;
+					},
+					ecs::QueryExecType::ParallelEff);
 		}
 	};
 	class CalculateAliveUnitsSystem final: public TestSystem {
@@ -536,8 +542,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		}
 	};
 
-	auto queryPosCVel = w.query().all<PositionSoA&, VelocitySoA>();
-	auto queryPosVel = w.query().all<PositionSoA&, VelocitySoA&>();
+	auto queryPosCVel = w.query().all<PositionSoA&>().all<VelocitySoA>();
+	auto queryPosVel = w.query().all<PositionSoA&>().all<VelocitySoA&>();
 	auto queryVel = w.query().all<VelocitySoA&>();
 	auto queryCHealth = w.query().all<Health>();
 

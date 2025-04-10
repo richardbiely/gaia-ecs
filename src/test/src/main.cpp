@@ -3469,7 +3469,7 @@ TEST_CASE("Add - many components, bulk") {
 
 		auto b = wld.build(e);
 		(void)b;
-		wld.build(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
+		wld.build(e).add<Int3>().add<Position>().add<Empty>().add<Else>().add<Rotation>().add<Scale>();
 
 		REQUIRE(wld.has<Int3>(e));
 		REQUIRE(wld.has<Position>(e));
@@ -4212,7 +4212,7 @@ void Test_Query_QueryResult() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
 	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
 
 	{
 		const auto cnt = q1.count();
@@ -4366,7 +4366,7 @@ TEST_CASE("Query - QueryResult") {
 		wld.build(player).add<Player>().add<Health>();
 
 		uint32_t matches = 0;
-		auto qp = wld.query().all<Health, Player>();
+		auto qp = wld.query().all<Health>().all<Player>();
 		qp.each([&matches]() {
 			++matches;
 		});
@@ -4412,7 +4412,7 @@ void Test_Query_QueryResult_Complex() {
 		auto e = wld.add();
 
 		auto b = wld.build(e);
-		b.add<Position, Scale>();
+		b.add<Position>().add<Scale>();
 		if (i % 2 == 0)
 			b.add<Something>();
 		b.commit();
@@ -4435,9 +4435,9 @@ void Test_Query_QueryResult_Complex() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
 	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
-	auto q4 = wld.query<UseCachedQuery>().template all<Position, Scale>();
-	auto q5 = wld.query<UseCachedQuery>().template all<Position, Scale, Something>();
+	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
+	auto q4 = wld.query<UseCachedQuery>().template all<Position>().template all<Scale>();
+	auto q5 = wld.query<UseCachedQuery>().template all<Position>().template all<Scale>().template all<Something>();
 
 	{
 		ents.clear();
@@ -4934,8 +4934,8 @@ void Test_Query_Equality() {
 		auto p = wld.add<Position>().entity;
 		auto r = wld.add<Rotation>().entity;
 
-		auto qq1 = wld.query<UseCachedQuery>().template all<Position, Rotation>();
-		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation, Position>();
+		auto qq1 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
+		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation>().template all<Position>();
 		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r);
 		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p);
 		verify(qq1, qq2, qq3, qq4);
@@ -4961,8 +4961,16 @@ void Test_Query_Equality() {
 		auto a = wld.add<Acceleration>().entity;
 		auto s = wld.add<Something>().entity;
 
-		auto qq1 = wld.query<UseCachedQuery>().template all<Position, Rotation, Acceleration, Something>();
-		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation, Something, Position, Acceleration>();
+		auto qq1 = wld.query<UseCachedQuery>()
+									 .template all<Position>()
+									 .template all<Rotation>()
+									 .template all<Acceleration>()
+									 .template all<Something>();
+		auto qq2 = wld.query<UseCachedQuery>()
+									 .template all<Rotation>()
+									 .template all<Something>()
+									 .template all<Position>()
+									 .template all<Acceleration>();
 		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
 		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
 		verify(qq1, qq2, qq3, qq4);
@@ -6728,7 +6736,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = wld.query().all<Position, Acceleration>();
+		auto q = wld.query().all<Position>().all<Acceleration>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
@@ -6736,14 +6744,14 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = wld.query().all<Position, Scale>();
+		auto q = wld.query().all<Position>().all<Scale>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Scale&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = wld.query().any<Position, Acceleration>();
+		ecs::Query q = wld.query().any<Position>().any<Acceleration>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -6757,7 +6765,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = wld.query().any<Position, Acceleration>().all<Scale>();
+		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -6773,7 +6781,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = wld.query().any<Position, Acceleration>().all<PositionSoA>();
+		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<PositionSoA>();
 
 		uint32_t cnt = 0;
 		q.each([&]() {
@@ -6782,7 +6790,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 0);
 	}
 	{
-		ecs::Query q = wld.query().any<Position, Acceleration>().no<Scale>();
+		ecs::Query q = wld.query().any<Position>().any<Acceleration>().no<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -6851,7 +6859,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>();
+		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -6865,7 +6873,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
+		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -6881,7 +6889,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
+		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -7070,7 +7078,7 @@ TEST_CASE("Set - generic") {
 
 	// Modify values
 	{
-		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
+		ecs::Query q = wld.query().all<Rotation&>().all<Scale&>().all<Else&>();
 
 		q.each([&](ecs::Iter& it) {
 			auto rotationView = it.view_mut<Rotation>();
@@ -7139,7 +7147,7 @@ TEST_CASE("Set - generic") {
 
 	// Modify values + view idx
 	{
-		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
+		ecs::Query q = wld.query().all<Rotation&>().all<Scale&>().all<Else&>();
 
 		q.each([&](ecs::Iter& it) {
 			auto rotationView = it.view_mut<Rotation>(0);
@@ -7252,7 +7260,7 @@ TEST_CASE("Set - generic & unique") {
 
 	// Modify values
 	{
-		ecs::Query q = wld.query().all<Rotation&, Scale&, Else&>();
+		ecs::Query q = wld.query().all<Rotation&>().all<Scale&>().all<Else&>();
 
 		q.each([&](ecs::Iter& it) {
 			auto rotationView = it.view_mut<Rotation>();
@@ -7336,7 +7344,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::Query q = wld.query().all<StringComponent&, StringComponent2&, PositionNonTrivial&>();
+		ecs::Query q = wld.query().all<StringComponent&>().all<StringComponent2&>().all<PositionNonTrivial&>();
 
 		q.each([&](ecs::Iter& it) {
 			auto strView = it.view_mut<StringComponent>();
@@ -8072,7 +8080,8 @@ TEST_CASE("System - simple") {
 
 	// Our systems
 	auto sys1 = wld.system()
-									.all<Position, Acceleration>() //
+									.all<Position>()
+									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
 										if (sys1_cnt == 0 && sys3_cnt == 0)
 											sys3_run_before_sys1 = true;
@@ -9449,7 +9458,8 @@ TEST_CASE("Multithreading - Systems") {
 	uint32_t data2 = 0;
 
 	auto sys1 = wld.system()
-									.all<SomeData1, SomeData2>() //
+									.all<SomeData1>()
+									.all<SomeData2>() //
 									.on_each([&](SomeData1, SomeData2) {
 										++data1;
 										++data2;

@@ -310,12 +310,21 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
 					(add(register_component<T>()), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				EntityBuilder& add() {
+					verify_comp<T>();
+					add(register_component<T>());
+					return *this;
+				}
+#endif
 
 				//! Prepares an archetype movement by following the "del" edge of the current archetype.
 				//! \param entity Removed entity
@@ -338,12 +347,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				EntityBuilder& del() {
 					(verify_comp<T>(), ...);
 					(del(register_component<T>()), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				EntityBuilder& del() {
+					verify_comp<T>();
+					del(register_component<T>());
+					return *this;
+				}
+#endif
 
 			private:
 				//! Triggers add hooks for the component if there are any

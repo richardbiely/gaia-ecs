@@ -756,6 +756,12 @@ namespace gaia {
 	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
+//! If enabled, various API supporting variadic template arguments is made available.
+//! More comfortable to use, but compilation time may increase.
+#ifndef GAIA_USE_VARIADIC_API
+	#define GAIA_USE_VARIADIC_API 1
+#endif
+
 //------------------------------------------------------------------------------
 
 
@@ -25910,7 +25916,7 @@ namespace gaia {
 					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-						const auto *compName = ctx.cc->get(comp).name.str();
+						const auto* compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 						return;
 					}
@@ -25934,7 +25940,7 @@ namespace gaia {
 
 					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-					const auto *compName = ctx.cc->get(comp).name.str();
+					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 				}
@@ -27233,12 +27239,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& all() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::All), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& all() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::All);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -27250,12 +27265,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& any() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::Any), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& any() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::Any);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -27264,12 +27288,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& no() {
 					// Add commands to the command buffer
 					(add_inter<T>(QueryOpKind::Not), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& no() {
+					// Add commands to the command buffer
+					add_inter<T>(QueryOpKind::Not);
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -27278,12 +27311,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				QueryImpl& changed() {
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				QueryImpl& changed() {
+					// Add commands to the command buffer
+					changed_inter<T>();
+					return *this;
+				}
+#endif
 
 				//------------------------------------------------
 
@@ -27760,12 +27802,21 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				EntityBuilder& add() {
 					(verify_comp<T>(), ...);
 					(add(register_component<T>()), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				EntityBuilder& add() {
+					verify_comp<T>();
+					add(register_component<T>());
+					return *this;
+				}
+#endif
 
 				//! Prepares an archetype movement by following the "del" edge of the current archetype.
 				//! \param entity Removed entity
@@ -27788,12 +27839,21 @@ namespace gaia {
 					return *this;
 				}
 
+#if GAIA_USE_VARIADIC_API
 				template <typename... T>
 				EntityBuilder& del() {
 					(verify_comp<T>(), ...);
 					(del(register_component<T>()), ...);
 					return *this;
 				}
+#else
+				template <typename T>
+				EntityBuilder& del() {
+					verify_comp<T>();
+					del(register_component<T>());
+					return *this;
+				}
+#endif
 
 			private:
 				//! Triggers add hooks for the component if there are any
@@ -32116,6 +32176,8 @@ namespace gaia {
 				data().query.add(item);
 				return *this;
 			}
+
+	#if GAIA_USE_VARIADIC_API
 			template <typename... T>
 			SystemBuilder& all() {
 				validate();
@@ -32140,6 +32202,32 @@ namespace gaia {
 				data().query.changed<T...>();
 				return *this;
 			}
+	#else
+			template <typename T>
+			SystemBuilder& all() {
+				validate();
+				data().query.all<T>();
+				return *this;
+			}
+			template <typename T>
+			SystemBuilder& any() {
+				validate();
+				data().query.any<T>();
+				return *this;
+			}
+			template <typename T>
+			SystemBuilder& no() {
+				validate();
+				data().query.no<T>();
+				return *this;
+			}
+			template <typename T>
+			SystemBuilder& changed() {
+				validate();
+				data().query.changed<T>();
+				return *this;
+			}
+	#endif
 
 			SystemBuilder& mode(QueryExecType type) {
 				m_execType = type;
