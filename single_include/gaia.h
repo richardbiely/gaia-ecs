@@ -32177,6 +32177,36 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& all(Entity entity, bool isReadWrite = false) {
+				validate();
+				data().query.all(entity, isReadWrite);
+				return *this;
+			}
+
+			SystemBuilder& all(Entity entity, Entity src, bool isReadWrite = false) {
+				validate();
+				data().query.all(entity, src, isReadWrite);
+				return *this;
+			}
+
+			SystemBuilder& any(Entity entity, bool isReadWrite = false) {
+				validate();
+				data().query.any(entity, isReadWrite);
+				return *this;
+			}
+
+			SystemBuilder& no(Entity entity) {
+				validate();
+				data().query.no(entity);
+				return *this;
+			}
+
+			SystemBuilder& changed(Entity entity) {
+				validate();
+				data().query.changed(entity);
+				return *this;
+			}
+
 	#if GAIA_USE_VARIADIC_API
 			template <typename... T>
 			SystemBuilder& all() {
@@ -32228,6 +32258,46 @@ namespace gaia {
 				return *this;
 			}
 	#endif
+
+			//------------------------------------------------
+
+			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
+				data().query.group_by(entity, func);
+				return *this;
+			}
+
+			template <typename T>
+			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
+				data().query.group_by<T>(func);
+				return *this;
+			}
+
+			template <typename Rel, typename Tgt>
+			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
+				data().query.group_by<Rel, Tgt>(func);
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			SystemBuilder& group_id(GroupId groupId) {
+				data().query.group_id(groupId);
+				return *this;
+			}
+
+			SystemBuilder& group_id(Entity entity) {
+				GAIA_ASSERT(!entity.pair());
+				data().query.group_id(entity.id());
+				return *this;
+			}
+
+			template <typename T>
+			SystemBuilder& group_id() {
+				data().query.group_id<T>();
+				return *this;
+			}
+
+			//------------------------------------------------
 
 			SystemBuilder& mode(QueryExecType type) {
 				m_execType = type;
