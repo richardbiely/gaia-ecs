@@ -32938,6 +32938,8 @@ namespace gaia {
 				}
 
 				//! Requests a component \tparam T to be added to entity. Also sets its value.
+				//! \warning Component \tparam T should be registered in the world before calling this function.
+				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T>
 				void add(Entity entity, T&& value) {
 					verify_comp<T>();
@@ -32956,6 +32958,8 @@ namespace gaia {
 				}
 
 				//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
+				//! \warning Component \tparam T should be registered in the world before calling this function.
+				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T>
 				void add(TempEntity entity, T&& value) {
 					verify_comp<T>();
@@ -32974,6 +32978,8 @@ namespace gaia {
 				}
 
 				//! Requests component data to be set to given values for a given entity.
+				//! \warning Component \tparam T must be registered in the world before calling this function.
+				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
 				void set(Entity entity, T&& value) {
 					verify_comp<T>();
@@ -32992,6 +32998,8 @@ namespace gaia {
 				}
 
 				//! Requests component data to be set to given values for a given temp entity.
+				//! \warning Component \tparam T must be registered in the world before calling this function.
+				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
 				void set(TempEntity entity, T&& value) {
 					verify_comp<T>();
@@ -33009,7 +33017,7 @@ namespace gaia {
 					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
 
-				//! Requests removal of component \tparam T from \param entity
+				//! Requests removal of component \tparam T from \param entity.
 				void del(Entity entity, Entity object) {
 					m_ctx.save(REMOVE_COMPONENT);
 
@@ -33019,7 +33027,7 @@ namespace gaia {
 					ser::save(m_ctx, cmd);
 				}
 
-				//! Requests removal of component \tparam T from \param entity
+				//! Requests removal of component \tparam T from \param entity.
 				void del(Entity entity, TempEntity object) {
 					m_ctx.save(REMOVE_COMPONENT_10);
 
@@ -33029,7 +33037,7 @@ namespace gaia {
 					ser::save(m_ctx, cmd);
 				}
 
-				//! Requests removal of component \tparam T from \param entity
+				//! Requests removal of component \tparam T from \param entity.
 				void del(TempEntity entity, Entity object) {
 					m_ctx.save(REMOVE_COMPONENT_01);
 
@@ -33039,7 +33047,7 @@ namespace gaia {
 					ser::save(m_ctx, cmd);
 				}
 
-				//! Requests removal of component \tparam T from \param entity
+				//! Requests removal of component \tparam T from \param entity.
 				void del(TempEntity entity, TempEntity object) {
 					m_ctx.save(REMOVE_COMPONENT_00);
 
@@ -33049,7 +33057,9 @@ namespace gaia {
 					ser::save(m_ctx, cmd);
 				}
 
-				//! Requests removal of component \tparam T from \param entity
+				//! Requests removal of component \tparam T from \param entity.
+				//! \warning Component \tparam T must be registered in the world before calling this function.
+				//!          Calling del without a previous add of the component doesn't make sense.
 				template <typename T>
 				void del(Entity entity) {
 					verify_comp<T>();
