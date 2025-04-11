@@ -1222,8 +1222,8 @@ struct Position{ int x, y; };
 ...
 ecs::Entity e = w.add();
 // Add (Start, Position) from component entities.
-ecs::Entity start_entity = w.add<Start>.entity;
-ecs::Entity pos_entity = w.add<Position>.entity;
+ecs::Entity start_entity = w.add<Start>().entity;
+ecs::Entity pos_entity = w.add<Position>().entity;
 w.add(e, ecs::Pair(start_entity, pos_entity));
 // Add (Start, Position) pair to entity e using a compile-time component pair.
 w.add<ecs::pair<Start, Position>(e);
