@@ -28041,7 +28041,7 @@ namespace gaia {
 						set_flag(ec.flags, EntityContainerFlags::HasCantCombine, true);
 					else if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
 						uint32_t targets = 0;
-						m_world.targets(m_entity, CantCombine, [&targets]() {
+						m_world.targets(m_entity, CantCombine, [&targets]([[maybe_unused]] Entity entity) {
 							++targets;
 						});
 						if (targets == 1)
@@ -29367,14 +29367,9 @@ namespace gaia {
 					if (e.id() != relation.id())
 						continue;
 
-					// We accept void(Entity) and void()
-					if constexpr (std::is_invocable_v<Func, Entity>) {
-						const auto& ecTarget = m_recs.entities[e.gen()];
-						auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-						func(target);
-					} else {
-						func();
-					}
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					func(target);
 				}
 			}
 
@@ -29402,14 +29397,10 @@ namespace gaia {
 					if (e.id() != relation.id())
 						continue;
 
-					// We accept void(Entity) and void()
-					if constexpr (std::is_invocable_v<Func, Entity>) {
-						const auto& ecTarget = m_recs.entities[e.gen()];
-						auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-						func(target);
-					} else {
-						func();
-					}
+					const auto& ecTarget = m_recs.entities[e.gen()];
+					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					if (!func(target))
+						return;
 				}
 			}
 
@@ -32171,11 +32162,15 @@ namespace gaia {
 		public:
 			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
+			//------------------------------------------------
+
 			SystemBuilder& add(QueryInput item) {
 				validate();
 				data().query.add(item);
 				return *this;
 			}
+
+			//------------------------------------------------
 
 			SystemBuilder& all(Entity entity, bool isReadWrite = false) {
 				validate();
@@ -32206,6 +32201,8 @@ namespace gaia {
 				data().query.changed(entity);
 				return *this;
 			}
+
+			//------------------------------------------------
 
 	#if GAIA_USE_VARIADIC_API
 			template <typename... T>
