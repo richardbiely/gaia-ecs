@@ -1251,7 +1251,9 @@ ecs::Entity first_target = w.target(rabbit, eats);
 
 // Appends carrot and salad entities to the array
 cnt::sarr_ext<ecs::Entity, 32> what_rabbit_eats;
-w.target(rabbit, eats, what_rabbit_eats);
+w.targets(rabbit, eats, [&what_rabbit_eats](ecs::Entity entity) {
+  what_rabbit_eats.push_back(entity);
+});
 ```
 
 ### Relations
@@ -1267,7 +1269,9 @@ ecs::Entity first_relation = w.relation(rabbit, salad);
 
 // Appends eats to the array
 cnt::sarr_ext<ecs::Entity, 32> related_to_salad;
-w.relations(rabbit, salad, related_to_salad);
+w.relations(rabbit, salad, [&related_to_salad](ecs::Entity entity) {
+  related_to_salad.push_back(entity);
+});
 ```
 
 ### Entity dependencies
