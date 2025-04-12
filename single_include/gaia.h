@@ -25673,8 +25673,6 @@ namespace gaia {
 						if (pCurrentChunk != nullptr) {
 							m_archetypeSortData.push_back(
 									{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
-
-							GAIA_LOG_N("%u %u %u", archetypes[minArchetypeIdx]->id(), currentStartRow, currentRow - currentStartRow);
 						}
 
 						// Start a new slice
@@ -25690,7 +25688,6 @@ namespace gaia {
 				if (pCurrentChunk != nullptr) {
 					m_archetypeSortData.push_back(
 							{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
-					GAIA_LOG_N("%u %u %u", archetypes[currArchetypeIdx]->id(), currentStartRow, currentRow - currentStartRow);
 				}
 			}
 
