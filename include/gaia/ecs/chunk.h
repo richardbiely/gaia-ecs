@@ -943,8 +943,57 @@ namespace gaia {
 				}
 
 				// Update indices in entity container.
-				ecA.row = (uint16_t)rowB;
-				ecB.row = (uint16_t)rowA;
+				ecA.row = rowB;
+				ecB.row = rowA;
+			}
+
+			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.
+			//! When swapping, all data associated with the two entities is swapped as well.
+			//! If \param rowA equals \param rowB no swapping is performed.
+			//! \warning "rowA" must he smaller or equal to "rowB"
+			static void swap_chunk_entities(World& world, Entity entityA, Entity entityB) {
+				// Don't swap if the two entities are the same
+				if GAIA_UNLIKELY (entityA == entityB)
+					return;
+
+				GAIA_PROF_SCOPE(Chunk::swap_chunk_entities);
+
+				auto& ecA = fetch_mut(world, entityA);
+				auto& ecB = fetch_mut(world, entityB);
+
+				// Make sure the two entities are in the same archetype
+				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
+				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
+
+				auto* pChunkA = ecA.pChunk;
+				auto* pChunkB = ecB.pChunk;
+
+				// Swap entitiies in the entity data part
+				pChunkA->entity_view_mut()[ecA.row] = entityB;
+				pChunkB->entity_view_mut()[ecB.row] = entityA;
+
+				// Swap component data
+				auto recViewA = pChunkA->comp_rec_view();
+				GAIA_FOR(pChunkA->m_header.genEntities) {
+					const auto& recA = recViewA[i];
+					if (recA.comp.size() == 0U)
+						continue;
+
+					auto* pDataA = pChunkA->comp_rec_view()[i].pData;
+					auto* pDataB = pChunkB->comp_rec_view()[i].pData;
+					recA.pItem->swap(
+							// Data pointers
+							pDataA, pDataB,
+							// Rows
+							ecA.row, ecB.row,
+							// Chunk capacities
+							pChunkA->capacity(), pChunkA->capacity() //
+					);
+				}
+
+				// Update indices and chunks in entity container.
+				core::swap(ecA.row, ecB.row);
+				core::swap(ecA.pChunk, ecB.pChunk);
 			}
 
 			//! Enables or disables the entity on a given row in the chunk.

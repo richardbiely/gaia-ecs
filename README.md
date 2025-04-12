@@ -1877,7 +1877,7 @@ struct CustomStruct {
 };
 ```
 
- It doesn't matter which kind of specialization you use. However, note that if both are used the external one has priority.
+ It doesn't matter which kind of specialization you use. If both are used the external one takes priority.
 
 ## Multithreading
 
@@ -1988,7 +1988,7 @@ The operating system should try to schedule the high-priority jobs to cores with
 
 Where possible, the given system's QoS is utilized (Windows, MacOS). In case of operating systems based on Linux/FreeBSD that do not support QoS out-of-the-box, thread priorities are utilized.
 
-Note, thread affinity is not managed and left on default because this plays better with QoS and gives the operating system more control over scheduling.
+Thread affinity is left untouched because this plays better with QoS and gives the operating system more control over scheduling.
 
 ```cpp
 // Create a job designated for performance cores

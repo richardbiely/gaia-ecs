@@ -208,7 +208,11 @@ namespace gaia {
 			QueryIdentity q{};
 
 			enum QueryFlags : uint8_t { //
-				SortGroups = 0x01
+				Empty = 0x00,
+				// Entities need sorting
+				SortEntities = 0x01,
+				// Groups need sorting
+				SortGroups = 0x02
 			};
 
 			struct Data {
@@ -222,12 +226,16 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
-				//! Array of filtered components
-				QueryEntityArray changed;
-				//! Entity to group the archetypes by. EntityBad for no grouping.
-				Entity groupBy;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
+				//! Array of filtered components
+				QueryEntityArray changed;
+				//! Entity to sort the archetypes by. EntityBad for no sorting.
+				Entity sortBy;
+				//! Function to use to perform sorting
+				TSortByFunc sortByFunc;
+				//! Entity to group the archetypes by. EntityBad for no grouping.
+				Entity groupBy;
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
@@ -254,7 +262,7 @@ namespace gaia {
 				cc = &comp_cache_mut(*pWorld);
 			}
 
-			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
+			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
 				// Comparison expected to be done only the first time the query is set up
 				GAIA_ASSERT(q.handle.id() == QueryIdBad);
 				// Fast path when cache ids are set
@@ -284,6 +292,12 @@ namespace gaia {
 				if (left.changed != right.changed)
 					return false;
 
+				// SortBy data need to match
+				if (left.sortBy != right.sortBy)
+					return false;
+				if (left.sortByFunc != right.sortByFunc)
+					return false;
+
 				// Grouping data need to match
 				if (left.groupBy != right.groupBy)
 					return false;
@@ -293,7 +307,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
+			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const noexcept {
 				return !operator==(other);
 			};
 		};

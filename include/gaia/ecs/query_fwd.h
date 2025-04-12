@@ -12,6 +12,8 @@ namespace gaia {
 		using QueryId = uint32_t;
 		using GroupId = uint32_t;
 		using QuerySerBuffer = SerializationBufferDyn;
+
+		using TSortByFunc = int (*)(const World&, const void*, const void*);
 		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 	} // namespace ecs
 } // namespace gaia

@@ -1846,6 +1846,18 @@ namespace gaia {
 					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
 			constexpr std::false_type has_global_equals_check(...);
+
+			template <typename T>
+			constexpr auto has_member_lt_check(int)
+					-> decltype(std::declval<T>().operator<(std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_member_lt_check(...);
+
+			template <typename T>
+			constexpr auto has_global_lt_check(int)
+					-> decltype(operator<(std::declval<T>(), std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_global_lt_check(...);
 		} // namespace detail
 
 		template <typename T>
@@ -17861,6 +17873,8 @@ namespace gaia {
 /*** Start of inlined file: api.h ***/
 #pragma once
 
+#include <cstdarg>
+
 
 /*** Start of inlined file: command_buffer_fwd.h ***/
 #pragma once
@@ -17932,6 +17946,8 @@ namespace gaia {
 		using QueryId = uint32_t;
 		using GroupId = uint32_t;
 		using QuerySerBuffer = SerializationBufferDyn;
+
+		using TSortByFunc = int (*)(const World&, const void*, const void*);
 		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 	} // namespace ecs
 } // namespace gaia
@@ -17990,6 +18006,12 @@ namespace gaia {
 
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
+		//! Default sorting function.
+		//! The const void pointers to data are known to the caller and they need to interpret them.
+		//! \param world Parent world in which sorted data is stored.
+		//! \param pData0 Pointer to the first data. It can be an entity or component data depending on the sort-by entity.
+		//! \param pData1 Pointer to the second data It can be an entity or component data depending on the sort-by entity.
+		int sort_by_func_default(const World& world, const void* pData0, const void* pData1);
 		GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
 
 		// Locking API
@@ -19731,10 +19753,10 @@ namespace gaia {
 					};
 				}
 
-				static constexpr auto func_cmp() {
+				static constexpr auto func_eq() {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						return []([[maybe_unused]] const void* left, [[maybe_unused]] const void* right) {
-							GAIA_ASSERT(false && "func_cmp for SoA not implemented yet");
+							GAIA_ASSERT(false && "func_eq for SoA not implemented yet");
 							return false;
 						};
 					} else {
@@ -19777,7 +19799,8 @@ namespace gaia {
 			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
-			using FuncCmp = bool(const void*, const void*);
+			using FuncEq = bool(const void*, const void*);
+			using FuncLt = int(const void*, const void*);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -19808,8 +19831,8 @@ namespace gaia {
 			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap{};
-			//! Function to call when comparing two components of the same type
-			FuncCmp* func_cmp{};
+			//! Function to call when comparing if two components have equal values
+			FuncEq* func_eq{};
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -19871,8 +19894,8 @@ namespace gaia {
 
 			bool cmp(const void* pLeft, const void* pRight) const {
 				GAIA_ASSERT(pLeft != pRight);
-				GAIA_ASSERT(func_cmp != nullptr);
-				return func_cmp(pLeft, pRight);
+				GAIA_ASSERT(func_eq != nullptr);
+				return func_eq(pLeft, pRight);
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -19971,7 +19994,7 @@ namespace gaia {
 				cci->func_copy = detail::ComponentDesc<T>::func_copy();
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
-				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
+				cci->func_eq = detail::ComponentDesc<T>::func_eq();
 				return cci;
 			}
 
@@ -20072,7 +20095,7 @@ namespace gaia {
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
-						const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+						const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
 						m_itemArr.reserve(newCapacity);
 
 						// Update the size
@@ -21559,8 +21582,57 @@ namespace gaia {
 				}
 
 				// Update indices in entity container.
-				ecA.row = (uint16_t)rowB;
-				ecB.row = (uint16_t)rowA;
+				ecA.row = rowB;
+				ecB.row = rowA;
+			}
+
+			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.
+			//! When swapping, all data associated with the two entities is swapped as well.
+			//! If \param rowA equals \param rowB no swapping is performed.
+			//! \warning "rowA" must he smaller or equal to "rowB"
+			static void swap_chunk_entities(World& world, Entity entityA, Entity entityB) {
+				// Don't swap if the two entities are the same
+				if GAIA_UNLIKELY (entityA == entityB)
+					return;
+
+				GAIA_PROF_SCOPE(Chunk::swap_chunk_entities);
+
+				auto& ecA = fetch_mut(world, entityA);
+				auto& ecB = fetch_mut(world, entityB);
+
+				// Make sure the two entities are in the same archetype
+				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
+				GAIA_ASSERT(ecA.pArchetype == ecB.pArchetype);
+
+				auto* pChunkA = ecA.pChunk;
+				auto* pChunkB = ecB.pChunk;
+
+				// Swap entitiies in the entity data part
+				pChunkA->entity_view_mut()[ecA.row] = entityB;
+				pChunkB->entity_view_mut()[ecB.row] = entityA;
+
+				// Swap component data
+				auto recViewA = pChunkA->comp_rec_view();
+				GAIA_FOR(pChunkA->m_header.genEntities) {
+					const auto& recA = recViewA[i];
+					if (recA.comp.size() == 0U)
+						continue;
+
+					auto* pDataA = pChunkA->comp_rec_view()[i].pData;
+					auto* pDataB = pChunkB->comp_rec_view()[i].pData;
+					recA.pItem->swap(
+							// Data pointers
+							pDataA, pDataB,
+							// Rows
+							ecA.row, ecB.row,
+							// Chunk capacities
+							pChunkA->capacity(), pChunkA->capacity() //
+					);
+				}
+
+				// Update indices and chunks in entity container.
+				core::swap(ecA.row, ecB.row);
+				core::swap(ecA.pChunk, ecB.pChunk);
 			}
 
 			//! Enables or disables the entity on a given row in the chunk.
@@ -22505,11 +22577,19 @@ namespace gaia {
 					++m_firstFreeChunkIdx;
 			}
 
+			//! Removes an entity from the chunk.
+			//! \param chunk Chunk to remove the entity from
+			//! \param row Row of the entity
+			//! \param recs Entity containers
 			void remove_entity_raw(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				chunk.remove_entity(row, recs);
 				try_update_free_chunk_idx(chunk);
 			}
 
+			//! Removes an entity from the chunk and updates the chunk versions.
+			//! \param chunk Chunk to remove the entity from
+			//! \param row Row of the entity
+			//! \param recs Entity containers
 			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				remove_entity_raw(chunk, row, recs);
 				chunk.update_versions();
@@ -22539,10 +22619,14 @@ namespace gaia {
 				return {&m_compOffs[0], m_properties.cntEntities};
 			}
 
+			//! Returns the number of pairs registered in the archetype.
+			//! \return Number of pairs
 			GAIA_NODISCARD uint32_t pairs() const {
 				return m_pairCnt;
 			}
 
+			//! Returns the number of Is pairs registered in the archetype.
+			//! \return Number of Is pairs
 			GAIA_NODISCARD uint32_t pairs_is() const {
 				return m_pairCnt_is;
 			}
@@ -22576,6 +22660,148 @@ namespace gaia {
 				}
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Given a flat index, return a reference to the value
+			Entity getValue(size_t flatIndex) const {
+				size_t offset = 0;
+				for (Chunk* pChunk: chunks()) {
+					if (pChunk->empty())
+						continue;
+
+					if (flatIndex < offset + pChunk->size()) {
+						const auto idx = (uint32_t)(flatIndex - offset);
+						return pChunk->entity_view()[idx];
+					}
+
+					offset += pChunk->size();
+				}
+
+				GAIA_ASSERT(false);
+				return EntityBad;
+			}
+
+			//! Given a flat index, return a reference to the value
+			const void* getValue(uint32_t compIdx, size_t flatIndex, Entity& outEntity) const {
+				size_t offset = 0;
+				for (Chunk* pChunk: chunks()) {
+					if (flatIndex < offset + pChunk->size()) {
+						const auto idx = (uint32_t)(flatIndex - offset);
+						const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+						outEntity = pChunk->entity_view()[idx];
+						return pData;
+					}
+
+					offset += pChunk->size();
+				}
+
+				GAIA_ASSERT(false);
+				return nullptr;
+			}
+
+			//! Generic in-place quicksort across chunks
+			void sort_entities_inter(size_t low, size_t high, TSortByFunc func) {
+				if (low >= high)
+					return;
+
+				Entity pivotEntity = getValue(high);
+
+				size_t i = low;
+				for (size_t j = low; j < high; ++j) {
+					Entity jEntity = getValue(j);
+					if (func(m_world, &jEntity, &pivotEntity) < 0) {
+						if (i != j) {
+							Entity iEntity = getValue(i);
+							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+						}
+						++i;
+					}
+				}
+
+				{
+					Entity iEntity = getValue(i);
+					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+				}
+
+				if (i > 0)
+					sort_entities_inter(low, i - 1, func);
+				sort_entities_inter(i + 1, high, func);
+			}
+
+			//! Generic in-place quicksort across chunks
+			void sort_entities_inter(
+					const ComponentCacheItem* pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func) {
+				if (low >= high)
+					return;
+
+				Entity pivotEntity;
+				const void* pPivotData = getValue(compIdx, high, pivotEntity);
+
+				size_t i = low;
+				for (size_t j = low; j < high; ++j) {
+					Entity jEntity;
+					const void* jData = getValue(compIdx, j, jEntity);
+					if (func(m_world, jData, pPivotData) < 0) {
+						if (i != j) {
+							Entity iEntity;
+							(void)getValue(compIdx, i, iEntity);
+							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+						}
+						++i;
+					}
+				}
+
+				{
+					Entity iEntity;
+					(void)getValue(compIdx, i, iEntity);
+					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+				}
+
+				if (i > 0)
+					sort_entities_inter(pItem, compIdx, low, i - 1, func);
+				sort_entities_inter(pItem, compIdx, i + 1, high, func);
+			}
+
+			//! Sorts all entities in the archetypes according to the given function.
+			//! \param entity Entity to sort by
+			//! \param func Function to sort by
+			void sort_entities(Entity entity, TSortByFunc func) {
+				// TODO: We currently have to calculate the number of entities in the archetype from chunks.
+				//       Additionally, to get the right index we need to loop through chunks again because
+				//       the entities are not spread evenly among chunks (we can't just divide the index by
+				//       the number of chunks and module with the same number to get the index inside a chunk).
+				//       This is not optimal, and makes sorting quite expensive.
+
+				if (entity == EntityBad) {
+					uint32_t entities = 0;
+					for (const auto* pChunk: m_chunks)
+						entities += pChunk->size();
+					if (entities == 0)
+						return;
+
+					sort_entities_inter(0, entities - 1, func);
+				} else {
+					const auto* pItem = m_cc.find(entity);
+					GAIA_ASSERT(pItem != nullptr && "Trying to sort by a component that has not been registered");
+					if (pItem == nullptr)
+						return;
+
+					uint32_t entities = 0;
+					for (const auto* pChunk: m_chunks)
+						entities += pChunk->size();
+					if (entities == 0)
+						return;
+
+					const auto compIdx = chunks()[0]->comp_idx(entity);
+					sort_entities_inter(pItem, compIdx, 0, entities - 1, func);
+				}
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Builds a graph edge from this archetype to the right archetype.
+			//! \param pArchetypeRight Target archetype
+			//! \param entity Entity to link
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
@@ -23212,7 +23438,11 @@ namespace gaia {
 			QueryIdentity q{};
 
 			enum QueryFlags : uint8_t { //
-				SortGroups = 0x01
+				Empty = 0x00,
+				// Entities need sorting
+				SortEntities = 0x01,
+				// Groups need sorting
+				SortGroups = 0x02
 			};
 
 			struct Data {
@@ -23226,12 +23456,16 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				//! Mapping of the original indices to the new ones after sorting
 				QueryRemappingArray remapping;
-				//! Array of filtered components
-				QueryEntityArray changed;
-				//! Entity to group the archetypes by. EntityBad for no grouping.
-				Entity groupBy;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
+				//! Array of filtered components
+				QueryEntityArray changed;
+				//! Entity to sort the archetypes by. EntityBad for no sorting.
+				Entity sortBy;
+				//! Function to use to perform sorting
+				TSortByFunc sortByFunc;
+				//! Entity to group the archetypes by. EntityBad for no grouping.
+				Entity groupBy;
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Mask for items with Is relationship pair.
@@ -23258,7 +23492,7 @@ namespace gaia {
 				cc = &comp_cache_mut(*pWorld);
 			}
 
-			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
+			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
 				// Comparison expected to be done only the first time the query is set up
 				GAIA_ASSERT(q.handle.id() == QueryIdBad);
 				// Fast path when cache ids are set
@@ -23288,6 +23522,12 @@ namespace gaia {
 				if (left.changed != right.changed)
 					return false;
 
+				// SortBy data need to match
+				if (left.sortBy != right.sortBy)
+					return false;
+				if (left.sortByFunc != right.sortByFunc)
+					return false;
+
 				// Grouping data need to match
 				if (left.groupBy != right.groupBy)
 					return false;
@@ -23297,7 +23537,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
+			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const noexcept {
 				return !operator==(other);
 			};
 		};
@@ -23461,6 +23701,10 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
+				//! Row of the first entity we iterate from
+				uint16_t m_from;
+				//! Row of the last entity we iterate to
+				uint16_t m_to;
 				//! GroupId. 0 if not set.
 				GroupId m_groupId = 0;
 
@@ -23505,6 +23749,28 @@ namespace gaia {
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						m_from = m_pChunk->size_disabled();
+					else
+						m_from = 0;
+
+					if constexpr (IterConstraint == Constraints::DisabledOnly)
+						m_to = m_pChunk->size_disabled();
+					else
+						m_to = m_pChunk->size();
+				}
+
+				void set_chunk(Chunk* pChunk, uint16_t from, uint16_t to) {
+					if (from == 0 && to == 0) {
+						set_chunk(pChunk);
+						return;
+					}
+
+					GAIA_ASSERT(pChunk != nullptr);
+					m_pChunk = pChunk;
+					m_from = from;
+					m_to = to;
 				}
 
 				GAIA_NODISCARD const Chunk* chunk() const {
@@ -23700,18 +23966,12 @@ namespace gaia {
 			protected:
 				//! Returns the starting index of the iterator
 				GAIA_NODISCARD uint16_t from() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return 0;
+					return m_from;
 				}
 
 				//! Returns the ending index of the iterator (one past the last valid index)
 				GAIA_NODISCARD uint16_t to() const noexcept {
-					if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return m_to;
 				}
 			};
 		} // namespace detail
@@ -24083,6 +24343,7 @@ namespace gaia {
 #pragma once
 
 #include <cstdarg>
+#include <cstdint>
 #include <type_traits>
 
 
@@ -25000,6 +25261,13 @@ namespace gaia {
 				QueryOpKind op;
 			};
 
+			struct SortData {
+				Chunk* pChunk;
+				uint32_t archetypeIdx;
+				uint16_t startRow;
+				uint16_t count;
+			};
+
 			struct GroupData {
 				GroupId groupId;
 				uint32_t idxFirst;
@@ -25021,6 +25289,8 @@ namespace gaia {
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
+			//! Sort data used by cache
+			cnt::darray<SortData> m_archetypeSortData;
 			//! Group data used by cache
 			cnt::darray<GroupData> m_archetypeGroupData;
 
@@ -25094,6 +25364,7 @@ namespace gaia {
 			void reset() {
 				m_archetypeSet = {};
 				m_archetypeCache = {};
+				m_archetypeSortData = {};
 				m_archetypeCacheData = {};
 				m_archetypeGroupData = {};
 				m_lastArchetypeId = 0;
@@ -25251,8 +25522,11 @@ namespace gaia {
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (m_lastArchetypeId == archetypeLastId)
+				if (m_lastArchetypeId == archetypeLastId) {
+					// Sort entities if necessary
+					sort_entities();
 					return;
+				}
 				m_lastArchetypeId = archetypeLastId;
 
 				GAIA_PROF_SCOPE(queryinfo::match);
@@ -25279,8 +25553,121 @@ namespace gaia {
 				for (auto* pArchetype: *ctx.pMatchesArr)
 					add_archetype_to_cache(pArchetype);
 
+				// Sort entities if necessary
+				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+			}
+
+			//! Calculates the sort data for the archetypes in the cache.
+			//! This allows us to iterate entites in the order they are sorted accross all archetypes.
+			void calculate_sort_data() {
+				GAIA_PROF_SCOPE(queryinfo::calc_sort_data);
+
+				m_archetypeSortData.clear();
+
+				struct Cursor {
+					uint32_t chunkIdx = 0;
+					uint16_t row = 0;
+				};
+
+				auto& archetypes = m_archetypeCache;
+
+				// Initialize cursors. We will need as many as there are archetypes.
+				cnt::sarray_ext<Cursor, 128> cursors(archetypes.size());
+
+				uint32_t currArchetypeIdx = (uint32_t)-1;
+				Chunk* pCurrentChunk = nullptr;
+				uint16_t currentStartRow = 0;
+				uint16_t currentRow = 0;
+
+				const void* pDataMin = nullptr;
+				const void* pDataCurr = nullptr;
+
+				while (true) {
+					uint32_t minArchetypeIdx = (uint32_t)-1;
+					Entity minEntity = EntityBad;
+
+					// Find the next entity across all tables/chunks
+					for (uint32_t t = 0; t < archetypes.size(); ++t) {
+						const auto* pArchetype = archetypes[t];
+						const auto& chunks = pArchetype->chunks();
+						auto& cur = cursors[t];
+
+						while (cur.chunkIdx < chunks.size() && cur.row >= chunks[cur.chunkIdx]->size()) {
+							++cur.chunkIdx;
+							cur.row = 0;
+						}
+
+						if (cur.chunkIdx >= chunks.size())
+							continue;
+
+						const auto* pChunk = pArchetype->chunks()[cur.chunkIdx];
+						auto entity = pChunk->entity_view()[cur.row];
+
+						if (m_ctx.data.sortBy != ecs::EntityBad) {
+							const auto compIdx = pChunk->comp_idx(m_ctx.data.sortBy);
+							pDataCurr = pChunk->comp_ptr(compIdx, cur.row);
+						} else
+							pDataCurr = &pChunk->entity_view()[cur.row];
+
+						if (minEntity == EntityBad) {
+							minEntity = entity;
+							minArchetypeIdx = t;
+							pDataMin = pDataCurr;
+							continue;
+						}
+
+						if (m_ctx.data.sortByFunc(*m_ctx.w, pDataCurr, pDataMin) < 0) {
+							minEntity = entity;
+							minArchetypeIdx = t;
+						}
+					}
+
+					// No more results found, we can stop
+					if (minArchetypeIdx == (uint32_t)-1)
+						break;
+
+					auto& cur = cursors[minArchetypeIdx];
+					const auto& chunks = archetypes[minArchetypeIdx]->chunks();
+					Chunk* pChunk = chunks[cur.chunkIdx];
+
+					if (minArchetypeIdx == currArchetypeIdx && pChunk == pCurrentChunk) {
+						// Current slice
+					} else {
+						// End previous slice
+						if (pCurrentChunk != nullptr) {
+							m_archetypeSortData.push_back(
+									{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
+						}
+
+						// Start a new slice
+						currArchetypeIdx = minArchetypeIdx;
+						pCurrentChunk = pChunk;
+						currentStartRow = cur.row;
+					}
+
+					++cur.row;
+					currentRow = cur.row;
+				}
+
+				if (pCurrentChunk != nullptr) {
+					m_archetypeSortData.push_back(
+							{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
+				}
+			}
+
+			void sort_entities() {
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0)
+					return;
+				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
+
+				// First, sort entities in archetypes
+				for (auto* pArchetype: m_archetypeCache)
+					pArchetype->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
+
+				// Now that entites are sorted, we can start creating slices
+				calculate_sort_data();
 			}
 
 			void sort_cache_groups() {
@@ -25328,7 +25715,7 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(add_cache_ng);
+				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_archetypeSet.contains(pArchetype))
 					return;
@@ -25339,7 +25726,7 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(add_cache_wg);
+				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_archetypeSet.contains(pArchetype))
 					return;
@@ -25416,6 +25803,9 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache(Archetype* pArchetype) {
+				if (m_ctx.data.sortByFunc != nullptr)
+					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+
 				if (m_ctx.data.groupBy != EntityBad)
 					add_archetype_to_cache_w_grouping(pArchetype);
 				else
@@ -25427,6 +25817,9 @@ namespace gaia {
 				if (it == m_archetypeSet.end())
 					return false;
 				m_archetypeSet.erase(it);
+
+				if (m_ctx.data.sortByFunc != nullptr)
+					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				const auto archetypeIdx = core::get_index_unsafe(m_archetypeCache, pArchetype);
 				GAIA_ASSERT(archetypeIdx != BadIndex);
@@ -25563,6 +25956,9 @@ namespace gaia {
 			}
 			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
 				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
+			}
+			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
+				return std::span{m_archetypeSortData.data(), m_archetypeSortData.size()};
 			}
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
 				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
@@ -25835,7 +26231,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -25943,6 +26339,21 @@ namespace gaia {
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
+				}
+			};
+
+			struct QueryCmd_SortBy {
+				static constexpr QueryCmdType Id = QueryCmdType::SORT_BY;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity sortBy;
+				TSortByFunc func;
+
+				void exec(QueryCtx& ctx) {
+					auto& data = ctx.data;
+					data.sortBy = sortBy;
+					GAIA_ASSERT(func != nullptr);
+					data.sortByFunc = func; // sort_by_func_default;
 				}
 			};
 
@@ -26158,6 +26569,8 @@ namespace gaia {
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
 					GroupId groupId;
+					uint16_t from;
+					uint16_t to;
 				};
 
 				using CmdBuffer = SerializationBufferDyn;
@@ -26180,6 +26593,12 @@ namespace gaia {
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
+						// SortBy
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_SortBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
 						// GroupBy
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_GroupBy cmd;
@@ -26191,7 +26610,8 @@ namespace gaia {
 							QueryCmd_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
-						}};
+						} //
+				}; // namespace detail
 
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
@@ -26364,6 +26784,35 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
+				void sort_by_inter(Entity entity, TSortByFunc func) {
+					QueryCmd_SortBy cmd{entity, func};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void sort_by_inter(Entity entity, TSortByFunc func) {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					sort_by_inter(entity, func);
+				}
+
+				template <typename Rel, typename Tgt>
+				void sort_by_inter(TSortByFunc func) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					sort_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
 				void group_by_inter(Entity entity, TGroupByFunc func) {
 					QueryCmd_GroupBy cmd{entity, func};
 					add_cmd(cmd);
@@ -26521,7 +26970,7 @@ namespace gaia {
 					TIter it;
 					it.set_world(pWorld);
 					it.set_archetype(batch.pArchetype);
-					it.set_chunk(batch.pChunk);
+					it.set_chunk(batch.pChunk, batch.from, batch.to);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
 					func(it);
@@ -26571,43 +27020,68 @@ namespace gaia {
 					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
 
 					lock(*m_storage.world());
 
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
+								continue;
 
-						auto indices_view = queryInfo.indices_mapping_view(i);
-						const auto& chunks = pArchetype->chunks();
-
-						uint32_t chunkOffset = 0;
-						uint32_t itemsLeft = chunks.size();
-						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
-							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
-
-							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
-							for (auto* pChunk: chunkSpan) {
-								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo))
 									continue;
-
-								if constexpr (HasFilters) {
-									if (!match_filters(*pChunk, queryInfo))
-										continue;
-								}
-
-								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0});
 							}
+
+							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+
+							chunkBatches.push_back(ChunkBatch{
+									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
+									(uint16_t)(view.startRow + view.count)});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							auto* pArchetype = cacheView[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
 
-							itemsLeft -= batchSize;
-							chunkOffset += batchSize;
+							auto indices_view = queryInfo.indices_mapping_view(i);
+							const auto& chunks = pArchetype->chunks();
+
+							uint32_t chunkOffset = 0;
+							uint32_t itemsLeft = chunks.size();
+							while (itemsLeft > 0) {
+								const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+								const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+								for (auto* pChunk: chunkSpan) {
+									if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+										continue;
+
+									if constexpr (HasFilters) {
+										if (!match_filters(*pChunk, queryInfo))
+											continue;
+									}
+
+									chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+								}
+
+								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+									run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+									chunkBatches.clear();
+								}
+
+								itemsLeft -= batchSize;
+								chunkOffset += batchSize;
+							}
 						}
 					}
 
@@ -26629,24 +27103,44 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
 
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
-
-						auto indices_view = queryInfo.indices_mapping_view(i);
-						const auto& chunks = pArchetype->chunks();
-						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
 								continue;
 
 							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*view.pChunk, queryInfo))
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0});
+							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+
+							m_batches.push_back(ChunkBatch{
+									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
+									(uint16_t)(view.startRow + view.count)});
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							auto* pArchetype = cacheView[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
+
+							auto indices_view = queryInfo.indices_mapping_view(i);
+							const auto& chunks = pArchetype->chunks();
+							for (auto* pChunk: chunks) {
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+							}
 						}
 					}
 
@@ -26790,7 +27284,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId});
+							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId, 0, 0});
 						}
 					}
 
@@ -27326,6 +27820,25 @@ namespace gaia {
 					return *this;
 				}
 #endif
+
+				//------------------------------------------------
+
+				QueryImpl& sort_by(Entity entity, TSortByFunc func = sort_by_func_default) {
+					sort_by_inter(entity, func);
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+					sort_by_inter<T>(func);
+					return *this;
+				}
+
+				template <typename Rel, typename Tgt>
+				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+					sort_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
 
 				//------------------------------------------------
 
@@ -32567,6 +33080,12 @@ namespace gaia {
 #endif
 		}
 
+		inline int sort_by_func_default(
+				[[maybe_unused]] const World& world, [[maybe_unused]] const void* pData0, [[maybe_unused]] const void* pData1) {
+			// No sorting by default.
+			return 0;
+		}
+
 		inline GroupId
 		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
 			if (archetype.pairs() > 0) {
@@ -32590,7 +33109,19 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
-			m_systemsQuery = query().all<System2_&>();
+			m_systemsQuery = query()
+													 .all(System2)
+													 // sort systems by their dependencies
+													 .sort_by(EntityBad, [](const World& world, const void* pData0, const void* pData1) {
+														 const auto& entity0 = *(Entity*)pData0;
+														 const auto& entity1 = *(Entity*)pData1;
+														 if (world.has(entity0, ecs::Pair(DependsOn, entity1)))
+															 return -1;
+														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
+															 return 1;
+
+														 return (int)entity0.id() - (int)entity1.id();
+													 });
 		}
 
 		inline void World::systems_run() {

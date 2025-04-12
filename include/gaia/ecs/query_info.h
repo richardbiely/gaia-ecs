@@ -45,6 +45,13 @@ namespace gaia {
 				QueryOpKind op;
 			};
 
+			struct SortData {
+				Chunk* pChunk;
+				uint32_t archetypeIdx;
+				uint16_t startRow;
+				uint16_t count;
+			};
+
 			struct GroupData {
 				GroupId groupId;
 				uint32_t idxFirst;
@@ -66,6 +73,8 @@ namespace gaia {
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
+			//! Sort data used by cache
+			cnt::darray<SortData> m_archetypeSortData;
 			//! Group data used by cache
 			cnt::darray<GroupData> m_archetypeGroupData;
 
@@ -139,6 +148,7 @@ namespace gaia {
 			void reset() {
 				m_archetypeSet = {};
 				m_archetypeCache = {};
+				m_archetypeSortData = {};
 				m_archetypeCacheData = {};
 				m_archetypeGroupData = {};
 				m_lastArchetypeId = 0;
@@ -296,8 +306,11 @@ namespace gaia {
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (m_lastArchetypeId == archetypeLastId)
+				if (m_lastArchetypeId == archetypeLastId) {
+					// Sort entities if necessary
+					sort_entities();
 					return;
+				}
 				m_lastArchetypeId = archetypeLastId;
 
 				GAIA_PROF_SCOPE(queryinfo::match);
@@ -324,8 +337,121 @@ namespace gaia {
 				for (auto* pArchetype: *ctx.pMatchesArr)
 					add_archetype_to_cache(pArchetype);
 
+				// Sort entities if necessary
+				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+			}
+
+			//! Calculates the sort data for the archetypes in the cache.
+			//! This allows us to iterate entites in the order they are sorted accross all archetypes.
+			void calculate_sort_data() {
+				GAIA_PROF_SCOPE(queryinfo::calc_sort_data);
+
+				m_archetypeSortData.clear();
+
+				struct Cursor {
+					uint32_t chunkIdx = 0;
+					uint16_t row = 0;
+				};
+
+				auto& archetypes = m_archetypeCache;
+
+				// Initialize cursors. We will need as many as there are archetypes.
+				cnt::sarray_ext<Cursor, 128> cursors(archetypes.size());
+
+				uint32_t currArchetypeIdx = (uint32_t)-1;
+				Chunk* pCurrentChunk = nullptr;
+				uint16_t currentStartRow = 0;
+				uint16_t currentRow = 0;
+
+				const void* pDataMin = nullptr;
+				const void* pDataCurr = nullptr;
+
+				while (true) {
+					uint32_t minArchetypeIdx = (uint32_t)-1;
+					Entity minEntity = EntityBad;
+
+					// Find the next entity across all tables/chunks
+					for (uint32_t t = 0; t < archetypes.size(); ++t) {
+						const auto* pArchetype = archetypes[t];
+						const auto& chunks = pArchetype->chunks();
+						auto& cur = cursors[t];
+
+						while (cur.chunkIdx < chunks.size() && cur.row >= chunks[cur.chunkIdx]->size()) {
+							++cur.chunkIdx;
+							cur.row = 0;
+						}
+
+						if (cur.chunkIdx >= chunks.size())
+							continue;
+
+						const auto* pChunk = pArchetype->chunks()[cur.chunkIdx];
+						auto entity = pChunk->entity_view()[cur.row];
+
+						if (m_ctx.data.sortBy != ecs::EntityBad) {
+							const auto compIdx = pChunk->comp_idx(m_ctx.data.sortBy);
+							pDataCurr = pChunk->comp_ptr(compIdx, cur.row);
+						} else
+							pDataCurr = &pChunk->entity_view()[cur.row];
+
+						if (minEntity == EntityBad) {
+							minEntity = entity;
+							minArchetypeIdx = t;
+							pDataMin = pDataCurr;
+							continue;
+						}
+
+						if (m_ctx.data.sortByFunc(*m_ctx.w, pDataCurr, pDataMin) < 0) {
+							minEntity = entity;
+							minArchetypeIdx = t;
+						}
+					}
+
+					// No more results found, we can stop
+					if (minArchetypeIdx == (uint32_t)-1)
+						break;
+
+					auto& cur = cursors[minArchetypeIdx];
+					const auto& chunks = archetypes[minArchetypeIdx]->chunks();
+					Chunk* pChunk = chunks[cur.chunkIdx];
+
+					if (minArchetypeIdx == currArchetypeIdx && pChunk == pCurrentChunk) {
+						// Current slice
+					} else {
+						// End previous slice
+						if (pCurrentChunk != nullptr) {
+							m_archetypeSortData.push_back(
+									{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
+						}
+
+						// Start a new slice
+						currArchetypeIdx = minArchetypeIdx;
+						pCurrentChunk = pChunk;
+						currentStartRow = cur.row;
+					}
+
+					++cur.row;
+					currentRow = cur.row;
+				}
+
+				if (pCurrentChunk != nullptr) {
+					m_archetypeSortData.push_back(
+							{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
+				}
+			}
+
+			void sort_entities() {
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0)
+					return;
+				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
+
+				// First, sort entities in archetypes
+				for (auto* pArchetype: m_archetypeCache)
+					pArchetype->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
+
+				// Now that entites are sorted, we can start creating slices
+				calculate_sort_data();
 			}
 
 			void sort_cache_groups() {
@@ -373,7 +499,7 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(add_cache_ng);
+				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_archetypeSet.contains(pArchetype))
 					return;
@@ -384,7 +510,7 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(add_cache_wg);
+				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_archetypeSet.contains(pArchetype))
 					return;
@@ -461,6 +587,9 @@ namespace gaia {
 			}
 
 			void add_archetype_to_cache(Archetype* pArchetype) {
+				if (m_ctx.data.sortByFunc != nullptr)
+					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+
 				if (m_ctx.data.groupBy != EntityBad)
 					add_archetype_to_cache_w_grouping(pArchetype);
 				else
@@ -472,6 +601,9 @@ namespace gaia {
 				if (it == m_archetypeSet.end())
 					return false;
 				m_archetypeSet.erase(it);
+
+				if (m_ctx.data.sortByFunc != nullptr)
+					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				const auto archetypeIdx = core::get_index_unsafe(m_archetypeCache, pArchetype);
 				GAIA_ASSERT(archetypeIdx != BadIndex);
@@ -608,6 +740,9 @@ namespace gaia {
 			}
 			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
 				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
+			}
+			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
+				return std::span{m_archetypeSortData.data(), m_archetypeSortData.size()};
 			}
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
 				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};

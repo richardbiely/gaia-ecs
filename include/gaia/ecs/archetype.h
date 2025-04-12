@@ -538,11 +538,19 @@ namespace gaia {
 					++m_firstFreeChunkIdx;
 			}
 
+			//! Removes an entity from the chunk.
+			//! \param chunk Chunk to remove the entity from
+			//! \param row Row of the entity
+			//! \param recs Entity containers
 			void remove_entity_raw(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				chunk.remove_entity(row, recs);
 				try_update_free_chunk_idx(chunk);
 			}
 
+			//! Removes an entity from the chunk and updates the chunk versions.
+			//! \param chunk Chunk to remove the entity from
+			//! \param row Row of the entity
+			//! \param recs Entity containers
 			void remove_entity(Chunk& chunk, uint16_t row, EntityContainers& recs) {
 				remove_entity_raw(chunk, row, recs);
 				chunk.update_versions();
@@ -572,10 +580,14 @@ namespace gaia {
 				return {&m_compOffs[0], m_properties.cntEntities};
 			}
 
+			//! Returns the number of pairs registered in the archetype.
+			//! \return Number of pairs
 			GAIA_NODISCARD uint32_t pairs() const {
 				return m_pairCnt;
 			}
 
+			//! Returns the number of Is pairs registered in the archetype.
+			//! \return Number of Is pairs
 			GAIA_NODISCARD uint32_t pairs_is() const {
 				return m_pairCnt_is;
 			}
@@ -609,6 +621,148 @@ namespace gaia {
 				}
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Given a flat index, return a reference to the value
+			Entity getValue(size_t flatIndex) const {
+				size_t offset = 0;
+				for (Chunk* pChunk: chunks()) {
+					if (pChunk->empty())
+						continue;
+
+					if (flatIndex < offset + pChunk->size()) {
+						const auto idx = (uint32_t)(flatIndex - offset);
+						return pChunk->entity_view()[idx];
+					}
+
+					offset += pChunk->size();
+				}
+
+				GAIA_ASSERT(false);
+				return EntityBad;
+			}
+
+			//! Given a flat index, return a reference to the value
+			const void* getValue(uint32_t compIdx, size_t flatIndex, Entity& outEntity) const {
+				size_t offset = 0;
+				for (Chunk* pChunk: chunks()) {
+					if (flatIndex < offset + pChunk->size()) {
+						const auto idx = (uint32_t)(flatIndex - offset);
+						const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+						outEntity = pChunk->entity_view()[idx];
+						return pData;
+					}
+
+					offset += pChunk->size();
+				}
+
+				GAIA_ASSERT(false);
+				return nullptr;
+			}
+
+			//! Generic in-place quicksort across chunks
+			void sort_entities_inter(size_t low, size_t high, TSortByFunc func) {
+				if (low >= high)
+					return;
+
+				Entity pivotEntity = getValue(high);
+
+				size_t i = low;
+				for (size_t j = low; j < high; ++j) {
+					Entity jEntity = getValue(j);
+					if (func(m_world, &jEntity, &pivotEntity) < 0) {
+						if (i != j) {
+							Entity iEntity = getValue(i);
+							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+						}
+						++i;
+					}
+				}
+
+				{
+					Entity iEntity = getValue(i);
+					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+				}
+
+				if (i > 0)
+					sort_entities_inter(low, i - 1, func);
+				sort_entities_inter(i + 1, high, func);
+			}
+
+			//! Generic in-place quicksort across chunks
+			void sort_entities_inter(
+					const ComponentCacheItem* pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func) {
+				if (low >= high)
+					return;
+
+				Entity pivotEntity;
+				const void* pPivotData = getValue(compIdx, high, pivotEntity);
+
+				size_t i = low;
+				for (size_t j = low; j < high; ++j) {
+					Entity jEntity;
+					const void* jData = getValue(compIdx, j, jEntity);
+					if (func(m_world, jData, pPivotData) < 0) {
+						if (i != j) {
+							Entity iEntity;
+							(void)getValue(compIdx, i, iEntity);
+							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
+						}
+						++i;
+					}
+				}
+
+				{
+					Entity iEntity;
+					(void)getValue(compIdx, i, iEntity);
+					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
+				}
+
+				if (i > 0)
+					sort_entities_inter(pItem, compIdx, low, i - 1, func);
+				sort_entities_inter(pItem, compIdx, i + 1, high, func);
+			}
+
+			//! Sorts all entities in the archetypes according to the given function.
+			//! \param entity Entity to sort by
+			//! \param func Function to sort by
+			void sort_entities(Entity entity, TSortByFunc func) {
+				// TODO: We currently have to calculate the number of entities in the archetype from chunks.
+				//       Additionally, to get the right index we need to loop through chunks again because
+				//       the entities are not spread evenly among chunks (we can't just divide the index by
+				//       the number of chunks and module with the same number to get the index inside a chunk).
+				//       This is not optimal, and makes sorting quite expensive.
+
+				if (entity == EntityBad) {
+					uint32_t entities = 0;
+					for (const auto* pChunk: m_chunks)
+						entities += pChunk->size();
+					if (entities == 0)
+						return;
+
+					sort_entities_inter(0, entities - 1, func);
+				} else {
+					const auto* pItem = m_cc.find(entity);
+					GAIA_ASSERT(pItem != nullptr && "Trying to sort by a component that has not been registered");
+					if (pItem == nullptr)
+						return;
+
+					uint32_t entities = 0;
+					for (const auto* pChunk: m_chunks)
+						entities += pChunk->size();
+					if (entities == 0)
+						return;
+
+					const auto compIdx = chunks()[0]->comp_idx(entity);
+					sort_entities_inter(pItem, compIdx, 0, entities - 1, func);
+				}
+			}
+
+			//----------------------------------------------------------------------
+
+			//! Builds a graph edge from this archetype to the right archetype.
+			//! \param pArchetypeRight Target archetype
+			//! \param entity Entity to link
 			void build_graph_edges(Archetype* pArchetypeRight, Entity entity) {
 				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);

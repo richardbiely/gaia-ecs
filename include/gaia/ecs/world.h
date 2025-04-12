@@ -4616,6 +4616,12 @@ namespace gaia {
 #endif
 		}
 
+		inline int sort_by_func_default(
+				[[maybe_unused]] const World& world, [[maybe_unused]] const void* pData0, [[maybe_unused]] const void* pData1) {
+			// No sorting by default.
+			return 0;
+		}
+
 		inline GroupId
 		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
 			if (archetype.pairs() > 0) {
@@ -4639,7 +4645,19 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
-			m_systemsQuery = query().all<System2_&>();
+			m_systemsQuery = query()
+													 .all(System2)
+													 // sort systems by their dependencies
+													 .sort_by(EntityBad, [](const World& world, const void* pData0, const void* pData1) {
+														 const auto& entity0 = *(Entity*)pData0;
+														 const auto& entity1 = *(Entity*)pData1;
+														 if (world.has(entity0, ecs::Pair(DependsOn, entity1)))
+															 return -1;
+														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
+															 return 1;
+
+														 return (int)entity0.id() - (int)entity1.id();
+													 });
 		}
 
 		inline void World::systems_run() {

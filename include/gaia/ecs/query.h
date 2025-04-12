@@ -2,6 +2,7 @@
 #include "../config/config.h"
 
 #include <cstdarg>
+#include <cstdint>
 #include <type_traits>
 
 #include "../cnt/darray.h"
@@ -46,7 +47,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, GROUP_BY, SET_GROUP, FILTER_GROUP };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -154,6 +155,21 @@ namespace gaia {
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
+				}
+			};
+
+			struct QueryCmd_SortBy {
+				static constexpr QueryCmdType Id = QueryCmdType::SORT_BY;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity sortBy;
+				TSortByFunc func;
+
+				void exec(QueryCtx& ctx) {
+					auto& data = ctx.data;
+					data.sortBy = sortBy;
+					GAIA_ASSERT(func != nullptr);
+					data.sortByFunc = func; // sort_by_func_default;
 				}
 			};
 
@@ -369,6 +385,8 @@ namespace gaia {
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
 					GroupId groupId;
+					uint16_t from;
+					uint16_t to;
 				};
 
 				using CmdBuffer = SerializationBufferDyn;
@@ -391,6 +409,12 @@ namespace gaia {
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
+						// SortBy
+						[](CmdBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_SortBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
 						// GroupBy
 						[](CmdBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_GroupBy cmd;
@@ -402,7 +426,8 @@ namespace gaia {
 							QueryCmd_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
-						}};
+						} //
+				}; // namespace detail
 
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
@@ -575,6 +600,35 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
+				void sort_by_inter(Entity entity, TSortByFunc func) {
+					QueryCmd_SortBy cmd{entity, func};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void sort_by_inter(Entity entity, TSortByFunc func) {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					sort_by_inter(entity, func);
+				}
+
+				template <typename Rel, typename Tgt>
+				void sort_by_inter(TSortByFunc func) {
+					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+					using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+					static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+					static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
+
+					// Make sure the component is always registered
+					const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+
+					sort_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
 				void group_by_inter(Entity entity, TGroupByFunc func) {
 					QueryCmd_GroupBy cmd{entity, func};
 					add_cmd(cmd);
@@ -732,7 +786,7 @@ namespace gaia {
 					TIter it;
 					it.set_world(pWorld);
 					it.set_archetype(batch.pArchetype);
-					it.set_chunk(batch.pChunk);
+					it.set_chunk(batch.pChunk, batch.from, batch.to);
 					it.set_group_id(batch.groupId);
 					it.set_remapping_indices(batch.pIndicesMapping);
 					func(it);
@@ -782,43 +836,68 @@ namespace gaia {
 					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
 
 					lock(*m_storage.world());
 
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
+								continue;
 
-						auto indices_view = queryInfo.indices_mapping_view(i);
-						const auto& chunks = pArchetype->chunks();
-
-						uint32_t chunkOffset = 0;
-						uint32_t itemsLeft = chunks.size();
-						while (itemsLeft > 0) {
-							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
-							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
-
-							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
-							for (auto* pChunk: chunkSpan) {
-								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo))
 									continue;
-
-								if constexpr (HasFilters) {
-									if (!match_filters(*pChunk, queryInfo))
-										continue;
-								}
-
-								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0});
 							}
+
+							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+
+							chunkBatches.push_back(ChunkBatch{
+									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
+									(uint16_t)(view.startRow + view.count)});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							auto* pArchetype = cacheView[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
 
-							itemsLeft -= batchSize;
-							chunkOffset += batchSize;
+							auto indices_view = queryInfo.indices_mapping_view(i);
+							const auto& chunks = pArchetype->chunks();
+
+							uint32_t chunkOffset = 0;
+							uint32_t itemsLeft = chunks.size();
+							while (itemsLeft > 0) {
+								const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+								const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+								for (auto* pChunk: chunkSpan) {
+									if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+										continue;
+
+									if constexpr (HasFilters) {
+										if (!match_filters(*pChunk, queryInfo))
+											continue;
+									}
+
+									chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+								}
+
+								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+									run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+									chunkBatches.clear();
+								}
+
+								itemsLeft -= batchSize;
+								chunkOffset += batchSize;
+							}
 						}
 					}
 
@@ -840,24 +919,44 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
 
-					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
-							continue;
-
-						auto indices_view = queryInfo.indices_mapping_view(i);
-						const auto& chunks = pArchetype->chunks();
-						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
 								continue;
 
 							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*view.pChunk, queryInfo))
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0});
+							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+
+							m_batches.push_back(ChunkBatch{
+									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
+									(uint16_t)(view.startRow + view.count)});
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							auto* pArchetype = cacheView[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
+
+							auto indices_view = queryInfo.indices_mapping_view(i);
+							const auto& chunks = pArchetype->chunks();
+							for (auto* pChunk: chunks) {
+								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo))
+										continue;
+								}
+
+								m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+							}
 						}
 					}
 
@@ -1001,7 +1100,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId});
+							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId, 0, 0});
 						}
 					}
 
@@ -1537,6 +1636,25 @@ namespace gaia {
 					return *this;
 				}
 #endif
+
+				//------------------------------------------------
+
+				QueryImpl& sort_by(Entity entity, TSortByFunc func = sort_by_func_default) {
+					sort_by_inter(entity, func);
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+					sort_by_inter<T>(func);
+					return *this;
+				}
+
+				template <typename Rel, typename Tgt>
+				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+					sort_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
 
 				//------------------------------------------------
 

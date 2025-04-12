@@ -94,7 +94,7 @@ namespace gaia {
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
-						const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+						const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
 						m_itemArr.reserve(newCapacity);
 
 						// Update the size

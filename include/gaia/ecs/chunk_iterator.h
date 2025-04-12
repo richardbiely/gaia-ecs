@@ -36,6 +36,10 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
+				//! Row of the first entity we iterate from
+				uint16_t m_from;
+				//! Row of the last entity we iterate to
+				uint16_t m_to;
 				//! GroupId. 0 if not set.
 				GroupId m_groupId = 0;
 
@@ -80,6 +84,28 @@ namespace gaia {
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						m_from = m_pChunk->size_disabled();
+					else
+						m_from = 0;
+
+					if constexpr (IterConstraint == Constraints::DisabledOnly)
+						m_to = m_pChunk->size_disabled();
+					else
+						m_to = m_pChunk->size();
+				}
+
+				void set_chunk(Chunk* pChunk, uint16_t from, uint16_t to) {
+					if (from == 0 && to == 0) {
+						set_chunk(pChunk);
+						return;
+					}
+
+					GAIA_ASSERT(pChunk != nullptr);
+					m_pChunk = pChunk;
+					m_from = from;
+					m_to = to;
 				}
 
 				GAIA_NODISCARD const Chunk* chunk() const {
@@ -275,18 +301,12 @@ namespace gaia {
 			protected:
 				//! Returns the starting index of the iterator
 				GAIA_NODISCARD uint16_t from() const noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return 0;
+					return m_from;
 				}
 
 				//! Returns the ending index of the iterator (one past the last valid index)
 				GAIA_NODISCARD uint16_t to() const noexcept {
-					if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return m_pChunk->size_disabled();
-					else
-						return m_pChunk->size();
+					return m_to;
 				}
 			};
 		} // namespace detail

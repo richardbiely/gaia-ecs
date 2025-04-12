@@ -56,7 +56,7 @@ namespace gaia {
 			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap{};
-			//! Function to call when comparing two components of the same type
+			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
 
 #if GAIA_ENABLE_HOOKS
