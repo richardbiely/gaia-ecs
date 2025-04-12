@@ -8108,9 +8108,8 @@ TEST_CASE("System - simple") {
 
 	testRun();
 
-	// TODO: Ordering still needs implementing
-	// REQUIRE(sys3_run_before_sys1);
-	// REQUIRE(sys3_run_before_sys2);
+	REQUIRE(sys3_run_before_sys1);
+	REQUIRE(sys3_run_before_sys2);
 }
 
 #endif

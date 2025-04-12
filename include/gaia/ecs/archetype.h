@@ -624,18 +624,31 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Given a flat index, return a reference to the value
+			template <bool Enabled>
 			Entity getValue(size_t flatIndex) const {
 				size_t offset = 0;
 				for (Chunk* pChunk: chunks()) {
 					if (pChunk->empty())
 						continue;
 
-					if (flatIndex < offset + pChunk->size()) {
-						const auto idx = (uint32_t)(flatIndex - offset);
-						return pChunk->entity_view()[idx];
+					uint32_t cnt = 0;
+					if constexpr (Enabled) {
+						cnt = pChunk->size_enabled();
+					} else {
+						cnt = pChunk->size_disabled();
 					}
 
-					offset += pChunk->size();
+					if (flatIndex < offset + cnt) {
+						if constexpr (Enabled) {
+							const auto idx = (uint32_t)(flatIndex - offset);
+							return pChunk->entity_view()[idx];
+						} else {
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							return pChunk->entity_view()[idx];
+						}
+					}
+
+					offset += cnt;
 				}
 
 				GAIA_ASSERT(false);
@@ -643,17 +656,35 @@ namespace gaia {
 			}
 
 			//! Given a flat index, return a reference to the value
+			template <bool Enabled>
 			const void* getValue(uint32_t compIdx, size_t flatIndex, Entity& outEntity) const {
 				size_t offset = 0;
 				for (Chunk* pChunk: chunks()) {
-					if (flatIndex < offset + pChunk->size()) {
-						const auto idx = (uint32_t)(flatIndex - offset);
-						const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
-						outEntity = pChunk->entity_view()[idx];
-						return pData;
+					if (pChunk->empty())
+						continue;
+
+					uint32_t cnt = 0;
+					if constexpr (Enabled) {
+						cnt = pChunk->size_enabled();
+					} else {
+						cnt = pChunk->size_disabled();
 					}
 
-					offset += pChunk->size();
+					if (flatIndex < offset + cnt) {
+						if constexpr (Enabled) {
+							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+							outEntity = pChunk->entity_view()[idx];
+							return pData;
+						} else {
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+							outEntity = pChunk->entity_view()[idx];
+							return pData;
+						}
+					}
+
+					offset += cnt;
 				}
 
 				GAIA_ASSERT(false);
@@ -661,18 +692,19 @@ namespace gaia {
 			}
 
 			//! Generic in-place quicksort across chunks
+			template <bool Enabled>
 			void sort_entities_inter(size_t low, size_t high, TSortByFunc func) {
 				if (low >= high)
 					return;
 
-				Entity pivotEntity = getValue(high);
+				Entity pivotEntity = getValue<Enabled>(high);
 
 				size_t i = low;
 				for (size_t j = low; j < high; ++j) {
-					Entity jEntity = getValue(j);
+					Entity jEntity = getValue<Enabled>(j);
 					if (func(m_world, &jEntity, &pivotEntity) < 0) {
 						if (i != j) {
-							Entity iEntity = getValue(i);
+							Entity iEntity = getValue<Enabled>(i);
 							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
 						}
 						++i;
@@ -680,32 +712,33 @@ namespace gaia {
 				}
 
 				{
-					Entity iEntity = getValue(i);
+					Entity iEntity = getValue<Enabled>(i);
 					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
 				}
 
 				if (i > 0)
-					sort_entities_inter(low, i - 1, func);
-				sort_entities_inter(i + 1, high, func);
+					sort_entities_inter<Enabled>(low, i - 1, func);
+				sort_entities_inter<Enabled>(i + 1, high, func);
 			}
 
 			//! Generic in-place quicksort across chunks
+			template <bool Enabled>
 			void sort_entities_inter(
 					const ComponentCacheItem* pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func) {
 				if (low >= high)
 					return;
 
 				Entity pivotEntity;
-				const void* pPivotData = getValue(compIdx, high, pivotEntity);
+				const void* pPivotData = getValue<Enabled>(compIdx, high, pivotEntity);
 
 				size_t i = low;
 				for (size_t j = low; j < high; ++j) {
 					Entity jEntity;
-					const void* jData = getValue(compIdx, j, jEntity);
+					const void* jData = getValue<Enabled>(compIdx, j, jEntity);
 					if (func(m_world, jData, pPivotData) < 0) {
 						if (i != j) {
 							Entity iEntity;
-							(void)getValue(compIdx, i, iEntity);
+							(void)getValue<Enabled>(compIdx, i, iEntity);
 							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
 						}
 						++i;
@@ -714,13 +747,13 @@ namespace gaia {
 
 				{
 					Entity iEntity;
-					(void)getValue(compIdx, i, iEntity);
+					(void)getValue<Enabled>(compIdx, i, iEntity);
 					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
 				}
 
 				if (i > 0)
-					sort_entities_inter(pItem, compIdx, low, i - 1, func);
-				sort_entities_inter(pItem, compIdx, i + 1, high, func);
+					sort_entities_inter<Enabled>(pItem, compIdx, low, i - 1, func);
+				sort_entities_inter<Enabled>(pItem, compIdx, i + 1, high, func);
 			}
 
 			//! Sorts all entities in the archetypes according to the given function.
@@ -734,27 +767,49 @@ namespace gaia {
 				//       This is not optimal, and makes sorting quite expensive.
 
 				if (entity == EntityBad) {
-					uint32_t entities = 0;
-					for (const auto* pChunk: m_chunks)
-						entities += pChunk->size();
-					if (entities == 0)
-						return;
+					{
+						uint32_t entities = 0;
+						for (const auto* pChunk: m_chunks)
+							entities += pChunk->size_enabled();
+						if (entities == 0)
+							return;
 
-					sort_entities_inter(0, entities - 1, func);
+						sort_entities_inter<true>(0, entities - 1, func);
+					}
+					{
+						uint32_t entities = 0;
+						for (const auto* pChunk: m_chunks)
+							entities += pChunk->size_disabled();
+						if (entities == 0)
+							return;
+
+						sort_entities_inter<false>(0, entities - 1, func);
+					}
 				} else {
 					const auto* pItem = m_cc.find(entity);
 					GAIA_ASSERT(pItem != nullptr && "Trying to sort by a component that has not been registered");
 					if (pItem == nullptr)
 						return;
 
-					uint32_t entities = 0;
-					for (const auto* pChunk: m_chunks)
-						entities += pChunk->size();
-					if (entities == 0)
-						return;
-
 					const auto compIdx = chunks()[0]->comp_idx(entity);
-					sort_entities_inter(pItem, compIdx, 0, entities - 1, func);
+					{
+						uint32_t entities = 0;
+						for (const auto* pChunk: m_chunks)
+							entities += pChunk->size_enabled();
+						if (entities == 0)
+							return;
+
+						sort_entities_inter<true>(pItem, compIdx, 0, entities - 1, func);
+					}
+					{
+						uint32_t entities = 0;
+						for (const auto* pChunk: m_chunks)
+							entities += pChunk->size_disabled();
+						if (entities == 0)
+							return;
+
+						sort_entities_inter<false>(pItem, compIdx, 0, entities - 1, func);
+					}
 				}
 			}
 
