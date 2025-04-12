@@ -725,9 +725,10 @@ More complex queries can be created by combining All, Any and None in any way yo
 ```cpp
 ecs::Query q = w.query();
 // Take into account everything with Position and Velocity (mutable access for both)...
-q.all<Position&, Velocity&>();
+q.all<Position&>();
+q.all<Velocity&>();
 // ... at least Something or SomethingElse (immutable access for both)...
-q.any<Something, SomethingElse>();
+q.any<Something>().any<SomethingElse>();
 // ... and no Player component... (no access done for no())
 q.not<Player>();
 ```
@@ -736,14 +737,28 @@ All Query operations can be chained and it is also possible to invoke various fi
 
 ```cpp
 ecs::Query q = w.query();
-// Take into account everything with Position (mutable access)...
-q.all<Position&>()
-// ... and at the same time everything with Velocity (mutable access)...
- .all<Velocity&>()
- // ... at least Something or SomethingElse (immutable access)...
- .any<Something, SomethingElse>()
- // ... and no Player component (no access)...
- .no<Player>(); 
+  // Take into account everything with Position (mutable access)...
+  .all<Position&>()
+  // ... and at the same time everything with Velocity (mutable access)...
+  .all<Velocity&>()
+  // ... at least Something or SomethingElse (immutable access)...
+  .any<Something>()
+  .any<SomethingElse>()
+  // ... and no Player component (no access)...
+  .no<Player>(); 
+```
+
+When the library is built with GAIA_USE_VARIADIC_API enabled (on by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time:
+
+```cpp
+ecs::Query q = w.query();
+  // Take into account everything with Position (mutable access)
+  // and at the same time everything with Velocity (mutable access)...
+  .all<Position&, Velocity&>()
+  // ... at least Something or SomethingElse (immutable access)...
+  .any<Something, SomethingElse>()
+  // ... and no Player component (no access)...
+  .no<Player>(); 
 ```
 
 Queries can be defined using a low-level API (used internally).
@@ -756,15 +771,15 @@ ecs::Entity se = w.add<SomethingElse>().entity;
 ecs::Entity pl = w.add<Player>().entity;
 
 ecs::Query q = w.query();
-// Take into account everything with Position (mutable access)...
-q.add({p, QueryOpKind::All, QueryAccess::Write})
-// ... and at the same time everything with Velocity (mutable access)...
- .add({v, QueryOpKind::All, QueryAccess::Write})
- // ... at least Something or SomethingElse (immutable access)..
- .add({s, QueryOpKind::Any, QueryAccess::Read})
- .add({se, QueryOpKind::Any, QueryAccess::Read})
- // ... and no Player component (no access)...
- .add({pl, QueryOpKind::None, QueryAccess::None}); 
+  // Take into account everything with Position (mutable access)...
+  .add({p, QueryOpKind::All, QueryAccess::Write})
+  // ... and at the same time everything with Velocity (mutable access)...
+  .add({v, QueryOpKind::All, QueryAccess::Write})
+  // ... at least Something or SomethingElse (immutable access)..
+  .add({s, QueryOpKind::Any, QueryAccess::Read})
+  .add({se, QueryOpKind::Any, QueryAccess::Read})
+  // ... and no Player component (no access)...
+  .add({pl, QueryOpKind::None, QueryAccess::None}); 
 ```
 
 Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
@@ -850,10 +865,11 @@ It accepts either a list of components or an iterator as its argument.
 
 ```cpp
 ecs::Query q = w.query();
-// Take into account all entities with Position and Velocity...
-q.all<Position&, Velocity>();
-// ... but no Player component.
-q.no<Player>();
+  // Take into account all entities with Position and Velocity...
+  .all<Position&>();
+  .all<Velocity>();
+  // ... but no Player component.
+  .no<Player>();
 
 q.each([&](Position& p, const Velocity& v) {
   // Run the scope for each entity with Position, Velocity and no Player component
@@ -875,7 +891,8 @@ There are three types of iterators:
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position&, Velocity>();
+  .all<Position&>()
+  .all<Velocity>();
 
 q.each([](ecs::IterAll& it) {
   auto p = it.view_mut<Position>(); // Read-write access to Position
@@ -902,7 +919,9 @@ Performance of views can be improved slightly by explicitly providing the index 
 
 ```cpp
 ecs::Query q = w.query();
-q.any<Something>().all<Position&, Velocity>();
+q.any<Something>()
+ .all<Position&>()
+ .all<Velocity>();
 
 q.each([](ecs::IterAll& it) {
   auto s = it.view<Something>(0); // Something is fhe first defined component in the query
@@ -978,7 +997,10 @@ struct Disabled {};
 
 e.add<Disabled>(); // disable entity
 
-ecs::Query q = w.query().all<Position, Disabled>; 
+ecs::Query q = w.query()
+  .all<Position>()
+  .all<Disabled>;
+
 q.each([&](ecs::Iter& it){
   // Processes all disabled entities
 });
@@ -991,12 +1013,13 @@ Using changed we can make the iteration run only if particular components change
 
 ```cpp
 ecs::Query q = w.query();
-// Take into account all entities with Position and Velocity...
-q.all<Position&, Velocity>();
-// ... no Player component...
-q.no<Player>(); 
-// ... but only iterate when Velocity changes
-q.changed<Velocity>();
+  // Take into account all entities with Position and Velocity...
+  .all<Position&>()
+  .all<Velocity>();
+  // ... no Player component...
+  .no<Player>(); 
+  // ... but only iterate when Velocity changes
+  .changed<Velocity>();
 
 q.each([&](Position& p, const Velocity& v) {
   // This scope runs for each entity with Position, Velocity and no Player component
@@ -1041,7 +1064,9 @@ GAIA_FOR(6) ents[i] = wld.add();
 }
 
 // This query is going to group entities by what they eat.
-ecs::Query qq = wld.query().all<Position>().group_by(eats);
+ecs::Query qq = wld.query()
+  .all<Position>()
+  .group_by(eats);
 
 // The query cache is going to contain following 6 archetypes in 3 groups as follows:
 //  - Eats:carrot:
@@ -1673,7 +1698,10 @@ struct VelocitySoA {
 };
 ...
 
-ecs::Query q = w.query().all<PositionSoA&, VelocitySoA>;
+ecs::Query q = w.query()
+  .all<PositionSoA&>()
+  .all<VelocitySoA>;
+
 q.each([](ecs::Iter& it) {
   // Position
   auto vp = it.view_mut<PositionSoA>(); // read-write access to PositionSoA
