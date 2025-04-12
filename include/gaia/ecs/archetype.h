@@ -771,19 +771,15 @@ namespace gaia {
 						uint32_t entities = 0;
 						for (const auto* pChunk: m_chunks)
 							entities += pChunk->size_enabled();
-						if (entities == 0)
-							return;
-
-						sort_entities_inter<true>(0, entities - 1, func);
+						if (entities != 0)
+							sort_entities_inter<true>(0, entities - 1, func);
 					}
 					{
 						uint32_t entities = 0;
 						for (const auto* pChunk: m_chunks)
 							entities += pChunk->size_disabled();
-						if (entities == 0)
-							return;
-
-						sort_entities_inter<false>(0, entities - 1, func);
+						if (entities != 0)
+							sort_entities_inter<false>(0, entities - 1, func);
 					}
 				} else {
 					const auto* pItem = m_cc.find(entity);
@@ -796,19 +792,15 @@ namespace gaia {
 						uint32_t entities = 0;
 						for (const auto* pChunk: m_chunks)
 							entities += pChunk->size_enabled();
-						if (entities == 0)
-							return;
-
-						sort_entities_inter<true>(pItem, compIdx, 0, entities - 1, func);
+						if (entities != 0)
+							sort_entities_inter<true>(pItem, compIdx, 0, entities - 1, func);
 					}
 					{
 						uint32_t entities = 0;
 						for (const auto* pChunk: m_chunks)
 							entities += pChunk->size_disabled();
-						if (entities == 0)
-							return;
-
-						sort_entities_inter<false>(pItem, compIdx, 0, entities - 1, func);
+						if (entities != 0)
+							sort_entities_inter<false>(pItem, compIdx, 0, entities - 1, func);
 					}
 				}
 			}
