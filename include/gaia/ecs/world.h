@@ -4666,7 +4666,6 @@ namespace gaia {
 				const auto cnt = se_view.size();
 				GAIA_FOR(cnt) {
 					auto& sys = se_view[i];
-					GAIA_LOG_W("Running system %s", it.world()->name(sys.entity));
 					sys.exec();
 				}
 			});
