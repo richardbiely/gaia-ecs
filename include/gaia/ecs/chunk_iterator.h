@@ -271,6 +271,20 @@ namespace gaia {
 					return m_pChunk->has<T>();
 				}
 
+				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_disabled();
+					else
+						return 0;
+				}
+
+				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_enabled();
+					else
+						return pChunk->size();
+				}
+
 				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
 						return pChunk->size_enabled();

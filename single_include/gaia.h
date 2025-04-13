@@ -22668,10 +22668,10 @@ namespace gaia {
 
 					if (flatIndex < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
 							return pChunk->entity_view()[idx];
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							const auto idx = (uint32_t)(flatIndex - offset);
 							return pChunk->entity_view()[idx];
 						}
 					}
@@ -22700,12 +22700,12 @@ namespace gaia {
 
 					if (flatIndex < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
 							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							const auto idx = (uint32_t)(flatIndex - offset);
 							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;
@@ -23970,6 +23970,20 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
 					return m_pChunk->has<T>();
+				}
+
+				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::EnabledOnly)
+						return pChunk->size_disabled();
+					else
+						return 0;
+				}
+
+				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
+					if constexpr (IterConstraint == Constraints::DisabledOnly)
+						return pChunk->size_enabled();
+					else
+						return pChunk->size();
 				}
 
 				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
@@ -27108,7 +27122,19 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
+							const auto chunkEntitiesCnt = TIter::size(view.pChunk);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+
+							const auto minStartRow = TIter::start_index(view.pChunk);
+							const auto minEndRow = TIter::end_index(view.pChunk);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							const auto totalRows = endRow - startRow;
+							if (totalRows == 0)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -27119,9 +27145,7 @@ namespace gaia {
 							auto* pArchetype = cacheView[view.archetypeIdx];
 							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							chunkBatches.push_back(ChunkBatch{
-									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
-									(uint16_t)(view.startRow + view.count)});
+							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indices_view.data(), 0U, startRow, endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
@@ -27189,7 +27213,19 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							if GAIA_UNLIKELY (TIter::size(view.pChunk) == 0)
+							const auto chunkEntitiesCnt = TIter::size(view.pChunk);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+
+							const auto minStartRow = TIter::start_index(view.pChunk);
+							const auto minEndRow = TIter::end_index(view.pChunk);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							const auto totalRows = endRow - startRow;
+							if (totalRows == 0)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -27200,9 +27236,7 @@ namespace gaia {
 							auto* pArchetype = cacheView[view.archetypeIdx];
 							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							m_batches.push_back(ChunkBatch{
-									pArchetype, view.pChunk, indices_view.data(), 0U, view.startRow,
-									(uint16_t)(view.startRow + view.count)});
+							m_batches.push_back(ChunkBatch{pArchetype, view.pChunk, indices_view.data(), 0U, startRow, endRow});
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {

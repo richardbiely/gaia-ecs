@@ -638,10 +638,10 @@ namespace gaia {
 
 					if (flatIndex < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
 							return pChunk->entity_view()[idx];
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							const auto idx = (uint32_t)(flatIndex - offset);
 							return pChunk->entity_view()[idx];
 						}
 					}
@@ -670,12 +670,12 @@ namespace gaia {
 
 					if (flatIndex < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
 							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_enabled();
+							const auto idx = (uint32_t)(flatIndex - offset);
 							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;

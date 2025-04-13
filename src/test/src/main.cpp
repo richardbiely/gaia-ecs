@@ -7859,8 +7859,10 @@ TEST_CASE("Query Filter - no systems") {
 TEST_CASE("Query Filter - systems") {
 	TestWorld twld;
 
-	uint32_t m_expectedCnt = 0;
-	uint32_t m_actualCnt = 0;
+	uint32_t expectedCnt = 0;
+	uint32_t actualCnt = 0;
+	uint32_t wsCnt = 0;
+	uint32_t wssCnt = 0;
 
 	auto e = wld.add();
 	wld.add<Position>(e);
@@ -7868,14 +7870,16 @@ TEST_CASE("Query Filter - systems") {
 	// WriterSystem
 	auto ws = wld.system()
 								.all<Position&>()
-								.on_each([](Position& a) {
+								.on_each([&](Position& a) {
+									++wsCnt;
 									(void)a;
 								})
 								.entity();
 	// WriterSystemSilent
 	auto wss = wld.system()
 								 .all<Position&>()
-								 .on_each([](ecs::Iter& it) {
+								 .on_each([&](ecs::Iter& it) {
+									 ++wssCnt;
 									 auto posRWView = it.sview_mut<Position>();
 									 (void)posRWView;
 								 })
@@ -7885,7 +7889,7 @@ TEST_CASE("Query Filter - systems") {
 								.all<Position>()
 								.changed<Position>()
 								.on_each([&](ecs::Iter& it) {
-									GAIA_EACH(it)++ m_actualCnt;
+									GAIA_EACH(it)++ actualCnt;
 								})
 								.entity();
 	(void)rs;
@@ -7894,42 +7898,103 @@ TEST_CASE("Query Filter - systems") {
 	{
 		wld.enable(ws, false);
 		wld.enable(wss, false);
-		m_expectedCnt = 1;
-		m_actualCnt = 0;
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		expectedCnt = 1;
+		actualCnt = 0;
+		wsCnt = 0;
+		wssCnt = 0;
 		wld.update();
-		REQUIRE(m_actualCnt == m_expectedCnt);
+
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		REQUIRE(actualCnt == expectedCnt);
+		REQUIRE(wsCnt == 0);
+		REQUIRE(wssCnt == 0);
 	}
-	// no change of position so ReaderSystem should't see changes
+	// no change of position so ReaderSystem should't see any changes
 	{
-		m_expectedCnt = 0;
-		m_actualCnt = 0;
+		expectedCnt = 0;
+		actualCnt = 0;
+		wsCnt = 0;
+		wssCnt = 0;
 		wld.update();
-		REQUIRE(m_actualCnt == m_expectedCnt);
+
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		REQUIRE(actualCnt == expectedCnt);
+		REQUIRE(wsCnt == 0);
+		REQUIRE(wssCnt == 0);
 	}
 	// update position so ReaderSystem should detect a change
 	{
 		wld.enable(ws, true);
-		m_expectedCnt = 1;
-		m_actualCnt = 0;
+		REQUIRE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		expectedCnt = 1;
+		actualCnt = 0;
+		wsCnt = 0;
+		wssCnt = 0;
 		wld.update();
-		REQUIRE(m_actualCnt == m_expectedCnt);
+
+		REQUIRE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		REQUIRE(actualCnt == expectedCnt);
+		REQUIRE(wsCnt > 0);
+		REQUIRE(wssCnt == 0);
 	}
-	// no change of position so ReaderSystem shouldn't see changes
+	// no change of position so ReaderSystem shouldn't see any changes
 	{
 		wld.enable(ws, false);
-		m_expectedCnt = 0;
-		m_actualCnt = 0;
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		expectedCnt = 0;
+		actualCnt = 0;
+		wsCnt = 0;
+		wssCnt = 0;
 		wld.update();
-		REQUIRE(m_actualCnt == m_expectedCnt);
+
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE_FALSE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		REQUIRE(actualCnt == expectedCnt);
+		REQUIRE(wsCnt == 0);
+		REQUIRE(wssCnt == 0);
 	}
-	// silent writer enabled again. If should not cause an update
+	// silent writer enabled again. If should not trigger an update
 	{
 		wld.enable(ws, false);
 		wld.enable(wss, true);
-		m_expectedCnt = 0;
-		m_actualCnt = 0;
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		expectedCnt = 0;
+		actualCnt = 0;
+		wsCnt = 0;
+		wssCnt = 0;
 		wld.update();
-		REQUIRE(m_actualCnt == m_expectedCnt);
+
+		REQUIRE_FALSE(wld.enabled(ws));
+		REQUIRE(wld.enabled(wss));
+		REQUIRE(wld.enabled(rs));
+
+		REQUIRE(actualCnt == expectedCnt);
+		REQUIRE(wsCnt == 0);
+		REQUIRE(wssCnt > 0);
 	}
 }
 
