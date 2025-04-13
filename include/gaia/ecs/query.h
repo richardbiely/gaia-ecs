@@ -169,7 +169,7 @@ namespace gaia {
 					auto& data = ctx.data;
 					data.sortBy = sortBy;
 					GAIA_ASSERT(func != nullptr);
-					data.sortByFunc = func; // sort_by_func_default;
+					data.sortByFunc = func;
 				}
 			};
 
@@ -606,11 +606,18 @@ namespace gaia {
 				}
 
 				template <typename T>
-				void sort_by_inter(Entity entity, TSortByFunc func) {
+				void sort_by_inter(TSortByFunc func) {
 					using UO = typename component_type_t<T>::TypeOriginal;
-					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+					if constexpr (std::is_same_v<UO, Entity>) {
+						sort_by_inter(EntityBad, func);
+					} else {
+						static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
 
-					sort_by_inter(entity, func);
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
+
+						sort_by_inter(desc.entity, func);
+					}
 				}
 
 				template <typename Rel, typename Tgt>
@@ -761,12 +768,18 @@ namespace gaia {
 
 					// See if any component has changed
 					const auto& filtered = queryInfo.filters();
-					for (const auto comp: filtered) {
-						// TODO: Components are sorted. Therefore, we don't need to search from 0
-						//       all the time. We can search from the last found index.
-						const auto compIdx = chunk.comp_idx(comp);
-						if (chunk.changed(queryVersion, compIdx))
-							return true;
+					if (!filtered.empty()) {
+						for (const auto comp: filtered) {
+							// TODO: Components are sorted. Therefore, we don't need to search from 0
+							//       all the time. We can search from the last found index.
+							const auto compIdx = chunk.comp_idx(comp);
+							if (chunk.changed(queryVersion, compIdx))
+								return true;
+						}
+
+						// If the component hasn't been modified, the entity itself still might have been moved.
+						// For that reason we also need to check the entity version.
+						return chunk.changed(queryInfo.world_version());
 					}
 
 					// Skip unchanged chunks.
@@ -1639,36 +1652,60 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& sort_by(Entity entity, TSortByFunc func = sort_by_func_default) {
+				//! Sorts the query by the specified entity and function.
+				//! \param entity The entity to sort by. Use ecs::EntityBad to sort by chunk entities,
+				//                or anything else to sort by components.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
+				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
 					sort_by_inter(entity, func);
 					return *this;
 				}
 
+				//! Sorts the query by the specified component and function.
+				//! \tparam T The component to sort by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
 				template <typename T>
-				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+				QueryImpl& sort_by(TSortByFunc func) {
 					sort_by_inter<T>(func);
 					return *this;
 				}
 
+				//! Sorts the query by the specified pair and function.
+				//! \tparam Rel The relation to sort by. It is registered if it hasn't been registered yet.
+				//! \tparam Tgt The target to sort by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
 				template <typename Rel, typename Tgt>
-				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+				QueryImpl& sort_by(TSortByFunc func) {
 					sort_by_inter<Rel, Tgt>(func);
 					return *this;
 				}
 
 				//------------------------------------------------
 
+				//! Organizes matching archetypes into groups according to the grouping function and entity.
+				//! \param entity The entity to group by.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				QueryImpl& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 					group_by_inter(entity, func);
 					return *this;
 				}
 
+				//! Organizes matching archetypes into groups according to the grouping function.
+				//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				template <typename T>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<T>(func);
 					return *this;
 				}
 
+				//! Organizes matching archetypes into groups according to the grouping function.
+				//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
+				//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				template <typename Rel, typename Tgt>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<Rel, Tgt>(func);
@@ -1677,17 +1714,23 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Selects the group to iterate over.
+				//! \param groupId The group to iterate over.
 				QueryImpl& group_id(GroupId groupId) {
 					set_group_id_inter(groupId);
 					return *this;
 				}
 
+				//! Selects the group to iterate over.
+				//! \param entity The entity to treat as a group to iterate over.
 				QueryImpl& group_id(Entity entity) {
 					GAIA_ASSERT(!entity.pair());
 					set_group_id_inter(entity.id());
 					return *this;
 				}
 
+				//! Selects the group to iterate over.
+				//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 				template <typename T>
 				QueryImpl& group_id() {
 					set_group_id_inter<T>();

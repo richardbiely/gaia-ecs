@@ -179,12 +179,10 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 
-					const auto cnt = comps_view().size();
-					if (cnt != 0) {
-						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
-						offset += sizeof(ComponentVersion) * cnt;
-					}
+					const auto cnt = comps_view().size() + 1; // + 1 for entities
+					GAIA_ASSERT(offset < 256);
+					m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
+					offset += sizeof(ComponentVersion) * cnt;
 				}
 
 				// Entity ids

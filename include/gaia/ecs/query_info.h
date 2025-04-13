@@ -344,11 +344,26 @@ namespace gaia {
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
-			//! This allows us to iterate entites in the order they are sorted accross all archetypes.
+			//! This allows us to iterate entites in the order they are sorted across all archetypes.
 			void calculate_sort_data() {
 				GAIA_PROF_SCOPE(queryinfo::calc_sort_data);
 
 				m_archetypeSortData.clear();
+
+				// The function doesn't do any moves and expects that all chunks have their data sorted already.
+				// We use a min-heap / priority queue - like structure during query iteration to merge sorted tables:
+				// - we hold a cursor into each sorted chunk
+				// - we compare the next entity from each chunk using your sorting function
+				// - we then pick the smallest one (like k-way merge sort), and advance that cursor
+				// This is esentially what this function does:
+				// while (any_chunk_has_entities) {
+				// 	find_chunk_with_smallest_next_element();
+				// 	yield(entity_from_that_chunk);
+				// 	advance_cursor_for_that_chunk();
+				// }
+				// This produces a globally sorted view without modifying actual data. It's a balance between
+				// performance and memory usage. We could also sort the data in-place across all chunks, but that
+				// would generated too many data moves (entities + all of their components).
 
 				struct Cursor {
 					uint32_t chunkIdx = 0;
@@ -442,8 +457,26 @@ namespace gaia {
 			}
 
 			void sort_entities() {
-				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0)
+				if (m_ctx.data.sortByFunc == nullptr)
 					return;
+
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
+					// TODO: We need observers to implement that would listen to entity movements within chunks.
+					//       thanks to that we would know right away if some movement happenend without
+					//       having to check this constantly.
+					bool hasChanged = false;
+					for (const auto* pArchetype: m_archetypeCache) {
+						const auto& chunks = pArchetype->chunks();
+						for (const auto* pChunk: chunks) {
+							if (pChunk->changed(m_worldVersion)) {
+								hasChanged = true;
+								break;
+							}
+						}
+					}
+					if (!hasChanged)
+						return;
+				}
 				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes

@@ -17994,12 +17994,6 @@ namespace gaia {
 
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
-		//! Default sorting function.
-		//! The const void pointers to data are known to the caller and they need to interpret them.
-		//! \param world Parent world in which sorted data is stored.
-		//! \param pData0 Pointer to the first data. It can be an entity or component data depending on the sort-by entity.
-		//! \param pData1 Pointer to the second data It can be an entity or component data depending on the sort-by entity.
-		int sort_by_func_default(const World& world, const void* pData0, const void* pData1);
 		GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
 
 		// Locking API
@@ -20701,9 +20695,7 @@ namespace gaia {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
 				// Cache pointers to versions
-				if (cntEntities > 0) {
-					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
-				}
+				m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 
 				// Cache entity ids
 				if (cntEntities > 0) {
@@ -20756,10 +20748,14 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Returns a read-only view of data version numbers.
+			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
 				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
 			}
 
+			//! Returns a mutable view of data version numbers.
+			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
 				return {m_records.pVersions, m_header.cntEntities};
 			}
@@ -21533,11 +21529,6 @@ namespace gaia {
 			//! If \param rowA equals \param rowB no swapping is performed.
 			//! \warning "rowA" must he smaller or equal to "rowB"
 			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
-				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB".
-				// Unlike remove_entity_inter, it is not technically necessary but we do it
-				// anyway for the sake of consistency.
-				GAIA_ASSERT(rowA <= rowB);
-
 				// If there are at least two different entities inside to swap
 				if GAIA_UNLIKELY (m_header.count <= 1 || rowA == rowB)
 					return;
@@ -22016,23 +22007,36 @@ namespace gaia {
 				return mem_block_size(m_header.sizeType);
 			}
 
+			//! Returns true if the provided version is newer than the one stored internally.
+			//! Use when checking if there was a movement in data in the world. E.g. if an entity
+			//! was added, removed or moved in its archetype.
+			GAIA_NODISCARD bool changed(uint32_t version) const {
+				auto versions = comp_version_view();
+				return ::gaia::ecs::version_changed(versions[0], version);
+			}
+
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
 				auto versions = comp_version_view();
-				return ::gaia::ecs::version_changed(versions[compIdx], version);
+				// Do +1 because index 0 is reserved for the entity version number.
+				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
 			}
 
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
-				versions[compIdx] = m_header.worldVersion;
+				// Automatically treat the entity as changed.
+				versions[0] = m_header.worldVersion;
+				// Do +1 because index 0 is reserved for the entity version number.
+				versions[compIdx + 1] = m_header.worldVersion;
 			}
 
 			//! Update the version of all components
 			GAIA_FORCEINLINE void update_world_version() {
 				auto versions = comp_version_view_mut();
-				for (auto& v: versions)
-					v = m_header.worldVersion;
+				// We update the version of the entity only. If this one changes,
+				// all other components are considered changed as well.
+				versions[0] = m_header.worldVersion;
 			}
 
 			void diag() const {
@@ -22205,12 +22209,10 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 
-					const auto cnt = comps_view().size();
-					if (cnt != 0) {
-						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
-						offset += sizeof(ComponentVersion) * cnt;
-					}
+					const auto cnt = comps_view().size() + 1; // + 1 for entities
+					GAIA_ASSERT(offset < 256);
+					m_dataOffsets.firstByte_Versions = (ChunkDataVersionOffset)offset;
+					offset += sizeof(ComponentVersion) * cnt;
 				}
 
 				// Entity ids
@@ -25594,11 +25596,26 @@ namespace gaia {
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
-			//! This allows us to iterate entites in the order they are sorted accross all archetypes.
+			//! This allows us to iterate entites in the order they are sorted across all archetypes.
 			void calculate_sort_data() {
 				GAIA_PROF_SCOPE(queryinfo::calc_sort_data);
 
 				m_archetypeSortData.clear();
+
+				// The function doesn't do any moves and expects that all chunks have their data sorted already.
+				// We use a min-heap / priority queue - like structure during query iteration to merge sorted tables:
+				// - we hold a cursor into each sorted chunk
+				// - we compare the next entity from each chunk using your sorting function
+				// - we then pick the smallest one (like k-way merge sort), and advance that cursor
+				// This is esentially what this function does:
+				// while (any_chunk_has_entities) {
+				// 	find_chunk_with_smallest_next_element();
+				// 	yield(entity_from_that_chunk);
+				// 	advance_cursor_for_that_chunk();
+				// }
+				// This produces a globally sorted view without modifying actual data. It's a balance between
+				// performance and memory usage. We could also sort the data in-place across all chunks, but that
+				// would generated too many data moves (entities + all of their components).
 
 				struct Cursor {
 					uint32_t chunkIdx = 0;
@@ -25692,8 +25709,26 @@ namespace gaia {
 			}
 
 			void sort_entities() {
-				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0)
+				if (m_ctx.data.sortByFunc == nullptr)
 					return;
+
+				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
+					// TODO: We need observers to implement that would listen to entity movements within chunks.
+					//       thanks to that we would know right away if some movement happenend without
+					//       having to check this constantly.
+					bool hasChanged = false;
+					for (const auto* pArchetype: m_archetypeCache) {
+						const auto& chunks = pArchetype->chunks();
+						for (const auto* pChunk: chunks) {
+							if (pChunk->changed(m_worldVersion)) {
+								hasChanged = true;
+								break;
+							}
+						}
+					}
+					if (!hasChanged)
+						return;
+				}
 				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
@@ -26387,7 +26422,7 @@ namespace gaia {
 					auto& data = ctx.data;
 					data.sortBy = sortBy;
 					GAIA_ASSERT(func != nullptr);
-					data.sortByFunc = func; // sort_by_func_default;
+					data.sortByFunc = func;
 				}
 			};
 
@@ -26824,11 +26859,18 @@ namespace gaia {
 				}
 
 				template <typename T>
-				void sort_by_inter(Entity entity, TSortByFunc func) {
+				void sort_by_inter(TSortByFunc func) {
 					using UO = typename component_type_t<T>::TypeOriginal;
-					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+					if constexpr (std::is_same_v<UO, Entity>) {
+						sort_by_inter(EntityBad, func);
+					} else {
+						static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
 
-					sort_by_inter(entity, func);
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
+
+						sort_by_inter(desc.entity, func);
+					}
 				}
 
 				template <typename Rel, typename Tgt>
@@ -26979,12 +27021,18 @@ namespace gaia {
 
 					// See if any component has changed
 					const auto& filtered = queryInfo.filters();
-					for (const auto comp: filtered) {
-						// TODO: Components are sorted. Therefore, we don't need to search from 0
-						//       all the time. We can search from the last found index.
-						const auto compIdx = chunk.comp_idx(comp);
-						if (chunk.changed(queryVersion, compIdx))
-							return true;
+					if (!filtered.empty()) {
+						for (const auto comp: filtered) {
+							// TODO: Components are sorted. Therefore, we don't need to search from 0
+							//       all the time. We can search from the last found index.
+							const auto compIdx = chunk.comp_idx(comp);
+							if (chunk.changed(queryVersion, compIdx))
+								return true;
+						}
+
+						// If the component hasn't been modified, the entity itself still might have been moved.
+						// For that reason we also need to check the entity version.
+						return chunk.changed(queryInfo.world_version());
 					}
 
 					// Skip unchanged chunks.
@@ -27857,36 +27905,60 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& sort_by(Entity entity, TSortByFunc func = sort_by_func_default) {
+				//! Sorts the query by the specified entity and function.
+				//! \param entity The entity to sort by. Use ecs::EntityBad to sort by chunk entities,
+				//                or anything else to sort by components.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
+				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
 					sort_by_inter(entity, func);
 					return *this;
 				}
 
+				//! Sorts the query by the specified component and function.
+				//! \tparam T The component to sort by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
 				template <typename T>
-				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+				QueryImpl& sort_by(TSortByFunc func) {
 					sort_by_inter<T>(func);
 					return *this;
 				}
 
+				//! Sorts the query by the specified pair and function.
+				//! \tparam Rel The relation to sort by. It is registered if it hasn't been registered yet.
+				//! \tparam Tgt The target to sort by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
+				//!             0 to keep the order, and 1 to put the first entity after the second.
 				template <typename Rel, typename Tgt>
-				QueryImpl& sort_by(TSortByFunc func = sort_by_func_default) {
+				QueryImpl& sort_by(TSortByFunc func) {
 					sort_by_inter<Rel, Tgt>(func);
 					return *this;
 				}
 
 				//------------------------------------------------
 
+				//! Organizes matching archetypes into groups according to the grouping function and entity.
+				//! \param entity The entity to group by.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				QueryImpl& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 					group_by_inter(entity, func);
 					return *this;
 				}
 
+				//! Organizes matching archetypes into groups according to the grouping function.
+				//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				template <typename T>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<T>(func);
 					return *this;
 				}
 
+				//! Organizes matching archetypes into groups according to the grouping function.
+				//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
+				//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
+				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 				template <typename Rel, typename Tgt>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<Rel, Tgt>(func);
@@ -27895,17 +27967,23 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Selects the group to iterate over.
+				//! \param groupId The group to iterate over.
 				QueryImpl& group_id(GroupId groupId) {
 					set_group_id_inter(groupId);
 					return *this;
 				}
 
+				//! Selects the group to iterate over.
+				//! \param entity The entity to treat as a group to iterate over.
 				QueryImpl& group_id(Entity entity) {
 					GAIA_ASSERT(!entity.pair());
 					set_group_id_inter(entity.id());
 					return *this;
 				}
 
+				//! Selects the group to iterate over.
+				//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 				template <typename T>
 				QueryImpl& group_id() {
 					set_group_id_inter<T>();
@@ -33112,12 +33190,6 @@ namespace gaia {
 			// Initialize the systems query
 			systems_init();
 #endif
-		}
-
-		inline int sort_by_func_default(
-				[[maybe_unused]] const World& world, [[maybe_unused]] const void* pData0, [[maybe_unused]] const void* pData1) {
-			// No sorting by default.
-			return 0;
 		}
 
 		inline GroupId

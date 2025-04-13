@@ -61,12 +61,6 @@ namespace gaia {
 
 		Entity expr_to_entity(const World& world, va_list& args, std::span<const char> exprRaw);
 
-		//! Default sorting function.
-		//! The const void pointers to data are known to the caller and they need to interpret them.
-		//! \param world Parent world in which sorted data is stored.
-		//! \param pData0 Pointer to the first data. It can be an entity or component data depending on the sort-by entity.
-		//! \param pData1 Pointer to the second data It can be an entity or component data depending on the sort-by entity.
-		int sort_by_func_default(const World& world, const void* pData0, const void* pData1);
 		GroupId group_by_func_default(const World& world, const Archetype& archetype, Entity groupBy);
 
 		// Locking API

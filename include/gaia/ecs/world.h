@@ -4616,12 +4616,6 @@ namespace gaia {
 #endif
 		}
 
-		inline int sort_by_func_default(
-				[[maybe_unused]] const World& world, [[maybe_unused]] const void* pData0, [[maybe_unused]] const void* pData1) {
-			// No sorting by default.
-			return 0;
-		}
-
 		inline GroupId
 		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
 			if (archetype.pairs() > 0) {

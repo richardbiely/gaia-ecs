@@ -75,9 +75,7 @@ namespace gaia {
 				m_header.cntEntities = (uint8_t)cntEntities;
 
 				// Cache pointers to versions
-				if (cntEntities > 0) {
-					m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
-				}
+				m_records.pVersions = (ComponentVersion*)&data(headerOffsets.firstByte_Versions);
 
 				// Cache entity ids
 				if (cntEntities > 0) {
@@ -130,10 +128,14 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Returns a read-only view of data version numbers.
+			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
 				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
 			}
 
+			//! Returns a mutable view of data version numbers.
+			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
 				return {m_records.pVersions, m_header.cntEntities};
 			}
@@ -907,11 +909,6 @@ namespace gaia {
 			//! If \param rowA equals \param rowB no swapping is performed.
 			//! \warning "rowA" must he smaller or equal to "rowB"
 			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
-				// The "rowA" entity is the one we are going to destroy so it needs to precede the "rowB".
-				// Unlike remove_entity_inter, it is not technically necessary but we do it
-				// anyway for the sake of consistency.
-				GAIA_ASSERT(rowA <= rowB);
-
 				// If there are at least two different entities inside to swap
 				if GAIA_UNLIKELY (m_header.count <= 1 || rowA == rowB)
 					return;
@@ -1390,23 +1387,36 @@ namespace gaia {
 				return mem_block_size(m_header.sizeType);
 			}
 
+			//! Returns true if the provided version is newer than the one stored internally.
+			//! Use when checking if there was a movement in data in the world. E.g. if an entity
+			//! was added, removed or moved in its archetype.
+			GAIA_NODISCARD bool changed(uint32_t version) const {
+				auto versions = comp_version_view();
+				return ::gaia::ecs::version_changed(versions[0], version);
+			}
+
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
 				auto versions = comp_version_view();
-				return ::gaia::ecs::version_changed(versions[compIdx], version);
+				// Do +1 because index 0 is reserved for the entity version number.
+				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
 			}
 
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
-				versions[compIdx] = m_header.worldVersion;
+				// Automatically treat the entity as changed.
+				versions[0] = m_header.worldVersion;
+				// Do +1 because index 0 is reserved for the entity version number.
+				versions[compIdx + 1] = m_header.worldVersion;
 			}
 
 			//! Update the version of all components
 			GAIA_FORCEINLINE void update_world_version() {
 				auto versions = comp_version_view_mut();
-				for (auto& v: versions)
-					v = m_header.worldVersion;
+				// We update the version of the entity only. If this one changes,
+				// all other components are considered changed as well.
+				versions[0] = m_header.worldVersion;
 			}
 
 			void diag() const {

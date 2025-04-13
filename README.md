@@ -53,7 +53,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Basic operations](#basic-operations)
     * [Create or delete entity](#create-or-delete-entity)
     * [Name entity](#name-entity)
-    * [Add or remove component](#add-or-remove-component)]
+    * [Add or remove component](#add-or-remove-component)
     * [Component presence](#component-presence)
     * [Component hooks](#component-hooks)
     * [Bulk editing](#bulk-editing)
@@ -70,6 +70,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
     * [Grouping](#grouping)
+    * [Sorting](#sorting)
     * [Parallel execution](#parallel-execution)
   * [Relationships](#relationships)
     * [Relationship basics](#relationship-basics)
@@ -1064,7 +1065,7 @@ GAIA_FOR(6) ents[i] = wld.add();
 }
 
 // This query is going to group entities by what they eat.
-ecs::Query qq = wld.query()
+ecs::Query q = wld.query()
   .all<Position>()
   .group_by(eats);
 
@@ -1126,6 +1127,90 @@ ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const 
 
 q.group_by(eats, my_group_sort_func).each(...) { ... };
 ```
+
+### Sorting
+
+Data stored in ECS can be sorted. We can sort either by entity index or by component of choice. To accomplish that the ***Query::sort_by*** function is used.
+
+Sorting by entity indices in an descending order (largest entity indices first) could be done as follows:
+
+```cpp
+ecs::World wld;
+
+// Create some entities
+ecs::Entity e0 = wld.add();
+ecs::Entity e1 = wld.add();
+ecs::Entity e2 = wld.add();
+ecs::Entity e3 = wld.add();
+
+// Add a component to them
+struct Something {
+  int value;
+};
+wld.add<Something>(e0, {2});
+wld.add<Something>(e1, {4});
+wld.add<Something>(e2, {1});
+wld.add<Something>(e3, {3});
+
+ecs::Query q = wld.query()
+  .all<Something>()
+  .sort_by(
+    // Entity we sort by. We use ecs::EntityBad to sort by entity
+    ecs::EntityBad,
+    // Sorting function
+    []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+      const auto& entity0 = *(const ecs::Entity*)pData0;
+      const auto& entity1 = *(const ecs::Entity*)pData1;
+      // Sort by entity ID largest to smallest
+      return (int)entity1.id() - (int)entity0.id()
+    });
+q.each([](Iter& it) {
+  // Entities are going to ordered as:
+  // e3, e2, e1, e0
+});
+```
+
+It is also possible to sort by component data.
+
+```cpp
+ecs::Query q = wld.query()
+  .all<Something>()
+  .sort_by(
+    // Sort by Something
+    wld.get<Something>(),
+    // Sorting function
+    []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+      const auto& s0 = *(const Something*)pData0;
+      const auto& s1 = *(const Something*)pData1;
+      // Sort by values, smallest to largest
+      return s0.value - s1.value;
+    });
+q.each([](Iter& it) {
+  // Entities are going to ordered as:
+  // e2, e0, e3, e1
+});
+```
+
+A templated version of the function is available for shorter code:
+
+```cpp
+ecs::Query q = wld.query()
+  .all<Something>()
+  .sort_by<Something>(
+    // Sorting function
+    [](const ecs::World& world, const void* pData0, const void* pData1) {
+      ...
+    });
+q.each([](Iter& it) { ... });
+```
+
+Sorting is an expensive operation and it is advised to use it only for data which is known to not change much. It is definitely not suited for actions happening all the time (unless the amount of entities to sort is small).
+
+You can currently sort only by one criterion (you can pick only one entity/component inside an archetype). If you need more, it is recomended to store your data outside of ECS. Also, make sure multiple systems working with similar data don't end up sorting archetypes as this could trigger constant resorting.
+
+During sorting, entities in chunks are reordered according to the sorting function. However, they are not sorted globaly, only independently within chunks. To get a globally sorted view an acceleration structure is created. This way we can ensure data is moved as little as possible.
+
+Resorting is triggered automatically any time the query matches a new archetype, or some of the archetypes it matched disappeared. Adding, deleting or moving entities on the matched archetypes also triggers resorting.
 
 ### Parallel execution
 

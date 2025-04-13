@@ -7859,80 +7859,78 @@ TEST_CASE("Query Filter - no systems") {
 TEST_CASE("Query Filter - systems") {
 	TestWorld twld;
 
+	uint32_t m_expectedCnt = 0;
+	uint32_t m_actualCnt = 0;
+
 	auto e = wld.add();
 	wld.add<Position>(e);
 
-	class WriterSystem final: public ecs::System {
-		ecs::Query m_q;
-
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<Position&>();
-		}
-		void OnUpdate() override {
-			m_q.each([]([[maybe_unused]] Position&) {});
-		}
-	};
-	class WriterSystemSilent final: public ecs::System {
-		ecs::Query m_q;
-
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<Position&>();
-		}
-		void OnUpdate() override {
-			m_q.each([&](ecs::Iter& it) {
-				auto posRWView = it.sview_mut<Position>();
-				(void)posRWView;
-			});
-		}
-	};
-	class ReaderSystem final: public ecs::System {
-		uint32_t m_expectedCnt = 0;
-
-		ecs::Query m_q;
-
-	public:
-		void SetExpectedCount(uint32_t cnt) {
-			m_expectedCnt = cnt;
-		}
-		void OnCreated() override {
-			m_q = world().query().all<Position>().changed<Position>();
-		}
-		void OnUpdate() override {
-			uint32_t cnt = 0;
-			m_q.each([&]([[maybe_unused]] const Position& a) {
-				++cnt;
-			});
-			REQUIRE(cnt == m_expectedCnt);
-		}
-	};
-	ecs::SystemManager sm(wld);
-	auto* ws = sm.add<WriterSystem>();
-	auto* wss = sm.add<WriterSystemSilent>();
-	auto* rs = sm.add<ReaderSystem>();
+	// WriterSystem
+	auto ws = wld.system()
+								.all<Position&>()
+								.on_each([](Position& a) {
+									(void)a;
+								})
+								.entity();
+	// WriterSystemSilent
+	auto wss = wld.system()
+								 .all<Position&>()
+								 .on_each([](ecs::Iter& it) {
+									 auto posRWView = it.sview_mut<Position>();
+									 (void)posRWView;
+								 })
+								 .entity();
+	// ReaderSystem
+	auto rs = wld.system()
+								.all<Position>()
+								.changed<Position>()
+								.on_each([&](ecs::Iter& it) {
+									GAIA_EACH(it)++ m_actualCnt;
+								})
+								.entity();
+	(void)rs;
 
 	// first run always happens
-	ws->enable(false);
-	wss->enable(false);
-	rs->SetExpectedCount(1);
-	sm.update();
+	{
+		wld.enable(ws, false);
+		wld.enable(wss, false);
+		m_expectedCnt = 1;
+		m_actualCnt = 0;
+		wld.update();
+		REQUIRE(m_actualCnt == m_expectedCnt);
+	}
 	// no change of position so ReaderSystem should't see changes
-	rs->SetExpectedCount(0);
-	sm.update();
+	{
+		m_expectedCnt = 0;
+		m_actualCnt = 0;
+		wld.update();
+		REQUIRE(m_actualCnt == m_expectedCnt);
+	}
 	// update position so ReaderSystem should detect a change
-	ws->enable(true);
-	rs->SetExpectedCount(1);
-	sm.update();
+	{
+		wld.enable(ws, true);
+		m_expectedCnt = 1;
+		m_actualCnt = 0;
+		wld.update();
+		REQUIRE(m_actualCnt == m_expectedCnt);
+	}
 	// no change of position so ReaderSystem shouldn't see changes
-	ws->enable(false);
-	rs->SetExpectedCount(0);
-	sm.update();
+	{
+		wld.enable(ws, false);
+		m_expectedCnt = 0;
+		m_actualCnt = 0;
+		wld.update();
+		REQUIRE(m_actualCnt == m_expectedCnt);
+	}
 	// silent writer enabled again. If should not cause an update
-	ws->enable(false);
-	wss->enable(true);
-	rs->SetExpectedCount(0);
-	sm.update();
+	{
+		wld.enable(ws, false);
+		wld.enable(wss, true);
+		m_expectedCnt = 0;
+		m_actualCnt = 0;
+		wld.update();
+		REQUIRE(m_actualCnt == m_expectedCnt);
+	}
 }
 
 struct Eats {};
@@ -8040,6 +8038,126 @@ TEST_CASE("Query - group") {
 		checkQuery(qq, {&ents_expected[2], 2});
 		qq.group_id(apple);
 		checkQuery(qq, {&ents_expected[4], 2});
+	}
+}
+
+TEST_CASE("Query - sort") {
+	TestWorld twld;
+
+	ecs::Entity e0 = wld.add();
+	ecs::Entity e1 = wld.add();
+	ecs::Entity e2 = wld.add();
+	ecs::Entity e3 = wld.add();
+
+	wld.add<Position>(e0, {2, 0, 0});
+	wld.add<Position>(e1, {4, 0, 0});
+	wld.add<Position>(e2, {1, 0, 0});
+	wld.add<Position>(e3, {3, 0, 0});
+
+	SECTION("By entity index") {
+		auto q = wld.query().all<Position>().sort_by(
+				ecs::EntityBad, []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+					const auto& e0 = *static_cast<const ecs::Entity*>(pData0);
+					const auto& e1 = *static_cast<const ecs::Entity*>(pData1);
+					return (int)e0.id() - (int)e1.id();
+				});
+		q.each([&](ecs::Iter& it) {
+			auto ents = it.view<ecs::Entity>();
+			REQUIRE(ents[0] == e0);
+			REQUIRE(ents[1] == e1);
+			REQUIRE(ents[2] == e2);
+			REQUIRE(ents[3] == e3);
+		});
+	}
+
+	SECTION("By component value (1)") {
+		auto q = wld.query().all<Position>().sort_by<Position>(
+				[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+					const auto& p0 = *static_cast<const Position*>(pData0);
+					const auto& p1 = *static_cast<const Position*>(pData1);
+					const float diff = p0.x - p1.x;
+					if (diff < 0.f)
+						return -1;
+					if (diff > 0.f)
+						return 1;
+					return 0;
+				});
+		q.each([&](ecs::Iter& it) {
+			auto ents = it.view<ecs::Entity>();
+			REQUIRE(ents[0] == e2);
+			REQUIRE(ents[1] == e0);
+			REQUIRE(ents[2] == e3);
+			REQUIRE(ents[3] == e1);
+		});
+	}
+
+	SECTION("By component value (2)") {
+		auto q = wld.query().all<Position>().sort_by(
+				wld.get<Position>(), //
+				[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+					const auto& p0 = *static_cast<const Position*>(pData0);
+					const auto& p1 = *static_cast<const Position*>(pData1);
+					const float diff = p0.x - p1.x;
+					if (diff < 0.f)
+						return -1;
+					if (diff > 0.f)
+						return 1;
+					return 0;
+				});
+		q.each([&](ecs::Iter& it) {
+			auto ents = it.view<ecs::Entity>();
+			REQUIRE(ents[0] == e2);
+			REQUIRE(ents[1] == e0);
+			REQUIRE(ents[2] == e3);
+			REQUIRE(ents[3] == e1);
+		});
+
+		cnt::darr<ecs::Entity> tmp;
+
+		// Change some archetype
+		{
+			wld.add<Something>(e0, {false});
+			q.each([&tmp](ecs::Iter& it) {
+				auto ents = it.view<ecs::Entity>();
+				GAIA_EACH(ents) tmp.push_back(ents[i]);
+			});
+
+			REQUIRE(tmp[0] == e2);
+			REQUIRE(tmp[1] == e0);
+			REQUIRE(tmp[2] == e3);
+			REQUIRE(tmp[3] == e1);
+		}
+
+		// Add new entity
+		auto e4 = wld.add();
+		{
+			wld.add<Position>(e4, {0, 0, 0});
+			tmp.clear();
+			q.each([&tmp](ecs::Iter& it) {
+				auto ents = it.view<ecs::Entity>();
+				GAIA_EACH(ents) tmp.push_back(ents[i]);
+			});
+
+			REQUIRE(tmp[0] == e4);
+			REQUIRE(tmp[1] == e2);
+			REQUIRE(tmp[2] == e0);
+			REQUIRE(tmp[3] == e3);
+			REQUIRE(tmp[4] == e1);
+		}
+
+		// Delete entity
+		{
+			wld.del(e0);
+			tmp.clear();
+			q.each([&tmp](ecs::Iter& it) {
+				auto ents = it.view<ecs::Entity>();
+				GAIA_EACH(ents) tmp.push_back(ents[i]);
+			});
+			REQUIRE(tmp[0] == e4);
+			REQUIRE(tmp[1] == e2);
+			REQUIRE(tmp[2] == e3);
+			REQUIRE(tmp[3] == e1);
+		}
 	}
 }
 
