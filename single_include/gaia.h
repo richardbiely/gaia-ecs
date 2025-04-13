@@ -33150,9 +33150,9 @@ namespace gaia {
 														 const auto& entity0 = *(Entity*)pData0;
 														 const auto& entity1 = *(Entity*)pData1;
 														 if (world.has(entity0, ecs::Pair(DependsOn, entity1)))
-															 return -1;
-														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
 															 return 1;
+														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
+															 return -1;
 
 														 return (int)entity0.id() - (int)entity1.id();
 													 });
@@ -33164,6 +33164,7 @@ namespace gaia {
 				const auto cnt = se_view.size();
 				GAIA_FOR(cnt) {
 					auto& sys = se_view[i];
+					GAIA_LOG_W("Running system %s", it.world()->name(sys.entity));
 					sys.exec();
 				}
 			});
