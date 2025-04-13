@@ -8083,14 +8083,14 @@ TEST_CASE("System - simple") {
 									.all<Position>()
 									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
-										if (sys1_cnt == 0 && sys3_cnt == 0)
+										if (sys1_cnt == 0 && sys3_cnt > 0)
 											sys3_run_before_sys1 = true;
 										++sys1_cnt;
 									});
 	auto sys2 = wld.system()
 									.all<Position>() //
 									.on_each([&](ecs::Iter& it) {
-										if (sys2_cnt == 0 && sys3_cnt == 0)
+										if (sys2_cnt == 0 && sys3_cnt > 0)
 											sys3_run_before_sys2 = true;
 										GAIA_EACH(it)++ sys2_cnt;
 									});
