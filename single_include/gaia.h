@@ -24523,9 +24523,10 @@ namespace gaia {
 
 				// Operator ALL (used by query::all)
 				struct OpAll {
+					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
-					};
+					}
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						return expectedMatches == totalMatches;
 					}
@@ -24536,9 +24537,10 @@ namespace gaia {
 				};
 				// Operator OR (used by query::any)
 				struct OpAny {
+					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
-					};
+					}
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						(void)expectedMatches;
 						return totalMatches > 0;
@@ -24550,9 +24552,12 @@ namespace gaia {
 				};
 				// Operator NOT (used by query::no)
 				struct OpNo {
+					static void restart(uint32_t& idx) {
+						idx = 0;
+					}
 					static bool can_continue(bool hasMatch) {
 						return !hasMatch;
-					};
+					}
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						(void)expectedMatches;
 						return totalMatches == 0;
@@ -24650,6 +24655,10 @@ namespace gaia {
 							return false;
 
 						++indices[0];
+						// Make sure to continue from the right index on the archetype array.
+						// Some operators can keep moving forward (AND, ANY), but NOT needs to start
+						// matching from the beginning again if the previous query operator didn't find a match.
+						Op::restart(indices[1]);
 
 					next_query_id:
 						continue;

@@ -4119,6 +4119,7 @@ void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
 	const auto* item = cc.find(str);
 	REQUIRE(item == nullptr);
 }
+
 template <typename T>
 void verify_name_has_not(const ecs::ComponentCache& cc) {
 	const auto* item = cc.find<T>();
@@ -6898,6 +6899,57 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 			REQUIRE(it.size() == 1);
 		});
 		REQUIRE(cnt == 1);
+	}
+}
+
+TEST_CASE("Usage 3 - simple query, no") {
+	TestWorld twld;
+
+	auto e1 = wld.add();
+	wld.add<Position>(e1, {});
+	wld.add<Acceleration>(e1, {});
+	wld.add<Else>(e1, {});
+	auto e2 = wld.add();
+	wld.add<Rotation>(e2, {});
+	wld.add<Scale>(e2, {});
+	wld.add<Else>(e2, {});
+	auto e3 = wld.add();
+	wld.add<Position>(e3, {});
+	wld.add<Acceleration>(e3, {});
+	wld.add<Scale>(e3, {});
+
+	auto s1 = wld.system().all<Position>().on_each([]() {}).entity();
+	auto s2 = wld.system().on_each([]() {}).entity();
+
+	// More complex NO query, 2 operators.
+	SECTION("NO") {
+		uint32_t cnt = 0;
+		auto q = wld.query();
+		q.no(gaia::ecs::System2).no(gaia::ecs::Core);
+		q.each([&](ecs::Entity e) {
+			++cnt;
+
+			const bool ok = e > ecs::GAIA_ID_LastCoreComponent && e != s1 && e != s2;
+			REQUIRE(ok);
+		});
+		// +2 for (OnDelete, Error) and (OnTargetDelete, Error)
+		// +3 for e1, e2, e3
+		REQUIRE(cnt == 5);
+	}
+
+	// More complex NO query, 3 operators = 2x NO, 1x ALL.
+	SECTION("ALL+NO") {
+		uint32_t cnt = 0;
+		auto q = wld.query();
+		q.all<Position>().no(gaia::ecs::System2).no(gaia::ecs::Core);
+		q.each([&](ecs::Entity e) {
+			++cnt;
+
+			const bool ok = e == e1 || e == e3;
+			REQUIRE(ok);
+		});
+		// e1, e3
+		REQUIRE(cnt == 2);
 	}
 }
 
