@@ -4776,7 +4776,7 @@ TEST_CASE("Relationship") {
 			auto q = wld.query()
 									 .add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, ecs::All)})
 									 .no<ecs::Core_>()
-									 .no<ecs::System2_>();
+									 .no<ecs::System_>();
 			const auto cnt = q.count();
 			REQUIRE(cnt == 3);
 
@@ -6925,7 +6925,7 @@ TEST_CASE("Usage 3 - simple query, no") {
 	SECTION("NO") {
 		uint32_t cnt = 0;
 		auto q = wld.query();
-		q.no(gaia::ecs::System2).no(gaia::ecs::Core);
+		q.no(gaia::ecs::System).no(gaia::ecs::Core);
 		q.each([&](ecs::Entity e) {
 			++cnt;
 
@@ -6941,7 +6941,7 @@ TEST_CASE("Usage 3 - simple query, no") {
 	SECTION("ALL+NO") {
 		uint32_t cnt = 0;
 		auto q = wld.query();
-		q.all<Position>().no(gaia::ecs::System2).no(gaia::ecs::Core);
+		q.all<Position>().no(gaia::ecs::System).no(gaia::ecs::Core);
 		q.each([&](ecs::Entity e) {
 			++cnt;
 

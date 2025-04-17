@@ -4460,7 +4460,7 @@ namespace gaia {
 				(void)reg_core_entity<All_>(All);
 				(void)reg_core_entity<ChildOf_>(ChildOf);
 				(void)reg_core_entity<Is_>(Is);
-				(void)reg_core_entity<System2_>(System2);
+				(void)reg_core_entity<System_>(System);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
 
 				(void)reg_core_entity<_Var0>(Var0);
@@ -4536,7 +4536,7 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
 
-				EntityBuilder(*this, System2) //
+				EntityBuilder(*this, System) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -4640,7 +4640,7 @@ namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
 			m_systemsQuery = query()
-													 .all(System2)
+													 .all(System)
 													 // sort systems by their dependencies
 													 .sort_by(EntityBad, [](const World& world, const void* pData0, const void* pData1) {
 														 const auto& entity0 = *(Entity*)pData0;
@@ -4656,7 +4656,7 @@ namespace gaia {
 
 		inline void World::systems_run() {
 			m_systemsQuery.each([](ecs::Iter& it) {
-				auto se_view = it.sview_mut<ecs::System2_>(0);
+				auto se_view = it.sview_mut<ecs::System_>(0);
 				const auto cnt = se_view.size();
 				GAIA_FOR(cnt) {
 					auto& sys = se_view[i];
@@ -4669,10 +4669,10 @@ namespace gaia {
 			// Create the system
 			auto sysEntity = add();
 			EntityBuilder(*this, sysEntity) //
-					.add<System2_>();
+					.add<System_>();
 
 			auto ss = acc_mut(sysEntity);
-			auto& sys = ss.smut<System2_>();
+			auto& sys = ss.smut<System_>();
 			{
 				sys.entity = sysEntity;
 				sys.query = query();

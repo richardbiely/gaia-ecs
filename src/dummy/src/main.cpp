@@ -42,102 +42,6 @@ struct Empty {};
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
-class PositionSystem final: public ecs::System {
-	ecs::QueryUncached m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query<false>().all<Position&>().all<Velocity>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([](Position& p, const Velocity& v) {
-			const float dt = 0.01f;
-			p.x += v.x * dt;
-			p.y += v.y * dt;
-			p.z += v.z * dt;
-		});
-	}
-};
-
-class PositionSystem_All final: public ecs::System {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position&>().all<Velocity>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([](ecs::IterAll& it) {
-			auto p = it.view_mut<Position>();
-			auto v = it.view<Velocity>();
-			const float dt = 0.01f;
-
-			const auto cnt = it.size();
-			GAIA_FOR(cnt) {
-				p[i].x += v[i].x * dt;
-				p[i].y += v[i].y * dt;
-				p[i].z += v[i].z * dt;
-			}
-
-			if (it.enabled(0))
-				p[0].x += 1.f;
-		});
-	}
-};
-
-class PositionSystem_All2 final: public ecs::System {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position&>().all<Velocity>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([](ecs::IterAll& it) {
-			auto p = it.view_mut<Position>();
-			auto v = it.view<Velocity>();
-			const float dt = 0.01f;
-
-			const auto cnt = it.size();
-			GAIA_FOR(cnt) {
-				p[i].x += v[i].x * dt;
-				p[i].y += v[i].y * dt;
-				p[i].z += v[i].z * dt;
-			}
-
-			if (it.enabled(0))
-				p[0].x += 1.f;
-		});
-	}
-};
-
-class PositionSystem_DisabledOnly final: public ecs::System {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position&>().all<Velocity>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([](ecs::IterDisabled& it) {
-			auto p = it.view_mut<Position>();
-			auto v = it.view<Velocity>();
-			const float dt = 0.01f;
-
-			const auto cnt = it.size();
-			GAIA_FOR(cnt) {
-				p[i].x += v[i].x * dt;
-				p[i].y += v[i].y * dt;
-				p[i].z += v[i].z * dt;
-			}
-		});
-	}
-};
-
 void CreateEntities(ecs::World& w) {
 	auto e = w.add();
 	w.add<Position>(e, {0, 100, 0});
@@ -799,15 +703,15 @@ void test10() {
 	// w.add(sys1.entity(), {ecs::ChildOf, OnUpdate});
 	// w.add(sys2.entity(), {ecs::ChildOf, OnUpdate});
 
-	ecs::Query sq = w.query().all<ecs::System2_&>();
+	ecs::Query sq = w.query().all<ecs::System_&>();
 	// GAIA_FOR(1000)
 
-	sq.each([](ecs::System2_& sys) {
+	sq.each([](ecs::System_& sys) {
 		sys.exec();
 	});
 
 	sq.each([](ecs::Iter& it) {
-		auto se_view = it.sview_mut<ecs::System2_>(0);
+		auto se_view = it.sview_mut<ecs::System_>(0);
 		GAIA_EACH(it) {
 			auto& sys = se_view[i];
 			sys.exec();
@@ -1251,113 +1155,6 @@ int main() {
 	// test15();
 	// test16();
 	test17();
-
-	// g_test_0.getters();
-	// g_test_0.setters();
-	// g_test_0.diag();
-
-	// g_test_00.getters();
-	// g_test_00.setters();
-	// g_test_00.diag();
-
-	// g_test_1.getters();
-	// g_test_1.setters();
-	// g_test_1.diag();
-
-	// g_test_2.getters();
-	// g_test_2.setters();
-	// g_test_2.diag();
-
-	// printf("aos\n");
-	// {
-	// 	using vp = mem::data_view_policy_aos<int*>;
-	// 	mem::raw_data_holder<int*, 10> arr;
-	// 	(void)arr;
-	// 	auto aa = arr[0];
-	// 	(void)aa;
-	// 	auto* bb = &arr[0];
-	// 	(void)bb;
-	// 	int* a = reinterpret_cast<int*>(arr[0]);
-	// 	(void)a;
-
-	// 	vp::set({(int**)&arr[0], 10}, 0, (int*)bb);
-	// }
-
-	// printf("darray<int8_t*>\n");
-	// {
-	// 	cnt::darray<int8_t*> arr;
-	// 	arr.reserve(2);
-
-	// 	int8_t dummy = 10;
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(nullptr);
-
-	// 	const auto& valR = arr[0];
-	// 	::gaia::dont_optimize(valR);
-	// 	auto* valC = arr[0];
-	// 	(void)valC;
-	// 	arr[0] = &dummy;
-
-	// 	for (auto* it: arr)
-	// 		printf("%p\n", it);
-	// }
-
-	// printf("darray<int*>\n");
-	// {
-	// 	cnt::darray<int*> arr;
-	// 	arr.reserve(2);
-
-	// 	int dummy = 10;
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(nullptr);
-
-	// 	const auto& valR = arr[0];
-	// 	::gaia::dont_optimize(valR);
-	// 	auto* valC = arr[0];
-	// 	(void)valC;
-	// 	arr[0] = &dummy;
-
-	// 	for (auto* it: arr)
-	// 		printf("%p\n", it);
-	// }
-
-	// printf("darray<const int*>\n");
-	// {
-	// 	cnt::darray<const int*> arr;
-	// 	arr.reserve(2);
-
-	// 	const int dummy = 10;
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(&dummy);
-	// 	arr.push_back(nullptr);
-
-	// 	const auto& valR = arr[0];
-	// 	::gaia::dont_optimize(valR);
-	// 	const auto* valC = arr[0];
-	// 	(void)valC;
-	// 	arr[0] = nullptr;
-
-	// 	for (const auto* it: arr)
-	// 		printf("%p\n", it);
-	// }
-
-	// ecs::World w;
-	// CreateEntities(w);
-
-	// ecs::SystemManager sm(w);
-	// sm.add<PositionSystem>();
-	// sm.add<PositionSystem_All>();
-	// sm.add<PositionSystem_All2>();
-	// sm.add<PositionSystem_DisabledOnly>();
-	// GAIA_FOR(1000) {
-	// 	sm.update();
-	// 	w.update();
-	// }
 
 	return 0;
 }

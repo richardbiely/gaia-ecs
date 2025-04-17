@@ -3,7 +3,7 @@
 #if !GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
-		struct System2_ {};
+		struct System_ {};
 	} // namespace ecs
 } // namespace gaia
 #else
@@ -25,7 +25,7 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
-		struct System2_ {
+		struct System_ {
 			using TSystemIterFunc = std::function<void(Iter&)>;
 
 			//! Entity identifying the system
@@ -39,9 +39,9 @@ namespace gaia {
 			//! Query job dependency handle
 			mt::JobHandle m_jobHandle = mt::JobNull;
 
-			System2_() = default;
+			System_() = default;
 
-			~System2_() {
+			~System_() {
 				// If the query contains a job handle we can only
 				// destroy the query once the task associated with the handle is finished.
 				if (m_jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
@@ -116,15 +116,15 @@ namespace gaia {
 				GAIA_ASSERT(m_world.valid(m_entity));
 			}
 
-			System2_& data() {
+			System_& data() {
 				auto ss = m_world.acc_mut(m_entity);
-				auto& sys = ss.smut<System2_>();
+				auto& sys = ss.smut<System_>();
 				return sys;
 			}
 
-			const System2_& data() const {
+			const System_& data() const {
 				auto ss = m_world.acc(m_entity);
-				const auto& sys = ss.get<System2_>();
+				const auto& sys = ss.get<System_>();
 				return sys;
 			}
 
@@ -295,9 +295,9 @@ namespace gaia {
 						// NOTE: We can't directly use data().query here because the function relies
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
-						//       They are then used to get to the query stored inside System2_.
+						//       They are then used to get to the query stored inside System_.
 						auto ss = const_cast<World*>(it.world())->acc_mut(e);
-						auto& sys = ss.smut<System2_>();
+						auto& sys = ss.smut<System_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};
 				}

@@ -222,67 +222,76 @@ void BM_ECS(picobench::state& state) {
 	}
 }
 
-class TestSystem: public ecs::System {
-protected:
-	ecs::Query* m_q;
-
-public:
-	void init(ecs::Query* q) {
-		m_q = q;
-	}
-};
-
-void BM_ECS_WithSystems(picobench::state& state) {
+void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_WithSystems);
 
 	ecs::World w;
-	ecs::SystemManager sm(w);
 
-	class PositionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([cdt = dt](Position& p, const Velocity& v) {
-				p.x += v.x * cdt;
-				p.y += v.y * cdt;
-				p.z += v.z * cdt;
-			});
-		}
-	};
-	class CollisionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([](Position& p, Velocity& v) {
-				if (p.y < 0.0f) {
-					p.y = 0.0f;
-					v.y = 0.0f;
-				}
-			});
-		}
-	};
-	class GravitySystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([cdt = dt](Velocity& v) {
-				v.y += 9.81f * cdt;
-			});
-		}
-	};
-	class CalculateAliveUnitsSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			uint32_t aliveUnits = 0;
-			m_q->each([&](const Health& h) {
-				if (h.value > 0)
-					++aliveUnits;
-			});
-			gaia::dont_optimize(aliveUnits);
-		}
-	};
+	w.system().all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto p = it.view_mut<Position>(0);
+		auto v = it.view<Velocity>(1);
+#else
+		auto p = it.view_mut<Position>();
+		auto v = it.view<Velocity>();
+#endif
+		const float cdt = dt;
 
-	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
-	auto queryPosVel = w.query().all<Position&>().all<Velocity&>();
-	auto queryVel = w.query().all<Velocity&>();
-	auto queryCHealth = w.query().all<Health>();
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			p[i].x += v[i].x * cdt;
+			p[i].y += v[i].y * cdt;
+			p[i].z += v[i].z * cdt;
+		}
+	});
+
+	w.system().all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto p = it.view_mut<Position>(0);
+		auto v = it.view_mut<Velocity>(1);
+#else
+		auto p = it.view_mut<Position>();
+		auto v = it.view_mut<Velocity>();
+#endif
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (p[i].y < 0.0f) {
+				p[i].y = 0.0f;
+				v[i].y = 0.0f;
+			}
+		}
+	});
+
+	w.system().all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto v = it.view_mut<Velocity>(0);
+#else
+		auto v = it.view_mut<Velocity>();
+#endif
+		const float cdt = dt;
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			v[i].y += 9.81f * cdt;
+		}
+	});
+
+	w.system().all<Health>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto h = it.view<Health>(0);
+#else
+		auto h = it.view<Health>();
+#endif
+		uint32_t aliveUnits = 0;
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (h[i].value > 0)
+				++aliveUnits;
+		}
+		gaia::dont_optimize(aliveUnits);
+	});
 
 	{
 		GAIA_PROF_SCOPE(setup);
@@ -291,147 +300,14 @@ void BM_ECS_WithSystems(picobench::state& state) {
 		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-		gaia::dont_optimize(queryPosCVel.empty());
-		gaia::dont_optimize(queryPosVel.empty());
-		gaia::dont_optimize(queryVel.empty());
-		gaia::dont_optimize(queryCHealth.empty());
-
-		sm.add<PositionSystem>()->init(&queryPosCVel);
-		sm.add<CollisionSystem>()->init(&queryPosVel);
-		sm.add<GravitySystem>()->init(&queryVel);
-		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+		for (uint32_t i = 0; i < 10; ++i)
+			w.update();
 	}
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
-
-		sm.update();
-		w.update();
-	}
-}
-
-void BM_ECS_WithSystems_Iter(picobench::state& state) {
-	GAIA_PROF_SCOPE(BM_ECS_WithSystems_Iter);
-
-	ecs::World w;
-	ecs::SystemManager sm(w);
-
-	class PositionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-				auto p = it.view_mut<Position>(0);
-				auto v = it.view<Velocity>(1);
-#else
-				auto p = it.view_mut<Position>();
-				auto v = it.view<Velocity>();
-#endif
-
-				const auto cnt = it.size();
-				const auto cdt = dt;
-				GAIA_FOR(cnt) {
-					p[i].x += v[i].x * cdt;
-					p[i].y += v[i].y * cdt;
-					p[i].z += v[i].z * cdt;
-				}
-			});
-		}
-	};
-	class CollisionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
-
-#if ECS_ITER_COMPIDX_CACHING
-				auto p = it.view_mut<Position>(0);
-				auto v = it.view_mut<Velocity>(1);
-#else
-				auto p = it.view_mut<Position>();
-				auto v = it.view_mut<Velocity>();
-#endif
-
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					if (p[i].y < 0.0f) {
-						p[i].y = 0.0f;
-						v[i].y = 0.0f;
-					}
-				}
-			});
-		}
-	};
-	class GravitySystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-				auto v = it.view_mut<Velocity>(0);
-#else
-				auto v = it.view_mut<Velocity>();
-#endif
-
-				const auto cnt = it.size();
-				const auto cdt = dt;
-				GAIA_FOR(cnt) v[i].y += 9.81f * cdt;
-			});
-		}
-	};
-	class CalculateAliveUnitsSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-				auto h = it.view<Health>(0);
-#else
-				auto h = it.view<Health>();
-#endif
-
-				uint32_t a = 0;
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					if (h[i].value > 0)
-						++a;
-				}
-				aliveUnits += a;
-			});
-			gaia::dont_optimize(aliveUnits);
-		}
-	};
-
-	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
-	auto queryPosVel = w.query().all<Position&>().all<Velocity&>();
-	auto queryVel = w.query().all<Velocity&>();
-	auto queryCHealth = w.query().all<Health>();
-
-	{
-		GAIA_PROF_SCOPE(setup);
-
-		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
-
-		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-		gaia::dont_optimize(queryPosCVel.empty());
-		gaia::dont_optimize(queryPosVel.empty());
-		gaia::dont_optimize(queryVel.empty());
-		gaia::dont_optimize(queryCHealth.empty());
-
-		sm.add<PositionSystem>()->init(&queryPosCVel);
-		sm.add<CollisionSystem>()->init(&queryPosVel);
-		sm.add<GravitySystem>()->init(&queryVel);
-		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
-	}
-
-	srand(0);
-	for (auto _: state) {
-		(void)_;
-		dt = CalculateDelta(state);
-
-		sm.update();
 		w.update();
 	}
 }
@@ -440,112 +316,84 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_WithSystems_Iter_SoA);
 
 	ecs::World w;
-	ecs::SystemManager sm(w);
 
-	class PositionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each(
-					[](ecs::Iter& it) {
+	w.system().all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-						auto p = it.view_mut<PositionSoA>(0);
-						auto v = it.view<VelocitySoA>(1);
+		auto p = it.view_mut<PositionSoA>(0);
+		auto v = it.view<VelocitySoA>(1);
 #else
-						auto p = it.view_mut<PositionSoA>();
-						auto v = it.view<VelocitySoA>();
+		auto p = it.view_mut<PositionSoA>();
+		auto v = it.view<VelocitySoA>();
 #endif
+		const float cdt = dt;
 
-						auto ppx = p.set<0>();
-						auto ppy = p.set<1>();
-						auto ppz = p.set<2>();
+		auto ppx = p.set<0>();
+		auto ppy = p.set<1>();
+		auto ppz = p.set<2>();
 
-						auto vvx = v.get<0>();
-						auto vvy = v.get<1>();
-						auto vvz = v.get<2>();
+		auto vvx = v.get<0>();
+		auto vvy = v.get<1>();
+		auto vvz = v.get<2>();
 
-						const auto cnt = it.size();
-						const float cdt = dt;
-						GAIA_FOR(cnt) ppx[i] += vvx[i] * cdt;
-						GAIA_FOR(cnt) ppy[i] += vvy[i] * cdt;
-						GAIA_FOR(cnt) ppz[i] += vvz[i] * cdt;
-					},
-					ecs::QueryExecType::Parallel);
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			ppx[i] += vvx[i] * cdt;
+			ppy[i] += vvy[i] * cdt;
+			ppz[i] += vvz[i] * cdt;
 		}
-	};
-	class CollisionSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each(
-					[](ecs::Iter& it) {
+	});
+
+	w.system().all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-						auto p = it.view_mut<PositionSoA>(0);
-						auto v = it.view_mut<VelocitySoA>(1);
+		auto p = it.view_mut<PositionSoA>(0);
+		auto v = it.view_mut<VelocitySoA>(1);
 #else
-						auto p = it.view_mut<PositionSoA>();
-						auto v = it.view_mut<VelocitySoA>();
+		auto p = it.view_mut<PositionSoA>();
+		auto v = it.view_mut<VelocitySoA>();
 #endif
+		auto ppy = p.set<1>();
+		auto vvy = v.set<1>();
 
-						auto ppy = p.set<1>();
-						auto vvy = v.set<1>();
-
-						const auto cnt = it.size();
-						GAIA_FOR(cnt) {
-							if (ppy[i] < 0.0f) {
-								ppy[i] = 0.0f;
-								vvy[i] = 0.0f;
-							}
-						}
-					},
-					ecs::QueryExecType::ParallelPerf);
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (ppy[i] < 0.0f) {
+				ppy[i] = 0.0f;
+				vvy[i] = 0.0f;
+			}
 		}
-	};
-	class GravitySystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			m_q->each(
-					[](ecs::Iter& it) {
+	});
+
+	w.system().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-						auto v = it.view_mut<VelocitySoA>(0);
+		auto v = it.view_mut<VelocitySoA>(0);
 #else
-						auto v = it.view_mut<VelocitySoA>();
+		auto v = it.view_mut<VelocitySoA>();
 #endif
+		const float cdt = dt;
 
-						auto vvy = v.set<1>();
+		auto vvy = v.set<1>();
 
-						const auto cnt = it.size();
-						const float cdt = dt * 9.81f;
-						GAIA_FOR(cnt) vvy[i] += cdt;
-					},
-					ecs::QueryExecType::ParallelEff);
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			vvy[i] += 9.81f * cdt;
 		}
-	};
-	class CalculateAliveUnitsSystem final: public TestSystem {
-	public:
-		void OnUpdate() override {
-			uint32_t aliveUnits = 0;
-			m_q->each([&](ecs::Iter& it) {
+	});
+
+	w.system().all<Health>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-				auto h = it.view<Health>(0);
+		auto h = it.view<Health>(0);
 #else
-				auto h = it.view<Health>(0);
+		auto h = it.view<Health>();
 #endif
+		uint32_t aliveUnits = 0;
 
-				uint32_t a = 0;
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					if (h[i].value > 0)
-						++a;
-				}
-				aliveUnits += a;
-			});
-			gaia::dont_optimize(aliveUnits);
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (h[i].value > 0)
+				++aliveUnits;
 		}
-	};
-
-	auto queryPosCVel = w.query().all<PositionSoA&>().all<VelocitySoA>();
-	auto queryPosVel = w.query().all<PositionSoA&>().all<VelocitySoA&>();
-	auto queryVel = w.query().all<VelocitySoA&>();
-	auto queryCHealth = w.query().all<Health>();
+		gaia::dont_optimize(aliveUnits);
+	});
 
 	{
 		GAIA_PROF_SCOPE(setup);
@@ -554,23 +402,14 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-		gaia::dont_optimize(queryPosCVel.empty());
-		gaia::dont_optimize(queryPosVel.empty());
-		gaia::dont_optimize(queryVel.empty());
-		gaia::dont_optimize(queryCHealth.empty());
-
-		sm.add<PositionSystem>()->init(&queryPosCVel);
-		sm.add<CollisionSystem>()->init(&queryPosVel);
-		sm.add<GravitySystem>()->init(&queryVel);
-		sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
+		for (uint32_t i = 0; i < 10; ++i)
+			w.update();
 	}
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
-
-		sm.update();
 		w.update();
 	}
 }
@@ -1456,14 +1295,17 @@ int main(int argc, char* argv[]) {
 			}
 			r.run_benchmarks();
 			return 0;
-		} else if (sanitizerMode) {
+		}
+
+		if (sanitizerMode) {
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
-			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");
 			r.run_benchmarks();
 			return 0;
-		} else {
+		}
+
+		{
 			PICOBENCH_SUITE_REG("OOP");
 			// Ordinary coding style.
 			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
@@ -1503,7 +1345,6 @@ int main(int argc, char* argv[]) {
 			// GaiaECS performance.
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
-			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().user_data(NMany).label("Systems_Iter Many");
 			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");

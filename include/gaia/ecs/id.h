@@ -471,7 +471,7 @@ namespace gaia {
 		struct ChildOf_ {};
 		struct Is_ {};
 		struct Traversable_ {};
-		// struct System2_;
+		// struct System_;
 		struct DependsOn_ {};
 
 		// Query variables
@@ -513,7 +513,7 @@ namespace gaia {
 		// Alias for a base entity/inheritance
 		inline Entity Is = Entity(15, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System2 = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
 		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);

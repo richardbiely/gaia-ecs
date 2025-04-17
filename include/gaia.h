@@ -50,5 +50,4 @@
 #include "gaia/ecs/component_setter.h"
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query.h"
-#include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"

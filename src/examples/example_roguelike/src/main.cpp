@@ -336,6 +336,21 @@ public:
 #endif
 
 //----------------------------------------------------------------------
+// Systems data
+//----------------------------------------------------------------------
+
+struct CollisionData {
+	//! Entity coll
+	ecs::Entity e1;
+	//! Entity being collided with
+	ecs::Entity e2;
+	//! Position of collision
+	Position p;
+	//! Velocity at the time of collision
+	Velocity v;
+};
+
+//----------------------------------------------------------------------
 // Game world
 //----------------------------------------------------------------------
 
@@ -345,6 +360,8 @@ struct GameWorld {
 	char map[ScreenY][ScreenX]{};
 	//! tile content
 	cnt::map<Position, cnt::darray<ecs::Entity>> content;
+	//! collision data
+	cnt::darray<CollisionData> m_colliding;
 	//! quit the game when true
 	bool terminate = false;
 
@@ -514,452 +531,13 @@ struct GameWorld {
 	}
 };
 
+struct GameWorldComponent {
+	GameWorld* pGameWorld;
+};
+
 GameWorld* g_pGameWorld = nullptr;
 
-//----------------------------------------------------------------------
-// Systems
-//----------------------------------------------------------------------
-
-class GameSystem: public ecs::System {
-protected:
-	ecs::SystemManager* m_pSystemManager = nullptr;
-
-public:
-	void set_manager(ecs::SystemManager* pManager) {
-		m_pSystemManager = pManager;
-	}
-};
-
-class UpdateMapSystem final: public GameSystem {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position>().all<RigidBody>();
-	}
-	void OnUpdate() override {
-		g_pGameWorld->content.clear();
-		m_q.each([&](ecs::Entity e, const Position& p) {
-			g_pGameWorld->content[p].push_back(e);
-		});
-	}
-};
-
-struct CollisionData {
-	//! Entity colliding
-	ecs::Entity e1;
-	//! Entity being collided with
-	ecs::Entity e2;
-	//! Position of collision
-	Position p;
-	//! Velocity at the time of collision
-	Velocity v;
-};
-
-class CollisionSystem final: public GameSystem {
-	ecs::Query m_q;
-	cnt::darray<CollisionData> m_colliding;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position>().all<Velocity&>().all<RigidBody>();
-	}
-
-	void OnUpdate() override {
-		// Drop all previous collision records
-		m_colliding.clear();
-
-		auto getSign = [](int val) {
-			return val < 0 ? -1 : 1;
-		};
-
-		m_q.each([&](ecs::Iter& iter) {
-			auto ent = iter.view<ecs::Entity>();
-			auto vel = iter.view_mut<Velocity>();
-			auto pos = iter.view<Position>();
-
-			const auto cnt = iter.size();
-			GAIA_FOR(cnt) {
-				// Skip stationary objects
-				const auto& v =
-						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
-				if (v.x == 0 && v.y == 0)
-					return;
-
-				auto e = ent[i];
-				const auto& p =
-						pos[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
-
-				// Traverse the path along the velocity vector.
-				// Normally this would be something like DDA algoritm or anything you like.
-				// However, for the sake of simplicity, because we only move horizontally or vertically,
-				// we are fine with traversing one axis exclusively.
-				const int ii = v.y != 0;
-				const int jj = (ii + 1) & 1;
-				const int dd[2] = {ii ? 0 : getSign(v.x), ii ? getSign(v.y) : 0};
-				int pp[2] = {p.x + dd[0], p.y + dd[1]};
-				const int vv[2] = {v.x, v.y};
-				const int pp_end = pp[ii] + vv[ii];
-
-				const auto collisionsBefore = m_colliding.size();
-
-				int naa = 0;
-				for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
-					// Stop on wall collisions
-					if (g_pGameWorld->map[pp[1]][pp[0]] == TILE_WALL) {
-						m_colliding.push_back({e, ecs::IdentifierBad, Position{pp[0], pp[1]}, v});
-						goto onCollision;
-					}
-
-					// Skip when there's no content
-					auto it = g_pGameWorld->content.find({pp[0], pp[1]});
-					if (it == g_pGameWorld->content.end())
-						continue;
-
-					// Generate content collision data
-					bool hadCollision = false;
-					for (auto e2: it->second) {
-						// If the content has non-zero velocity we need to determine if we'd hit it
-						if (world().has<Velocity>(e2)) {
-							auto v2 = world().get<Velocity>(e2);
-							if (v2.x != 0 && v2.y != 0) {
-								const int vv2[2] = {v2.x, v2.y};
-
-								// No hit possible if moving on different axes
-								if (vv[ii] != vv2[jj])
-									continue;
-
-								// No hit possible if moving just as fast or faster than us in the same direction
-								if (vv2[ii] > 0 && vv[i] > 0 && vv2[ii] >= vv[ii])
-									continue;
-							}
-						}
-
-						m_colliding.push_back({e, e2, Position{pp[0], pp[1]}, v});
-						hadCollision = true;
-					}
-					if (hadCollision)
-						break;
-				}
-
-				// Skip if no collisions were detected
-				if (collisionsBefore == m_colliding.size())
-					return;
-
-			onCollision:
-				// Alter the velocity according to the first contact we made along the way.
-				// We make every collision stop the moving object. This is only a question of design.
-				// We might as well keep the velocity and handle the collision aftermath in a different system.
-				// Or we could introduce collision layers or many other things.
-				if (v.x != 0)
-					vel[i] = {naa, 0};
-				else
-					vel[i] = {0, naa};
-			}
-		});
-	}
-
-	const cnt::darray<CollisionData>& GetCollisions() const {
-		return m_colliding;
-	}
-};
-
-class OrientationSystem final: public GameSystem {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Orientation&>().all<Velocity>().changed<Velocity>();
-	}
-
-	void OnUpdate() override {
-		// Update orientation based on the current velocity
-		m_q.each([](Orientation& o, const Velocity& v) {
-			if (v.x != 0) {
-				o.x = v.x > 0 ? 1 : -1;
-				o.y = 0;
-			}
-			if (v.y != 0) {
-				o.x = 0;
-				o.y = v.y > 0 ? 1 : -1;
-			}
-		});
-	}
-};
-
-class MoveSystem final: public GameSystem {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position&>().all<Velocity>();
-	}
-
-	void OnUpdate() override {
-		// Update position based on current velocity
-		m_q.each([](Position& p, const Velocity& v) {
-			p.x += v.x;
-			p.y += v.y;
-		});
-	}
-};
-
-class HandleDamageSystem final: public GameSystem {
-	CollisionSystem* m_collisionSystem{};
-
-public:
-	void OnCreated() override {
-		m_collisionSystem = m_pSystemManager->find<CollisionSystem>();
-	}
-
-	void OnUpdate() override {
-		const auto& colls = m_collisionSystem->GetCollisions();
-		for (const auto& coll: colls) {
-			// Skip world collisions
-			if (coll.e2 == ecs::IdentifierBad)
-				continue;
-
-			uint32_t idx1{}, idx2{};
-			auto* pChunk1 = world().get_chunk(coll.e1, idx1);
-			auto* pChunk2 = world().get_chunk(coll.e2, idx2);
-
-			// Skip non-damageable things
-			if (!pChunk2->has<Health>())
-				continue;
-			if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
-				continue;
-
-			// Verify if damage can be applied (e.g. power > armor)
-			const auto stats1 = pChunk1->view<BattleStats>();
-			const auto stats2 = pChunk2->view<BattleStats>();
-
-			const int damage = stats1[idx1].power - stats2[idx2].armor;
-			if (damage < 0)
-				continue;
-
-			// Apply damage
-			auto health2 = pChunk2->view_mut<Health>();
-			health2[idx2].value -= damage;
-		}
-	}
-
-	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == m_pSystemManager->find<CollisionSystem>();
-	}
-};
-
-class HandleItemHitSystem final: public GameSystem {
-	CollisionSystem* m_collisionSystem{};
-
-public:
-	void OnCreated() override {
-		m_collisionSystem = m_pSystemManager->find<CollisionSystem>();
-	}
-
-	void OnUpdate() override {
-		const auto& colls = m_collisionSystem->GetCollisions();
-		for (const auto& coll: colls) {
-			// Entity -> world content collision
-			if (coll.e2 == ecs::IdentifierBad) {
-				uint32_t idx1{};
-				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
-				GAIA_ASSERT(pChunk1 != nullptr);
-
-				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				// We could have simply called world().del(coll.e1) but doing it
-				// this way allows our more control. Who knows what kinds of effect and
-				// post-processing we might have in mind for the arrow later in the frame.
-				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
-					auto item1 = pChunk1->view<Item>();
-					if (item1[idx1].type == ItemType::Arrow) {
-						auto health1 = pChunk1->view_mut<Health>();
-						health1[idx1].value = 0;
-					}
-				}
-			}
-			// Entity -> entity collision
-			else {
-				uint32_t idx1{}, idx2{};
-				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
-				auto* pChunk2 = world().get_chunk(coll.e2, idx2);
-				GAIA_ASSERT(pChunk1 != nullptr);
-				GAIA_ASSERT(pChunk2 != nullptr);
-
-				// TODO: Add ability to get a list of components based on query
-
-				// E.g. a player colliding with an item
-				if (pChunk1->has<Health>() && pChunk2->has<Item>() && pChunk2->has<BattleStats>()) {
-					auto health1 = pChunk1->view_mut<Health>();
-					auto stats2 = pChunk2->view<BattleStats>();
-
-					// Apply the item's effect
-					health1[idx1].value += stats2[idx2].power;
-				}
-
-				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
-					auto item1 = pChunk1->view<Item>();
-					if (item1[idx1].type == ItemType::Arrow) {
-						auto health1 = pChunk1->view_mut<Health>();
-						health1[idx1].value = 0;
-					}
-				}
-			}
-		}
-	}
-
-	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == m_pSystemManager->find<CollisionSystem>();
-	}
-};
-
-class HandleHealthSystem final: public ecs::System {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Health&>().changed<Health>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([&](Health& h) {
-			if (h.value > h.valueMax)
-				h.value = h.valueMax;
-		});
-	}
-};
-
-class HandleDeathSystem final: public GameSystem {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Health>().all<Position>().changed<Health>();
-	}
-
-	void OnUpdate() override {
-		m_q.each([&](ecs::Entity e, const Health& h, const Position& p) {
-			if (h.value > 0)
-				return;
-
-			g_pGameWorld->map[p.y][p.x] = TILE_FREE;
-			m_pSystemManager->AfterUpdateCmdBuffer().del(e);
-		});
-	}
-};
-
-class WriteSpritesToMapSystem final: public ecs::System {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Position>().all<Sprite>();
-	}
-
-	void OnUpdate() override {
-		ClearScreen();
-		g_pGameWorld->InitWorldMap();
-		m_q.each([&](const Position& p, const Sprite& s) {
-			g_pGameWorld->map[p.y][p.x] = s.value;
-		});
-	}
-};
-
-class RenderSystem final: public ecs::System {
-public:
-	void OnUpdate() override {
-		GAIA_FOR_(ScreenY, y) {
-			GAIA_FOR_(ScreenX, x) {
-				putchar(g_pGameWorld->map[y][x]);
-			}
-			printf("\n");
-		}
-	}
-};
-
-class UISystem final: public ecs::System {
-	ecs::Query m_qp;
-	ecs::Query m_qe;
-
-public:
-	void OnCreated() override {
-		m_qp = world().query().all<Health>().all<Player>();
-		m_qe = world().query().all<Health>().no<Player>().all<Item>();
-	}
-
-	void OnUpdate() override {
-		m_qp.each([](const Health& h) {
-			printf("Player health: %d/%d\n", h.value, h.valueMax);
-		});
-
-		m_qe.each([&](ecs::Entity e, const Health& h) {
-			printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
-		});
-	}
-};
-
-class GameStateSystem: public ecs::System {
-	ecs::Query m_qp;
-	ecs::Query m_qe;
-	bool m_hadPlayer;
-	bool m_hadEnemies;
-
-public:
-	void OnCreated() override {
-		m_qp = world().query().all<Health>().all<Player>();
-		m_qe = world().query().all<Health>().no<Player>().no<Item>();
-
-		m_hadPlayer = !m_qp.empty();
-		m_hadEnemies = !m_qe.empty();
-	}
-
-	void OnUpdate() override {
-		const bool hasNoPlayer = m_qp.empty();
-		if (m_hadPlayer && hasNoPlayer) {
-			printf("You are dead. Good job.\n");
-			g_pGameWorld->terminate = true;
-		}
-		m_hadPlayer = !hasNoPlayer;
-
-		const bool hasNoEnemies = m_qe.empty();
-		if (m_hadEnemies && hasNoEnemies) {
-			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
-			g_pGameWorld->terminate = true;
-		}
-		m_hadEnemies = !hasNoEnemies;
-	}
-};
-
-class InputSystem final: public GameSystem {
-	ecs::Query m_q;
-
-public:
-	void OnCreated() override {
-		m_q = world().query().all<Player>().all<Velocity&>().all<Position>().all<Orientation>();
-	}
-
-	void OnUpdate() override {
-		const char key = get_char();
-
-		g_pGameWorld->terminate = key == KEY_QUIT;
-
-		// Player movement
-		m_q.each([&](Velocity& v, const Position& p, const Orientation& o) {
-			v = {0, 0};
-			if (key == KEY_UP) {
-				v = {0, -1};
-			} else if (key == KEY_DOWN) {
-				v = {0, 1};
-			} else if (key == KEY_LEFT) {
-				v = {-1, 0};
-			} else if (key == KEY_RIGHT) {
-				v = {1, 0};
-			} else if (key == KEY_SHOOT) {
-				g_pGameWorld->CreateArrow({p.x, p.y}, {o.x, o.y});
-			}
-		});
-	}
-};
+#define PRINT_SYSTEM_NAME 1
 
 int main() {
 	ClearScreen();
@@ -973,7 +551,7 @@ int main() {
 			"\nLegend:\n"
 			"  %c - player\n"
 			"  %c - goblin, a small but terrifying monster\n"
-			"  %c - orc, a big and run on sight monster\n"
+			"  %c - orc, a big run-on-sight monster\n"
 			"  %c - potion, replenishes health\n"
 			"  %c - poison, damages health\n"
 			"  %c - wall\n"
@@ -981,37 +559,497 @@ int main() {
 			KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_SHOOT, KEY_QUIT, TILE_PLAYER, TILE_ENEMY_GOBLIN, TILE_ENEMY_ORC,
 			TILE_POTION, TILE_POISON, TILE_WALL);
 
-	ecs::World g_ecs;
-	ecs::SystemManager g_smPreSimulation(g_ecs);
-	ecs::SystemManager g_smSimulation(g_ecs);
-	ecs::SystemManager g_smPostSimulation(g_ecs);
-	GameWorld g_world(g_ecs);
+	ecs::World w;
+	GameWorld g_world(w);
 	g_pGameWorld = &g_world;
 
+	auto entGW = w.add();
+	w.add<GameWorldComponent>(entGW, {&g_world});
+	w.name(entGW, "GameWorld");
+
+	auto groupPreSimulation = w.add();
+	auto groupSimulation = w.add();
+	auto groupPostSimulation = w.add();
+	w.name(groupPreSimulation, "PreSimulation");
+	w.name(groupSimulation, "Simulation");
+	w.name(groupPostSimulation, "PostSimulation");
+
 	// Pre-simulation step
-	g_smPreSimulation.add<InputSystem>()->set_manager(&g_smPreSimulation);
-	g_smPreSimulation.add<UpdateMapSystem>()->set_manager(&g_smPreSimulation);
+	{
+		// InputSystem
+		{
+			auto sb = w.system() //
+										.all<Velocity&>()
+										.all<Position>()
+										.all<Orientation>()
+										.all<Player>()
+										.on_each([](Velocity& v, const Position& p, const Orientation& o) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("1 - InputSystem");
+#endif
+											const char key = get_char();
+											g_pGameWorld->terminate = key == KEY_QUIT;
+
+											v = {0, 0};
+											if (key == KEY_UP) {
+												v = {0, -1};
+											} else if (key == KEY_DOWN) {
+												v = {0, 1};
+											} else if (key == KEY_LEFT) {
+												v = {-1, 0};
+											} else if (key == KEY_RIGHT) {
+												v = {1, 0};
+											} else if (key == KEY_SHOOT) {
+												g_pGameWorld->CreateArrow({p.x, p.y}, {o.x, o.y});
+											}
+										});
+			w.child(sb.entity(), groupPreSimulation);
+			w.name(sb.entity(), "InputSystem");
+		}
+		// UpdateMapSystem
+		{
+			auto sb = w.system() //
+										.all<Position>()
+										.all<RigidBody>()
+										.on_each([](ecs::Iter& it) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("2 - UpdateMapSystem");
+#endif
+											auto ve = it.view<ecs::Entity>();
+											auto vp = it.view<Position>();
+											GAIA_EACH(it) {
+												g_pGameWorld->content[vp[i]].push_back(ve[i]);
+											}
+										});
+			w.child(sb.entity(), groupPreSimulation);
+			w.name(sb.entity(), "UpdateMapSystem");
+		}
+	}
 	// Simulation
-	g_smSimulation.add<OrientationSystem>()->set_manager(&g_smSimulation);
-	g_smSimulation.add<CollisionSystem>()->set_manager(&g_smSimulation);
-	g_smSimulation.add<MoveSystem>()->set_manager(&g_smSimulation);
-	g_smSimulation.add<HandleDamageSystem>()->set_manager(&g_smSimulation);
-	g_smSimulation.add<HandleItemHitSystem>()->set_manager(&g_smSimulation);
-	g_smSimulation.add<HandleHealthSystem>();
-	g_smSimulation.add<HandleDeathSystem>()->set_manager(&g_smSimulation);
+	{
+		// OrientationSystem
+		{
+			auto sb = w.system() //
+										.all<Orientation&>()
+										.all<Velocity>()
+										.on_each([](Orientation& o, const Velocity& v) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("3 - OrientationSystem");
+#endif
+											if (v.x != 0) {
+												o.x = v.x > 0 ? 1 : -1;
+												o.y = 0;
+											}
+											if (v.y != 0) {
+												o.x = 0;
+												o.y = v.y > 0 ? 1 : -1;
+											}
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "OrientationSystem");
+		}
+		// CollisionSystem
+		{
+			auto sb = w.system() //
+										.all<Velocity&>()
+										.all<Position>()
+										.all<RigidBody>()
+										.on_each([&](ecs::Iter& iter) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("4 - CollisionSystem");
+#endif
+											auto getSign = [](int val) {
+												return val < 0 ? -1 : 1;
+											};
+
+											auto& w = *iter.world();
+											auto ent = iter.view<ecs::Entity>();
+											auto vel = iter.view_mut<Velocity>();
+											auto pos = iter.view<Position>();
+
+											// Drop all previous collision records
+											auto& coll = g_pGameWorld->m_colliding;
+											coll.clear();
+
+											const auto cnt = iter.size();
+											GAIA_FOR(cnt) {
+												// Skip stationary objects
+												const auto& v = vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather
+																								// than const reference
+												if (v.x == 0 && v.y == 0)
+													return;
+
+												auto e = ent[i];
+												const auto& p = pos[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather
+																								// than const reference
+
+												// Traverse the path along the velocity vector.
+												// Normally this would be something like DDA algorithm or anything you like.
+												// However, for the sake of simplicity, because we only move horizontally or vertically,
+												// we are fine with traversing one axis exclusively.
+												const int ii = v.y != 0;
+												const int jj = (ii + 1) & 1;
+												const int dd[2] = {ii ? 0 : getSign(v.x), ii ? getSign(v.y) : 0};
+												int pp[2] = {p.x + dd[0], p.y + dd[1]};
+												const int vv[2] = {v.x, v.y};
+												const int pp_end = pp[ii] + vv[ii];
+
+												const auto collisionsBefore = coll.size();
+
+												int naa = 0;
+												for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
+													// Stop on wall collisions
+													if (g_pGameWorld->map[pp[1]][pp[0]] == TILE_WALL) {
+														coll.push_back({e, ecs::IdentifierBad, Position{pp[0], pp[1]}, v});
+														goto onCollision;
+													}
+
+													// Skip when there's no content
+													auto it = g_pGameWorld->content.find({pp[0], pp[1]});
+													if (it == g_pGameWorld->content.end())
+														continue;
+
+													// Generate content collision data
+													bool hadCollision = false;
+													for (auto e2: it->second) {
+														if (e == e2)
+															continue;
+
+														// If the content has non-zero velocity we need to determine if we'd hit it
+														if (w.has<Velocity>(e2)) {
+															auto v2 = w.get<Velocity>(e2);
+															if (v2.x != 0 && v2.y != 0) {
+																const int vv2[2] = {v2.x, v2.y};
+
+																// No hit possible if moving on different axes
+																if (vv[ii] != vv2[jj])
+																	continue;
+
+																// No hit possible if moving just as fast or faster than us in the same direction
+																if (vv2[ii] > 0 && vv[i] > 0 && vv2[ii] >= vv[ii])
+																	continue;
+															}
+														}
+
+														coll.push_back({e, e2, Position{pp[0], pp[1]}, v});
+														hadCollision = true;
+													}
+													if (hadCollision)
+														break;
+												}
+
+												// Skip if no collisions were detected
+												if (collisionsBefore == coll.size())
+													return;
+
+											onCollision:
+												// Alter the velocity according to the first contact we made along the way.
+												// We make every collision stop the moving object. This is only a question of design.
+												// We might as well keep the velocity and handle the collision aftermath in a different system.
+												// Or we could introduce collision layers or many other things.
+												if (v.x != 0)
+													vel[i] = {naa, 0};
+												else
+													vel[i] = {0, naa};
+											}
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "CollisionSystem");
+		}
+		// MoveSystem
+		{
+			auto sb = w.system() //
+										.all<Position&>()
+										.all<Velocity>()
+										.on_each([](Position& p, const Velocity& v) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("5 - MoveSystem");
+#endif
+											p.x += v.x;
+											p.y += v.y;
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "MoveSystem");
+		}
+		// HandleDamageSystem
+		{
+			auto sb = w.system() //
+										.all<GameWorldComponent>()
+										.on_each([](ecs::Iter& iter) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("6 - HandleDamageSystem");
+#endif
+											const auto& w = *iter.world();
+											const auto& gw = iter.view<GameWorldComponent>()[0];
+											for (const auto& coll: gw.pGameWorld->m_colliding) {
+												// Skip world collisions
+												if (coll.e2 == ecs::IdentifierBad)
+													continue;
+
+												uint32_t idx1{}, idx2{};
+												auto* pChunk1 = w.get_chunk(coll.e1, idx1);
+												auto* pChunk2 = w.get_chunk(coll.e2, idx2);
+												GAIA_ASSERT(pChunk1 != nullptr);
+												GAIA_ASSERT(pChunk2 != nullptr);
+
+												// Skip non-damageable things
+												if (!pChunk2->has<Health>())
+													continue;
+												if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
+													continue;
+
+												// Verify if damage can be applied (e.g. power > armor)
+												const auto stats1 = pChunk1->view<BattleStats>();
+												const auto stats2 = pChunk2->view<BattleStats>();
+
+												const int damage = stats1[idx1].power - stats2[idx2].armor;
+												if (damage < 0)
+													continue;
+
+												// Apply damage
+												auto health2 = pChunk2->view_mut<Health>();
+												health2[idx2].value -= damage;
+											}
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "HandleDamageSystem");
+			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
+		}
+		// HandleItemHitSystem
+		{
+			auto sb = w.system() //
+										.all<GameWorldComponent>()
+										.on_each([](ecs::Iter& iter) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("7 - HandleItemHitSystem");
+#endif
+											const auto& w = *iter.world();
+											const auto& gw = iter.view<GameWorldComponent>()[0];
+											for (const auto& coll: gw.pGameWorld->m_colliding) {
+												// Entity -> world content collision
+												if (coll.e2 == ecs::IdentifierBad) {
+													uint32_t idx1{};
+													auto* pChunk1 = w.get_chunk(coll.e1, idx1);
+													GAIA_ASSERT(pChunk1 != nullptr);
+
+													// An arrow colliding with something. Bring its health to 0 (destroyed).
+													// We could have simply called world().del(coll.e1) but doing it
+													// this way allows our more control. Who knows what kinds of effect and
+													// post-processing we might have in mind for the arrow later in the frame.
+													if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+														auto item1 = pChunk1->view<Item>();
+														if (item1[idx1].type == ItemType::Arrow) {
+															auto health1 = pChunk1->view_mut<Health>();
+															health1[idx1].value = 0;
+														}
+													}
+												}
+												// Entity -> entity collision
+												else {
+													uint32_t idx1{}, idx2{};
+													auto* pChunk1 = w.get_chunk(coll.e1, idx1);
+													auto* pChunk2 = w.get_chunk(coll.e2, idx2);
+													GAIA_ASSERT(pChunk1 != nullptr);
+													GAIA_ASSERT(pChunk2 != nullptr);
+
+													// TODO: Add ability to get a list of components based on query
+
+													// E.g. a player coll with an item
+													if (pChunk1->has<Health>() && pChunk2->has<Item>() && pChunk2->has<BattleStats>()) {
+														auto health1 = pChunk1->view_mut<Health>();
+														auto stats2 = pChunk2->view<BattleStats>();
+
+														// Apply the item's effect
+														health1[idx1].value += stats2[idx2].power;
+													}
+
+													// An arrow coll with something. Bring its health to 0 (destroyed).
+													if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+														auto item1 = pChunk1->view<Item>();
+														if (item1[idx1].type == ItemType::Arrow) {
+															auto health1 = pChunk1->view_mut<Health>();
+															health1[idx1].value = 0;
+														}
+													}
+												}
+											}
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "HandleItemHitSystem");
+			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
+		}
+		// HandleHealthSystem
+		{
+			auto sb = w.system() //
+										.all<Health&>()
+										.changed<Health>()
+										.on_each([](Health& h) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("8 - HandleHealthSystem");
+#endif
+											if (h.value > h.valueMax)
+												h.value = h.valueMax;
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "HandleHealthSystem");
+			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleDamageSystem")});
+		}
+		// HandleDeathSystem
+		{
+			auto sb = w.system() //
+										.all<Health>()
+										.all<Position>()
+										.changed<Health>()
+										.on_each([](ecs::Iter& it) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("9 - HandleDeathSystem");
+#endif
+
+											auto& cmdBuffer = it.cmd_buffer_mt();
+											auto ve = it.view<ecs::Entity>();
+											auto vp = it.view<Position>();
+											auto vh = it.view<Health>();
+
+											GAIA_EACH(it) {
+												if (vh[i].value > 0)
+													return;
+
+												g_pGameWorld->map[vp[i].y][vp[i].x] = TILE_FREE;
+												cmdBuffer.del(ve[i]);
+											}
+										});
+			w.child(sb.entity(), groupSimulation);
+			w.name(sb.entity(), "HandleDeathSystem");
+			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleHealthSystem")});
+		}
+	}
 	// Post-simulation step
-	g_smPostSimulation.add<WriteSpritesToMapSystem>();
-	g_smPostSimulation.add<RenderSystem>();
-	g_smPostSimulation.add<UISystem>();
-	g_smPostSimulation.add<GameStateSystem>();
+	{
+		// ClearMapSystem
+		{
+			auto sb = w.system() //
+										.all<GameWorldComponent&>()
+										.on_each([](GameWorldComponent& value) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("10 - ClearMapSystem");
+#endif
+											ClearScreen();
+											value.pGameWorld->InitWorldMap();
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "ClearMapSystem");
+		}
+		// WriteSpritesToMapSystem
+		{
+			auto sb = w.system() //
+										.all<Position>()
+										.all<Sprite>()
+										.on_each([](const Position& p, const Sprite& s) {
+											g_pGameWorld->map[p.y][p.x] = s.value;
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "WriteSpritesToMapSystem");
+		}
+		// RenderSystem
+		{
+			auto sb = w.system() //
+										.all<GameWorldComponent>()
+										.on_each([](const GameWorldComponent& value) {
+#if PRINT_SYSTEM_NAME
+											GAIA_LOG_D("12 - RenderSystem");
+#endif
+											GAIA_FOR_(ScreenY, y) {
+												GAIA_FOR_(ScreenX, x) {
+													putchar(value.pGameWorld->map[y][x]);
+												}
+												printf("\n");
+											}
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "RenderSystem");
+		}
+		// UISystem Player
+		{
+			auto sb = w.system() //
+										.all<Health>()
+										.all<Player>()
+										.on_each([](const Health& h) {
+											printf("Player health: %d/%d\n", h.value, h.valueMax);
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "UISystemP");
+		}
+		// UISystem Non-player
+		{
+			auto sb = w.system() //
+										.all<Health>()
+										.no<Player>()
+										.no<Item>()
+										.on_each([](ecs::Entity e, const Health& h) {
+											printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "UISystemNP");
+		}
+		// GameStateSystem Player
+		{
+			struct GameStateSystemPData {
+				bool hadPlayer = false;
+			};
+			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
+
+			auto sb = w.system() //
+										.all<Health>()
+										.all<Player>()
+										.on_each([](ecs::Iter& it) {
+											auto sysEnt = it.world()->get("GameStateSystemP");
+											auto& sysData = it.world()->set<GameStateSystemPData>(sysEnt);
+
+											const bool hasNoPlayer = it.size() == 0;
+											if (sysData.hadPlayer && hasNoPlayer) {
+												printf("You are dead. Good job.\n");
+												g_pGameWorld->terminate = true;
+											}
+											sysData.hadPlayer = !hasNoPlayer;
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "GameStateSystemP");
+			w.add<GameStateSystemPData>(sb.entity());
+			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
+		}
+		// GameStateSystem Non-player
+		{
+			struct GameStateSystemNPData {
+				bool hadEnemies = false;
+			};
+			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
+
+			auto sb = w.system() //
+										.all<Health>()
+										.no<Player>()
+										.no<Item>()
+										.on_each([](ecs::Iter& it) {
+											auto sysEnt = it.world()->get("GameStateSystemNP");
+											auto& sysData = it.world()->set<GameStateSystemNPData>(sysEnt);
+
+											const bool hasNoEnemies = it.size() == 0;
+											if (sysData.hadEnemies && hasNoEnemies) {
+												printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
+												g_pGameWorld->terminate = true;
+											}
+											sysData.hadEnemies = !hasNoEnemies;
+										});
+			w.child(sb.entity(), groupPostSimulation);
+			w.name(sb.entity(), "GameStateSystemNP");
+			w.add<GameStateSystemNPData>(sb.entity());
+			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
+		}
+	}
 
 	g_pGameWorld->init();
 
 	while (!g_pGameWorld->terminate) {
-		g_smPreSimulation.update();
-		g_smSimulation.update();
-		g_smPostSimulation.update();
-		g_ecs.update();
+		w.update();
 	}
 
 	return 0;

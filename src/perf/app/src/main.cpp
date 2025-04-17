@@ -172,350 +172,224 @@ namespace sys {
 	using namespace ::gaia;
 	using namespace ::components;
 
-	class DamageSystem final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<HealthComponent&>().all<DamageComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("DamageSystem: %u", m_q.count());
-#endif
-		}
-		void OnUpdate() override {
-			m_q.each([&](ecs::Iter& it) {
-				auto health = it.view_mut<HealthComponent>(0);
-				auto damage = it.view<DamageComponent>(1);
-				auto update = [](HealthComponent& health, const DamageComponent& damage) {
-					const int totalDamage = core::get_max(damage.atk - damage.def, 0);
-					health.hp -= totalDamage;
-				};
+	void init_DamageSystem(ecs::World& world) {
+		world.system().all<HealthComponent>().all<DamageComponent>().on_each([&](ecs::Iter& it) {
+			auto health = it.view_mut<HealthComponent>(0);
+			auto damage = it.view<DamageComponent>(1);
+			auto update = [](HealthComponent& health, const DamageComponent& damage) {
+				const int totalDamage = core::get_max(damage.atk - damage.def, 0);
+				health.hp -= totalDamage;
+			};
 
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) update(health[i], damage[i]);
-			});
-		}
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) update(health[i], damage[i]);
+		});
+	}
 
-	private:
-		ecs::Query m_q;
-	};
+	void init_DataSystem(ecs::World& world) {
+		world.system()
+				.all<DataComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto data = it.view_mut<DataComponent>(0);
+					auto update = [](DataComponent& data) {
+						data.thingy = (data.thingy + 1) % 1'000'000;
+						data.dingy += 0.0001f * dt;
+						data.mingy = !data.mingy;
+						data.numgy = data.rng();
+					};
 
-	class DataSystem final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<DataComponent&>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("DataComponent: %u", m_q.count());
-#endif
-		}
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) update(data[i]);
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-		void OnUpdate() override {
-			m_q.each(
-					[&](ecs::Iter& it) {
-						auto data = it.view_mut<DataComponent>(0);
-						auto update = [](DataComponent& data) {
-							data.thingy = (data.thingy + 1) % 1'000'000;
-							data.dingy += 0.0001f * dt;
-							data.mingy = !data.mingy;
-							data.numgy = data.rng();
-						};
+	void init_HealthSystem(ecs::World& world) {
+		world.system()
+				.all<HealthComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto health = it.view_mut<HealthComponent>(0);
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) updateHealth(health[i]);
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-						const auto cnt = it.size();
-						GAIA_FOR(cnt) update(data[i]);
-					},
-					ecs::QueryExecType::Parallel);
-		}
+	void init_MoreComplexSystem(ecs::World& world) {
+		world.system()
+				.all<PositionComponent>()
+				.all<VelocityComponent&>()
+				.all<DataComponent&>()
+				.on_each([&](ecs::Iter& it) {
+					auto position = it.view<PositionComponent>(0);
+					auto direction = it.view_mut<VelocityComponent>(1);
+					auto data = it.view_mut<DataComponent>(2);
 
-	private:
-		ecs::Query m_q;
-	};
-
-	class HealthSystem final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<HealthComponent&>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("HealthSystem: %u", m_q.count());
-#endif
-		}
-
-		void OnUpdate() override {
-			m_q.each([&](ecs::Iter& it) {
-				auto health = it.view_mut<HealthComponent>(0);
-
-				const auto cnt = it.size();
-				GAIA_FOR(cnt)::sysbase::updateHealth(health[i]);
-			});
-		}
-
-	private:
-		ecs::Query m_q;
-	};
-
-	class MoreComplexSystem final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<PositionComponent>().all<VelocityComponent&>().all<DataComponent&>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("MoreComplexSystem: %u", m_q.count());
-#endif
-		}
-
-		void OnUpdate() override {
-			m_q.each(
-					[&](ecs::Iter& it) {
-						auto position = it.view<PositionComponent>(0);
-						auto direction = it.view_mut<VelocityComponent>(1);
-						auto data = it.view_mut<DataComponent>(2);
-
-						auto update = [](const PositionComponent& position, VelocityComponent& direction, DataComponent& data) {
-							if ((data.thingy % 10) == 0) {
-								if (position.x > position.y) {
-									direction.x = (float)data.rng.range(3, 19) - 10.0f;
-									direction.y = (float)data.rng.range(0, 5);
-								} else {
-									direction.x = (float)data.rng.range(0, 5);
-									direction.y = (float)data.rng.range(3, 19) - 10.0f;
-								}
-							}
-						};
-
-						const auto cnt = it.size();
-						GAIA_FOR(cnt) update(position[i], direction[i], data[i]);
-					},
-					ecs::QueryExecType::Parallel);
-		}
-
-	private:
-		ecs::Query m_q;
-	};
-
-	class MoreComplexSystemSoA final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<SoAPositionComponent>().all<SoAVelocityComponent&>().all<DataComponent&>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("MoreComplexSystemSoA: %u", m_q.count());
-#endif
-		}
-
-		void OnUpdate() override {
-			m_q.each(
-					[&](ecs::Iter& iter) {
-						// Position
-						auto vp = iter.view<SoAPositionComponent>(0); // read-only access to PositionSoA
-						auto px = vp.get<0>(); // continuous block of "x" from PositionSoA
-						auto py = vp.get<1>(); // continuous block of "y" from PositionSoA
-
-						// Velocity
-						auto vv = iter.view_mut<SoAVelocityComponent>(1); // read-write access to VelocitySoA
-						auto vx = vv.set<0>(); // continuous block of "x" from VelocitySoA
-						auto vy = vv.set<1>(); // continuous block of "y" from VelocitySoA
-
-						// Data
-						auto vd = iter.view_mut<DataComponent>(2);
-
-						const auto cnt = iter.size();
-						GAIA_FOR(cnt) {
-							if ((vd[i].thingy % 10) == 0) {
-								if (px[i] > py[i]) {
-									vx[i] = (float)vd[i].rng.range(3, 19) - 10.0f;
-									vy[i] = (float)vd[i].rng.range(0, 5);
-								} else {
-									vx[i] = (float)vd[i].rng.range(0, 5);
-									vy[i] = (float)vd[i].rng.range(3, 19) - 10.0f;
-								}
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						if ((data[i].thingy % 10) == 0) {
+							if (position[i].x > position[i].y) {
+								direction[i].x = (float)data[i].rng.range(3, 19) - 10.0f;
+								direction[i].y = (float)data[i].rng.range(0, 5);
+							} else {
+								direction[i].x = (float)data[i].rng.range(0, 5);
+								direction[i].y = (float)data[i].rng.range(3, 19) - 10.0f;
 							}
 						}
-					},
-					ecs::QueryExecType::Parallel);
-		}
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-	private:
-		ecs::Query m_q;
-	};
+	void init_MoreComplexSystemSoA(ecs::World& world) {
+		world.system()
+				.all<SoAPositionComponent>()
+				.all<SoAVelocityComponent&>()
+				.all<DataComponent&>()
+				.on_each([&](ecs::Iter& it) {
+					auto vp = it.view<SoAPositionComponent>(0); // read-only access to PositionSoA
+					auto px = vp.get<0>(); // continuous block of "x" from PositionSoA
+					auto py = vp.get<1>(); // continuous block of "y" from PositionSoA
 
-	class MovementSystem final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<PositionComponent&>().all<VelocityComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("MovementSystem: %u", m_q.count());
-#endif
-		}
+					auto vv = it.view_mut<SoAVelocityComponent>(1); // read-write access to VelocitySoA
+					auto vx = vv.set<0>(); // continuous block of "x" from VelocitySoA
+					auto vy = vv.set<1>(); // continuous block of "y" from VelocitySoA
 
-		void OnUpdate() override {
-			m_q.each(
-					[&](ecs::Iter& it) {
-						auto position = it.view_mut<PositionComponent>(0);
-						auto direction = it.view<VelocityComponent>(1);
+					auto vd = it.view_mut<DataComponent>(2);
 
-						const auto cnt = it.size();
-						GAIA_FOR(cnt) {
-							position[i].x += direction[i].x * dt;
-							position[i].y += direction[i].y * dt;
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						if ((vd[i].thingy % 10) == 0) {
+							if (px[i] > py[i]) {
+								vx[i] = (float)vd[i].rng.range(3, 19) - 10.0f;
+								vy[i] = (float)vd[i].rng.range(0, 5);
+							} else {
+								vx[i] = (float)vd[i].rng.range(0, 5);
+								vy[i] = (float)vd[i].rng.range(3, 19) - 10.0f;
+							}
 						}
-					},
-					ecs::QueryExecType::Parallel);
-		}
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-	private:
-		ecs::Query m_q;
-	};
+	void init_MovementSystem(ecs::World& world) {
+		world.system()
+				.all<PositionComponent>()
+				.all<VelocityComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto position = it.view_mut<PositionComponent>(0);
+					auto direction = it.view<VelocityComponent>(1);
 
-	class MovementSystemSoA final: public ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<SoAPositionComponent&>().all<SoAVelocityComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("MovementSystemSoA: %u", m_q.count());
-#endif
-		}
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						position[i].x += direction[i].x * dt;
+						position[i].y += direction[i].y * dt;
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-		void OnUpdate() override {
-			m_q.each(
-					[&](ecs::Iter& iter) {
-						// Position
-						auto vp = iter.view_mut<SoAPositionComponent>(0); // read-write access to PositionSoA
-						auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
-						auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
+	void init_MovementSystemSoA(ecs::World& world) {
+		world.system()
+				.all<SoAPositionComponent>()
+				.all<SoAVelocityComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto vp = it.view_mut<SoAPositionComponent>(0); // read-write access to PositionSoA
+					auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
+					auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
 
-						// Velocity
-						auto vv = iter.view<SoAVelocityComponent>(1); // read-only access to VelocitySoA
-						auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
-						auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
+					auto vv = it.view<SoAVelocityComponent>(1); // read-only access to VelocitySoA
+					auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
+					auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
 
-						const auto cnt = iter.size();
-						// Handle x coordinates
-						GAIA_FOR(cnt) px[i] += vx[i] * dt;
-						// Handle y coordinates
-						GAIA_FOR(cnt) py[i] += vy[i] * dt;
-					},
-					ecs::QueryExecType::Parallel);
-		}
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						px[i] += vx[i] * dt;
+						py[i] += vy[i] * dt;
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-	private:
-		ecs::Query m_q;
-	};
+	void init_RenderSystem(ecs::World& world, FrameBuffer& fb) {
+		world.system()
+				.all<PositionComponent>()
+				.all<SpriteComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto position = it.view<PositionComponent>(0);
+					auto sprite = it.view<SpriteComponent>(1);
 
-	class RenderSystem final: public ecs::System {
-	public:
-		RenderSystem() = default;
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						renderSprite(fb, position[i].x, position[i].y, sprite[i]);
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-		void setFrameBuffer(FrameBuffer& frameBuffer) {
-			m_frameBuffer = &frameBuffer;
-		}
+	void init_RenderSystemSoA(ecs::World& world, FrameBuffer& fb) {
+		world.system()
+				.all<SoAPositionComponent>()
+				.all<SpriteComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto vp = it.view<SoAPositionComponent>(0); // read-only access to PositionSoA
+					auto px = vp.get<0>(); // continuous block of "x" from PositionSoA
+					auto py = vp.get<1>(); // continuous block of "y" from PositionSoA
 
-		void OnCreated() override {
-			m_q = world().query().all<PositionComponent>().all<SpriteComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("RenderSystem: %u", m_q.count());
-#endif
-		}
+					auto vs = it.view<SpriteComponent>(1);
 
-		void OnUpdate() override {
-			m_q.each([&](ecs::Iter& it) {
-				auto position = it.view<PositionComponent>(0);
-				auto sprite = it.view_mut<SpriteComponent>(1);
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						renderSprite(fb, px[i], py[i], vs[i]);
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					::sysbase::renderSprite(*m_frameBuffer, position[i].x, position[i].y, sprite[i]);
-				}
-			});
-		}
+	void init_SpriteSystem(ecs::World& world) {
+		world.system()
+				.all<SpriteComponent>()
+				.all<PlayerComponent>()
+				.all<HealthComponent>()
+				.on_each([&](ecs::Iter& it) {
+					auto sprite = it.view_mut<SpriteComponent>(0);
+					auto player = it.view<PlayerComponent>(1);
+					auto health = it.view<HealthComponent>(2);
 
-	private:
-		ecs::Query m_q;
-		FrameBuffer* m_frameBuffer;
-	};
-
-	class RenderSystemSoA final: public ecs::System {
-	public:
-		void setFrameBuffer(FrameBuffer& frameBuffer) {
-			m_frameBuffer = &frameBuffer;
-		}
-
-		void OnCreated() override {
-			m_q = world().query().all<SoAPositionComponent>().all<SpriteComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("RenderSystemSoA: %u", m_q.count());
-#endif
-		}
-
-		void OnUpdate() override {
-			m_q.each([&](ecs::Iter& it) {
-				// Position
-				auto vp = it.view<SoAPositionComponent>(0); // read-only access to PositionSoA
-				auto px = vp.get<0>(); // continuous block of "x" from PositionSoA
-				auto py = vp.get<1>(); // continuous block of "y" from PositionSoA
-
-				// Sprite
-				auto vs = it.view<SpriteComponent>(1);
-
-				const auto cnt = it.size();
-				GAIA_FOR(cnt) {
-					::sysbase::renderSprite(*m_frameBuffer, px[i], py[i], vs[i]);
-				}
-			});
-		}
-
-	private:
-		ecs::Query m_q;
-		FrameBuffer* m_frameBuffer;
-	};
-
-	class SpriteSystem final: public ::gaia::ecs::System {
-	public:
-		void OnCreated() override {
-			m_q = world().query().all<SpriteComponent&>().all<PlayerComponent>().all<HealthComponent>();
-#if GAIA_DEBUG
-			GAIA_LOG_N("SpriteSystem: %u", m_q.count());
-#endif
-		}
-
-		void OnUpdate() override {
-			m_q.each(
-					[&](::gaia::ecs::Iter& it) {
-						auto sprite = it.view_mut<SpriteComponent>(0);
-						auto player = it.view<PlayerComponent>(1);
-						auto health = it.view<HealthComponent>(2);
-
-						const auto cnt = it.size();
-						GAIA_FOR(cnt) {
-							sysbase::updateSprite(sprite[i], player[i], health[i]);
-						}
-					},
-					ecs::QueryExecType::Parallel);
-		}
-
-	private:
-		::gaia::ecs::Query m_q;
-	};
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) {
+						updateSprite(sprite[i], player[i], health[i]);
+					}
+				})
+				.mode(ecs::QueryExecType::Parallel);
+	}
 } // namespace sys
 
 template <bool SoA>
-void init_systems(ecs::SystemManager& sm, FrameBuffer& fb) {
-	if constexpr (SoA)
-		sm.add<sys::MovementSystemSoA>();
-	else
-		sm.add<sys::MovementSystem>();
+void init_systems(ecs::World& w, FrameBuffer& fb) {
+	if constexpr (SoA) {
+		sys::init_MovementSystemSoA(w);
+	} else {
+		sys::init_MovementSystem(w);
+	}
 
-	sm.add<sys::DataSystem>();
-
-	if constexpr (SoA)
-		sm.add<sys::MoreComplexSystemSoA>();
-	else
-		sm.add<sys::MoreComplexSystem>();
-
-	sm.add<sys::HealthSystem>();
-	sm.add<sys::DamageSystem>();
-	sm.add<sys::SpriteSystem>();
+	sys::init_DataSystem(w);
 
 	if constexpr (SoA) {
-		auto* renderSystem = sm.add<sys::RenderSystemSoA>();
-		renderSystem->setFrameBuffer(fb);
+		sys::init_MoreComplexSystemSoA(w);
 	} else {
-		auto* renderSystem = sm.add<sys::RenderSystem>();
-		renderSystem->setFrameBuffer(fb);
+		sys::init_MoreComplexSystem(w);
+	}
+
+	sys::init_HealthSystem(w);
+	sys::init_DamageSystem(w);
+	sys::init_SpriteSystem(w);
+
+	if constexpr (SoA) {
+		sys::init_RenderSystemSoA(w, fb);
+	} else {
+		sys::init_RenderSystem(w, fb);
 	}
 }
 
@@ -711,12 +585,11 @@ void init_entities(ecs::World& w, uint32_t nentities) {
 template <bool SoA>
 void BM_Run(picobench::state& state) {
 	ecs::World w;
-	ecs::SystemManager sm(w);
 	FrameBuffer fb(FrameBufferWidth, FrameBufferHeight);
 
 	{
 		GAIA_PROF_SCOPE(setup);
-		init_systems<SoA>(sm, fb);
+		init_systems<SoA>(w, fb);
 		init_entities<SoA>(w, (uint32_t)state.user_data());
 	}
 
@@ -732,10 +605,8 @@ void BM_Run(picobench::state& state) {
 			dt = CalculateDelta(state);
 
 			state.start_timer();
-			sm.update();
-			state.stop_timer();
-
 			w.update();
+			state.stop_timer();
 		}
 	}
 }
