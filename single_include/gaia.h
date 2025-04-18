@@ -27342,7 +27342,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId});
+								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId, 0, 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
