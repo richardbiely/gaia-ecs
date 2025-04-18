@@ -749,7 +749,7 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-When the library is built with GAIA_USE_VARIADIC_API enabled (on by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time:
+When the library is built with GAIA_USE_VARIADIC_API enabled (on by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features as well.
 
 ```cpp
 ecs::Query q = w.query();
@@ -1652,7 +1652,8 @@ Creating a system is very similar to creating a [query](#query). In fact, the bu
 SystemBuilder mySystem = w.system()
   // System considers all entities with Position and Velocity components.
   // Position is mutable.
-  .all<Position&, Velocity>()
+  .all<Position&>()
+  .all<Velocity>()
   // Logic to execute every time the system is invoked.
   .on_each([&sys1_cnt](Position& p, const Velocity& v) {
     p.x += v.x * dt;
