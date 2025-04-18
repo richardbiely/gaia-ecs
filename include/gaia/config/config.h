@@ -79,7 +79,7 @@
 //! If enabled, various API supporting variadic template arguments is made available.
 //! More comfortable to use, but compilation time may increase.
 #ifndef GAIA_USE_VARIADIC_API
-	#define GAIA_USE_VARIADIC_API 1
+	#define GAIA_USE_VARIADIC_API 0
 #endif
 
 //------------------------------------------------------------------------------

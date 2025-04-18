@@ -749,7 +749,7 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-When the library is built with GAIA_USE_VARIADIC_API enabled (on by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features as well.
+When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
 
 ```cpp
 ecs::Query q = w.query();
