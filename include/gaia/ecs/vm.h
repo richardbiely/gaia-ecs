@@ -41,6 +41,8 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Any;
 				//! Idx of the last matched archetype against the NOT opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Not;
+				//! Mask for speeding up simple query matching
+				uint64_t queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -127,6 +129,9 @@ namespace gaia {
 
 				// Operator ALL (used by query::all)
 				struct OpAll {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) != 0;
+					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
@@ -141,6 +146,9 @@ namespace gaia {
 				};
 				// Operator OR (used by query::any)
 				struct OpAny {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) != 0;
+					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
@@ -156,6 +164,9 @@ namespace gaia {
 				};
 				// Operator NOT (used by query::no)
 				struct OpNo {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) == 0;
+					}
 					static void restart(uint32_t& idx) {
 						idx = 0;
 					}
@@ -473,6 +484,10 @@ namespace gaia {
 							if (!match_res_as<OpKind>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 								continue;
 						} else {
+							// Try early exit
+							if (ctx.queryMask != 0 && !OpKind::match_entity_mask(pArchetype->queryMask(), ctx.queryMask))
+								continue;
+
 							if (!match_res<OpKind>(*pArchetype, ctx.idsToMatch))
 								continue;
 						};

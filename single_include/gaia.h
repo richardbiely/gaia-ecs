@@ -22073,6 +22073,19 @@ namespace gaia {
 
 				return true;
 			}
+
+			GAIA_NODISCARD inline uint64_t hash_entity_id(Entity entity) {
+				return (entity.id() * 11400714819323198485ull) >> (64 - 6);
+			}
+
+			// Build bloom mask from a list of component IDs
+			GAIA_NODISCARD inline uint64_t build_entity_mask(EntitySpan entities) {
+				uint64_t mask = 0;
+				for (auto entity: entities)
+					mask |= (1ull << hash_entity_id(entity));
+
+				return mask;
+			}
 		} // namespace detail
 
 		struct ArchetypeChunkPair {
@@ -22137,6 +22150,8 @@ namespace gaia {
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
+			//! Query mask used to make lookups of simple queries faster
+			uint64_t m_queryMask = 0;
 
 			Properties m_properties{};
 			//! Pointer to the parent world
@@ -22328,6 +22343,12 @@ namespace gaia {
 
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
+
+				// TODO: Performance could be improved if we're an archetype from another one already known.
+				//       We could simply take the predecessor's mark and update it just with the new ids in the new archetype.
+				// Calculate component mask. This will be used to early exit matching archetypes in simple queries.
+				newArch->m_queryMask = detail::build_entity_mask({ids.data(), ids.size()});
+
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
 				const auto cnt = (uint32_t)ids.size();
@@ -22390,7 +22411,6 @@ namespace gaia {
 
 				// Calculate the number of entities per chunks precisely so we can
 				// fit as many of them into chunk as possible.
-
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
 				GAIA_FOR(entsGeneric) genCompsSize += newArch->m_comps[i].size();
@@ -22458,6 +22478,10 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype != nullptr);
 				pArchetype->~Archetype();
 				mem::AllocHelper::free("Archetype", pArchetype);
+			}
+
+			uint64_t queryMask() const {
+				return m_queryMask;
 			}
 
 			ArchetypeIdLookupKey::LookupHash id_hash() const {
@@ -23504,6 +23528,8 @@ namespace gaia {
 				Entity groupBy;
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
+				//! Component mask used for faster matching of simple queries
+				uint64_t queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -24437,6 +24463,8 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Any;
 				//! Idx of the last matched archetype against the NOT opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Not;
+				//! Mask for speeding up simple query matching
+				uint64_t queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -24523,6 +24551,9 @@ namespace gaia {
 
 				// Operator ALL (used by query::all)
 				struct OpAll {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) != 0;
+					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
@@ -24537,6 +24568,9 @@ namespace gaia {
 				};
 				// Operator OR (used by query::any)
 				struct OpAny {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) != 0;
+					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
 						return hasMatch;
@@ -24552,6 +24586,9 @@ namespace gaia {
 				};
 				// Operator NOT (used by query::no)
 				struct OpNo {
+					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
+						return (maskArchetype & maskQuery) == 0;
+					}
 					static void restart(uint32_t& idx) {
 						idx = 0;
 					}
@@ -24869,6 +24906,10 @@ namespace gaia {
 							if (!match_res_as<OpKind>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 								continue;
 						} else {
+							// Try early exit
+							if (ctx.queryMask != 0 && !OpKind::match_entity_mask(pArchetype->queryMask(), ctx.queryMask))
+								continue;
+
 							if (!match_res<OpKind>(*pArchetype, ctx.idsToMatch))
 								continue;
 						};
@@ -25509,6 +25550,7 @@ namespace gaia {
 				{
 					uint32_t as_mask_0 = 0;
 					uint32_t as_mask_1 = 0;
+					bool isComplex = false;
 
 					const auto& ids = data.ids;
 					const auto cnt = ids.size();
@@ -25522,14 +25564,18 @@ namespace gaia {
 							const auto has_as = (uint32_t)is_base(*m_ctx.w, id);
 							as_mask_0 |= (has_as << j);
 						} else {
-							if (!is_wildcard(id.id())) {
+							const bool idIsWildcard = is_wildcard(id.id());
+							const bool isGenWildcard = is_wildcard(id.gen());
+							isComplex |= (idIsWildcard || isGenWildcard);
+
+							if (!idIsWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.id());
 								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
 								as_mask_0 |= (has_as << j);
 							}
 
-							if (!is_wildcard(id.gen())) {
+							if (!isGenWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.gen());
 								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
@@ -25541,6 +25587,13 @@ namespace gaia {
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
+
+					// Calculate the component mask for simple queries
+					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
+					if (isComplex)
+						data.queryMask = 0;
+					else
+						data.queryMask = detail::build_entity_mask({ids.data(), ids.size()});
 				}
 			}
 
@@ -25602,6 +25655,7 @@ namespace gaia {
 				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
 				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = data.queryMask;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
 
@@ -26355,25 +26409,6 @@ namespace gaia {
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
 					data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
 
-					// Build the Is mask.
-					// We will use it to identify entities with an Is relationship quickly.
-					if (!item.id.pair()) {
-						const auto has_as = (uint32_t)is_base(*ctx.w, item.id);
-						data.as_mask_0 |= (has_as << ids.size());
-					} else {
-						if (!is_wildcard(item.id.id())) {
-							const auto e = entity_from_id(*ctx.w, item.id.id());
-							const auto has_as = (uint32_t)is_base(*ctx.w, e);
-							data.as_mask_0 |= (has_as << ids.size());
-						}
-
-						if (!is_wildcard(item.id.gen())) {
-							const auto e = entity_from_id(*ctx.w, item.id.gen());
-							const auto has_as = (uint32_t)is_base(*ctx.w, e);
-							data.as_mask_1 |= (has_as << ids.size());
-						}
-					}
-
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
@@ -26752,6 +26787,7 @@ namespace gaia {
 						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+						queryInfo.refresh_ctx();
 						m_storage.m_q.handle = queryInfo.handle(queryInfo);
 						m_storage.allow_to_destroy_again();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
@@ -26765,6 +26801,7 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+							m_storage.m_queryInfo.refresh_ctx();
 						}
 						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;

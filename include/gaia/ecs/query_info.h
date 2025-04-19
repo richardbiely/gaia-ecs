@@ -234,6 +234,7 @@ namespace gaia {
 				{
 					uint32_t as_mask_0 = 0;
 					uint32_t as_mask_1 = 0;
+					bool isComplex = false;
 
 					const auto& ids = data.ids;
 					const auto cnt = ids.size();
@@ -247,14 +248,18 @@ namespace gaia {
 							const auto has_as = (uint32_t)is_base(*m_ctx.w, id);
 							as_mask_0 |= (has_as << j);
 						} else {
-							if (!is_wildcard(id.id())) {
+							const bool idIsWildcard = is_wildcard(id.id());
+							const bool isGenWildcard = is_wildcard(id.gen());
+							isComplex |= (idIsWildcard || isGenWildcard);
+
+							if (!idIsWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.id());
 								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
 								as_mask_0 |= (has_as << j);
 							}
 
-							if (!is_wildcard(id.gen())) {
+							if (!isGenWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*m_ctx.w, id.gen());
 								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
@@ -266,6 +271,13 @@ namespace gaia {
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
+
+					// Calculate the component mask for simple queries
+					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
+					if (isComplex)
+						data.queryMask = 0;
+					else
+						data.queryMask = detail::build_entity_mask({ids.data(), ids.size()});
 				}
 			}
 
@@ -327,6 +339,7 @@ namespace gaia {
 				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
 				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = data.queryMask;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
 

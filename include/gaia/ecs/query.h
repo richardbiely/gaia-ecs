@@ -79,25 +79,6 @@ namespace gaia {
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
 					data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
 
-					// Build the Is mask.
-					// We will use it to identify entities with an Is relationship quickly.
-					if (!item.id.pair()) {
-						const auto has_as = (uint32_t)is_base(*ctx.w, item.id);
-						data.as_mask_0 |= (has_as << ids.size());
-					} else {
-						if (!is_wildcard(item.id.id())) {
-							const auto e = entity_from_id(*ctx.w, item.id.id());
-							const auto has_as = (uint32_t)is_base(*ctx.w, e);
-							data.as_mask_0 |= (has_as << ids.size());
-						}
-
-						if (!is_wildcard(item.id.gen())) {
-							const auto e = entity_from_id(*ctx.w, item.id.gen());
-							const auto has_as = (uint32_t)is_base(*ctx.w, e);
-							data.as_mask_1 |= (has_as << ids.size());
-						}
-					}
-
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
@@ -476,6 +457,7 @@ namespace gaia {
 						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+						queryInfo.refresh_ctx();
 						m_storage.m_q.handle = queryInfo.handle(queryInfo);
 						m_storage.allow_to_destroy_again();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
@@ -489,6 +471,7 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+							m_storage.m_queryInfo.refresh_ctx();
 						}
 						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;
