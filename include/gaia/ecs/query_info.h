@@ -275,9 +275,9 @@ namespace gaia {
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex)
-						data.queryMask = 0;
+						data.queryMask = {};
 					else
-						data.queryMask = detail::build_entity_mask({ids.data(), ids.size()});
+						data.queryMask = build_entity_mask({ids.data(), ids.size()});
 				}
 			}
 

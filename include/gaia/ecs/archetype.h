@@ -19,6 +19,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "id.h"
+#include "query_mask.h"
 
 namespace gaia {
 	namespace ecs {
@@ -42,19 +43,6 @@ namespace gaia {
 				}
 
 				return true;
-			}
-
-			GAIA_NODISCARD inline uint64_t hash_entity_id(Entity entity) {
-				return (entity.id() * 11400714819323198485ull) >> (64 - 6);
-			}
-
-			// Build bloom mask from a list of component IDs
-			GAIA_NODISCARD inline uint64_t build_entity_mask(EntitySpan entities) {
-				uint64_t mask = 0;
-				for (auto entity: entities)
-					mask |= (1ull << hash_entity_id(entity));
-
-				return mask;
 			}
 		} // namespace detail
 
@@ -121,7 +109,7 @@ namespace gaia {
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
 			//! Query mask used to make lookups of simple queries faster
-			uint64_t m_queryMask = 0;
+			QueryMask m_queryMask{};
 
 			Properties m_properties{};
 			//! Pointer to the parent world
@@ -317,7 +305,7 @@ namespace gaia {
 				// TODO: Performance could be improved if we're an archetype from another one already known.
 				//       We could simply take the predecessor's mark and update it just with the new ids in the new archetype.
 				// Calculate component mask. This will be used to early exit matching archetypes in simple queries.
-				newArch->m_queryMask = detail::build_entity_mask({ids.data(), ids.size()});
+				newArch->m_queryMask = build_entity_mask({ids.data(), ids.size()});
 
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
@@ -450,7 +438,7 @@ namespace gaia {
 				mem::AllocHelper::free("Archetype", pArchetype);
 			}
 
-			uint64_t queryMask() const {
+			QueryMask queryMask() const {
 				return m_queryMask;
 			}
 

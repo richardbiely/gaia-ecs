@@ -762,6 +762,10 @@ namespace gaia {
 	#define GAIA_USE_VARIADIC_API 0
 #endif
 
+#ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
+	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 0
+#endif
+
 //------------------------------------------------------------------------------
 
 
@@ -22050,6 +22054,91 @@ namespace gaia {
 
 /*** End of inlined file: chunk.h ***/
 
+
+/*** Start of inlined file: query_mask.h ***/
+#pragma once
+
+namespace gaia {
+	namespace ecs {
+		struct Entity;
+
+#if GAIA_USE_PARTITIONED_BLOOM_FILTER
+		static constexpr uint64_t s_ct_queryMask_primes[4] = {
+				11400714819323198485ull, // golden ratio
+				14029467366897019727ull, //
+				1609587929392839161ull, //
+				9650029242287828579ull //
+		};
+
+		struct QueryMask {
+			uint64_t value[4];
+
+			bool operator==(const QueryMask& other) const {
+				return value[0] == other.value[0] && //
+							 value[1] == other.value[1] && //
+							 value[2] == other.value[2] && //
+							 value[3] == other.value[3];
+			}
+			bool operator!=(const QueryMask& other) const {
+				return !(*this == other);
+			}
+		};
+
+		//! Hash an entity id into one bit per 64-bit block
+		GAIA_NODISCARD inline QueryMask hash_entity_id(Entity entity) {
+			QueryMask mask{};
+			for (uint32_t i = 0; i < 4; ++i) {
+				const uint64_t bit = (entity.id() * s_ct_queryMask_primes[i]) >> (64 - 4); // pick 1 bit in each 16-bit block
+				mask.value[i] = (1ull << bit);
+			}
+			return mask;
+		}
+
+		//! Builds a partitioned bloom mask from a list of entity IDs
+		GAIA_NODISCARD inline QueryMask build_entity_mask(EntitySpan entities) {
+			QueryMask result{};
+			for (auto entity: entities) {
+				QueryMask hash = hash_entity_id(entity);
+				for (uint32_t i = 0; i < 4; ++i)
+					result.value[i] |= hash.value[i];
+			}
+			return result;
+		}
+
+		//! Checks is there is a match between two masks
+		GAIA_NODISCARD inline bool match_entity_mask(const QueryMask& m1, const QueryMask& m2) {
+			return (m1.value[0] & m2.value[0]) != 0 && //
+						 (m1.value[1] & m2.value[1]) != 0 && //
+						 (m1.value[2] & m2.value[2]) != 0 && //
+						 (m1.value[3] & m2.value[3]) != 0;
+		}
+#else
+		using QueryMask = uint64_t;
+
+		//! Hash an entity id into a mask
+		GAIA_NODISCARD inline QueryMask hash_entity_id(Entity entity) {
+			return (entity.id() * 11400714819323198485ull) >> (64 - 6);
+		}
+
+		//! Builds a bloom mask from a list of entity IDs
+		GAIA_NODISCARD inline QueryMask build_entity_mask(EntitySpan entities) {
+			QueryMask mask = 0;
+			for (auto entity: entities)
+				mask |= (1ull << hash_entity_id(entity));
+
+			return mask;
+		}
+
+		//! Checks is there is a match between two masks
+		GAIA_NODISCARD inline bool match_entity_mask(const QueryMask& m1, const QueryMask& m2) {
+			return (m1 & m2) != 0;
+		}
+#endif
+	} // namespace ecs
+} // namespace gaia
+
+/*** End of inlined file: query_mask.h ***/
+
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -22072,19 +22161,6 @@ namespace gaia {
 				}
 
 				return true;
-			}
-
-			GAIA_NODISCARD inline uint64_t hash_entity_id(Entity entity) {
-				return (entity.id() * 11400714819323198485ull) >> (64 - 6);
-			}
-
-			// Build bloom mask from a list of component IDs
-			GAIA_NODISCARD inline uint64_t build_entity_mask(EntitySpan entities) {
-				uint64_t mask = 0;
-				for (auto entity: entities)
-					mask |= (1ull << hash_entity_id(entity));
-
-				return mask;
 			}
 		} // namespace detail
 
@@ -22151,7 +22227,7 @@ namespace gaia {
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
 			//! Query mask used to make lookups of simple queries faster
-			uint64_t m_queryMask = 0;
+			QueryMask m_queryMask{};
 
 			Properties m_properties{};
 			//! Pointer to the parent world
@@ -22347,7 +22423,7 @@ namespace gaia {
 				// TODO: Performance could be improved if we're an archetype from another one already known.
 				//       We could simply take the predecessor's mark and update it just with the new ids in the new archetype.
 				// Calculate component mask. This will be used to early exit matching archetypes in simple queries.
-				newArch->m_queryMask = detail::build_entity_mask({ids.data(), ids.size()});
+				newArch->m_queryMask = build_entity_mask({ids.data(), ids.size()});
 
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
@@ -22480,7 +22556,7 @@ namespace gaia {
 				mem::AllocHelper::free("Archetype", pArchetype);
 			}
 
-			uint64_t queryMask() const {
+			QueryMask queryMask() const {
 				return m_queryMask;
 			}
 
@@ -23529,7 +23605,7 @@ namespace gaia {
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Component mask used for faster matching of simple queries
-				uint64_t queryMask;
+				QueryMask queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -24464,7 +24540,7 @@ namespace gaia {
 				//! Idx of the last matched archetype against the NOT opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Not;
 				//! Mask for speeding up simple query matching
-				uint64_t queryMask;
+				QueryMask queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;
@@ -24551,8 +24627,8 @@ namespace gaia {
 
 				// Operator ALL (used by query::all)
 				struct OpAll {
-					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
-						return (maskArchetype & maskQuery) != 0;
+					static bool check_mask(const QueryMask& maskArchetype, const QueryMask& maskQuery) {
+						return match_entity_mask(maskArchetype, maskQuery);
 					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
@@ -24568,8 +24644,8 @@ namespace gaia {
 				};
 				// Operator OR (used by query::any)
 				struct OpAny {
-					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
-						return (maskArchetype & maskQuery) != 0;
+					static bool check_mask(const QueryMask& maskArchetype, const QueryMask& maskQuery) {
+						return match_entity_mask(maskArchetype, maskQuery);
 					}
 					static void restart([[maybe_unused]] uint32_t& idx) {}
 					static bool can_continue(bool hasMatch) {
@@ -24586,8 +24662,8 @@ namespace gaia {
 				};
 				// Operator NOT (used by query::no)
 				struct OpNo {
-					static bool match_entity_mask(uint64_t maskArchetype, uint64_t maskQuery) {
-						return (maskArchetype & maskQuery) == 0;
+					static bool check_mask(const QueryMask& maskArchetype, const QueryMask& maskQuery) {
+						return !match_entity_mask(maskArchetype, maskQuery);
 					}
 					static void restart(uint32_t& idx) {
 						idx = 0;
@@ -24907,7 +24983,7 @@ namespace gaia {
 								continue;
 						} else {
 							// Try early exit
-							if (ctx.queryMask != 0 && !OpKind::match_entity_mask(pArchetype->queryMask(), ctx.queryMask))
+							if (ctx.queryMask != QueryMask{} && !OpKind::check_mask(pArchetype->queryMask(), ctx.queryMask))
 								continue;
 
 							if (!match_res<OpKind>(*pArchetype, ctx.idsToMatch))
@@ -25591,9 +25667,9 @@ namespace gaia {
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex)
-						data.queryMask = 0;
+						data.queryMask = {};
 					else
-						data.queryMask = detail::build_entity_mask({ids.data(), ids.size()});
+						data.queryMask = build_entity_mask({ids.data(), ids.size()});
 				}
 			}
 

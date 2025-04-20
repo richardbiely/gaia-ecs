@@ -14,6 +14,7 @@
 #include "data_buffer.h"
 #include "id.h"
 #include "query_fwd.h"
+#include "query_mask.h"
 
 namespace gaia {
 	namespace ecs {
@@ -239,7 +240,7 @@ namespace gaia {
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
 				//! Component mask used for faster matching of simple queries
-				uint64_t queryMask;
+				QueryMask queryMask;
 				//! Mask for items with Is relationship pair.
 				//! If the id is a pair, the first part (id) is written here.
 				uint32_t as_mask_0;

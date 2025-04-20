@@ -82,6 +82,14 @@
 	#define GAIA_USE_VARIADIC_API 0
 #endif
 
+//! If enabled, a partitioned bloom filter is used for speed up matching of archetypes in queries.
+//! If disabled, a non-partitioned bloom filter is used.
+//! The former is slightly more computationaly expensive (4 uint64_t to compared vs 1) but gives less false postives.
+//! Therefore, it will be more useful when there is a lot of archetypes with very different components.
+#ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
+	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"
