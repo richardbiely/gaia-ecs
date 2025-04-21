@@ -1391,13 +1391,13 @@ namespace gaia {
 			//! Use when checking if there was a movement in data in the world. E.g. if an entity
 			//! was added, removed or moved in its archetype.
 			GAIA_NODISCARD bool changed(uint32_t version) const {
-				auto versions = comp_version_view();
+				const auto* versions = m_records.pVersions;
 				return ::gaia::ecs::version_changed(versions[0], version);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view();
+				const auto* versions = m_records.pVersions;
 				// Do +1 because index 0 is reserved for the entity version number.
 				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
 			}
@@ -1413,7 +1413,9 @@ namespace gaia {
 
 			//! Update the version of all components
 			GAIA_FORCEINLINE void update_world_version() {
-				auto versions = comp_version_view_mut();
+				// Edit the version pointer directly. The first elements is always the entity version.
+				// This area of memory is always present.
+				auto* versions = m_records.pVersions;
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
