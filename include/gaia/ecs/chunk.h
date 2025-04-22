@@ -131,13 +131,13 @@ namespace gaia {
 			//! Returns a read-only view of data version numbers.
 			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view() const {
-				return {(const ComponentVersion*)m_records.pVersions, m_header.cntEntities};
+				return {(const ComponentVersion*)m_records.pVersions, (size_t)m_header.cntEntities + 1};
 			}
 
 			//! Returns a mutable view of data version numbers.
 			//! The first index belongs to the entity itself. Following indices belong to data attached to the entity.
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut() {
-				return {m_records.pVersions, m_header.cntEntities};
+				return {m_records.pVersions, (size_t)m_header.cntEntities + 1};
 			}
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
@@ -1397,7 +1397,7 @@ namespace gaia {
 
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
-				const auto* versions = m_records.pVersions;
+				auto versions = comp_version_view();
 				// Do +1 because index 0 is reserved for the entity version number.
 				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
 			}
