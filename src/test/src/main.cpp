@@ -461,7 +461,7 @@ TEST_CASE("fwd_llist") {
 	{
 		list.unlink(foos.back());
 		REQUIRE_FALSE(foos.back()->get_fwd_llist_link().linked());
-		foos.retain([](const Foo* f) {
+		foos.retain([&](const Foo* f) {
 			return f->value != N - 1;
 		});
 
@@ -479,7 +479,7 @@ TEST_CASE("fwd_llist") {
 	{
 		list.unlink(foos.front());
 		REQUIRE_FALSE(foos.front()->get_fwd_llist_link().linked());
-		foos.retain([](const Foo* f) {
+		foos.retain([&](const Foo* f) {
 			return f->value != 0;
 		});
 
@@ -8293,9 +8293,9 @@ TEST_CASE("System - simple") {
 		}
 	}
 
-	int sys1_cnt = 0;
-	int sys2_cnt = 0;
-	int sys3_cnt = 0;
+	uint32_t sys1_cnt = 0;
+	uint32_t sys2_cnt = 0;
+	uint32_t sys3_cnt = 0;
 	bool sys3_run_before_sys1 = false;
 	bool sys3_run_before_sys2 = false;
 
