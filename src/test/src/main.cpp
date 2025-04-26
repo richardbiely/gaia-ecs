@@ -1097,7 +1097,7 @@ void sparse_storage_test(uint32_t N) {
 	using cont_item = typename Container::value_type;
 
 	constexpr uint32_t CONV = 100;
-	auto to_sid = [](uint32_t i) {
+	auto to_sid = [&](uint32_t i) {
 		return i * CONV;
 	};
 	auto new_item = [to_sid](uint32_t i) {
@@ -1438,11 +1438,11 @@ template <typename Container>
 void paged_storage_test(uint32_t N) {
 	using cont_item = typename Container::value_type;
 
-	auto to_sid = [](uint32_t i) {
+	auto to_sid = [&](uint32_t i) {
 		return i;
 	};
-	auto new_item = [to_sid](uint32_t i) {
-		return cont_item{i, i};
+	auto new_item = [&](uint32_t i) {
+		return cont_item{to_sid(i), i};
 	};
 
 	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
