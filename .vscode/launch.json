@@ -41,14 +41,6 @@
       "cwd": "${workspaceFolder}",
     },
     {
-      "name": "(lldb) dummy",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/${input:buildType}/src/dummy/gaia_dummy",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-    },
-    {
       "name": "(lldb) example - roguelike",
       "type": "lldb",
       "request": "launch",

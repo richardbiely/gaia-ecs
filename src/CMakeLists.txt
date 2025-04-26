@@ -344,7 +344,6 @@ endif()
 
 # Examples
 if(GAIA_BUILD_EXAMPLES)
-  add_subdirectory(dummy)
   add_subdirectory(examples/example1)
   add_subdirectory(examples/example2)
   add_subdirectory(examples/example3)
