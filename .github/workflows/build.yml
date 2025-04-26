@@ -37,7 +37,6 @@ jobs:
           - { os: ubuntu-22.04, pkg: clang-12, exe: clang++-12 }
           - { os: ubuntu-latest, pkg: gcc-13, exe: g++-13 }
           - { os: ubuntu-latest, pkg: gcc-14, exe: g++-14 }
-          - { os: ubuntu-latest, pkg: gcc-15, exe: g++-15 }
           - { os: ubuntu-latest, pkg: clang-14, exe: clang++-14 }
           - { os: ubuntu-latest, pkg: clang-15, exe: clang++-15 }
           - { os: ubuntu-latest, pkg: clang-16, exe: clang++-16 }

@@ -901,8 +901,10 @@ namespace gaia {
 				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
 
 				TOSApiFunc_SetThreadDescription pSetThreadDescFunc = nullptr;
-				if (auto* pModule = GetModuleHandleA("kernel32.dll"))
-					pSetThreadDescFunc = (TOSApiFunc_SetThreadDescription)GetProcAddress(pModule, "SetThreadDescription");
+				if (auto* pModule = GetModuleHandleA("kernel32.dll")) {
+					auto* pFunc = GetProcAddress(pModule, "SetThreadDescription");
+					pSetThreadDescFunc = reinterpret_cast<TOSApiFunc_SetThreadDescription>(reinterpret_cast<void*>(pFunc));
+				}
 				if (pSetThreadDescFunc != nullptr) {
 					wchar_t threadName[16]{};
 					swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", workerIdx);

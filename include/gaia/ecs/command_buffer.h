@@ -348,8 +348,6 @@ namespace gaia {
 					}
 				};
 
-				friend class World;
-
 				AccessContext m_acc;
 				CommandBufferCtx m_ctx;
 				uint32_t m_entities = 0;
