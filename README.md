@@ -2183,7 +2183,6 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 - [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
 - [Clang](https://clang.llvm.org/) 7 or later<br/>
 - [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
-- [ICX](https://www.intel.com/content/www/us/en/developer/articles/tool/oneapi-standalone-components.html#dpcpp-cpp) 2021.1.2 or later<br/>
 
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.
