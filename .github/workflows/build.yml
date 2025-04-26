@@ -8,20 +8,14 @@ jobs:
     strategy:
       matrix:
         compiler:
-          - pkg: g++-7
-            exe: g++-7
-          - pkg: g++-8
-            exe: g++-8
-          - pkg: g++-9
-            exe: g++-9
-          - pkg: g++
-            exe: g++
-          - pkg: clang-10
-            exe: clang++-10
-          - pkg: clang-11
-            exe: clang++-11
-          - pkg: clang
-            exe: clang++
+          - pkg: g++-11
+            exe: g++-11
+          - pkg: g++-latest
+            exe: g++-latest
+          - pkg: clang-14
+            exe: clang++-14
+          - pkg: clang-latest
+            exe: clang++-latest
         build_type: [Release, Debug]
     runs-on: ubuntu-22.04
 
@@ -56,12 +50,10 @@ jobs:
     strategy:
       matrix:
         compiler:
-          - pkg: clang-10
-            exe: clang++-10
-          - pkg: clang-11
-            exe: clang++-11
-          - pkg: clang
-            exe: clang++
+          - pkg: clang-14
+            exe: clang++-14
+          - pkg: clang-latest
+            exe: clang++-latest
         build_type: [Release, Debug]
     runs-on: ubuntu-20.04
 
