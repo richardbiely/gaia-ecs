@@ -10,6 +10,7 @@
 #include "../core/bit_utils.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
+#include "api.h"
 #include "component.h"
 #include "data_buffer.h"
 #include "id.h"
@@ -180,10 +181,6 @@ namespace gaia {
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
-		QuerySerBuffer& query_buffer(World& world, QueryId& serId);
-		void query_buffer_reset(World& world, QueryId& serId);
-		ComponentCache& comp_cache_mut(World& world);
-
 		struct QueryIdentity {
 			//! Query id
 			QueryHandle handle = {};
@@ -208,12 +205,16 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q{};
 
-			enum QueryFlags : uint8_t { //
+			enum QueryFlags : uint8_t {
 				Empty = 0x00,
 				// Entities need sorting
 				SortEntities = 0x01,
 				// Groups need sorting
-				SortGroups = 0x02
+				SortGroups = 0x02,
+				// Complex query
+				Complex = 0x04,
+				// Recompilation requested
+				Recompile = 0x08,
 			};
 
 			struct Data {
@@ -265,6 +266,70 @@ namespace gaia {
 				cc = &comp_cache_mut(*pWorld);
 			}
 
+			void refresh() {
+				const auto mask0_old = data.as_mask_0;
+				const auto mask1_old = data.as_mask_1;
+				const auto isComplex_old = data.flags & QueryFlags::Complex;
+
+				// Update masks
+				{
+					uint32_t as_mask_0 = 0;
+					uint32_t as_mask_1 = 0;
+					bool isComplex = false;
+
+					const auto& ids = data.ids;
+					const auto cnt = ids.size();
+					GAIA_FOR(cnt) {
+						const auto id = ids[i];
+
+						// Build the Is mask.
+						// We will use it to identify entities with an Is relationship quickly.
+						if (!id.pair()) {
+							const auto j = (uint32_t)i; // data.remapping[i];
+							const auto has_as = (uint32_t)is_base(*w, id);
+							as_mask_0 |= (has_as << j);
+						} else {
+							const bool idIsWildcard = is_wildcard(id.id());
+							const bool isGenWildcard = is_wildcard(id.gen());
+							isComplex |= (idIsWildcard || isGenWildcard);
+
+							if (!idIsWildcard) {
+								const auto j = (uint32_t)i; // data.remapping[i];
+								const auto e = entity_from_id(*w, id.id());
+								const auto has_as = (uint32_t)is_base(*w, e);
+								as_mask_0 |= (has_as << j);
+							}
+
+							if (!isGenWildcard) {
+								const auto j = (uint32_t)i; // data.remapping[i];
+								const auto e = entity_from_id(*w, id.gen());
+								const auto has_as = (uint32_t)is_base(*w, e);
+								as_mask_1 |= (has_as << j);
+							}
+						}
+					}
+
+					// Update the mask
+					data.as_mask_0 = as_mask_0;
+					data.as_mask_1 = as_mask_1;
+
+					// Calculate the component mask for simple queries
+					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
+					if (isComplex) {
+						data.queryMask = {};
+						data.flags |= QueryCtx::QueryFlags::Complex;
+					} else {
+						data.queryMask = build_entity_mask({ids.data(), ids.size()});
+						data.flags &= ~QueryCtx::QueryFlags::Complex;
+					}
+				}
+
+				// Request recompilation of the query if the mask has changed
+				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
+						isComplex_old != (data.flags & QueryFlags::Complex))
+					data.flags |= QueryCtx::QueryFlags::Recompile;
+			}
+
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
 				// Comparison expected to be done only the first time the query is set up
 				GAIA_ASSERT(q.handle.id() == QueryIdBad);
@@ -312,7 +377,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const noexcept {
 				return !operator==(other);
-			};
+			}
 		};
 
 		//! Functor for sorting terms in a query before compilation

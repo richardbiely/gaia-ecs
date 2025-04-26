@@ -47,13 +47,13 @@ namespace gaia {
 		class QueryCache {
 			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
 			// TODO: Make m_queryArr allocate data in pages.
-			//       Currently ilist always uses a darray internally which keeps growing following
-			//       logic not suitable for this particular use case.
-			//       QueryInfo is quite big and we do not want to copying a lot of data every time
+			//       Currently ilist always uses a darray internally which keeps growing, making
+			//       it not suitable for this particular use case.
+			//       QueryInfo is quite big and we do not want to copy a lot of data every time
 			//       resizing is necessary.
 			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
 
-			//! entity -> query mapping
+			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
 
 		public:
@@ -193,7 +193,7 @@ namespace gaia {
 				for (auto& handle: handles) {
 					auto& info = get(handle);
 					info.reset();
-					info.refresh_ctx();
+					info.ctx().refresh();
 				}
 			}
 

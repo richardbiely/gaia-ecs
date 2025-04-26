@@ -66,13 +66,14 @@ namespace gaia {
 			//! Virtual machine
 			vm::VirtualMachine m_vm;
 
-			//! Use to make sure only unique archetypes are inserted into the cache
+			//! Used to make sure only unique archetypes are inserted into the cache
 			//! TODO: Get rid of the set by changing the way the caching works.
 			cnt::set<Archetype*> m_archetypeSet;
 			//! Cached array of archetypes matching the query
 			ArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
+
 			//! Sort data used by cache
 			cnt::darray<SortData> m_archetypeSortData;
 			//! Group data used by cache
@@ -179,7 +180,7 @@ namespace gaia {
 
 			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
-				auto& queryCtx = (QueryCtx&)*pCreationCtx->pQueryCtx;
+				auto& queryCtx = *pCreationCtx->pQueryCtx;
 				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
 				auto& allArchetypes = (ArchetypeDArray&)*pCreationCtx->pAllArchetypes;
 
@@ -211,6 +212,14 @@ namespace gaia {
 				m_vm.compile(entityToArchetypeMap, allArchetypes, m_ctx);
 			}
 
+			//! Recompile the query
+			void recompile() {
+				GAIA_PROF_SCOPE(queryinfo::recompile);
+
+				// Compile the opcodes
+				m_vm.create_opcodes(m_ctx);
+			}
+
 			void set_world_version(uint32_t version) {
 				m_worldVersion = version;
 			}
@@ -225,60 +234,6 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return m_ctx != other;
-			}
-
-			void refresh_ctx() {
-				auto& data = m_ctx.data;
-
-				// Update masks
-				{
-					uint32_t as_mask_0 = 0;
-					uint32_t as_mask_1 = 0;
-					bool isComplex = false;
-
-					const auto& ids = data.ids;
-					const auto cnt = ids.size();
-					GAIA_FOR(cnt) {
-						const auto id = ids[i];
-
-						// Build the Is mask.
-						// We will use it to identify entities with an Is relationship quickly.
-						if (!id.pair()) {
-							const auto j = (uint32_t)i; // data.remapping[i];
-							const auto has_as = (uint32_t)is_base(*m_ctx.w, id);
-							as_mask_0 |= (has_as << j);
-						} else {
-							const bool idIsWildcard = is_wildcard(id.id());
-							const bool isGenWildcard = is_wildcard(id.gen());
-							isComplex |= (idIsWildcard || isGenWildcard);
-
-							if (!idIsWildcard) {
-								const auto j = (uint32_t)i; // data.remapping[i];
-								const auto e = entity_from_id(*m_ctx.w, id.id());
-								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
-								as_mask_0 |= (has_as << j);
-							}
-
-							if (!isGenWildcard) {
-								const auto j = (uint32_t)i; // data.remapping[i];
-								const auto e = entity_from_id(*m_ctx.w, id.gen());
-								const auto has_as = (uint32_t)is_base(*m_ctx.w, e);
-								as_mask_1 |= (has_as << j);
-							}
-						}
-					}
-
-					// Update the mask
-					data.as_mask_0 = as_mask_0;
-					data.as_mask_1 = as_mask_1;
-
-					// Calculate the component mask for simple queries
-					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
-					if (isComplex)
-						data.queryMask = {};
-					else
-						data.queryMask = build_entity_mask({ids.data(), ids.size()});
-				}
 			}
 
 			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
@@ -312,6 +267,12 @@ namespace gaia {
 					}
 				} autoCleanup;
 
+				auto& data = m_ctx.data;
+
+				// Recompile if necessary
+				if ((data.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
 				// Skip if nothing has been compiled.
 				if (!m_vm.is_compiled())
 					return;
@@ -323,11 +284,10 @@ namespace gaia {
 					sort_entities();
 					return;
 				}
+
 				m_lastArchetypeId = archetypeLastId;
 
 				GAIA_PROF_SCOPE(queryinfo::match);
-
-				auto& data = m_ctx.data;
 
 				// Prepare the context
 				vm::MatchingCtx ctx{};
@@ -342,6 +302,7 @@ namespace gaia {
 				ctx.queryMask = data.queryMask;
 				ctx.as_mask_0 = data.as_mask_0;
 				ctx.as_mask_1 = data.as_mask_1;
+				ctx.flags = data.flags;
 
 				// Run the virtual machine
 				m_vm.exec(ctx);

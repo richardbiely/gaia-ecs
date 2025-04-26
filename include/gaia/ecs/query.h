@@ -457,8 +457,7 @@ namespace gaia {
 						ctx.init(m_storage.world());
 						commit(ctx);
 						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
-						queryInfo.refresh_ctx();
-						m_storage.m_q.handle = queryInfo.handle(queryInfo);
+						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
 						m_storage.allow_to_destroy_again();
 						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
@@ -471,7 +470,6 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
-							m_storage.m_queryInfo.refresh_ctx();
 						}
 						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;
@@ -703,6 +701,9 @@ namespace gaia {
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
+
+					// Refresh the context
+					ctx.refresh();
 				}
 
 				void recommit(QueryCtx& ctx) {
