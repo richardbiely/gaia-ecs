@@ -32,9 +32,8 @@ jobs:
 
     - name: Install compiler
       run: |
-        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee /etc/apt/sources.list
         sudo apt update
-        sudo apt install -y software-properties-common ${{matrix.target.pkg}}
+        sudo apt install -y ${{matrix.target.pkg}}
 
     - name: Configure CMake
       env:
@@ -59,13 +58,13 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { os: ubuntu-22.04, exe: clang++-11 }
-          - { os: ubuntu-22.04, exe: clang++-12 }
-          - { os: ubuntu-latest, exe: clang++-14 }
-          - { os: ubuntu-latest, exe: clang++-15 }
-          - { os: ubuntu-latest, exe: clang++-16 }
-          - { os: ubuntu-latest, exe: clang++-17 }
-          - { os: ubuntu-latest, exe: clang++-18 }
+          - { os: ubuntu-22.04, pkg: clang-11, exe: clang++-11 }
+          - { os: ubuntu-22.04, pkg: clang-12, exe: clang++-12 }
+          - { os: ubuntu-latest, pkg: clang-14, exe: clang++-14 }
+          - { os: ubuntu-latest, pkg: clang-15, exe: clang++-15 }
+          - { os: ubuntu-latest, pkg: clang-16, exe: clang++-16 }
+          - { os: ubuntu-latest, pkg: clang-17, exe: clang++-17 }
+          - { os: ubuntu-latest, pkg: clang-18, exe: clang++-18 }
         build_type: [Release, Debug]
     runs-on: ${{matrix.target.os}}
 
@@ -75,7 +74,7 @@ jobs:
     - name: Install compiler
       run: |
         sudo apt update
-        sudo apt install -y ${{matrix.target.exe}}
+        sudo apt install -y ${{matrix.target.pkg}}
 
     - name: Configure CMake
       env:
