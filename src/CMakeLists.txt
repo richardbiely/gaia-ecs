@@ -50,7 +50,7 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
-  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang AND UNIX AND NOT APPLE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND UNIX AND NOT APPLE)
     # Use mold as the default linker for clang if possible
     find_program(MOLD_LINKER mold)
 
@@ -60,7 +60,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
     endif()
   endif()
 else()
-  if(${CMAKE_CXX_COMPILER_ID} MATCHES Clang AND UNIX AND NOT APPLE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND UNIX AND NOT APPLE)
     # Use mold as the default linker for clang if possible
     find_program(MOLD_LINKER mold)
 
@@ -96,7 +96,7 @@ else()
       # endif(LLD_PROGRAM_MATCH_VER)
     endif()
 
-  elseif(${CMAKE_CXX_COMPILER_ID} MATCHES GNU)
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     # Use gold as the default linker for GNU if possible
     find_program(GNU_GOLD_PROGRAM gold)
 
@@ -312,8 +312,6 @@ endif()
 
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    find_package(Catch2 CONFIG QUIET 3.7.1)
-
     if(NOT Catch2_FOUND)
       FetchContent_Declare(
         Catch2
@@ -329,6 +327,14 @@ if(GAIA_BUILD_UNITTEST)
     endif()
   else()
     find_package(Catch2 CONFIG REQUIRED 3.7.1)
+  endif()
+
+  # Special workaround for MSVC Clang-CL
+  add_library(GaiaCatch2 INTERFACE)
+  target_link_libraries(GaiaCatch2 INTERFACE Catch2::Catch2WithMain)
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
+    target_compile_options(GaiaCatch2 INTERFACE -Wno-nan-infinity-disabled)
   endif()
 endif()
 

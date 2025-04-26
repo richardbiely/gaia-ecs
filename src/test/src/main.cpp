@@ -11,14 +11,7 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 	#endif
 #endif
 
-// Disable "nan-infinity-disabled" to fix a compilation error on catch2 with MSVC Clang-cl:
-// use of infinity is undefined behavior due to the currently enabled floating-point options
-// [-Werror,-Wnan-infinity-disabled]
-GAIA_CLANG_WARNING_PUSH()
-GAIA_CLANG_WARNING_DISABLE("-Wnan-infinity-disabled")
 #include <catch2/catch_test_macros.hpp>
-GAIA_CLANG_WARNING_POP()
-
 #include <string>
 
 using namespace gaia;
