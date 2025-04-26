@@ -16,8 +16,6 @@ jobs:
             exe: g++-9
           - pkg: g++
             exe: g++
-          - pkg: clang-7
-            exe: clang++-7
           - pkg: clang-8
             exe: clang++-8
           - pkg: clang-9
@@ -62,8 +60,6 @@ jobs:
     strategy:
       matrix:
         compiler:
-          - pkg: clang-7
-            exe: clang++-7
           - pkg: clang-8
             exe: clang++-8
           - pkg: clang-9
