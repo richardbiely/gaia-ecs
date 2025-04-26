@@ -1285,7 +1285,7 @@ void sparse_storage_test(uint32_t N) {
 template <typename Container>
 void sparse_storage_test_tag(uint32_t N) {
 	constexpr uint32_t CONV = 100;
-	auto to_sid = [](uint32_t i) {
+	auto to_sid = [&](uint32_t i) {
 		return i * CONV;
 	};
 
