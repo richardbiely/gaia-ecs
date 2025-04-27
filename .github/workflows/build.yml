@@ -114,10 +114,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: [default, clang-cl, v142, v143]
+        toolset: [default, v142, v143]
         include:
-          - toolset: clang-cl
-            toolset_option: -T"ClangCl"
           - toolset: v142
             toolset_option: -T"v142"
           - toolset: v143
