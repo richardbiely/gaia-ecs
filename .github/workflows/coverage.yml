@@ -29,7 +29,7 @@ jobs:
         ${{github.workspace}}/build/src/test/gaia_test
     
     - name: Collect data
-      working-directory: ${{github.workspace}}/build/src/test/gaia_test
+      working-directory: ${{github.workspace}}/build/src/test
       run: |
         lcov -c -d . -o coverage.info --ignore-errors gcov,gcov,mismatch,mismatch
         lcov -l coverage.info
@@ -38,6 +38,6 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{secrets.CODECOV_TOKEN}}
-        files: ${{github.workspace}}/build/src/test/gaia_test/coverage.info
+        files: ${{github.workspace}}/build/src/test/coverage.info
         name: Gaia-ECS
         fail_ci_if_error: true
