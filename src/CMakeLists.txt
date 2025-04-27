@@ -332,10 +332,10 @@ if(GAIA_BUILD_UNITTEST)
   # Special workaround for MSVC Clang-CL
   add_library(GaiaCatch2 INTERFACE)
   target_link_libraries(GaiaCatch2 INTERFACE Catch2::Catch2WithMain)
-
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
-    target_compile_options(GaiaCatch2 INTERFACE -Wno-nan-infinity-disabled)
-  endif()
+  target_include_directories(GaiaCatch2 INTERFACE
+    SYSTEM
+    $<TARGET_PROPERTY:Catch2::Catch2WithMain,INTERFACE_INCLUDE_DIRECTORIES>
+  )
 endif()
 
 # Unit test
