@@ -9,7 +9,7 @@ find_package(Threads REQUIRED)
 target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
 
 # Unit test framework
-target_link_libraries(${PROJ_NAME} PRIVATE GaiaCatch2)
+target_link_libraries(${PROJ_NAME} PRIVATE Catch2::Catch2WithMain)
 
 # Project files
 target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)

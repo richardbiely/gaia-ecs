@@ -328,14 +328,6 @@ if(GAIA_BUILD_UNITTEST)
   else()
     find_package(Catch2 CONFIG REQUIRED 3.7.1)
   endif()
-
-  # Special workaround for MSVC Clang-CL
-  add_library(GaiaCatch2 INTERFACE)
-  target_link_libraries(GaiaCatch2 INTERFACE Catch2::Catch2WithMain)
-  target_include_directories(GaiaCatch2 INTERFACE
-    SYSTEM
-    $<TARGET_PROPERTY:Catch2::Catch2WithMain,INTERFACE_INCLUDE_DIRECTORIES>
-  )
 endif()
 
 # Unit test
