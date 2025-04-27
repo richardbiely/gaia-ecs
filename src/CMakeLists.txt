@@ -139,28 +139,6 @@ if(MSVC)
 
   enable_cxx_compiler_flag_if_supported("/permissive-")
 else()
-# MacOS
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-  # Workaround for the new linker starting with XCode 15
-  # https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking
-  # We need to use -Wl,-ld_classic for the linker for the backwards compatibility when buiding
-  # outside of XCode because they messed things up.
-  if(NOT CMAKE_GENERATOR MATCHES "Xcode")
-    # Make sure xcodebuild is installed. Otherwise we won't be able to tell is the workaround
-    # needs to be applied
-    find_program(XCODEBUILD_EXECUTABLE xcodebuild)
-
-    if(XCODEBUILD_EXECUTABLE)
-      execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERSION_STRING OUTPUT_STRIP_TRAILING_WHITESPACE)
-      string(REGEX MATCH "([0-9]+)\\.[0-9]+" XCODE_MAJOR_VERSION ${XCODE_VERSION_STRING})
-
-      if(XCODE_MAJOR_VERSION GREATER_EQUAL "15")
-        add_link_options("-Wl,-ld_classic")
-      endif()
-    endif()
-  endif()
-endif()
-
   # strictness rules
   # Tracy profiler is not written with strictness and warnings-as-errors in mind
   # so rather than reading spam in the build output we disable any strictness
