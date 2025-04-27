@@ -1,6 +1,24 @@
 name: coverage
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - '**/CMakeLists.txt'
+      - '**.cmake'
+      - 'build.yml'
+      - 'coverage.yml'
+  pull_request:
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - '**/CMakeLists.txt'
+      - '**.cmake'
+      - 'build.yml'
+      - 'coverage.yml'
 
 jobs:
   codecov:
@@ -39,5 +57,5 @@ jobs:
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         files: ${{github.workspace}}/build/src/test/coverage.info
-        name: Gaia-ECS
+        name: gaia-ecs
         fail_ci_if_error: true
