@@ -17,6 +17,7 @@ on:
       - '**/CMakeLists.txt'
       - '**.cmake'
       - 'build.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

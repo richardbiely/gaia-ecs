@@ -19,6 +19,7 @@ on:
       - '**.cmake'
       - 'build.yml'
       - 'coverage.yml'
+  workflow_dispatch:
 
 jobs:
   codecov:
