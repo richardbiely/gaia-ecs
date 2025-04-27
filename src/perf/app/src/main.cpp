@@ -654,12 +654,16 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NMany).label("1M");
 			r.run_benchmarks();
 			return 0;
-		} else if (sanitizerMode) {
+		}
+
+		if (sanitizerMode) {
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NFew).label("1K");
 			PICOBENCH_REG(BM_Run<true>).PICO_SETTINGS().user_data(NFew).label("1K");
 			r.run_benchmarks();
 			return 0;
-		} else {
+		}
+
+		{
 			PICOBENCH_SUITE_REG("AoS");
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NFew).label("1K");
 			PICOBENCH_REG(BM_Run<false>).PICO_SETTINGS().user_data(NMany).label("1M");

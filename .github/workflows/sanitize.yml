@@ -64,5 +64,5 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/perf/${{matrix.target.path}}
+        ${{github.workspace}}/build/src/perf/${{matrix.target.path}} -s
         

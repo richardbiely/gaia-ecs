@@ -298,7 +298,9 @@ int main(int argc, char* argv[]) {
 					.label("simple");
 			r.run_benchmarks();
 			return 0;
-		} else if (sanitizerMode) {
+		}
+
+		if (sanitizerMode) {
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_Schedule_ECS_Simple) //
 					.PICO_SETTINGS()
@@ -310,7 +312,9 @@ int main(int argc, char* argv[]) {
 					.label("complex");
 			r.run_benchmarks();
 			return 0;
-		} else {
+		}
+
+		{
 			////////////////////////////////////////////////////////////////////////////////////////////////
 			// Following benchmarks should scale linearly with the number of threads added.
 			// If the CPU has enough threads of equal processing power available and the performance
