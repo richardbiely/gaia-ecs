@@ -1,0 +1,64 @@
+name: build
+
+on:
+  push:
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - '**/CMakeLists.txt'
+      - '**.cmake'
+      - 'build.yml'
+  pull_request:
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - '**/CMakeLists.txt'
+      - '**.cmake'
+      - 'build.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-linux:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        sani_type: [addr, mem]
+        include:
+          - toolset: addr
+            toolset_option: "'Address;Undefined'"
+          - toolset: mem
+            toolset_option: "'MemoryWithOrigins'"
+        build_type: [RelWithDebInfo, Debug]
+        target:
+          - { path: entity, exe: gaia_perf_entity }
+          - { path: iter, exe: gaia_perf_iter }
+          - { path: duel, exe: gaia_perf_duel }
+          - { path: app, exe: gaia_perf_app }
+          - { path: mt, exe: gaia_perf_mt }
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      env:
+        CXX: clang++
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_SANITIZER=${{matrix.sani_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_GENERATE_CC=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -S . -B ${{github.workspace}}/build/${{matrix.build_type}}
+
+    - name: Build
+      env:
+        CXX: clang++
+      run: |
+        cmake --build ${{github.workspace}}/build/${{matrix.build_type}} --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: 
+      run: |
+        ${{github.workspace}}/build/${{matrix.build_type}}/src/perf/${{matrix.target.path}}/${{matrix.target.exe}}"
