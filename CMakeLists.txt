@@ -70,6 +70,9 @@ option(GAIA_ECS_CHUNK_ALLOCATOR "If enabled, custom allocator is used for alloca
 option(GAIA_FORCE_DEBUG "If enabled, GAIA_DEBUG will be defined despite using the optimized build configuration." OFF)
 option(GAIA_DISABLE_ASSERTS "If enabled, no asserts will be thrown even in debug builds." OFF)
 
+# Special
+option(GAIA_MACOS_BUILD_HACK "If enabled, a special way to link executables is used to address linker issues. MacOS-specific. Ignored on other platform." OFF)
+
 if(GAIA_BUILD_UNITTEST)
     set(GAIA_BUILD_SRC ON)
 elseif(GAIA_BUILD_BENCHMARK)
