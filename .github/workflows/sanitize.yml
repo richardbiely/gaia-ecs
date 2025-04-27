@@ -37,11 +37,11 @@ jobs:
             sani_type_option: "'MemoryWithOrigins'"
         build_type: [RelWithDebInfo, Debug]
         target:
-          - { path: entity, exe: gaia_perf_entity }
-          - { path: iter, exe: gaia_perf_iter }
-          - { path: duel, exe: gaia_perf_duel }
-          - { path: app, exe: gaia_perf_app }
-          - { path: mt, exe: gaia_perf_mt }
+          - { path: "entity/gaia_perf_entity" }
+          - { path: "iter/gaia_perf_iter" }
+          - { path: "duel/gaia_perf_duel" }
+          - { path: "app/gaia_perf_app" }
+          - { path: "mt/gaia_perf_mt" }
     runs-on: ubuntu-latest
 
     steps:
@@ -64,4 +64,5 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/perf/${{matrix.target.path}}/${{matrix.target.exe}}"
+        ${{github.workspace}}/build/src/perf/${{matrix.target.path}}
+        
