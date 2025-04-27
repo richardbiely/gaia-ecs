@@ -1,4 +1,4 @@
-FROM amd64/ubuntu:20.04
+FROM amd64/ubuntu:22.04
 
 ENV LANG=C.UTF-8
 ARG DEBIAN_FRONTEND=noninteractive
