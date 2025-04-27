@@ -34,14 +34,20 @@ struct Dummy {
 	int value[24];
 };
 
-auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArchetype) {
+template <bool FillWithManyEntities>
+auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArchetype, ecs::Entity* specialEntity) {
 	GAIA_PROF_SCOPE(create_archetypes);
 
 	GAIA_ASSERT(archetypes > 0);
 	GAIA_ASSERT(maxIdsPerArchetype > 0);
 
+	// One entity that is going to be present everywhere.
+	if (specialEntity != nullptr)
+		*specialEntity = w.add();
+
 	TBenchmarkTypes types;
-	GAIA_FOR(archetypes) types.push_back(w.add());
+	types.resize(archetypes);
+	GAIA_FOR(archetypes) types[i] = w.add();
 
 	// Each archetype can contain only so many components.
 	// Therefore, we will be creating archetypes with up to "maxIdsPerArchetype" ones.
@@ -51,14 +57,20 @@ auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArc
 	GAIA_FOR(archetypes) {
 		if (i % maxIdsPerArchetype == 0) {
 			if (i != 0) {
-				GAIA_FOR_(EntitiesPerArchetype - 1U, j)(void) w.copy(e);
+				if constexpr (FillWithManyEntities) {
+					GAIA_FOR_(EntitiesPerArchetype - 1U, j)(void) w.copy(e);
+				} else {
+					(void)w.copy(e);
+				}
 			}
 
 			++group;
 			e = w.add();
+			if (specialEntity != nullptr)
+				w.add(e, *specialEntity);
 		}
 
-		w.add(e, types[(i % maxIdsPerArchetype) + group * maxIdsPerArchetype]);
+		w.add(e, types[(i % maxIdsPerArchetype) + (group * maxIdsPerArchetype)]);
 	}
 
 	return types;
@@ -66,7 +78,15 @@ auto create_archetypes(ecs::World& w, uint32_t archetypes, uint32_t maxIdsPerArc
 
 void prepare_query_types(ecs::EntitySpan in, ecs::EntitySpanMut out) {
 	const auto size = (uint32_t)out.size();
-	GAIA_FOR(size) {
+	GAIA_FOR2(0, size) {
+		out[i] = (const ecs::Entity)in[i];
+	}
+}
+
+void prepare_query_types(ecs::Entity specialEntity, ecs::EntitySpan in, ecs::EntitySpanMut out) {
+	const auto size = (uint32_t)out.size();
+	out[0] = specialEntity;
+	GAIA_FOR2(1, size) {
 		out[i] = (const ecs::Entity)in[i];
 	}
 }
@@ -140,13 +160,14 @@ void acc_view(ecs::Iter& it, uint32_t idx) {
 	auto v = it.template view<T>(idx);
 	const auto* d = v.data();
 	gaia::dont_optimize(d);
-};
+}
+
 template <typename T>
 void acc_view(ecs::Iter& it) {
 	auto v = it.template view<T>();
 	const auto* d = v.data();
 	gaia::dont_optimize(d);
-};
+}
 
 template <uint32_t NViews, bool ViewWithIndex>
 void bench_query_each_view(picobench::state& state, ecs::World& w) {
@@ -206,13 +227,14 @@ void bench_query_each_view(picobench::state& state, ecs::World& w) {
 }
 
 template <bool UseCachedQuery, uint32_t QueryComponents>
-void bench_build_query(picobench::state& state, ecs::World& w) {
+void bench_build_query(picobench::state& state, ecs::World& w, ecs::EntitySpan types, ecs::Entity specialEntity) {
 	GAIA_PROF_SCOPE(bench_build_query);
 
-	ecs::Entity tmp[QueryComponents];
-	GAIA_FOR(QueryComponents) tmp[i] = w.add();
-
 	state.stop_timer();
+
+	ecs::Entity tmp[QueryComponents + 1];
+	prepare_query_types(specialEntity, {types.data(), types.size()}, tmp);
+
 	for (auto _: state) {
 		GAIA_PROF_SCOPE(update);
 		(void)_;
@@ -229,10 +251,10 @@ void bench_build_query(picobench::state& state, ecs::World& w) {
 template <bool UseCachedQuery, uint32_t QueryComponents>
 void BM_BuildQuery(picobench::state& state) {
 	ecs::World w;
+	ecs::Entity specialEntity;
 	// Create some archetypes for a good measure
-	create_archetypes(w, 1000, 10);
-	// Build queries
-	bench_build_query<UseCachedQuery, QueryComponents>(state, w);
+	auto types = create_archetypes<false>(w, 10000, 10, &specialEntity);
+	bench_build_query<UseCachedQuery, QueryComponents>(state, w, types, specialEntity);
 }
 
 #define DEFINE_BUILD_QUERY(QueryComponents)                                                                            \
@@ -260,8 +282,8 @@ DEFINE_BUILD_QUERY_U(7)
 	void BM_Each_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                                         \
 		GAIA_PROF_SCOPE(BM_Each_##ArchetypeCount##_##QueryComponents);                                                     \
 		ecs::World w;                                                                                                      \
-		auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);                                             \
-		ecs::Entity tmp[QueryComponents];                                                                                  \
+		auto types = create_archetypes<true>(w, ArchetypeCount, MaxIdsPerArchetype, nullptr);                              \
+		ecs::Entity tmp[(QueryComponents) + 1];                                                                            \
 		prepare_query_types({types.data(), types.size()}, tmp);                                                            \
 		auto query = create_query<true>(w, tmp);                                                                           \
 		bench_query_each(state, query);                                                                                    \
@@ -274,8 +296,8 @@ DEFINE_EACH(1000, 10, 1)
 template <bool UseCachedQuery, uint32_t QueryComponents, typename IterKind>
 void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t MaxIdsPerArchetype) {
 	ecs::World w;
-	auto types = create_archetypes(w, ArchetypeCount, MaxIdsPerArchetype);
-	ecs::Entity tmp[QueryComponents];
+	auto types = create_archetypes<true>(w, ArchetypeCount, MaxIdsPerArchetype, nullptr);
+	ecs::Entity tmp[QueryComponents + 1];
 	prepare_query_types({types.data(), types.size()}, tmp);
 	auto query = create_query<UseCachedQuery>(w, tmp);
 	bench_query_each_iter<IterKind>(state, query);
@@ -286,7 +308,7 @@ void BM_Each_View(picobench::state& state) {
 	ecs::World w;
 
 	// Create some archetypes for a good measure
-	create_archetypes(w, 1000, 10);
+	create_archetypes<true>(w, 1000, 10, nullptr);
 
 	// Register our components. The order is random so it does not match
 	// the order in queries.
@@ -388,28 +410,28 @@ DEFINE_EACH_ITER(IterAll, 100, 10, 1)
 DEFINE_EACH_ITER(Iter, 100, 10, 1)
 DEFINE_EACH_U_ITER(Iter, 100, 10, 1)
 
-DEFINE_EACH_ITER(IterAll, 1000, 10, 1);
+DEFINE_EACH_ITER(IterAll, 1000, 10, 1)
 DEFINE_EACH_ITER(Iter, 1000, 10, 1)
 DEFINE_EACH_U_ITER(Iter, 1000, 10, 1)
 
-DEFINE_EACH_ITER(Iter, 1000, 10, 3);
-DEFINE_EACH_ITER(Iter, 1000, 10, 5);
-DEFINE_EACH_ITER(Iter, 1000, 10, 7);
+DEFINE_EACH_ITER(Iter, 1000, 10, 3)
+DEFINE_EACH_ITER(Iter, 1000, 10, 5)
+DEFINE_EACH_ITER(Iter, 1000, 10, 7)
 
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 3);
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 5);
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 7);
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 3)
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 5)
+DEFINE_EACH_U_ITER(Iter, 1000, 10, 7)
 
-DEFINE_EACH_VIEW(1, false);
-DEFINE_EACH_VIEW(1, true);
-DEFINE_EACH_VIEW(2, false);
-DEFINE_EACH_VIEW(2, true);
-DEFINE_EACH_VIEW(3, false);
-DEFINE_EACH_VIEW(3, true);
-DEFINE_EACH_VIEW(4, false);
-DEFINE_EACH_VIEW(4, true);
-DEFINE_EACH_VIEW(5, false);
-DEFINE_EACH_VIEW(5, true);
+DEFINE_EACH_VIEW(1, false)
+DEFINE_EACH_VIEW(1, true)
+DEFINE_EACH_VIEW(2, false)
+DEFINE_EACH_VIEW(2, true)
+DEFINE_EACH_VIEW(3, false)
+DEFINE_EACH_VIEW(3, true)
+DEFINE_EACH_VIEW(4, false)
+DEFINE_EACH_VIEW(4, true)
+DEFINE_EACH_VIEW(5, false)
+DEFINE_EACH_VIEW(5, true)
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
@@ -454,12 +476,16 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("Iter, 7 comps");
 			r.run_benchmarks();
 			return 0;
-		} else if (sanitizerMode) {
+		}
+
+		if (sanitizerMode) {
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS_SANI().label("Iter, 7 comps");
 			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS_SANI().label("(u) 7 comps"); // uncached
 			r.run_benchmarks();
 			return 0;
-		} else {
+		}
+
+		{
 			PICOBENCH_SUITE_REG("1 archetype");
 			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");
 			PICOBENCH_REG(BM_Each_IterAll_1_1).PICO_SETTINGS().label("IterAll, 1 comp");
