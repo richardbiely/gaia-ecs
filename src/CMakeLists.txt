@@ -139,27 +139,27 @@ if(MSVC)
 
   enable_cxx_compiler_flag_if_supported("/permissive-")
 else()
-  # MacOS
-  if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-    # Workaround for the new linker starting with XCode 15
-    # https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking
-    # We need to use -Wl,-ld_classic for the linker for the backwards compatibility when buiding
-    # outside of XCode because they messed things up.
-    if(NOT CMAKE_GENERATOR MATCHES "Xcode")
-      # Make sure xcodebuild is installed. Otherwise we won't be able to tell is the workaround
-      # needs to be applied
-      find_program(XCODEBUILD_EXECUTABLE xcodebuild)
+# MacOS
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+  # Workaround for the new linker starting with XCode 15
+  # https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking
+  # We need to use -Wl,-ld_classic for the linker for the backwards compatibility when buiding
+  # outside of XCode because they messed things up.
+  if(NOT CMAKE_GENERATOR MATCHES "Xcode")
+    # Make sure xcodebuild is installed. Otherwise we won't be able to tell is the workaround
+    # needs to be applied
+    find_program(XCODEBUILD_EXECUTABLE xcodebuild)
 
-      if(XCODEBUILD_EXECUTABLE)
-        execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERSION_STRING OUTPUT_STRIP_TRAILING_WHITESPACE)
-        string(REGEX MATCH "([0-9]+)\\.[0-9]+" XCODE_MAJOR_VERSION ${XCODE_VERSION_STRING})
+    if(XCODEBUILD_EXECUTABLE)
+      execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERSION_STRING OUTPUT_STRIP_TRAILING_WHITESPACE)
+      string(REGEX MATCH "([0-9]+)\\.[0-9]+" XCODE_MAJOR_VERSION ${XCODE_VERSION_STRING})
 
-        if(XCODE_MAJOR_VERSION GREATER_EQUAL "15")
-          add_link_options("-Wl,-ld_classic")
-        endif()
+      if(XCODE_MAJOR_VERSION GREATER_EQUAL "15")
+        add_link_options("-Wl,-ld_classic")
       endif()
     endif()
   endif()
+endif()
 
   # strictness rules
   # Tracy profiler is not written with strictness and warnings-as-errors in mind
@@ -296,13 +296,13 @@ endif()
 
 if(GAIA_BUILD_BENCHMARK)
   if(IS_FETCH_AVAILABLE)
-    find_package(picobench CONFIG QUIET 2.07)
+    find_package(picobench CONFIG QUIET 2.08)
 
     if(NOT picobench_FOUND)
       FetchContent_Declare(
         picobench
         GIT_REPOSITORY https://github.com/iboB/picobench.git
-        GIT_TAG v2.07
+        GIT_TAG v2.08
       )
 
       FetchContent_MakeAvailable(picobench)
@@ -316,7 +316,7 @@ if(GAIA_BUILD_UNITTEST)
       FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.7.1
+        GIT_TAG v3.8.1
       )
 
       set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON CACHE BOOL "CATCH_CONFIG_DISABLE_STRINGIFICATION override")
@@ -326,7 +326,7 @@ if(GAIA_BUILD_UNITTEST)
       list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
     endif()
   else()
-    find_package(Catch2 CONFIG REQUIRED 3.7.1)
+    find_package(Catch2 CONFIG REQUIRED 3.8.1)
   endif()
 endif()
 
