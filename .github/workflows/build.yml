@@ -175,7 +175,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_MACOS_BUILD_HACK=ON -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
