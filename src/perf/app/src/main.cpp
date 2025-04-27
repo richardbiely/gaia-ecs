@@ -44,7 +44,7 @@ namespace components {
 	};
 
 	struct DataComponent {
-		inline static constexpr uint32_t DefaultSeed = 340383L;
+		static constexpr uint32_t DefaultSeed = 340383L;
 
 		int thingy{0};
 		double dingy{0.0};
@@ -173,23 +173,27 @@ namespace sys {
 	using namespace ::components;
 
 	void init_DamageSystem(ecs::World& world) {
-		world.system().all<HealthComponent>().all<DamageComponent>().on_each([&](ecs::Iter& it) {
-			auto health = it.view_mut<HealthComponent>(0);
-			auto damage = it.view<DamageComponent>(1);
-			auto update = [](HealthComponent& health, const DamageComponent& damage) {
-				const int totalDamage = core::get_max(damage.atk - damage.def, 0);
-				health.hp -= totalDamage;
-			};
+		world
+				.system() //
+				.all<HealthComponent>()
+				.all<DamageComponent>()
+				.on_each([](ecs::Iter& it) {
+					auto health = it.view_mut<HealthComponent>(0);
+					auto damage = it.view<DamageComponent>(1);
+					auto update = [](HealthComponent& health, const DamageComponent& damage) {
+						const int totalDamage = core::get_max(damage.atk - damage.def, 0);
+						health.hp -= totalDamage;
+					};
 
-			const auto cnt = it.size();
-			GAIA_FOR(cnt) update(health[i], damage[i]);
-		});
+					const auto cnt = it.size();
+					GAIA_FOR(cnt) update(health[i], damage[i]);
+				});
 	}
 
 	void init_DataSystem(ecs::World& world) {
 		world.system()
 				.all<DataComponent>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto data = it.view_mut<DataComponent>(0);
 					auto update = [](DataComponent& data) {
 						data.thingy = (data.thingy + 1) % 1'000'000;
@@ -207,7 +211,7 @@ namespace sys {
 	void init_HealthSystem(ecs::World& world) {
 		world.system()
 				.all<HealthComponent>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto health = it.view_mut<HealthComponent>(0);
 					const auto cnt = it.size();
 					GAIA_FOR(cnt) updateHealth(health[i]);
@@ -220,7 +224,7 @@ namespace sys {
 				.all<PositionComponent>()
 				.all<VelocityComponent&>()
 				.all<DataComponent&>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto position = it.view<PositionComponent>(0);
 					auto direction = it.view_mut<VelocityComponent>(1);
 					auto data = it.view_mut<DataComponent>(2);
@@ -246,7 +250,7 @@ namespace sys {
 				.all<SoAPositionComponent>()
 				.all<SoAVelocityComponent&>()
 				.all<DataComponent&>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto vp = it.view<SoAPositionComponent>(0); // read-only access to PositionSoA
 					auto px = vp.get<0>(); // continuous block of "x" from PositionSoA
 					auto py = vp.get<1>(); // continuous block of "y" from PositionSoA
@@ -277,7 +281,7 @@ namespace sys {
 		world.system()
 				.all<PositionComponent>()
 				.all<VelocityComponent>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto position = it.view_mut<PositionComponent>(0);
 					auto direction = it.view<VelocityComponent>(1);
 
@@ -294,7 +298,7 @@ namespace sys {
 		world.system()
 				.all<SoAPositionComponent>()
 				.all<SoAVelocityComponent>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto vp = it.view_mut<SoAPositionComponent>(0); // read-write access to PositionSoA
 					auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
 					auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
@@ -352,7 +356,7 @@ namespace sys {
 				.all<SpriteComponent>()
 				.all<PlayerComponent>()
 				.all<HealthComponent>()
-				.on_each([&](ecs::Iter& it) {
+				.on_each([](ecs::Iter& it) {
 					auto sprite = it.view_mut<SpriteComponent>(0);
 					auto player = it.view<PlayerComponent>(1);
 					auto health = it.view<HealthComponent>(2);

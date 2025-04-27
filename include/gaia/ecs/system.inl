@@ -29,13 +29,13 @@ namespace gaia {
 			using TSystemIterFunc = std::function<void(Iter&)>;
 
 			//! Entity identifying the system
-			Entity entity;
+			Entity entity = EntityBad;
 			//! Called every time system is allowed to tick
 			TSystemIterFunc on_each_func;
 			//! Query associated with the system
 			Query query;
 			//! Execution type
-			QueryExecType execType;
+			QueryExecType execType = QueryExecType::Default;
 			//! Query job dependency handle
 			mt::JobHandle m_jobHandle = mt::JobNull;
 
@@ -110,7 +110,7 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
-			QueryExecType m_execType;
+			QueryExecType m_execType = QueryExecType::Default;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
