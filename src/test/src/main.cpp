@@ -5174,6 +5174,19 @@ TEST_CASE("Enable") {
 		wld.enable(arr[1], true);
 		REQUIRE(wld.enabled(arr[0]));
 		REQUIRE(wld.enabled(arr[1]));
+
+		//
+
+		wld.enable(arr[0], false);
+		REQUIRE_FALSE(wld.enabled(arr[0]));
+		wld.del(arr[0]);
+		REQUIRE_FALSE(wld.has(arr[0]));
+
+		REQUIRE(wld.enabled(arr[1]));
+		wld.enable(arr[1], false);
+		REQUIRE_FALSE(wld.enabled(arr[1]));
+		wld.del(arr[1]);
+		REQUIRE_FALSE(wld.has(arr[1]));
 	}
 
 	SECTION("State persistence") {
