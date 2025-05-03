@@ -2770,6 +2770,27 @@ TEST_CASE("Compile-time sort descending") {
 	sort_descending<false>(cnt::sarray<uint32_t, 18>{});
 }
 
+TEST_CASE("Run-time sort descending") {
+	sort_descending<true>(cnt::sarray<uint32_t, 2>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 3>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 4>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 5>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 6>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 7>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 8>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 9>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 10>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 11>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 12>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 13>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 14>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 15>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 16>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 17>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 18>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 45>{});
+}
+
 TEST_CASE("Compile-time sort ascending") {
 	sort_ascending<false>(cnt::sarray<uint32_t, 2>{});
 	sort_ascending<false>(cnt::sarray<uint32_t, 3>{});
@@ -2790,18 +2811,24 @@ TEST_CASE("Compile-time sort ascending") {
 	sort_ascending<false>(cnt::sarray<uint32_t, 18>{});
 }
 
-TEST_CASE("Run-time sort - sorting network") {
-	sort_descending<true>(cnt::sarray<uint32_t, 5>{});
+TEST_CASE("Run-time sort ascending") {
+	sort_ascending<true>(cnt::sarray<uint32_t, 2>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 3>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 4>{});
 	sort_ascending<true>(cnt::sarray<uint32_t, 5>{});
-}
-
-TEST_CASE("Run-time sort - bubble sort") {
-	sort_descending<true>(cnt::sarray<uint32_t, 15>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 6>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 7>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 8>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 9>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 10>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 11>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 12>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 13>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 14>{});
 	sort_ascending<true>(cnt::sarray<uint32_t, 15>{});
-}
-
-TEST_CASE("Run-time sort - quick sort") {
-	sort_descending<true>(cnt::sarray<uint32_t, 45>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 16>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 17>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 18>{});
 	sort_ascending<true>(cnt::sarray<uint32_t, 45>{});
 }
 
