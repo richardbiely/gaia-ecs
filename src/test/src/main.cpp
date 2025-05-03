@@ -7577,6 +7577,22 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
+	SECTION("Entity creation from a to-be-created entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		auto mainEntity = cb.add();
+
+		const uint32_t N = 100;
+		GAIA_FOR(N) {
+			[[maybe_unused]] auto tmp = cb.copy(mainEntity);
+		}
+
+		cb.commit();
+
+		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
+	}
+
 	SECTION("Entity creation from another entity with a component") {
 		{
 			TestWorld twld;
@@ -7696,17 +7712,87 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(wld.has<Position>(e));
 	}
 
+	SECTION("Delayed component addition (via entity) to an existing entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		auto p = wld.add<Position>().entity;
+
+		auto e = wld.add();
+		cb.add(e, p);
+		REQUIRE_FALSE(wld.has(e, p));
+		cb.commit();
+		REQUIRE(wld.has(e, p));
+	}
+
+	SECTION("Delayed entity addition to an existing entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		auto e = wld.add(); // core + 1
+		const auto s = wld.size();
+		auto tmp = cb.add();
+		REQUIRE(wld.size() == s); // no new added entity
+		cb.add(e, tmp);
+		cb.commit();
+		REQUIRE(wld.size() == s + 1); // new entity added
+
+		auto e2 = wld.get(s); // core + e + new entity
+		REQUIRE(wld.has(e, e2));
+	}
+
 	SECTION("Delayed component addition to a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
-		auto tmp = cb.add(); // core + 0 (no new entity created yet)
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1);
-		cb.add<Position>(tmp);
-		cb.commit();
+		const auto s = wld.size();
 
-		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		auto tmp = cb.add(); // no new entity created yet
+		REQUIRE(wld.size() == s);
+		cb.add<Position>(tmp); // component entity created
+		REQUIRE(wld.size() == s + 1);
+		cb.commit();
+		REQUIRE(wld.size() == s + 2);
+
+		auto e = wld.get(s + 1); // position + new entity
 		REQUIRE(wld.has<Position>(e));
+	}
+
+	SECTION("Delayed component addition (via entity) to a to-be-created entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto s = wld.size();
+		auto p = wld.add<Position>().entity;
+		REQUIRE(wld.size() == s + 1);
+
+		auto tmp = cb.add(); // no new entity created yet
+		REQUIRE(wld.size() == s + 1);
+		cb.add(tmp, p);
+		REQUIRE(wld.size() == s + 1);
+		cb.commit();
+		REQUIRE(wld.size() == s + 2);
+
+		auto e = wld.get(s + 1); // core + position + new entity
+		REQUIRE(wld.has(e, p));
+	}
+
+	SECTION("Delayed entity addition to a to-be-created entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		const auto s = wld.size();
+		auto tmpA = cb.add();
+		auto tmpB = cb.add(); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == s);
+		cb.add(tmpA, tmpB);
+		REQUIRE(wld.size() == s);
+		cb.commit();
+		REQUIRE(wld.size() == s + 2);
+
+		auto e1 = wld.get(s);
+		auto e2 = wld.get(s + 1);
+		REQUIRE(wld.has(e1, e2));
 	}
 
 	SECTION("Delayed component setting of an existing entity") {
@@ -7760,14 +7846,17 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		const auto s = wld.size();
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		REQUIRE(wld.size() == s);
 
 		cb.add<Position>(tmp);
+		REQUIRE(wld.size() == s + 1);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
+		REQUIRE(wld.size() == s + 2);
 
-		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		auto e = wld.get(s + 1); // core + position + new entity
 		REQUIRE(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
@@ -7918,6 +8007,19 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(s1.value == StringComponentDefaultValue);
 		auto s2 = wld.get<StringComponent2>(e);
 		REQUIRE(s2.value == StringComponent2DefaultValue);
+	}
+
+	SECTION("Delayed entity deletion") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		auto e = wld.add();
+
+		cb.del(e);
+		REQUIRE(wld.has(e));
+
+		cb.commit();
+		REQUIRE_FALSE(wld.has(e));
 	}
 }
 

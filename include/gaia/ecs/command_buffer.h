@@ -67,6 +67,7 @@ namespace gaia {
 					CREATE_ENTITY,
 					CREATE_ENTITY_FROM_ARCHETYPE,
 					CREATE_ENTITY_FROM_ENTITY,
+					CREATE_ENTITY_FROM_TEMPENTITY,
 					DELETE_ENTITY,
 					ADD_COMPONENT,
 					ADD_COMPONENT_10,
@@ -101,6 +102,21 @@ namespace gaia {
 					Entity entity;
 
 					void commit(CommandBufferCtx& ctx) const {
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.copy(entity));
+						GAIA_ASSERT(res.second);
+					}
+				};
+				struct CreateEntityFromTempEntityCmd: CommandBufferCmd {
+					TempEntity tempEntity;
+
+					void commit(CommandBufferCtx& ctx) const {
+						// For delayed entities we have to do a look in our map
+						// of temporaries and find a link there
+						const auto it = ctx.entityMap.find(tempEntity.id);
+						// Link has to exist!
+						GAIA_ASSERT(it != ctx.entityMap.end());
+
+						Entity entity = it->second;
 						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.copy(entity));
 						GAIA_ASSERT(res.second);
 					}
@@ -400,6 +416,21 @@ namespace gaia {
 					return {m_entities++};
 				}
 
+				//! Requests a new entity to be created by cloning an already existing entity
+				//! \return Entity that will be created. The id is not usable right away. It
+				//!         will be filled with proper data after commit()
+				GAIA_NODISCARD TempEntity copy(TempEntity entityFrom) {
+					core::lock_scope lock(m_acc);
+
+					m_ctx.save(CREATE_ENTITY_FROM_TEMPENTITY);
+
+					CreateEntityFromTempEntityCmd cmd;
+					cmd.tempEntity = entityFrom;
+					ser::save(m_ctx, cmd);
+
+					return {m_entities++};
+				}
+
 				//! Requests an existing \param entity to be removed.
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
@@ -634,6 +665,12 @@ namespace gaia {
 						// CREATE_ENTITY_FROM_ENTITY
 						[](CommandBufferCtx& ctx) {
 							CreateEntityFromEntityCmd cmd;
+							ser::load(ctx, cmd);
+							cmd.commit(ctx);
+						},
+						// CREATE_ENTITY_FROM_TEMPENTITY
+						[](CommandBufferCtx& ctx) {
+							CreateEntityFromTempEntityCmd cmd;
 							ser::load(ctx, cmd);
 							cmd.commit(ctx);
 						},
