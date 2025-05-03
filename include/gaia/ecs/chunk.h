@@ -399,7 +399,6 @@ namespace gaia {
 #endif
 
 				--m_header.count;
-				--m_header.countEnabled;
 			}
 
 			//! Updates the version numbers for this chunk.
@@ -891,6 +890,9 @@ namespace gaia {
 					// If this was the first enabled entity make sure to update the row
 					if (m_header.rowFirstEnabledEntity > 0 && row == m_header.rowFirstEnabledEntity)
 						--m_header.rowFirstEnabledEntity;
+					// At this point the last entity is no longer valid so remove it
+					remove_last_entity();
+					--m_header.countEnabled;
 				} else {
 					// Entity was previously disabled. Swap with the last disabled entity
 					const uint16_t pivot = size_disabled() - 1;
@@ -898,10 +900,9 @@ namespace gaia {
 					// Once swapped, try to swap with the last (enabled) entity in the chunk.
 					remove_entity_inter(pivot, recs);
 					--m_header.rowFirstEnabledEntity;
+					// At this point the last entity is no longer valid so remove it
+					remove_last_entity();
 				}
-
-				// At this point the last entity is no longer valid so remove it
-				remove_last_entity();
 			}
 
 			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.

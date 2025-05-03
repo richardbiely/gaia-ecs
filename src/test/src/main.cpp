@@ -5174,19 +5174,6 @@ TEST_CASE("Enable") {
 		wld.enable(arr[1], true);
 		REQUIRE(wld.enabled(arr[0]));
 		REQUIRE(wld.enabled(arr[1]));
-
-		//
-
-		wld.enable(arr[0], false);
-		REQUIRE_FALSE(wld.enabled(arr[0]));
-		wld.del(arr[0]);
-		REQUIRE_FALSE(wld.has(arr[0]));
-
-		REQUIRE(wld.enabled(arr[1]));
-		wld.enable(arr[1], false);
-		REQUIRE_FALSE(wld.enabled(arr[1]));
-		wld.del(arr[1]);
-		REQUIRE_FALSE(wld.has(arr[1]));
 	}
 
 	SECTION("State persistence") {
@@ -5281,6 +5268,28 @@ TEST_CASE("Enable") {
 			wld.enable(arr[999], true);
 			wld.enable(arr[1400], true);
 			checkQuery(N, N, 0);
+		}
+
+		SECTION("Delete") {
+			wld.del(arr[0]);
+			REQUIRE_FALSE(wld.has(arr[0]));
+			checkQuery(N - 1, N - 1, 0);
+
+			wld.del(arr[10]);
+			REQUIRE_FALSE(wld.has(arr[10]));
+			checkQuery(N - 2, N - 2, 0);
+
+			wld.enable(arr[1], false);
+			REQUIRE_FALSE(wld.enabled(arr[1]));
+			wld.del(arr[1]);
+			REQUIRE_FALSE(wld.has(arr[1]));
+			checkQuery(N - 3, N - 3, 0);
+
+			wld.enable(arr[1000], false);
+			REQUIRE_FALSE(wld.enabled(arr[1000]));
+			wld.del(arr[1000]);
+			REQUIRE_FALSE(wld.has(arr[1000]));
+			checkQuery(N - 4, N - 4, 0);
 		}
 	}
 
