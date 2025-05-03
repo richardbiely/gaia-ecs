@@ -76,11 +76,8 @@ namespace gaia {
 
 #if GAIA_PLATFORM_WINDOWS
 				[[maybe_unused]] LONG prev = 0;
-				BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
-				if (res == 0) {
-					DWORD err = ::GetLastError();
-					(void)err;
-				}
+				[[maybe_unused]] BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
+				GAIA_ASSERT(res != 0);
 #elif GAIA_PLATFORM_APPLE
 				do {
 					dispatch_semaphore_signal(m_handle);

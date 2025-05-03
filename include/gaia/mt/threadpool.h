@@ -251,8 +251,8 @@ namespace gaia {
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
+			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
@@ -273,8 +273,8 @@ namespace gaia {
 				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
+			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
 			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
 			//!       This is the function to call after job handles states were reset and their reused is wanted.
 			//! \warning Must be used from the main thread.
@@ -1072,7 +1072,6 @@ namespace gaia {
 									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 
-		private:
 			void signal_edges(JobContainer& jobData) {
 				const auto max = jobData.edges.depCnt;
 
@@ -1192,7 +1191,7 @@ namespace gaia {
 
 				// Signal the edges and release memory allocated for them if possible
 				signal_edges(jobData);
-				m_jobManager.free_edges(jobData);
+				JobManager::free_edges(jobData);
 
 				// Signal we finished
 				ctx->event.set();

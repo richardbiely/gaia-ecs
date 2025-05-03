@@ -16186,7 +16186,6 @@ namespace gaia {
 				jc.idx = index;
 				jc.gen = generation;
 				jc.prio = ctx->priority;
-				jc.state.store(0);
 
 				return jc;
 			}
@@ -16266,8 +16265,13 @@ namespace gaia {
 			}
 
 			static void free_edges(JobContainer& jobData) {
-				if (jobData.edges.depCnt > 1)
-					mem::AllocHelper::free(jobData.edges.pDeps);
+				// We only allocate an array for 2 and more dependencies
+				if (jobData.edges.depCnt <= 1)
+					return;
+
+				mem::AllocHelper::free(jobData.edges.pDeps);
+				// jobData.edges.depCnt = 0;
+				// jobData.edges.pDeps = nullptr;
 			}
 
 			//! Makes \param jobSecond depend on \param jobFirst.
@@ -16431,9 +16435,9 @@ namespace gaia {
 					if (isPow2) {
 						if (depCnt0 == 1) {
 							// If the following assert is hit we probably set the same dependency twice
-							GAIA_ASSERT(firstData.edges.pDeps == nullptr);
+							auto prev = firstData.edges.dep;
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
-							firstData.edges.pDeps[0] = firstData.edges.dep;
+							firstData.edges.pDeps[0] = prev;
 						} else {
 							auto* pPrev = firstData.edges.pDeps;
 							// TODO: Use custom allocator
@@ -16566,11 +16570,8 @@ namespace gaia {
 
 #if GAIA_PLATFORM_WINDOWS
 				[[maybe_unused]] LONG prev = 0;
-				BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
-				if (res == 0) {
-					DWORD err = ::GetLastError();
-					(void)err;
-				}
+				[[maybe_unused]] BOOL res = ::ReleaseSemaphore(m_handle, count, &prev);
+				GAIA_ASSERT(res != 0);
 #elif GAIA_PLATFORM_APPLE
 				do {
 					dispatch_semaphore_signal(m_handle);
@@ -16902,8 +16903,8 @@ namespace gaia {
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
+			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
@@ -16924,8 +16925,8 @@ namespace gaia {
 				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
+			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
 			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
 			//!       This is the function to call after job handles states were reset and their reused is wanted.
 			//! \warning Must be used from the main thread.
@@ -17723,7 +17724,6 @@ namespace gaia {
 									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
 			}
 
-		private:
 			void signal_edges(JobContainer& jobData) {
 				const auto max = jobData.edges.depCnt;
 
@@ -17843,7 +17843,7 @@ namespace gaia {
 
 				// Signal the edges and release memory allocated for them if possible
 				signal_edges(jobData);
-				m_jobManager.free_edges(jobData);
+				JobManager::free_edges(jobData);
 
 				// Signal we finished
 				ctx->event.set();

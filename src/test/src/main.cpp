@@ -9468,12 +9468,13 @@ static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 }
 
 template <typename Func>
-void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
+void Run_Schedule_Simple(
+		const uint32_t* pArr, uint32_t* pRes, uint32_t jobCnt, uint32_t ItemsPerJob, Func func, uint32_t depCnt) {
 	auto& tp = mt::ThreadPool::get();
 	std::atomic_uint32_t cnt = 0;
 
-	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
-	GAIA_FOR(Jobs) {
+	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * jobCnt);
+	GAIA_FOR(jobCnt) {
 		mt::Job job;
 		job.func = [&, i, func]() {
 			const auto idxStart = i * ItemsPerJob;
@@ -9483,13 +9484,27 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 		};
 		pHandles[i] = tp.add(job);
 	}
-	pHandles[Jobs] = tp.add(mt::Job{});
-	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
-	tp.submit(std::span(pHandles, Jobs + 1));
-	tp.wait(pHandles[Jobs]);
 
-	GAIA_FOR(Jobs) REQUIRE(pRes[i] == ItemsPerJob);
-	REQUIRE(cnt == Jobs);
+	mt::Job dependencyJob;
+	dependencyJob.func = [&]() {
+		const bool isLast = cnt == jobCnt;
+		REQUIRE(isLast);
+	};
+	auto* pDepHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * depCnt);
+	GAIA_FOR(depCnt) {
+		pDepHandles[i] = tp.add(dependencyJob);
+		tp.dep(std::span(pHandles, jobCnt), pDepHandles[i]);
+		tp.submit(pDepHandles[i]);
+	}
+
+	tp.submit(std::span(pHandles, jobCnt));
+
+	GAIA_FOR(depCnt) {
+		tp.wait(pDepHandles[i]);
+	}
+
+	GAIA_FOR(jobCnt) REQUIRE(pRes[i] == ItemsPerJob);
+	REQUIRE(cnt == jobCnt);
 }
 
 TEST_CASE("Multithreading - Schedule") {
@@ -9510,13 +9525,52 @@ TEST_CASE("Multithreading - Schedule") {
 		tp.set_max_workers(threads, threads);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
-		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 1);
+	}
+	SECTION("Max workers Deps2") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 2);
+	}
+	SECTION("Max workers Deps3") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 3);
+	}
+	SECTION("Max workers Deps4") {
+		const auto threads = tp.hw_thread_cnt();
+		tp.set_max_workers(threads, threads);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 4);
 	}
 	SECTION("0 workers") {
 		tp.set_max_workers(0, 0);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
-		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 1);
+	}
+	SECTION("0 workers Deps2") {
+		tp.set_max_workers(0, 0);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 2);
+	}
+	SECTION("0 workers Deps3") {
+		tp.set_max_workers(0, 0);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 3);
+	}
+	SECTION("0 workers Deps4") {
+		tp.set_max_workers(0, 0);
+
+		GAIA_FOR(res.max_size()) res[i] = 0;
+		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 4);
 	}
 }
 

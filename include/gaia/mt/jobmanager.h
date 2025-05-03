@@ -135,7 +135,6 @@ namespace gaia {
 				jc.idx = index;
 				jc.gen = generation;
 				jc.prio = ctx->priority;
-				jc.state.store(0);
 
 				return jc;
 			}
@@ -215,8 +214,13 @@ namespace gaia {
 			}
 
 			static void free_edges(JobContainer& jobData) {
-				if (jobData.edges.depCnt > 1)
-					mem::AllocHelper::free(jobData.edges.pDeps);
+				// We only allocate an array for 2 and more dependencies
+				if (jobData.edges.depCnt <= 1)
+					return;
+
+				mem::AllocHelper::free(jobData.edges.pDeps);
+				// jobData.edges.depCnt = 0;
+				// jobData.edges.pDeps = nullptr;
 			}
 
 			//! Makes \param jobSecond depend on \param jobFirst.
@@ -380,9 +384,9 @@ namespace gaia {
 					if (isPow2) {
 						if (depCnt0 == 1) {
 							// If the following assert is hit we probably set the same dependency twice
-							GAIA_ASSERT(firstData.edges.pDeps == nullptr);
+							auto prev = firstData.edges.dep;
 							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
-							firstData.edges.pDeps[0] = firstData.edges.dep;
+							firstData.edges.pDeps[0] = prev;
 						} else {
 							auto* pPrev = firstData.edges.pDeps;
 							// TODO: Use custom allocator
