@@ -7294,7 +7294,7 @@ namespace gaia {
 
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
-					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
+					GAIA_FOR(itemsNew) m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
 					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld, 0, 0, 0);
@@ -7372,7 +7372,6 @@ namespace gaia {
 
 			void reserve(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
-				GAIA_ASSERT(bitsWanted > 0);
 				if (bitsWanted < 1)
 					bitsWanted = 1;
 
@@ -7380,21 +7379,24 @@ namespace gaia {
 				if (bitsWanted <= capacity())
 					return;
 
+				const uint32_t itemsOld = m_cap / BitsPerItem;
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
-				auto* pDataOld = m_pData;
-				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+				if (itemsOld != itemsNew) {
+					auto* pDataOld = m_pData;
+					m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
 
-				if (pDataOld == nullptr) {
-					// Make sure the new data is set to zeros
-					GAIA_FOR(itemsNew) m_pData[i] = 0;
-				} else {
-					const uint32_t itemsOld = items();
-					// Copy the old data over and set the old data to zeros
-					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld, 0, 0, 0);
-					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
+					if (pDataOld == nullptr) {
+						// Make sure the new data is set to zeros
+						GAIA_FOR(itemsNew) m_pData[i] = 0;
+					} else {
+						const uint32_t itemsOld2 = items();
+						// Copy the old data over and set the old data to zeros
+						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
+						GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
-					// Release old data
-					mem::AllocHelper::free<Allocator>(pDataOld);
+						// Release old data
+						mem::AllocHelper::free<Allocator>(pDataOld);
+					}
 				}
 
 				m_cap = itemsNew * BitsPerItem;
@@ -7402,36 +7404,38 @@ namespace gaia {
 
 			void resize(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
-				GAIA_ASSERT(bitsWanted > 0);
 				if (bitsWanted < 1)
 					bitsWanted = 1;
 
-				const uint32_t itemsOld = items();
-
 				// Nothing to do if the capacity is already bigger than requested
-				if (bitsWanted <= capacity()) {
-					m_cnt = bitsWanted;
+				if (bitsWanted == size())
 					return;
-				}
 
+				const uint32_t itemsOld = m_cap / BitsPerItem;
 				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
-				auto* pDataOld = m_pData;
-				m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
+				if (itemsOld != itemsNew) {
+					auto* pDataOld = m_pData;
+					m_pData = mem::AllocHelper::alloc<size_type, Allocator>(itemsNew);
 
-				if (pDataOld == nullptr) {
-					// Make sure the new data is set to zeros
-					GAIA_FOR(itemsNew) m_pData[i] = 0;
-				} else {
-					// Copy the old data over and set the old data to zeros
-					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld, 0, 0, 0);
-					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
+					if (pDataOld == nullptr) {
+						// Make sure the new data is set to zeros
+						GAIA_FOR(itemsNew) m_pData[i] = 0;
+					} else {
+						const auto itemsOld2 = itemsOld > itemsNew ? itemsNew : itemsOld;
+						// Copy the old data over
+						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
+						// Set the old data to zeros.
+						// If resizing to a smaller size this will do nothing
+						GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
-					// Release old data
-					mem::AllocHelper::free<Allocator>((void*)pDataOld);
+						// Release old data
+						mem::AllocHelper::free<Allocator>((void*)pDataOld);
+					}
+
+					m_cap = itemsNew * BitsPerItem;
 				}
 
 				m_cnt = bitsWanted;
-				m_cap = itemsNew * BitsPerItem;
 			}
 
 			iter begin() const {

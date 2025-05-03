@@ -2333,7 +2333,29 @@ void test_dbitset() {
 		bs.flip();
 		REQUIRE(bs.count() == bs.size());
 		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true); // 2 bits are set
+		REQUIRE(bs.none() == false);
+
+		const auto ss = bs.size();
+		bs.reserve(256);
+		REQUIRE(bs.size() == 2);
+		REQUIRE(bs.count() == ss); // size doesn't change
+		REQUIRE(bs.any() == true);
 		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.resize(128);
+		REQUIRE(bs.size() == 128);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.resize(512);
+		REQUIRE(bs.size() == 512);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
 		REQUIRE(bs.none() == false);
 
 		bs.reset();
