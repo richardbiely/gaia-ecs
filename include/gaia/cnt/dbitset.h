@@ -161,7 +161,7 @@ namespace gaia {
 						const uint32_t itemsOld2 = items();
 						// Copy the old data over and set the old data to zeros
 						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
-						GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
+						GAIA_FOR2(itemsOld2, itemsNew) m_pData[i] = 0;
 
 						// Release old data
 						mem::AllocHelper::free<Allocator>(pDataOld);
@@ -190,12 +190,12 @@ namespace gaia {
 						// Make sure the new data is set to zeros
 						GAIA_FOR(itemsNew) m_pData[i] = 0;
 					} else {
-						const auto itemsOld2 = itemsOld > itemsNew ? itemsNew : itemsOld;
+						const uint32_t itemsOld2 = items();
 						// Copy the old data over
 						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
 						// Set the old data to zeros.
 						// If resizing to a smaller size this will do nothing
-						GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
+						GAIA_FOR2(itemsOld2, itemsNew) m_pData[i] = 0;
 
 						// Release old data
 						mem::AllocHelper::free<Allocator>((void*)pDataOld);
