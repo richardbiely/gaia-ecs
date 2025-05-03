@@ -394,6 +394,28 @@ TEST_CASE("bit_view") {
 	}
 }
 
+TEST_CASE("trim") {
+	std::string target = "Gaia-ECS";
+
+	{
+		std::string str = "  \t\n  Gaia-ECS  \t\n  ";
+		auto t = core::trim({str.c_str(), str.length()});
+		REQUIRE(std::string(t.data(), t.size()) == target);
+	}
+
+	{
+		std::string str = "Gaia-ECS";
+		auto t = core::trim({str.c_str(), str.length()});
+		REQUIRE(std::string(t.data(), t.size()) == target);
+	}
+
+	{
+		std::string str = "";
+		auto t = core::trim(str);
+		REQUIRE(std::string(t.data(), t.size()) == std::string(""));
+	}
+}
+
 //------------------------------------------------------------------------------
 // Containers
 //------------------------------------------------------------------------------
