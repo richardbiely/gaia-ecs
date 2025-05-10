@@ -51,6 +51,12 @@ jobs:
         sudo apt update
         sudo apt install -y ${{matrix.target.pkg}}
 
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{github.job}}-${{matrix.build_type}}
+        create-symlink: true
+
     - name: Configure CMake
       env:
         CXX: ${{matrix.target.exe}}
@@ -91,6 +97,12 @@ jobs:
         sudo apt update
         sudo apt install -y ${{matrix.target.pkg}}
 
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{github.job}}-${{matrix.build_type}}
+        create-symlink: true
+        
     - name: Configure CMake
       env:
         CXX: ${{matrix.target.exe}}
@@ -120,10 +132,16 @@ jobs:
           - toolset: v143
             toolset_option: -T"v143"
         build_type: [Release, Debug]
-    runs-on: windows-latest
+    runs-on: [windows-latest, windows11-arm]
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{github.job}}-${{matrix.build_type}}
+        create-symlink: true
 
     - name: Configure CMake
       run: |
@@ -148,10 +166,16 @@ jobs:
           - toolset: clang-cl
             toolset_option: -T"ClangCl"
         build_type: [Release, Debug]
-    runs-on: windows-latest
+    runs-on: [windows-latest, windows11-arm]
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{github.job}}-${{matrix.build_type}}
+        create-symlink: true
 
     - name: Configure CMake
       run: |
@@ -171,6 +195,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{github.job}}-${{matrix.build_type}}
+        create-symlink: true
 
     - name: Configure CMake
       run: |
