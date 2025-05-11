@@ -132,7 +132,7 @@ jobs:
           - toolset: v143
             toolset_option: -T"v143"
         build_type: [Release, Debug]
-    runs-on: [windows-latest, windows11-arm]
+    runs-on: [windows-latest, windows-11-arm]
 
     steps:
     - uses: actions/checkout@v4
@@ -166,7 +166,7 @@ jobs:
           - toolset: clang-cl
             toolset_option: -T"ClangCl"
         build_type: [Release, Debug]
-    runs-on: [windows-latest, windows11-arm]
+    runs-on: [windows-latest, windows-11-arm]
 
     steps:
     - uses: actions/checkout@v4
