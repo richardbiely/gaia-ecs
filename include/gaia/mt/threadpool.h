@@ -87,13 +87,12 @@ namespace gaia {
 			//! Array of worker threads
 			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! Array of data associated with workers
-			ThreadCtx m_workerCtxMain;
 			cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! The number of workers dedicated for a given level of job priority
 			uint32_t m_workersCnt[JobPriorityCnt]{};
-			//! Semaphore use to
+			//! Semaphore controlling if the worker threads are allowed to run
 			SemaphoreFast m_sem;
 
 			//! Futex counter

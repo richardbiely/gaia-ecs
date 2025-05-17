@@ -16426,30 +16426,31 @@ namespace gaia {
 				const auto depCnt0 = firstData.edges.depCnt;
 				const auto depCnt1 = ++firstData.edges.depCnt;
 
-				if (depCnt1 <= 1) {
 #if GAIA_LOG_JOB_STATES
-					GAIA_LOG_N(
-							"DEP %u.%u, %u -> %u.%u", jobFirst.id(), jobFirst.gen(), firstData.edges.depCnt, jobSecond.id(),
-							jobSecond.gen());
+				GAIA_LOG_N(
+						"DEP %u.%u, %u -> %u.%u", jobFirst.id(), jobFirst.gen(), firstData.edges.depCnt, jobSecond.id(),
+						jobSecond.gen());
 #endif
+
+				if (depCnt1 <= 1) {
 					firstData.edges.dep = jobSecond;
+				} else if (depCnt1 == 2) {
+					auto prev = firstData.edges.dep;
+					// TODO: Use custom allocator
+					firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
+					firstData.edges.pDeps[0] = prev;
+					firstData.edges.pDeps[1] = jobSecond;
 				} else {
-					// Reallocate on a power of two
-					const bool isPow2 = core::is_pow2(depCnt1);
+					// Reallocate if the previous value was a power of 2
+					const bool isPow2 = core::is_pow2(depCnt0);
 					if (isPow2) {
-						if (depCnt0 == 1) {
-							// If the following assert is hit we probably set the same dependency twice
-							auto prev = firstData.edges.dep;
-							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
-							firstData.edges.pDeps[0] = prev;
-						} else {
-							auto* pPrev = firstData.edges.pDeps;
-							// TODO: Use custom allocator
-							firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(depCnt1);
-							if (pPrev != nullptr) {
-								GAIA_FOR(depCnt0) firstData.edges.pDeps[i] = pPrev[i];
-								mem::AllocHelper::free(pPrev);
-							}
+						const auto nextPow2 = depCnt0 << 1;
+						auto* pPrev = firstData.edges.pDeps;
+						// TODO: Use custom allocator
+						firstData.edges.pDeps = mem::AllocHelper::alloc<JobHandle>(nextPow2);
+						if (pPrev != nullptr) {
+							GAIA_FOR(depCnt0) firstData.edges.pDeps[i] = pPrev[i];
+							mem::AllocHelper::free(pPrev);
 						}
 					}
 
@@ -16743,13 +16744,12 @@ namespace gaia {
 			//! Array of worker threads
 			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! Array of data associated with workers
-			ThreadCtx m_workerCtxMain;
 			cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! The number of workers dedicated for a given level of job priority
 			uint32_t m_workersCnt[JobPriorityCnt]{};
-			//! Semaphore use to
+			//! Semaphore controlling if the worker threads are allowed to run
 			SemaphoreFast m_sem;
 
 			//! Futex counter

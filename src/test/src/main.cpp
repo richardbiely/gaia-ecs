@@ -344,24 +344,28 @@ TEST_CASE("pow2") {
 
 	SECTION("closest_pow2") {
 		constexpr uint8_t test0 = 0;
+		constexpr uint8_t test2 = 2;
 		constexpr uint8_t test8 = 19;
 		constexpr uint16_t test16 = 1023;
 		constexpr uint32_t test32 = 123456;
 		constexpr uint64_t test64 = 123456789123456789ULL;
 
 		constexpr auto result0 = core::closest_pow2(test0);
+		constexpr auto result2 = core::closest_pow2(test2);
 		constexpr auto result8 = core::closest_pow2(test8);
 		constexpr auto result16 = core::closest_pow2(test16);
 		constexpr auto result32 = core::closest_pow2(test32);
 		constexpr auto result64 = core::closest_pow2(test64);
 
 		constexpr auto result0_isPow2 = core::is_pow2(result0);
+		constexpr auto result2_isPow2 = core::is_pow2(result2);
 		constexpr auto result8_isPow2 = core::is_pow2(result8);
 		constexpr auto result16_isPow2 = core::is_pow2(result16);
 		constexpr auto result32_isPow2 = core::is_pow2(result32);
 		constexpr auto result64_isPow2 = core::is_pow2(result64);
 
 		CHECK(result0_isPow2);
+		CHECK(result2_isPow2);
 		CHECK(result8_isPow2);
 		CHECK(result16_isPow2);
 		CHECK(result32_isPow2);
