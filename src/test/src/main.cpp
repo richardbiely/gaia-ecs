@@ -150,9 +150,9 @@ TEST_CASE("StringLookupKey") {
 	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
 	core::StringLookupKey<128> l0(tmp0);
 	core::StringLookupKey<128> l1(tmp1);
-	REQUIRE(l0.len() == l1.len());
+	CHECK(l0.len() == l1.len());
 	// Two different addresses in memory have to return the same hash if the string is the same
-	REQUIRE(l0.hash() == l1.hash());
+	CHECK(l0.hash() == l1.hash());
 }
 
 //------------------------------------------------------------------------------
@@ -191,13 +191,13 @@ TEST_CASE("has_XYZ_check") {
 		constexpr auto hasFunc1_4 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short&);
 		constexpr auto hasFunc1_5 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float&, short&);
 		constexpr auto hasFunc1_6 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int&, float&, short&);
-		REQUIRE_FALSE(hasFunc1_0);
-		REQUIRE_FALSE(hasFunc1_1);
-		REQUIRE_FALSE(hasFunc1_2);
-		REQUIRE_FALSE(hasFunc1_3);
-		REQUIRE(hasFunc1_4);
-		REQUIRE_FALSE(hasFunc1_5);
-		REQUIRE_FALSE(hasFunc1_6);
+		CHECK_FALSE(hasFunc1_0);
+		CHECK_FALSE(hasFunc1_1);
+		CHECK_FALSE(hasFunc1_2);
+		CHECK_FALSE(hasFunc1_3);
+		CHECK(hasFunc1_4);
+		CHECK_FALSE(hasFunc1_5);
+		CHECK_FALSE(hasFunc1_6);
 	}
 	SECTION("global_func") {
 		constexpr auto hasFunc1_0 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int);
@@ -207,13 +207,13 @@ TEST_CASE("has_XYZ_check") {
 		constexpr auto hasFunc1_4 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short&);
 		constexpr auto hasFunc1_5 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float&, short&);
 		constexpr auto hasFunc1_6 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int&, float&, short&);
-		REQUIRE_FALSE(hasFunc1_0);
-		REQUIRE_FALSE(hasFunc1_1);
-		REQUIRE_FALSE(hasFunc1_2);
-		REQUIRE_FALSE(hasFunc1_3);
-		REQUIRE(hasFunc1_4);
-		REQUIRE_FALSE(hasFunc1_5);
-		REQUIRE_FALSE(hasFunc1_6);
+		CHECK_FALSE(hasFunc1_0);
+		CHECK_FALSE(hasFunc1_1);
+		CHECK_FALSE(hasFunc1_2);
+		CHECK_FALSE(hasFunc1_3);
+		CHECK(hasFunc1_4);
+		CHECK_FALSE(hasFunc1_5);
+		CHECK_FALSE(hasFunc1_6);
 	}
 }
 
@@ -224,122 +224,122 @@ TEST_CASE("has_XYZ_equals_check") {
 		constexpr auto hasFoo1 = has_foo<Dummy0, const Dummy0&>::value;
 		constexpr auto hasFoo2 = has_foo<Dummy0, int>::value;
 		constexpr auto hasFood = has_food<Dummy0>::value;
-		REQUIRE_FALSE(hasMember);
-		REQUIRE(hasGlobal);
-		REQUIRE(hasFoo1);
-		REQUIRE(hasFoo2);
-		REQUIRE_FALSE(hasFood);
+		CHECK_FALSE(hasMember);
+		CHECK(hasGlobal);
+		CHECK(hasFoo1);
+		CHECK(hasFoo2);
+		CHECK_FALSE(hasFood);
 	}
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
 		constexpr auto hasGlobal = core::has_global_equals<Dummy1>::value;
 		constexpr auto hasFoo = has_foo<Dummy1>::value;
-		REQUIRE(hasMember);
-		REQUIRE_FALSE(hasGlobal);
-		REQUIRE_FALSE(hasFoo);
+		CHECK(hasMember);
+		CHECK_FALSE(hasGlobal);
+		CHECK_FALSE(hasFoo);
 	}
 }
 
 TEST_CASE("Intrinsics") {
 	SECTION("POPCNT") {
 		const uint32_t zero32 = GAIA_POPCNT(0);
-		REQUIRE(zero32 == 0);
+		CHECK(zero32 == 0);
 		const uint64_t zero64 = GAIA_POPCNT64(0);
-		REQUIRE(zero64 == 0);
+		CHECK(zero64 == 0);
 
 		const uint32_t val32 = GAIA_POPCNT(0x0003002);
-		REQUIRE(val32 == 3);
+		CHECK(val32 == 3);
 		const uint64_t val64_1 = GAIA_POPCNT64(0x0003002);
-		REQUIRE(val64_1 == 3);
+		CHECK(val64_1 == 3);
 		const uint64_t val64_2 = GAIA_POPCNT64(0x00030020000000);
-		REQUIRE(val64_2 == 3);
+		CHECK(val64_2 == 3);
 		const uint64_t val64_3 = GAIA_POPCNT64(0x00030020003002);
-		REQUIRE(val64_3 == 6);
+		CHECK(val64_3 == 6);
 	}
 	SECTION("CLZ") {
 		const uint32_t zero32 = GAIA_CLZ(0);
-		REQUIRE(zero32 == 32);
+		CHECK(zero32 == 32);
 		const uint64_t zero64 = GAIA_CLZ64(0);
-		REQUIRE(zero64 == 64);
+		CHECK(zero64 == 64);
 
 		const uint32_t val32 = GAIA_CLZ(0x0003002);
-		REQUIRE(val32 == 1);
+		CHECK(val32 == 1);
 		const uint64_t val64_1 = GAIA_CLZ64(0x0003002);
-		REQUIRE(val64_1 == 1);
+		CHECK(val64_1 == 1);
 		const uint64_t val64_2 = GAIA_CLZ64(0x00030020000000);
-		REQUIRE(val64_2 == 29);
+		CHECK(val64_2 == 29);
 		const uint64_t val64_3 = GAIA_CLZ64(0x00030020003002);
-		REQUIRE(val64_3 == 1);
+		CHECK(val64_3 == 1);
 	}
 	SECTION("CTZ") {
 		const uint32_t zero32 = GAIA_CTZ(0);
-		REQUIRE(zero32 == 32);
+		CHECK(zero32 == 32);
 		const uint64_t zero64 = GAIA_CTZ64(0);
-		REQUIRE(zero64 == 64);
+		CHECK(zero64 == 64);
 
 		const uint32_t val32 = GAIA_CTZ(0x0003002);
-		REQUIRE(val32 == 18);
+		CHECK(val32 == 18);
 		const uint64_t val64_1 = GAIA_CTZ64(0x0003002);
-		REQUIRE(val64_1 == 50);
+		CHECK(val64_1 == 50);
 		const uint64_t val64_2 = GAIA_CTZ64(0x00030020000000);
-		REQUIRE(val64_2 == 22);
+		CHECK(val64_2 == 22);
 		const uint64_t val64_3 = GAIA_CTZ64(0x00030020003002);
-		REQUIRE(val64_3 == 22);
+		CHECK(val64_3 == 22);
 	}
 	SECTION("FFS") {
 		const uint32_t zero32 = GAIA_FFS(0);
-		REQUIRE(zero32 == 0);
+		CHECK(zero32 == 0);
 		const uint64_t zero64 = GAIA_FFS64(0);
-		REQUIRE(zero64 == 0);
+		CHECK(zero64 == 0);
 
 		const uint32_t val32 = GAIA_FFS(0x0003002);
-		REQUIRE(val32 == 2);
+		CHECK(val32 == 2);
 		const uint64_t val64_1 = GAIA_FFS64(0x0003002);
-		REQUIRE(val64_1 == 2);
+		CHECK(val64_1 == 2);
 		const uint64_t val64_2 = GAIA_FFS64(0x00030020000000);
-		REQUIRE(val64_2 == 30);
+		CHECK(val64_2 == 30);
 		const uint64_t val64_3 = GAIA_FFS64(0x00030020003002);
-		REQUIRE(val64_3 == 2);
+		CHECK(val64_3 == 2);
 	}
 }
 
 TEST_CASE("Memory allocation") {
 	SECTION("mem_alloc") {
 		void* pMem = mem::mem_alloc(311);
-		REQUIRE(pMem != nullptr);
+		CHECK(pMem != nullptr);
 		mem::mem_free(pMem);
 	}
 	SECTION("mem_alloc_alig A") {
 		void* pMem = mem::mem_alloc_alig(1, 16);
-		REQUIRE(pMem != nullptr);
+		CHECK(pMem != nullptr);
 		mem::mem_free_alig(pMem);
 	}
 	SECTION("mem_alloc_alig B") {
 		void* pMem = mem::mem_alloc_alig(311, 16);
-		REQUIRE(pMem != nullptr);
+		CHECK(pMem != nullptr);
 		mem::mem_free_alig(pMem);
 	}
 }
 
 TEST_CASE("pow2") {
 	SECTION("is_pow2") {
-		REQUIRE(core::is_pow2(0));
-		REQUIRE(core::is_pow2(1));
-		REQUIRE(core::is_pow2(2));
-		REQUIRE(core::is_pow2(4));
-		REQUIRE(core::is_pow2(8));
-		REQUIRE(core::is_pow2(16));
-		REQUIRE(core::is_pow2(32));
-		REQUIRE(core::is_pow2(64));
-		REQUIRE_FALSE(core::is_pow2(3));
-		REQUIRE_FALSE(core::is_pow2(5));
-		REQUIRE_FALSE(core::is_pow2(7));
-		REQUIRE_FALSE(core::is_pow2(9));
-		REQUIRE_FALSE(core::is_pow2(11));
-		REQUIRE_FALSE(core::is_pow2(13));
-		REQUIRE_FALSE(core::is_pow2(48));
-		REQUIRE_FALSE(core::is_pow2(96));
-		REQUIRE_FALSE(core::is_pow2(127));
+		CHECK(core::is_pow2(0));
+		CHECK(core::is_pow2(1));
+		CHECK(core::is_pow2(2));
+		CHECK(core::is_pow2(4));
+		CHECK(core::is_pow2(8));
+		CHECK(core::is_pow2(16));
+		CHECK(core::is_pow2(32));
+		CHECK(core::is_pow2(64));
+		CHECK_FALSE(core::is_pow2(3));
+		CHECK_FALSE(core::is_pow2(5));
+		CHECK_FALSE(core::is_pow2(7));
+		CHECK_FALSE(core::is_pow2(9));
+		CHECK_FALSE(core::is_pow2(11));
+		CHECK_FALSE(core::is_pow2(13));
+		CHECK_FALSE(core::is_pow2(48));
+		CHECK_FALSE(core::is_pow2(96));
+		CHECK_FALSE(core::is_pow2(127));
 	}
 
 	SECTION("closest_pow2") {
@@ -361,11 +361,11 @@ TEST_CASE("pow2") {
 		constexpr auto result32_isPow2 = core::is_pow2(result32);
 		constexpr auto result64_isPow2 = core::is_pow2(result64);
 
-		REQUIRE(result0_isPow2);
-		REQUIRE(result8_isPow2);
-		REQUIRE(result16_isPow2);
-		REQUIRE(result32_isPow2);
-		REQUIRE(result64_isPow2);
+		CHECK(result0_isPow2);
+		CHECK(result8_isPow2);
+		CHECK(result16_isPow2);
+		CHECK(result32_isPow2);
+		CHECK(result64_isPow2);
 	}
 }
 
@@ -384,13 +384,13 @@ TEST_CASE("bit_view") {
 		bv.set(i * BlockBits, (uint8_t)i);
 
 		const uint8_t val = bv.get(i * BlockBits);
-		REQUIRE(val == i);
+		CHECK(val == i);
 	}
 
 	// Make sure nothing was overriden
 	GAIA_FOR(NBlocks) {
 		const uint8_t val = bv.get(i * BlockBits);
-		REQUIRE(val == i);
+		CHECK(val == i);
 	}
 }
 
@@ -400,19 +400,19 @@ TEST_CASE("trim") {
 	{
 		std::string str = "  \t\n  Gaia-ECS  \t\n  ";
 		auto t = core::trim({str.c_str(), str.length()});
-		REQUIRE(std::string(t.data(), t.size()) == target);
+		CHECK(std::string(t.data(), t.size()) == target);
 	}
 
 	{
 		std::string str = "Gaia-ECS";
 		auto t = core::trim({str.c_str(), str.length()});
-		REQUIRE(std::string(t.data(), t.size()) == target);
+		CHECK(std::string(t.data(), t.size()) == target);
 	}
 
 	{
 		std::string str = "";
 		auto t = core::trim(str);
-		REQUIRE(std::string(t.data(), t.size()) == std::string(""));
+		CHECK(std::string(t.data(), t.size()) == std::string(""));
 	}
 }
 
@@ -439,12 +439,12 @@ TEST_CASE("fwd_llist") {
 
 	// Check forward pointers
 	{
-		REQUIRE(foos[0]->get_fwd_llist_link().next == nullptr);
+		CHECK(foos[0]->get_fwd_llist_link().next == nullptr);
 		GAIA_FOR(N - 1) {
-			REQUIRE(foos[i + 1]->get_fwd_llist_link().next == foos[i]);
+			CHECK(foos[i + 1]->get_fwd_llist_link().next == foos[i]);
 		}
 		GAIA_FOR(N) {
-			REQUIRE(foos[i]->get_fwd_llist_link().linked());
+			CHECK(foos[i]->get_fwd_llist_link().linked());
 		}
 	}
 
@@ -454,16 +454,16 @@ TEST_CASE("fwd_llist") {
 		for (const auto& foo: list) {
 			const auto foosIdx = foos.size() - idx - 1;
 			const auto* f = foos[foosIdx];
-			REQUIRE(foo.value == f->value);
+			CHECK(foo.value == f->value);
 			++idx;
 		}
-		REQUIRE(idx == N);
+		CHECK(idx == N);
 	}
 
 	// Check forward pointers after a node from the middle of the list is removed
 	{
 		list.unlink(foos[5]);
-		REQUIRE_FALSE(foos[5]->get_fwd_llist_link().linked());
+		CHECK_FALSE(foos[5]->get_fwd_llist_link().linked());
 		foos.retain([](const Foo* f) {
 			return f->value != 5;
 		});
@@ -472,16 +472,16 @@ TEST_CASE("fwd_llist") {
 		for (const auto& foo: list) {
 			const auto foosIdx = foos.size() - idx - 1;
 			const auto* f = foos[foosIdx];
-			REQUIRE(foo.value == f->value);
+			CHECK(foo.value == f->value);
 			++idx;
 		}
-		REQUIRE(idx == N - 1);
+		CHECK(idx == N - 1);
 	}
 
 	// Check forward pointers after a node at the end is removed
 	{
 		list.unlink(foos.back());
-		REQUIRE_FALSE(foos.back()->get_fwd_llist_link().linked());
+		CHECK_FALSE(foos.back()->get_fwd_llist_link().linked());
 		foos.retain([&](const Foo* f) {
 			return f->value != N - 1;
 		});
@@ -490,16 +490,16 @@ TEST_CASE("fwd_llist") {
 		for (const auto& foo: list) {
 			const auto foosIdx = foos.size() - idx - 1;
 			const auto* f = foos[foosIdx];
-			REQUIRE(foo.value == f->value);
+			CHECK(foo.value == f->value);
 			++idx;
 		}
-		REQUIRE(idx == N - 2);
+		CHECK(idx == N - 2);
 	}
 
 	// Check forward pointers after a node at the beginning is removed
 	{
 		list.unlink(foos.front());
-		REQUIRE_FALSE(foos.front()->get_fwd_llist_link().linked());
+		CHECK_FALSE(foos.front()->get_fwd_llist_link().linked());
 		foos.retain([&](const Foo* f) {
 			return f->value != 0;
 		});
@@ -508,10 +508,10 @@ TEST_CASE("fwd_llist") {
 		for (const auto& foo: list) {
 			const auto foosIdx = foos.size() - idx - 1;
 			const auto* f = foos[foosIdx];
-			REQUIRE(foo.value == f->value);
+			CHECK(foo.value == f->value);
 			++idx;
 		}
-		REQUIRE(idx == N - 3);
+		CHECK(idx == N - 3);
 	}
 }
 
@@ -525,32 +525,32 @@ void fixed_arr_test() {
 
 	GAIA_FOR(N) {
 		arr[i] = i;
-		REQUIRE(arr[i] == i);
+		CHECK(arr[i] == i);
 	}
-	REQUIRE(arr.back() == N - 1);
+	CHECK(arr.back() == N - 1);
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) REQUIRE(arr[i] == i);
+	GAIA_FOR(N) CHECK(arr[i] == i);
 	// Copy assignment
 	{
 		Container arrCopy = arr;
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 	}
 	// Copy constructor
 	{
 		Container arrCopy(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 	}
 	// Move assignment
 	{
 		Container arrCopy = GAIA_MOV(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
 	// Move constructor
 	{
 		Container arrCopy(GAIA_MOV(arr));
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
@@ -558,31 +558,31 @@ void fixed_arr_test() {
 	// Container comparison
 	{
 		Container arrEmpty;
-		REQUIRE_FALSE(arrEmpty == arr);
+		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
-		REQUIRE(arr2 == arr);
+		CHECK(arr2 == arr);
 	}
 
 	uint32_t cnt = 0;
 	for (auto val: arr) {
-		REQUIRE(val == cnt);
+		CHECK(val == cnt);
 		++cnt;
 	}
-	REQUIRE(cnt == N);
-	REQUIRE(cnt == arr.size());
+	CHECK(cnt == N);
+	CHECK(cnt == arr.size());
 
 	std::span<const cont_item> view{arr.data(), arr.size()};
 
-	REQUIRE(core::find(arr, 0U) == arr.begin());
-	REQUIRE(core::find(arr, N) == arr.end());
-	REQUIRE(core::find(view, 0U) == view.begin());
-	REQUIRE(core::find(view, N) == view.end());
+	CHECK(core::find(arr, 0U) == arr.begin());
+	CHECK(core::find(arr, N) == arr.end());
+	CHECK(core::find(view, 0U) == view.begin());
+	CHECK(core::find(view, N) == view.end());
 
-	REQUIRE(core::has(arr, 0U));
-	REQUIRE(core::has(view, 0U));
-	REQUIRE_FALSE(core::has(arr, N));
-	REQUIRE_FALSE(core::has(view, N));
+	CHECK(core::has(arr, 0U));
+	CHECK(core::has(view, 0U));
+	CHECK_FALSE(core::has(arr, N));
+	CHECK_FALSE(core::has(view, N));
 }
 
 TEST_CASE("Containers - sarr") {
@@ -606,32 +606,32 @@ void resizable_arr_test(uint32_t N) {
 
 	GAIA_FOR(N) {
 		arr.push_back(i);
-		REQUIRE(arr[i] == i);
-		REQUIRE(arr.back() == i);
+		CHECK(arr[i] == i);
+		CHECK(arr.back() == i);
 	}
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) REQUIRE(arr[i] == i);
+	GAIA_FOR(N) CHECK(arr[i] == i);
 	// Copy assignment
 	{
 		Container arrCopy = arr;
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 	}
 	// Copy constructor
 	{
 		Container arrCopy(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 	}
 	// Move assignment
 	{
 		Container arrCopy = GAIA_MOV(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
 	// Move constructor
 	{
 		Container arrCopy(GAIA_MOV(arr));
-		GAIA_FOR(N) REQUIRE(arrCopy[i] == i);
+		GAIA_FOR(N) CHECK(arrCopy[i] == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
@@ -639,44 +639,44 @@ void resizable_arr_test(uint32_t N) {
 	// Container comparison
 	{
 		Container arrEmpty;
-		REQUIRE_FALSE(arrEmpty == arr);
+		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
-		REQUIRE(arr2 == arr);
+		CHECK(arr2 == arr);
 	}
 
 	uint32_t cnt = 0;
 	for (auto val: arr) {
-		REQUIRE(val == cnt);
+		CHECK(val == cnt);
 		++cnt;
 	}
-	REQUIRE(cnt == N);
-	REQUIRE(cnt == arr.size());
+	CHECK(cnt == N);
+	CHECK(cnt == arr.size());
 
 	std::span<const cont_item> view{arr.data(), arr.size()};
 
-	REQUIRE(core::find(arr, 0U) == arr.begin());
-	REQUIRE(core::find(arr, N) == arr.end());
-	REQUIRE(core::find(view, 0U) == view.begin());
-	REQUIRE(core::find(view, N) == view.end());
+	CHECK(core::find(arr, 0U) == arr.begin());
+	CHECK(core::find(arr, N) == arr.end());
+	CHECK(core::find(view, 0U) == view.begin());
+	CHECK(core::find(view, N) == view.end());
 
-	REQUIRE(core::has(arr, 0U));
-	REQUIRE(core::has(view, 0U));
-	REQUIRE_FALSE(core::has(arr, N));
-	REQUIRE_FALSE(core::has(view, N));
+	CHECK(core::has(arr, 0U));
+	CHECK(core::has(view, 0U));
+	CHECK_FALSE(core::has(arr, N));
+	CHECK_FALSE(core::has(view, N));
 
 	arr.erase(arr.begin());
-	REQUIRE(arr.size() == (N - 1));
-	REQUIRE(core::find(arr, 0U) == arr.end());
+	CHECK(arr.size() == (N - 1));
+	CHECK(core::find(arr, 0U) == arr.end());
 	GAIA_EACH(arr)
-	REQUIRE(arr[i] == i + 1);
+	CHECK(arr[i] == i + 1);
 
 	arr.clear();
-	REQUIRE(arr.empty());
+	CHECK(arr.empty());
 
 	arr.push_back(11);
 	arr.erase(arr.begin());
-	REQUIRE(arr.empty());
+	CHECK(arr.empty());
 
 	arr.push_back(11);
 	arr.push_back(12);
@@ -684,12 +684,12 @@ void resizable_arr_test(uint32_t N) {
 	arr.push_back(14);
 	arr.push_back(15);
 	arr.erase(arr.begin() + 1, arr.begin() + 4);
-	REQUIRE(arr.size() == 2);
-	REQUIRE(arr[0] == 11);
-	REQUIRE(arr[1] == 15);
+	CHECK(arr.size() == 2);
+	CHECK(arr[0] == 11);
+	CHECK(arr[1] == 15);
 
 	arr.erase(arr.begin(), arr.end());
-	REQUIRE(arr.empty());
+	CHECK(arr.empty());
 
 	arr.push_back(11);
 	arr.push_back(12);
@@ -697,21 +697,21 @@ void resizable_arr_test(uint32_t N) {
 	arr.push_back(14);
 	arr.push_back(15);
 	arr.erase(arr.begin() + 1);
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[0] == 11);
-	REQUIRE(arr[1] == 13);
-	REQUIRE(arr[2] == 14);
-	REQUIRE(arr[3] == 15);
+	CHECK(arr.size() == 4);
+	CHECK(arr[0] == 11);
+	CHECK(arr[1] == 13);
+	CHECK(arr[2] == 14);
+	CHECK(arr[3] == 15);
 	arr.erase(arr.begin() + 3);
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr[0] == 11);
-	REQUIRE(arr[1] == 13);
-	REQUIRE(arr[2] == 14);
+	CHECK(arr.size() == 3);
+	CHECK(arr[0] == 11);
+	CHECK(arr[1] == 13);
+	CHECK(arr[2] == 14);
 	arr.erase(arr.begin());
 	arr.erase(arr.begin());
 	arr.erase(arr.begin());
-	REQUIRE(arr.size() == 0);
-	REQUIRE(arr.empty());
+	CHECK(arr.size() == 0);
+	CHECK(arr.empty());
 
 	// 11, 13, 14, 15
 	// 11, 13, 13, 14, 15
@@ -720,19 +720,19 @@ void resizable_arr_test(uint32_t N) {
 	arr.push_back(13);
 	arr.push_back(14);
 	arr.insert(arr.begin() + 1, 12);
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[0] == 11);
-	REQUIRE(arr[1] == 12);
-	REQUIRE(arr[2] == 13);
-	REQUIRE(arr[3] == 14);
+	CHECK(arr.size() == 4);
+	CHECK(arr[0] == 11);
+	CHECK(arr[1] == 12);
+	CHECK(arr[2] == 13);
+	CHECK(arr[3] == 14);
 
 	arr.insert(arr.begin(), 10);
-	REQUIRE(arr.size() == 5);
-	REQUIRE(arr[0] == 10);
-	REQUIRE(arr[1] == 11);
-	REQUIRE(arr[2] == 12);
-	REQUIRE(arr[3] == 13);
-	REQUIRE(arr[4] == 14);
+	CHECK(arr.size() == 5);
+	CHECK(arr[0] == 10);
+	CHECK(arr[1] == 11);
+	CHECK(arr[2] == 12);
+	CHECK(arr[3] == 13);
+	CHECK(arr[4] == 14);
 }
 
 template <typename Container>
@@ -754,9 +754,9 @@ void retainable_arr_test() {
 		return item % 2 == 0;
 	});
 
-	REQUIRE(arr.size() == cntExpected);
+	CHECK(arr.size() == cntExpected);
 	GAIA_EACH(arr) {
-		REQUIRE(arr[i] == expected[i]);
+		CHECK(arr[i] == expected[i]);
 	}
 }
 
@@ -845,29 +845,29 @@ TEST_CASE("Delegates") {
 	// free function
 	{
 		util::delegate<sig_func_t> d;
-		REQUIRE_FALSE(d.operator bool());
+		CHECK_FALSE(d.operator bool());
 		d.bind<test_func>();
-		REQUIRE(d.operator bool());
+		CHECK(d.operator bool());
 
 		uint32_t i = 0;
 		d(e1, e1, i);
-		REQUIRE(i == 1);
+		CHECK(i == 1);
 
 		d.reset();
-		REQUIRE_FALSE(d.operator bool());
+		CHECK_FALSE(d.operator bool());
 	}
 
 	// class
 	{
 		SigFoo f;
 		util::delegate<sig_func_t> d;
-		REQUIRE_FALSE(d.operator bool());
+		CHECK_FALSE(d.operator bool());
 		d.bind<&SigFoo::on_event>(f);
-		REQUIRE(d.operator bool());
+		CHECK(d.operator bool());
 
 		uint32_t i = 0;
 		d(e1, e1, i);
-		REQUIRE(i == 1);
+		CHECK(i == 1);
 	}
 
 	// non-capturing lambda-like construct
@@ -883,7 +883,7 @@ TEST_CASE("Delegates") {
 
 		uint32_t i = 0;
 		d(e1, e1, i);
-		REQUIRE(i);
+		CHECK(i);
 	}
 }
 
@@ -896,109 +896,109 @@ TEST_CASE("Signals") {
 
 	{
 		util::sink<sig_func_t> sink{sig};
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 
 		// No bindings, zero expected
 		uint32_t cnt = 0;
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		// Free function bound
 		cnt = 0;
 		sink.bind<test_func>();
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
+		CHECK(sig.size() == 1);
+		CHECK(!sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
+		CHECK(cnt == 3);
 
 		// Unbind the function, zero expected
 		cnt = 0;
 		sink.unbind<test_func>();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		// Bind again
 		cnt = 0;
 		sink.bind<test_func>();
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
+		CHECK(sig.size() == 1);
+		CHECK(!sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
+		CHECK(cnt == 3);
 
 		// Reset the sink object, zero expected
 		cnt = 0;
 		sink.reset();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		SigFoo f;
 
 		util::sink<sig_func_t> sink{sig};
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 
 		// No bindings, zero expected
 		uint32_t cnt = 0;
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		// Free function bound
 		cnt = 0;
 		sink.bind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
+		CHECK(sig.size() == 1);
+		CHECK(!sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
+		CHECK(cnt == 3);
 
 		// Unbind the function, zero expected
 		cnt = 0;
 		sink.unbind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		// Bind again
 		cnt = 0;
 		sink.bind<&SigFoo::on_event>(f);
-		REQUIRE(sig.size() == 1);
-		REQUIRE(!sig.empty());
+		CHECK(sig.size() == 1);
+		CHECK(!sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 3);
+		CHECK(cnt == 3);
 
 		// Reset the sink object, zero expected
 		cnt = 0;
 		sink.reset();
-		REQUIRE(sig.size() == 0);
-		REQUIRE(sig.empty());
+		CHECK(sig.size() == 0);
+		CHECK(sig.empty());
 		sig.emit(e1, e1, cnt);
 		sig.emit(e2, e2, cnt);
 		sig.emit(e3, e3, cnt);
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 }
 
@@ -1016,9 +1016,9 @@ TEST_CASE("StackAllocator") {
 	{
 		auto* pPosN = a.alloc<PositionNonTrivial>(3);
 		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1);
-			REQUIRE(pPosN[i].y == 2);
-			REQUIRE(pPosN[i].z == 3);
+			CHECK(pPosN[i].x == 1);
+			CHECK(pPosN[i].y == 2);
+			CHECK(pPosN[i].z == 3);
 		}
 	}
 	a.reset();
@@ -1027,7 +1027,7 @@ TEST_CASE("StackAllocator") {
 		*pInt = 10;
 		a.free(pInt, 1);
 		pInt = a.alloc<int>(1);
-		REQUIRE(*pInt == 10);
+		CHECK(*pInt == 10);
 
 		auto* pPos = a.alloc<Position>(10);
 		GAIA_FOR(10) {
@@ -1038,16 +1038,16 @@ TEST_CASE("StackAllocator") {
 		a.free(pPos, 10);
 		pPos = a.alloc<Position>(10);
 		GAIA_FOR(10) {
-			REQUIRE(pPos[i].x == (float)i);
-			REQUIRE(pPos[i].y == (float)i + 1.f);
-			REQUIRE(pPos[i].z == (float)i + 2.f);
+			CHECK(pPos[i].x == (float)i);
+			CHECK(pPos[i].y == (float)i + 1.f);
+			CHECK(pPos[i].z == (float)i + 2.f);
 		}
 
 		auto* pPosN = a.alloc<PositionNonTrivial>(3);
 		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1.f);
-			REQUIRE(pPosN[i].y == 2.f);
-			REQUIRE(pPosN[i].z == 3.f);
+			CHECK(pPosN[i].x == 1.f);
+			CHECK(pPosN[i].y == 2.f);
+			CHECK(pPosN[i].z == 3.f);
 		}
 
 		// Alloc and release some more objects
@@ -1058,9 +1058,9 @@ TEST_CASE("StackAllocator") {
 
 		// Make sure the previously stored positions are still intact
 		GAIA_FOR(3) {
-			REQUIRE(pPosN[i].x == 1);
-			REQUIRE(pPosN[i].y == 2);
-			REQUIRE(pPosN[i].z == 3);
+			CHECK(pPosN[i].x == 1);
+			CHECK(pPosN[i].y == 2);
+			CHECK(pPosN[i].z == 3);
 		}
 	}
 }
@@ -1130,36 +1130,36 @@ void sparse_storage_test(uint32_t N) {
 
 	GAIA_FOR(N) {
 		arr.add(new_item(i));
-		REQUIRE(arr[to_sid(i)].data == i);
-		REQUIRE(arr.back().data == i);
+		CHECK(arr[to_sid(i)].data == i);
+		CHECK(arr.back().data == i);
 	}
 
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) REQUIRE(arr[to_sid(i)].data == i);
+	GAIA_FOR(N) CHECK(arr[to_sid(i)].data == i);
 	// Copy assignment
 	{
 		Container arrCopy = arr;
 		GAIA_FOR(N) {
 			const auto& item = arrCopy[to_sid(i)];
-			REQUIRE(item.data == i);
+			CHECK(item.data == i);
 		}
 	}
 	// Copy constructor
 	{
 		Container arrCopy(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 	}
 	// Move assignment
 	{
 		Container arrCopy = GAIA_MOV(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
 	// Move constructor
 	{
 		Container arrCopy(GAIA_MOV(arr));
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
@@ -1167,31 +1167,31 @@ void sparse_storage_test(uint32_t N) {
 	// Container comparison
 	{
 		Container arrEmpty;
-		REQUIRE_FALSE(arrEmpty == arr);
+		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
-		REQUIRE(arr2 == arr);
+		CHECK(arr2 == arr);
 	}
 
 	uint32_t cnt = 0;
 	for (auto val: arr) {
-		REQUIRE(val.id == to_sid(cnt));
-		REQUIRE(val.data == cnt);
+		CHECK(val.id == to_sid(cnt));
+		CHECK(val.data == cnt);
 		++cnt;
 	}
-	REQUIRE(cnt == N);
-	REQUIRE(cnt == arr.size());
+	CHECK(cnt == N);
+	CHECK(cnt == arr.size());
 
-	REQUIRE(core::find(arr, cont_item{0U, 0U}) == arr.begin());
-	REQUIRE(core::find(arr, cont_item{N, N}) == arr.end());
-	REQUIRE(core::has(arr, cont_item{0U, 0U}));
-	REQUIRE_FALSE(core::has(arr, cont_item{N, N}));
+	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.begin());
+	CHECK(core::find(arr, cont_item{N, N}) == arr.end());
+	CHECK(core::has(arr, cont_item{0U, 0U}));
+	CHECK_FALSE(core::has(arr, cont_item{N, N}));
 
 	// ------------------
 
 	arr.clear();
-	REQUIRE(arr.empty());
-	REQUIRE(arr.size() == 0);
+	CHECK(arr.empty());
+	CHECK(arr.size() == 0);
 
 	arr.add(new_item(11));
 	arr.add(new_item(12));
@@ -1199,108 +1199,108 @@ void sparse_storage_test(uint32_t N) {
 	arr.add(new_item(14));
 	arr.add(new_item(15));
 
-	REQUIRE_FALSE(arr.empty());
-	REQUIRE(arr.size() == 5);
+	CHECK_FALSE(arr.empty());
+	CHECK(arr.size() == 5);
 
 	arr.del(new_item(13));
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[to_sid(11)].data == 11);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(15)].data == 15);
+	CHECK(arr.size() == 4);
+	CHECK(arr[to_sid(11)].data == 11);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(15)].data == 15);
 
 	arr.del(new_item(11));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(15)].data == 15);
+	CHECK(arr.size() == 3);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(15)].data == 15);
 
 	arr.del(new_item(15));
-	REQUIRE(arr.size() == 2);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
+	CHECK(arr.size() == 2);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
 
 	arr.add(new_item(9));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
+	CHECK(arr.size() == 3);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
 
 	arr.add(new_item(9000));
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(9000)].data == 9000);
+	CHECK(arr.size() == 4);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(9000)].data == 9000);
 
 	arr.add(new_item(9001));
 	arr.add(new_item(9002));
 	arr.add(new_item(9003));
 	arr.add(new_item(9030));
-	REQUIRE(arr.size() == 8);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(9000)].data == 9000);
-	REQUIRE(arr[to_sid(9001)].data == 9001);
-	REQUIRE(arr[to_sid(9002)].data == 9002);
-	REQUIRE(arr[to_sid(9003)].data == 9003);
-	REQUIRE(arr[to_sid(9030)].data == 9030);
+	CHECK(arr.size() == 8);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(9000)].data == 9000);
+	CHECK(arr[to_sid(9001)].data == 9001);
+	CHECK(arr[to_sid(9002)].data == 9002);
+	CHECK(arr[to_sid(9003)].data == 9003);
+	CHECK(arr[to_sid(9030)].data == 9030);
 
 	arr.del(new_item(9002));
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(9000)].data == 9000);
-	REQUIRE(arr[to_sid(9001)].data == 9001);
-	REQUIRE(arr[to_sid(9003)].data == 9003);
-	REQUIRE(arr[to_sid(9030)].data == 9030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(9000)].data == 9000);
+	CHECK(arr[to_sid(9001)].data == 9001);
+	CHECK(arr[to_sid(9003)].data == 9003);
+	CHECK(arr[to_sid(9030)].data == 9030);
 
 	{
 		uint32_t indices[] = {14, 12, 9, 9000, 9001, 9030, 9003};
 		cnt = 0;
 		for (auto val: arr) {
 			const auto id = indices[cnt];
-			REQUIRE(val.id == to_sid(id));
-			REQUIRE(val.data == id);
+			CHECK(val.id == to_sid(id));
+			CHECK(val.data == id);
 			++cnt;
 		}
-		REQUIRE(cnt == 7);
+		CHECK(cnt == 7);
 	}
 
 	auto& ref = arr.set(to_sid(14));
 	ref.data = 400;
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 400);
-	REQUIRE(arr[to_sid(9000)].data == 9000);
-	REQUIRE(arr[to_sid(9001)].data == 9001);
-	REQUIRE(arr[to_sid(9003)].data == 9003);
-	REQUIRE(arr[to_sid(9030)].data == 9030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 400);
+	CHECK(arr[to_sid(9000)].data == 9000);
+	CHECK(arr[to_sid(9001)].data == 9001);
+	CHECK(arr[to_sid(9003)].data == 9003);
+	CHECK(arr[to_sid(9030)].data == 9030);
 
 	{
 		uint32_t indices[] = {14, 12, 9, 9000, 9001, 9030, 9003};
 		uint32_t values[] = {400, 12, 9, 9000, 9001, 9030, 9003};
 		cnt = 0;
 		for (auto val: arr) {
-			REQUIRE(val.id == to_sid(indices[cnt]));
-			REQUIRE(val.data == values[cnt]);
+			CHECK(val.id == to_sid(indices[cnt]));
+			CHECK(val.data == values[cnt]);
 			++cnt;
 		}
-		REQUIRE(cnt == 7);
+		CHECK(cnt == 7);
 	}
 
 	ref.data = 4000;
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 4000);
-	REQUIRE(arr[to_sid(9000)].data == 9000);
-	REQUIRE(arr[to_sid(9001)].data == 9001);
-	REQUIRE(arr[to_sid(9003)].data == 9003);
-	REQUIRE(arr[to_sid(9030)].data == 9030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 4000);
+	CHECK(arr[to_sid(9000)].data == 9000);
+	CHECK(arr[to_sid(9001)].data == 9001);
+	CHECK(arr[to_sid(9003)].data == 9003);
+	CHECK(arr[to_sid(9030)].data == 9030);
 }
 
 template <typename Container>
@@ -1315,33 +1315,33 @@ void sparse_storage_test_tag(uint32_t N) {
 
 	GAIA_FOR(N) {
 		arr.add(to_sid(i));
-		REQUIRE(arr.has(to_sid(i)));
+		CHECK(arr.has(to_sid(i)));
 	}
 
 	// Verify the values remain the same even after all the adds
-	GAIA_FOR(N) REQUIRE(arr.has(to_sid(i)));
+	GAIA_FOR(N) CHECK(arr.has(to_sid(i)));
 
 	// Copy assignment
 	{
 		Container arrCopy = arr;
-		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		GAIA_FOR(N) CHECK(arrCopy.has(to_sid(i)));
 	}
 	// Copy constructor
 	{
 		Container arrCopy(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		GAIA_FOR(N) CHECK(arrCopy.has(to_sid(i)));
 	}
 	// Move assignment
 	{
 		Container arrCopy = GAIA_MOV(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		GAIA_FOR(N) CHECK(arrCopy.has(to_sid(i)));
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
 	// Move constructor
 	{
 		Container arrCopy(GAIA_MOV(arr));
-		GAIA_FOR(N) REQUIRE(arrCopy.has(to_sid(i)));
+		GAIA_FOR(N) CHECK(arrCopy.has(to_sid(i)));
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
@@ -1349,25 +1349,25 @@ void sparse_storage_test_tag(uint32_t N) {
 	// Container comparison
 	{
 		Container arrEmpty;
-		REQUIRE_FALSE(arrEmpty == arr);
+		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
-		REQUIRE(arr2 == arr);
+		CHECK(arr2 == arr);
 	}
 
 	uint32_t cnt = 0;
 	for (const auto& val: arr) {
-		REQUIRE(val == to_sid(cnt));
+		CHECK(val == to_sid(cnt));
 		++cnt;
 	}
-	REQUIRE(cnt == N);
-	REQUIRE(cnt == arr.size());
+	CHECK(cnt == N);
+	CHECK(cnt == arr.size());
 
 	// ------------------
 
 	arr.clear();
-	REQUIRE(arr.empty());
-	REQUIRE(arr.size() == 0);
+	CHECK(arr.empty());
+	CHECK(arr.size() == 0);
 
 	arr.add(to_sid(11));
 	arr.add(to_sid(12));
@@ -1375,64 +1375,64 @@ void sparse_storage_test_tag(uint32_t N) {
 	arr.add(to_sid(14));
 	arr.add(to_sid(15));
 
-	REQUIRE_FALSE(arr.empty());
-	REQUIRE(arr.size() == 5);
+	CHECK_FALSE(arr.empty());
+	CHECK(arr.size() == 5);
 
 	arr.del(to_sid(13));
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr.has(to_sid(11)));
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
-	REQUIRE(arr.has(to_sid(15)));
+	CHECK(arr.size() == 4);
+	CHECK(arr.has(to_sid(11)));
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
+	CHECK(arr.has(to_sid(15)));
 
 	arr.del(to_sid(11));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
-	REQUIRE(arr.has(to_sid(15)));
+	CHECK(arr.size() == 3);
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
+	CHECK(arr.has(to_sid(15)));
 
 	arr.del(to_sid(15));
-	REQUIRE(arr.size() == 2);
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
+	CHECK(arr.size() == 2);
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
 
 	arr.add(to_sid(9));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr.has(to_sid(9)));
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
+	CHECK(arr.size() == 3);
+	CHECK(arr.has(to_sid(9)));
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
 
 	arr.add(to_sid(9001));
 	arr.add(to_sid(9002));
 	arr.add(to_sid(9003));
 	arr.add(to_sid(9030));
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr.has(to_sid(9)));
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
-	REQUIRE(arr.has(to_sid(9001)));
-	REQUIRE(arr.has(to_sid(9002)));
-	REQUIRE(arr.has(to_sid(9003)));
-	REQUIRE(arr.has(to_sid(9030)));
+	CHECK(arr.size() == 7);
+	CHECK(arr.has(to_sid(9)));
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
+	CHECK(arr.has(to_sid(9001)));
+	CHECK(arr.has(to_sid(9002)));
+	CHECK(arr.has(to_sid(9003)));
+	CHECK(arr.has(to_sid(9030)));
 
 	arr.del(to_sid(9002));
-	REQUIRE(arr.size() == 6);
-	REQUIRE(arr.has(to_sid(9)));
-	REQUIRE(arr.has(to_sid(12)));
-	REQUIRE(arr.has(to_sid(14)));
-	REQUIRE(arr.has(to_sid(9001)));
-	REQUIRE(arr.has(to_sid(9003)));
-	REQUIRE(arr.has(to_sid(9030)));
+	CHECK(arr.size() == 6);
+	CHECK(arr.has(to_sid(9)));
+	CHECK(arr.has(to_sid(12)));
+	CHECK(arr.has(to_sid(14)));
+	CHECK(arr.has(to_sid(9001)));
+	CHECK(arr.has(to_sid(9003)));
+	CHECK(arr.has(to_sid(9030)));
 
 	{
 		uint32_t indices[] = {14, 12, 9, 9001, 9030, 9003};
 		cnt = 0;
 		for (auto val: arr) {
 			const auto id = indices[cnt];
-			REQUIRE(val == to_sid(id));
+			CHECK(val == to_sid(id));
 			++cnt;
 		}
-		REQUIRE(cnt == 6);
+		CHECK(cnt == 6);
 	}
 }
 
@@ -1471,36 +1471,36 @@ void paged_storage_test(uint32_t N) {
 
 	GAIA_FOR(N) {
 		arr.add(new_item(i));
-		REQUIRE(arr[to_sid(i)].data == i);
-		REQUIRE(arr.back().data == i);
+		CHECK(arr[to_sid(i)].data == i);
+		CHECK(arr.back().data == i);
 	}
 
 	// Verify the values remain the same even after the internal buffer is reallocated
-	GAIA_FOR(N) REQUIRE(arr[to_sid(i)].data == i);
+	GAIA_FOR(N) CHECK(arr[to_sid(i)].data == i);
 	// Copy assignment
 	{
 		Container arrCopy = arr;
 		GAIA_FOR(N) {
 			const auto& item = arrCopy[to_sid(i)];
-			REQUIRE(item.data == i);
+			CHECK(item.data == i);
 		}
 	}
 	// Copy constructor
 	{
 		Container arrCopy(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 	}
 	// Move assignment
 	{
 		Container arrCopy = GAIA_MOV(arr);
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
 	// Move constructor
 	{
 		Container arrCopy(GAIA_MOV(arr));
-		GAIA_FOR(N) REQUIRE(arrCopy[to_sid(i)].data == i);
+		GAIA_FOR(N) CHECK(arrCopy[to_sid(i)].data == i);
 		// move back
 		arr = GAIA_MOV(arrCopy);
 	}
@@ -1508,31 +1508,31 @@ void paged_storage_test(uint32_t N) {
 	// Container comparison
 	{
 		Container arrEmpty;
-		REQUIRE_FALSE(arrEmpty == arr);
+		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
-		REQUIRE(arr2 == arr);
+		CHECK(arr2 == arr);
 	}
 
 	uint32_t cnt = 0;
 	for (auto val: arr) {
-		REQUIRE(val.id == to_sid(cnt));
-		REQUIRE(val.data == cnt);
+		CHECK(val.id == to_sid(cnt));
+		CHECK(val.data == cnt);
 		++cnt;
 	}
-	REQUIRE(cnt == N);
-	REQUIRE(cnt == arr.size());
+	CHECK(cnt == N);
+	CHECK(cnt == arr.size());
 
-	REQUIRE(core::find(arr, cont_item{0U, 0U}) == arr.begin());
-	REQUIRE(core::find(arr, cont_item{N, N}) == arr.end());
-	REQUIRE(core::has(arr, cont_item{0U, 0U}));
-	REQUIRE_FALSE(core::has(arr, cont_item{N, N}));
+	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.begin());
+	CHECK(core::find(arr, cont_item{N, N}) == arr.end());
+	CHECK(core::has(arr, cont_item{0U, 0U}));
+	CHECK_FALSE(core::has(arr, cont_item{N, N}));
 
 	// ------------------
 
 	arr.clear();
-	REQUIRE(arr.empty());
-	REQUIRE(arr.size() == 0);
+	CHECK(arr.empty());
+	CHECK(arr.size() == 0);
 
 	arr.add(new_item(11));
 	arr.add(new_item(12));
@@ -1540,108 +1540,108 @@ void paged_storage_test(uint32_t N) {
 	arr.add(new_item(14));
 	arr.add(new_item(15));
 
-	REQUIRE_FALSE(arr.empty());
-	REQUIRE(arr.size() == 5);
+	CHECK_FALSE(arr.empty());
+	CHECK(arr.size() == 5);
 
 	arr.del(new_item(13));
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[to_sid(11)].data == 11);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(15)].data == 15);
+	CHECK(arr.size() == 4);
+	CHECK(arr[to_sid(11)].data == 11);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(15)].data == 15);
 
 	arr.del(new_item(11));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(15)].data == 15);
+	CHECK(arr.size() == 3);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(15)].data == 15);
 
 	arr.del(new_item(15));
-	REQUIRE(arr.size() == 2);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
+	CHECK(arr.size() == 2);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
 
 	arr.add(new_item(9));
-	REQUIRE(arr.size() == 3);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
+	CHECK(arr.size() == 3);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
 
 	arr.add(new_item(4000));
-	REQUIRE(arr.size() == 4);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(4000)].data == 4000);
+	CHECK(arr.size() == 4);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(4000)].data == 4000);
 
 	arr.add(new_item(4001));
 	arr.add(new_item(4002));
 	arr.add(new_item(4003));
 	arr.add(new_item(4030));
-	REQUIRE(arr.size() == 8);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(4000)].data == 4000);
-	REQUIRE(arr[to_sid(4001)].data == 4001);
-	REQUIRE(arr[to_sid(4002)].data == 4002);
-	REQUIRE(arr[to_sid(4003)].data == 4003);
-	REQUIRE(arr[to_sid(4030)].data == 4030);
+	CHECK(arr.size() == 8);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(4000)].data == 4000);
+	CHECK(arr[to_sid(4001)].data == 4001);
+	CHECK(arr[to_sid(4002)].data == 4002);
+	CHECK(arr[to_sid(4003)].data == 4003);
+	CHECK(arr[to_sid(4030)].data == 4030);
 
 	arr.del(new_item(4002));
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 14);
-	REQUIRE(arr[to_sid(4000)].data == 4000);
-	REQUIRE(arr[to_sid(4001)].data == 4001);
-	REQUIRE(arr[to_sid(4003)].data == 4003);
-	REQUIRE(arr[to_sid(4030)].data == 4030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 14);
+	CHECK(arr[to_sid(4000)].data == 4000);
+	CHECK(arr[to_sid(4001)].data == 4001);
+	CHECK(arr[to_sid(4003)].data == 4003);
+	CHECK(arr[to_sid(4030)].data == 4030);
 
 	{
 		uint32_t indices[] = {9, 12, 14, 4000, 4001, 4003, 4030};
 		cnt = 0;
 		for (auto val: arr) {
 			const auto id = indices[cnt];
-			REQUIRE(val.id == to_sid(id));
-			REQUIRE(val.data == id);
+			CHECK(val.id == to_sid(id));
+			CHECK(val.data == id);
 			++cnt;
 		}
-		REQUIRE(cnt == 7);
+		CHECK(cnt == 7);
 	}
 
 	auto& ref = arr.set(to_sid(14));
 	ref.data = 400;
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 400);
-	REQUIRE(arr[to_sid(4000)].data == 4000);
-	REQUIRE(arr[to_sid(4001)].data == 4001);
-	REQUIRE(arr[to_sid(4003)].data == 4003);
-	REQUIRE(arr[to_sid(4030)].data == 4030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 400);
+	CHECK(arr[to_sid(4000)].data == 4000);
+	CHECK(arr[to_sid(4001)].data == 4001);
+	CHECK(arr[to_sid(4003)].data == 4003);
+	CHECK(arr[to_sid(4030)].data == 4030);
 
 	{
 		uint32_t indices[] = {9, 12, 14, 4000, 4001, 4003, 4030};
 		uint32_t values[] = {9, 12, 400, 4000, 4001, 4003, 4030};
 		cnt = 0;
 		for (auto val: arr) {
-			REQUIRE(val.id == to_sid(indices[cnt]));
-			REQUIRE(val.data == values[cnt]);
+			CHECK(val.id == to_sid(indices[cnt]));
+			CHECK(val.data == values[cnt]);
 			++cnt;
 		}
-		REQUIRE(cnt == 7);
+		CHECK(cnt == 7);
 	}
 
 	ref.data = 200;
-	REQUIRE(arr.size() == 7);
-	REQUIRE(arr[to_sid(9)].data == 9);
-	REQUIRE(arr[to_sid(12)].data == 12);
-	REQUIRE(arr[to_sid(14)].data == 200);
-	REQUIRE(arr[to_sid(4000)].data == 4000);
-	REQUIRE(arr[to_sid(4001)].data == 4001);
-	REQUIRE(arr[to_sid(4003)].data == 4003);
-	REQUIRE(arr[to_sid(4030)].data == 4030);
+	CHECK(arr.size() == 7);
+	CHECK(arr[to_sid(9)].data == 9);
+	CHECK(arr[to_sid(12)].data == 12);
+	CHECK(arr[to_sid(14)].data == 200);
+	CHECK(arr[to_sid(4000)].data == 4000);
+	CHECK(arr[to_sid(4001)].data == 4001);
+	CHECK(arr[to_sid(4003)].data == 4003);
+	CHECK(arr[to_sid(4030)].data == 4030);
 }
 
 TEST_CASE("Containers - paged storage") {
@@ -1678,7 +1678,7 @@ TEST_CASE("Containers - alignment check") {
 		using TPolicy = mem::data_view_policy_aos<ecs::QueryTerm>;
 		constexpr auto TPolicyAlign = TPolicy::Alignment;
 		const auto addr = (uintptr_t)arr.data();
-		REQUIRE(addr % TPolicyAlign == 0);
+		CHECK(addr % TPolicyAlign == 0);
 	}
 
 	{
@@ -1693,25 +1693,25 @@ TEST_CASE("Containers - alignment check") {
 	}
 	{
 		auto& a = arr[0];
-		REQUIRE(a.b == 16);
-		REQUIRE(a.arr[0].id == ecs::Entity(1, 2));
-		REQUIRE(a.arr[1].id == ecs::Entity(2, 30));
-		REQUIRE(a.arr[2].id == ecs::Entity(3, 400));
+		CHECK(a.b == 16);
+		CHECK(a.arr[0].id == ecs::Entity(1, 2));
+		CHECK(a.arr[1].id == ecs::Entity(2, 30));
+		CHECK(a.arr[2].id == ecs::Entity(3, 400));
 
 		TArrInter test = {
 				{ecs::Entity(1, 2), {}, {}, {}}, {ecs::Entity(2, 30), {}, {}, {}}, {ecs::Entity(3, 400), {}, {}, {}}};
-		REQUIRE(test == a.arr);
+		CHECK(test == a.arr);
 	}
 	{
 		auto& a = arr[1];
-		REQUIRE(a.b == 214);
-		REQUIRE(a.arr[0].id == ecs::Entity(10, 2));
-		REQUIRE(a.arr[1].id == ecs::Entity(20, 90));
-		REQUIRE(a.arr[2].id == ecs::Entity(30, 421));
+		CHECK(a.b == 214);
+		CHECK(a.arr[0].id == ecs::Entity(10, 2));
+		CHECK(a.arr[1].id == ecs::Entity(20, 90));
+		CHECK(a.arr[2].id == ecs::Entity(30, 421));
 
 		TArrInter test = {
 				{ecs::Entity(10, 2), {}, {}, {}}, {ecs::Entity(20, 90), {}, {}, {}}, {ecs::Entity(30, 421), {}, {}, {}}};
-		REQUIRE(test == a.arr);
+		CHECK(test == a.arr);
 	}
 }
 
@@ -1726,49 +1726,49 @@ TEST_CASE("Containers - sringbuffer") {
 			uint32_t i = 0;
 			for (auto curr: arr) {
 				const auto expected = comparearr[i++];
-				REQUIRE(curr == expected);
+				CHECK(curr == expected);
 			}
-			REQUIRE(i == 5);
+			CHECK(i == 5);
 		}
 
-		REQUIRE_FALSE(arr.empty());
-		REQUIRE(arr.front() == 0);
-		REQUIRE(arr.back() == 4);
+		CHECK_FALSE(arr.empty());
+		CHECK(arr.front() == 0);
+		CHECK(arr.back() == 4);
 
 		arr.pop_front(val);
-		REQUIRE(val == 0);
-		REQUIRE_FALSE(arr.empty());
-		REQUIRE(arr.front() == 1);
-		REQUIRE(arr.back() == 4);
+		CHECK(val == 0);
+		CHECK_FALSE(arr.empty());
+		CHECK(arr.front() == 1);
+		CHECK(arr.back() == 4);
 
 		arr.pop_front(val);
-		REQUIRE(val == 1);
-		REQUIRE_FALSE(arr.empty());
-		REQUIRE(arr.front() == 2);
-		REQUIRE(arr.back() == 4);
+		CHECK(val == 1);
+		CHECK_FALSE(arr.empty());
+		CHECK(arr.front() == 2);
+		CHECK(arr.back() == 4);
 
 		arr.pop_front(val);
-		REQUIRE(val == 2);
-		REQUIRE_FALSE(arr.empty());
-		REQUIRE(arr.front() == 3);
-		REQUIRE(arr.back() == 4);
+		CHECK(val == 2);
+		CHECK_FALSE(arr.empty());
+		CHECK(arr.front() == 3);
+		CHECK(arr.back() == 4);
 
 		arr.pop_back(val);
-		REQUIRE(val == 4);
-		REQUIRE_FALSE(arr.empty());
-		REQUIRE(arr.front() == 3);
-		REQUIRE(arr.back() == 3);
+		CHECK(val == 4);
+		CHECK_FALSE(arr.empty());
+		CHECK(arr.front() == 3);
+		CHECK(arr.back() == 3);
 
 		arr.pop_back(val);
-		REQUIRE(val == 3);
-		REQUIRE(arr.empty());
+		CHECK(val == 3);
+		CHECK(arr.empty());
 	}
 
 	{
 		cnt::sringbuffer<uint32_t, 5> arr;
 		uint32_t val{};
 
-		REQUIRE(arr.empty());
+		CHECK(arr.empty());
 
 		// Iteration
 		{
@@ -1776,63 +1776,63 @@ TEST_CASE("Containers - sringbuffer") {
 			for ([[maybe_unused]] auto curr: arr) {
 				++i;
 			}
-			REQUIRE(i == 0);
+			CHECK(i == 0);
 		}
 
 		{
 			arr.push_back(0);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 0);
-			REQUIRE(arr.back() == 0);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 0);
+			CHECK(arr.back() == 0);
 
 			arr.push_back(1);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 0);
-			REQUIRE(arr.back() == 1);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 0);
+			CHECK(arr.back() == 1);
 
 			arr.push_back(2);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 0);
-			REQUIRE(arr.back() == 2);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 0);
+			CHECK(arr.back() == 2);
 
 			arr.push_back(3);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 0);
-			REQUIRE(arr.back() == 3);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 0);
+			CHECK(arr.back() == 3);
 
 			arr.push_back(4);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 0);
-			REQUIRE(arr.back() == 4);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 0);
+			CHECK(arr.back() == 4);
 		}
 		{
 			arr.pop_front(val);
-			REQUIRE(val == 0);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 1);
-			REQUIRE(arr.back() == 4);
+			CHECK(val == 0);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 1);
+			CHECK(arr.back() == 4);
 
 			arr.pop_front(val);
-			REQUIRE(val == 1);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 2);
-			REQUIRE(arr.back() == 4);
+			CHECK(val == 1);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 2);
+			CHECK(arr.back() == 4);
 
 			arr.pop_front(val);
-			REQUIRE(val == 2);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 3);
-			REQUIRE(arr.back() == 4);
+			CHECK(val == 2);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 3);
+			CHECK(arr.back() == 4);
 
 			arr.pop_back(val);
-			REQUIRE(val == 4);
-			REQUIRE_FALSE(arr.empty());
-			REQUIRE(arr.front() == 3);
-			REQUIRE(arr.back() == 3);
+			CHECK(val == 4);
+			CHECK_FALSE(arr.empty());
+			CHECK(arr.front() == 3);
+			CHECK(arr.back() == 3);
 
 			arr.pop_back(val);
-			REQUIRE(val == 3);
-			REQUIRE(arr.empty());
+			CHECK(val == 3);
+			CHECK(arr.empty());
 		}
 	}
 }
@@ -1850,51 +1850,51 @@ TEST_CASE("Containers - ilist") {
 
 		handles[0] = il.alloc();
 		il[handles[0].id()].value = 100;
-		REQUIRE(handles[0].id() == 0);
-		REQUIRE(il[0].idx == 0);
-		REQUIRE(handles[0].gen() == il[0].gen);
-		REQUIRE(il[0].gen == 0);
+		CHECK(handles[0].id() == 0);
+		CHECK(il[0].idx == 0);
+		CHECK(handles[0].gen() == il[0].gen);
+		CHECK(il[0].gen == 0);
 		handles[1] = il.alloc();
 		il[handles[1].id()].value = 200;
-		REQUIRE(handles[1].id() == 1);
-		REQUIRE(il[1].idx == 1);
-		REQUIRE(handles[1].gen() == il[1].gen);
-		REQUIRE(il[1].gen == 0);
+		CHECK(handles[1].id() == 1);
+		CHECK(il[1].idx == 1);
+		CHECK(handles[1].gen() == il[1].gen);
+		CHECK(il[1].gen == 0);
 		handles[2] = il.alloc();
 		il[handles[2].id()].value = 300;
-		REQUIRE(handles[2].id() == 2);
-		REQUIRE(il[2].idx == 2);
-		REQUIRE(handles[2].gen() == il[2].gen);
-		REQUIRE(il[2].gen == 0);
+		CHECK(handles[2].id() == 2);
+		CHECK(il[2].idx == 2);
+		CHECK(handles[2].gen() == il[2].gen);
+		CHECK(il[2].gen == 0);
 
 		il.free(handles[2]);
-		REQUIRE(il[2].idx == ecs::Entity::IdMask);
-		REQUIRE(il[2].gen == 1);
+		CHECK(il[2].idx == ecs::Entity::IdMask);
+		CHECK(il[2].gen == 1);
 		il.free(handles[1]);
-		REQUIRE(il[1].idx == 2);
-		REQUIRE(il[1].gen == 1);
+		CHECK(il[1].idx == 2);
+		CHECK(il[1].gen == 1);
 		il.free(handles[0]);
-		REQUIRE(il[0].idx == 1);
-		REQUIRE(il[0].gen == 1);
+		CHECK(il[0].idx == 1);
+		CHECK(il[0].gen == 1);
 
 		handles[0] = il.alloc();
-		REQUIRE(handles[0].id() == 0);
-		REQUIRE(il[0].value == 100);
-		REQUIRE(il[0].idx == 1);
-		REQUIRE(handles[0].gen() == il[0].gen);
-		REQUIRE(il[0].gen == 1);
+		CHECK(handles[0].id() == 0);
+		CHECK(il[0].value == 100);
+		CHECK(il[0].idx == 1);
+		CHECK(handles[0].gen() == il[0].gen);
+		CHECK(il[0].gen == 1);
 		handles[1] = il.alloc();
-		REQUIRE(handles[1].id() == 1);
-		REQUIRE(il[1].value == 200);
-		REQUIRE(il[1].idx == 2);
-		REQUIRE(handles[1].gen() == il[1].gen);
-		REQUIRE(il[1].gen == 1);
+		CHECK(handles[1].id() == 1);
+		CHECK(il[1].value == 200);
+		CHECK(il[1].idx == 2);
+		CHECK(handles[1].gen() == il[1].gen);
+		CHECK(il[1].gen == 1);
 		handles[2] = il.alloc();
-		REQUIRE(handles[2].id() == 2);
-		REQUIRE(il[2].value == 300);
-		REQUIRE(il[2].idx == ecs::Entity::IdMask);
-		REQUIRE(handles[2].gen() == il[2].gen);
-		REQUIRE(il[2].gen == 1);
+		CHECK(handles[2].id() == 2);
+		CHECK(il[2].value == 300);
+		CHECK(il[2].idx == ecs::Entity::IdMask);
+		CHECK(handles[2].gen() == il[2].gen);
+		CHECK(il[2].gen == 1);
 	}
 	SECTION("2 -> 1 -> 0") {
 		cnt::ilist<EntityContainer, ecs::Entity> il;
@@ -1902,54 +1902,54 @@ TEST_CASE("Containers - ilist") {
 
 		handles[0] = il.alloc();
 		il[handles[0].id()].value = 100;
-		REQUIRE(handles[0].id() == 0);
-		REQUIRE(il[0].idx == 0);
-		REQUIRE(handles[0].gen() == il[0].gen);
-		REQUIRE(il[0].gen == 0);
+		CHECK(handles[0].id() == 0);
+		CHECK(il[0].idx == 0);
+		CHECK(handles[0].gen() == il[0].gen);
+		CHECK(il[0].gen == 0);
 		handles[1] = il.alloc();
 		il[handles[1].id()].value = 200;
-		REQUIRE(handles[1].id() == 1);
-		REQUIRE(il[1].idx == 1);
-		REQUIRE(handles[1].gen() == il[1].gen);
-		REQUIRE(il[1].gen == 0);
+		CHECK(handles[1].id() == 1);
+		CHECK(il[1].idx == 1);
+		CHECK(handles[1].gen() == il[1].gen);
+		CHECK(il[1].gen == 0);
 		handles[2] = il.alloc();
 		il[handles[2].id()].value = 300;
-		REQUIRE(handles[2].id() == 2);
-		REQUIRE(il[2].idx == 2);
-		REQUIRE(handles[2].gen() == il[2].gen);
-		REQUIRE(il[2].gen == 0);
+		CHECK(handles[2].id() == 2);
+		CHECK(il[2].idx == 2);
+		CHECK(handles[2].gen() == il[2].gen);
+		CHECK(il[2].gen == 0);
 
 		il.free(handles[0]);
-		REQUIRE(il[0].idx == ecs::Entity::IdMask);
-		REQUIRE(il[0].gen == 1);
+		CHECK(il[0].idx == ecs::Entity::IdMask);
+		CHECK(il[0].gen == 1);
 		il.free(handles[1]);
-		REQUIRE(il[1].idx == 0);
-		REQUIRE(il[1].gen == 1);
+		CHECK(il[1].idx == 0);
+		CHECK(il[1].gen == 1);
 		il.free(handles[2]);
-		REQUIRE(il[2].idx == 1);
-		REQUIRE(il[2].gen == 1);
+		CHECK(il[2].idx == 1);
+		CHECK(il[2].gen == 1);
 
 		handles[0] = il.alloc();
-		REQUIRE(handles[0].id() == 2);
+		CHECK(handles[0].id() == 2);
 		const auto idx0 = handles[0].id();
-		REQUIRE(il[idx0].value == 300);
-		REQUIRE(il[idx0].idx == 1);
-		REQUIRE(handles[0].gen() == il[idx0].gen);
-		REQUIRE(il[idx0].gen == 1);
+		CHECK(il[idx0].value == 300);
+		CHECK(il[idx0].idx == 1);
+		CHECK(handles[0].gen() == il[idx0].gen);
+		CHECK(il[idx0].gen == 1);
 		handles[1] = il.alloc();
-		REQUIRE(handles[1].id() == 1);
+		CHECK(handles[1].id() == 1);
 		const auto idx1 = handles[1].id();
-		REQUIRE(il[idx1].value == 200);
-		REQUIRE(il[idx1].idx == 0);
-		REQUIRE(handles[1].gen() == il[idx1].gen);
-		REQUIRE(il[idx1].gen == 1);
+		CHECK(il[idx1].value == 200);
+		CHECK(il[idx1].idx == 0);
+		CHECK(handles[1].gen() == il[idx1].gen);
+		CHECK(il[idx1].gen == 1);
 		handles[2] = il.alloc();
-		REQUIRE(handles[2].id() == 0);
+		CHECK(handles[2].id() == 0);
 		const auto idx2 = handles[2].id();
-		REQUIRE(il[idx2].value == 100);
-		REQUIRE(il[idx2].idx == ecs::Entity::IdMask);
-		REQUIRE(handles[2].gen() == il[idx2].gen);
-		REQUIRE(il[idx2].gen == 1);
+		CHECK(il[idx2].value == 100);
+		CHECK(il[idx2].idx == ecs::Entity::IdMask);
+		CHECK(handles[2].gen() == il[idx2].gen);
+		CHECK(il[idx2].gen == 1);
 	}
 }
 
@@ -1960,77 +1960,77 @@ void test_bitset() {
 
 	SECTION("Bit operations") {
 		cnt::bitset<NBits> bs;
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.size() == NBits);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.size() == NBits);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.set(0, true);
-		REQUIRE(bs.test(0) == true);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(0) == true);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.set(1, true);
-		REQUIRE(bs.test(1) == true);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == true);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.set(1, false);
-		REQUIRE(bs.test(1) == false);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == false);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.flip(1);
-		REQUIRE(bs.test(1) == true);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == true);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.flip(1);
-		REQUIRE(bs.test(1) == false);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == false);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.reset(0);
-		REQUIRE(bs.test(0) == false);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.test(0) == false);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.set();
-		REQUIRE(bs.count() == NBits);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.count() == NBits);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.flip();
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.flip();
-		REQUIRE(bs.count() == NBits);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.count() == NBits);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.reset();
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Iteration") {
 		{
@@ -2038,7 +2038,7 @@ void test_bitset() {
 			uint32_t i = 0;
 			for ([[maybe_unused]] auto val: bs)
 				++i;
-			REQUIRE(i == 0);
+			CHECK(i == 0);
 		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
 			cnt::bitset<NBits> bs;
@@ -2049,11 +2049,11 @@ void test_bitset() {
 			uint32_t i = 0;
 			for (const auto val: bs) {
 				const auto valExpected = vals[i];
-				REQUIRE(valExpected == val);
+				CHECK(valExpected == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == (uint32_t)vals.size());
+			CHECK(i == c);
+			CHECK(i == (uint32_t)vals.size());
 		};
 		auto fwd_iterator_test2 = [](std::span<uint32_t> vals) {
 			cnt::bitset<NBits> bs;
@@ -2065,11 +2065,11 @@ void test_bitset() {
 			for (auto it = bs.begin(); it != bs.end(); ++it) {
 				const auto val = *it;
 				const auto valExpected = vals[i];
-				REQUIRE(valExpected == val);
+				CHECK(valExpected == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == (uint32_t)vals.size());
+			CHECK(i == c);
+			CHECK(i == (uint32_t)vals.size());
 		};
 		auto bwd_iterator_test = [](std::span<uint32_t> vals) {
 			cnt::bitset<NBits> bs;
@@ -2083,11 +2083,11 @@ void test_bitset() {
 			for (auto it = bs.rbegin(); it != itEnd; ++it) {
 				const auto val = *it;
 				const auto valExpected = vals[valsN - i - 1U];
-				REQUIRE(valExpected == val);
+				CHECK(valExpected == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == valsN);
+			CHECK(i == c);
+			CHECK(i == valsN);
 		};
 		{
 			uint32_t vals[]{1, 2, 3};
@@ -2162,34 +2162,34 @@ TEST_CASE("Containers - bitset") {
 		bs.set(10);
 		bs.flip(2, 9);
 		for (uint32_t i = 1; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 9);
 		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(10));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(10, 10);
-		REQUIRE(bs.test(10));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(10));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 10);
-		REQUIRE(bs.count() == 11);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 11);
+		CHECK(bs.all() == true);
 		bs.flip(0, 10);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Ranges 64 bits") {
 		cnt::bitset<64> bs;
@@ -2197,34 +2197,34 @@ TEST_CASE("Containers - bitset") {
 		bs.set(10);
 		bs.flip(2, 9);
 		for (uint32_t i = 1; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 9);
 		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(10));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(63, 63);
-		REQUIRE(bs.test(63));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(63));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 63);
-		REQUIRE(bs.count() == 64);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 64);
+		CHECK(bs.all() == true);
 		bs.flip(0, 63);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Ranges 101 bits") {
 		cnt::bitset<101> bs;
@@ -2232,34 +2232,34 @@ TEST_CASE("Containers - bitset") {
 		bs.set(100);
 		bs.flip(2, 99);
 		for (uint32_t i = 1; i <= 100; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 99);
 		for (uint32_t i = 2; i < 100; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(100));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(100));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(100, 100);
-		REQUIRE(bs.test(100));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(100));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 100);
-		REQUIRE(bs.count() == 101);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 101);
+		CHECK(bs.all() == true);
 		bs.flip(0, 100);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 }
 
@@ -2270,99 +2270,99 @@ void test_dbitset() {
 
 	SECTION("Bit operations") {
 		cnt::dbitset bs;
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.size() == 1);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.size() == 1);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.set(0, true);
-		REQUIRE(bs.test(0) == true);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(0) == true);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.set(1, true);
-		REQUIRE(bs.test(1) == true);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == true);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.set(1, false);
-		REQUIRE(bs.test(1) == false);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == false);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.flip(1);
-		REQUIRE(bs.test(1) == true);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == true);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.flip(1);
-		REQUIRE(bs.test(1) == false);
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.test(1) == false);
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.reset(0);
-		REQUIRE(bs.test(0) == false);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.test(0) == false);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.set();
-		REQUIRE(bs.count() == bs.size());
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.count() == bs.size());
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.flip();
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 
 		bs.flip();
-		REQUIRE(bs.count() == bs.size());
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true); // 2 bits are set
-		REQUIRE(bs.none() == false);
+		CHECK(bs.count() == bs.size());
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true); // 2 bits are set
+		CHECK(bs.none() == false);
 
 		const auto ss = bs.size();
 		bs.reserve(256);
-		REQUIRE(bs.size() == 2);
-		REQUIRE(bs.count() == ss); // size doesn't change
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == true);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.size() == 2);
+		CHECK(bs.count() == ss); // size doesn't change
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == true);
+		CHECK(bs.none() == false);
 
 		bs.resize(128);
-		REQUIRE(bs.size() == 128);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.size() == 128);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.resize(512);
-		REQUIRE(bs.size() == 512);
-		REQUIRE(bs.count() == 2);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == false);
+		CHECK(bs.size() == 512);
+		CHECK(bs.count() == 2);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == false);
 
 		bs.reset();
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.any() == false);
-		REQUIRE(bs.all() == false);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.any() == false);
+		CHECK(bs.all() == false);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Iteration") {
 		{
@@ -2370,7 +2370,7 @@ void test_dbitset() {
 			uint32_t i = 0;
 			for ([[maybe_unused]] auto val: bs)
 				++i;
-			REQUIRE(i == 0);
+			CHECK(i == 0);
 		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
 			cnt::dbitset bs;
@@ -2380,11 +2380,11 @@ void test_dbitset() {
 
 			uint32_t i = 0;
 			for (auto val: bs) {
-				REQUIRE(vals[i] == val);
+				CHECK(vals[i] == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == (uint32_t)vals.size());
+			CHECK(i == c);
+			CHECK(i == (uint32_t)vals.size());
 		};
 		auto fwd_iterator_test2 = [](std::span<uint32_t> vals) {
 			cnt::dbitset bs;
@@ -2396,11 +2396,11 @@ void test_dbitset() {
 			for (auto it = bs.begin(); it != bs.end(); ++it) {
 				const auto val = *it;
 				const auto valExpected = vals[i];
-				REQUIRE(valExpected == val);
+				CHECK(valExpected == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == (uint32_t)vals.size());
+			CHECK(i == c);
+			CHECK(i == (uint32_t)vals.size());
 		};
 		auto bwd_iterator_test = [](std::span<uint32_t> vals) {
 			cnt::dbitset bs;
@@ -2414,11 +2414,11 @@ void test_dbitset() {
 			for (auto it = bs.rbegin(); it != itEnd; ++it) {
 				const auto val = *it;
 				const auto valExpected = vals[valsN - i - 1U];
-				REQUIRE(valExpected == val);
+				CHECK(valExpected == val);
 				++i;
 			}
-			REQUIRE(i == c);
-			REQUIRE(i == valsN);
+			CHECK(i == c);
+			CHECK(i == valsN);
 		};
 		{
 			uint32_t vals[]{1, 2, 3};
@@ -2495,34 +2495,34 @@ TEST_CASE("Containers - dbitset") {
 		bs.set(10);
 		bs.flip(2, 9);
 		for (uint32_t i = 1; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 9);
 		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(10));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(10, 10);
-		REQUIRE(bs.test(10));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(10));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 10);
-		REQUIRE(bs.count() == 11);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 11);
+		CHECK(bs.all() == true);
 		bs.flip(0, 10);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Ranges 64 bits") {
 		cnt::dbitset bs;
@@ -2532,34 +2532,34 @@ TEST_CASE("Containers - dbitset") {
 		bs.set(10);
 		bs.flip(2, 9);
 		for (uint32_t i = 1; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 9);
 		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(10));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(63, 63);
-		REQUIRE(bs.test(63));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(63));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 63);
-		REQUIRE(bs.count() == 64);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 64);
+		CHECK(bs.all() == true);
 		bs.flip(0, 63);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 	SECTION("Ranges 101 bits") {
 		cnt::dbitset bs;
@@ -2569,34 +2569,34 @@ TEST_CASE("Containers - dbitset") {
 		bs.set(100);
 		bs.flip(2, 99);
 		for (uint32_t i = 1; i <= 100; ++i)
-			REQUIRE(bs.test(i) == true);
+			CHECK(bs.test(i) == true);
 		bs.flip(2, 99);
 		for (uint32_t i = 2; i < 100; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(100));
+			CHECK(bs.test(i) == false);
+		CHECK(bs.test(1));
+		CHECK(bs.test(100));
 
 		bs.reset();
 		bs.flip(0, 0);
-		REQUIRE(bs.test(0));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(0));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(100, 100);
-		REQUIRE(bs.test(100));
-		REQUIRE(bs.count() == 1);
-		REQUIRE(bs.any() == true);
-		REQUIRE(bs.all() == false);
+		CHECK(bs.test(100));
+		CHECK(bs.count() == 1);
+		CHECK(bs.any() == true);
+		CHECK(bs.all() == false);
 
 		bs.reset();
 		bs.flip(0, 100);
-		REQUIRE(bs.count() == 101);
-		REQUIRE(bs.all() == true);
+		CHECK(bs.count() == 101);
+		CHECK(bs.all() == true);
 		bs.flip(0, 100);
-		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.none() == true);
+		CHECK(bs.count() == 0);
+		CHECK(bs.none() == true);
 	}
 }
 
@@ -2611,14 +2611,14 @@ TEST_CASE("each") {
 		core::each<N>([&cnt](auto i) {
 			cnt += i;
 		});
-		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
+		CHECK(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
 	SECTION("no index argument") {
 		uint32_t cnt = 0;
 		core::each<N>([&cnt]() {
 			++cnt;
 		});
-		REQUIRE(cnt == N);
+		CHECK(cnt == N);
 	}
 }
 
@@ -2629,14 +2629,14 @@ TEST_CASE("each_ext") {
 		core::each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
-		REQUIRE(cnt == 2 + 4 + 6 + 8);
+		CHECK(cnt == 2 + 4 + 6 + 8);
 	}
 	SECTION("no index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt]() {
 			++cnt;
 		});
-		REQUIRE(cnt == 4);
+		CHECK(cnt == 4);
 	}
 }
 
@@ -2646,17 +2646,17 @@ TEST_CASE("each_tuple") {
 		core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 			val += value;
 		});
-		REQUIRE(val == 99);
+		CHECK(val == 99);
 	}
 	SECTION("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 0;
 		core::each_tuple(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
 			val += value;
-			REQUIRE(i == iter);
+			CHECK(i == iter);
 			++iter;
 		});
-		REQUIRE(val == 99);
+		CHECK(val == 99);
 	}
 }
 
@@ -2666,17 +2666,17 @@ TEST_CASE("each_tuple_ext") {
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 			val += value;
 		});
-		REQUIRE(val == 30);
+		CHECK(val == 30);
 	}
 	SECTION("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 1;
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
 			val += value;
-			REQUIRE(i == iter);
+			CHECK(i == iter);
 			++iter;
 		});
-		REQUIRE(val == 30);
+		CHECK(val == 30);
 	}
 }
 
@@ -2687,7 +2687,7 @@ TEST_CASE("each_tuple2") {
 		core::each_tuple<TTuple>([&val](auto&& item) {
 			val += sizeof(item);
 		});
-		REQUIRE(val == 16);
+		CHECK(val == 16);
 	}
 	SECTION("func(Args, iter)") {
 		uint32_t val = 0;
@@ -2695,10 +2695,10 @@ TEST_CASE("each_tuple2") {
 		using TTuple = std::tuple<int, int, double>;
 		core::each_tuple<TTuple>([&](auto&& item, uint32_t i) {
 			val += sizeof(item);
-			REQUIRE(i == iter);
+			CHECK(i == iter);
 			++iter;
 		});
-		REQUIRE(val == 16);
+		CHECK(val == 16);
 	}
 }
 
@@ -2709,7 +2709,7 @@ TEST_CASE("each_tuple_ext2") {
 		core::each_tuple_ext<1, 3, TTuple>([&val](auto&& item) {
 			val += sizeof(item);
 		});
-		REQUIRE(val == 12);
+		CHECK(val == 12);
 	}
 	SECTION("func(Args, iter)") {
 		uint32_t val = 0;
@@ -2717,10 +2717,10 @@ TEST_CASE("each_tuple_ext2") {
 		using TTuple = std::tuple<int, int, double>;
 		core::each_tuple_ext<1, 3, TTuple>([&](auto&& item, uint32_t i) {
 			val += sizeof(item);
-			REQUIRE(i == iter);
+			CHECK(i == iter);
 			++iter;
 		});
-		REQUIRE(val == 12);
+		CHECK(val == 12);
 	}
 }
 
@@ -2731,7 +2731,7 @@ TEST_CASE("each_pack") {
 				val += value;
 			},
 			69, 10, 20);
-	REQUIRE(val == 99);
+	CHECK(val == 99);
 }
 
 //-----------------------------------------------------------------
@@ -2750,7 +2750,7 @@ void sort_descending(C&& arr) {
 		else
 			core::sort_ct(arr, core::is_greater<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	if constexpr (IsRuntime) {
@@ -2761,7 +2761,7 @@ void sort_descending(C&& arr) {
 				core::swap(arr[a], arr[b]);
 			});
 			for (uint32_t i = 1; i < arr.size(); ++i)
-				REQUIRE(arr[i - 1] > arr[i]);
+				CHECK(arr[i - 1] > arr[i]);
 		}
 	}
 }
@@ -2778,7 +2778,7 @@ void sort_ascending(C&& arr) {
 		else
 			core::sort_ct(arr, core::is_smaller<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	if constexpr (IsRuntime) {
@@ -2789,7 +2789,7 @@ void sort_ascending(C&& arr) {
 				core::swap(arr[a], arr[b]);
 			});
 			for (uint32_t i = 1; i < arr.size(); ++i)
-				REQUIRE(arr[i - 1] < arr[i]);
+				CHECK(arr[i - 1] < arr[i]);
 		}
 	}
 }
@@ -2881,9 +2881,9 @@ TEST_CASE("Run-time sort ascending") {
 //-----------------------------------------------------------------
 
 TEST_CASE("EntityKinds") {
-	REQUIRE(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
-	REQUIRE(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
-	REQUIRE(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
+	CHECK(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
+	CHECK(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
+	CHECK(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
 }
 
 GAIA_GCC_WARNING_PUSH()
@@ -2901,9 +2901,9 @@ void TestDataLayoutAoS() {
 		data[i] = {f, f, f};
 
 		auto val = data[i];
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
+		CHECK(val.x == f);
+		CHECK(val.y == f);
+		CHECK(val.z == f);
 	}
 
 	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
@@ -2911,9 +2911,9 @@ void TestDataLayoutAoS() {
 			const auto f = (float)(i + 1);
 
 			auto val = data[i];
-			REQUIRE(val.x == f);
-			REQUIRE(val.y == f);
-			REQUIRE(val.z == f);
+			CHECK(val.x == f);
+			CHECK(val.y == f);
+			CHECK(val.z == f);
 		}
 	}
 }
@@ -2928,14 +2928,14 @@ void TestDataLayoutSoA() {
 	constexpr uint32_t N = 100;
 	auto test = [](const auto& data, auto* f, uint32_t i) {
 		T val = data[i];
-		REQUIRE(val.x == f[0]);
-		REQUIRE(val.y == f[1]);
-		REQUIRE(val.z == f[2]);
+		CHECK(val.x == f[0]);
+		CHECK(val.y == f[1]);
+		CHECK(val.z == f[2]);
 
 		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<2>()[i]};
-		REQUIRE(ff[0] == f[0]);
-		REQUIRE(ff[1] == f[1]);
-		REQUIRE(ff[2] == f[2]);
+		CHECK(ff[0] == f[0]);
+		CHECK(ff[1] == f[1]);
+		CHECK(ff[2] == f[2]);
 	};
 
 	{
@@ -2975,17 +2975,17 @@ void TestDataLayoutSoA<DummySoA>() {
 	constexpr uint32_t N = 100;
 	auto test = [](const auto& data, auto* f, uint32_t i) {
 		DummySoA val = data[i];
-		REQUIRE(val.x == f[0]);
-		REQUIRE(val.y == f[1]);
-		REQUIRE(val.b == true);
-		REQUIRE(val.w == f[2]);
+		CHECK(val.x == f[0]);
+		CHECK(val.y == f[1]);
+		CHECK(val.b == true);
+		CHECK(val.w == f[2]);
 
 		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<3>()[i]};
 		const bool b = data.template soa_view<2>()[i];
-		REQUIRE(ff[0] == f[0]);
-		REQUIRE(ff[1] == f[1]);
-		REQUIRE(b == true);
-		REQUIRE(ff[2] == f[2]);
+		CHECK(ff[0] == f[0]);
+		CHECK(ff[1] == f[1]);
+		CHECK(b == true);
+		CHECK(ff[2] == f[2]);
 	};
 
 	{
@@ -3043,25 +3043,25 @@ TEST_CASE("Entity - valid/has") {
 	TestWorld twld;
 
 	auto e = wld.add();
-	REQUIRE(wld.valid(e));
-	REQUIRE(wld.has(e));
+	CHECK(wld.valid(e));
+	CHECK(wld.has(e));
 
 	wld.del(e);
-	REQUIRE_FALSE(wld.valid(e));
-	REQUIRE_FALSE(wld.has(e));
+	CHECK_FALSE(wld.valid(e));
+	CHECK_FALSE(wld.has(e));
 }
 
 TEST_CASE("Entity - EntityBad") {
-	REQUIRE(ecs::Entity{} == ecs::EntityBad);
+	CHECK(ecs::Entity{} == ecs::EntityBad);
 
 	TestWorld twld;
-	REQUIRE_FALSE(wld.valid(ecs::EntityBad));
-	REQUIRE_FALSE(wld.has(ecs::EntityBad));
+	CHECK_FALSE(wld.valid(ecs::EntityBad));
+	CHECK_FALSE(wld.has(ecs::EntityBad));
 
 	auto e = wld.add();
-	REQUIRE(e != ecs::EntityBad);
-	REQUIRE_FALSE(e == ecs::EntityBad);
-	REQUIRE(e.entity());
+	CHECK(e != ecs::EntityBad);
+	CHECK_FALSE(e == ecs::EntityBad);
+	CHECK(e.entity());
 }
 
 TEST_CASE("Entity copy") {
@@ -3072,7 +3072,7 @@ TEST_CASE("Entity copy") {
 	wld.add(e1, e2);
 	auto e3 = wld.copy(e1);
 
-	REQUIRE(wld.has(e3, e2));
+	CHECK(wld.has(e3, e2));
 }
 
 #if GAIA_USE_SAFE_ENTITY
@@ -3081,80 +3081,80 @@ TEST_CASE("Entity safe") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		{
 			auto se = ecs::SafeEntity(wld, e);
-			REQUIRE(wld.valid(se));
-			REQUIRE(wld.has(se));
-			REQUIRE(wld.valid(e));
-			REQUIRE(wld.has(e));
+			CHECK(wld.valid(se));
+			CHECK(wld.has(se));
+			CHECK(wld.valid(e));
+			CHECK(wld.has(e));
 		}
 
 		// SafeEntity went out of scope but we didn't request delete.
 		// The entity needs to stay alive.
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 	}
 
 	SECTION("safe with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		{
 			auto se = ecs::SafeEntity(wld, e);
-			REQUIRE(se == e);
+			CHECK(se == e);
 
-			REQUIRE(wld.valid(se));
-			REQUIRE(wld.has(se));
-			REQUIRE(wld.valid(e));
-			REQUIRE(wld.has(e));
+			CHECK(wld.valid(se));
+			CHECK(wld.has(se));
+			CHECK(wld.valid(e));
+			CHECK(wld.has(e));
 
 			// We can call del as many times as we want. So long a SafeEntity is around,
 			// we won't be able to delete the entity.
 			GAIA_FOR(10) {
 				wld.del(e);
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 			}
 		}
 
 		// SafeEntity went out of scope and we did request delete.
 		// The entity needs to be dead now.
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
 	}
 
 	SECTION("many safes with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		{
 			auto se0 = ecs::SafeEntity(wld, e);
 
 			{
 				auto se = ecs::SafeEntity(wld, e);
-				REQUIRE(se == e);
-				REQUIRE(se == se0);
+				CHECK(se == e);
+				CHECK(se == se0);
 
-				REQUIRE(wld.valid(se));
-				REQUIRE(wld.has(se));
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(se));
+				CHECK(wld.has(se));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 
 				// We can call del as many times as we want. So long a SafeEntity is around,
 				// we won't be able to delete the entity.
 				GAIA_FOR(10) {
 					wld.del(e);
-					REQUIRE(wld.valid(e));
-					REQUIRE(wld.has(e));
+					CHECK(wld.valid(e));
+					CHECK(wld.has(e));
 				}
 			}
 
@@ -3163,15 +3163,15 @@ TEST_CASE("Entity safe") {
 			// how many times we try.
 			GAIA_FOR(10) {
 				wld.del(e);
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 			}
 		}
 
 		// SafeEntity went out of scope and we did request delete.
 		// The entity needs to be dead now.
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
 	}
 
 	SECTION("component") {
@@ -3187,20 +3187,20 @@ TEST_CASE("Entity safe") {
 		wld.add<SafeComponent>(e2, {ecs::SafeEntity(wld, e)});
 
 		const auto& sc = wld.get<SafeComponent>(e2);
-		REQUIRE(sc.entity == e);
+		CHECK(sc.entity == e);
 
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		// Nothings gets deleted because the reference is held in the component
 		wld.del(e);
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		// Delete the entity holding the ref
 		wld.del(e2);
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
 	}
 }
 #endif
@@ -3211,67 +3211,67 @@ TEST_CASE("Entity weak") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		auto we = ecs::WeakEntity(wld, e);
-		REQUIRE(we == e);
+		CHECK(we == e);
 
-		REQUIRE(wld.valid(we));
-		REQUIRE(wld.has(we));
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(we));
+		CHECK(wld.has(we));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		wld.del(e);
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
-		REQUIRE_FALSE(wld.valid(we));
-		REQUIRE_FALSE(wld.has(we));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(we));
+		CHECK_FALSE(wld.has(we));
 	}
 
 	SECTION("weak with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		auto we = ecs::WeakEntity(wld, e);
 
 		{
 			auto se = ecs::SafeEntity(wld, e);
-			REQUIRE(se == e);
+			CHECK(se == e);
 
-			REQUIRE(wld.valid(we));
-			REQUIRE(wld.has(we));
-			REQUIRE(wld.valid(e));
-			REQUIRE(wld.has(e));
+			CHECK(wld.valid(we));
+			CHECK(wld.has(we));
+			CHECK(wld.valid(e));
+			CHECK(wld.has(e));
 
 			// We can call del as many times as we want. So long a SafeEntity is around,
 			// we won't be able to delete the entity.
 			GAIA_FOR(10) {
 				wld.del(e);
-				REQUIRE(wld.valid(we));
-				REQUIRE(wld.has(we));
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(we));
+				CHECK(wld.has(we));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 			}
 		}
 
 		// SafeEntity went out of scope and we did request delete.
 		// The entity needs to be dead now.
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
-		REQUIRE_FALSE(wld.valid(we));
-		REQUIRE_FALSE(wld.has(we));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(we));
+		CHECK_FALSE(wld.has(we));
 	}
 
 	SECTION("weak, safes with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
-		REQUIRE(wld.valid(e));
-		REQUIRE(wld.has(e));
+		CHECK(wld.valid(e));
+		CHECK(wld.has(e));
 
 		auto we = ecs::WeakEntity(wld, e);
 
@@ -3280,21 +3280,21 @@ TEST_CASE("Entity weak") {
 
 			{
 				auto se = ecs::SafeEntity(wld, e);
-				REQUIRE(se == e);
+				CHECK(se == e);
 
-				REQUIRE(wld.valid(we));
-				REQUIRE(wld.has(we));
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(we));
+				CHECK(wld.has(we));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 
 				// We can call del as many times as we want. So long a SafeEntity is around,
 				// we won't be able to delete the entity.
 				GAIA_FOR(10) {
 					wld.del(e);
-					REQUIRE(wld.valid(we));
-					REQUIRE(wld.has(we));
-					REQUIRE(wld.valid(e));
-					REQUIRE(wld.has(e));
+					CHECK(wld.valid(we));
+					CHECK(wld.has(we));
+					CHECK(wld.valid(e));
+					CHECK(wld.has(e));
 				}
 			}
 
@@ -3303,19 +3303,19 @@ TEST_CASE("Entity weak") {
 			// how many times we try.
 			GAIA_FOR(10) {
 				wld.del(e);
-				REQUIRE(wld.valid(we));
-				REQUIRE(wld.has(we));
-				REQUIRE(wld.valid(e));
-				REQUIRE(wld.has(e));
+				CHECK(wld.valid(we));
+				CHECK(wld.has(we));
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
 			}
 		}
 
 		// SafeEntity went out of scope and we did request delete.
 		// The entity needs to be dead now.
-		REQUIRE_FALSE(wld.valid(we));
-		REQUIRE_FALSE(wld.has(we));
-		REQUIRE_FALSE(wld.valid(e));
-		REQUIRE_FALSE(wld.has(e));
+		CHECK_FALSE(wld.valid(we));
+		CHECK_FALSE(wld.has(we));
+		CHECK_FALSE(wld.valid(e));
+		CHECK_FALSE(wld.has(e));
 	}
 
 	SECTION("component") {
@@ -3331,14 +3331,14 @@ TEST_CASE("Entity weak") {
 		wld.add<WeakComponent>(e2, {ecs::WeakEntity(wld, e)});
 
 		const auto& wc = wld.get<WeakComponent>(e2);
-		REQUIRE(wc.entity == e);
+		CHECK(wc.entity == e);
 
-		REQUIRE(wld.valid(wc.entity));
-		REQUIRE(wld.has(wc.entity));
+		CHECK(wld.valid(wc.entity));
+		CHECK(wld.has(wc.entity));
 
 		wld.del(e);
-		REQUIRE_FALSE(wld.valid(wc.entity));
-		REQUIRE_FALSE(wld.has(wc.entity));
+		CHECK_FALSE(wld.valid(wc.entity));
+		CHECK_FALSE(wld.has(wc.entity));
 	}
 }
 #endif
@@ -3358,14 +3358,14 @@ TEST_CASE("Add - no components") {
 	auto verify = [&](uint32_t i) {
 		const auto a = arr[i + 2];
 		const auto e = ents[i];
-		REQUIRE(a == e);
+		CHECK(a == e);
 	};
 
 	GAIA_FOR(N) create();
 
 	auto q = wld.query().no<ecs::Component>().no<ecs::Core_>();
 	q.arr(arr);
-	REQUIRE(arr.size() - 2 == ents.size()); // 2 for (OnDelete, Error) and (OnTargetDelete, Error)
+	CHECK(arr.size() - 2 == ents.size()); // 2 for (OnDelete, Error) and (OnTargetDelete, Error)
 
 	GAIA_FOR(N) verify(i);
 }
@@ -3385,11 +3385,11 @@ TEST_CASE("Add - 1 component") {
 	auto verify = [&](uint32_t i) {
 		auto e = ents[i];
 
-		REQUIRE(wld.has<Int3>(e));
+		CHECK(wld.has<Int3>(e));
 		auto val = wld.get<Int3>(e);
-		REQUIRE(val.x == i);
-		REQUIRE(val.y == i);
-		REQUIRE(val.z == i);
+		CHECK(val.x == i);
+		CHECK(val.y == i);
+		CHECK(val.z == i);
 	};
 
 	GAIA_FOR(N) create(i);
@@ -3400,12 +3400,12 @@ TEST_CASE("Add - 1 component") {
 		auto e = wld.add();
 		wld.add(e, p.entity, Int3{1, 2, 3});
 
-		REQUIRE(wld.has(e, p.entity));
-		REQUIRE(wld.has<Int3>(e));
+		CHECK(wld.has(e, p.entity));
+		CHECK(wld.has<Int3>(e));
 		auto val0 = wld.get<Int3>(e);
-		REQUIRE(val0.x == 1);
-		REQUIRE(val0.y == 2);
-		REQUIRE(val0.z == 3);
+		CHECK(val0.x == 1);
+		CHECK(val0.y == 2);
+		CHECK(val0.z == 3);
 	}
 }
 
@@ -3429,55 +3429,55 @@ TEST_CASE("Add - namespaces") {
 	auto a4 = wld.copy(a3);
 	(void)a4;
 
-	REQUIRE(wld.has<Position>(e));
-	REQUIRE(wld.has<dummy::Position>(e));
+	CHECK(wld.has<Position>(e));
+	CHECK(wld.has<dummy::Position>(e));
 
 	{
 		auto p1 = wld.get<Position>(e);
-		REQUIRE(p1.x == 1.f);
-		REQUIRE(p1.y == 1.f);
-		REQUIRE(p1.z == 1.f);
+		CHECK(p1.x == 1.f);
+		CHECK(p1.y == 1.f);
+		CHECK(p1.z == 1.f);
 		// auto p2 = wld.get<dummy::Position>(e); commented, value added without being initialized to anything
-		// REQUIRE(p2.x == 0.f);
-		// REQUIRE(p2.y == 0.f);
-		// REQUIRE(p2.z == 0.f);
+		// CHECK(p2.x == 0.f);
+		// CHECK(p2.y == 0.f);
+		// CHECK(p2.z == 0.f);
 	}
 	{
 		// auto p = wld.get<Position>(e2); commented, value added without being initialized to anything
-		// REQUIRE(p.x == 1.f);
-		// REQUIRE(p.y == 1.f);
-		// REQUIRE(p.z == 1.f);
+		// CHECK(p.x == 1.f);
+		// CHECK(p.y == 1.f);
+		// CHECK(p.z == 1.f);
 	}
 	{
 		auto p1 = wld.get<dummy::Position>(a3);
-		REQUIRE(p1.x == 7.f);
-		REQUIRE(p1.y == 7.f);
-		REQUIRE(p1.z == 7.f);
+		CHECK(p1.x == 7.f);
+		CHECK(p1.y == 7.f);
+		CHECK(p1.z == 7.f);
 		auto p2 = wld.get<dummy::Position>(a4);
-		REQUIRE(p2.x == 7.f);
-		REQUIRE(p2.y == 7.f);
-		REQUIRE(p2.z == 7.f);
+		CHECK(p2.x == 7.f);
+		CHECK(p2.y == 7.f);
+		CHECK(p2.z == 7.f);
 	}
 	{
 		auto q0 = wld.query().all<PositionSoA>();
 		const auto c0 = q0.count();
-		REQUIRE(c0 == 0); // nothing
+		CHECK(c0 == 0); // nothing
 
 		auto q1 = wld.query().all<Position>();
 		const auto c1 = q1.count();
-		REQUIRE(c1 == 2); // e, e2
+		CHECK(c1 == 2); // e, e2
 
 		auto q2 = wld.query().all<dummy::Position>();
 		const auto c2 = q2.count();
-		REQUIRE(c2 == 3); // e, a3, a4
+		CHECK(c2 == 3); // e, a3, a4
 
 		auto q3 = wld.query().no<Position>();
 		const auto c3 = q3.count();
-		REQUIRE(c3 > 0); // It's going to be a bunch
+		CHECK(c3 > 0); // It's going to be a bunch
 
 		auto q4 = wld.query().all<dummy::Position>().no<Position>();
 		const auto c4 = q4.count();
-		REQUIRE(c4 == 2); // a3, a4
+		CHECK(c4 == 2); // a3, a4
 	}
 }
 
@@ -3494,36 +3494,36 @@ TEST_CASE("Add - many components") {
 		wld.add<Rotation>(e, {2, 2, 2, 2});
 		wld.add<Scale>(e, {4, 4, 4});
 
-		REQUIRE(wld.has<Int3>(e));
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Empty>(e));
-		REQUIRE(wld.has<Rotation>(e));
-		REQUIRE(wld.has<Scale>(e));
+		CHECK(wld.has<Int3>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Empty>(e));
+		CHECK(wld.has<Rotation>(e));
+		CHECK(wld.has<Scale>(e));
 
 		{
 			auto val = wld.get<Int3>(e);
-			REQUIRE(val.x == 3);
-			REQUIRE(val.y == 3);
-			REQUIRE(val.z == 3);
+			CHECK(val.x == 3);
+			CHECK(val.y == 3);
+			CHECK(val.z == 3);
 		}
 		{
 			auto val = wld.get<Position>(e);
-			REQUIRE(val.x == 1.f);
-			REQUIRE(val.y == 1.f);
-			REQUIRE(val.z == 1.f);
+			CHECK(val.x == 1.f);
+			CHECK(val.y == 1.f);
+			CHECK(val.z == 1.f);
 		}
 		{
 			auto val = wld.get<Rotation>(e);
-			REQUIRE(val.x == 2.f);
-			REQUIRE(val.y == 2.f);
-			REQUIRE(val.z == 2.f);
-			REQUIRE(val.w == 2.f);
+			CHECK(val.x == 2.f);
+			CHECK(val.y == 2.f);
+			CHECK(val.z == 2.f);
+			CHECK(val.w == 2.f);
 		}
 		{
 			auto val = wld.get<Scale>(e);
-			REQUIRE(val.x == 4.f);
-			REQUIRE(val.y == 4.f);
-			REQUIRE(val.z == 4.f);
+			CHECK(val.x == 4.f);
+			CHECK(val.y == 4.f);
+			CHECK(val.z == 4.f);
 		}
 	};
 
@@ -3541,12 +3541,12 @@ TEST_CASE("Add - many components, bulk") {
 		(void)b;
 		wld.build(e).add<Int3>().add<Position>().add<Empty>().add<Else>().add<Rotation>().add<Scale>();
 
-		REQUIRE(wld.has<Int3>(e));
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Empty>(e));
-		REQUIRE(wld.has<Else>(e));
-		REQUIRE(wld.has<Rotation>(e));
-		REQUIRE(wld.has<Scale>(e));
+		CHECK(wld.has<Int3>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Empty>(e));
+		CHECK(wld.has<Else>(e));
+		CHECK(wld.has<Rotation>(e));
+		CHECK(wld.has<Scale>(e));
 
 		wld.acc_mut(e)
 				.set<Int3>({3, 3, 3})
@@ -3557,28 +3557,28 @@ TEST_CASE("Add - many components, bulk") {
 
 		{
 			auto val = wld.get<Int3>(e);
-			REQUIRE(val.x == 3);
-			REQUIRE(val.y == 3);
-			REQUIRE(val.z == 3);
+			CHECK(val.x == 3);
+			CHECK(val.y == 3);
+			CHECK(val.z == 3);
 		}
 		{
 			auto val = wld.get<Position>(e);
-			REQUIRE(val.x == 1.f);
-			REQUIRE(val.y == 1.f);
-			REQUIRE(val.z == 1.f);
+			CHECK(val.x == 1.f);
+			CHECK(val.y == 1.f);
+			CHECK(val.z == 1.f);
 		}
 		{
 			auto val = wld.get<Rotation>(e);
-			REQUIRE(val.x == 2.f);
-			REQUIRE(val.y == 2.f);
-			REQUIRE(val.z == 2.f);
-			REQUIRE(val.w == 2.f);
+			CHECK(val.x == 2.f);
+			CHECK(val.y == 2.f);
+			CHECK(val.z == 2.f);
+			CHECK(val.w == 2.f);
 		}
 		{
 			auto val = wld.get<Scale>(e);
-			REQUIRE(val.x == 4.f);
-			REQUIRE(val.y == 4.f);
-			REQUIRE(val.z == 4.f);
+			CHECK(val.x == 4.f);
+			CHECK(val.y == 4.f);
+			CHECK(val.z == 4.f);
 		}
 
 		{
@@ -3588,24 +3588,24 @@ TEST_CASE("Add - many components, bulk") {
 
 			{
 				auto val = wld.get<Int3>(e);
-				REQUIRE(val.x == 30);
-				REQUIRE(val.y == 30);
-				REQUIRE(val.z == 30);
+				CHECK(val.x == 30);
+				CHECK(val.y == 30);
+				CHECK(val.z == 30);
 
 				val = setter.get<Int3>();
-				REQUIRE(val.x == 30);
-				REQUIRE(val.y == 30);
-				REQUIRE(val.z == 30);
+				CHECK(val.x == 30);
+				CHECK(val.y == 30);
+				CHECK(val.z == 30);
 			}
 		}
 
 		wld.clear(e);
-		REQUIRE_FALSE(wld.has<Int3>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Empty>(e));
-		REQUIRE_FALSE(wld.has<Else>(e));
-		REQUIRE_FALSE(wld.has<Rotation>(e));
-		REQUIRE_FALSE(wld.has<Scale>(e));
+		CHECK_FALSE(wld.has<Int3>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Empty>(e));
+		CHECK_FALSE(wld.has<Else>(e));
+		CHECK_FALSE(wld.has<Rotation>(e));
+		CHECK_FALSE(wld.has<Scale>(e));
 	};
 
 	const uint32_t N = 1'500;
@@ -3617,14 +3617,14 @@ TEST_CASE("Add - many components, bulk 2") {
 	auto e = wld.add();
 
 	auto checkInt3 = [&]() {
-		REQUIRE(wld.has<Int3>(e));
+		CHECK(wld.has<Int3>(e));
 		wld.acc_mut(e).set<Int3>({3, 3, 3});
 
 		{
 			auto val = wld.get<Int3>(e);
-			REQUIRE(val.x == 3);
-			REQUIRE(val.y == 3);
-			REQUIRE(val.z == 3);
+			CHECK(val.x == 3);
+			CHECK(val.y == 3);
+			CHECK(val.z == 3);
 		}
 
 		{
@@ -3634,26 +3634,26 @@ TEST_CASE("Add - many components, bulk 2") {
 
 			{
 				auto val = wld.get<Int3>(e);
-				REQUIRE(val.x == 30);
-				REQUIRE(val.y == 30);
-				REQUIRE(val.z == 30);
+				CHECK(val.x == 30);
+				CHECK(val.y == 30);
+				CHECK(val.z == 30);
 
 				val = setter.get<Int3>();
-				REQUIRE(val.x == 30);
-				REQUIRE(val.y == 30);
-				REQUIRE(val.z == 30);
+				CHECK(val.x == 30);
+				CHECK(val.y == 30);
+				CHECK(val.z == 30);
 			}
 		}
 	};
 
 	// This should result in adding just Int3
 	wld.build(e).add<Position>().add<Int3>().del<Position>();
-	REQUIRE_FALSE(wld.has<Position>(e));
+	CHECK_FALSE(wld.has<Position>(e));
 	checkInt3();
 
 	// This should do nothing
 	wld.build(e).add<Position>().del<Position>();
-	REQUIRE_FALSE(wld.has<Position>(e));
+	CHECK_FALSE(wld.has<Position>(e));
 	checkInt3();
 }
 
@@ -3663,30 +3663,30 @@ TEST_CASE("Pair") {
 		auto a = wld.add();
 		auto b = wld.add();
 		auto p = ecs::Pair(a, b);
-		REQUIRE(p.first() == a);
-		REQUIRE(p.second() == b);
+		CHECK(p.first() == a);
+		CHECK(p.second() == b);
 		auto pe = (ecs::Entity)p;
-		REQUIRE(wld.get(pe.id()) == a);
-		REQUIRE(wld.get(pe.gen()) == b);
+		CHECK(wld.get(pe.id()) == a);
+		CHECK(wld.get(pe.gen()) == b);
 	}
 	{
 		TestWorld twld;
 		auto a = wld.add<Position>().entity;
 		auto b = wld.add<ecs::Requires_>().entity;
 		auto p = ecs::Pair(a, b);
-		REQUIRE(ecs::is_pair<decltype(p)>::value);
-		REQUIRE(p.first() == a);
-		REQUIRE(p.second() == b);
+		CHECK(ecs::is_pair<decltype(p)>::value);
+		CHECK(p.first() == a);
+		CHECK(p.second() == b);
 		auto pe = (ecs::Entity)p;
-		REQUIRE_FALSE(ecs::is_pair<decltype(pe)>::value);
-		REQUIRE(wld.get(pe.id()) == a);
-		REQUIRE(wld.get(pe.gen()) == b);
+		CHECK_FALSE(ecs::is_pair<decltype(pe)>::value);
+		CHECK(wld.get(pe.id()) == a);
+		CHECK(wld.get(pe.gen()) == b);
 	}
 	struct Start {};
 	struct Stop {};
 	{
-		REQUIRE(ecs::is_pair<ecs::pair<Start, Position>>::value);
-		REQUIRE(ecs::is_pair<ecs::pair<Position, Start>>::value);
+		CHECK(ecs::is_pair<ecs::pair<Start, Position>>::value);
+		CHECK(ecs::is_pair<ecs::pair<Position, Start>>::value);
 
 		using Pair1 = ecs::pair<Start, Position>;
 		static_assert(std::is_same_v<Pair1::rel, Start>);
@@ -3707,8 +3707,8 @@ TEST_CASE("Pair") {
 		using TestPair = ecs::pair<Position, ecs::uni<Position>>;
 		const auto& pci2 = wld.add<TestPair::rel>();
 		const auto& upci2 = wld.add<TestPair::tgt>();
-		REQUIRE(pci.entity == pci2.entity);
-		REQUIRE(upci.entity == upci2.entity);
+		CHECK(pci.entity == pci2.entity);
+		CHECK(upci.entity == upci2.entity);
 	}
 	{
 		TestWorld twld;
@@ -3721,33 +3721,33 @@ TEST_CASE("Pair") {
 		wld.add(e, {eStart, ePos});
 		wld.add(e, {eStop, ePos});
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 5);
-		REQUIRE(p.y == 5);
-		REQUIRE(p.z == 5);
+		CHECK(p.x == 5);
+		CHECK(p.y == 5);
+		CHECK(p.z == 5);
 
 		wld.add<ecs::pair<Start, ecs::uni<Position>>>(e, {50, 50, 50}); // 19, 14:19
 		auto spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
-		REQUIRE(spu.x == 50);
-		REQUIRE(spu.y == 50);
-		REQUIRE(spu.z == 50);
-		REQUIRE(p.x == 5);
-		REQUIRE(p.y == 5);
-		REQUIRE(p.z == 5);
+		CHECK(spu.x == 50);
+		CHECK(spu.y == 50);
+		CHECK(spu.z == 50);
+		CHECK(p.x == 5);
+		CHECK(p.y == 5);
+		CHECK(p.z == 5);
 
 		wld.add<ecs::pair<Start, Position>>(e, {100, 100, 100}); // 14:18
 		auto sp = wld.get<ecs::pair<Start, Position>>(e);
-		REQUIRE(sp.x == 100);
-		REQUIRE(sp.y == 100);
-		REQUIRE(sp.z == 100);
+		CHECK(sp.x == 100);
+		CHECK(sp.y == 100);
+		CHECK(sp.z == 100);
 
 		p = wld.get<Position>(e);
 		spu = wld.get<ecs::pair<Start, ecs::uni<Position>>>(e);
-		REQUIRE(p.x == 5);
-		REQUIRE(p.y == 5);
-		REQUIRE(p.z == 5);
-		REQUIRE(spu.x == 50);
-		REQUIRE(spu.y == 50);
-		REQUIRE(spu.z == 50);
+		CHECK(p.x == 5);
+		CHECK(p.y == 5);
+		CHECK(p.z == 5);
+		CHECK(spu.x == 50);
+		CHECK(spu.y == 50);
+		CHECK(spu.z == 50);
 
 		{
 			uint32_t i = 0;
@@ -3755,7 +3755,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 		}
 	}
 	{
@@ -3780,7 +3780,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 		{
 			uint32_t i = 0;
@@ -3788,7 +3788,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 		{
 			uint32_t i = 0;
@@ -3796,7 +3796,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 		}
 		{
 			uint32_t i = 0;
@@ -3804,7 +3804,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 		}
 		{
 			uint32_t i = 0;
@@ -3812,7 +3812,7 @@ TEST_CASE("Pair") {
 			q.each([&]() {
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 	}
 }
@@ -3829,15 +3829,15 @@ TEST_CASE("CantCombine") {
 #if !GAIA_ASSERT_ENABLED
 		// Can be tested only with asserts disabled because the situation is assert-protected.
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE_FALSE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK_FALSE(wld.has(dummy, weak));
 #endif
 
 		// Unset
 		wld.del(weak, {ecs::CantCombine, strong});
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK(wld.has(dummy, weak));
 	}
 	SECTION("Two") {
 		TestWorld twld;
@@ -3852,16 +3852,16 @@ TEST_CASE("CantCombine") {
 #if !GAIA_ASSERT_ENABLED
 		// Can be tested only with asserts disabled because the situation is assert-protected.
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE_FALSE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK_FALSE(wld.has(dummy, weak));
 #endif
 		wld.add(dummy, stronger);
 #if !GAIA_ASSERT_ENABLED
 		// Can be tested only with asserts disabled because the situation is assert-protected.
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE(wld.has(dummy, stronger));
-		REQUIRE_FALSE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK(wld.has(dummy, stronger));
+		CHECK_FALSE(wld.has(dummy, weak));
 #endif
 
 		// Unset strong. Still should not be able to add because of stronger.
@@ -3869,17 +3869,17 @@ TEST_CASE("CantCombine") {
 #if !GAIA_ASSERT_ENABLED
 		// Can be tested only with asserts disabled because the situation is assert-protected.
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE(wld.has(dummy, stronger));
-		REQUIRE_FALSE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK(wld.has(dummy, stronger));
+		CHECK_FALSE(wld.has(dummy, weak));
 #endif
 
 		// Unset. Finally should be able to add because there are no more restrictions
 		wld.del(weak, {ecs::CantCombine, stronger});
 		wld.add(dummy, weak);
-		REQUIRE(wld.has(dummy, strong));
-		REQUIRE(wld.has(dummy, stronger));
-		REQUIRE(wld.has(dummy, weak));
+		CHECK(wld.has(dummy, strong));
+		CHECK(wld.has(dummy, stronger));
+		CHECK(wld.has(dummy, weak));
 	}
 }
 
@@ -3893,17 +3893,17 @@ TEST_CASE("Requires") {
 	wld.add(herbivore, {ecs::Requires, animal});
 
 	wld.add(rabbit, carrot);
-	REQUIRE(wld.has(rabbit, herbivore));
-	REQUIRE(wld.has(rabbit, animal));
+	CHECK(wld.has(rabbit, herbivore));
+	CHECK(wld.has(rabbit, animal));
 
 	wld.del(rabbit, animal);
-	REQUIRE(wld.has(rabbit, animal));
+	CHECK(wld.has(rabbit, animal));
 
 	wld.del(rabbit, herbivore);
-	REQUIRE(wld.has(rabbit, herbivore));
+	CHECK(wld.has(rabbit, herbivore));
 
 	wld.del(rabbit, carrot);
-	REQUIRE_FALSE(wld.has(rabbit, carrot));
+	CHECK_FALSE(wld.has(rabbit, carrot));
 }
 
 TEST_CASE("Inheritance (Is)") {
@@ -3923,24 +3923,24 @@ TEST_CASE("Inheritance (Is)") {
 	wld.as(hare, herbivore);
 	wld.as(wolf, carnivore);
 
-	REQUIRE(wld.is(carnivore, animal));
-	REQUIRE(wld.is(herbivore, animal));
-	REQUIRE(wld.is(rabbit, animal));
-	REQUIRE(wld.is(hare, animal));
-	REQUIRE(wld.is(wolf, animal));
-	REQUIRE(wld.is(rabbit, herbivore));
-	REQUIRE(wld.is(hare, herbivore));
-	REQUIRE(wld.is(wolf, carnivore));
+	CHECK(wld.is(carnivore, animal));
+	CHECK(wld.is(herbivore, animal));
+	CHECK(wld.is(rabbit, animal));
+	CHECK(wld.is(hare, animal));
+	CHECK(wld.is(wolf, animal));
+	CHECK(wld.is(rabbit, herbivore));
+	CHECK(wld.is(hare, herbivore));
+	CHECK(wld.is(wolf, carnivore));
 
-	REQUIRE(wld.is(animal, animal));
-	REQUIRE(wld.is(herbivore, herbivore));
-	REQUIRE(wld.is(carnivore, carnivore));
+	CHECK(wld.is(animal, animal));
+	CHECK(wld.is(herbivore, herbivore));
+	CHECK(wld.is(carnivore, carnivore));
 
-	REQUIRE_FALSE(wld.is(animal, herbivore));
-	REQUIRE_FALSE(wld.is(animal, carnivore));
-	REQUIRE_FALSE(wld.is(wolf, herbivore));
-	REQUIRE_FALSE(wld.is(rabbit, carnivore));
-	REQUIRE_FALSE(wld.is(hare, carnivore));
+	CHECK_FALSE(wld.is(animal, herbivore));
+	CHECK_FALSE(wld.is(animal, carnivore));
+	CHECK_FALSE(wld.is(wolf, herbivore));
+	CHECK_FALSE(wld.is(rabbit, carnivore));
+	CHECK_FALSE(wld.is(hare, carnivore));
 
 	{
 		uint32_t i = 0;
@@ -3948,66 +3948,66 @@ TEST_CASE("Inheritance (Is)") {
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == herbivore ||
 												entity == carnivore || entity == wolf;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 6);
+		CHECK(i == 6);
 	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == hare || entity == rabbit || entity == herbivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 3);
+		CHECK(i == 3);
 	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(herbivore);
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == wolf || entity == carnivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 5);
+		CHECK(i == 5);
 	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == wolf || entity == carnivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 3);
+		CHECK(i == 3);
 	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == wolf || entity == carnivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 3);
+		CHECK(i == 3);
 	}
 	{
 		uint32_t i = 0;
 		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, carnivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == herbivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 4);
+		CHECK(i == 4);
 	}
 }
 
@@ -4022,18 +4022,18 @@ TEST_CASE("Inheritance (Is) - change") {
 	wld.as(herbivore, animal);
 	wld.as(wolf, carnivore);
 
-	REQUIRE(wld.is(carnivore, animal));
-	REQUIRE(wld.is(herbivore, animal));
-	REQUIRE(wld.is(wolf, animal));
+	CHECK(wld.is(carnivore, animal));
+	CHECK(wld.is(herbivore, animal));
+	CHECK(wld.is(wolf, animal));
 
-	REQUIRE(wld.is(animal, animal));
-	REQUIRE(wld.is(herbivore, herbivore));
-	REQUIRE(wld.is(carnivore, carnivore));
-	REQUIRE(wld.is(wolf, carnivore));
+	CHECK(wld.is(animal, animal));
+	CHECK(wld.is(herbivore, herbivore));
+	CHECK(wld.is(carnivore, carnivore));
+	CHECK(wld.is(wolf, carnivore));
 
-	REQUIRE_FALSE(wld.is(animal, herbivore));
-	REQUIRE_FALSE(wld.is(animal, carnivore));
-	REQUIRE_FALSE(wld.is(wolf, herbivore));
+	CHECK_FALSE(wld.is(animal, herbivore));
+	CHECK_FALSE(wld.is(animal, carnivore));
+	CHECK_FALSE(wld.is(wolf, herbivore));
 
 	ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal));
 
@@ -4041,28 +4041,28 @@ TEST_CASE("Inheritance (Is) - change") {
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 4);
+		CHECK(i == 4);
 	}
 
 	// Carnivore is no longer an animal
 	wld.del(carnivore, {ecs::Is, animal});
-	REQUIRE(wld.is(wolf, carnivore));
-	REQUIRE_FALSE(wld.is(carnivore, animal));
-	REQUIRE_FALSE(wld.is(wolf, animal));
+	CHECK(wld.is(wolf, carnivore));
+	CHECK_FALSE(wld.is(carnivore, animal));
+	CHECK_FALSE(wld.is(wolf, animal));
 
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == herbivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 2);
+		CHECK(i == 2);
 	}
 
 	// Make carnivore an animal again
@@ -4072,29 +4072,29 @@ TEST_CASE("Inheritance (Is) - change") {
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == herbivore || entity == carnivore || entity == wolf;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 4);
+		CHECK(i == 4);
 	}
 
 	// Wolf is no longer a carnivore and thus no longer an animal.
 	// It should no longer match q
 	wld.del(wolf, {ecs::Is, carnivore});
-	REQUIRE_FALSE(wld.is(wolf, carnivore));
-	REQUIRE(wld.is(carnivore, animal));
-	REQUIRE_FALSE(wld.is(wolf, animal));
+	CHECK_FALSE(wld.is(wolf, carnivore));
+	CHECK(wld.is(carnivore, animal));
+	CHECK_FALSE(wld.is(wolf, animal));
 
 	{
 		uint32_t i = 0;
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == herbivore || entity == carnivore;
-			REQUIRE(isOK);
+			CHECK(isOK);
 
 			++i;
 		});
-		REQUIRE(i == 3);
+		CHECK(i == 3);
 	}
 }
 
@@ -4113,8 +4113,8 @@ TEST_CASE("AddAndDel_entity - no components") {
 		wld.del(e);
 		const bool isValid = wld.valid(e);
 		const bool hasEntity = wld.has(e);
-		REQUIRE_FALSE(isValid);
-		REQUIRE_FALSE(hasEntity);
+		CHECK_FALSE(isValid);
+		CHECK_FALSE(hasEntity);
 	};
 
 	// Create entities
@@ -4127,8 +4127,8 @@ TEST_CASE("AddAndDel_entity - no components") {
 		const auto e = arr[i];
 		const bool isValid = wld.valid(e);
 		const bool hasEntity = wld.has(e);
-		REQUIRE_FALSE(isValid);
-		REQUIRE_FALSE(hasEntity);
+		CHECK_FALSE(isValid);
+		CHECK_FALSE(hasEntity);
 	}
 }
 
@@ -4145,17 +4145,17 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 
 		wld.add<Int3>(e, {id, id, id});
 		auto pos = wld.get<Int3>(e);
-		REQUIRE(pos.x == id);
-		REQUIRE(pos.y == id);
-		REQUIRE(pos.z == id);
+		CHECK(pos.x == id);
+		CHECK(pos.y == id);
+		CHECK(pos.z == id);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
 		wld.del(e);
 		const bool isValid = wld.valid(e);
 		const bool hasEntity = wld.has(e);
-		REQUIRE_FALSE(isValid);
-		REQUIRE_FALSE(hasEntity);
+		CHECK_FALSE(isValid);
+		CHECK_FALSE(hasEntity);
 	};
 
 	GAIA_FOR(N) create(i);
@@ -4166,34 +4166,34 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 		const auto e = arr[i];
 		const bool isValid = wld.valid(e);
 		const bool hasEntity = wld.has(e);
-		REQUIRE_FALSE(isValid);
-		REQUIRE_FALSE(hasEntity);
+		CHECK_FALSE(isValid);
+		CHECK_FALSE(hasEntity);
 	}
 }
 
 void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
 	const auto* res = cc.find(entity);
-	REQUIRE(res != nullptr);
+	CHECK(res != nullptr);
 }
 
 template <typename T>
 void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
 	auto name = cc.get<T>().name;
-	REQUIRE(name.str() != nullptr);
-	REQUIRE(name.len() > 1);
+	CHECK(name.str() != nullptr);
+	CHECK(name.len() > 1);
 	const auto* res = cc.find(str);
-	REQUIRE(res != nullptr);
+	CHECK(res != nullptr);
 }
 
 void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
 	const auto* item = cc.find(str);
-	REQUIRE(item == nullptr);
+	CHECK(item == nullptr);
 }
 
 template <typename T>
 void verify_name_has_not(const ecs::ComponentCache& cc) {
 	const auto* item = cc.find<T>();
-	REQUIRE(item == nullptr);
+	CHECK(item == nullptr);
 }
 
 #define verify_name_has(name) verify_name_has<name>(cc, #name);
@@ -4287,7 +4287,7 @@ void Test_Query_QueryResult() {
 
 	{
 		const auto cnt = q1.count();
-		REQUIRE(cnt == N);
+		CHECK(cnt == N);
 	}
 	{
 		cnt::darr<ecs::Entity> arr;
@@ -4295,70 +4295,70 @@ void Test_Query_QueryResult() {
 
 		// Make sure the same entities are returned by each and arr
 		// and that they match out expectations.
-		REQUIRE(arr.size() == N);
-		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) CHECK(arr[i] == ents[i]);
 
 		uint32_t entIdx = 0;
 		q1.each([&](ecs::Entity ent) {
-			REQUIRE(ent == arr[entIdx++]);
+			CHECK(ent == arr[entIdx++]);
 		});
 		entIdx = 0;
 		q1.each([&](ecs::Iter& it) {
 			auto entView = it.view<ecs::Entity>();
-			GAIA_EACH(it) REQUIRE(entView[i] == arr[entIdx++]);
+			GAIA_EACH(it) CHECK(entView[i] == arr[entIdx++]);
 		});
 	}
 	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
-		REQUIRE(arr.size() == N);
+		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
-			REQUIRE(pos.x == (float)i);
-			REQUIRE(pos.y == (float)i);
-			REQUIRE(pos.z == (float)i);
+			CHECK(pos.x == (float)i);
+			CHECK(pos.y == (float)i);
+			CHECK(pos.z == (float)i);
 		}
 	}
 	{
 		const auto cnt = q1.count();
-		REQUIRE(cnt > 0);
+		CHECK(cnt > 0);
 
 		const auto empty = q1.empty();
-		REQUIRE(empty == false);
+		CHECK(empty == false);
 
 		uint32_t cnt2 = 0;
 		q1.each([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt == cnt2);
+		CHECK(cnt == cnt2);
 	}
 
 	{
 		const auto cnt = q2.count();
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		const auto empty = q2.empty();
-		REQUIRE(empty == true);
+		CHECK(empty == true);
 
 		uint32_t cnt2 = 0;
 		q2.each([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt == cnt2);
+		CHECK(cnt == cnt2);
 	}
 
 	{
 		const auto cnt = q3.count();
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		const auto empty = q3.empty();
-		REQUIRE(empty == true);
+		CHECK(empty == true);
 
 		uint32_t cnt3 = 0;
 		q3.each([&]() {
 			++cnt3;
 		});
-		REQUIRE(cnt == cnt3);
+		CHECK(cnt == cnt3);
 	}
 
 	// Verify querying at a different source entity works, too
@@ -4371,37 +4371,37 @@ void Test_Query_QueryResult() {
 
 	{
 		const auto cnt = q4.count();
-		REQUIRE(cnt == N);
+		CHECK(cnt == N);
 	}
 	{
 		cnt::darr<ecs::Entity> arr;
 		q4.arr(arr);
-		REQUIRE(arr.size() == N);
-		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) CHECK(arr[i] == ents[i]);
 	}
 	{
 		cnt::darr<Position> arr;
 		q4.arr(arr);
-		REQUIRE(arr.size() == N);
+		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
-			REQUIRE(pos.x == (float)i);
-			REQUIRE(pos.y == (float)i);
-			REQUIRE(pos.z == (float)i);
+			CHECK(pos.x == (float)i);
+			CHECK(pos.y == (float)i);
+			CHECK(pos.z == (float)i);
 		}
 	}
 	{
 		const auto cnt = q4.count();
-		REQUIRE(cnt > 0);
+		CHECK(cnt > 0);
 
 		const auto empty = q4.empty();
-		REQUIRE(empty == false);
+		CHECK(empty == false);
 
 		uint32_t cnt2 = 0;
 		q4.each([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt == cnt2);
+		CHECK(cnt == cnt2);
 	}
 	{
 		const auto cnt = q4.count();
@@ -4414,7 +4414,7 @@ void Test_Query_QueryResult() {
 				++cnt2;
 			}
 		});
-		REQUIRE(cnt == cnt2);
+		CHECK(cnt == cnt2);
 	}
 }
 
@@ -4441,7 +4441,7 @@ TEST_CASE("Query - QueryResult") {
 		qp.each([&matches]() {
 			++matches;
 		});
-		REQUIRE(matches == 1);
+		CHECK(matches == 1);
 
 		// Add new entity with some new component. Creates a new archetype.
 		const auto something = wld.add();
@@ -4452,7 +4452,7 @@ TEST_CASE("Query - QueryResult") {
 		qp.each([&matches]() {
 			++matches;
 		});
-		REQUIRE(matches == 1);
+		CHECK(matches == 1);
 
 		// New the new item also has the health component
 		wld.add<Health>(something);
@@ -4462,7 +4462,7 @@ TEST_CASE("Query - QueryResult") {
 		qp.each([&matches]() {
 			++matches;
 		});
-		REQUIRE(matches == 1);
+		CHECK(matches == 1);
 	}
 }
 
@@ -4497,7 +4497,7 @@ void Test_Query_QueryResult_Complex() {
 			s.set<Something>({true});
 
 		auto p0 = wld.get<Position>(e);
-		REQUIRE(memcmp((void*)&p0, (void*)&p1, sizeof(p0)) == 0);
+		CHECK(memcmp((void*)&p0, (void*)&p1, sizeof(p0)) == 0);
 		cmp.try_emplace(e, Data{p1, s1});
 	};
 
@@ -4513,148 +4513,148 @@ void Test_Query_QueryResult_Complex() {
 	{
 		ents.clear();
 		q1.arr(ents);
-		REQUIRE(ents.size() == N);
+		CHECK(ents.size() == N);
 	}
 	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
-		REQUIRE(arr.size() == N);
+		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
 			const auto& v1 = wld.get<Position>(e);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
 		const auto cnt = q1.count();
-		REQUIRE(cnt > 0);
+		CHECK(cnt > 0);
 
 		const auto empty = q1.empty();
-		REQUIRE(empty == false);
+		CHECK(empty == false);
 
 		uint32_t cnt2 = 0;
 		q1.each([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt2 == cnt);
+		CHECK(cnt2 == cnt);
 	}
 
 	{
 		const auto cnt = q2.count();
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		const auto empty = q2.empty();
-		REQUIRE(empty == true);
+		CHECK(empty == true);
 
 		uint32_t cnt2 = 0;
 		q2.each([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt2 == cnt);
+		CHECK(cnt2 == cnt);
 	}
 
 	{
 		const auto cnt = q3.count();
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 
 		const auto empty = q3.empty();
-		REQUIRE(empty == true);
+		CHECK(empty == true);
 
 		uint32_t cnt3 = 0;
 		q3.each([&]() {
 			++cnt3;
 		});
-		REQUIRE(cnt3 == cnt);
+		CHECK(cnt3 == cnt);
 	}
 
 	{
 		ents.clear();
 		q4.arr(ents);
-		REQUIRE(ents.size() == N);
+		CHECK(ents.size() == N);
 	}
 	{
 		cnt::darr<Position> arr;
 		q4.arr(arr);
-		REQUIRE(arr.size() == N);
+		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
 			const auto& v1 = wld.get<Position>(e);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
 		cnt::darr<Scale> arr;
 		q4.arr(arr);
-		REQUIRE(arr.size() == N);
+		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
 			const auto& v1 = wld.get<Scale>(e);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
 	}
 	{
 		const auto cnt = q4.count();
-		REQUIRE(cnt > 0);
+		CHECK(cnt > 0);
 
 		const auto empty = q4.empty();
-		REQUIRE(empty == false);
+		CHECK(empty == false);
 
 		uint32_t cnt4 = 0;
 		q4.each([&]() {
 			++cnt4;
 		});
-		REQUIRE(cnt4 == cnt);
+		CHECK(cnt4 == cnt);
 	}
 
 	{
 		ents.clear();
 		q5.arr(ents);
-		REQUIRE(ents.size() == N / 2);
+		CHECK(ents.size() == N / 2);
 	}
 	{
 		cnt::darr<Position> arr;
 		q5.arr(arr);
-		REQUIRE(arr.size() == ents.size());
-		REQUIRE(arr.size() == N / 2);
+		CHECK(arr.size() == ents.size());
+		CHECK(arr.size() == N / 2);
 
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
 			const auto& v1 = wld.get<Position>(e);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
 		cnt::darr<Scale> arr;
 		q5.arr(arr);
-		REQUIRE(arr.size() == N / 2);
+		CHECK(arr.size() == N / 2);
 		GAIA_EACH(arr) {
 			const auto e = ents[i];
 			const auto& v0 = arr[i];
 			const auto& v1 = wld.get<Scale>(e);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
-			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			CHECK(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
 	}
 	{
 		const auto cnt = q5.count();
-		REQUIRE(cnt > 0);
+		CHECK(cnt > 0);
 
 		const auto empty = q5.empty();
-		REQUIRE(empty == false);
+		CHECK(empty == false);
 
 		uint32_t cnt5 = 0;
 		q5.each([&]() {
 			++cnt5;
 		});
-		REQUIRE(cnt5 == cnt);
+		CHECK(cnt5 == cnt);
 	}
 }
 
@@ -4678,49 +4678,49 @@ TEST_CASE("Relationship") {
 		wld.add(rabbit, {eats, carrot});
 		wld.add(wolf, {eats, rabbit});
 
-		REQUIRE(wld.has(rabbit, {eats, carrot}));
-		REQUIRE(wld.has(wolf, {eats, rabbit}));
-		REQUIRE_FALSE(wld.has(wolf, {eats, carrot}));
-		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
+		CHECK(wld.has(rabbit, {eats, carrot}));
+		CHECK(wld.has(wolf, {eats, rabbit}));
+		CHECK_FALSE(wld.has(wolf, {eats, carrot}));
+		CHECK_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == rabbit);
+				CHECK(entity == rabbit);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 		{
 			auto q = wld.query().add("(%e, %e)", eats.value(), carrot.value());
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == rabbit);
+				CHECK(entity == rabbit);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == wolf);
+				CHECK(entity == wolf);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 	}
 
@@ -4734,37 +4734,37 @@ TEST_CASE("Relationship") {
 		wld.build(rabbit).add({eats, carrot});
 		wld.build(wolf).add({eats, rabbit});
 
-		REQUIRE(wld.has(rabbit, {eats, carrot}));
-		REQUIRE(wld.has(wolf, {eats, rabbit}));
-		REQUIRE_FALSE(wld.has(wolf, {eats, carrot}));
-		REQUIRE_FALSE(wld.has(rabbit, {eats, wolf}));
+		CHECK(wld.has(rabbit, {eats, carrot}));
+		CHECK(wld.has(wolf, {eats, rabbit}));
+		CHECK_FALSE(wld.has(wolf, {eats, carrot}));
+		CHECK_FALSE(wld.has(rabbit, {eats, wolf}));
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			// auto q = wld.query().all<ecs::Pair(eats, carrot)>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == rabbit);
+				CHECK(entity == rabbit);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			// auto q = wld.query().all<ecs::Pair(eats, rabbit)>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == wolf);
+				CHECK(entity == wolf);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 	}
 
@@ -4783,36 +4783,36 @@ TEST_CASE("Relationship") {
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
 				const bool isRabbit = entity == rabbit;
 				const bool isHare = entity == hare;
 				const bool is = isRabbit || isHare;
-				REQUIRE(is);
+				CHECK(is);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, rabbit)});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
-				REQUIRE(entity == wolf);
+				CHECK(entity == wolf);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, ecs::All)});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
@@ -4820,26 +4820,26 @@ TEST_CASE("Relationship") {
 				const bool isHare = entity == hare;
 				const bool isWolf = entity == wolf;
 				const bool is = isRabbit || isHare || isWolf;
-				REQUIRE(is);
+				CHECK(is);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
 			auto q = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(ecs::All, carrot)});
 			const auto cnt = q.count();
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
 				const bool isRabbit = entity == rabbit;
 				const bool isHare = entity == hare;
 				const bool is = isRabbit || isHare;
-				REQUIRE(is);
+				CHECK(is);
 				++i;
 			});
-			REQUIRE(i == cnt);
+			CHECK(i == cnt);
 		}
 
 		{
@@ -4848,7 +4848,7 @@ TEST_CASE("Relationship") {
 									 .no<ecs::Core_>()
 									 .no<ecs::System_>();
 			const auto cnt = q.count();
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Entity entity) {
@@ -4858,10 +4858,10 @@ TEST_CASE("Relationship") {
 				const bool isHare = entity == hare;
 				const bool isWolf = entity == wolf;
 				const bool is = isRabbit || isHare || isWolf;
-				REQUIRE(is);
+				CHECK(is);
 				++i;
 			});
-			REQUIRE(i == 3);
+			CHECK(i == 3);
 		}
 	}
 
@@ -4876,48 +4876,48 @@ TEST_CASE("Relationship") {
 
 		auto wallSwitch = wld.add();
 		wld.add(wallSwitch, {toggled, on});
-		REQUIRE(wld.has(wallSwitch, {toggled, on}));
-		REQUIRE_FALSE(wld.has(wallSwitch, {toggled, off}));
+		CHECK(wld.has(wallSwitch, {toggled, on}));
+		CHECK_FALSE(wld.has(wallSwitch, {toggled, off}));
 		wld.add(wallSwitch, {toggled, off});
-		REQUIRE_FALSE(wld.has(wallSwitch, {toggled, on}));
-		REQUIRE(wld.has(wallSwitch, {toggled, off}));
+		CHECK_FALSE(wld.has(wallSwitch, {toggled, on}));
+		CHECK(wld.has(wallSwitch, {toggled, off}));
 
 		{
 			auto q = wld.query().all(ecs::Pair(toggled, on));
 			const auto cnt = q.count();
-			REQUIRE(cnt == 0);
+			CHECK(cnt == 0);
 
 			uint32_t i = 0;
 			q.each([&]([[maybe_unused]] ecs::Iter& it) {
 				++i;
 			});
-			REQUIRE(i == 0);
+			CHECK(i == 0);
 		}
 		{
 			auto q = wld.query().all(ecs::Pair(toggled, off));
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&]([[maybe_unused]] ecs::Iter& it) {
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 		}
 		{
 			auto q = wld.query().all(ecs::Pair(toggled, ecs::All));
 			const auto cnt = q.count();
-			REQUIRE(cnt == 1);
+			CHECK(cnt == 1);
 
 			uint32_t i = 0;
 			q.each([&](ecs::Iter& it) {
 				const bool hasOn = it.has({toggled, on});
 				const bool hasOff = it.has({toggled, off});
-				REQUIRE_FALSE(hasOn);
-				REQUIRE(hasOff);
+				CHECK_FALSE(hasOn);
+				CHECK(hasOff);
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 		}
 	}
 }
@@ -4938,24 +4938,24 @@ TEST_CASE("Relationship target/relation") {
 
 	auto e = wld.target(rabbit, eats);
 	const bool ret_e = e == carrot || e == salad;
-	REQUIRE(ret_e);
+	CHECK(ret_e);
 
 	cnt::sarr_ext<ecs::Entity, 32> out;
 	wld.targets(rabbit, eats, [&out](ecs::Entity target) {
 		out.push_back(target);
 	});
-	REQUIRE(out.size() == 2);
-	REQUIRE(core::has(out, carrot));
-	REQUIRE(core::has(out, salad));
-	REQUIRE(wld.target(rabbit, eats) == carrot);
+	CHECK(out.size() == 2);
+	CHECK(core::has(out, carrot));
+	CHECK(core::has(out, salad));
+	CHECK(wld.target(rabbit, eats) == carrot);
 
 	out.clear();
 	wld.relations(rabbit, salad, [&out](ecs::Entity relation) {
 		out.push_back(relation);
 	});
-	REQUIRE(out.size() == 1);
-	REQUIRE(core::has(out, eats));
-	REQUIRE(wld.relation(rabbit, salad) == eats);
+	CHECK(out.size() == 1);
+	CHECK(core::has(out, eats));
+	CHECK(wld.relation(rabbit, salad) == eats);
 }
 
 template <typename TQuery>
@@ -4964,32 +4964,32 @@ void Test_Query_Equality() {
 	constexpr uint32_t N = 100;
 
 	auto verify = [&](TQuery& q1, TQuery& q2, TQuery& q3, TQuery& q4) {
-		REQUIRE(q1.count() == q2.count());
-		REQUIRE(q1.count() == q3.count());
-		REQUIRE(q1.count() == q4.count());
+		CHECK(q1.count() == q2.count());
+		CHECK(q1.count() == q3.count());
+		CHECK(q1.count() == q4.count());
 
 		cnt::darr<ecs::Entity> ents1, ents2, ents3, ents4;
 		q1.arr(ents1);
 		q2.arr(ents2);
 		q3.arr(ents3);
 		q4.arr(ents4);
-		REQUIRE(ents1.size() == ents2.size());
-		REQUIRE(ents1.size() == ents3.size());
-		REQUIRE(ents1.size() == ents4.size());
+		CHECK(ents1.size() == ents2.size());
+		CHECK(ents1.size() == ents3.size());
+		CHECK(ents1.size() == ents4.size());
 
 		uint32_t i = 0;
 		for (auto e: ents1) {
-			REQUIRE(e == ents2[i]);
+			CHECK(e == ents2[i]);
 			++i;
 		}
 		i = 0;
 		for (auto e: ents1) {
-			REQUIRE(e == ents3[i]);
+			CHECK(e == ents3[i]);
 			++i;
 		}
 		i = 0;
 		for (auto e: ents1) {
-			REQUIRE(e == ents4[i]);
+			CHECK(e == ents4[i]);
 			++i;
 		}
 	};
@@ -5081,9 +5081,9 @@ void Test_Query_Reset() {
 
 	auto check_queries = [&]() {
 		const auto cnt1 = q1.count();
-		REQUIRE(cnt1 == 1);
+		CHECK(cnt1 == 1);
 		const auto cnt2 = q2.count();
-		REQUIRE(cnt2 == 1);
+		CHECK(cnt2 == 1);
 	};
 
 	check_queries();
@@ -5123,24 +5123,24 @@ TEST_CASE("Query - delete from cache") {
 
 	{
 		const auto cnt1 = q1.count();
-		REQUIRE(cnt1 == 1);
+		CHECK(cnt1 == 1);
 		const auto cnt2 = q2.count();
-		REQUIRE(cnt2 == 1);
+		CHECK(cnt2 == 1);
 	};
 
 	q1.destroy();
 	{
 		const auto cnt1 = q1.count();
-		REQUIRE(cnt1 == 1);
+		CHECK(cnt1 == 1);
 		const auto cnt2 = q2.count();
-		REQUIRE(cnt2 == 1);
+		CHECK(cnt2 == 1);
 	}
 	q2.destroy();
 	{
 		const auto cnt1 = q1.count();
-		REQUIRE(cnt1 == 0);
+		CHECK(cnt1 == 0);
 		const auto cnt2 = q2.count();
-		REQUIRE(cnt2 == 0);
+		CHECK(cnt2 == 0);
 	}
 }
 
@@ -5162,30 +5162,30 @@ TEST_CASE("Enable") {
 
 	SECTION("State validity") {
 		wld.enable(arr[0], false);
-		REQUIRE_FALSE(wld.enabled(arr[0]));
+		CHECK_FALSE(wld.enabled(arr[0]));
 
 		wld.enable(arr[0], true);
-		REQUIRE(wld.enabled(arr[0]));
+		CHECK(wld.enabled(arr[0]));
 
 		wld.enable(arr[1], false);
-		REQUIRE(wld.enabled(arr[0]));
-		REQUIRE_FALSE(wld.enabled(arr[1]));
+		CHECK(wld.enabled(arr[0]));
+		CHECK_FALSE(wld.enabled(arr[1]));
 
 		wld.enable(arr[1], true);
-		REQUIRE(wld.enabled(arr[0]));
-		REQUIRE(wld.enabled(arr[1]));
+		CHECK(wld.enabled(arr[0]));
+		CHECK(wld.enabled(arr[1]));
 	}
 
 	SECTION("State persistence") {
 		wld.enable(arr[0], false);
-		REQUIRE_FALSE(wld.enabled(arr[0]));
+		CHECK_FALSE(wld.enabled(arr[0]));
 		auto e = arr[0];
 		wld.del<Position>(e);
-		REQUIRE_FALSE(wld.enabled(e));
+		CHECK_FALSE(wld.enabled(e));
 
 		wld.enable(arr[0], true);
 		wld.add<Position>(arr[0]);
-		REQUIRE(wld.enabled(arr[0]));
+		CHECK(wld.enabled(arr[0]));
 	}
 
 	{
@@ -5198,13 +5198,13 @@ TEST_CASE("Enable") {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it)++ c;
-					REQUIRE(c == cExpected);
+					CHECK(c == cExpected);
 					cnt += c;
 				});
-				REQUIRE(cnt == expectedCountAll);
+				CHECK(cnt == expectedCountAll);
 
 				cnt = q.count(ecs::Constraints::AcceptAll);
-				REQUIRE(cnt == expectedCountAll);
+				CHECK(cnt == expectedCountAll);
 			}
 			{
 				uint32_t cnt = 0;
@@ -5212,16 +5212,16 @@ TEST_CASE("Enable") {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it) {
-						REQUIRE(it.enabled(i));
+						CHECK(it.enabled(i));
 						++c;
 					}
-					REQUIRE(c == cExpected);
+					CHECK(c == cExpected);
 					cnt += c;
 				});
-				REQUIRE(cnt == expectedCountEnabled);
+				CHECK(cnt == expectedCountEnabled);
 
 				cnt = q.count();
-				REQUIRE(cnt == expectedCountEnabled);
+				CHECK(cnt == expectedCountEnabled);
 			}
 			{
 				uint32_t cnt = 0;
@@ -5229,16 +5229,16 @@ TEST_CASE("Enable") {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it) {
-						REQUIRE_FALSE(it.enabled(i));
+						CHECK_FALSE(it.enabled(i));
 						++c;
 					}
-					REQUIRE(c == cExpected);
+					CHECK(c == cExpected);
 					cnt += c;
 				});
-				REQUIRE(cnt == expectedCountDisabled);
+				CHECK(cnt == expectedCountDisabled);
 
 				cnt = q.count(ecs::Constraints::DisabledOnly);
-				REQUIRE(cnt == expectedCountDisabled);
+				CHECK(cnt == expectedCountDisabled);
 			}
 		};
 
@@ -5272,23 +5272,23 @@ TEST_CASE("Enable") {
 
 		SECTION("Delete") {
 			wld.del(arr[0]);
-			REQUIRE_FALSE(wld.has(arr[0]));
+			CHECK_FALSE(wld.has(arr[0]));
 			checkQuery(N - 1, N - 1, 0);
 
 			wld.del(arr[10]);
-			REQUIRE_FALSE(wld.has(arr[10]));
+			CHECK_FALSE(wld.has(arr[10]));
 			checkQuery(N - 2, N - 2, 0);
 
 			wld.enable(arr[1], false);
-			REQUIRE_FALSE(wld.enabled(arr[1]));
+			CHECK_FALSE(wld.enabled(arr[1]));
 			wld.del(arr[1]);
-			REQUIRE_FALSE(wld.has(arr[1]));
+			CHECK_FALSE(wld.has(arr[1]));
 			checkQuery(N - 3, N - 3, 0);
 
 			wld.enable(arr[1000], false);
-			REQUIRE_FALSE(wld.enabled(arr[1000]));
+			CHECK_FALSE(wld.enabled(arr[1000]));
 			wld.del(arr[1000]);
-			REQUIRE_FALSE(wld.has(arr[1000]));
+			CHECK_FALSE(wld.has(arr[1000]));
 			checkQuery(N - 4, N - 4, 0);
 		}
 	}
@@ -5305,70 +5305,70 @@ TEST_CASE("Enable") {
 
 		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<Position>();
 			uint32_t cnt = 0;
 			q.each([&](const Position& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 2) {
-					REQUIRE(pos.x == vals[0] * 100.f);
-					REQUIRE(pos.y == vals[1] * 100.f);
-					REQUIRE(pos.z == vals[2] * 100.f);
+					CHECK(pos.x == vals[0] * 100.f);
+					CHECK(pos.y == vals[1] * 100.f);
+					CHECK(pos.z == vals[2] * 100.f);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 		}
 
 		wld.enable(e2, false);
 
 		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<Position>();
 			uint32_t cnt = 0;
 			q.each([&](const Position& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 		}
 	}
 
@@ -5384,70 +5384,70 @@ TEST_CASE("Enable") {
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<PositionSoA>();
 			uint32_t cnt = 0;
 			q.each([&](const PositionSoA& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 2) {
-					REQUIRE(pos.x == vals[0] * 100.f);
-					REQUIRE(pos.y == vals[1] * 100.f);
-					REQUIRE(pos.z == vals[2] * 100.f);
+					CHECK(pos.x == vals[0] * 100.f);
+					CHECK(pos.y == vals[1] * 100.f);
+					CHECK(pos.z == vals[2] * 100.f);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 		}
 
 		wld.enable(e2, false);
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<PositionSoA>();
 			uint32_t cnt = 0;
 			q.each([&](const PositionSoA& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 		}
 	}
 
@@ -5466,136 +5466,136 @@ TEST_CASE("Enable") {
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<PositionSoA>();
 			uint32_t cnt = 0;
 			q.each([&](const PositionSoA& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 2) {
-					REQUIRE(pos.x == vals[0] * 100.f);
-					REQUIRE(pos.y == vals[1] * 100.f);
-					REQUIRE(pos.z == vals[2] * 100.f);
+					CHECK(pos.x == vals[0] * 100.f);
+					CHECK(pos.y == vals[1] * 100.f);
+					CHECK(pos.z == vals[2] * 100.f);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 		}
 		{
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<Position>();
 			uint32_t cnt = 0;
 			q.each([&](const Position& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 2) {
-					REQUIRE(pos.x == vals[0] * 100.f);
-					REQUIRE(pos.y == vals[1] * 100.f);
-					REQUIRE(pos.z == vals[2] * 100.f);
+					CHECK(pos.x == vals[0] * 100.f);
+					CHECK(pos.y == vals[1] * 100.f);
+					CHECK(pos.z == vals[2] * 100.f);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 3);
+			CHECK(cnt == 3);
 		}
 
 		wld.enable(e2, false);
 
 		{
 			auto p0 = wld.get<PositionSoA>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<PositionSoA>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<PositionSoA>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<PositionSoA>();
 			uint32_t cnt = 0;
 			q.each([&](const PositionSoA& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 		}
 		{
 			wld.enable(e2, false);
 
 			auto p0 = wld.get<Position>(e0);
-			REQUIRE(p0.x == vals[0]);
-			REQUIRE(p0.y == vals[1]);
-			REQUIRE(p0.z == vals[2]);
+			CHECK(p0.x == vals[0]);
+			CHECK(p0.y == vals[1]);
+			CHECK(p0.z == vals[2]);
 			auto p1 = wld.get<Position>(e1);
-			REQUIRE(p1.x == vals[0] * 10.f);
-			REQUIRE(p1.y == vals[1] * 10.f);
-			REQUIRE(p1.z == vals[2] * 10.f);
+			CHECK(p1.x == vals[0] * 10.f);
+			CHECK(p1.y == vals[1] * 10.f);
+			CHECK(p1.z == vals[2] * 10.f);
 			auto p2 = wld.get<Position>(e2);
-			REQUIRE(p2.x == vals[0] * 100.f);
-			REQUIRE(p2.y == vals[1] * 100.f);
-			REQUIRE(p2.z == vals[2] * 100.f);
+			CHECK(p2.x == vals[0] * 100.f);
+			CHECK(p2.y == vals[1] * 100.f);
+			CHECK(p2.z == vals[2] * 100.f);
 
 			ecs::Query q = wld.query().all<Position>();
 			uint32_t cnt = 0;
 			q.each([&](const Position& pos) {
 				if (cnt == 0) {
-					REQUIRE(pos.x == vals[0] * 10.f);
-					REQUIRE(pos.y == vals[1] * 10.f);
-					REQUIRE(pos.z == vals[2] * 10.f);
+					CHECK(pos.x == vals[0] * 10.f);
+					CHECK(pos.y == vals[1] * 10.f);
+					CHECK(pos.z == vals[2] * 10.f);
 				} else if (cnt == 1) {
-					REQUIRE(pos.x == vals[0]);
-					REQUIRE(pos.y == vals[1]);
-					REQUIRE(pos.z == vals[2]);
+					CHECK(pos.x == vals[0]);
+					CHECK(pos.y == vals[1]);
+					CHECK(pos.z == vals[2]);
 				}
 				++cnt;
 			});
-			REQUIRE(cnt == 2);
+			CHECK(cnt == 2);
 		}
 	}
 }
@@ -5607,7 +5607,7 @@ TEST_CASE("Add - generic") {
 
 		auto f = wld.add();
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 	}
 
 	{
@@ -5617,19 +5617,19 @@ TEST_CASE("Add - generic") {
 		wld.add<Position>(e);
 		wld.add<Acceleration>(e);
 
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		auto f = wld.add();
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
@@ -5639,39 +5639,39 @@ TEST_CASE("Add - generic") {
 		wld.add<Position>(e, {1, 2, 3});
 		wld.add<Acceleration>(e, {4, 5, 6});
 
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 
 		auto a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 4.f);
-		REQUIRE(a.y == 5.f);
-		REQUIRE(a.z == 6.f);
+		CHECK(a.x == 4.f);
+		CHECK(a.y == 5.f);
+		CHECK(a.z == 6.f);
 
 		auto f = wld.add();
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e));
 
 		p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 
 		a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 4.f);
-		REQUIRE(a.y == 5.f);
-		REQUIRE(a.z == 6.f);
+		CHECK(a.x == 4.f);
+		CHECK(a.y == 5.f);
+		CHECK(a.z == 6.f);
 	}
 }
 
@@ -5690,25 +5690,25 @@ TEST_CASE("Add - generic") {
 // 	wld.add<Acceleration>(q, {1.f, 2.f, 3.f});
 //
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
-// 		REQUIRE(wld.has<Position>(ents[i]));
-// 		REQUIRE(wld.has<Acceleration>(ents[i]));
+// 		CHECK(wld.has<Position>(ents[i]));
+// 		CHECK(wld.has<Acceleration>(ents[i]));
 //
 // 		Position p;
 // 		wld.get<Position>(ents[i], p);
-// 		REQUIRE(p.x == (float)i);
-// 		REQUIRE(p.y == (float)i);
-// 		REQUIRE(p.z == (float)i);
+// 		CHECK(p.x == (float)i);
+// 		CHECK(p.y == (float)i);
+// 		CHECK(p.z == (float)i);
 //
 // 		Acceleration a;
 // 		wld.get<Acceleration>(ents[i], a);
-// 		REQUIRE(a.x == 1.f);
-// 		REQUIRE(a.y == 2.f);
-// 		REQUIRE(a.z == 3.f);
+// 		CHECK(a.x == 1.f);
+// 		CHECK(a.y == 2.f);
+// 		CHECK(a.z == 3.f);
 // 	}
 //
 // 	{
-// 		REQUIRE_FALSE(wld.has<Position>(ents[4]));
-// 		REQUIRE_FALSE(wld.has<Acceleration>(ents[4]));
+// 		CHECK_FALSE(wld.has<Position>(ents[4]));
+// 		CHECK_FALSE(wld.has<Acceleration>(ents[4]));
 // 	}
 // }
 
@@ -5719,7 +5719,7 @@ TEST_CASE("Add - unique") {
 
 		auto f = wld.add(ecs::EntityKind::EK_Uni);
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 	}
 
 	{
@@ -5729,10 +5729,10 @@ TEST_CASE("Add - unique") {
 		wld.add<ecs::uni<Position>>(e);
 		wld.add<ecs::uni<Acceleration>>(e);
 
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
@@ -5741,13 +5741,13 @@ TEST_CASE("Add - unique") {
 
 		// Add Position unique component
 		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 		{
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 		}
 		{
 			auto setter = wld.acc_mut(e);
@@ -5755,35 +5755,35 @@ TEST_CASE("Add - unique") {
 			upos = {10, 20, 30};
 
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 10.f);
-			REQUIRE(p.y == 20.f);
-			REQUIRE(p.z == 30.f);
+			CHECK(p.x == 10.f);
+			CHECK(p.y == 20.f);
+			CHECK(p.z == 30.f);
 
 			p = setter.get<ecs::uni<Position>>();
-			REQUIRE(p.x == 10.f);
-			REQUIRE(p.y == 20.f);
-			REQUIRE(p.z == 30.f);
+			CHECK(p.x == 10.f);
+			CHECK(p.y == 20.f);
+			CHECK(p.z == 30.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
 		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE(a.x == 4.f);
-			REQUIRE(a.y == 5.f);
-			REQUIRE(a.z == 6.f);
+			CHECK(a.x == 4.f);
+			CHECK(a.y == 5.f);
+			CHECK(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 	}
 
@@ -5793,58 +5793,58 @@ TEST_CASE("Add - unique") {
 
 		// Add Position unique component
 		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 		{
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
 		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE(a.x == 4.f);
-			REQUIRE(a.y == 5.f);
-			REQUIRE(a.z == 6.f);
+			CHECK(a.x == 4.f);
+			CHECK(a.y == 5.f);
+			CHECK(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 
 		// Add a generic entity. Archetype changes.
 		auto f = wld.add();
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE_FALSE(a.x == 4.f);
-			REQUIRE_FALSE(a.y == 5.f);
-			REQUIRE_FALSE(a.z == 6.f);
+			CHECK_FALSE(a.x == 4.f);
+			CHECK_FALSE(a.y == 5.f);
+			CHECK_FALSE(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 	}
 
@@ -5854,60 +5854,60 @@ TEST_CASE("Add - unique") {
 
 		// Add Position unique component
 		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 		{
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
 		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE(a.x == 4.f);
-			REQUIRE(a.y == 5.f);
-			REQUIRE(a.z == 6.f);
+			CHECK(a.x == 4.f);
+			CHECK(a.y == 5.f);
+			CHECK(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 
 		// Add a unique entity. Archetype changes.
 		auto f = wld.add(ecs::EntityKind::EK_Uni);
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE_FALSE(a.x == 4.f);
-			REQUIRE_FALSE(a.y == 5.f);
-			REQUIRE_FALSE(a.z == 6.f);
+			CHECK_FALSE(a.x == 4.f);
+			CHECK_FALSE(a.y == 5.f);
+			CHECK_FALSE(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 	}
 }
@@ -5919,7 +5919,7 @@ TEST_CASE("Add - mixed") {
 
 		auto f = wld.add(ecs::EntityKind::EK_Uni);
 		wld.add(e, f);
-		REQUIRE(wld.has(e, f));
+		CHECK(wld.has(e, f));
 	}
 
 	{
@@ -5929,8 +5929,8 @@ TEST_CASE("Add - mixed") {
 		wld.add<Position>(e);
 		wld.add<ecs::uni<Position>>(e);
 
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
 	}
 
 	{
@@ -5940,60 +5940,60 @@ TEST_CASE("Add - mixed") {
 		// Add Position unique component
 		wld.add<Position>(e, {10, 20, 30});
 		wld.add<ecs::uni<Position>>(e, {1, 2, 3});
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
 		{
 			auto p = wld.get<Position>(e);
-			REQUIRE(p.x == 10.f);
-			REQUIRE(p.y == 20.f);
-			REQUIRE(p.z == 30.f);
+			CHECK(p.x == 10.f);
+			CHECK(p.y == 20.f);
+			CHECK(p.z == 30.f);
 		}
 		{
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 		}
 		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
 		wld.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<ecs::uni<Position>>(e));
-		REQUIRE(wld.has<ecs::uni<Acceleration>>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<ecs::uni<Position>>(e));
+		CHECK(wld.has<ecs::uni<Acceleration>>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 		{
 			auto a = wld.get<ecs::uni<Acceleration>>(e);
-			REQUIRE(a.x == 4.f);
-			REQUIRE(a.y == 5.f);
-			REQUIRE(a.z == 6.f);
+			CHECK(a.x == 4.f);
+			CHECK(a.y == 5.f);
+			CHECK(a.z == 6.f);
 		}
 		{
 			// Position will remain the same
 			auto p = wld.get<Position>(e);
-			REQUIRE(p.x == 10.f);
-			REQUIRE(p.y == 20.f);
-			REQUIRE(p.z == 30.f);
+			CHECK(p.x == 10.f);
+			CHECK(p.y == 20.f);
+			CHECK(p.z == 30.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE_FALSE(p.x == 1.f);
-			REQUIRE_FALSE(p.y == 2.f);
-			REQUIRE_FALSE(p.z == 3.f);
+			CHECK_FALSE(p.x == 1.f);
+			CHECK_FALSE(p.y == 2.f);
+			CHECK_FALSE(p.z == 3.f);
 		}
 		wld.set<ecs::uni<Position>>(e) = {100.0f, 200.0f, 300.0f};
 		{
 			auto p = wld.get<Position>(e);
-			REQUIRE(p.x == 10.f);
-			REQUIRE(p.y == 20.f);
-			REQUIRE(p.z == 30.f);
+			CHECK(p.x == 10.f);
+			CHECK(p.y == 20.f);
+			CHECK(p.z == 30.f);
 		}
 		{
 			auto p = wld.get<ecs::uni<Position>>(e);
-			REQUIRE(p.x == 100.f);
-			REQUIRE(p.y == 200.f);
-			REQUIRE(p.z == 300.f);
+			CHECK(p.x == 100.f);
+			CHECK(p.y == 200.f);
+			CHECK(p.z == 300.f);
 		}
 	}
 }
@@ -6006,12 +6006,12 @@ TEST_CASE("Del - generic") {
 		{
 			wld.add<Position>(e1);
 			wld.del<Position>(e1);
-			REQUIRE_FALSE(wld.has<Position>(e1));
+			CHECK_FALSE(wld.has<Position>(e1));
 		}
 		{
 			wld.add<Rotation>(e1);
 			wld.del<Rotation>(e1);
-			REQUIRE_FALSE(wld.has<Rotation>(e1));
+			CHECK_FALSE(wld.has<Rotation>(e1));
 		}
 	}
 	{
@@ -6023,13 +6023,13 @@ TEST_CASE("Del - generic") {
 
 			{
 				wld.del<Position>(e1);
-				REQUIRE_FALSE(wld.has<Position>(e1));
-				REQUIRE(wld.has<Rotation>(e1));
+				CHECK_FALSE(wld.has<Position>(e1));
+				CHECK(wld.has<Rotation>(e1));
 			}
 			{
 				wld.del<Rotation>(e1);
-				REQUIRE_FALSE(wld.has<Position>(e1));
-				REQUIRE_FALSE(wld.has<Rotation>(e1));
+				CHECK_FALSE(wld.has<Position>(e1));
+				CHECK_FALSE(wld.has<Rotation>(e1));
 			}
 		}
 		{
@@ -6037,13 +6037,13 @@ TEST_CASE("Del - generic") {
 			wld.add<Position>(e1);
 			{
 				wld.del<Position>(e1);
-				REQUIRE_FALSE(wld.has<Position>(e1));
-				REQUIRE(wld.has<Rotation>(e1));
+				CHECK_FALSE(wld.has<Position>(e1));
+				CHECK(wld.has<Rotation>(e1));
 			}
 			{
 				wld.del<Rotation>(e1);
-				REQUIRE_FALSE(wld.has<Position>(e1));
-				REQUIRE_FALSE(wld.has<Rotation>(e1));
+				CHECK_FALSE(wld.has<Position>(e1));
+				CHECK_FALSE(wld.has<Rotation>(e1));
 			}
 		}
 	}
@@ -6058,13 +6058,13 @@ TEST_CASE("Del - unique") {
 		wld.add<ecs::uni<Acceleration>>(e1);
 		{
 			wld.del<ecs::uni<Position>>(e1);
-			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
+			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
 			wld.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 
@@ -6073,13 +6073,13 @@ TEST_CASE("Del - unique") {
 		wld.add<ecs::uni<Position>>(e1);
 		{
 			wld.del<ecs::uni<Position>>(e1);
-			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
+			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
 			wld.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Position>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
@@ -6095,24 +6095,24 @@ TEST_CASE("Del - generic, unique") {
 		wld.add<ecs::uni<Acceleration>>(e1);
 		{
 			wld.del<Position>(e1);
-			REQUIRE_FALSE(wld.has<Position>(e1));
-			REQUIRE(wld.has<Acceleration>(e1));
-			REQUIRE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<Position>(e1));
+			CHECK(wld.has<Acceleration>(e1));
+			CHECK(wld.has<ecs::uni<Position>>(e1));
+			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
 			wld.del<Acceleration>(e1);
-			REQUIRE_FALSE(wld.has<Position>(e1));
-			REQUIRE_FALSE(wld.has<Acceleration>(e1));
-			REQUIRE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<Position>(e1));
+			CHECK_FALSE(wld.has<Acceleration>(e1));
+			CHECK(wld.has<ecs::uni<Position>>(e1));
+			CHECK(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
 			wld.del<ecs::uni<Acceleration>>(e1);
-			REQUIRE_FALSE(wld.has<Position>(e1));
-			REQUIRE_FALSE(wld.has<Acceleration>(e1));
-			REQUIRE(wld.has<ecs::uni<Position>>(e1));
-			REQUIRE_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
+			CHECK_FALSE(wld.has<Position>(e1));
+			CHECK_FALSE(wld.has<Acceleration>(e1));
+			CHECK(wld.has<ecs::uni<Position>>(e1));
+			CHECK_FALSE(wld.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
@@ -6130,23 +6130,23 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
-		REQUIRE_FALSE(wld.has(wolf));
-		REQUIRE(wld.has(rabbit));
-		REQUIRE(wld.has(eats));
-		REQUIRE(wld.has(carrot));
-		REQUIRE(wld.has(hungry));
+		CHECK_FALSE(wld.has(wolf));
+		CHECK(wld.has(rabbit));
+		CHECK(wld.has(eats));
+		CHECK(wld.has(carrot));
+		CHECK(wld.has(hungry));
 		// global relationships
-		REQUIRE(wld.has({eats, rabbit}));
-		REQUIRE(wld.has({eats, carrot}));
-		REQUIRE(wld.has({eats, ecs::All}));
-		REQUIRE(wld.has({ecs::All, carrot}));
-		REQUIRE(wld.has({ecs::All, rabbit}));
-		REQUIRE(wld.has({ecs::All, ecs::All}));
+		CHECK(wld.has({eats, rabbit}));
+		CHECK(wld.has({eats, carrot}));
+		CHECK(wld.has({eats, ecs::All}));
+		CHECK(wld.has({ecs::All, carrot}));
+		CHECK(wld.has({ecs::All, rabbit}));
+		CHECK(wld.has({ecs::All, ecs::All}));
 		// rabbit relationships
-		REQUIRE(wld.has(rabbit, {eats, carrot}));
-		REQUIRE(wld.has(rabbit, {eats, ecs::All}));
-		REQUIRE(wld.has(rabbit, {ecs::All, carrot}));
-		REQUIRE(wld.has(rabbit, {ecs::All, ecs::All}));
+		CHECK(wld.has(rabbit, {eats, carrot}));
+		CHECK(wld.has(rabbit, {eats, ecs::All}));
+		CHECK(wld.has(rabbit, {ecs::All, carrot}));
+		CHECK(wld.has(rabbit, {ecs::All, ecs::All}));
 	}
 	SECTION("default, relationship source") {
 		TestWorld twld;
@@ -6160,13 +6160,13 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(eats);
-		REQUIRE(wld.has(wolf));
-		REQUIRE(wld.has(rabbit));
-		REQUIRE_FALSE(wld.has(eats));
-		REQUIRE(wld.has(carrot));
-		REQUIRE(wld.has(hungry));
-		REQUIRE_FALSE(wld.has(wolf, {eats, rabbit}));
-		REQUIRE_FALSE(wld.has(rabbit, {eats, carrot}));
+		CHECK(wld.has(wolf));
+		CHECK(wld.has(rabbit));
+		CHECK_FALSE(wld.has(eats));
+		CHECK(wld.has(carrot));
+		CHECK(wld.has(hungry));
+		CHECK_FALSE(wld.has(wolf, {eats, rabbit}));
+		CHECK_FALSE(wld.has(rabbit, {eats, carrot}));
 	}
 	SECTION("(OnDelete,Remove)") {
 		TestWorld twld;
@@ -6181,14 +6181,14 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(wolf);
-		REQUIRE_FALSE(wld.has(wolf));
-		REQUIRE(wld.has(rabbit));
-		REQUIRE(wld.has(eats));
-		REQUIRE(wld.has(carrot));
-		REQUIRE(wld.has(hungry));
-		REQUIRE(wld.has({eats, rabbit}));
-		REQUIRE(wld.has({eats, carrot}));
-		REQUIRE(wld.has(rabbit, {eats, carrot}));
+		CHECK_FALSE(wld.has(wolf));
+		CHECK(wld.has(rabbit));
+		CHECK(wld.has(eats));
+		CHECK(wld.has(carrot));
+		CHECK(wld.has(hungry));
+		CHECK(wld.has({eats, rabbit}));
+		CHECK(wld.has({eats, carrot}));
+		CHECK(wld.has(rabbit, {eats, carrot}));
 	}
 	SECTION("(OnDelete,Delete)") {
 		TestWorld twld;
@@ -6203,13 +6203,13 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(rabbit, {eats, carrot});
 
 		wld.del(hungry);
-		REQUIRE_FALSE(wld.has(wolf));
-		REQUIRE(wld.has(rabbit));
-		REQUIRE(wld.has(eats));
-		REQUIRE(wld.has(carrot));
-		REQUIRE_FALSE(wld.has(hungry));
-		REQUIRE(wld.has({eats, rabbit}));
-		REQUIRE(wld.has({eats, carrot}));
+		CHECK_FALSE(wld.has(wolf));
+		CHECK(wld.has(rabbit));
+		CHECK(wld.has(eats));
+		CHECK(wld.has(carrot));
+		CHECK_FALSE(wld.has(hungry));
+		CHECK(wld.has({eats, rabbit}));
+		CHECK(wld.has({eats, carrot}));
 	}
 	SECTION("(OnDeleteTarget,Delete)") {
 		TestWorld twld;
@@ -6220,8 +6220,8 @@ TEST_CASE("Del - cleanup rules") {
 		wld.add(child, {child_of, parent});
 
 		wld.del(parent);
-		REQUIRE_FALSE(wld.has(child));
-		REQUIRE_FALSE(wld.has(parent));
+		CHECK_FALSE(wld.has(child));
+		CHECK_FALSE(wld.has(parent));
 	}
 }
 
@@ -6254,8 +6254,8 @@ TEST_CASE("Entity name - entity only") {
 
 		const auto l0 = strlen(tmp);
 		const auto l1 = strlen(ename);
-		REQUIRE(l0 == l1);
-		REQUIRE(strcmp(tmp, ename) == 0);
+		CHECK(l0 == l1);
+		CHECK(strcmp(tmp, ename) == 0);
 	};
 
 	SECTION("basic") {
@@ -6270,9 +6270,9 @@ TEST_CASE("Entity name - entity only") {
 		// If we change the original string we still must have a match
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			REQUIRE(strcmp(wld.name(e), original) == 0);
-			REQUIRE(wld.get(original) == e);
-			REQUIRE(wld.get(tmp) == ecs::EntityBad);
+			CHECK(strcmp(wld.name(e), original) == 0);
+			CHECK(wld.get(original) == e);
+			CHECK(wld.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
 			GAIA_STRCPY(tmp, MaxLen, original);
@@ -6285,18 +6285,18 @@ TEST_CASE("Entity name - entity only") {
 		{
 			auto e1 = wld.add();
 			wld.name(e1, original);
-			REQUIRE(wld.name(e1) == nullptr);
-			REQUIRE(wld.get(original) == e);
+			CHECK(wld.name(e1) == nullptr);
+			CHECK(wld.get(original) == e);
 		}
 #endif
 
 		wld.name(e, nullptr);
-		REQUIRE(wld.get(original) == ecs::EntityBad);
-		REQUIRE(wld.name(e) == nullptr);
+		CHECK(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.name(e) == nullptr);
 
 		wld.name(e, original);
 		wld.del(e);
-		REQUIRE(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("basic - non-owned") {
@@ -6312,11 +6312,11 @@ TEST_CASE("Entity name - entity only") {
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
 			const auto* str = wld.name(e);
-			REQUIRE(strcmp(str, "some_random_string") == 0);
-			REQUIRE(wld.get(original) == ecs::EntityBad);
+			CHECK(strcmp(str, "some_random_string") == 0);
+			CHECK(wld.get(original) == ecs::EntityBad);
 			// Hash was calculated for [original] but we changed the string to "some_random_string".
 			// Hash won't match so we shouldn't be able to find the entity still.
-			REQUIRE(wld.get("some_random_string") == ecs::EntityBad);
+			CHECK(wld.get("some_random_string") == ecs::EntityBad);
 		}
 
 		{
@@ -6326,12 +6326,12 @@ TEST_CASE("Entity name - entity only") {
 		}
 
 		wld.name(e, nullptr);
-		REQUIRE(wld.get(original) == ecs::EntityBad);
-		REQUIRE(wld.name(e) == nullptr);
+		CHECK(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.name(e) == nullptr);
 
 		wld.name_raw(e, original);
 		wld.del(e);
-		REQUIRE(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.get(original) == ecs::EntityBad);
 	}
 
 	SECTION("two") {
@@ -6359,14 +6359,14 @@ TEST_CASE("Entity name - entity only") {
 			{
 				wld.enable(e, false);
 				const auto* str = wld.name(e);
-				REQUIRE(strcmp(str, original) == 0);
-				REQUIRE(e == wld.get(original));
+				CHECK(strcmp(str, original) == 0);
+				CHECK(e == wld.get(original));
 			}
 			{
 				wld.enable(e, true);
 				const auto* str = wld.name(e);
-				REQUIRE(strcmp(str, original) == 0);
-				REQUIRE(e == wld.get(original));
+				CHECK(strcmp(str, original) == 0);
+				CHECK(e == wld.get(original));
 			}
 		}
 	}
@@ -6384,25 +6384,25 @@ TEST_CASE("Entity name - component") {
 	{
 		// name must match
 		const char* name = wld.name(pci.entity);
-		REQUIRE(strcmp(name, "Position") == 0);
+		CHECK(strcmp(name, "Position") == 0);
 		const auto e = wld.get("Position");
-		REQUIRE(e == pci.entity);
+		CHECK(e == pci.entity);
 	}
 	// Add unique component
 	const auto& upci = wld.add<ecs::uni<Position>>();
 	{
 		// name must match
 		const char* name = wld.name(upci.entity);
-		REQUIRE(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		CHECK(strcmp(name, "gaia::ecs::uni<Position>") == 0);
 		const auto e = wld.get("gaia::ecs::uni<Position>");
-		REQUIRE(e == upci.entity);
+		CHECK(e == upci.entity);
 	}
 	{
 		// generic component name must still match
 		const char* name = wld.name(pci.entity);
-		REQUIRE(strcmp(name, "Position") == 0);
+		CHECK(strcmp(name, "Position") == 0);
 		const auto e = wld.get("Position");
-		REQUIRE(e == pci.entity);
+		CHECK(e == pci.entity);
 	}
 
 	// Change the component name
@@ -6410,16 +6410,16 @@ TEST_CASE("Entity name - component") {
 	{
 		// name must match
 		const char* name = wld.name(pci.entity);
-		REQUIRE(strcmp(name, "xyz") == 0);
+		CHECK(strcmp(name, "xyz") == 0);
 		const auto e = wld.get("xyz");
-		REQUIRE(e == pci.entity);
+		CHECK(e == pci.entity);
 	}
 	{
 		// unique component name must still match
 		const char* name = wld.name(upci.entity);
-		REQUIRE(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		CHECK(strcmp(name, "gaia::ecs::uni<Position>") == 0);
 		const auto e = wld.get("gaia::ecs::uni<Position>");
-		REQUIRE(e == upci.entity);
+		CHECK(e == upci.entity);
 	}
 }
 
@@ -6444,21 +6444,21 @@ TEST_CASE("Entity name - copy") {
 		auto e2 = wld.copy(e1);
 
 		auto e = wld.get(pTestStr);
-		REQUIRE(e == e1);
+		CHECK(e == e1);
 
 		const auto& p1 = wld.get<PositionNonTrivial>(e1);
-		REQUIRE(p1.x == 1.f);
-		REQUIRE(p1.y == 2.f);
-		REQUIRE(p1.z == 3.f);
+		CHECK(p1.x == 1.f);
+		CHECK(p1.y == 2.f);
+		CHECK(p1.z == 3.f);
 		const auto& p2 = wld.get<PositionNonTrivial>(e2);
-		REQUIRE(p2.x == 1.f);
-		REQUIRE(p2.y == 2.f);
-		REQUIRE(p2.z == 3.f);
+		CHECK(p2.x == 1.f);
+		CHECK(p2.y == 2.f);
+		CHECK(p2.z == 3.f);
 
 		const auto* e1name = wld.name(e1);
-		REQUIRE(e1name == pTestStr);
+		CHECK(e1name == pTestStr);
 		const auto* e2name = wld.name(e2);
-		REQUIRE(e2name == nullptr);
+		CHECK(e2name == nullptr);
 	}
 
 	SECTION("many entities") {
@@ -6472,21 +6472,21 @@ TEST_CASE("Entity name - copy") {
 			});
 
 			auto e = wld.get(pTestStr);
-			REQUIRE(e == e1);
+			CHECK(e == e1);
 			const auto* e1name = wld.name(e1);
-			REQUIRE(e1name == pTestStr);
+			CHECK(e1name == pTestStr);
 			const auto& p1 = wld.get<PositionNonTrivial>(e1);
-			REQUIRE(p1.x == 1.f);
-			REQUIRE(p1.y == 2.f);
-			REQUIRE(p1.z == 3.f);
+			CHECK(p1.x == 1.f);
+			CHECK(p1.y == 2.f);
+			CHECK(p1.z == 3.f);
 
 			for (auto ent: ents) {
 				const auto* e2name = wld.name(ent);
-				REQUIRE(e2name == nullptr);
+				CHECK(e2name == nullptr);
 				const auto& p2 = wld.get<PositionNonTrivial>(ent);
-				REQUIRE(p2.x == 1.f);
-				REQUIRE(p2.y == 2.f);
-				REQUIRE(p2.z == 3.f);
+				CHECK(p2.x == 1.f);
+				CHECK(p2.y == 2.f);
+				CHECK(p2.z == 3.f);
 			}
 		}
 
@@ -6500,32 +6500,32 @@ TEST_CASE("Entity name - copy") {
 					auto pv = it.view<PositionNonTrivial>();
 
 					const auto& p1 = pv[i];
-					REQUIRE(p1.x == 1.f);
-					REQUIRE(p1.y == 2.f);
-					REQUIRE(p1.z == 3.f);
+					CHECK(p1.x == 1.f);
+					CHECK(p1.y == 2.f);
+					CHECK(p1.z == 3.f);
 
 					ents.push_back(ev[i]);
 					++counter;
 				}
 			});
-			REQUIRE(counter == N);
+			CHECK(counter == N);
 
 			auto e = wld.get(pTestStr);
-			REQUIRE(e == e1);
+			CHECK(e == e1);
 			const auto* e1name = wld.name(e1);
-			REQUIRE(e1name == pTestStr);
+			CHECK(e1name == pTestStr);
 			const auto& p1 = wld.get<PositionNonTrivial>(e1);
-			REQUIRE(p1.x == 1.f);
-			REQUIRE(p1.y == 2.f);
-			REQUIRE(p1.z == 3.f);
+			CHECK(p1.x == 1.f);
+			CHECK(p1.y == 2.f);
+			CHECK(p1.z == 3.f);
 
 			for (auto ent: ents) {
 				const auto* e2name = wld.name(ent);
-				REQUIRE(e2name == nullptr);
+				CHECK(e2name == nullptr);
 				const auto& p2 = wld.get<PositionNonTrivial>(ent);
-				REQUIRE(p2.x == 1.f);
-				REQUIRE(p2.y == 2.f);
-				REQUIRE(p2.z == 3.f);
+				CHECK(p2.x == 1.f);
+				CHECK(p2.y == 2.f);
+				CHECK(p2.z == 3.f);
 			}
 		}
 	}
@@ -6547,52 +6547,52 @@ TEST_CASE("Entity name - hierarchy") {
 
 	{
 		auto e = wld.get("europe.slovakia");
-		REQUIRE(e == slovakia);
+		CHECK(e == slovakia);
 	}
 	{
 		auto e = wld.get("europe.slovakia.bratislava");
-		REQUIRE(e == bratislava);
+		CHECK(e == bratislava);
 	}
 	{
 		auto e = wld.get("slovakia.bratislava");
-		REQUIRE(e == bratislava);
+		CHECK(e == bratislava);
 	}
 	{
 		auto e = wld.get("europe.bratislava.slovakia");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get("bratislava.slovakia");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get(".");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get(".bratislava");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		// We treat this case as "bratislava"
 		auto e = wld.get("bratislava.");
-		REQUIRE(e == bratislava);
+		CHECK(e == bratislava);
 	}
 	{
 		auto e = wld.get("..");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get("..bratislava");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get("bratislava..");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 	{
 		auto e = wld.get("slovakia..bratislava");
-		REQUIRE(e == ecs::EntityBad);
+		CHECK(e == ecs::EntityBad);
 	}
 }
 
@@ -6609,14 +6609,14 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		qa.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 
 	auto e1 = wld.copy(e);
@@ -6628,7 +6628,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 
 	wld.del(e1);
@@ -6638,7 +6638,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 
 	wld.del(e2);
@@ -6650,7 +6650,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 }
 
@@ -6668,14 +6668,14 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		qa.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 
 	auto e1 = wld.copy(e);
@@ -6687,7 +6687,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 4);
+		CHECK(cnt == 4);
 	}
 
 	wld.del(e1);
@@ -6697,7 +6697,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 3);
+		CHECK(cnt == 3);
 	}
 
 	wld.del(e2);
@@ -6709,7 +6709,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 }
 
@@ -6727,21 +6727,21 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		qq.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		qq.each([&]() {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 
 	auto e1 = wld.copy(e);
@@ -6753,7 +6753,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 
 	wld.del(e1);
@@ -6763,7 +6763,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 
 	wld.del(e2);
@@ -6775,7 +6775,7 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 }
 
@@ -6801,7 +6801,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6809,7 +6809,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6817,7 +6817,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Rotation&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6825,7 +6825,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Scale&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6833,7 +6833,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6841,7 +6841,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Scale&) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		ecs::Query q = wld.query().any<Position>().any<Acceleration>();
@@ -6851,11 +6851,11 @@ TEST_CASE("Usage 2 - simple query, many components") {
 			++cnt;
 
 			const bool ok1 = it.has<Position>() || it.has<Acceleration>();
-			REQUIRE(ok1);
+			CHECK(ok1);
 			const bool ok2 = it.has<Acceleration>() || it.has<Position>();
-			REQUIRE(ok2);
+			CHECK(ok2);
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<Scale>();
@@ -6864,14 +6864,14 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(it.size() == 1);
+			CHECK(it.size() == 1);
 
 			const bool ok1 = it.has<Position>() || it.has<Acceleration>();
-			REQUIRE(ok1);
+			CHECK(ok1);
 			const bool ok2 = it.has<Acceleration>() || it.has<Position>();
-			REQUIRE(ok2);
+			CHECK(ok2);
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<PositionSoA>();
@@ -6880,7 +6880,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&]() {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		ecs::Query q = wld.query().any<Position>().any<Acceleration>().no<Scale>();
@@ -6889,9 +6889,9 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(it.size() == 1);
+			CHECK(it.size() == 1);
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 }
 
@@ -6917,7 +6917,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6925,7 +6925,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6933,7 +6933,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6941,7 +6941,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
@@ -6949,7 +6949,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&]([[maybe_unused]] ecs::Iter& it) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>();
@@ -6959,11 +6959,11 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 			++cnt;
 
 			const bool ok1 = it.has<ecs::uni<Position>>() || it.has<ecs::uni<Acceleration>>();
-			REQUIRE(ok1);
+			CHECK(ok1);
 			const bool ok2 = it.has<ecs::uni<Acceleration>>() || it.has<ecs::uni<Position>>();
-			REQUIRE(ok2);
+			CHECK(ok2);
 		});
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 	{
 		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
@@ -6972,14 +6972,14 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(it.size() == 1);
+			CHECK(it.size() == 1);
 
 			const bool ok1 = it.has<ecs::uni<Position>>() || it.has<ecs::uni<Acceleration>>();
-			REQUIRE(ok1);
+			CHECK(ok1);
 			const bool ok2 = it.has<ecs::uni<Acceleration>>() || it.has<ecs::uni<Position>>();
-			REQUIRE(ok2);
+			CHECK(ok2);
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
@@ -6988,9 +6988,9 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		q.each([&](ecs::Iter& it) {
 			++cnt;
 
-			REQUIRE(it.size() == 1);
+			CHECK(it.size() == 1);
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 }
 
@@ -7022,11 +7022,11 @@ TEST_CASE("Usage 3 - simple query, no") {
 			++cnt;
 
 			const bool ok = e > ecs::GAIA_ID_LastCoreComponent && e != s1 && e != s2;
-			REQUIRE(ok);
+			CHECK(ok);
 		});
 		// +2 for (OnDelete, Error) and (OnTargetDelete, Error)
 		// +3 for e1, e2, e3
-		REQUIRE(cnt == 5);
+		CHECK(cnt == 5);
 	}
 
 	// More complex NO query, 3 operators = 2x NO, 1x ALL.
@@ -7038,10 +7038,10 @@ TEST_CASE("Usage 3 - simple query, no") {
 			++cnt;
 
 			const bool ok = e == e1 || e == e3;
-			REQUIRE(ok);
+			CHECK(ok);
 		});
 		// e1, e3
-		REQUIRE(cnt == 2);
+		CHECK(cnt == 2);
 	}
 }
 
@@ -7054,23 +7054,23 @@ TEST_CASE("Query - all/any eval after new archetypes are created") {
 	wld.add(e2, e2);
 
 	auto q_ = wld.query().any(e1).any(e2);
-	REQUIRE(q_.count() == 0);
+	CHECK(q_.count() == 0);
 	auto q = wld.query().all(e1).all(e2);
-	REQUIRE(q.count() == 0);
+	CHECK(q.count() == 0);
 
 	auto e3 = wld.add();
 	wld.add(e3, e3);
 	wld.add(e3, e1);
 	wld.add(e3, e2);
-	REQUIRE(q.count() == 1);
-	REQUIRE(q_.count() == 1);
+	CHECK(q.count() == 1);
+	CHECK(q_.count() == 1);
 
 	auto e4 = wld.add();
 	wld.add(e4, e4);
 	wld.add(e4, e1);
 	wld.add(e4, e2);
-	REQUIRE(q_.count() == 2);
-	REQUIRE(q.count() == 2);
+	CHECK(q_.count() == 2);
+	CHECK(q.count() == 2);
 }
 
 TEST_CASE("add_n") {
@@ -7093,16 +7093,16 @@ TEST_CASE("add_n") {
 			++cnt;
 
 			if (ent == e) {
-				REQUIRE(a.x == 1.f);
-				REQUIRE(a.y == 1.f);
-				REQUIRE(a.z == 1.f);
+				CHECK(a.x == 1.f);
+				CHECK(a.y == 1.f);
+				CHECK(a.z == 1.f);
 			} else {
-				// REQUIRE(a.x == 0.f);
-				// REQUIRE(a.y == 0.f);
-				// REQUIRE(a.z == 0.f);
+				// CHECK(a.x == 0.f);
+				// CHECK(a.y == 0.f);
+				// CHECK(a.z == 0.f);
 			}
 		});
-		REQUIRE(cnt == N + 1);
+		CHECK(cnt == N + 1);
 	}
 	{
 		uint32_t cnt = 0;
@@ -7110,16 +7110,16 @@ TEST_CASE("add_n") {
 			++cnt;
 
 			if (ent == e) {
-				REQUIRE(p.x == 2.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 2.f);
+				CHECK(p.x == 2.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 2.f);
 			} else {
-				// REQUIRE(p.x == 0.f);
-				// REQUIRE(p.y == 0.f);
-				// REQUIRE(p.z == 0.f);
+				// CHECK(p.x == 0.f);
+				// CHECK(p.y == 0.f);
+				// CHECK(p.z == 0.f);
 			}
 		});
-		REQUIRE(cnt == N + 1);
+		CHECK(cnt == N + 1);
 	}
 }
 
@@ -7135,15 +7135,15 @@ TEST_CASE("copy_n") {
 
 	{
 		const auto& a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 1.f);
-		REQUIRE(a.y == 1.f);
-		REQUIRE(a.z == 1.f);
+		CHECK(a.x == 1.f);
+		CHECK(a.y == 1.f);
+		CHECK(a.z == 1.f);
 	}
 	{
 		const auto& p = wld.get<Position>(e);
-		REQUIRE(p.x == 2.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 2.f);
+		CHECK(p.x == 2.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 2.f);
 	}
 
 	constexpr uint32_t N = 1000;
@@ -7155,22 +7155,22 @@ TEST_CASE("copy_n") {
 		qa.each([&](const Acceleration& a) {
 			++cnt;
 
-			REQUIRE(a.x == 1.f);
-			REQUIRE(a.y == 1.f);
-			REQUIRE(a.z == 1.f);
+			CHECK(a.x == 1.f);
+			CHECK(a.y == 1.f);
+			CHECK(a.z == 1.f);
 		});
-		REQUIRE(cnt == N + 1);
+		CHECK(cnt == N + 1);
 	}
 	{
 		uint32_t cnt = 0;
 		qp.each([&](const Position& p) {
 			++cnt;
 
-			REQUIRE(p.x == 2.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 2.f);
+			CHECK(p.x == 2.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 2.f);
 		});
-		REQUIRE(cnt == N + 1);
+		CHECK(cnt == N + 1);
 	}
 }
 
@@ -7206,18 +7206,18 @@ TEST_CASE("Set - generic") {
 	// Default values
 	for (const auto ent: arr) {
 		auto r = wld.get<Rotation>(ent);
-		REQUIRE(r.x == 0.f);
-		REQUIRE(r.y == 0.f);
-		REQUIRE(r.z == 0.f);
-		REQUIRE(r.w == 0.f);
+		CHECK(r.x == 0.f);
+		CHECK(r.y == 0.f);
+		CHECK(r.z == 0.f);
+		CHECK(r.w == 0.f);
 
 		auto s = wld.get<Scale>(ent);
-		REQUIRE(s.x == 0.f);
-		REQUIRE(s.y == 0.f);
-		REQUIRE(s.z == 0.f);
+		CHECK(s.x == 0.f);
+		CHECK(s.y == 0.f);
+		CHECK(s.z == 0.f);
 
 		auto e = wld.get<Else>(ent);
-		REQUIRE(e.value == false);
+		CHECK(e.value == false);
 	}
 
 	// Modify values
@@ -7243,49 +7243,49 @@ TEST_CASE("Set - generic") {
 
 			GAIA_EACH(it) {
 				auto r = rotationView[i];
-				REQUIRE(r.x == 1.f);
-				REQUIRE(r.y == 2.f);
-				REQUIRE(r.z == 3.f);
-				REQUIRE(r.w == 4.f);
+				CHECK(r.x == 1.f);
+				CHECK(r.y == 2.f);
+				CHECK(r.z == 3.f);
+				CHECK(r.w == 4.f);
 
 				auto s = scaleView[i];
-				REQUIRE(s.x == 11.f);
-				REQUIRE(s.y == 22.f);
-				REQUIRE(s.z == 33.f);
+				CHECK(s.x == 11.f);
+				CHECK(s.y == 22.f);
+				CHECK(s.z == 33.f);
 
 				auto e = elseView[i];
-				REQUIRE(e.value == true);
+				CHECK(e.value == true);
 			}
 		});
 
 		{
 			uint32_t entIdx = 0;
 			q.each([&](ecs::Entity ent) {
-				REQUIRE(ent == arr[entIdx++]);
+				CHECK(ent == arr[entIdx++]);
 			});
 			entIdx = 0;
 			q.each([&](ecs::Iter& it) {
 				auto entityView = it.view<ecs::Entity>();
 				GAIA_EACH(it) {
-					REQUIRE(entityView[i] == arr[entIdx++]);
+					CHECK(entityView[i] == arr[entIdx++]);
 				}
 			});
 		}
 
 		for (const auto ent: arr) {
 			auto r = wld.get<Rotation>(ent);
-			REQUIRE(r.x == 1.f);
-			REQUIRE(r.y == 2.f);
-			REQUIRE(r.z == 3.f);
-			REQUIRE(r.w == 4.f);
+			CHECK(r.x == 1.f);
+			CHECK(r.y == 2.f);
+			CHECK(r.z == 3.f);
+			CHECK(r.w == 4.f);
 
 			auto s = wld.get<Scale>(ent);
-			REQUIRE(s.x == 11.f);
-			REQUIRE(s.y == 22.f);
-			REQUIRE(s.z == 33.f);
+			CHECK(s.x == 11.f);
+			CHECK(s.y == 22.f);
+			CHECK(s.z == 33.f);
 
 			auto e = wld.get<Else>(ent);
-			REQUIRE(e.value == true);
+			CHECK(e.value == true);
 		}
 	}
 
@@ -7312,35 +7312,35 @@ TEST_CASE("Set - generic") {
 
 			GAIA_EACH(it) {
 				auto r = rotationView[i];
-				REQUIRE(r.x == 1.f);
-				REQUIRE(r.y == 2.f);
-				REQUIRE(r.z == 3.f);
-				REQUIRE(r.w == 4.f);
+				CHECK(r.x == 1.f);
+				CHECK(r.y == 2.f);
+				CHECK(r.z == 3.f);
+				CHECK(r.w == 4.f);
 
 				auto s = scaleView[i];
-				REQUIRE(s.x == 11.f);
-				REQUIRE(s.y == 22.f);
-				REQUIRE(s.z == 33.f);
+				CHECK(s.x == 11.f);
+				CHECK(s.y == 22.f);
+				CHECK(s.z == 33.f);
 
 				auto e = elseView[i];
-				REQUIRE(e.value == true);
+				CHECK(e.value == true);
 			}
 		});
 
 		for (const auto ent: arr) {
 			auto r = wld.get<Rotation>(ent);
-			REQUIRE(r.x == 1.f);
-			REQUIRE(r.y == 2.f);
-			REQUIRE(r.z == 3.f);
-			REQUIRE(r.w == 4.f);
+			CHECK(r.x == 1.f);
+			CHECK(r.y == 2.f);
+			CHECK(r.z == 3.f);
+			CHECK(r.w == 4.f);
 
 			auto s = wld.get<Scale>(ent);
-			REQUIRE(s.x == 11.f);
-			REQUIRE(s.y == 22.f);
-			REQUIRE(s.z == 33.f);
+			CHECK(s.x == 11.f);
+			CHECK(s.y == 22.f);
+			CHECK(s.z == 33.f);
 
 			auto e = wld.get<Else>(ent);
-			REQUIRE(e.value == true);
+			CHECK(e.value == true);
 		}
 	}
 
@@ -7350,18 +7350,18 @@ TEST_CASE("Set - generic") {
 		wld.add<Position>(ent, {5, 6, 7});
 
 		auto r = wld.get<Rotation>(ent);
-		REQUIRE(r.x == 1.f);
-		REQUIRE(r.y == 2.f);
-		REQUIRE(r.z == 3.f);
-		REQUIRE(r.w == 4.f);
+		CHECK(r.x == 1.f);
+		CHECK(r.y == 2.f);
+		CHECK(r.z == 3.f);
+		CHECK(r.w == 4.f);
 
 		auto s = wld.get<Scale>(ent);
-		REQUIRE(s.x == 11.f);
-		REQUIRE(s.y == 22.f);
-		REQUIRE(s.z == 33.f);
+		CHECK(s.x == 11.f);
+		CHECK(s.y == 22.f);
+		CHECK(s.z == 33.f);
 
 		auto e = wld.get<Else>(ent);
-		REQUIRE(e.value == true);
+		CHECK(e.value == true);
 	}
 }
 
@@ -7383,23 +7383,23 @@ TEST_CASE("Set - generic & unique") {
 	// Default values
 	for (const auto ent: arr) {
 		auto r = wld.get<Rotation>(ent);
-		REQUIRE(r.x == 0.f);
-		REQUIRE(r.y == 0.f);
-		REQUIRE(r.z == 0.f);
-		REQUIRE(r.w == 0.f);
+		CHECK(r.x == 0.f);
+		CHECK(r.y == 0.f);
+		CHECK(r.z == 0.f);
+		CHECK(r.w == 0.f);
 
 		auto s = wld.get<Scale>(ent);
-		REQUIRE(s.x == 0.f);
-		REQUIRE(s.y == 0.f);
-		REQUIRE(s.z == 0.f);
+		CHECK(s.x == 0.f);
+		CHECK(s.y == 0.f);
+		CHECK(s.z == 0.f);
 
 		auto e = wld.get<Else>(ent);
-		REQUIRE(e.value == false);
+		CHECK(e.value == false);
 
 		auto p = wld.get<ecs::uni<Position>>(ent);
-		REQUIRE(p.x == 0.f);
-		REQUIRE(p.y == 0.f);
-		REQUIRE(p.z == 0.f);
+		CHECK(p.x == 0.f);
+		CHECK(p.y == 0.f);
+		CHECK(p.z == 0.f);
 	}
 
 	// Modify values
@@ -7422,32 +7422,32 @@ TEST_CASE("Set - generic & unique") {
 
 		{
 			Position p = wld.get<ecs::uni<Position>>(arr[0]);
-			REQUIRE(p.x == 111.f);
-			REQUIRE(p.y == 222.f);
-			REQUIRE(p.z == 333.f);
+			CHECK(p.x == 111.f);
+			CHECK(p.y == 222.f);
+			CHECK(p.z == 333.f);
 		}
 		{
 			for (const auto ent: arr) {
 				auto r = wld.get<Rotation>(ent);
-				REQUIRE(r.x == 1.f);
-				REQUIRE(r.y == 2.f);
-				REQUIRE(r.z == 3.f);
-				REQUIRE(r.w == 4.f);
+				CHECK(r.x == 1.f);
+				CHECK(r.y == 2.f);
+				CHECK(r.z == 3.f);
+				CHECK(r.w == 4.f);
 
 				auto s = wld.get<Scale>(ent);
-				REQUIRE(s.x == 11.f);
-				REQUIRE(s.y == 22.f);
-				REQUIRE(s.z == 33.f);
+				CHECK(s.x == 11.f);
+				CHECK(s.y == 22.f);
+				CHECK(s.z == 33.f);
 
 				auto e = wld.get<Else>(ent);
-				REQUIRE(e.value == true);
+				CHECK(e.value == true);
 			}
 		}
 		{
 			auto p = wld.get<ecs::uni<Position>>(arr[0]);
-			REQUIRE(p.x == 111.f);
-			REQUIRE(p.y == 222.f);
-			REQUIRE(p.z == 333.f);
+			CHECK(p.x == 111.f);
+			CHECK(p.y == 222.f);
+			CHECK(p.z == 333.f);
 		}
 	}
 }
@@ -7469,21 +7469,21 @@ TEST_CASE("Components - non trivial") {
 	// Default values
 	for (const auto ent: arr) {
 		const auto& s1 = wld.get<StringComponent>(ent);
-		REQUIRE(s1.value.empty());
+		CHECK(s1.value.empty());
 
 		{
 			auto s2 = wld.get<StringComponent2>(ent);
-			REQUIRE(s2.value == StringComponent2DefaultValue);
+			CHECK(s2.value == StringComponent2DefaultValue);
 		}
 		{
 			const auto& s2 = wld.get<StringComponent2>(ent);
-			REQUIRE(s2.value == StringComponent2DefaultValue);
+			CHECK(s2.value == StringComponent2DefaultValue);
 		}
 
 		const auto& p = wld.get<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 	}
 
 	// Modify values
@@ -7516,15 +7516,15 @@ TEST_CASE("Components - non trivial") {
 
 		for (const auto ent: arr) {
 			const auto& s1 = wld.get<StringComponent>(ent);
-			REQUIRE(s1.value == StringComponentDefaultValue);
+			CHECK(s1.value == StringComponentDefaultValue);
 
 			const auto& s2 = wld.get<StringComponent2>(ent);
-			REQUIRE(s2.value == StringComponent2DefaultValue_2);
+			CHECK(s2.value == StringComponent2DefaultValue_2);
 
 			const auto& p = wld.get<PositionNonTrivial>(ent);
-			REQUIRE(p.x == 111.f);
-			REQUIRE(p.y == 222.f);
-			REQUIRE(p.z == 333.f);
+			CHECK(p.x == 111.f);
+			CHECK(p.y == 222.f);
+			CHECK(p.z == 333.f);
 		}
 	}
 
@@ -7534,15 +7534,15 @@ TEST_CASE("Components - non trivial") {
 		wld.add<Position>(ent, {5, 6, 7});
 
 		const auto& s1 = wld.get<StringComponent>(ent);
-		REQUIRE(s1.value == StringComponentDefaultValue);
+		CHECK(s1.value == StringComponentDefaultValue);
 
 		const auto& s2 = wld.get<StringComponent2>(ent);
-		REQUIRE(s2.value == StringComponent2DefaultValue_2);
+		CHECK(s2.value == StringComponent2DefaultValue_2);
 
 		const auto& p = wld.get<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 111.f);
-		REQUIRE(p.y == 222.f);
-		REQUIRE(p.z == 333.f);
+		CHECK(p.x == 111.f);
+		CHECK(p.y == 222.f);
+		CHECK(p.z == 333.f);
 	}
 }
 
@@ -7558,7 +7558,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
 	SECTION("Entity creation from another entity") {
@@ -7574,7 +7574,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
 	SECTION("Entity creation from a to-be-created entity") {
@@ -7590,7 +7590,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
 	SECTION("Entity creation from another entity with a component") {
@@ -7602,26 +7602,26 @@ TEST_CASE("CommandBuffer") {
 			wld.add<Position>(mainEntity, {1, 2, 3});
 
 			auto q = wld.query().all<Position>();
-			REQUIRE(q.count() == 1);
+			CHECK(q.count() == 1);
 			uint32_t i = 0;
 			q.each([&](const Position& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 
 			(void)wld.copy(mainEntity);
-			REQUIRE(q.count() == 2);
+			CHECK(q.count() == 2);
 			i = 0;
 			q.each([&](const Position& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 
 		{
@@ -7635,15 +7635,15 @@ TEST_CASE("CommandBuffer") {
 			cb.commit();
 
 			auto q = wld.query().all<Position>();
-			REQUIRE(q.count() == 2);
+			CHECK(q.count() == 2);
 			uint32_t i = 0;
 			q.each([&](const Position& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 	}
 
@@ -7656,26 +7656,26 @@ TEST_CASE("CommandBuffer") {
 			wld.add<PositionSoA>(mainEntity, {1, 2, 3});
 
 			auto q = wld.query().all<PositionSoA>();
-			REQUIRE(q.count() == 1);
+			CHECK(q.count() == 1);
 			uint32_t i = 0;
 			q.each([&](const PositionSoA& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 1);
+			CHECK(i == 1);
 
 			(void)wld.copy(mainEntity);
-			REQUIRE(q.count() == 2);
+			CHECK(q.count() == 2);
 			i = 0;
 			q.each([&](const PositionSoA& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 
 		{
@@ -7689,15 +7689,15 @@ TEST_CASE("CommandBuffer") {
 			cb.commit();
 
 			auto q = wld.query().all<PositionSoA>();
-			REQUIRE(q.count() == 2);
+			CHECK(q.count() == 2);
 			uint32_t i = 0;
 			q.each([&](const PositionSoA& p) {
-				REQUIRE(p.x == 1.f);
-				REQUIRE(p.y == 2.f);
-				REQUIRE(p.z == 3.f);
+				CHECK(p.x == 1.f);
+				CHECK(p.y == 2.f);
+				CHECK(p.z == 3.f);
 				++i;
 			});
-			REQUIRE(i == 2);
+			CHECK(i == 2);
 		}
 	}
 
@@ -7707,9 +7707,9 @@ TEST_CASE("CommandBuffer") {
 
 		auto e = wld.add();
 		cb.add<Position>(e);
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 		cb.commit();
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed component addition (via entity) to an existing entity") {
@@ -7720,9 +7720,9 @@ TEST_CASE("CommandBuffer") {
 
 		auto e = wld.add();
 		cb.add(e, p);
-		REQUIRE_FALSE(wld.has(e, p));
+		CHECK_FALSE(wld.has(e, p));
 		cb.commit();
-		REQUIRE(wld.has(e, p));
+		CHECK(wld.has(e, p));
 	}
 
 	SECTION("Delayed entity addition to an existing entity") {
@@ -7732,13 +7732,13 @@ TEST_CASE("CommandBuffer") {
 		auto e = wld.add(); // core + 1
 		const auto s = wld.size();
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == s); // no new added entity
+		CHECK(wld.size() == s); // no new added entity
 		cb.add(e, tmp);
 		cb.commit();
-		REQUIRE(wld.size() == s + 1); // new entity added
+		CHECK(wld.size() == s + 1); // new entity added
 
 		auto e2 = wld.get(s); // core + e + new entity
-		REQUIRE(wld.has(e, e2));
+		CHECK(wld.has(e, e2));
 	}
 
 	SECTION("Delayed component addition to a to-be-created entity") {
@@ -7748,14 +7748,14 @@ TEST_CASE("CommandBuffer") {
 		const auto s = wld.size();
 
 		auto tmp = cb.add(); // no new entity created yet
-		REQUIRE(wld.size() == s);
+		CHECK(wld.size() == s);
 		cb.add<Position>(tmp); // component entity created
-		REQUIRE(wld.size() == s + 1);
+		CHECK(wld.size() == s + 1);
 		cb.commit();
-		REQUIRE(wld.size() == s + 2);
+		CHECK(wld.size() == s + 2);
 
 		auto e = wld.get(s + 1); // position + new entity
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed component addition (via entity) to a to-be-created entity") {
@@ -7764,17 +7764,17 @@ TEST_CASE("CommandBuffer") {
 
 		const auto s = wld.size();
 		auto p = wld.add<Position>().entity;
-		REQUIRE(wld.size() == s + 1);
+		CHECK(wld.size() == s + 1);
 
 		auto tmp = cb.add(); // no new entity created yet
-		REQUIRE(wld.size() == s + 1);
+		CHECK(wld.size() == s + 1);
 		cb.add(tmp, p);
-		REQUIRE(wld.size() == s + 1);
+		CHECK(wld.size() == s + 1);
 		cb.commit();
-		REQUIRE(wld.size() == s + 2);
+		CHECK(wld.size() == s + 2);
 
 		auto e = wld.get(s + 1); // core + position + new entity
-		REQUIRE(wld.has(e, p));
+		CHECK(wld.has(e, p));
 	}
 
 	SECTION("Delayed entity addition to a to-be-created entity") {
@@ -7784,15 +7784,15 @@ TEST_CASE("CommandBuffer") {
 		const auto s = wld.size();
 		auto tmpA = cb.add();
 		auto tmpB = cb.add(); // core + 0 (no new entity created yet)
-		REQUIRE(wld.size() == s);
+		CHECK(wld.size() == s);
 		cb.add(tmpA, tmpB);
-		REQUIRE(wld.size() == s);
+		CHECK(wld.size() == s);
 		cb.commit();
-		REQUIRE(wld.size() == s + 2);
+		CHECK(wld.size() == s + 2);
 
 		auto e1 = wld.get(s);
 		auto e2 = wld.get(s + 1);
-		REQUIRE(wld.has(e1, e2));
+		CHECK(wld.has(e1, e2));
 	}
 
 	SECTION("Delayed component setting of an existing entity") {
@@ -7803,15 +7803,15 @@ TEST_CASE("CommandBuffer") {
 
 		cb.add<Position>(e);
 		cb.set<Position>(e, {1, 2, 3});
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 
 		cb.commit();
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		CHECK(p.x == 1);
+		CHECK(p.y == 2);
+		CHECK(p.z == 3);
 	}
 
 	SECTION("Delayed 2 components setting of an existing entity") {
@@ -7824,22 +7824,22 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Position>(e, {1, 2, 3});
 		cb.add<Acceleration>(e);
 		cb.set<Acceleration>(e, {4, 5, 6});
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 
 		cb.commit();
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 
 		auto a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 4.f);
-		REQUIRE(a.y == 5.f);
-		REQUIRE(a.z == 6.f);
+		CHECK(a.x == 4.f);
+		CHECK(a.y == 5.f);
+		CHECK(a.z == 6.f);
 	}
 
 	SECTION("Delayed component setting of a to-be-created entity") {
@@ -7848,21 +7848,21 @@ TEST_CASE("CommandBuffer") {
 
 		const auto s = wld.size();
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == s);
+		CHECK(wld.size() == s);
 
 		cb.add<Position>(tmp);
-		REQUIRE(wld.size() == s + 1);
+		CHECK(wld.size() == s + 1);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
-		REQUIRE(wld.size() == s + 2);
+		CHECK(wld.size() == s + 2);
 
 		auto e = wld.get(s + 1); // core + position + new entity
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components setting of a to-be-created entity") {
@@ -7870,7 +7870,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
@@ -7879,18 +7879,18 @@ TEST_CASE("CommandBuffer") {
 		cb.commit();
 
 		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 
 		auto a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 4.f);
-		REQUIRE(a.y == 5.f);
-		REQUIRE(a.z == 6.f);
+		CHECK(a.x == 4.f);
+		CHECK(a.y == 5.f);
+		CHECK(a.z == 6.f);
 	}
 
 	SECTION("Delayed component add with setting of a to-be-created entity") {
@@ -7898,18 +7898,18 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
 		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
@@ -7917,25 +7917,25 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBufferST cb(wld);
 
 		auto tmp = cb.add();
-		REQUIRE(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
 		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
 
 		auto p = wld.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 3.f);
 
 		auto a = wld.get<Acceleration>(e);
-		REQUIRE(a.x == 4.f);
-		REQUIRE(a.y == 5.f);
-		REQUIRE(a.z == 6.f);
+		CHECK(a.x == 4.f);
+		CHECK(a.y == 5.f);
+		CHECK(a.z == 6.f);
 	}
 
 	SECTION("Delayed component removal from an existing entity") {
@@ -7946,16 +7946,16 @@ TEST_CASE("CommandBuffer") {
 		wld.add<Position>(e, {1, 2, 3});
 
 		cb.del<Position>(e);
-		REQUIRE(wld.has<Position>(e));
+		CHECK(wld.has<Position>(e));
 		{
 			auto p = wld.get<Position>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 		}
 
 		cb.commit();
-		REQUIRE_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Position>(e));
 	}
 
 	SECTION("Delayed 2 component removal from an existing entity") {
@@ -7968,23 +7968,23 @@ TEST_CASE("CommandBuffer") {
 
 		cb.del<Position>(e);
 		cb.del<Acceleration>(e);
-		REQUIRE(wld.has<Position>(e));
-		REQUIRE(wld.has<Acceleration>(e));
+		CHECK(wld.has<Position>(e));
+		CHECK(wld.has<Acceleration>(e));
 		{
 			auto p = wld.get<Position>(e);
-			REQUIRE(p.x == 1.f);
-			REQUIRE(p.y == 2.f);
-			REQUIRE(p.z == 3.f);
+			CHECK(p.x == 1.f);
+			CHECK(p.y == 2.f);
+			CHECK(p.z == 3.f);
 
 			auto a = wld.get<Acceleration>(e);
-			REQUIRE(a.x == 4.f);
-			REQUIRE(a.y == 5.f);
-			REQUIRE(a.z == 6.f);
+			CHECK(a.x == 4.f);
+			CHECK(a.y == 5.f);
+			CHECK(a.z == 6.f);
 		}
 
 		cb.commit();
-		REQUIRE_FALSE(wld.has<Position>(e));
-		REQUIRE_FALSE(wld.has<Acceleration>(e));
+		CHECK_FALSE(wld.has<Position>(e));
+		CHECK_FALSE(wld.has<Acceleration>(e));
 	}
 
 	SECTION("Delayed non-trivial component setting of an existing entity") {
@@ -7996,17 +7996,17 @@ TEST_CASE("CommandBuffer") {
 		cb.add<StringComponent>(e);
 		cb.set<StringComponent>(e, {StringComponentDefaultValue});
 		cb.add<StringComponent2>(e);
-		REQUIRE_FALSE(wld.has<StringComponent>(e));
-		REQUIRE_FALSE(wld.has<StringComponent2>(e));
+		CHECK_FALSE(wld.has<StringComponent>(e));
+		CHECK_FALSE(wld.has<StringComponent2>(e));
 
 		cb.commit();
-		REQUIRE(wld.has<StringComponent>(e));
-		REQUIRE(wld.has<StringComponent2>(e));
+		CHECK(wld.has<StringComponent>(e));
+		CHECK(wld.has<StringComponent2>(e));
 
 		auto s1 = wld.get<StringComponent>(e);
-		REQUIRE(s1.value == StringComponentDefaultValue);
+		CHECK(s1.value == StringComponentDefaultValue);
 		auto s2 = wld.get<StringComponent2>(e);
-		REQUIRE(s2.value == StringComponent2DefaultValue);
+		CHECK(s2.value == StringComponent2DefaultValue);
 	}
 
 	SECTION("Delayed entity deletion") {
@@ -8016,10 +8016,10 @@ TEST_CASE("CommandBuffer") {
 		auto e = wld.add();
 
 		cb.del(e);
-		REQUIRE(wld.has(e));
+		CHECK(wld.has(e));
 
 		cb.commit();
-		REQUIRE_FALSE(wld.has(e));
+		CHECK_FALSE(wld.has(e));
 	}
 }
 
@@ -8036,14 +8036,14 @@ TEST_CASE("Query Filter - no systems") {
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1); // first run always happens
+		CHECK(cnt == 1); // first run always happens
 	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0); // no change of position so this shouldn't run
+		CHECK(cnt == 0); // no change of position so this shouldn't run
 	}
 	{
 		wld.set<Position>(e) = {};
@@ -8053,14 +8053,14 @@ TEST_CASE("Query Filter - no systems") {
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 1);
+		CHECK(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		wld.sset<Position>(e) = {};
@@ -8070,7 +8070,7 @@ TEST_CASE("Query Filter - no systems") {
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	{
 		auto* ch = wld.get_chunk(e);
@@ -8082,7 +8082,7 @@ TEST_CASE("Query Filter - no systems") {
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0);
+		CHECK(cnt == 0);
 	}
 	auto e2 = wld.copy(e);
 	(void)e2;
@@ -8091,14 +8091,14 @@ TEST_CASE("Query Filter - no systems") {
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 2); // adding an entity triggers the change
+		CHECK(cnt == 2); // adding an entity triggers the change
 	}
 	{
 		uint32_t cnt = 0;
 		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
-		REQUIRE(cnt == 0); // no new change since the last time
+		CHECK(cnt == 0); // no new change since the last time
 	}
 }
 
@@ -8144,9 +8144,9 @@ TEST_CASE("Query Filter - systems") {
 	{
 		wld.enable(ws, false);
 		wld.enable(wss, false);
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
 		expectedCnt = 1;
 		actualCnt = 0;
@@ -8154,13 +8154,13 @@ TEST_CASE("Query Filter - systems") {
 		wssCnt = 0;
 		wld.update();
 
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
-		REQUIRE(actualCnt == expectedCnt);
-		REQUIRE(wsCnt == 0);
-		REQUIRE(wssCnt == 0);
+		CHECK(actualCnt == expectedCnt);
+		CHECK(wsCnt == 0);
+		CHECK(wssCnt == 0);
 	}
 	// no change of position so ReaderSystem should't see any changes
 	{
@@ -8170,20 +8170,20 @@ TEST_CASE("Query Filter - systems") {
 		wssCnt = 0;
 		wld.update();
 
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
-		REQUIRE(actualCnt == expectedCnt);
-		REQUIRE(wsCnt == 0);
-		REQUIRE(wssCnt == 0);
+		CHECK(actualCnt == expectedCnt);
+		CHECK(wsCnt == 0);
+		CHECK(wssCnt == 0);
 	}
 	// update position so ReaderSystem should detect a change
 	{
 		wld.enable(ws, true);
-		REQUIRE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
 		expectedCnt = 1;
 		actualCnt = 0;
@@ -8191,20 +8191,20 @@ TEST_CASE("Query Filter - systems") {
 		wssCnt = 0;
 		wld.update();
 
-		REQUIRE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
-		REQUIRE(actualCnt == expectedCnt);
-		REQUIRE(wsCnt > 0);
-		REQUIRE(wssCnt == 0);
+		CHECK(actualCnt == expectedCnt);
+		CHECK(wsCnt > 0);
+		CHECK(wssCnt == 0);
 	}
 	// no change of position so ReaderSystem shouldn't see any changes
 	{
 		wld.enable(ws, false);
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
 		expectedCnt = 0;
 		actualCnt = 0;
@@ -8212,21 +8212,21 @@ TEST_CASE("Query Filter - systems") {
 		wssCnt = 0;
 		wld.update();
 
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE_FALSE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK_FALSE(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
-		REQUIRE(actualCnt == expectedCnt);
-		REQUIRE(wsCnt == 0);
-		REQUIRE(wssCnt == 0);
+		CHECK(actualCnt == expectedCnt);
+		CHECK(wsCnt == 0);
+		CHECK(wssCnt == 0);
 	}
 	// silent writer enabled again. If should not trigger an update
 	{
 		wld.enable(ws, false);
 		wld.enable(wss, true);
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
 		expectedCnt = 0;
 		actualCnt = 0;
@@ -8234,13 +8234,13 @@ TEST_CASE("Query Filter - systems") {
 		wssCnt = 0;
 		wld.update();
 
-		REQUIRE_FALSE(wld.enabled(ws));
-		REQUIRE(wld.enabled(wss));
-		REQUIRE(wld.enabled(rs));
+		CHECK_FALSE(wld.enabled(ws));
+		CHECK(wld.enabled(wss));
+		CHECK(wld.enabled(rs));
 
-		REQUIRE(actualCnt == expectedCnt);
-		REQUIRE(wsCnt == 0);
-		REQUIRE(wssCnt > 0);
+		CHECK(actualCnt == expectedCnt);
+		CHECK(wsCnt == 0);
+		CHECK(wssCnt > 0);
 	}
 }
 
@@ -8308,18 +8308,18 @@ TEST_CASE("Query - group") {
 				GAIA_EACH(it) {
 					const auto e = ents[i];
 					const auto e_wanted = ents_expected_view[j++];
-					REQUIRE(e == e_wanted);
+					CHECK(e == e_wanted);
 				}
 			});
-			REQUIRE(j == (uint32_t)ents_expected_view.size());
+			CHECK(j == (uint32_t)ents_expected_view.size());
 		}
 		{
 			uint32_t j = 0;
 			q.each([&](ecs::Entity e) {
 				const auto e_wanted = ents_expected_view[j++];
-				REQUIRE(e == e_wanted);
+				CHECK(e == e_wanted);
 			});
-			REQUIRE(j == (uint32_t)ents_expected_view.size());
+			CHECK(j == (uint32_t)ents_expected_view.size());
 		}
 	};
 
@@ -8374,10 +8374,10 @@ TEST_CASE("Query - sort") {
 				});
 		q.each([&](ecs::Iter& it) {
 			auto ents = it.view<ecs::Entity>();
-			REQUIRE(ents[0] == e0);
-			REQUIRE(ents[1] == e1);
-			REQUIRE(ents[2] == e2);
-			REQUIRE(ents[3] == e3);
+			CHECK(ents[0] == e0);
+			CHECK(ents[1] == e1);
+			CHECK(ents[2] == e2);
+			CHECK(ents[3] == e3);
 		});
 	}
 
@@ -8395,10 +8395,10 @@ TEST_CASE("Query - sort") {
 				});
 		q.each([&](ecs::Iter& it) {
 			auto ents = it.view<ecs::Entity>();
-			REQUIRE(ents[0] == e2);
-			REQUIRE(ents[1] == e0);
-			REQUIRE(ents[2] == e3);
-			REQUIRE(ents[3] == e1);
+			CHECK(ents[0] == e2);
+			CHECK(ents[1] == e0);
+			CHECK(ents[2] == e3);
+			CHECK(ents[3] == e1);
 		});
 	}
 
@@ -8417,10 +8417,10 @@ TEST_CASE("Query - sort") {
 				});
 		q.each([&](ecs::Iter& it) {
 			auto ents = it.view<ecs::Entity>();
-			REQUIRE(ents[0] == e2);
-			REQUIRE(ents[1] == e0);
-			REQUIRE(ents[2] == e3);
-			REQUIRE(ents[3] == e1);
+			CHECK(ents[0] == e2);
+			CHECK(ents[1] == e0);
+			CHECK(ents[2] == e3);
+			CHECK(ents[3] == e1);
 		});
 
 		cnt::darr<ecs::Entity> tmp;
@@ -8433,10 +8433,10 @@ TEST_CASE("Query - sort") {
 				GAIA_EACH(ents) tmp.push_back(ents[i]);
 			});
 
-			REQUIRE(tmp[0] == e2);
-			REQUIRE(tmp[1] == e0);
-			REQUIRE(tmp[2] == e3);
-			REQUIRE(tmp[3] == e1);
+			CHECK(tmp[0] == e2);
+			CHECK(tmp[1] == e0);
+			CHECK(tmp[2] == e3);
+			CHECK(tmp[3] == e1);
 		}
 
 		// Add new entity
@@ -8449,11 +8449,11 @@ TEST_CASE("Query - sort") {
 				GAIA_EACH(ents) tmp.push_back(ents[i]);
 			});
 
-			REQUIRE(tmp[0] == e4);
-			REQUIRE(tmp[1] == e2);
-			REQUIRE(tmp[2] == e0);
-			REQUIRE(tmp[3] == e3);
-			REQUIRE(tmp[4] == e1);
+			CHECK(tmp[0] == e4);
+			CHECK(tmp[1] == e2);
+			CHECK(tmp[2] == e0);
+			CHECK(tmp[3] == e3);
+			CHECK(tmp[4] == e1);
 		}
 
 		// Delete entity
@@ -8464,10 +8464,10 @@ TEST_CASE("Query - sort") {
 				auto ents = it.view<ecs::Entity>();
 				GAIA_EACH(ents) tmp.push_back(ents[i]);
 			});
-			REQUIRE(tmp[0] == e4);
-			REQUIRE(tmp[1] == e2);
-			REQUIRE(tmp[2] == e3);
-			REQUIRE(tmp[3] == e1);
+			CHECK(tmp[0] == e4);
+			CHECK(tmp[1] == e2);
+			CHECK(tmp[2] == e3);
+			CHECK(tmp[3] == e1);
 		}
 	}
 }
@@ -8498,9 +8498,9 @@ TEST_CASE("System - simple") {
 			sys3_run_before_sys1 = false;
 			sys3_run_before_sys2 = false;
 			wld.update();
-			REQUIRE(sys1_cnt == N);
-			REQUIRE(sys2_cnt == N);
-			REQUIRE(sys3_cnt == N);
+			CHECK(sys1_cnt == N);
+			CHECK(sys2_cnt == N);
+			CHECK(sys3_cnt == N);
 			sys1_cnt = 0;
 			sys2_cnt = 0;
 			sys3_cnt = 0;
@@ -8537,8 +8537,8 @@ TEST_CASE("System - simple") {
 
 	testRun();
 
-	REQUIRE(sys3_run_before_sys1);
-	REQUIRE(sys3_run_before_sys2);
+	CHECK(sys3_run_before_sys1);
+	CHECK(sys3_run_before_sys2);
 }
 
 #endif
@@ -8564,7 +8564,7 @@ void TestDataLayoutSoA_ECS() {
 
 		{
 			const auto cnt = q.count();
-			REQUIRE(cnt == N);
+			CHECK(cnt == N);
 
 			uint32_t j = 0;
 			q.each([&](ecs::Iter& it) {
@@ -8578,14 +8578,14 @@ void TestDataLayoutSoA_ECS() {
 					ty[i] = f;
 					tz[i] = f;
 
-					REQUIRE(tx[i] == f);
-					REQUIRE(ty[i] == f);
-					REQUIRE(tz[i] == f);
+					CHECK(tx[i] == f);
+					CHECK(ty[i] == f);
+					CHECK(tz[i] == f);
 
 					++j;
 				}
 			});
-			REQUIRE(j == cnt);
+			CHECK(j == cnt);
 		}
 
 		// Make sure disabling works
@@ -8593,12 +8593,12 @@ void TestDataLayoutSoA_ECS() {
 			auto e = ents[0];
 			wld.enable(e, false);
 			const auto cnt = q.count();
-			REQUIRE(cnt == N - 1);
+			CHECK(cnt == N - 1);
 			uint32_t cntCalculated = 0;
 			q.each([&](ecs::Iter& it) {
 				cntCalculated += it.size();
 			});
-			REQUIRE(cnt == cntCalculated);
+			CHECK(cnt == cntCalculated);
 		}
 	}
 
@@ -8608,19 +8608,19 @@ void TestDataLayoutSoA_ECS() {
 
 	// 	{
 	// 		const auto cnt = q.count();
-	// 		REQUIRE(cnt == N);
+	// 		CHECK(cnt == N);
 
 	// 		uint32_t j = 0;
 	// 		// TODO: Add SoA support for q.each([](T& t){})
 	// 		q.each([&](const T& t) {
 	// 			auto f = (float)j;
-	// 			REQUIRE(t.x == f);
-	// 			REQUIRE(t.y == f);
-	// 			REQUIRE(t.z == f);
+	// 			CHECK(t.x == f);
+	// 			CHECK(t.y == f);
+	// 			CHECK(t.z == f);
 
 	// 			++j;
 	// 		});
-	// 		REQUIRE(j == cnt);
+	// 		CHECK(j == cnt);
 	// 	}
 
 	// 	// Make sure disabling works
@@ -8628,12 +8628,12 @@ void TestDataLayoutSoA_ECS() {
 	// 		auto e = ents[0];
 	// 		wld.enable(e, false);
 	// 		const auto cnt = q.count();
-	// 		REQUIRE(cnt == N - 1);
+	// 		CHECK(cnt == N - 1);
 	// 		uint32_t cntCalculated = 0;
 	// 		q.each([&]([[maybe_unused]] const T& t) {
 	// 			++cntCalculated;
 	// 		});
-	// 		REQUIRE(cnt == cntCalculated);
+	// 		CHECK(cnt == cntCalculated);
 	// 	}
 	// }
 }
@@ -8660,8 +8660,8 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 template <typename T>
 void comp_cache_verify(ecs::World& w, const ecs::ComponentCacheItem& other) {
 	const auto& d = w.add<const Position>();
-	REQUIRE(other.entity == d.entity);
-	REQUIRE(other.comp == d.comp);
+	CHECK(other.entity == d.entity);
+	CHECK(other.comp == d.comp);
 }
 
 TEST_CASE("Component cache") {
@@ -8669,7 +8669,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<Position>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<const Position>(wld, item);
 		comp_cache_verify<Position&>(wld, item);
@@ -8681,7 +8681,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<const Position>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<Position>(wld, item);
 		comp_cache_verify<Position&>(wld, item);
@@ -8693,7 +8693,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<Position&>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<Position>(wld, item);
 		comp_cache_verify<const Position>(wld, item);
@@ -8705,7 +8705,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<const Position&>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<Position>(wld, item);
 		comp_cache_verify<const Position>(wld, item);
@@ -8717,7 +8717,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<Position*>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<Position>(wld, item);
 		comp_cache_verify<const Position>(wld, item);
@@ -8729,7 +8729,7 @@ TEST_CASE("Component cache") {
 		TestWorld twld;
 		const auto& item = wld.add<const Position*>();
 		auto ent = item.entity;
-		REQUIRE_FALSE(ent.entity());
+		CHECK_FALSE(ent.entity());
 
 		comp_cache_verify<Position>(wld, item);
 		comp_cache_verify<const Position>(wld, item);
@@ -8755,9 +8755,9 @@ TEST_CASE("Hooks") {
 
 		auto e = wld.add();
 		wld.add<Position>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 		wld.add<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 
 		// Set up a hook for adding a Position component
 		// ecs::ComponentCache::hooks(pitem).func_add = position_hook;
@@ -8771,24 +8771,24 @@ TEST_CASE("Hooks") {
 
 		// Components were added already so we don't expect the hook to trigger yet
 		wld.add<Position>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 		wld.add<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 
 		// The component has been removed, and added again. Triggering the hook is expected
 		wld.del<Position>(e);
 		wld.add<Position>(e);
-		REQUIRE(hook_trigger_cnt == 1);
+		CHECK(hook_trigger_cnt == 1);
 
 		// No trigger on Rotation expected because no such trigger has been registered
 		wld.del<Rotation>(e);
 		wld.add<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 1);
+		CHECK(hook_trigger_cnt == 1);
 
 		// Trigger for new additions
 		wld.add<Position>(wld.add());
 		wld.add<Position>(wld.add());
-		REQUIRE(hook_trigger_cnt == 3);
+		CHECK(hook_trigger_cnt == 3);
 	}
 
 	SECTION("del") {
@@ -8810,39 +8810,39 @@ TEST_CASE("Hooks") {
 	#if !GAIA_ASSERT_ENABLED
 		// No components were added yet so we don't expect the hook to trigger
 		wld.del<Position>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 		wld.del<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 	#endif
 
 		// The component has been added. No triggering yet
 		wld.add<Rotation>(e);
 		wld.add<Position>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 
 		// Don't trigger for components without a hook
 		wld.del<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 
 		// Trigger now
 		wld.del<Position>(e);
-		REQUIRE(hook_trigger_cnt == 1);
+		CHECK(hook_trigger_cnt == 1);
 
 	#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
-		REQUIRE(hook_trigger_cnt == 1);
+		CHECK(hook_trigger_cnt == 1);
 	#endif
 
 		// Component added and removed. Trigger again.
 		wld.add<Position>(e);
 		wld.del<Position>(e);
-		REQUIRE(hook_trigger_cnt == 2);
+		CHECK(hook_trigger_cnt == 2);
 
 	#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
-		REQUIRE(hook_trigger_cnt == 2);
+		CHECK(hook_trigger_cnt == 2);
 	#endif
 	}
 
@@ -8854,9 +8854,9 @@ TEST_CASE("Hooks") {
 
 		auto e = wld.add();
 		wld.add<Position>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 		wld.add<Rotation>(e);
-		REQUIRE(hook_trigger_cnt == 0);
+		CHECK(hook_trigger_cnt == 0);
 
 		// Set up a hook for setting a Position component
 		ecs::ComponentCache::hooks(pitem).func_set = //
@@ -8871,60 +8871,60 @@ TEST_CASE("Hooks") {
 		{
 			hook_trigger_cnt = 0;
 			wld.add<Position>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			wld.add<Rotation>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 
 			wld.del<Position>(e);
 			wld.add<Position>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 
 			wld.del<Rotation>(e);
 			wld.add<Rotation>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 		}
 
 		// Don't trigger when setting a different component
 		{
 			hook_trigger_cnt = 0;
 			wld.set<Rotation>(e) = {};
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			(void)wld.acc(e).get<Rotation>();
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			(void)wld.acc_mut(e).get<Rotation>();
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			wld.acc_mut(e).set<Rotation>({});
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			wld.acc_mut(e).sset<Rotation>({});
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			// Modify + no hooks doesn't trigger
 			wld.modify<Rotation, false>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 			// Modify + hooks would trigger but we don't have any trigger set for Rotation
 			wld.modify<Rotation, true>(e);
-			REQUIRE(hook_trigger_cnt == 0);
+			CHECK(hook_trigger_cnt == 0);
 		}
 
 		// Trigger for mutable access
 		{
 			hook_trigger_cnt = 0;
 			wld.set<Position>(e) = {};
-			REQUIRE(hook_trigger_cnt == 1);
+			CHECK(hook_trigger_cnt == 1);
 			(void)wld.acc(e).get<Position>();
-			REQUIRE(hook_trigger_cnt == 1);
+			CHECK(hook_trigger_cnt == 1);
 			(void)wld.acc_mut(e).get<Position>();
-			REQUIRE(hook_trigger_cnt == 1);
+			CHECK(hook_trigger_cnt == 1);
 			wld.acc_mut(e).set<Position>({});
-			REQUIRE(hook_trigger_cnt == 2);
+			CHECK(hook_trigger_cnt == 2);
 			// Silent set doesn't trigger
 			wld.acc_mut(e).sset<Position>({});
-			REQUIRE(hook_trigger_cnt == 2);
+			CHECK(hook_trigger_cnt == 2);
 			// Modify + no hooks doesn't trigger
 			wld.modify<Position, false>(e);
-			REQUIRE(hook_trigger_cnt == 2);
+			CHECK(hook_trigger_cnt == 2);
 			// Modify + hooks does trigger
 			wld.modify<Position, true>(e);
-			REQUIRE(hook_trigger_cnt == 3);
+			CHECK(hook_trigger_cnt == 3);
 		}
 	}
 	#endif
@@ -8953,22 +8953,22 @@ TEST_CASE("Multiple worlds") {
 	uint32_t c = 0;
 	auto q1 = w1.query().all<Position>();
 	q1.each([&c](const Position& p) {
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 1.f);
-		REQUIRE(p.z == 1.f);
+		CHECK(p.x == 1.f);
+		CHECK(p.y == 1.f);
+		CHECK(p.z == 1.f);
 		++c;
 	});
-	REQUIRE(c == 3);
+	CHECK(c == 3);
 
 	c = 0;
 	auto q2 = w2.query().all<Position>();
 	q2.each([&c](const Position& p) {
-		REQUIRE(p.x == 2.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 2.f);
+		CHECK(p.x == 2.f);
+		CHECK(p.y == 2.f);
+		CHECK(p.z == 2.f);
 		++c;
 	});
-	REQUIRE(c == 1);
+	CHECK(c == 1);
 }
 
 //------------------------------------------------------------------------------
@@ -9108,7 +9108,7 @@ TEST_CASE("Serialization - custom") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 		delete in.ptr;
 		delete out.ptr;
 	}
@@ -9129,7 +9129,7 @@ TEST_CASE("Serialization - custom") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 		delete in.ptr;
 		delete out.ptr;
 	}
@@ -9146,7 +9146,7 @@ TEST_CASE("Serialization - simple") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9159,7 +9159,7 @@ TEST_CASE("Serialization - simple") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9172,7 +9172,7 @@ TEST_CASE("Serialization - simple") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9185,7 +9185,7 @@ TEST_CASE("Serialization - simple") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 }
 
@@ -9239,7 +9239,7 @@ TEST_CASE("Serialization - arrays") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9254,7 +9254,7 @@ TEST_CASE("Serialization - arrays") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9270,7 +9270,7 @@ TEST_CASE("Serialization - arrays") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 	}
 
 	{
@@ -9294,7 +9294,7 @@ TEST_CASE("Serialization - arrays") {
 		s.seek(0);
 		ser::load(s, out);
 
-		REQUIRE(CompareSerializableTypes(in, out));
+		CHECK(CompareSerializableTypes(in, out));
 
 		for (auto& a: in.arr)
 			delete a.ptr;
@@ -9314,117 +9314,117 @@ void TestJobQueue_PushPopSteal(bool reverse) {
 	bool res;
 
 	for (uint32_t i = 0; i < 5; ++i) {
-		REQUIRE(q.empty());
+		CHECK(q.empty());
 		res = q.try_push(mt::JobHandle(1, 0, 0));
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_push(mt::JobHandle(2, 0, 0));
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_push(mt::JobHandle(3, 0, 0));
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE(q.empty());
+		CHECK(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 	}
 
 	{
 		mt::JobHandle handles[3] = {mt::JobHandle(1, 0, 0), mt::JobHandle(2, 0, 0), mt::JobHandle(3, 0, 0)};
 		res = q.try_push(std::span(handles, 3));
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE(q.empty());
+		CHECK(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 	}
 
 	{
-		REQUIRE(q.empty());
+		CHECK(q.empty());
 		(void)q.try_push(mt::JobHandle(1, 0, 0));
-		REQUIRE_FALSE(q.empty());
+		CHECK_FALSE(q.empty());
 		(void)q.try_push(mt::JobHandle(2, 0, 0));
-		REQUIRE_FALSE(q.empty());
+		CHECK_FALSE(q.empty());
 
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		if (reverse)
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 		else
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 
 		res = q.try_pop(handle);
-		REQUIRE(res);
-		REQUIRE(q.empty());
+		CHECK(res);
+		CHECK(q.empty());
 		if (reverse)
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 		else
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
-		REQUIRE(q.empty());
+		CHECK_FALSE(res);
+		CHECK(q.empty());
 	}
 
 	{
 		(void)q.try_push(mt::JobHandle(1, 0, 0));
-		REQUIRE_FALSE(q.empty());
+		CHECK_FALSE(q.empty());
 		(void)q.try_push(mt::JobHandle(2, 0, 0));
-		REQUIRE_FALSE(q.empty());
+		CHECK_FALSE(q.empty());
 
 		res = q.try_steal(handle);
-		REQUIRE(res);
-		REQUIRE_FALSE(q.empty());
+		CHECK(res);
+		CHECK_FALSE(q.empty());
 		if (reverse)
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 		else
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 
 		res = q.try_steal(handle);
-		REQUIRE(res);
-		REQUIRE(q.empty());
+		CHECK(res);
+		CHECK(q.empty());
 		if (reverse)
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 		else
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 
 		res = q.try_steal(handle);
-		REQUIRE(res);
-		REQUIRE(handle == (mt::JobHandle)mt::JobNull_t{});
-		REQUIRE(q.empty());
+		CHECK(res);
+		CHECK(handle == (mt::JobHandle)mt::JobNull_t{});
+		CHECK(q.empty());
 	}
 }
 
@@ -9438,21 +9438,21 @@ void TestJobQueue_PushPop(bool reverse) {
 		q.try_push(mt::JobHandle(2, 0, 0));
 
 		auto res = q.try_pop(handle);
-		REQUIRE(res);
+		CHECK(res);
 		if (reverse)
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 		else
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 
 		res = q.try_pop(handle);
-		REQUIRE(res);
+		CHECK(res);
 		if (reverse)
-			REQUIRE(handle.id() == 2);
+			CHECK(handle.id() == 2);
 		else
-			REQUIRE(handle.id() == 1);
+			CHECK(handle.id() == 1);
 
 		res = q.try_pop(handle);
-		REQUIRE_FALSE(res);
+		CHECK_FALSE(res);
 	}
 }
 
@@ -9609,7 +9609,7 @@ struct JobQueueMTTester_PushPop {
 
 template <typename TTestType>
 void TestJobQueueMT(uint32_t threadCnt) {
-	REQUIRE(threadCnt > 1);
+	CHECK(threadCnt > 1);
 
 	typename TTestType::QueueType q;
 	bool terminate = false;
@@ -9623,7 +9623,7 @@ void TestJobQueueMT(uint32_t threadCnt) {
 		GAIA_FOR(threadCnt) {
 			total += testers[i].processed;
 		}
-		REQUIRE(total == JobQueueMTTesterItems);
+		CHECK(total == JobQueueMTTesterItems);
 		terminate = false;
 	}
 }
@@ -9683,7 +9683,7 @@ void Run_Schedule_Simple(
 	mt::Job dependencyJob;
 	dependencyJob.func = [&]() {
 		const bool isLast = cnt == jobCnt;
-		REQUIRE(isLast);
+		CHECK(isLast);
 	};
 	auto* pDepHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * depCnt);
 	GAIA_FOR(depCnt) {
@@ -9698,8 +9698,8 @@ void Run_Schedule_Simple(
 		tp.wait(pDepHandles[i]);
 	}
 
-	GAIA_FOR(jobCnt) REQUIRE(pRes[i] == ItemsPerJob);
-	REQUIRE(cnt == jobCnt);
+	GAIA_FOR(jobCnt) CHECK(pRes[i] == ItemsPerJob);
+	CHECK(cnt == jobCnt);
 }
 
 TEST_CASE("Multithreading - Schedule") {
@@ -9789,7 +9789,7 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	auto work = [&]() {
 		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
 		tp.wait(jobHandle);
-		REQUIRE(sum1 == N);
+		CHECK(sum1 == N);
 	};
 
 	SECTION("Max workers") {
@@ -9835,11 +9835,11 @@ TEST_CASE("Multithreading - complete") {
 
 		GAIA_FOR(Jobs) {
 			tp.wait(handles[i]);
-			REQUIRE(res[i] == i);
+			CHECK(res[i] == i);
 			tp.del(handles[i]);
 		}
 
-		REQUIRE(cnt == Jobs);
+		CHECK(cnt == Jobs);
 	};
 
 	SECTION("Max workers") {
@@ -9891,7 +9891,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 
 			tp.wait(jobHandle[2]);
 
-			REQUIRE(res == (i + 1));
+			CHECK(res == (i + 1));
 		}
 	};
 
