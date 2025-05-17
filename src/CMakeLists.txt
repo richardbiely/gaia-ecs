@@ -138,6 +138,17 @@ if(MSVC)
   endif()
 
   enable_cxx_compiler_flag_if_supported("/permissive-")
+
+  # Link MSVC projects against static runtime library to avoid issues
+  # with running the programs on some platforms (e.g. virtual machines).
+  foreach(flag_var
+    CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+    CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_C_FLAGS_MINSIZEREL
+    CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_MINSIZEREL)
+    string(REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+    string(REPLACE "/MDd" "/MTd" ${flag_var} "${${flag_var}}")
+  endforeach()
 else()
   # MacOS
   if(GAIA_MACOS_BUILD_HACK AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
