@@ -120,6 +120,36 @@ jobs:
       run: |
         ${{github.workspace}}/build/src/test/gaia_test
 
+  build-windows-arm:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        toolset: [default, v142, v143]
+        include:
+          - toolset: v142
+            toolset_option: -T"v142"
+          - toolset: v143
+            toolset_option: -T"v143"
+        build_type: [Release, Debug]
+    runs-on: windows-11-arm
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: |
+        cmake ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: 
+      run: |
+        ${{github.workspace}}/build/src/test/${{matrix.build_type}}/gaia_test.exe
+
   build-windows:
     timeout-minutes: 10
     strategy:
@@ -132,8 +162,7 @@ jobs:
           - toolset: v143
             toolset_option: -T"v143"
         build_type: [Release, Debug]
-        os: [windows-latest, windows-11-arm]
-    runs-on: ${{matrix.os}}
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -156,6 +185,31 @@ jobs:
       run: |
         ${{github.workspace}}/build/src/test/${{matrix.build_type}}/gaia_test.exe
 
+  build-windows-cl-arm:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        toolset: [clang-cl]
+        include:
+          - toolset: clang-cl
+            toolset_option: -T"ClangCl"
+        build_type: [Release, Debug]
+    runs-on: windows-11-arm
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      env:
+        SCCACHE_GHA_ENABLED: "true"
+      run: |
+        cmake ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
   build-windows-cl:
     timeout-minutes: 10
     strategy:
@@ -166,8 +220,7 @@ jobs:
           - toolset: clang-cl
             toolset_option: -T"ClangCl"
         build_type: [Release, Debug]
-        os: [windows-latest, windows-11-arm]
-    runs-on: ${{matrix.os}}
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
