@@ -138,15 +138,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+    - name: sccache
+      uses: mozilla-actions/sccache-action@v0.0.9
       with:
-        key: ${{github.job}}-${{matrix.build_type}}
-        create-symlink: true
+        version: "v0.10.0"
 
     - name: Configure CMake
       run: |
-        cmake ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
@@ -173,15 +172,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+    - name: sccache
+      uses: mozilla-actions/sccache-action@v0.0.9
       with:
-        key: ${{github.job}}-${{matrix.build_type}}
-        create-symlink: true
+        version: "v0.10.0"
 
     - name: Configure CMake
+      env:
+        SCCACHE_GHA_ENABLED: "true"
       run: |
-        cmake ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ${{matrix.toolset_option}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
