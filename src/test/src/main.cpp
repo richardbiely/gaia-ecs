@@ -2746,7 +2746,7 @@ template <bool IsRuntime, typename C>
 void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	SECTION("sort1") {
+	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		if constexpr (IsRuntime)
@@ -2758,15 +2758,13 @@ void sort_descending(C&& arr) {
 	}
 
 	if constexpr (IsRuntime) {
-		SECTION("sort2") {
-			for (TValue i = 0; i < (TValue)arr.size(); ++i)
-				arr[i] = i;
-			core::sort(arr, core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
-				core::swap(arr[a], arr[b]);
-			});
-			for (uint32_t i = 1; i < arr.size(); ++i)
-				CHECK(arr[i - 1] > arr[i]);
-		}
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr, core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
+			core::swap(arr[a], arr[b]);
+		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			CHECK(arr[i - 1] > arr[i]);
 	}
 }
 
@@ -2774,7 +2772,7 @@ template <bool IsRuntime, typename C>
 void sort_ascending(C&& arr) {
 	using TValue = typename C::value_type;
 
-	SECTION("sort1") {
+	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		if constexpr (IsRuntime)
@@ -2786,15 +2784,13 @@ void sort_ascending(C&& arr) {
 	}
 
 	if constexpr (IsRuntime) {
-		SECTION("sort2") {
-			for (TValue i = 0; i < (TValue)arr.size(); ++i)
-				arr[i] = i;
-			core::sort(arr, core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
-				core::swap(arr[a], arr[b]);
-			});
-			for (uint32_t i = 1; i < arr.size(); ++i)
-				CHECK(arr[i - 1] < arr[i]);
-		}
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr, core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
+			core::swap(arr[a], arr[b]);
+		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			CHECK(arr[i - 1] < arr[i]);
 	}
 }
 
@@ -9679,14 +9675,14 @@ void Run_Schedule_Simple(
 			const auto idxStart = i * ItemsPerJob;
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
-			++cnt;
+			cnt.fetch_add(1, std::memory_order_relaxed);
 		};
 		pHandles[i] = tp.add(job);
 	}
 
 	mt::Job dependencyJob;
 	dependencyJob.func = [&]() {
-		const bool isLast = cnt == jobCnt;
+		const bool isLast = cnt.load(std::memory_order_acquire) == jobCnt;
 		CHECK(isLast);
 	};
 	auto* pDepHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * depCnt);
