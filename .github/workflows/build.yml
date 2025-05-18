@@ -61,13 +61,15 @@ jobs:
 
     - name: Configure CMake
       env:
-        CXX: ${{matrix.target.exe}}
+        CC: "ccache ${{matrix.target.pkg}}"
+        CXX: "ccache ${{matrix.target.exe}}"
       run: |
         cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
-        CXX: ${{matrix.target.exe}}
+        CC: "ccache ${{matrix.target.pkg}}"
+        CXX: "ccache ${{matrix.target.exe}}"
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
@@ -88,6 +90,7 @@ jobs:
           - { os: ubuntu-latest, pkg: clang-15, exe: clang++-15 }
           - { os: ubuntu-latest, pkg: clang-16, exe: clang++-16 }
           - { os: ubuntu-latest, pkg: clang-17, exe: clang++-17 }
+          - { os: ubuntu-latest, pkg: clang, exe: clang++ }
         build_type: [Release, Debug]
     runs-on: ${{matrix.target.os}}
 
@@ -107,13 +110,15 @@ jobs:
         
     - name: Configure CMake
       env:
-        CXX: ${{matrix.target.exe}}
+        CC: "ccache ${{matrix.target.pkg}}"
+        CXX: "ccache ${{matrix.target.exe}}"
       run: |
         cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
-        CXX: ${{matrix.target.exe}}
+        CC: "ccache ${{matrix.target.pkg}}"
+        CXX: "ccache ${{matrix.target.exe}}"
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
