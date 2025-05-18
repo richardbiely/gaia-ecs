@@ -343,7 +343,9 @@ namespace gaia {
 						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
 						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_total - stats.mem_used);
 						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_used);
-						GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)stats.mem_used / (double)stats.mem_total));
+						GAIA_LOG_N(
+								"  Utilization: %.1f%%",
+								stats.mem_total ? 100.0 * ((double)stats.mem_used / (double)stats.mem_total) : 0);
 						GAIA_LOG_N("  Pages: %u", stats.num_pages);
 						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
@@ -396,7 +398,7 @@ namespace gaia {
 					for (auto& page: pagesFree)
 						stats.mem_used += page.used_blocks_cnt() * (size_t)MaxMemoryBlockSize;
 					return stats;
-				};
+				}
 			};
 		} // namespace detail
 

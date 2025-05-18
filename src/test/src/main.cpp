@@ -31,6 +31,10 @@ struct TestWorld {
 	TestWorld& operator=(ecs::World&& world) = delete;
 
 	~TestWorld() {
+		update();
+	}
+
+	void update() {
 		GAIA_FOR(100) m_w.update();
 	}
 };
@@ -845,6 +849,7 @@ TEST_CASE("Delegates") {
 	TestWorld twld;
 	auto e1 = wld.add();
 	auto e2 = wld.add();
+	(void)e2;
 
 	// free function
 	{
@@ -1661,6 +1666,12 @@ TEST_CASE("Containers - paged storage") {
 		paged_storage_test<NonTrivialT>(N);
 		paged_storage_test<NonTrivialT>(M);
 	}
+
+	// Only for coverage
+	TrivialT::Allocator::get().flush();
+	TrivialT::Allocator::get().stats();
+	NonTrivialT::Allocator::get().flush();
+	NonTrivialT::Allocator::get().stats();
 }
 
 TEST_CASE("Containers - alignment check") {
@@ -7498,6 +7509,35 @@ TEST_CASE("Components - non trivial") {
 		CHECK(p.y == 222.f);
 		CHECK(p.z == 333.f);
 	}
+}
+
+TEST_CASE("ChunkAllocator") {
+	// We do this mostly for code coverage
+	{
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+		auto mainEntity = wld.add();
+
+		wld.add<Position>(mainEntity, {1, 2, 3});
+
+		constexpr uint32_t M = 100000;
+		(void)wld.copy_n(mainEntity, M);
+
+		// delete all created entities
+		auto q = wld.query().all<Position>();
+		CHECK(q.count() == M + 1);
+		uint32_t i = 0;
+		q.each([&](ecs::Entity e) {
+			cb.del(e);
+		});
+
+		cb.commit();
+		wld.update();
+		ecs::ChunkAllocator::get().flush();
+	}
+
+	// We do this just for code coverage
+	ecs::ChunkAllocator::get().diag();
 }
 
 TEST_CASE("CommandBuffer") {

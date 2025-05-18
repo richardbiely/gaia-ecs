@@ -336,7 +336,7 @@ namespace gaia {
 						stats.mem_used += page.used_blocks_cnt() * (size_t)Page::MemoryBlockBytes;
 
 					return stats;
-				};
+				}
 
 				//! Flushes unused memory
 				void flush() {
@@ -360,7 +360,9 @@ namespace gaia {
 					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memStats.mem_total);
 					GAIA_LOG_N("  Used: %" PRIu64 " B", memStats.mem_total - memStats.mem_used);
 					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memStats.mem_used);
-					GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memStats.mem_used / (double)memStats.mem_total));
+					GAIA_LOG_N(
+							"  Utilization: %.1f%%",
+							memStats.mem_total != 0 ? 100.0 * ((double)memStats.mem_used / (double)memStats.mem_total) : 0.0);
 					GAIA_LOG_N("  Pages: %u", memStats.num_pages);
 					GAIA_LOG_N("  Free pages: %u", memStats.num_pages_free);
 				}
