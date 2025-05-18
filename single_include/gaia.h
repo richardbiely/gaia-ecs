@@ -2324,29 +2324,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename Array, typename TCmpFunc>
-			constexpr void comb_sort_impl(Array& array_, TCmpFunc cmpFunc) noexcept {
-				constexpr double Factor = 1.247330950103979;
-				using size_type = typename Array::size_type;
-
-				size_type gap = array_.size();
-				bool swapped = false;
-				while ((gap > size_type{1}) || swapped) {
-					if (gap > size_type{1}) {
-						gap = static_cast<size_type>(gap / Factor);
-					}
-					swapped = false;
-					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (!cmpFunc(array_[i], array_[i + gap])) {
-							auto swap = array_[i];
-							array_[i] = array_[i + gap];
-							array_[i + gap] = swap;
-							swapped = true;
-						}
-					}
-				}
-			}
-
 			template <typename Container, typename TCmpFunc>
 			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				const auto& pivot = arr[(uint32_t)high];
@@ -2389,150 +2366,6 @@ namespace gaia {
 				quick_sort(arr, pos + 1, high, cmpFunc, sortFunc);
 			}
 		} // namespace detail
-
-		//! Compile-time sort.
-		//! Implements a sorting network for \tparam N up to 8
-		template <typename Container, typename TCmpFunc>
-		constexpr void sort_ct(Container& arr, TCmpFunc cmpFunc) noexcept {
-			constexpr size_t NItems = std::tuple_size<Container>::value;
-			if constexpr (NItems <= 1) {
-				return;
-			} else if constexpr (NItems == 2) {
-				swap_if(arr[0], arr[1], cmpFunc);
-			} else if constexpr (NItems == 3) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[0], arr[1], cmpFunc);
-			} else if constexpr (NItems == 4) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[2], arr[3], cmpFunc);
-
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
-
-				swap_if(arr[1], arr[2], cmpFunc);
-			} else if constexpr (NItems == 5) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-
-				swap_if(arr[2], arr[4], cmpFunc);
-
-				swap_if(arr[2], arr[3], cmpFunc);
-				swap_if(arr[1], arr[4], cmpFunc);
-
-				swap_if(arr[0], arr[3], cmpFunc);
-
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
-
-				swap_if(arr[1], arr[2], cmpFunc);
-			} else if constexpr (NItems == 6) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
-
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[2], arr[5], cmpFunc);
-
-				swap_if(arr[0], arr[3], cmpFunc);
-				swap_if(arr[1], arr[4], cmpFunc);
-
-				swap_if(arr[2], arr[4], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
-
-				swap_if(arr[2], arr[3], cmpFunc);
-			} else if constexpr (NItems == 7) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[5], arr[6], cmpFunc);
-
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
-				swap_if(arr[4], arr[6], cmpFunc);
-
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-				swap_if(arr[2], arr[6], cmpFunc);
-
-				swap_if(arr[0], arr[4], cmpFunc);
-				swap_if(arr[1], arr[5], cmpFunc);
-
-				swap_if(arr[0], arr[3], cmpFunc);
-				swap_if(arr[2], arr[5], cmpFunc);
-
-				swap_if(arr[1], arr[3], cmpFunc);
-				swap_if(arr[2], arr[4], cmpFunc);
-
-				swap_if(arr[2], arr[3], cmpFunc);
-			} else if constexpr (NItems == 8) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[2], arr[3], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-				swap_if(arr[6], arr[7], cmpFunc);
-
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
-				swap_if(arr[4], arr[6], cmpFunc);
-				swap_if(arr[5], arr[7], cmpFunc);
-
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[5], arr[6], cmpFunc);
-				swap_if(arr[0], arr[4], cmpFunc);
-				swap_if(arr[3], arr[7], cmpFunc);
-
-				swap_if(arr[1], arr[5], cmpFunc);
-				swap_if(arr[2], arr[6], cmpFunc);
-
-				swap_if(arr[1], arr[4], cmpFunc);
-				swap_if(arr[3], arr[6], cmpFunc);
-
-				swap_if(arr[2], arr[4], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
-
-				swap_if(arr[3], arr[4], cmpFunc);
-			} else if constexpr (NItems == 9) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[6], arr[7], cmpFunc);
-
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-				swap_if(arr[7], arr[8], cmpFunc);
-
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[6], arr[7], cmpFunc);
-
-				swap_if(arr[0], arr[3], cmpFunc);
-				swap_if(arr[3], arr[6], cmpFunc);
-				swap_if(arr[0], arr[3], cmpFunc);
-
-				swap_if(arr[1], arr[4], cmpFunc);
-				swap_if(arr[4], arr[7], cmpFunc);
-				swap_if(arr[1], arr[4], cmpFunc);
-
-				swap_if(arr[5], arr[8], cmpFunc);
-				swap_if(arr[2], arr[5], cmpFunc);
-				swap_if(arr[5], arr[8], cmpFunc);
-
-				swap_if(arr[2], arr[4], cmpFunc);
-				swap_if(arr[4], arr[6], cmpFunc);
-				swap_if(arr[2], arr[4], cmpFunc);
-
-				swap_if(arr[1], arr[3], cmpFunc);
-				swap_if(arr[2], arr[3], cmpFunc);
-				swap_if(arr[5], arr[7], cmpFunc);
-				swap_if(arr[5], arr[6], cmpFunc);
-			} else {
-				GAIA_MSVC_WARNING_PUSH()
-				GAIA_MSVC_WARNING_DISABLE(4244)
-				detail::comb_sort_impl(arr, cmpFunc);
-				GAIA_MSVC_WARNING_POP()
-			}
-		}
 
 		//! Sort the array \param arr given a comparison function \param cmpFunc.
 		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
@@ -16744,7 +16577,7 @@ namespace gaia {
 			//! Array of worker threads
 			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! Array of data associated with workers
-			cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
+			GAIA_ALIGNAS(128) cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! The number of workers dedicated for a given level of job priority

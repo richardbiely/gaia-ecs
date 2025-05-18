@@ -2742,22 +2742,19 @@ TEST_CASE("each_pack") {
 // Sorting
 //-----------------------------------------------------------------
 
-template <bool IsRuntime, typename C>
+template <typename C>
 void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
 
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
-		if constexpr (IsRuntime)
-			core::sort(arr, core::is_greater<TValue>());
-		else
-			core::sort_ct(arr, core::is_greater<TValue>());
+		core::sort(arr, core::is_greater<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			CHECK(arr[i - 1] > arr[i]);
 	}
 
-	if constexpr (IsRuntime) {
+	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		core::sort(arr, core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
@@ -2768,22 +2765,19 @@ void sort_descending(C&& arr) {
 	}
 }
 
-template <bool IsRuntime, typename C>
+template <typename C>
 void sort_ascending(C&& arr) {
 	using TValue = typename C::value_type;
 
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
-		if constexpr (IsRuntime)
-			core::sort(arr, core::is_smaller<TValue>());
-		else
-			core::sort_ct(arr, core::is_smaller<TValue>());
+		core::sort(arr, core::is_smaller<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			CHECK(arr[i - 1] < arr[i]);
 	}
 
-	if constexpr (IsRuntime) {
+	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		core::sort(arr, core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
@@ -2794,86 +2788,46 @@ void sort_ascending(C&& arr) {
 	}
 }
 
-TEST_CASE("Compile-time sort descending") {
-	sort_descending<false>(cnt::sarray<uint32_t, 2>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 3>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 4>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 5>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 6>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 7>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 8>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 9>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 10>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 11>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 12>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 13>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 14>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 15>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 16>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 17>{});
-	sort_descending<false>(cnt::sarray<uint32_t, 18>{});
+TEST_CASE("Sort descending") {
+	sort_descending(cnt::sarray<uint32_t, 2>{});
+	sort_descending(cnt::sarray<uint32_t, 3>{});
+	sort_descending(cnt::sarray<uint32_t, 4>{});
+	sort_descending(cnt::sarray<uint32_t, 5>{});
+	sort_descending(cnt::sarray<uint32_t, 6>{});
+	sort_descending(cnt::sarray<uint32_t, 7>{});
+	sort_descending(cnt::sarray<uint32_t, 8>{});
+	sort_descending(cnt::sarray<uint32_t, 9>{});
+	sort_descending(cnt::sarray<uint32_t, 10>{});
+	sort_descending(cnt::sarray<uint32_t, 11>{});
+	sort_descending(cnt::sarray<uint32_t, 12>{});
+	sort_descending(cnt::sarray<uint32_t, 13>{});
+	sort_descending(cnt::sarray<uint32_t, 14>{});
+	sort_descending(cnt::sarray<uint32_t, 15>{});
+	sort_descending(cnt::sarray<uint32_t, 16>{});
+	sort_descending(cnt::sarray<uint32_t, 17>{});
+	sort_descending(cnt::sarray<uint32_t, 18>{});
+	sort_descending(cnt::sarray<uint32_t, 45>{});
 }
 
-TEST_CASE("Run-time sort descending") {
-	sort_descending<true>(cnt::sarray<uint32_t, 2>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 3>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 4>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 5>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 6>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 7>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 8>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 9>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 10>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 11>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 12>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 13>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 14>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 15>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 16>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 17>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 18>{});
-	sort_descending<true>(cnt::sarray<uint32_t, 45>{});
-}
-
-TEST_CASE("Compile-time sort ascending") {
-	sort_ascending<false>(cnt::sarray<uint32_t, 2>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 3>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 4>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 5>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 6>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 7>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 8>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 9>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 10>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 11>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 12>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 13>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 14>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 15>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 16>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 17>{});
-	sort_ascending<false>(cnt::sarray<uint32_t, 18>{});
-}
-
-TEST_CASE("Run-time sort ascending") {
-	sort_ascending<true>(cnt::sarray<uint32_t, 2>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 3>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 4>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 5>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 6>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 7>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 8>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 9>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 10>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 11>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 12>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 13>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 14>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 15>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 16>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 17>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 18>{});
-	sort_ascending<true>(cnt::sarray<uint32_t, 45>{});
+TEST_CASE("Sort ascending") {
+	sort_ascending(cnt::sarray<uint32_t, 2>{});
+	sort_ascending(cnt::sarray<uint32_t, 3>{});
+	sort_ascending(cnt::sarray<uint32_t, 4>{});
+	sort_ascending(cnt::sarray<uint32_t, 5>{});
+	sort_ascending(cnt::sarray<uint32_t, 6>{});
+	sort_ascending(cnt::sarray<uint32_t, 7>{});
+	sort_ascending(cnt::sarray<uint32_t, 8>{});
+	sort_ascending(cnt::sarray<uint32_t, 9>{});
+	sort_ascending(cnt::sarray<uint32_t, 10>{});
+	sort_ascending(cnt::sarray<uint32_t, 11>{});
+	sort_ascending(cnt::sarray<uint32_t, 12>{});
+	sort_ascending(cnt::sarray<uint32_t, 13>{});
+	sort_ascending(cnt::sarray<uint32_t, 14>{});
+	sort_ascending(cnt::sarray<uint32_t, 15>{});
+	sort_ascending(cnt::sarray<uint32_t, 16>{});
+	sort_ascending(cnt::sarray<uint32_t, 17>{});
+	sort_ascending(cnt::sarray<uint32_t, 18>{});
+	sort_ascending(cnt::sarray<uint32_t, 45>{});
 }
 
 //-----------------------------------------------------------------
