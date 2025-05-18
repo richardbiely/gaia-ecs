@@ -350,8 +350,9 @@ namespace gaia {
 						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
 
-					diagPage(page_stats(0), 0);
-					diagPage(page_stats(1), 1);
+					auto memStats = stats();
+					diagPage(memStats.stats[0], 0);
+					diagPage(memStats.stats[1], 1);
 				}
 
 			private:

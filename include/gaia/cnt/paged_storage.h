@@ -198,7 +198,7 @@ namespace gaia {
 				using PageData = mem_page_data<T>;
 				static constexpr uint32_t PageCapacity = PageData::PageCapacity;
 
-				// private:
+			private:
 				//! Pointer to page data
 				PageData* m_pData = nullptr;
 

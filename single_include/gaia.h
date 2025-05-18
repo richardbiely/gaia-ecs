@@ -11260,7 +11260,7 @@ namespace gaia {
 				using PageData = mem_page_data<T>;
 				static constexpr uint32_t PageCapacity = PageData::PageCapacity;
 
-				// private:
+			private:
 				//! Pointer to page data
 				PageData* m_pData = nullptr;
 
@@ -19173,8 +19173,9 @@ namespace gaia {
 						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
 
-					diagPage(page_stats(0), 0);
-					diagPage(page_stats(1), 1);
+					auto memStats = stats();
+					diagPage(memStats.stats[0], 0);
+					diagPage(memStats.stats[1], 1);
 				}
 
 			private:

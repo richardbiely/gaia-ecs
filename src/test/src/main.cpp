@@ -7526,7 +7526,6 @@ TEST_CASE("ChunkAllocator") {
 		// delete all created entities
 		auto q = wld.query().all<Position>();
 		CHECK(q.count() == M + 1);
-		uint32_t i = 0;
 		q.each([&](ecs::Entity e) {
 			cb.del(e);
 		});
