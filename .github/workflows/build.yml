@@ -36,10 +36,12 @@ jobs:
           - { os: ubuntu-22.04, pkg: clang-12, exe: clang++-12 }
           - { os: ubuntu-latest, pkg: gcc-13, exe: g++-13 }
           - { os: ubuntu-latest, pkg: gcc-14, exe: g++-14 }
+          - { os: ubuntu-latest, pkg: gcc, exe: g++ }
           - { os: ubuntu-latest, pkg: clang-14, exe: clang++-14 }
           - { os: ubuntu-latest, pkg: clang-15, exe: clang++-15 }
           - { os: ubuntu-latest, pkg: clang-16, exe: clang++-16 }
           - { os: ubuntu-latest, pkg: clang-17, exe: clang++-17 }
+          - { os: ubuntu-latest, pkg: clang, exe: clang++ }
         build_type: [Release, Debug]
     runs-on: ${{matrix.target.os}}
 
@@ -54,7 +56,7 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{github.job}}-${{matrix.build_type}}
+        key: ccache-${{matrix.target.os}}-${{matrix.target.pkg}}-${{matrix.build_type}}
         create-symlink: true
 
     - name: Configure CMake
@@ -100,7 +102,7 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{github.job}}-${{matrix.build_type}}
+        key: ccache-${{matrix.target.os}}-${{matrix.target.pkg}}-${{matrix.build_type}}
         create-symlink: true
         
     - name: Configure CMake
@@ -254,7 +256,7 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: ${{github.job}}-${{matrix.build_type}}
+        key: ccache-${{runner.os}}-${{matrix.build_type}}
         create-symlink: true
 
     - name: Configure CMake
