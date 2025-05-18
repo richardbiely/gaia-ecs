@@ -1669,9 +1669,9 @@ TEST_CASE("Containers - paged storage") {
 
 	// Only for coverage
 	TrivialT::Allocator::get().flush();
-	TrivialT::Allocator::get().stats();
+	TrivialT::Allocator::get().diag();
 	NonTrivialT::Allocator::get().flush();
-	NonTrivialT::Allocator::get().stats();
+	NonTrivialT::Allocator::get().diag();
 }
 
 TEST_CASE("Containers - alignment check") {

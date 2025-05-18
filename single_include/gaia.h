@@ -11011,7 +11011,7 @@ namespace gaia {
 					stats.num_pages_free = (uint32_t)m_pages.pagesFree.size();
 					stats.mem_total = stats.num_pages * (size_t)Page::MemoryBlockBytes * Page::NBlocks;
 					stats.mem_used = m_pages.pagesFull.size() * (size_t)Page::MemoryBlockBytes * Page::NBlocks;
-					for (auto& page: m_pages.pagesFree)
+					for (const auto& page: m_pages.pagesFree)
 						stats.mem_used += page.used_blocks_cnt() * (size_t)Page::MemoryBlockBytes;
 
 					return stats;
@@ -11035,7 +11035,7 @@ namespace gaia {
 				//! Performs diagnostics of the memory used.
 				void diag() const {
 					auto memStats = stats();
-					GAIA_LOG_N("ChunkAllocator stats");
+					GAIA_LOG_N("PagedAllocator %p stats", this);
 					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memStats.mem_total);
 					GAIA_LOG_N("  Used: %" PRIu64 " B", memStats.mem_total - memStats.mem_used);
 					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memStats.mem_used);
@@ -18937,7 +18937,7 @@ namespace gaia {
 						auto StoreBlockAddress = [&](uint32_t index) {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by MemoryBlockUsableOffset bytes
-							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * mem_block_size(m_sizeType);
+							uint8_t* pMemoryBlock = (uint8_t*)m_data + (index * mem_block_size(m_sizeType));
 							GAIA_ASSERT((uintptr_t)pMemoryBlock % 16 == 0);
 							mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
@@ -19161,8 +19161,8 @@ namespace gaia {
 
 				//! Performs diagnostics of the memory used.
 				void diag() const {
-					auto diagPage = [](const ChunkAllocatorPageStats& stats) {
-						GAIA_LOG_N("ChunkAllocator stats");
+					auto diagPage = [](const ChunkAllocatorPageStats& stats, uint32_t sizeType) {
+						GAIA_LOG_N("ChunkAllocator %uK stats", mem_block_size(sizeType) / 1024);
 						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
 						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_total - stats.mem_used);
 						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_used);
@@ -19173,8 +19173,8 @@ namespace gaia {
 						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
 					};
 
-					diagPage(page_stats(0));
-					diagPage(page_stats(1));
+					diagPage(page_stats(0), 0);
+					diagPage(page_stats(1), 1);
 				}
 
 			private:
@@ -19212,13 +19212,14 @@ namespace gaia {
 				ChunkAllocatorPageStats page_stats(uint32_t sizeType) const {
 					ChunkAllocatorPageStats stats{};
 					const MemoryPageContainer& container = m_pages[sizeType];
+
 					stats.num_pages = (uint32_t)container.pagesFree.size() + (uint32_t)container.pagesFull.size();
 					stats.num_pages_free = (uint32_t)container.pagesFree.size();
 					stats.mem_total = stats.num_pages * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
 					stats.mem_used = container.pagesFull.size() * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
 
 					const auto& pagesFree = container.pagesFree;
-					for (auto& page: pagesFree)
+					for (const auto& page: pagesFree)
 						stats.mem_used += page.used_blocks_cnt() * (size_t)MaxMemoryBlockSize;
 					return stats;
 				}

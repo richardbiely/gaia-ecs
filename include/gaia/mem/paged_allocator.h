@@ -332,7 +332,7 @@ namespace gaia {
 					stats.num_pages_free = (uint32_t)m_pages.pagesFree.size();
 					stats.mem_total = stats.num_pages * (size_t)Page::MemoryBlockBytes * Page::NBlocks;
 					stats.mem_used = m_pages.pagesFull.size() * (size_t)Page::MemoryBlockBytes * Page::NBlocks;
-					for (auto& page: m_pages.pagesFree)
+					for (const auto& page: m_pages.pagesFree)
 						stats.mem_used += page.used_blocks_cnt() * (size_t)Page::MemoryBlockBytes;
 
 					return stats;
@@ -356,7 +356,7 @@ namespace gaia {
 				//! Performs diagnostics of the memory used.
 				void diag() const {
 					auto memStats = stats();
-					GAIA_LOG_N("ChunkAllocator stats");
+					GAIA_LOG_N("PagedAllocator %p stats", this);
 					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memStats.mem_total);
 					GAIA_LOG_N("  Used: %" PRIu64 " B", memStats.mem_total - memStats.mem_used);
 					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memStats.mem_used);
