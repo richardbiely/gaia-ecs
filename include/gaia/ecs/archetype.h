@@ -302,9 +302,9 @@ namespace gaia {
 				newArch->m_archetypeId = archetypeId;
 				newArch->m_archetypeIdHash = ArchetypeIdLookupKey::calc(archetypeId);
 
-				// TODO: Performance could be improved if we're an archetype from another one already known.
-				//       We could simply take the predecessor's mark and update it just with the new ids in the new archetype.
 				// Calculate component mask. This will be used to early exit matching archetypes in simple queries.
+				// TODO: Performance could be improved if we're an archetype comming from one already known.
+				//       We could simply take the predecessor's mask and update it with the new ids.
 				newArch->m_queryMask = build_entity_mask({ids.data(), ids.size()});
 
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;

@@ -87,7 +87,7 @@ namespace gaia {
 			//! Array of worker threads
 			cnt::sarray_ext<GAIA_THREAD, MaxWorkers> m_workers;
 			//! Array of data associated with workers
-			cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
+			GAIA_ALIGNAS(128) cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
 			//! The number of workers dedicated for a given level of job priority
