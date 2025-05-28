@@ -1861,15 +1861,15 @@ struct Transform {
   Position p;
   Quaternion r;
 };
-struct Transform {
+struct TransformsContainer {
   cnt::darray<Transform> transforms;
   int some_int_data;
 };
 
 ...
-Transform in, out;
-GAIA_FOR(10) t.transforms.push_back({});
-t.some_int_data = 42069;
+TransformsContainer in, out;
+GAIA_FOR(10) in.transforms.push_back({});
+in.some_int_data = 42069;
 
 ecs::SerializationBuffer s;
 // Calculate how many bytes is it necessary to serialize "in"
