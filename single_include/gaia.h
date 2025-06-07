@@ -2359,6 +2359,352 @@ namespace gaia {
 				swapFunc((uint32_t)++i, (uint32_t)high);
 				return i;
 			}
+
+			template <typename T, typename TCmpFunc>
+			bool sort_nwk(T* beg, T* end, TCmpFunc cmpFunc) {
+				const auto n = (uintptr_t)(end - beg);
+				if (n <= 1) {
+					// Nothing to sort with just one item
+				} else if (n == 2) {
+					swap_if(beg, 0, 1, cmpFunc);
+				} else if (n == 3) {
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 0, 1, cmpFunc);
+				} else if (n == 4) {
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 2, 3, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+
+					swap_if(beg, 1, 2, cmpFunc);
+				} else if (n == 5) {
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+
+					swap_if(beg, 2, 4, cmpFunc);
+
+					swap_if(beg, 2, 3, cmpFunc);
+					swap_if(beg, 1, 4, cmpFunc);
+
+					swap_if(beg, 0, 3, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+
+					swap_if(beg, 1, 2, cmpFunc);
+				} else if (n == 6) {
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 4, 5, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 3, 5, cmpFunc);
+
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+					swap_if(beg, 2, 5, cmpFunc);
+
+					swap_if(beg, 0, 3, cmpFunc);
+					swap_if(beg, 1, 4, cmpFunc);
+
+					swap_if(beg, 2, 4, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+
+					swap_if(beg, 2, 3, cmpFunc);
+				} else if (n == 7) {
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+					swap_if(beg, 5, 6, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 3, 5, cmpFunc);
+					swap_if(beg, 4, 6, cmpFunc);
+
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 4, 5, cmpFunc);
+					swap_if(beg, 2, 6, cmpFunc);
+
+					swap_if(beg, 0, 4, cmpFunc);
+					swap_if(beg, 1, 5, cmpFunc);
+
+					swap_if(beg, 0, 3, cmpFunc);
+					swap_if(beg, 2, 5, cmpFunc);
+
+					swap_if(beg, 1, 3, cmpFunc);
+					swap_if(beg, 2, 4, cmpFunc);
+
+					swap_if(beg, 2, 3, cmpFunc);
+				} else if (n == 8) {
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 2, 3, cmpFunc);
+					swap_if(beg, 4, 5, cmpFunc);
+					swap_if(beg, 6, 7, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+					swap_if(beg, 4, 6, cmpFunc);
+					swap_if(beg, 5, 7, cmpFunc);
+
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 5, 6, cmpFunc);
+					swap_if(beg, 0, 4, cmpFunc);
+					swap_if(beg, 3, 7, cmpFunc);
+
+					swap_if(beg, 1, 5, cmpFunc);
+					swap_if(beg, 2, 6, cmpFunc);
+
+					swap_if(beg, 1, 4, cmpFunc);
+					swap_if(beg, 3, 6, cmpFunc);
+
+					swap_if(beg, 2, 4, cmpFunc);
+					swap_if(beg, 3, 5, cmpFunc);
+
+					swap_if(beg, 3, 4, cmpFunc);
+				} else if (n == 9) {
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+					swap_if(beg, 6, 7, cmpFunc);
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 4, 5, cmpFunc);
+					swap_if(beg, 7, 8, cmpFunc);
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+					swap_if(beg, 6, 7, cmpFunc);
+					swap_if(beg, 0, 3, cmpFunc);
+					swap_if(beg, 3, 6, cmpFunc);
+					swap_if(beg, 0, 3, cmpFunc);
+					swap_if(beg, 1, 4, cmpFunc);
+					swap_if(beg, 4, 7, cmpFunc);
+					swap_if(beg, 1, 4, cmpFunc);
+					swap_if(beg, 2, 5, cmpFunc);
+					swap_if(beg, 5, 8, cmpFunc);
+					swap_if(beg, 2, 5, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+					swap_if(beg, 5, 7, cmpFunc);
+					swap_if(beg, 2, 6, cmpFunc);
+					swap_if(beg, 4, 6, cmpFunc);
+					swap_if(beg, 2, 4, cmpFunc);
+					swap_if(beg, 2, 3, cmpFunc);
+					swap_if(beg, 5, 6, cmpFunc);
+				} else if (n == 10) {
+					swap_if(beg, 0, 8, cmpFunc);
+					swap_if(beg, 1, 9, cmpFunc);
+					swap_if(beg, 2, 7, cmpFunc);
+					swap_if(beg, 3, 6, cmpFunc);
+					swap_if(beg, 4, 5, cmpFunc);
+
+					swap_if(beg, 0, 2, cmpFunc);
+					swap_if(beg, 1, 3, cmpFunc);
+					swap_if(beg, 4, 8, cmpFunc);
+					swap_if(beg, 5, 7, cmpFunc);
+					swap_if(beg, 6, 9, cmpFunc);
+
+					swap_if(beg, 0, 4, cmpFunc);
+					swap_if(beg, 1, 5, cmpFunc);
+					swap_if(beg, 2, 6, cmpFunc);
+					swap_if(beg, 3, 7, cmpFunc);
+
+					swap_if(beg, 0, 1, cmpFunc);
+					swap_if(beg, 2, 3, cmpFunc);
+					swap_if(beg, 4, 6, cmpFunc);
+					swap_if(beg, 5, 9, cmpFunc);
+					swap_if(beg, 7, 8, cmpFunc);
+
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 3, 5, cmpFunc);
+					swap_if(beg, 6, 7, cmpFunc);
+					swap_if(beg, 8, 9, cmpFunc);
+
+					swap_if(beg, 2, 4, cmpFunc);
+					swap_if(beg, 3, 6, cmpFunc);
+					swap_if(beg, 5, 8, cmpFunc);
+
+					swap_if(beg, 1, 2, cmpFunc);
+					swap_if(beg, 3, 4, cmpFunc);
+					swap_if(beg, 5, 6, cmpFunc);
+					swap_if(beg, 7, 8, cmpFunc);
+				} else if (n <= 32) {
+					for (size_t i = 0; i < n - 1; ++i)
+						for (size_t j = 0; j < n - i - 1; ++j)
+							swap_if(beg, j, j + 1, cmpFunc);
+				}
+
+				return n <= 32;
+			}
+
+			template <typename T, typename TCmpFunc, typename TSwapFunc>
+			bool sort_nwk(T* beg, T* end, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				const auto n = (uintptr_t)(end - beg);
+				if (n <= 1) {
+					// Nothing to sort with just one item
+				} else if (n == 2) {
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				} else if (n == 3) {
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				} else if (n == 4) {
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				} else if (n == 5) {
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				} else if (n == 6) {
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+				} else if (n == 7) {
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+				} else if (n == 8) {
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 7, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 7, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+				} else if (n == 9) {
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 7, 8, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 8, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
+				} else if (n == 10) {
+					try_swap_if(beg, 0, 8, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 9, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 8, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 6, 9, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 7, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+					try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+					try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 9, cmpFunc, swapFunc);
+					try_swap_if(beg, 7, 8, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
+					try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
+					try_swap_if(beg, 8, 9, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 8, cmpFunc, swapFunc);
+
+					try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+					try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
+					try_swap_if(beg, 7, 8, cmpFunc, swapFunc);
+				} else if (n <= 32) {
+					for (size_t i = 0; i < n - 1; ++i)
+						for (size_t j = 0; j < n - i - 1; ++j)
+							try_swap_if(beg, j, j + 1, cmpFunc, swapFunc);
+				}
+
+				return n <= 32;
+			}
 		} // namespace detail
 
 		template <typename Container, typename TCmpFunc>
@@ -2379,6 +2725,118 @@ namespace gaia {
 			quick_sort(arr, pos + 1, high, cmpFunc, swapFunc);
 		}
 
+		//! A special version the quick sort algorithm.
+		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparison function
+		//! \tparam TSwapFunc Swap function
+		//! \param arr Container to sort
+		//! \param low Low index of the array to sort
+		//! \param high High index of the array to sort
+		//! \param cmpFunc Comparison function
+		//! \param swapFunc Swap function
+		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
+		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
+		//!					 you can not easily predict the depth of the stack used by the algorithm.
+		template <typename Container, typename TCmpFunc, typename TSwapFunc>
+		void
+		quick_sort_stack(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc, uint32_t maxStackSize) {
+			GAIA_ASSERT(high < arr.size() && "quick_sort_stack: 'high' has to be smaller than the container size.");
+			GAIA_ASSERT(arr.size() <= maxStackSize && "quick_sort_stack: used with too large input array. Stack overflow.");
+
+			struct Range {
+				int low, high;
+			};
+
+			auto* stack = (Range*)alloca(sizeof(Range) * maxStackSize);
+			GAIA_ASSERT(stack != nullptr && "quick_sort_stack: failed to allocate stack memory.");
+			uint32_t sp = 0; // stack pointer
+			stack[sp++] = {low, high};
+
+			auto median_of_three = [&](int a, int b, int c) {
+				if (cmpFunc(arr[a], arr[b])) {
+					if (cmpFunc(arr[b], arr[c]))
+						return b;
+					if (cmpFunc(arr[a], arr[c]))
+						return c;
+					return a;
+				} else {
+					if (cmpFunc(arr[a], arr[c]))
+						return a;
+					if (cmpFunc(arr[b], arr[c]))
+						return c;
+					return b;
+				}
+			};
+
+			while (sp > 0) {
+				const Range r = stack[--sp];
+				GAIA_ASSUME(r.low >= r.high);
+				if (r.low >= r.high)
+					continue;
+
+				// Use optimized sort for small partitions
+				const auto size = r.high - r.low + 1;
+				if (size <= 32) {
+					auto* base = &arr[r.low];
+					detail::sort_nwk(base, base + size, cmpFunc, [&](uint32_t i, uint32_t j) {
+						swapFunc(r.low + i, r.low + j);
+					});
+					continue;
+				}
+
+				// Median-of-three pivot selection
+				int mid = r.low + ((r.high - r.low) >> 1);
+				int pivotIdx = median_of_three(r.low, mid, r.high);
+				swapFunc(pivotIdx, r.high);
+
+				const auto& pivot = arr[r.high];
+				int i = r.low - 1;
+				for (int j = r.low; j < r.high; ++j) {
+					if (cmpFunc(arr[j], pivot))
+						swapFunc(++i, j);
+				}
+				swapFunc(++i, r.high);
+
+				// Push smaller partition first to reduce max stack usage
+				if (i - 1 - r.low > r.high - (i + 1)) {
+					if (r.low < i - 1)
+						stack[sp++] = {r.low, i - 1};
+					if (i + 1 < r.high)
+						stack[sp++] = {i + 1, r.high};
+				} else {
+					if (i + 1 < r.high)
+						stack[sp++] = {i + 1, r.high};
+					if (r.low < i - 1)
+						stack[sp++] = {r.low, i - 1};
+				}
+			}
+		}
+
+		//! A special version the quick sort algorithm.
+		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparison function
+		//! \tparam TSwapFunc Swap function
+		//! \param arr Container to sort
+		//! \param low Low index of the array to sort
+		//! \param high High index of the array to sort
+		//! \param cmpFunc Comparison function
+		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
+		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
+		//!					 you can not easily predict the depth of the stack used by the algorithm.
+		template <typename Container, typename TCmpFunc>
+		void quick_sort_stack(Container& arr, int low, int high, TCmpFunc cmpFunc, uint32_t maxStackSize) {
+			quick_sort_stack(
+					arr, low, high, cmpFunc,
+					[&arr](uint32_t a, uint32_t b) {
+						core::swap(arr[a], arr[b]);
+					},
+					maxStackSize);
+		}
+
 		//! Sort the array \param arr given a comparison function \param cmpFunc.
 		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
 		//! \tparam Container Container to sort
@@ -2388,111 +2846,10 @@ namespace gaia {
 		template <typename T, typename TCmpFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc) {
 			const auto n = (uintptr_t)(end - beg);
-			if (n <= 1) {
-				// Nothing to sort with just one item
-			} else if (n == 2) {
-				swap_if(beg, 0, 1, cmpFunc);
-			} else if (n == 3) {
-				swap_if(beg, 1, 2, cmpFunc);
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 0, 1, cmpFunc);
-			} else if (n == 4) {
-				swap_if(beg, 0, 1, cmpFunc);
-				swap_if(beg, 2, 3, cmpFunc);
+			if (detail::sort_nwk(beg, end, cmpFunc))
+				return;
 
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 1, 3, cmpFunc);
-
-				swap_if(beg, 1, 2, cmpFunc);
-			} else if (n == 5) {
-				swap_if(beg, 0, 1, cmpFunc);
-				swap_if(beg, 3, 4, cmpFunc);
-
-				swap_if(beg, 2, 4, cmpFunc);
-
-				swap_if(beg, 2, 3, cmpFunc);
-				swap_if(beg, 1, 4, cmpFunc);
-
-				swap_if(beg, 0, 3, cmpFunc);
-
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 1, 3, cmpFunc);
-
-				swap_if(beg, 1, 2, cmpFunc);
-			} else if (n == 6) {
-				swap_if(beg, 1, 2, cmpFunc);
-				swap_if(beg, 4, 5, cmpFunc);
-
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 3, 5, cmpFunc);
-
-				swap_if(beg, 0, 1, cmpFunc);
-				swap_if(beg, 3, 4, cmpFunc);
-				swap_if(beg, 2, 5, cmpFunc);
-
-				swap_if(beg, 0, 3, cmpFunc);
-				swap_if(beg, 1, 4, cmpFunc);
-
-				swap_if(beg, 2, 4, cmpFunc);
-				swap_if(beg, 1, 3, cmpFunc);
-
-				swap_if(beg, 2, 3, cmpFunc);
-			} else if (n == 7) {
-				swap_if(beg, 1, 2, cmpFunc);
-				swap_if(beg, 3, 4, cmpFunc);
-				swap_if(beg, 5, 6, cmpFunc);
-
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 3, 5, cmpFunc);
-				swap_if(beg, 4, 6, cmpFunc);
-
-				swap_if(beg, 0, 1, cmpFunc);
-				swap_if(beg, 4, 5, cmpFunc);
-				swap_if(beg, 2, 6, cmpFunc);
-
-				swap_if(beg, 0, 4, cmpFunc);
-				swap_if(beg, 1, 5, cmpFunc);
-
-				swap_if(beg, 0, 3, cmpFunc);
-				swap_if(beg, 2, 5, cmpFunc);
-
-				swap_if(beg, 1, 3, cmpFunc);
-				swap_if(beg, 2, 4, cmpFunc);
-
-				swap_if(beg, 2, 3, cmpFunc);
-			} else if (n == 8) {
-				swap_if(beg, 0, 1, cmpFunc);
-				swap_if(beg, 2, 3, cmpFunc);
-				swap_if(beg, 4, 5, cmpFunc);
-				swap_if(beg, 6, 7, cmpFunc);
-
-				swap_if(beg, 0, 2, cmpFunc);
-				swap_if(beg, 1, 3, cmpFunc);
-				swap_if(beg, 4, 6, cmpFunc);
-				swap_if(beg, 5, 7, cmpFunc);
-
-				swap_if(beg, 1, 2, cmpFunc);
-				swap_if(beg, 5, 6, cmpFunc);
-				swap_if(beg, 0, 4, cmpFunc);
-				swap_if(beg, 3, 7, cmpFunc);
-
-				swap_if(beg, 1, 5, cmpFunc);
-				swap_if(beg, 2, 6, cmpFunc);
-
-				swap_if(beg, 1, 4, cmpFunc);
-				swap_if(beg, 3, 6, cmpFunc);
-
-				swap_if(beg, 2, 4, cmpFunc);
-				swap_if(beg, 3, 5, cmpFunc);
-
-				swap_if(beg, 3, 4, cmpFunc);
-			} else if (n <= 32) {
-				for (size_t i = 0; i < n - 1; ++i)
-					for (size_t j = 0; j < n - i - 1; ++j)
-						swap_if(beg, j, j + 1, cmpFunc);
-			} else {
-				quick_sort(beg, 0, (int)n - 1, cmpFunc);
-			}
+			quick_sort(beg, 0, (int)n - 1, cmpFunc);
 		}
 
 		template <typename C, typename TCmpFunc>
@@ -2514,111 +2871,10 @@ namespace gaia {
 		template <typename T, typename TCmpFunc, typename TSwapFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
 			const auto n = (uintptr_t)(end - beg);
-			if (n <= 1) {
-				// Nothing to sort with just one item
-			} else if (n == 2) {
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-			} else if (n == 3) {
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-			} else if (n == 4) {
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+			if (detail::sort_nwk(beg, end, cmpFunc, swapFunc))
+				return;
 
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-			} else if (n == 5) {
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-			} else if (n == 6) {
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
-			} else if (n == 7) {
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
-				try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
-			} else if (n == 8) {
-				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
-				try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
-				try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
-				try_swap_if(beg, 5, 7, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
-				try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
-				try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 7, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
-				try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
-				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
-
-				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
-			} else if (n <= 32) {
-				for (size_t i = 0; i < n - 1; ++i)
-					for (size_t j = 0; j < n - i - 1; ++j)
-						try_swap_if(beg, j, j + 1, cmpFunc, swapFunc);
-			} else {
-				quick_sort(beg, 0, (int)n - 1, cmpFunc, swapFunc);
-			}
+			quick_sort(beg, 0, (int)n - 1, cmpFunc, swapFunc);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSwapFunc>

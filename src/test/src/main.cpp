@@ -2775,6 +2775,14 @@ void sort_descending(C&& arr) {
 			REQUIRE(arr[i - 1] > arr[i]);
 	}
 
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_greater<TValue>(), arr.size());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
 	// Custom swap function
 
 	{
@@ -2793,6 +2801,19 @@ void sort_descending(C&& arr) {
 		core::sort(arr.begin(), arr.end(), core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
 			core::swap(arr[a], arr[b]);
 		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::quick_sort_stack(
+				arr, 0, arr.size() - 1, core::is_greater<TValue>(),
+				[&](uint32_t a, uint32_t b) {
+					core::swap(arr[a], arr[b]);
+				},
+				arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			REQUIRE(arr[i - 1] > arr[i]);
 	}
@@ -2820,6 +2841,14 @@ void sort_ascending(C&& arr) {
 			REQUIRE(arr[i - 1] < arr[i]);
 	}
 
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_smaller<TValue>(), arr.size());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
 	// Custom swap function
 
 	{
@@ -2838,6 +2867,19 @@ void sort_ascending(C&& arr) {
 		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
 			core::swap(arr[a], arr[b]);
 		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::quick_sort_stack(
+				arr, 0, arr.size() - 1, core::is_smaller<TValue>(),
+				[&](uint32_t a, uint32_t b) {
+					core::swap(arr[a], arr[b]);
+				},
+				arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			REQUIRE(arr[i - 1] < arr[i]);
 	}
