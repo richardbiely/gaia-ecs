@@ -40,9 +40,8 @@ namespace gaia {
 		GAIA_GCC_WARNING_POP()
 
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
-		using QueryOpArray = cnt::sarray_ext<QueryOpKind, MAX_ITEMS_IN_QUERY>;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
@@ -219,19 +218,21 @@ namespace gaia {
 
 			struct Data {
 				//! Array of queried ids
-				QueryEntityArray ids;
+				QueryEntityArray _ids;
 				//! Array of terms
-				QueryTermArray terms;
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> _terms;
+				//! Mapping of the original indices to the new ones after sorting
+				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> _remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
-				//! Mapping of the original indices to the new ones after sorting
-				QueryRemappingArray remapping;
+				uint8_t idsCnt = 0;
+				uint8_t changedCnt = 0;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
 				//! Array of filtered components
-				QueryEntityArray changed;
+				QueryEntityArray _changed;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -257,6 +258,18 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! Query flags
 				uint8_t flags;
+
+				GAIA_NODISCARD std::span<Entity> ids_view() const {
+					return {_ids.data(), idsCnt};
+				}
+
+				GAIA_NODISCARD std::span<QueryTerm> terms_view() const {
+					return {_terms.data(), idsCnt};
+				}
+
+				GAIA_NODISCARD std::span<Entity> changed_view() const {
+					return {_changed.data(), changedCnt};
+				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY == 8);
@@ -277,8 +290,8 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 					bool isComplex = false;
 
-					const auto& ids = data.ids;
-					const auto cnt = ids.size();
+					auto ids = data.ids_view();
+					const auto cnt = (uint32_t)ids.size();
 					GAIA_FOR(cnt) {
 						const auto id = ids[i];
 
@@ -319,7 +332,7 @@ namespace gaia {
 						data.queryMask = {};
 						data.flags |= QueryCtx::QueryFlags::Complex;
 					} else {
-						data.queryMask = build_entity_mask({ids.data(), ids.size()});
+						data.queryMask = build_entity_mask(ids);
 						data.flags &= ~QueryCtx::QueryFlags::Complex;
 					}
 				}
@@ -345,20 +358,30 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.terms.size() != right.terms.size())
+				if (left.idsCnt != right.idsCnt)
 					return false;
-				if (left.changed.size() != right.changed.size())
+				if (left.changedCnt != right.changedCnt)
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 
 				// Components need to be the same
-				if (left.terms != right.terms)
-					return false;
+				{
+					const auto cnt = left.idsCnt;
+					GAIA_FOR(cnt) {
+						if (left._terms[i] != right._terms[i])
+							return false;
+					}
+				}
 
 				// Filters need to be the same
-				if (left.changed != right.changed)
-					return false;
+				{
+					const auto cnt = left.changedCnt;
+					GAIA_FOR(cnt) {
+						if (left._changed[i] != right._changed[i])
+							return false;
+					}
+				}
 
 				// SortBy data need to match
 				if (left.sortBy != right.sortBy)
@@ -405,23 +428,26 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			auto& data = ctx.data;
+			const uint32_t idsCnt = ctx.data.idsCnt;
 
-			auto remappingCopy = data.remapping;
+			auto& data = ctx.data;
+			auto remappingCopy = data._remapping;
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
-			core::sort(data.terms, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
-				core::swap(data.ids[left], data.ids[right]);
-				core::swap(data.terms[left], data.terms[right]);
-				core::swap(remappingCopy[left], remappingCopy[right]);
+			core::sort(
+					data._terms.data(), data._terms.data() + data.idsCnt, query_sort_cond{}, //
+					[&](uint32_t left, uint32_t right) {
+						core::swap(data._ids[left], data._ids[right]);
+						core::swap(data._terms[left], data._terms[right]);
+						core::swap(remappingCopy[left], remappingCopy[right]);
 
-				// Make sure masks remains correct after sorting
-				core::swap_bits(data.readWriteMask, left, right);
-				core::swap_bits(data.as_mask_0, left, right);
-				core::swap_bits(data.as_mask_1, left, right);
-			});
+						// Make sure masks remains correct after sorting
+						core::swap_bits(data.readWriteMask, left, right);
+						core::swap_bits(data.as_mask_0, left, right);
+						core::swap_bits(data.as_mask_1, left, right);
+					});
 
 			// Update remapping indices.
 			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
@@ -429,20 +455,18 @@ namespace gaia {
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
 			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-			const auto& terms = data.terms;
-			const auto termsCnt = terms.size();
 
-			GAIA_FOR(termsCnt) {
+			GAIA_FOR(idsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-				data.remapping[i] = idxBeforeRemapping;
+				data._remapping[i] = idxBeforeRemapping;
 			}
 
-			if (termsCnt > 0) {
+			if (idsCnt > 0) {
 				uint32_t i = 0;
-				while (i < terms.size() && terms[i].op == QueryOpKind::All)
+				while (i < idsCnt && data._terms[i].op == QueryOpKind::All)
 					++i;
 				data.firstAny = (uint8_t)i;
-				while (i < terms.size() && terms[i].op == QueryOpKind::Any)
+				while (i < idsCnt && data._terms[i].op == QueryOpKind::Any)
 					++i;
 				data.firstNot = (uint8_t)i;
 			}
@@ -455,13 +479,13 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			auto& data = ctx.data;
+			const auto& data = ctx.data;
 
 			// Ids & ops
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& terms = data.terms;
+				auto terms = data.terms_view();
 				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
@@ -476,7 +500,7 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& changed = data.changed;
+				auto changed = data.changed_view();
 				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());

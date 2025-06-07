@@ -107,10 +107,9 @@ namespace gaia {
 					}
 
 					const auto& data = m_ctx.data;
-					const auto& terms = data.terms;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(terms.data(), id, EntityBad);
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(data._terms.data(), id, EntityBad);
 
-					if (op != data.terms[compIdx].op)
+					if (op != data._terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
@@ -490,10 +489,10 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				const auto& queryIds = ids();
-				const auto cnt = queryIds.size();
+				auto queryIds = data().ids_view();
+				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
+					const auto idxBeforeRemapping = m_ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -672,16 +671,8 @@ namespace gaia {
 				return m_ctx.data;
 			}
 
-			GAIA_NODISCARD const QueryEntityArray& ids() const {
-				return m_ctx.data.ids;
-			}
-
-			GAIA_NODISCARD const QueryEntityArray& filters() const {
-				return m_ctx.data.changed;
-			}
-
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_ctx.data.changed.empty();
+				return m_ctx.data.changedCnt > 0;
 			}
 
 			template <typename... T>

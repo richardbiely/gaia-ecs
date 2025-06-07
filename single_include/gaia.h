@@ -1682,6 +1682,12 @@ namespace gaia {
 		}
 
 		template <typename T, typename TCmpFunc>
+		constexpr void swap_if(T* c, size_t lhs, size_t rhs, TCmpFunc cmpFunc) noexcept {
+			if (!cmpFunc(c[lhs], c[rhs]))
+				core::swap(c[lhs], c[rhs]);
+		}
+
+		template <typename T, typename TCmpFunc>
 		constexpr void swap_if(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
 			if (!cmpFunc(lhs, rhs))
 				core::swap(lhs, rhs);
@@ -1693,18 +1699,24 @@ namespace gaia {
 				core::swap(lhs, rhs);
 		}
 
-		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if(
-				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		template <typename T, typename TCmpFunc, typename TSwapFunc>
+		constexpr void try_swap_if(T* c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
-				sortFunc(lhs, rhs);
+				swapFunc(lhs, rhs);
 		}
 
-		template <typename C, typename TCmpFunc, typename TSortFunc>
+		template <typename C, typename TCmpFunc, typename TSwapFunc>
+		constexpr void try_swap_if(
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) noexcept {
+			if (!cmpFunc(c[lhs], c[rhs]))
+				swapFunc(lhs, rhs);
+		}
+
+		template <typename C, typename TCmpFunc, typename TSwapFunc>
 		constexpr void try_swap_if_not(
-				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) noexcept {
 			if (cmpFunc(c[lhs], c[rhs]))
-				sortFunc(lhs, rhs);
+				swapFunc(lhs, rhs);
 		}
 
 		//----------------------------------------------------------------------
@@ -2336,36 +2348,36 @@ namespace gaia {
 				return i;
 			}
 
-			template <typename Container, typename TCmpFunc>
-			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
-				if (low >= high)
-					return;
-				auto pos = quick_sort_partition(arr, low, high, cmpFunc);
-				quick_sort(arr, low, pos - 1, cmpFunc);
-				quick_sort(arr, pos + 1, high, cmpFunc);
-			}
-
-			template <typename Container, typename TCmpFunc, typename TSortFunc>
-			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
 				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
 					if (cmpFunc(arr[(uint32_t)j], pivot))
-						sortFunc((uint32_t)++i, (uint32_t)j);
+						swapFunc((uint32_t)++i, (uint32_t)j);
 				}
-				sortFunc((uint32_t)++i, (uint32_t)high);
+				swapFunc((uint32_t)++i, (uint32_t)high);
 				return i;
 			}
-
-			template <typename Container, typename TCmpFunc, typename TSortFunc>
-			void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSortFunc sortFunc) {
-				if (low >= high)
-					return;
-				auto pos = quick_sort_partition(arr, low, high, cmpFunc, sortFunc);
-				quick_sort(arr, low, pos - 1, cmpFunc, sortFunc);
-				quick_sort(arr, pos + 1, high, cmpFunc, sortFunc);
-			}
 		} // namespace detail
+
+		template <typename Container, typename TCmpFunc>
+		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
+			if (low >= high)
+				return;
+			auto pos = detail::quick_sort_partition(arr, low, high, cmpFunc);
+			quick_sort(arr, low, pos - 1, cmpFunc);
+			quick_sort(arr, pos + 1, high, cmpFunc);
+		}
+
+		template <typename Container, typename TCmpFunc, typename TSwapFunc>
+		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+			if (low >= high)
+				return;
+			auto pos = detail::quick_sort_partition(arr, low, high, cmpFunc, swapFunc);
+			quick_sort(arr, low, pos - 1, cmpFunc, swapFunc);
+			quick_sort(arr, pos + 1, high, cmpFunc, swapFunc);
+		}
 
 		//! Sort the array \param arr given a comparison function \param cmpFunc.
 		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
@@ -2373,238 +2385,245 @@ namespace gaia {
 		//! \tparam TCmpFunc Comparision function
 		//! \param arr Container to sort
 		//! \param cmpFunc Comparision function
-		template <typename Container, typename TCmpFunc>
-		void sort(Container& arr, TCmpFunc cmpFunc) {
-			if (arr.size() <= 1) {
+		template <typename T, typename TCmpFunc>
+		void sort(T* beg, T* end, TCmpFunc cmpFunc) {
+			const auto n = (uintptr_t)(end - beg);
+			if (n <= 1) {
 				// Nothing to sort with just one item
-			} else if (arr.size() == 2) {
-				swap_if(arr[0], arr[1], cmpFunc);
-			} else if (arr.size() == 3) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[0], arr[1], cmpFunc);
-			} else if (arr.size() == 4) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[2], arr[3], cmpFunc);
+			} else if (n == 2) {
+				swap_if(beg, 0, 1, cmpFunc);
+			} else if (n == 3) {
+				swap_if(beg, 1, 2, cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 0, 1, cmpFunc);
+			} else if (n == 4) {
+				swap_if(beg, 0, 1, cmpFunc);
+				swap_if(beg, 2, 3, cmpFunc);
 
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 1, 3, cmpFunc);
 
-				swap_if(arr[1], arr[2], cmpFunc);
-			} else if (arr.size() == 5) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
+				swap_if(beg, 1, 2, cmpFunc);
+			} else if (n == 5) {
+				swap_if(beg, 0, 1, cmpFunc);
+				swap_if(beg, 3, 4, cmpFunc);
 
-				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(beg, 2, 4, cmpFunc);
 
-				swap_if(arr[2], arr[3], cmpFunc);
-				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(beg, 2, 3, cmpFunc);
+				swap_if(beg, 1, 4, cmpFunc);
 
-				swap_if(arr[0], arr[3], cmpFunc);
+				swap_if(beg, 0, 3, cmpFunc);
 
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 1, 3, cmpFunc);
 
-				swap_if(arr[1], arr[2], cmpFunc);
-			} else if (arr.size() == 6) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
+				swap_if(beg, 1, 2, cmpFunc);
+			} else if (n == 6) {
+				swap_if(beg, 1, 2, cmpFunc);
+				swap_if(beg, 4, 5, cmpFunc);
 
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 3, 5, cmpFunc);
 
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[2], arr[5], cmpFunc);
+				swap_if(beg, 0, 1, cmpFunc);
+				swap_if(beg, 3, 4, cmpFunc);
+				swap_if(beg, 2, 5, cmpFunc);
 
-				swap_if(arr[0], arr[3], cmpFunc);
-				swap_if(arr[1], arr[4], cmpFunc);
+				swap_if(beg, 0, 3, cmpFunc);
+				swap_if(beg, 1, 4, cmpFunc);
 
-				swap_if(arr[2], arr[4], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
+				swap_if(beg, 2, 4, cmpFunc);
+				swap_if(beg, 1, 3, cmpFunc);
 
-				swap_if(arr[2], arr[3], cmpFunc);
-			} else if (arr.size() == 7) {
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[3], arr[4], cmpFunc);
-				swap_if(arr[5], arr[6], cmpFunc);
+				swap_if(beg, 2, 3, cmpFunc);
+			} else if (n == 7) {
+				swap_if(beg, 1, 2, cmpFunc);
+				swap_if(beg, 3, 4, cmpFunc);
+				swap_if(beg, 5, 6, cmpFunc);
 
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
-				swap_if(arr[4], arr[6], cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 3, 5, cmpFunc);
+				swap_if(beg, 4, 6, cmpFunc);
 
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-				swap_if(arr[2], arr[6], cmpFunc);
+				swap_if(beg, 0, 1, cmpFunc);
+				swap_if(beg, 4, 5, cmpFunc);
+				swap_if(beg, 2, 6, cmpFunc);
 
-				swap_if(arr[0], arr[4], cmpFunc);
-				swap_if(arr[1], arr[5], cmpFunc);
+				swap_if(beg, 0, 4, cmpFunc);
+				swap_if(beg, 1, 5, cmpFunc);
 
-				swap_if(arr[0], arr[3], cmpFunc);
-				swap_if(arr[2], arr[5], cmpFunc);
+				swap_if(beg, 0, 3, cmpFunc);
+				swap_if(beg, 2, 5, cmpFunc);
 
-				swap_if(arr[1], arr[3], cmpFunc);
-				swap_if(arr[2], arr[4], cmpFunc);
+				swap_if(beg, 1, 3, cmpFunc);
+				swap_if(beg, 2, 4, cmpFunc);
 
-				swap_if(arr[2], arr[3], cmpFunc);
-			} else if (arr.size() == 8) {
-				swap_if(arr[0], arr[1], cmpFunc);
-				swap_if(arr[2], arr[3], cmpFunc);
-				swap_if(arr[4], arr[5], cmpFunc);
-				swap_if(arr[6], arr[7], cmpFunc);
+				swap_if(beg, 2, 3, cmpFunc);
+			} else if (n == 8) {
+				swap_if(beg, 0, 1, cmpFunc);
+				swap_if(beg, 2, 3, cmpFunc);
+				swap_if(beg, 4, 5, cmpFunc);
+				swap_if(beg, 6, 7, cmpFunc);
 
-				swap_if(arr[0], arr[2], cmpFunc);
-				swap_if(arr[1], arr[3], cmpFunc);
-				swap_if(arr[4], arr[6], cmpFunc);
-				swap_if(arr[5], arr[7], cmpFunc);
+				swap_if(beg, 0, 2, cmpFunc);
+				swap_if(beg, 1, 3, cmpFunc);
+				swap_if(beg, 4, 6, cmpFunc);
+				swap_if(beg, 5, 7, cmpFunc);
 
-				swap_if(arr[1], arr[2], cmpFunc);
-				swap_if(arr[5], arr[6], cmpFunc);
-				swap_if(arr[0], arr[4], cmpFunc);
-				swap_if(arr[3], arr[7], cmpFunc);
+				swap_if(beg, 1, 2, cmpFunc);
+				swap_if(beg, 5, 6, cmpFunc);
+				swap_if(beg, 0, 4, cmpFunc);
+				swap_if(beg, 3, 7, cmpFunc);
 
-				swap_if(arr[1], arr[5], cmpFunc);
-				swap_if(arr[2], arr[6], cmpFunc);
+				swap_if(beg, 1, 5, cmpFunc);
+				swap_if(beg, 2, 6, cmpFunc);
 
-				swap_if(arr[1], arr[4], cmpFunc);
-				swap_if(arr[3], arr[6], cmpFunc);
+				swap_if(beg, 1, 4, cmpFunc);
+				swap_if(beg, 3, 6, cmpFunc);
 
-				swap_if(arr[2], arr[4], cmpFunc);
-				swap_if(arr[3], arr[5], cmpFunc);
+				swap_if(beg, 2, 4, cmpFunc);
+				swap_if(beg, 3, 5, cmpFunc);
 
-				swap_if(arr[3], arr[4], cmpFunc);
-			} else if (arr.size() <= 32) {
-				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; ++i) {
-					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						swap_if(arr[j], arr[j + 1], cmpFunc);
-				}
+				swap_if(beg, 3, 4, cmpFunc);
+			} else if (n <= 32) {
+				for (size_t i = 0; i < n - 1; ++i)
+					for (size_t j = 0; j < n - i - 1; ++j)
+						swap_if(beg, j, j + 1, cmpFunc);
 			} else {
-				const auto n = (int)arr.size();
-				detail::quick_sort(arr, 0, n - 1, cmpFunc);
+				quick_sort(beg, 0, (int)n - 1, cmpFunc);
 			}
 		}
 
+		template <typename C, typename TCmpFunc>
+		void sort(C& c, TCmpFunc cmpFunc) {
+			sort(c.begin(), c.end(), cmpFunc);
+		}
+
 		//! Sort the array \param arr given a comparison function \param cmpFunc.
-		//! If cmpFunc returns true it performs \param sortFunc which can perform the sorting.
+		//! If cmpFunc returns true it performs \param swapFunc which can perform the sorting.
 		//! Use when it is necessary to sort multiple arrays at once.
 		//! Sorts using a sorting network up to 8 elements.
 		//! \warning Currently only up to 32 elements are supported.
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparision function
-		//! \tparam TSortFunc Sorting function
+		//! \tparam TSwapFunc Sorting function
 		//! \param arr Container to sort
 		//! \param cmpFunc Comparision function
-		//! \param sortFunc Sorting function
-		template <typename Container, typename TCmpFunc, typename TSortFunc>
-		void sort(Container& arr, TCmpFunc cmpFunc, TSortFunc sortFunc) {
-			if (arr.size() <= 1) {
+		//! \param swapFunc Sorting function
+		template <typename T, typename TCmpFunc, typename TSwapFunc>
+		void sort(T* beg, T* end, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+			const auto n = (uintptr_t)(end - beg);
+			if (n <= 1) {
 				// Nothing to sort with just one item
-			} else if (arr.size() == 2) {
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-			} else if (arr.size() == 3) {
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-			} else if (arr.size() == 4) {
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
+			} else if (n == 2) {
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+			} else if (n == 3) {
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+			} else if (n == 4) {
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-			} else if (arr.size() == 5) {
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+			} else if (n == 5) {
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-			} else if (arr.size() == 6) {
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+			} else if (n == 6) {
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
-			} else if (arr.size() == 7) {
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+			} else if (n == 7) {
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
-				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
+				try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
-			} else if (arr.size() == 8) {
-				try_swap_if(arr, 0, 1, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 4, 5, cmpFunc, sortFunc);
-				try_swap_if(arr, 6, 7, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+			} else if (n == 8) {
+				try_swap_if(beg, 0, 1, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 4, 5, cmpFunc, swapFunc);
+				try_swap_if(beg, 6, 7, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 0, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 1, 3, cmpFunc, sortFunc);
-				try_swap_if(arr, 4, 6, cmpFunc, sortFunc);
-				try_swap_if(arr, 5, 7, cmpFunc, sortFunc);
+				try_swap_if(beg, 0, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 1, 3, cmpFunc, swapFunc);
+				try_swap_if(beg, 4, 6, cmpFunc, swapFunc);
+				try_swap_if(beg, 5, 7, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 2, cmpFunc, sortFunc);
-				try_swap_if(arr, 5, 6, cmpFunc, sortFunc);
-				try_swap_if(arr, 0, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 7, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 2, cmpFunc, swapFunc);
+				try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
+				try_swap_if(beg, 0, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 7, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 5, cmpFunc, sortFunc);
-				try_swap_if(arr, 2, 6, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 5, cmpFunc, swapFunc);
+				try_swap_if(beg, 2, 6, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 1, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 6, cmpFunc, sortFunc);
+				try_swap_if(beg, 1, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 6, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 2, 4, cmpFunc, sortFunc);
-				try_swap_if(arr, 3, 5, cmpFunc, sortFunc);
+				try_swap_if(beg, 2, 4, cmpFunc, swapFunc);
+				try_swap_if(beg, 3, 5, cmpFunc, swapFunc);
 
-				try_swap_if(arr, 3, 4, cmpFunc, sortFunc);
-			} else if (arr.size() <= 32) {
-				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; ++i)
-					for (decltype(n) j = 0; j < n - i - 1; ++j)
-						try_swap_if(arr, j, j + 1, cmpFunc, sortFunc);
+				try_swap_if(beg, 3, 4, cmpFunc, swapFunc);
+			} else if (n <= 32) {
+				for (size_t i = 0; i < n - 1; ++i)
+					for (size_t j = 0; j < n - i - 1; ++j)
+						try_swap_if(beg, j, j + 1, cmpFunc, swapFunc);
 			} else {
-				const int n = (int)arr.size();
-				detail::quick_sort(arr, 0, n - 1, cmpFunc, sortFunc);
+				quick_sort(beg, 0, (int)n - 1, cmpFunc, swapFunc);
 			}
+		}
+
+		template <typename C, typename TCmpFunc, typename TSwapFunc>
+		void sort(C& c, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+			sort(c.begin(), c.end(), cmpFunc, swapFunc);
 		}
 	} // namespace core
 } // namespace gaia
@@ -22332,10 +22351,11 @@ namespace gaia {
 				}
 
 				// Find the index of the last generic component in both arrays
-				uint32_t entsGeneric = (uint32_t)ids.size();
-				if (!ids.empty()) {
-					for (int i = (int)ids.size() - 1; i >= 0; --i) {
-						if (ids[(uint32_t)i].kind() != EntityKind::EK_Uni)
+				const auto entsCnt = (uint32_t)ids.size();
+				uint32_t entsGeneric = entsCnt;
+				if (entsCnt > 0) {
+					for (auto i = entsCnt - 1; i != (uint32_t)-1; --i) {
+						if (ids[i].kind() != EntityKind::EK_Uni)
 							break;
 						--entsGeneric;
 					}
@@ -22360,7 +22380,7 @@ namespace gaia {
 
 				bool finalCheck = false;
 			recalculate:
-				auto currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenItemsInArchetype;
+				auto currOff = offs.firstByte_EntityData + ((uint32_t)sizeof(Entity) * maxGenItemsInArchetype);
 
 				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
 				// for entity count is not right (most likely because of padding or usage of SoA components).
@@ -23260,9 +23280,8 @@ namespace gaia {
 		GAIA_GCC_WARNING_POP()
 
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryEntityArray = cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY>;
+		using QueryEntityArray = cnt::sarray<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
-		using QueryOpArray = cnt::sarray_ext<QueryOpKind, MAX_ITEMS_IN_QUERY>;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
@@ -23439,19 +23458,21 @@ namespace gaia {
 
 			struct Data {
 				//! Array of queried ids
-				QueryEntityArray ids;
+				QueryEntityArray _ids;
 				//! Array of terms
-				QueryTermArray terms;
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> _terms;
+				//! Mapping of the original indices to the new ones after sorting
+				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> _remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
-				//! Mapping of the original indices to the new ones after sorting
-				QueryRemappingArray remapping;
+				uint8_t idsCnt = 0;
+				uint8_t changedCnt = 0;
 				//! Iteration will be restricted only to target Group
 				GroupId groupIdSet;
 				//! Array of filtered components
-				QueryEntityArray changed;
+				QueryEntityArray _changed;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -23477,6 +23498,18 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! Query flags
 				uint8_t flags;
+
+				GAIA_NODISCARD std::span<Entity> ids_view() const {
+					return {_ids.data(), idsCnt};
+				}
+
+				GAIA_NODISCARD std::span<QueryTerm> terms_view() const {
+					return {_terms.data(), idsCnt};
+				}
+
+				GAIA_NODISCARD std::span<Entity> changed_view() const {
+					return {_changed.data(), changedCnt};
+				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY == 8);
@@ -23497,8 +23530,8 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 					bool isComplex = false;
 
-					const auto& ids = data.ids;
-					const auto cnt = ids.size();
+					auto ids = data.ids_view();
+					const auto cnt = (uint32_t)ids.size();
 					GAIA_FOR(cnt) {
 						const auto id = ids[i];
 
@@ -23539,7 +23572,7 @@ namespace gaia {
 						data.queryMask = {};
 						data.flags |= QueryCtx::QueryFlags::Complex;
 					} else {
-						data.queryMask = build_entity_mask({ids.data(), ids.size()});
+						data.queryMask = build_entity_mask(ids);
 						data.flags &= ~QueryCtx::QueryFlags::Complex;
 					}
 				}
@@ -23565,20 +23598,30 @@ namespace gaia {
 				const auto& right = other.data;
 
 				// Check array sizes first
-				if (left.terms.size() != right.terms.size())
+				if (left.idsCnt != right.idsCnt)
 					return false;
-				if (left.changed.size() != right.changed.size())
+				if (left.changedCnt != right.changedCnt)
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 
 				// Components need to be the same
-				if (left.terms != right.terms)
-					return false;
+				{
+					const auto cnt = left.idsCnt;
+					GAIA_FOR(cnt) {
+						if (left._terms[i] != right._terms[i])
+							return false;
+					}
+				}
 
 				// Filters need to be the same
-				if (left.changed != right.changed)
-					return false;
+				{
+					const auto cnt = left.changedCnt;
+					GAIA_FOR(cnt) {
+						if (left._changed[i] != right._changed[i])
+							return false;
+					}
+				}
 
 				// SortBy data need to match
 				if (left.sortBy != right.sortBy)
@@ -23625,23 +23668,26 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			auto& data = ctx.data;
+			const uint32_t idsCnt = ctx.data.idsCnt;
 
-			auto remappingCopy = data.remapping;
+			auto& data = ctx.data;
+			auto remappingCopy = data._remapping;
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
-			core::sort(data.terms, query_sort_cond{}, [&](uint32_t left, uint32_t right) {
-				core::swap(data.ids[left], data.ids[right]);
-				core::swap(data.terms[left], data.terms[right]);
-				core::swap(remappingCopy[left], remappingCopy[right]);
+			core::sort(
+					data._terms.data(), data._terms.data() + data.idsCnt, query_sort_cond{}, //
+					[&](uint32_t left, uint32_t right) {
+						core::swap(data._ids[left], data._ids[right]);
+						core::swap(data._terms[left], data._terms[right]);
+						core::swap(remappingCopy[left], remappingCopy[right]);
 
-				// Make sure masks remains correct after sorting
-				core::swap_bits(data.readWriteMask, left, right);
-				core::swap_bits(data.as_mask_0, left, right);
-				core::swap_bits(data.as_mask_1, left, right);
-			});
+						// Make sure masks remains correct after sorting
+						core::swap_bits(data.readWriteMask, left, right);
+						core::swap_bits(data.as_mask_0, left, right);
+						core::swap_bits(data.as_mask_1, left, right);
+					});
 
 			// Update remapping indices.
 			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
@@ -23649,20 +23695,18 @@ namespace gaia {
 			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
 			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
 			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-			const auto& terms = data.terms;
-			const auto termsCnt = terms.size();
 
-			GAIA_FOR(termsCnt) {
+			GAIA_FOR(idsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-				data.remapping[i] = idxBeforeRemapping;
+				data._remapping[i] = idxBeforeRemapping;
 			}
 
-			if (termsCnt > 0) {
+			if (idsCnt > 0) {
 				uint32_t i = 0;
-				while (i < terms.size() && terms[i].op == QueryOpKind::All)
+				while (i < idsCnt && data._terms[i].op == QueryOpKind::All)
 					++i;
 				data.firstAny = (uint8_t)i;
-				while (i < terms.size() && terms[i].op == QueryOpKind::Any)
+				while (i < idsCnt && data._terms[i].op == QueryOpKind::Any)
 					++i;
 				data.firstNot = (uint8_t)i;
 			}
@@ -23675,13 +23719,13 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			auto& data = ctx.data;
+			const auto& data = ctx.data;
 
 			// Ids & ops
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& terms = data.terms;
+				auto terms = data.terms_view();
 				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
@@ -23696,7 +23740,7 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				const auto& changed = data.changed;
+				auto changed = data.changed_view();
 				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
@@ -25384,7 +25428,7 @@ namespace gaia {
 
 					auto& data = queryCtx.data;
 
-					QueryTermSpan terms{data.terms.data(), data.terms.size()};
+					QueryTermSpan terms = data.terms_view();
 					QueryTermSpan terms_all = terms.subspan(0, data.firstAny);
 					QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
 					QueryTermSpan terms_not = terms.subspan(data.firstNot);
@@ -25621,10 +25665,9 @@ namespace gaia {
 					}
 
 					const auto& data = m_ctx.data;
-					const auto& terms = data.terms;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(terms.data(), id, EntityBad);
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(data._terms.data(), id, EntityBad);
 
-					if (op != data.terms[compIdx].op)
+					if (op != data._terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
@@ -26004,10 +26047,10 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				const auto& queryIds = ids();
-				const auto cnt = queryIds.size();
+				auto queryIds = data().ids_view();
+				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_ctx.data.remapping[i];
+					const auto idxBeforeRemapping = m_ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -26186,16 +26229,8 @@ namespace gaia {
 				return m_ctx.data;
 			}
 
-			GAIA_NODISCARD const QueryEntityArray& ids() const {
-				return m_ctx.data.ids;
-			}
-
-			GAIA_NODISCARD const QueryEntityArray& filters() const {
-				return m_ctx.data.changed;
-			}
-
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_ctx.data.changed.empty();
+				return m_ctx.data.changedCnt > 0;
 			}
 
 			template <typename... T>
@@ -26409,7 +26444,7 @@ namespace gaia {
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
-				add_entity_to_query_pairs({info.ids().data(), info.ids().size()}, handle);
+				add_entity_to_query_pairs(info.data().ids_view(), handle);
 
 				return info;
 			}
@@ -26431,7 +26466,7 @@ namespace gaia {
 				m_queryArr.free(handle);
 
 				// Remove the entity->query pair
-				del_entity_to_query_pairs({pInfo->ids().data(), pInfo->ids().size()}, handle);
+				del_entity_to_query_pairs(pInfo->data().ids_view(), handle);
 
 				return true;
 			}
@@ -26546,15 +26581,13 @@ namespace gaia {
 
 				void exec(QueryCtx& ctx) const {
 					auto& data = ctx.data;
-					auto& ids = data.ids;
-					auto& terms = data.terms;
-
-					// Unique component ids only
-					GAIA_ASSERT(!core::has(ids, item.id));
 
 #if GAIA_DEBUG
+					// Unique component ids only
+					GAIA_ASSERT(!core::has(data.ids_view(), item.id));
+
 					// There's a limit to the amount of query items which we can store
-					if (ids.size() >= MAX_ITEMS_IN_QUERY) {
+					if (data.idsCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
 						const auto* name = ctx.cc->get(item.id).name.str();
@@ -26566,15 +26599,16 @@ namespace gaia {
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
-					data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+					data.readWriteMask |= (isReadWrite << data.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
-					data.remapping.push_back((uint8_t)data.remapping.size());
+					data._remapping[data.idsCnt] = data.idsCnt;
 
-					ids.push_back(item.id);
-					terms.push_back({item.id, item.src, nullptr, item.op});
+					data._ids[data.idsCnt] = item.id;
+					data._terms[data.idsCnt] = {item.id, item.src, nullptr, item.op};
+					++data.idsCnt;
 				}
 			};
 
@@ -26586,44 +26620,42 @@ namespace gaia {
 
 				void exec(QueryCtx& ctx) const {
 					auto& data = ctx.data;
-					auto& ids = data.ids;
-					auto& changed = data.changed;
-					const auto& terms = data.terms;
-
-					GAIA_ASSERT(core::has(ids, comp));
-					GAIA_ASSERT(!core::has(changed, comp));
 
 #if GAIA_DEBUG
+					GAIA_ASSERT(core::has(data.ids_view(), comp));
+					GAIA_ASSERT(!core::has(data.changed_view(), comp));
+
 					// There's a limit to the amount of components which we can store
-					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
+					if (data.changedCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 						const auto* compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 						return;
 					}
-#endif
 
 					uint32_t compIdx = 0;
-					for (; compIdx < ids.size(); ++compIdx)
-						if (ids[compIdx] == comp)
+					for (; compIdx < data.idsCnt; ++compIdx)
+						if (data._ids[compIdx] == comp)
 							break;
-					// NOTE: This code bellow does technically the same as above.
+
+					// NOTE: Code bellow does the same as this commented piece.
 					//       However, compilers can't quite optimize it as well because it does some more
 					//       calculations. This is used often so go with the custom code.
 					// const auto compIdx = core::get_index_unsafe(ids, comp);
 
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					if (terms[compIdx].op != QueryOpKind::Not) {
-						changed.push_back(comp);
+					GAIA_ASSERT2(data._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
+					if (data._terms[compIdx].op != QueryOpKind::Not) {
+						data._changed[data.changedCnt++] = comp;
 						return;
 					}
 
-					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
-#if GAIA_DEBUG
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
+#else
+					data._changed[data.changedCnt++] = comp;
 #endif
 				}
 			};
@@ -26815,7 +26847,7 @@ namespace gaia {
 					return m_queryInfo.ser_buffer();
 				}
 				void ser_buffer_reset() {
-					return m_queryInfo.ser_buffer_reset();
+					m_queryInfo.ser_buffer_reset();
 				}
 
 				void init(World* world) {
@@ -27238,25 +27270,24 @@ namespace gaia {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
+					const auto& filtered = queryInfo.data().changed_view();
+
+					// Skip unchanged chunks
+					if (filtered.empty())
+						return false;
 
 					// See if any component has changed
-					const auto& filtered = queryInfo.filters();
-					if (!filtered.empty()) {
-						for (const auto comp: filtered) {
-							// TODO: Components are sorted. Therefore, we don't need to search from 0
-							//       all the time. We can search from the last found index.
-							const auto compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(queryVersion, compIdx))
-								return true;
-						}
-
-						// If the component hasn't been modified, the entity itself still might have been moved.
-						// For that reason we also need to check the entity version.
-						return chunk.changed(queryInfo.world_version());
+					for (const auto comp: filtered) {
+						// TODO: Components are sorted. Therefore, we don't need to search from 0
+						//       all the time. We can search from the last found index.
+						const auto compIdx = chunk.comp_idx(comp);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
 					}
 
-					// Skip unchanged chunks.
-					return false;
+					// If the component hasn't been modified, the entity itself still might have been moved.
+					// For that reason we also need to check the entity version.
+					return chunk.changed(queryInfo.world_version());
 				}
 
 				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
@@ -30982,8 +31013,10 @@ namespace gaia {
 
 					// The source is empty, find another semi-empty source
 					if (pSrcChunk->empty()) {
-						while (front < back && !chunks[--back]->is_semi())
-							;
+						while (front < back) {
+							if (chunks[--back]->is_semi())
+								break;
+						}
 					}
 
 				next_iteration:
@@ -31040,12 +31073,12 @@ namespace gaia {
 
 				// Remove any reference to the found archetype from the array.
 				// We don't know the archetype so we remove any archetype that contains our entity.
-				for (int i = (int)archetypes.size() - 1; i >= 0; --i) {
-					const auto* pArchetype = archetypes[(uint32_t)i];
+				for (uint32_t i = archetypes.size() - 1; i != (uint32_t)-1; --i) {
+					const auto* pArchetype = archetypes[i];
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::swap_erase_unsafe(archetypes, (uint32_t)i);
+					core::swap_erase_unsafe(archetypes, i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.

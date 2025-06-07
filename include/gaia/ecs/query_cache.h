@@ -144,7 +144,7 @@ namespace gaia {
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
-				add_entity_to_query_pairs({info.ids().data(), info.ids().size()}, handle);
+				add_entity_to_query_pairs(info.data().ids_view(), handle);
 
 				return info;
 			}
@@ -166,7 +166,7 @@ namespace gaia {
 				m_queryArr.free(handle);
 
 				// Remove the entity->query pair
-				del_entity_to_query_pairs({pInfo->ids().data(), pInfo->ids().size()}, handle);
+				del_entity_to_query_pairs(pInfo->data().ids_view(), handle);
 
 				return true;
 			}

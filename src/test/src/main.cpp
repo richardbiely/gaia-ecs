@@ -2757,13 +2757,25 @@ template <typename C>
 void sort_descending(C&& arr) {
 	using TValue = typename C::value_type;
 
+	// Default swap function
+
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		core::sort(arr, core::is_greater<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] > arr[i]);
+			REQUIRE(arr[i - 1] > arr[i]);
 	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr.begin(), arr.end(), core::is_greater<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
+	// Custom swap function
 
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
@@ -2772,7 +2784,17 @@ void sort_descending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] > arr[i]);
+			REQUIRE(arr[i - 1] > arr[i]);
+	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr.begin(), arr.end(), core::is_greater<TValue>(), [&](uint32_t a, uint32_t b) {
+			core::swap(arr[a], arr[b]);
+		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] > arr[i]);
 	}
 }
 
@@ -2780,13 +2802,25 @@ template <typename C>
 void sort_ascending(C&& arr) {
 	using TValue = typename C::value_type;
 
+	// Default swap function
+
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		core::sort(arr, core::is_smaller<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] < arr[i]);
+			REQUIRE(arr[i - 1] < arr[i]);
 	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>());
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
+	// Custom swap function
 
 	{
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
@@ -2795,7 +2829,17 @@ void sort_ascending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] < arr[i]);
+			REQUIRE(arr[i - 1] < arr[i]);
+	}
+
+	{
+		for (TValue i = 0; i < (TValue)arr.size(); ++i)
+			arr[i] = i;
+		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>(), [&](uint32_t a, uint32_t b) {
+			core::swap(arr[a], arr[b]);
+		});
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			REQUIRE(arr[i - 1] < arr[i]);
 	}
 }
 

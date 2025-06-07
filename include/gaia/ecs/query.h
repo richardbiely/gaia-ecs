@@ -57,15 +57,13 @@ namespace gaia {
 
 				void exec(QueryCtx& ctx) const {
 					auto& data = ctx.data;
-					auto& ids = data.ids;
-					auto& terms = data.terms;
-
-					// Unique component ids only
-					GAIA_ASSERT(!core::has(ids, item.id));
 
 #if GAIA_DEBUG
+					// Unique component ids only
+					GAIA_ASSERT(!core::has(data.ids_view(), item.id));
+
 					// There's a limit to the amount of query items which we can store
-					if (ids.size() >= MAX_ITEMS_IN_QUERY) {
+					if (data.idsCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
 						const auto* name = ctx.cc->get(item.id).name.str();
@@ -77,15 +75,16 @@ namespace gaia {
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
-					data.readWriteMask |= (isReadWrite << (uint8_t)ids.size());
+					data.readWriteMask |= (isReadWrite << data.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
-					data.remapping.push_back((uint8_t)data.remapping.size());
+					data._remapping[data.idsCnt] = data.idsCnt;
 
-					ids.push_back(item.id);
-					terms.push_back({item.id, item.src, nullptr, item.op});
+					data._ids[data.idsCnt] = item.id;
+					data._terms[data.idsCnt] = {item.id, item.src, nullptr, item.op};
+					++data.idsCnt;
 				}
 			};
 
@@ -97,44 +96,42 @@ namespace gaia {
 
 				void exec(QueryCtx& ctx) const {
 					auto& data = ctx.data;
-					auto& ids = data.ids;
-					auto& changed = data.changed;
-					const auto& terms = data.terms;
-
-					GAIA_ASSERT(core::has(ids, comp));
-					GAIA_ASSERT(!core::has(changed, comp));
 
 #if GAIA_DEBUG
+					GAIA_ASSERT(core::has(data.ids_view(), comp));
+					GAIA_ASSERT(!core::has(data.changed_view(), comp));
+
 					// There's a limit to the amount of components which we can store
-					if (changed.size() >= MAX_ITEMS_IN_QUERY) {
+					if (data.changedCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 						const auto* compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 						return;
 					}
-#endif
 
 					uint32_t compIdx = 0;
-					for (; compIdx < ids.size(); ++compIdx)
-						if (ids[compIdx] == comp)
+					for (; compIdx < data.idsCnt; ++compIdx)
+						if (data._ids[compIdx] == comp)
 							break;
-					// NOTE: This code bellow does technically the same as above.
+
+					// NOTE: Code bellow does the same as this commented piece.
 					//       However, compilers can't quite optimize it as well because it does some more
 					//       calculations. This is used often so go with the custom code.
 					// const auto compIdx = core::get_index_unsafe(ids, comp);
 
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					if (terms[compIdx].op != QueryOpKind::Not) {
-						changed.push_back(comp);
+					GAIA_ASSERT2(data._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
+					if (data._terms[compIdx].op != QueryOpKind::Not) {
+						data._changed[data.changedCnt++] = comp;
 						return;
 					}
 
-					GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
-#if GAIA_DEBUG
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
+#else
+					data._changed[data.changedCnt++] = comp;
 #endif
 				}
 			};
@@ -326,7 +323,7 @@ namespace gaia {
 					return m_queryInfo.ser_buffer();
 				}
 				void ser_buffer_reset() {
-					return m_queryInfo.ser_buffer_reset();
+					m_queryInfo.ser_buffer_reset();
 				}
 
 				void init(World* world) {
@@ -749,25 +746,24 @@ namespace gaia {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
+					const auto& filtered = queryInfo.data().changed_view();
+
+					// Skip unchanged chunks
+					if (filtered.empty())
+						return false;
 
 					// See if any component has changed
-					const auto& filtered = queryInfo.filters();
-					if (!filtered.empty()) {
-						for (const auto comp: filtered) {
-							// TODO: Components are sorted. Therefore, we don't need to search from 0
-							//       all the time. We can search from the last found index.
-							const auto compIdx = chunk.comp_idx(comp);
-							if (chunk.changed(queryVersion, compIdx))
-								return true;
-						}
-
-						// If the component hasn't been modified, the entity itself still might have been moved.
-						// For that reason we also need to check the entity version.
-						return chunk.changed(queryInfo.world_version());
+					for (const auto comp: filtered) {
+						// TODO: Components are sorted. Therefore, we don't need to search from 0
+						//       all the time. We can search from the last found index.
+						const auto compIdx = chunk.comp_idx(comp);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
 					}
 
-					// Skip unchanged chunks.
-					return false;
+					// If the component hasn't been modified, the entity itself still might have been moved.
+					// For that reason we also need to check the entity version.
+					return chunk.changed(queryInfo.world_version());
 				}
 
 				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {

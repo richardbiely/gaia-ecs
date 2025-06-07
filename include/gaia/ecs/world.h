@@ -2625,8 +2625,10 @@ namespace gaia {
 
 					// The source is empty, find another semi-empty source
 					if (pSrcChunk->empty()) {
-						while (front < back && !chunks[--back]->is_semi())
-							;
+						while (front < back) {
+							if (chunks[--back]->is_semi())
+								break;
+						}
 					}
 
 				next_iteration:
@@ -2683,12 +2685,12 @@ namespace gaia {
 
 				// Remove any reference to the found archetype from the array.
 				// We don't know the archetype so we remove any archetype that contains our entity.
-				for (int i = (int)archetypes.size() - 1; i >= 0; --i) {
-					const auto* pArchetype = archetypes[(uint32_t)i];
+				for (uint32_t i = archetypes.size() - 1; i != (uint32_t)-1; --i) {
+					const auto* pArchetype = archetypes[i];
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::swap_erase_unsafe(archetypes, (uint32_t)i);
+					core::swap_erase_unsafe(archetypes, i);
 				}
 
 				// NOTE: No need to delete keys with empty archetype arrays.

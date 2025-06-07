@@ -960,7 +960,7 @@ namespace gaia {
 
 					auto& data = queryCtx.data;
 
-					QueryTermSpan terms{data.terms.data(), data.terms.size()};
+					QueryTermSpan terms = data.terms_view();
 					QueryTermSpan terms_all = terms.subspan(0, data.firstAny);
 					QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
 					QueryTermSpan terms_not = terms.subspan(data.firstNot);

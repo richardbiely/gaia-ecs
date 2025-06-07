@@ -358,10 +358,11 @@ namespace gaia {
 				}
 
 				// Find the index of the last generic component in both arrays
-				uint32_t entsGeneric = (uint32_t)ids.size();
-				if (!ids.empty()) {
-					for (int i = (int)ids.size() - 1; i >= 0; --i) {
-						if (ids[(uint32_t)i].kind() != EntityKind::EK_Uni)
+				const auto entsCnt = (uint32_t)ids.size();
+				uint32_t entsGeneric = entsCnt;
+				if (entsCnt > 0) {
+					for (auto i = entsCnt - 1; i != (uint32_t)-1; --i) {
+						if (ids[i].kind() != EntityKind::EK_Uni)
 							break;
 						--entsGeneric;
 					}
@@ -386,7 +387,7 @@ namespace gaia {
 
 				bool finalCheck = false;
 			recalculate:
-				auto currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenItemsInArchetype;
+				auto currOff = offs.firstByte_EntityData + ((uint32_t)sizeof(Entity) * maxGenItemsInArchetype);
 
 				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
 				// for entity count is not right (most likely because of padding or usage of SoA components).
