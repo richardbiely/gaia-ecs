@@ -1174,8 +1174,9 @@ namespace tracy {
 	#endif
 	//! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
-		#define GAIA_PROF_EXTRACT_MUTEX(name) name.get_lock()
+		#define GAIA_PROF_EXTRACT_MUTEX(name) (name).get_lock()
 		#define GAIA_PROF_MUTEX_BASE(type) LockableBaseExt<type>
+		#define GAIA_PROF_LOCK_MARK(name) LockMark(name)
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
 		#define GAIA_PROF_MUTEX(type, name) TracyLockableExt(type, name)
@@ -1211,10 +1212,11 @@ namespace tracy {
 	#endif
 //! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX_BASE(type) type
+		#define GAIA_PROF_LOCK_MARK(name)
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function
@@ -15454,6 +15456,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_set = true;
 				m_cv.notify_one();
 #else
@@ -15474,6 +15477,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_set = false;
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
@@ -15488,6 +15492,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				return m_set;
 #else
 				bool set{};
@@ -15504,6 +15509,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_cv.wait(lock, [&] {
 					return m_set;
 				});
@@ -15612,7 +15618,8 @@ namespace gaia {
 
 				{
 					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
-					std::lock_guard lock(mtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(bucket.mtx);
 
 					const uint32_t futexValue = pFutexValue->load(std::memory_order_relaxed);
 					if (futexValue != expected)
@@ -15637,7 +15644,8 @@ namespace gaia {
 
 				auto& bucket = detail::FutexBucket::get(pFutexValue);
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(bucket.mtx);
 
 				uint32_t numAwoken = 0;
 				auto** ppNode = &bucket.pFirst;
@@ -17062,7 +17070,9 @@ namespace gaia {
 				job.priority = final_prio(job);
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
 				return m_jobManager.alloc_job(GAIA_FWD(job));
 			}
 
@@ -17072,7 +17082,9 @@ namespace gaia {
 				GAIA_ASSERT(!jobHandles.empty());
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
 				for (auto& jobHandle: jobHandles)
 					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
 			}
@@ -17092,7 +17104,9 @@ namespace gaia {
 #endif
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
 				m_jobManager.free_job(jobHandle);
 			}
 

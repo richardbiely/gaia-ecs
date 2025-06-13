@@ -40,7 +40,7 @@ namespace gaia {
 			~Event() {
 				[[maybe_unused]] int ret = pthread_cond_destroy(&m_hCondHandle);
 				GAIA_ASSERT(ret == 0);
-				
+
 				ret = pthread_mutex_destroy(&m_hMutexHandle);
 				GAIA_ASSERT(ret == 0);
 			}
@@ -50,6 +50,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_set = true;
 				m_cv.notify_one();
 #else
@@ -70,6 +71,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_set = false;
 #else
 				[[maybe_unused]] int ret = pthread_mutex_lock(&m_hMutexHandle);
@@ -84,6 +86,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				return m_set;
 #else
 				bool set{};
@@ -100,6 +103,7 @@ namespace gaia {
 #if GAIA_USE_MT_STD
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_mtx);
 				std::unique_lock lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_mtx);
 				m_cv.wait(lock, [&] {
 					return m_set;
 				});

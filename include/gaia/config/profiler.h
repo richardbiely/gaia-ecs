@@ -150,8 +150,9 @@ namespace tracy {
 	#endif
 	//! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
-		#define GAIA_PROF_EXTRACT_MUTEX(name) name.get_lock()
+		#define GAIA_PROF_EXTRACT_MUTEX(name) (name).get_lock()
 		#define GAIA_PROF_MUTEX_BASE(type) LockableBaseExt<type>
+		#define GAIA_PROF_LOCK_MARK(name) LockMark(name)
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
 		#define GAIA_PROF_MUTEX(type, name) TracyLockableExt(type, name)
@@ -187,10 +188,11 @@ namespace tracy {
 	#endif
 //! Profiling zone for mutex
 	#if !defined(GAIA_PROF_MUTEX_BASE)
+		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX_BASE(type) type
+		#define GAIA_PROF_LOCK_MARK(name)
 	#endif
 	#if !defined(GAIA_PROF_MUTEX)
-		#define GAIA_PROF_EXTRACT_MUTEX(name) name
 		#define GAIA_PROF_MUTEX(type, name) GAIA_PROF_MUTEX_BASE(type) name
 	#endif
 	//! If set to 1 thread name will be set using the profiler's thread name setter function

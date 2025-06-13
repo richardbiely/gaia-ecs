@@ -5,6 +5,7 @@
 #include <atomic>
 #include <mutex>
 
+#include "../core/utility.h"
 #include "event.h"
 
 namespace gaia {
@@ -72,7 +73,8 @@ namespace gaia {
 
 				{
 					auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
-					std::lock_guard lock(mtx);
+					core::lock_scope lock(mtx);
+					GAIA_PROF_LOCK_MARK(bucket.mtx);
 
 					const uint32_t futexValue = pFutexValue->load(std::memory_order_relaxed);
 					if (futexValue != expected)
@@ -97,7 +99,8 @@ namespace gaia {
 
 				auto& bucket = detail::FutexBucket::get(pFutexValue);
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(bucket.mtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(bucket.mtx);
 
 				uint32_t numAwoken = 0;
 				auto** ppNode = &bucket.pFirst;

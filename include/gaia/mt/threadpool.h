@@ -295,7 +295,9 @@ namespace gaia {
 				job.priority = final_prio(job);
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
 				return m_jobManager.alloc_job(GAIA_FWD(job));
 			}
 
@@ -305,7 +307,9 @@ namespace gaia {
 				GAIA_ASSERT(!jobHandles.empty());
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
 				for (auto& jobHandle: jobHandles)
 					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
 			}
@@ -325,7 +329,9 @@ namespace gaia {
 #endif
 
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
-				std::lock_guard lock(mtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+				
 				m_jobManager.free_job(jobHandle);
 			}
 
