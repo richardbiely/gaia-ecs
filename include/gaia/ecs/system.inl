@@ -266,7 +266,8 @@ namespace gaia {
 			//------------------------------------------------
 
 			SystemBuilder& mode(QueryExecType type) {
-				m_execType = type;
+				auto& ctx = data();
+				ctx.execType = type;
 				return *this;
 			}
 
@@ -275,7 +276,6 @@ namespace gaia {
 				validate();
 
 				auto& ctx = data();
-				ctx.execType = m_execType;
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
 						func(it);
