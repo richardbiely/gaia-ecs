@@ -6,6 +6,12 @@
 #include <type_traits>
 #include <utility>
 
+#if GAIA_PLATFORM_WINDOWS
+	#include <malloc.h>
+#else
+	#include <alloca.h>
+#endif
+
 #include "iterator.h"
 
 namespace gaia {
@@ -1345,8 +1351,9 @@ namespace gaia {
 		template <typename Container, typename TCmpFunc, typename TSwapFunc>
 		void
 		quick_sort_stack(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc, uint32_t maxStackSize) {
-			GAIA_ASSERT(high < arr.size() && "quick_sort_stack: 'high' has to be smaller than the container size.");
-			GAIA_ASSERT(arr.size() <= maxStackSize && "quick_sort_stack: used with too large input array. Stack overflow.");
+			GAIA_ASSERT(high < (int)arr.size() && "quick_sort_stack: 'high' has to be smaller than the container size.");
+			GAIA_ASSERT(
+					(uint32_t)arr.size() <= maxStackSize && "quick_sort_stack: used with too large input array. Stack overflow.");
 
 			struct Range {
 				int low, high;
