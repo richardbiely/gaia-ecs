@@ -303,7 +303,7 @@ namespace gaia {
 		}
 
 		template <typename T, typename TCmpFunc, typename TSwapFunc>
-		constexpr void try_swap_if(T* c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) noexcept {
+		constexpr void try_swap_if(T* c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
 				swapFunc(lhs, rhs);
 		}
@@ -965,7 +965,7 @@ namespace gaia {
 
 			template <typename T, typename TCmpFunc>
 			bool sort_nwk(T* beg, T* end, TCmpFunc cmpFunc) {
-				const auto n = (uintptr_t)(end - beg);
+				const auto n = (uint32_t)(end - beg);
 				if (n <= 1) {
 					// Nothing to sort with just one item
 				} else if (n == 2) {
@@ -1128,8 +1128,8 @@ namespace gaia {
 					swap_if(beg, 5, 6, cmpFunc);
 					swap_if(beg, 7, 8, cmpFunc);
 				} else if (n <= 32) {
-					for (size_t i = 0; i < n - 1; ++i)
-						for (size_t j = 0; j < n - i - 1; ++j)
+					for (uint32_t i = 0; i < n - 1; ++i)
+						for (uint32_t j = 0; j < n - i - 1; ++j)
 							swap_if(beg, j, j + 1, cmpFunc);
 				}
 
@@ -1138,7 +1138,7 @@ namespace gaia {
 
 			template <typename T, typename TCmpFunc, typename TSwapFunc>
 			bool sort_nwk(T* beg, T* end, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
-				const auto n = (uintptr_t)(end - beg);
+				const auto n = (uint32_t)(end - beg);
 				if (n <= 1) {
 					// Nothing to sort with just one item
 				} else if (n == 2) {
@@ -1301,8 +1301,8 @@ namespace gaia {
 					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
 					try_swap_if(beg, 7, 8, cmpFunc, swapFunc);
 				} else if (n <= 32) {
-					for (size_t i = 0; i < n - 1; ++i)
-						for (size_t j = 0; j < n - i - 1; ++j)
+					for (uint32_t i = 0; i < n - 1; ++i)
+						for (uint32_t j = 0; j < n - i - 1; ++j)
 							try_swap_if(beg, j, j + 1, cmpFunc, swapFunc);
 				}
 
