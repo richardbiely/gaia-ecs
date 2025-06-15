@@ -356,7 +356,7 @@ namespace gaia {
 				//! Performs diagnostics of the memory used.
 				void diag() const {
 					auto memStats = stats();
-					GAIA_LOG_N("PagedAllocator %p stats", this);
+					GAIA_LOG_N("PagedAllocator %p stats", (void*)this);
 					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memStats.mem_total);
 					GAIA_LOG_N("  Used: %" PRIu64 " B", memStats.mem_total - memStats.mem_used);
 					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memStats.mem_used);

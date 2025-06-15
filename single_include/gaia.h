@@ -11319,7 +11319,7 @@ namespace gaia {
 				//! Performs diagnostics of the memory used.
 				void diag() const {
 					auto memStats = stats();
-					GAIA_LOG_N("PagedAllocator %p stats", this);
+					GAIA_LOG_N("PagedAllocator %p stats", (void*)this);
 					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memStats.mem_total);
 					GAIA_LOG_N("  Used: %" PRIu64 " B", memStats.mem_total - memStats.mem_used);
 					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memStats.mem_used);
@@ -33243,18 +33243,18 @@ namespace gaia {
 			//! Execution type
 			QueryExecType execType = QueryExecType::Default;
 			//! Query job dependency handle
-			mt::JobHandle m_jobHandle = mt::JobNull;
+			mt::JobHandle jobHandle = mt::JobNull;
 
 			System_() = default;
 
 			~System_() {
 				// If the query contains a job handle we can only
 				// destroy the query once the task associated with the handle is finished.
-				if (m_jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
+				if (jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
-					tp.wait(m_jobHandle);
+					tp.wait(jobHandle);
 					// Job handles created by queries are MANUAL_DELETE so delete it explicitly.
-					tp.del(m_jobHandle);
+					tp.del(jobHandle);
 				}
 			}
 
@@ -33285,16 +33285,16 @@ namespace gaia {
 
 			//! Returns the job handle associated with the system
 			GAIA_NODISCARD mt::JobHandle job_handle() {
-				if (m_jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
+				if (jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
 					mt::Job syncJob;
 					syncJob.func = [&]() {
 						exec();
 					};
 					syncJob.flags = mt::JobCreationFlags::ManualDelete;
-					m_jobHandle = tp.add(syncJob);
+					jobHandle = tp.add(syncJob);
 				}
-				return m_jobHandle;
+				return jobHandle;
 			}
 		};
 
@@ -33316,7 +33316,6 @@ namespace gaia {
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
-			QueryExecType m_execType = QueryExecType::Default;
 
 			void validate() {
 				GAIA_ASSERT(m_world.valid(m_entity));
