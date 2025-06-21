@@ -1,14 +1,10 @@
 #pragma once
 #include <gaia.h>
 
-#ifdef _WIN32
-	#ifdef BUILDING_DLL
-		#define ENGINE_API __declspec(dllexport)
-	#else
-		#define ENGINE_API __declspec(dllimport)
-	#endif
+#ifdef BUILDING_DLL
+	#define ENGINE_API GAIA_EXPORT
 #else
-	#define ENGINE_API
+	#define ENGINE_API GAIA_IMPORT
 #endif
 
 class WorldTest {

@@ -559,9 +559,9 @@ namespace gaia {
 	#define GAIA_EXPORT __declspec(dllexport)
 	#define GAIA_HIDDEN
 #elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
-	#define GAIA_IMPORT _attribute__((visibility("default")))
-	#define GAIA_EXPORT _attribute__((visibility("default")))
-	#define GAIA_HIDDEN _attribute__((visibility("hidden")))
+	#define GAIA_IMPORT __attribute__((visibility("default")))
+	#define GAIA_EXPORT __attribute__((visibility("default")))
+	#define GAIA_HIDDEN __attribute__((visibility("hidden")))
 #endif
 
 #if defined(GAIA_DLL)
