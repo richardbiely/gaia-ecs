@@ -353,6 +353,8 @@ endif()
 
 # Examples
 if(GAIA_BUILD_EXAMPLES)
+  add_subdirectory(examples/example_dll)
+  add_subdirectory(examples/example_app)
   add_subdirectory(examples/example1)
   add_subdirectory(examples/example2)
   add_subdirectory(examples/example3)

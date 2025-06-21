@@ -17,6 +17,14 @@
   ],
   "configurations": [
     {
+      "name": "(lldb) example - dll",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example_app/gaia_example_app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+    },
+    {
       "name": "(lldb) example - example1",
       "type": "lldb",
       "request": "launch",
