@@ -143,8 +143,8 @@ struct StringComponent2 {
 	StringComponent2& operator=(const StringComponent2&) = default;
 	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
-GAIA_DEFINE_HAS_FUNCTION(foo)
-GAIA_DEFINE_HAS_FUNCTION(food)
+GAIA_DEFINE_HAS_FUNCTION(foo);
+GAIA_DEFINE_HAS_FUNCTION(food);
 
 TEST_CASE("StringLookupKey") {
 	constexpr uint32_t MaxLen = 32;
@@ -180,7 +180,7 @@ struct Dummy1 {
 	}
 };
 
-GAIA_DEFINE_HAS_FUNCTION(some_func_local)
+GAIA_DEFINE_HAS_FUNCTION(some_func_local);
 struct HasFuncDummy {
 	void some_func_local(int, float*, short&) {}
 };

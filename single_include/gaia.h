@@ -1841,7 +1841,7 @@ namespace gaia {
 	template <typename T, typename... Args>                                                                              \
 	struct has_##function_name {                                                                                         \
 		static constexpr bool value = gaia::core::has_member_func<has_##function_name##_check, T, Args...>::value;         \
-	};
+	}
 
 #define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)                                                                    \
 	gaia::core::has_member_func<has_##function_name##_check, T, __VA_ARGS__>::value
@@ -1862,9 +1862,9 @@ namespace gaia {
 #define GAIA_HAS_GLOBAL_FUNC(function_name, ...)                                                                       \
 	gaia::core::has_global_func<decltype(&function_name), __VA_ARGS__>::value
 
-		GAIA_DEFINE_HAS_FUNCTION(find)
-		GAIA_DEFINE_HAS_FUNCTION(find_if)
-		GAIA_DEFINE_HAS_FUNCTION(find_if_not)
+		GAIA_DEFINE_HAS_FUNCTION(find);
+		GAIA_DEFINE_HAS_FUNCTION(find_if);
+		GAIA_DEFINE_HAS_FUNCTION(find_if_not);
 
 		namespace detail {
 			template <typename T>
