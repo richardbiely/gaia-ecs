@@ -32,7 +32,7 @@ BUILD_SETTINGS_COMMON_PROF="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=
 # For sanitizer builds we have to turn off unit tests because Catch2 generates unitialized memory alerts.
 # These are false alerts happening due to us not linking against a standard library built with memory sanitizers enabled. 
 # TODO: Build custom libc++ with msan enabled
-BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF"
+BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -DGAIA_DEVMODE=OFF"
 
 # Paths
 PATH_DEBUG="./${PATH_BASE}/debug"
