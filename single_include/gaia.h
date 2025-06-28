@@ -15183,7 +15183,7 @@ namespace gaia {
 				}
 
 			public:
-				static inline constexpr bool value = update();
+				static constexpr bool value = update();
 			};
 
 			template <typename T>
