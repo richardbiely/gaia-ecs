@@ -7597,6 +7597,7 @@ TEST_CASE("Components - non trivial") {
 	}
 }
 
+#if GAIA_ECS_CHUNK_ALLOCATOR
 TEST_CASE("ChunkAllocator") {
 	// We do this mostly for code coverage
 	{
@@ -7624,6 +7625,7 @@ TEST_CASE("ChunkAllocator") {
 	// We do this just for code coverage
 	ecs::ChunkAllocator::get().diag();
 }
+#endif
 
 TEST_CASE("CommandBuffer") {
 	SECTION("Entity creation") {
