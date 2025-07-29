@@ -38,6 +38,11 @@ namespace gaia {
 					return m_data.empty();
 				}
 
+				//! Returns the pointer to the data in the buffer
+				GAIA_NODISCARD const auto* data() const {
+					return m_data.data();
+				}
+
 				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
 				void reserve(uint32_t size) {
 					const auto nextSize = m_dataPos + size;
@@ -46,7 +51,7 @@ namespace gaia {
 
 					// Make sure there is enough capacity to hold our data
 					const auto newSize = bytes() + size;
-					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+					const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
 					m_data.reserve(newCapacity);
 				}
 

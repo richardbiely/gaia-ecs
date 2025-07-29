@@ -19,6 +19,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_desc.h"
+#include "data_buffer.h"
 #include "entity_container.h"
 #include "id.h"
 
@@ -384,6 +385,80 @@ namespace gaia {
 #else
 				mem::AllocHelper::free((uint8_t*)pChunk);
 #endif
+			}
+
+			void save(SerializationBufferDyn& s) {
+				s.save(m_header.count);
+				s.save(m_header.countEnabled);
+
+				const uint16_t dead = m_header.dead;
+				const uint16_t lifespanCountdown = m_header.lifespanCountdown;
+				s.save(dead);
+				s.save(lifespanCountdown);
+
+				const auto cnt = (uint32_t)m_header.count;
+
+				// Store entity data
+				{
+					const auto* pData = m_records.pEntities;
+					GAIA_FOR(cnt) {
+						s.save(pData[i]);
+					}
+				}
+
+				// Store component data
+				{
+					for (const auto& rec: comp_rec_view()) {
+						// Save component data if there's size associated with it
+						if (rec.comp.size() == 0)
+							continue;
+
+						GAIA_FOR(cnt) {
+							const uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
+							s.save(dst, rec.comp.size());
+						}
+					}
+				}
+			}
+
+			void load(SerializationBufferDyn& s) {
+				uint16_t prevCount = m_header.count;
+				s.load(m_header.count);
+				s.load(m_header.countEnabled);
+
+				uint16_t dead = 0;
+				uint16_t lifespanCountdown = 0;
+				s.load(dead);
+				s.load(lifespanCountdown);
+				m_header.dead = dead != 0;
+				m_header.lifespanCountdown = lifespanCountdown;
+
+				const auto cnt = (uint32_t)m_header.count;
+
+				// Load entity data
+				{
+					GAIA_FOR(cnt) {
+						Entity e;
+						s.load(e);
+						// e.data.gen = 0; // Reset generation to 0
+
+						entity_view_mut()[i] = e;
+					}
+				}
+
+				// Load component data. Call constructors first as necessary.
+				call_gen_ctors(prevCount, cnt);
+				{
+					for (const auto& rec: comp_rec_view()) {
+						if (rec.comp.size() == 0)
+							continue;
+
+						GAIA_FOR(cnt) {
+							uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
+							s.load(dst, rec.comp.size());
+						}
+					}
+				}
 			}
 
 			//! Remove the last entity from a chunk.
@@ -1011,7 +1086,7 @@ namespace gaia {
 					// Try swapping our entity with the last disabled one
 					const auto entity = entity_view()[row];
 					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, recs);
-					recs[entity].dis = 0;
+					recs[entity].data.dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -1023,7 +1098,7 @@ namespace gaia {
 					// Try swapping our entity with the last one in our chunk
 					const auto entity = entity_view()[row];
 					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, recs);
-					recs[entity].dis = 1;
+					recs[entity].data.dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -1054,22 +1129,6 @@ namespace gaia {
 			//----------------------------------------------------------------------
 			// Component handling
 			//----------------------------------------------------------------------
-
-			bool has_custom_gen_ctor() const {
-				return m_header.hasAnyCustomGenCtor;
-			}
-
-			bool has_custom_uni_ctor() const {
-				return m_header.hasAnyCustomUniCtor;
-			}
-
-			bool has_custom_gen_dtor() const {
-				return m_header.hasAnyCustomGenDtor;
-			}
-
-			bool has_custom_uni_dtor() const {
-				return m_header.hasAnyCustomUniDtor;
-			}
 
 			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
 				if (item.func_ctor == nullptr)

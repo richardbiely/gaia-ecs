@@ -133,14 +133,14 @@ namespace gaia {
 
 				JobContainer jc{};
 				jc.idx = index;
-				jc.gen = generation;
+				jc.data.gen = generation;
 				jc.prio = ctx->priority;
 
 				return jc;
 			}
 
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (jc.prio == JobPriority::Low) != 0);
+				return JobHandle(jc.idx, jc.data.gen, (jc.prio == JobPriority::Low) != 0);
 			}
 		};
 

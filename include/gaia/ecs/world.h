@@ -426,7 +426,9 @@ namespace gaia {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
 						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
-							auto rel = Entity(entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (EntityKind)ecRel.kind);
+							auto rel = Entity(
+									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
+									(EntityKind)ecRel.data.kind);
 							auto tgt = m_world.get(entity.gen());
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
@@ -831,7 +833,7 @@ namespace gaia {
 				GAIA_ASSERT(valid_entity_id(id));
 
 				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
 			}
 
 			template <typename T>
@@ -2001,7 +2003,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				const bool entityStateInContainer = !ec.dis;
+				const bool entityStateInContainer = !ec.data.dis;
 #if GAIA_ASSERT_ENABLED
 				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
 				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
@@ -2194,7 +2196,7 @@ namespace gaia {
 				m_compCache.clear();
 			}
 
-			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
+			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
 				if (is_req_del(ec))
 					return false;
 
@@ -2265,10 +2267,11 @@ namespace gaia {
 					return false;
 
 				const auto& ec = m_recs.entities[entityId];
-				if (ec.pair != 0)
+				if (ec.data.pair != 0)
 					return false;
 
-				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+				return valid(
+						ec, Entity(entityId, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind));
 			}
 
 			//! Locks the chunk for structural changes.
@@ -2291,6 +2294,244 @@ namespace gaia {
 			//! Checks if the chunk is locked for structural changes.
 			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
+			}
+
+			SerializationBufferDyn save() {
+				SerializationBufferDyn s;
+
+				// Version number, currently unused
+				s.save((uint32_t)0);
+
+				// Store the index of the last core component.
+				// TODO: As this changes, we will have to modify entity ids accordingly.
+				const auto lastCoreComponentId = GAIA_ID(LastCoreComponent).id();
+				s.save(lastCoreComponentId);
+
+				// Entities
+				{
+					auto saveEntityContainer = [&](const EntityContainer& ec) {
+						s.save(ec.idx);
+						s.save(ec.dataRaw);
+						s.save(ec.row);
+						s.save(ec.flags);
+#if GAIA_USE_SAFE_ENTITY
+						s.save(ec.refCnt);
+#else
+						s.save((uint32_t)0);
+#endif
+						s.save(ec.pArchetype->list_idx());
+						s.save(ec.pChunk->idx());
+					};
+
+					const auto recEntities = (uint32_t)m_recs.entities.size();
+					const auto newEntities = recEntities - lastCoreComponentId;
+					s.save(newEntities);
+					GAIA_FOR2(lastCoreComponentId, recEntities) {
+						const auto& ec = m_recs.entities[i];
+						saveEntityContainer(ec);
+					}
+
+					const auto pos0 = s.tell(); // Save the current position in the stream
+					uint32_t pairsCnt = 0;
+					{
+						s.save(0);
+						for (const auto& pair: m_recs.pairs) {
+							// Skip core pairs
+							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
+								continue;
+
+							++pairsCnt;
+							saveEntityContainer(pair.second);
+						}
+					}
+					const auto pos1 = s.tell(); // Save the position after pairs
+					s.seek(pos0);
+					s.save(pairsCnt);
+					s.seek(pos1);
+
+					s.save(m_recs.entities.m_nextFreeIdx);
+					s.save(m_recs.entities.m_freeItems);
+				}
+
+				// World
+				{
+					s.save((uint32_t)m_archetypes.size());
+					for (auto* pArchetype: m_archetypes) {
+						s.save((uint32_t)pArchetype->ids_view().size());
+						for (auto e: pArchetype->ids_view())
+							s.save(e);
+
+						pArchetype->save(s);
+					}
+
+					s.save(m_worldVersion);
+				}
+
+				// Entity names
+				{
+					s.save((uint32_t)m_nameToEntity.size());
+					for (const auto& pair: m_nameToEntity) {
+						s.save(pair.second);
+					}
+				}
+
+				return s;
+			}
+
+			bool load(SerializationBufferDyn& s) {
+				// Move back to the beginning of the stream
+				s.seek(0);
+
+				// Version number, currently unused
+				uint32_t version = 0;
+				s.load(version);
+				if (version != 0) {
+					GAIA_LOG_E("Unsupported world version %u. Expected 0.", version);
+					return false;
+				}
+
+				// Store the index of the last core component. As they change, we will have to modify entity ids accordingly.
+				uint32_t lastCoreComponentId = 0;
+				s.load(lastCoreComponentId);
+
+				// Entities
+				{
+					auto loadEntityContainer = [&](EntityContainer& ec) {
+						s.load(ec.idx);
+						s.load(ec.dataRaw);
+						s.load(ec.row);
+						s.load(ec.flags);
+						ec.flags |= EntityContainerFlags::Load;
+
+#if GAIA_USE_SAFE_ENTITY
+						s.load(ec.refCnt);
+#else
+						s.load(ec.unused);
+						// if this value is different from zero, it means we are trying to load data
+						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
+						// because if your program used reference counting it probably won't work correctly.
+						GAIA_ASSERT(ec.unused == 0);
+#endif
+
+						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
+						uint32_t archetypeIdx = 0;
+						s.load(archetypeIdx);
+						ec.pArchetype = (Archetype*)((uintptr_t)archetypeIdx);
+						// Store the chunk idx inside the pointer. We will decode this once chunks are created.
+						uint32_t chunkIdx = 0;
+						s.load(chunkIdx);
+						ec.pChunk = (Chunk*)((uintptr_t)chunkIdx);
+					};
+
+					uint32_t newEntities = 0;
+					s.load(newEntities);
+					GAIA_FOR(newEntities) {
+						EntityContainer ec;
+						loadEntityContainer(ec);
+
+						// Reset generation to zero. We don't need it when recreating entities.
+						// ec.data.gen = 0;
+
+						m_recs.entities.m_items.add_item(GAIA_MOV(ec));
+					}
+
+					uint32_t pairsCnt = 0;
+					s.load(pairsCnt);
+					GAIA_FOR(pairsCnt) {
+						EntityContainer ec{};
+						loadEntityContainer(ec);
+						Entity pair(ec.idx, ec.data.gen);
+						m_recs.pairs.emplace(EntityLookupKey(pair), GAIA_MOV(ec));
+					}
+
+					s.load(m_recs.entities.m_nextFreeIdx);
+					s.load(m_recs.entities.m_freeItems);
+				}
+
+				// World
+				{
+					uint32_t archetypesSize = 0;
+					s.load(archetypesSize);
+					m_archetypes.reserve(archetypesSize);
+					GAIA_FOR(archetypesSize) {
+						uint32_t idsSize = 0;
+						s.load(idsSize);
+						Entity ids[ChunkHeader::MAX_COMPONENTS];
+						GAIA_FOR_(idsSize, j) {
+							s.load(ids[j]);
+							// if (!ids[j].pair())
+							// 	ids[j].data.gen = 0; // Reset generation to zero
+						}
+
+						// Calculate the lookup hash
+						const auto hashLookup = calc_lookup_hash({&ids[0], idsSize}).hash;
+
+						auto* pArchetype = find_archetype({hashLookup}, {&ids[0], idsSize});
+						if (pArchetype == nullptr) {
+							// Create the archetype
+							pArchetype = create_archetype({&ids[0], idsSize});
+							pArchetype->set_hashes({hashLookup});
+
+							// No need to do anything with the archetype graph. It will build itself naturally.
+							// pArchetype->build_graph_edges(pArchetypeRight, entity);
+
+							// Register the archetype in the world
+							reg_archetype(pArchetype);
+						}
+
+						// Load archetype data
+						pArchetype->load(s);
+					}
+
+					s.load(m_worldVersion);
+				}
+
+				// Update entity records.
+				// We previously encoded the archetype id into refCnt.
+				// Now we need to convert it back to the pointer.
+				{
+					for (auto& ec: m_recs.entities) {
+						if ((ec.flags & EntityContainerFlags::Load) == 0)
+							continue;
+						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+
+						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
+						ec.pArchetype = m_archetypes[archetypeIdx];
+						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
+						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+						GAIA_LOG_N("");
+					}
+					for (auto& pair: m_recs.pairs) {
+						auto& ec = pair.second;
+
+						if ((ec.flags & EntityContainerFlags::Load) == 0)
+							continue;
+						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+
+						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
+						ec.pArchetype = m_archetypes[archetypeIdx];
+						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
+						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+					}
+				}
+
+				// Entity names
+				{
+					uint32_t cnt = 0;
+					s.load(cnt);
+					GAIA_FOR(cnt) {
+						Entity entity;
+						s.load(entity);
+						// entity.data.gen = 0; // Reset generation to zero
+
+						const auto& ec = fetch(entity);
+						const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+
+						m_nameToEntity.emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+					}
+				}
+
+				return false;
 			}
 
 		private:
@@ -2586,7 +2827,7 @@ namespace gaia {
 
 						const auto srcRow = ec.row;
 						const auto dstRow = pDstChunk->add_entity(entity);
-						const bool wasEnabled = !ec.dis;
+						const bool wasEnabled = !ec.data.dis;
 
 						// Make sure the old entity becomes enabled now
 						archetype.enable_entity(pSrcChunk, srcRow, true, m_recs);
@@ -2764,6 +3005,7 @@ namespace gaia {
 						m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
 				[[maybe_unused]] const auto it1 =
 						m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+
 				GAIA_ASSERT(it0.second);
 				GAIA_ASSERT(it1.second);
 
@@ -3781,8 +4023,8 @@ namespace gaia {
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
-				GAIA_ASSERT(entity.pair() || ec.gen == entity.gen());
-				ec.dis = 0;
+				GAIA_ASSERT(entity.pair() || ec.data.gen == entity.gen());
+				ec.data.dis = 0;
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one.
@@ -3801,7 +4043,7 @@ namespace gaia {
 
 				const auto srcRow0 = ec.row;
 				const auto dstRow = pDstChunk->add_entity(entity);
-				const bool wasEnabled = !ec.dis;
+				const bool wasEnabled = !ec.data.dis;
 
 				auto& srcArchetype = *ec.pArchetype;
 #if GAIA_ASSERT_ENABLED
@@ -4158,10 +4400,10 @@ namespace gaia {
 				// Update the container record
 				EntityContainer ec{};
 				ec.idx = entity.id();
-				ec.gen = entity.gen();
-				ec.pair = 1;
-				ec.ent = 1;
-				ec.kind = EntityKind::EK_Gen;
+				ec.data.gen = entity.gen();
+				ec.data.pair = 1;
+				ec.data.ent = 1;
+				ec.data.kind = EntityKind::EK_Gen;
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(ec, entity, &archetype, pChunk);

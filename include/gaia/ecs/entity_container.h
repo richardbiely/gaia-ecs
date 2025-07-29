@@ -51,6 +51,7 @@ namespace gaia {
 			IsSingleton = 1 << 10,
 			DeleteRequested = 1 << 11,
 			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
+			Load = 1 << 13, // EntityContainer is being loaded from a file
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -62,18 +63,25 @@ namespace gaia {
 			// Bits in this section need to be 1:1 with Entity internal data
 			///////////////////////////////////////////////////////////////////
 
-			//! Generation ID of the record
-			uint32_t gen : 28;
-			//! 0-component, 1-entity
-			uint32_t ent : 1;
-			//! 0-ordinary, 1-pair
-			uint32_t pair : 1;
-			//! Component kind
-			uint32_t kind : 1;
-			//! Disabled
-			//! Entity does not use this bit (always zero) so we steal it
-			//! for special purposes.
-			uint32_t dis : 1;
+			struct EntityData {
+				//! Generation ID of the record
+				uint32_t gen : 28;
+				//! 0-component, 1-entity
+				uint32_t ent : 1;
+				//! 0-ordinary, 1-pair
+				uint32_t pair : 1;
+				//! Component kind
+				uint32_t kind : 1;
+				//! Disabled
+				//! Entity does not use this bit (always zero) so we steal it
+				//! for special purposes.
+				uint32_t dis : 1;
+			};
+
+			union {
+				EntityData data;
+				uint32_t dataRaw;
+			};
 
 			///////////////////////////////////////////////////////////////////
 
@@ -109,15 +117,15 @@ namespace gaia {
 
 				EntityContainer ec{};
 				ec.idx = index;
-				ec.gen = generation;
-				ec.ent = (uint32_t)ctx->isEntity;
-				ec.pair = (uint32_t)ctx->isPair;
-				ec.kind = (uint32_t)ctx->kind;
+				ec.data.gen = generation;
+				ec.data.ent = (uint32_t)ctx->isEntity;
+				ec.data.pair = (uint32_t)ctx->isPair;
+				ec.data.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			GAIA_NODISCARD static Entity handle(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
 			}
 
 			void req_del() {
@@ -126,8 +134,7 @@ namespace gaia {
 		};
 
 #if GAIA_USE_PAGED_ENTITY_CONTAINER
-		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
-		public:
+		struct EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
 			void add_item(EntityContainer&& container) {
 				this->add(GAIA_MOV(container));
 			}
@@ -207,11 +214,11 @@ namespace gaia {
 				return *this;
 			}
 
-			SafeEntity(SafeEntity&& other): m_w(other.m_w), m_entity(other.m_entity) {
+			SafeEntity(SafeEntity&& other) noexcept: m_w(other.m_w), m_entity(other.m_entity) {
 				other.m_w = nullptr;
 				other.m_entity = EntityBad;
 			}
-			SafeEntity& operator=(SafeEntity&& other) {
+			SafeEntity& operator=(SafeEntity&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_w = other.m_w;
@@ -340,13 +347,13 @@ namespace gaia {
 				return *this;
 			}
 
-			WeakEntity(WeakEntity&& other): m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
+			WeakEntity(WeakEntity&& other) noexcept: m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
 				other.m_w = nullptr;
 				other.m_pTracker->pWeakEntity = this;
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 			}
-			WeakEntity& operator=(WeakEntity&& other) {
+			WeakEntity& operator=(WeakEntity&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_w = other.m_w;

@@ -166,7 +166,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = id;
-				info.gen = 0;
+				info.data.gen = 0;
 
 				info.m_ctx = GAIA_MOV(ctx);
 				info.m_ctx.q.handle = {id, 0};
@@ -188,7 +188,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = idx;
-				info.gen = gen;
+				info.data.gen = gen;
 
 				info.m_ctx = GAIA_MOV(queryCtx);
 				info.m_ctx.q.handle = {idx, gen};
@@ -200,7 +200,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
-				return QueryHandle(info.idx, info.gen);
+				return QueryHandle(info.idx, info.data.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
@@ -489,7 +489,7 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				auto queryIds = data().ids_view();
+				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_ctx.data._remapping[i];
@@ -665,10 +665,6 @@ namespace gaia {
 			}
 			GAIA_NODISCARD const QueryCtx& ctx() const {
 				return m_ctx;
-			}
-
-			GAIA_NODISCARD const QueryCtx::Data& data() const {
-				return m_ctx.data;
 			}
 
 			GAIA_NODISCARD bool has_filters() const {

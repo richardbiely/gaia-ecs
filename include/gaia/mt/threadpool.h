@@ -1189,7 +1189,7 @@ namespace gaia {
 						Futex::wake(&m_blockedInWorkUntil, detail::WaitMaskAll);
 				}
 
-				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.gen != (uint32_t)-1);
+				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.data.gen != (uint32_t)-1);
 
 				// Run the functor associated with the job
 				m_jobManager.run(jobData);

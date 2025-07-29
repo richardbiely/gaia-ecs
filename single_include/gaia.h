@@ -7960,47 +7960,53 @@ namespace gaia {
 		struct ilist_item_base {};
 
 		struct ilist_item: public ilist_item_base {
+			struct ItemData {
+				//! Generation ID
+				uint32_t gen;
+			};
+
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
-			//! Generation ID
-			uint32_t gen;
+			//! Item data
+			ItemData data;
 
 			ilist_item() = default;
-			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
+			ilist_item(uint32_t index, uint32_t generation): idx(index) {
+				data.gen = generation;
+			}
 
 			ilist_item(const ilist_item& other) {
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 			}
 			ilist_item& operator=(const ilist_item& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 				return *this;
 			}
 
 			ilist_item(ilist_item&& other) {
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 
 				other.idx = (uint32_t)-1;
-				other.gen = (uint32_t)-1;
+				other.data.gen = (uint32_t)-1;
 			}
 			ilist_item& operator=(ilist_item&& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 
 				other.idx = (uint32_t)-1;
-				other.gen = (uint32_t)-1;
+				other.data.gen = (uint32_t)-1;
 				return *this;
 			}
 		};
 
 		template <typename TListItem>
-		class darray_ilist_storage: public cnt::darray<TListItem> {
-		public:
+		struct darray_ilist_storage: public cnt::darray<TListItem> {
 			void add_item(TListItem&& container) {
 				this->push_back(GAIA_MOV(container));
 			}
@@ -8120,7 +8126,7 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				j = TListItem::create(index, j.gen, ctx);
+				j = TListItem::create(index, j.data.gen, ctx);
 				return TListItem::handle(j);
 			}
 
@@ -8150,7 +8156,7 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				return {index, m_items[index].gen};
+				return {index, m_items[index].data.gen};
 			}
 
 			//! Invalidates \param handle.
@@ -8164,7 +8170,7 @@ namespace gaia {
 					item.idx = TItemHandle::IdMask;
 				else
 					item.idx = m_nextFreeIdx;
-				++item.gen;
+				++item.data.gen;
 
 				m_nextFreeIdx = handle.id();
 				++m_freeItems;
@@ -16313,14 +16319,14 @@ namespace gaia {
 
 				JobContainer jc{};
 				jc.idx = index;
-				jc.gen = generation;
+				jc.data.gen = generation;
 				jc.prio = ctx->priority;
 
 				return jc;
 			}
 
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
-				return JobHandle(jc.idx, jc.gen, (jc.prio == JobPriority::Low) != 0);
+				return JobHandle(jc.idx, jc.data.gen, (jc.prio == JobPriority::Low) != 0);
 			}
 		};
 
@@ -17971,7 +17977,7 @@ namespace gaia {
 						Futex::wake(&m_blockedInWorkUntil, detail::WaitMaskAll);
 				}
 
-				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.gen != (uint32_t)-1);
+				GAIA_ASSERT(jobData.idx != (uint32_t)-1 && jobData.data.gen != (uint32_t)-1);
 
 				// Run the functor associated with the job
 				m_jobManager.run(jobData);
@@ -20402,6 +20408,164 @@ namespace gaia {
 /*** End of inlined file: component_cache.h ***/
 
 
+/*** Start of inlined file: data_buffer.h ***/
+#pragma once
+
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		namespace detail {
+			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
+
+			template <typename DataContainer>
+			class SerializationBufferImpl {
+				// Increase the capacity by multiples of CapacityIncreaseSize
+				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
+
+				//! Buffer holding raw data
+				DataContainer m_data;
+				//! Current position in the buffer
+				uint32_t m_dataPos = 0;
+
+			public:
+				void reset() {
+					m_dataPos = 0;
+					m_data.clear();
+				}
+
+				//! Returns the number of bytes written in the buffer
+				GAIA_NODISCARD uint32_t bytes() const {
+					return (uint32_t)m_data.size();
+				}
+
+				//! Returns true if there is no data written in the buffer
+				GAIA_NODISCARD bool empty() const {
+					return m_data.empty();
+				}
+
+				//! Returns the pointer to the data in the buffer
+				GAIA_NODISCARD const auto* data() const {
+					return m_data.data();
+				}
+
+				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				void reserve(uint32_t size) {
+					const auto nextSize = m_dataPos + size;
+					if (nextSize <= bytes())
+						return;
+
+					// Make sure there is enough capacity to hold our data
+					const auto newSize = bytes() + size;
+					const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
+					m_data.reserve(newCapacity);
+				}
+
+				//! Changes the current position in the buffer
+				void seek(uint32_t pos) {
+					m_dataPos = pos;
+				}
+
+				//! Returns the current position in the buffer
+				GAIA_NODISCARD uint32_t tell() const {
+					return m_dataPos;
+				}
+
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save(T&& value) {
+					reserve(sizeof(T));
+
+					m_data.resize(m_dataPos + sizeof(T));
+					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
+					mem = GAIA_FWD(value);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				void save(const void* pSrc, uint32_t size) {
+					reserve(size);
+
+					// Copy "size" bytes of raw data starting at pSrc
+					m_data.resize(m_dataPos + size);
+					memcpy((void*)&m_data[m_dataPos], pSrc, size);
+
+					m_dataPos += size;
+				}
+
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save_comp(const ComponentCacheItem& item, T&& value) {
+					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
+					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+
+					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
+					save(isManualDestroyNeeded);
+					m_data.resize(m_dataPos + sizeof(T));
+
+					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
+					auto* pDst = (void*)&m_data[m_dataPos];
+					if (isRValue && item.func_move_ctor != nullptr) {
+						if constexpr (mem::is_movable<T>())
+							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+						else
+							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+					} else
+						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param value from the buffer
+				template <typename T>
+				void load(T& value) {
+					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				void load(void* pDst, uint32_t size) {
+					GAIA_ASSERT(m_dataPos + size <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					memmove(pDst, (const void*)&cdata[m_dataPos], size);
+
+					m_dataPos += size;
+				}
+
+				//! Loads \param value from the buffer
+				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
+					bool isManualDestroyNeeded = false;
+					load(isManualDestroyNeeded);
+
+					const auto& desc = cc.get(entity);
+					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
+					const auto& cdata = std::as_const(m_data);
+					auto* pSrc = (void*)&cdata[m_dataPos];
+					desc.move(pDst, pSrc, 0, 0, 1, 1);
+					if (isManualDestroyNeeded)
+						desc.dtor(pSrc);
+
+					m_dataPos += desc.comp.size();
+				}
+			};
+		} // namespace detail
+
+		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
+
+		class SerializationBuffer: public detail::SerializationBufferImpl<SerializationBuffer_DArrExt> {};
+		class SerializationBufferDyn: public detail::SerializationBufferImpl<SerializationBuffer_DArr> {};
+	} // namespace ecs
+} // namespace gaia
+/*** End of inlined file: data_buffer.h ***/
+
+
 /*** Start of inlined file: entity_container.h ***/
 #pragma once
 
@@ -20449,6 +20613,7 @@ namespace gaia {
 			IsSingleton = 1 << 10,
 			DeleteRequested = 1 << 11,
 			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
+			Load = 1 << 13, // EntityContainer is being loaded from a file
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -20460,18 +20625,25 @@ namespace gaia {
 			// Bits in this section need to be 1:1 with Entity internal data
 			///////////////////////////////////////////////////////////////////
 
-			//! Generation ID of the record
-			uint32_t gen : 28;
-			//! 0-component, 1-entity
-			uint32_t ent : 1;
-			//! 0-ordinary, 1-pair
-			uint32_t pair : 1;
-			//! Component kind
-			uint32_t kind : 1;
-			//! Disabled
-			//! Entity does not use this bit (always zero) so we steal it
-			//! for special purposes.
-			uint32_t dis : 1;
+			struct EntityData {
+				//! Generation ID of the record
+				uint32_t gen : 28;
+				//! 0-component, 1-entity
+				uint32_t ent : 1;
+				//! 0-ordinary, 1-pair
+				uint32_t pair : 1;
+				//! Component kind
+				uint32_t kind : 1;
+				//! Disabled
+				//! Entity does not use this bit (always zero) so we steal it
+				//! for special purposes.
+				uint32_t dis : 1;
+			};
+
+			union {
+				EntityData data;
+				uint32_t dataRaw;
+			};
 
 			///////////////////////////////////////////////////////////////////
 
@@ -20507,15 +20679,15 @@ namespace gaia {
 
 				EntityContainer ec{};
 				ec.idx = index;
-				ec.gen = generation;
-				ec.ent = (uint32_t)ctx->isEntity;
-				ec.pair = (uint32_t)ctx->isPair;
-				ec.kind = (uint32_t)ctx->kind;
+				ec.data.gen = generation;
+				ec.data.ent = (uint32_t)ctx->isEntity;
+				ec.data.pair = (uint32_t)ctx->isPair;
+				ec.data.kind = (uint32_t)ctx->kind;
 				return ec;
 			}
 
 			GAIA_NODISCARD static Entity handle(const EntityContainer& ec) {
-				return Entity(ec.idx, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(ec.idx, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
 			}
 
 			void req_del() {
@@ -20524,8 +20696,7 @@ namespace gaia {
 		};
 
 #if GAIA_USE_PAGED_ENTITY_CONTAINER
-		class EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
-		public:
+		struct EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
 			void add_item(EntityContainer&& container) {
 				this->add(GAIA_MOV(container));
 			}
@@ -20605,11 +20776,11 @@ namespace gaia {
 				return *this;
 			}
 
-			SafeEntity(SafeEntity&& other): m_w(other.m_w), m_entity(other.m_entity) {
+			SafeEntity(SafeEntity&& other) noexcept: m_w(other.m_w), m_entity(other.m_entity) {
 				other.m_w = nullptr;
 				other.m_entity = EntityBad;
 			}
-			SafeEntity& operator=(SafeEntity&& other) {
+			SafeEntity& operator=(SafeEntity&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_w = other.m_w;
@@ -20738,13 +20909,13 @@ namespace gaia {
 				return *this;
 			}
 
-			WeakEntity(WeakEntity&& other): m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
+			WeakEntity(WeakEntity&& other) noexcept: m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
 				other.m_w = nullptr;
 				other.m_pTracker->pWeakEntity = this;
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 			}
-			WeakEntity& operator=(WeakEntity&& other) {
+			WeakEntity& operator=(WeakEntity&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				m_w = other.m_w;
@@ -21157,6 +21328,80 @@ namespace gaia {
 #else
 				mem::AllocHelper::free((uint8_t*)pChunk);
 #endif
+			}
+
+			void save(SerializationBufferDyn& s) {
+				s.save(m_header.count);
+				s.save(m_header.countEnabled);
+
+				const uint16_t dead = m_header.dead;
+				const uint16_t lifespanCountdown = m_header.lifespanCountdown;
+				s.save(dead);
+				s.save(lifespanCountdown);
+
+				const auto cnt = (uint32_t)m_header.count;
+
+				// Store entity data
+				{
+					const auto* pData = m_records.pEntities;
+					GAIA_FOR(cnt) {
+						s.save(pData[i]);
+					}
+				}
+
+				// Store component data
+				{
+					for (const auto& rec: comp_rec_view()) {
+						// Save component data if there's size associated with it
+						if (rec.comp.size() == 0)
+							continue;
+
+						GAIA_FOR(cnt) {
+							const uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
+							s.save(dst, rec.comp.size());
+						}
+					}
+				}
+			}
+
+			void load(SerializationBufferDyn& s) {
+				uint16_t prevCount = m_header.count;
+				s.load(m_header.count);
+				s.load(m_header.countEnabled);
+
+				uint16_t dead = 0;
+				uint16_t lifespanCountdown = 0;
+				s.load(dead);
+				s.load(lifespanCountdown);
+				m_header.dead = dead != 0;
+				m_header.lifespanCountdown = lifespanCountdown;
+
+				const auto cnt = (uint32_t)m_header.count;
+
+				// Load entity data
+				{
+					GAIA_FOR(cnt) {
+						Entity e;
+						s.load(e);
+						// e.data.gen = 0; // Reset generation to 0
+
+						entity_view_mut()[i] = e;
+					}
+				}
+
+				// Load component data. Call constructors first as necessary.
+				call_gen_ctors(prevCount, cnt);
+				{
+					for (const auto& rec: comp_rec_view()) {
+						if (rec.comp.size() == 0)
+							continue;
+
+						GAIA_FOR(cnt) {
+							uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
+							s.load(dst, rec.comp.size());
+						}
+					}
+				}
 			}
 
 			//! Remove the last entity from a chunk.
@@ -21784,7 +22029,7 @@ namespace gaia {
 					// Try swapping our entity with the last disabled one
 					const auto entity = entity_view()[row];
 					swap_chunk_entities(--m_header.rowFirstEnabledEntity, row, recs);
-					recs[entity].dis = 0;
+					recs[entity].data.dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -21796,7 +22041,7 @@ namespace gaia {
 					// Try swapping our entity with the last one in our chunk
 					const auto entity = entity_view()[row];
 					swap_chunk_entities(m_header.rowFirstEnabledEntity++, row, recs);
-					recs[entity].dis = 1;
+					recs[entity].data.dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -21827,22 +22072,6 @@ namespace gaia {
 			//----------------------------------------------------------------------
 			// Component handling
 			//----------------------------------------------------------------------
-
-			bool has_custom_gen_ctor() const {
-				return m_header.hasAnyCustomGenCtor;
-			}
-
-			bool has_custom_uni_ctor() const {
-				return m_header.hasAnyCustomUniCtor;
-			}
-
-			bool has_custom_gen_dtor() const {
-				return m_header.hasAnyCustomGenDtor;
-			}
-
-			bool has_custom_uni_dtor() const {
-				return m_header.hasAnyCustomUniDtor;
-			}
 
 			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
 				if (item.func_ctor == nullptr)
@@ -22549,6 +22778,68 @@ namespace gaia {
 			Archetype(const Archetype&) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
+
+			void save(SerializationBufferDyn& s) {
+				s.save(m_firstFreeChunkIdx);
+				s.save(m_listIdx);
+
+				s.save((uint32_t)m_chunks.size());
+				for (auto* pChunk: m_chunks) {
+					s.save(pChunk->idx());
+
+					const auto pos0 = s.tell(); // Save the position saving chunk data
+					s.save(0); // Placeholder for the position of the next chunk data
+
+					pChunk->save(s);
+
+					// Save where to jump in case we decide not to read data stored by the archetype
+					auto pos1 = s.tell();
+					s.seek(pos0);
+					s.save(pos1);
+					s.seek(pos1);
+				}
+			}
+
+			void load(SerializationBufferDyn& s) {
+				s.load(m_firstFreeChunkIdx);
+				s.load(m_listIdx);
+
+				uint32_t chunkCnt = 0;
+				s.load(chunkCnt);
+				m_chunks.resize(chunkCnt);
+
+				GAIA_FOR(chunkCnt) {
+					uint32_t chunkIdx = 0;
+					s.load(chunkIdx);
+
+					uint32_t nextChunkPos = 0;
+					s.load(nextChunkPos);
+
+					auto* pChunk = m_chunks[chunkIdx];
+					// If the chunk doesn't exist it means it's not a part of the initial setup.
+					if (pChunk == nullptr) {
+						pChunk = Chunk::create(
+								m_world, m_cc, chunkIdx, //
+								m_properties.capacity, m_properties.cntEntities, //
+								m_properties.genEntities, m_properties.chunkDataBytes, //
+								m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
+						m_chunks[chunkIdx] = pChunk;
+
+						// Set the chunk index
+						pChunk->set_idx(chunkIdx);
+
+						pChunk->load(s);
+					}
+
+					// Make sure we are where we should be
+					s.seek(nextChunkPos);
+
+					// Make sure the chunk index is correct
+					GAIA_ASSERT(pChunk->idx() == chunkIdx);
+					// Make sure the chunk is a part of the chunk array
+					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
+				}
+			}
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
@@ -23380,159 +23671,6 @@ namespace gaia {
 #pragma once
 
 #include <type_traits>
-
-
-/*** Start of inlined file: data_buffer.h ***/
-#pragma once
-
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		namespace detail {
-			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
-
-			template <typename DataContainer>
-			class SerializationBufferImpl {
-				// Increase the capacity by multiples of CapacityIncreaseSize
-				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
-
-				//! Buffer holding raw data
-				DataContainer m_data;
-				//! Current position in the buffer
-				uint32_t m_dataPos = 0;
-
-			public:
-				void reset() {
-					m_dataPos = 0;
-					m_data.clear();
-				}
-
-				//! Returns the number of bytes written in the buffer
-				GAIA_NODISCARD uint32_t bytes() const {
-					return (uint32_t)m_data.size();
-				}
-
-				//! Returns true if there is no data written in the buffer
-				GAIA_NODISCARD bool empty() const {
-					return m_data.empty();
-				}
-
-				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-				void reserve(uint32_t size) {
-					const auto nextSize = m_dataPos + size;
-					if (nextSize <= bytes())
-						return;
-
-					// Make sure there is enough capacity to hold our data
-					const auto newSize = bytes() + size;
-					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-					m_data.reserve(newCapacity);
-				}
-
-				//! Changes the current position in the buffer
-				void seek(uint32_t pos) {
-					m_dataPos = pos;
-				}
-
-				//! Returns the current position in the buffer
-				GAIA_NODISCARD uint32_t tell() const {
-					return m_dataPos;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save(T&& value) {
-					reserve(sizeof(T));
-
-					m_data.resize(m_dataPos + sizeof(T));
-					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
-					mem = GAIA_FWD(value);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-				void save(const void* pSrc, uint32_t size) {
-					reserve(size);
-
-					// Copy "size" bytes of raw data starting at pSrc
-					m_data.resize(m_dataPos + size);
-					memcpy((void*)&m_data[m_dataPos], pSrc, size);
-
-					m_dataPos += size;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save_comp(const ComponentCacheItem& item, T&& value) {
-					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && item.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param value from the buffer
-				template <typename T>
-				void load(T& value) {
-					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-				void load(void* pDst, uint32_t size) {
-					GAIA_ASSERT(m_dataPos + size <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					memmove(pDst, (const void*)&cdata[m_dataPos], size);
-
-					m_dataPos += size;
-				}
-
-				//! Loads \param value from the buffer
-				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					const auto& desc = cc.get(entity);
-					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					desc.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						desc.dtor(pSrc);
-
-					m_dataPos += desc.comp.size();
-				}
-			};
-		} // namespace detail
-
-		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
-		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
-
-		class SerializationBuffer: public detail::SerializationBufferImpl<SerializationBuffer_DArrExt> {};
-		class SerializationBufferDyn: public detail::SerializationBufferImpl<SerializationBuffer_DArr> {};
-	} // namespace ecs
-} // namespace gaia
-/*** End of inlined file: data_buffer.h ***/
 
 namespace gaia {
 	namespace ecs {
@@ -26001,7 +26139,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = id;
-				info.gen = 0;
+				info.data.gen = 0;
 
 				info.m_ctx = GAIA_MOV(ctx);
 				info.m_ctx.q.handle = {id, 0};
@@ -26023,7 +26161,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = idx;
-				info.gen = gen;
+				info.data.gen = gen;
 
 				info.m_ctx = GAIA_MOV(queryCtx);
 				info.m_ctx.q.handle = {idx, gen};
@@ -26035,7 +26173,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
-				return QueryHandle(info.idx, info.gen);
+				return QueryHandle(info.idx, info.data.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
@@ -26324,7 +26462,7 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				auto queryIds = data().ids_view();
+				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_ctx.data._remapping[i];
@@ -26502,10 +26640,6 @@ namespace gaia {
 				return m_ctx;
 			}
 
-			GAIA_NODISCARD const QueryCtx::Data& data() const {
-				return m_ctx.data;
-			}
-
 			GAIA_NODISCARD bool has_filters() const {
 				return m_ctx.data.changedCnt > 0;
 			}
@@ -26654,7 +26788,7 @@ namespace gaia {
 					return false;
 
 				const auto& h = m_queryArr[handle.id()];
-				return h.idx == handle.id() && h.gen == handle.gen();
+				return h.idx == handle.id() && h.data.gen == handle.gen();
 			}
 
 			void clear() {
@@ -26672,7 +26806,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.gen == handle.gen());
+				GAIA_ASSERT(info.data.gen == handle.gen());
 				return &info;
 			};
 
@@ -26684,7 +26818,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.gen == handle.gen());
+				GAIA_ASSERT(info.data.gen == handle.gen());
 				return info;
 			};
 
@@ -26721,7 +26855,7 @@ namespace gaia {
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
-				add_entity_to_query_pairs(info.data().ids_view(), handle);
+				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
 
 				return info;
 			}
@@ -26743,7 +26877,7 @@ namespace gaia {
 				m_queryArr.free(handle);
 
 				// Remove the entity->query pair
-				del_entity_to_query_pairs(pInfo->data().ids_view(), handle);
+				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
 
 				return true;
 			}
@@ -27113,7 +27247,7 @@ namespace gaia {
 
 				QueryImplStorage() {
 					m_queryInfo.idx = QueryIdBad;
-					m_queryInfo.gen = QueryIdBad;
+					m_queryInfo.data.gen = QueryIdBad;
 				}
 
 				GAIA_NODISCARD World* world() {
@@ -27547,7 +27681,7 @@ namespace gaia {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
-					const auto& filtered = queryInfo.data().changed_view();
+					const auto& filtered = queryInfo.ctx().data.changed_view();
 
 					// Skip unchanged chunks
 					if (filtered.empty())
@@ -27826,9 +27960,9 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
+								queryInfo.ctx().data.groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
+								data.groupId == queryInfo.ctx().data.groupIdSet);
 #endif
 
 						uint32_t chunkOffset = 0;
@@ -27891,9 +28025,9 @@ namespace gaia {
 						const auto& data = dataView[i];
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
+								queryInfo.ctx().data.groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
+								data.groupId == queryInfo.ctx().data.groupIdSet);
 					}
 #endif
 
@@ -27959,8 +28093,8 @@ namespace gaia {
 					if (cache_view.empty())
 						return;
 
-					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.ctx().data.groupIdSet != 0;
 					if (!isGroupBy || !isGroupSet) {
 						// No group requested or group filtering is currently turned off
 						const auto idxFrom = 0;
@@ -27976,7 +28110,7 @@ namespace gaia {
 						auto group_data_view = queryInfo.group_data_view();
 						const auto cnt = group_data_view.size();
 						GAIA_FOR(cnt) {
-							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
+							if (group_data_view[i].groupId != queryInfo.ctx().data.groupIdSet)
 								continue;
 
 							const auto idxFrom = group_data_view[i].idxFirst;
@@ -29091,7 +29225,9 @@ namespace gaia {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
 						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
-							auto rel = Entity(entity.id(), ecRel.gen, (bool)ecRel.ent, (bool)ecRel.pair, (EntityKind)ecRel.kind);
+							auto rel = Entity(
+									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
+									(EntityKind)ecRel.data.kind);
 							auto tgt = m_world.get(entity.gen());
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
@@ -29496,7 +29632,7 @@ namespace gaia {
 				GAIA_ASSERT(valid_entity_id(id));
 
 				const auto& ec = m_recs.entities[id];
-				return Entity(id, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind);
+				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
 			}
 
 			template <typename T>
@@ -30666,7 +30802,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				const bool entityStateInContainer = !ec.dis;
+				const bool entityStateInContainer = !ec.data.dis;
 #if GAIA_ASSERT_ENABLED
 				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
 				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
@@ -30859,7 +30995,7 @@ namespace gaia {
 				m_compCache.clear();
 			}
 
-			GAIA_NODISCARD bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) const {
+			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
 				if (is_req_del(ec))
 					return false;
 
@@ -30930,10 +31066,11 @@ namespace gaia {
 					return false;
 
 				const auto& ec = m_recs.entities[entityId];
-				if (ec.pair != 0)
+				if (ec.data.pair != 0)
 					return false;
 
-				return valid(ec, Entity(entityId, ec.gen, (bool)ec.ent, (bool)ec.pair, (EntityKind)ec.kind));
+				return valid(
+						ec, Entity(entityId, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind));
 			}
 
 			//! Locks the chunk for structural changes.
@@ -30956,6 +31093,244 @@ namespace gaia {
 			//! Checks if the chunk is locked for structural changes.
 			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
+			}
+
+			SerializationBufferDyn save() {
+				SerializationBufferDyn s;
+
+				// Version number, currently unused
+				s.save((uint32_t)0);
+
+				// Store the index of the last core component.
+				// TODO: As this changes, we will have to modify entity ids accordingly.
+				const auto lastCoreComponentId = GAIA_ID(LastCoreComponent).id();
+				s.save(lastCoreComponentId);
+
+				// Entities
+				{
+					auto saveEntityContainer = [&](const EntityContainer& ec) {
+						s.save(ec.idx);
+						s.save(ec.dataRaw);
+						s.save(ec.row);
+						s.save(ec.flags);
+#if GAIA_USE_SAFE_ENTITY
+						s.save(ec.refCnt);
+#else
+						s.save((uint32_t)0);
+#endif
+						s.save(ec.pArchetype->list_idx());
+						s.save(ec.pChunk->idx());
+					};
+
+					const auto recEntities = (uint32_t)m_recs.entities.size();
+					const auto newEntities = recEntities - lastCoreComponentId;
+					s.save(newEntities);
+					GAIA_FOR2(lastCoreComponentId, recEntities) {
+						const auto& ec = m_recs.entities[i];
+						saveEntityContainer(ec);
+					}
+
+					const auto pos0 = s.tell(); // Save the current position in the stream
+					uint32_t pairsCnt = 0;
+					{
+						s.save(0);
+						for (const auto& pair: m_recs.pairs) {
+							// Skip core pairs
+							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
+								continue;
+
+							++pairsCnt;
+							saveEntityContainer(pair.second);
+						}
+					}
+					const auto pos1 = s.tell(); // Save the position after pairs
+					s.seek(pos0);
+					s.save(pairsCnt);
+					s.seek(pos1);
+
+					s.save(m_recs.entities.m_nextFreeIdx);
+					s.save(m_recs.entities.m_freeItems);
+				}
+
+				// World
+				{
+					s.save((uint32_t)m_archetypes.size());
+					for (auto* pArchetype: m_archetypes) {
+						s.save((uint32_t)pArchetype->ids_view().size());
+						for (auto e: pArchetype->ids_view())
+							s.save(e);
+
+						pArchetype->save(s);
+					}
+
+					s.save(m_worldVersion);
+				}
+
+				// Entity names
+				{
+					s.save((uint32_t)m_nameToEntity.size());
+					for (const auto& pair: m_nameToEntity) {
+						s.save(pair.second);
+					}
+				}
+
+				return s;
+			}
+
+			bool load(SerializationBufferDyn& s) {
+				// Move back to the beginning of the stream
+				s.seek(0);
+
+				// Version number, currently unused
+				uint32_t version = 0;
+				s.load(version);
+				if (version != 0) {
+					GAIA_LOG_E("Unsupported world version %u. Expected 0.", version);
+					return false;
+				}
+
+				// Store the index of the last core component. As they change, we will have to modify entity ids accordingly.
+				uint32_t lastCoreComponentId = 0;
+				s.load(lastCoreComponentId);
+
+				// Entities
+				{
+					auto loadEntityContainer = [&](EntityContainer& ec) {
+						s.load(ec.idx);
+						s.load(ec.dataRaw);
+						s.load(ec.row);
+						s.load(ec.flags);
+						ec.flags |= EntityContainerFlags::Load;
+
+#if GAIA_USE_SAFE_ENTITY
+						s.load(ec.refCnt);
+#else
+						s.load(ec.unused);
+						// if this value is different from zero, it means we are trying to load data
+						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
+						// because if your program used reference counting it probably won't work correctly.
+						GAIA_ASSERT(ec.unused == 0);
+#endif
+
+						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
+						uint32_t archetypeIdx = 0;
+						s.load(archetypeIdx);
+						ec.pArchetype = (Archetype*)((uintptr_t)archetypeIdx);
+						// Store the chunk idx inside the pointer. We will decode this once chunks are created.
+						uint32_t chunkIdx = 0;
+						s.load(chunkIdx);
+						ec.pChunk = (Chunk*)((uintptr_t)chunkIdx);
+					};
+
+					uint32_t newEntities = 0;
+					s.load(newEntities);
+					GAIA_FOR(newEntities) {
+						EntityContainer ec;
+						loadEntityContainer(ec);
+
+						// Reset generation to zero. We don't need it when recreating entities.
+						// ec.data.gen = 0;
+
+						m_recs.entities.m_items.add_item(GAIA_MOV(ec));
+					}
+
+					uint32_t pairsCnt = 0;
+					s.load(pairsCnt);
+					GAIA_FOR(pairsCnt) {
+						EntityContainer ec{};
+						loadEntityContainer(ec);
+						Entity pair(ec.idx, ec.data.gen);
+						m_recs.pairs.emplace(EntityLookupKey(pair), GAIA_MOV(ec));
+					}
+
+					s.load(m_recs.entities.m_nextFreeIdx);
+					s.load(m_recs.entities.m_freeItems);
+				}
+
+				// World
+				{
+					uint32_t archetypesSize = 0;
+					s.load(archetypesSize);
+					m_archetypes.reserve(archetypesSize);
+					GAIA_FOR(archetypesSize) {
+						uint32_t idsSize = 0;
+						s.load(idsSize);
+						Entity ids[ChunkHeader::MAX_COMPONENTS];
+						GAIA_FOR_(idsSize, j) {
+							s.load(ids[j]);
+							// if (!ids[j].pair())
+							// 	ids[j].data.gen = 0; // Reset generation to zero
+						}
+
+						// Calculate the lookup hash
+						const auto hashLookup = calc_lookup_hash({&ids[0], idsSize}).hash;
+
+						auto* pArchetype = find_archetype({hashLookup}, {&ids[0], idsSize});
+						if (pArchetype == nullptr) {
+							// Create the archetype
+							pArchetype = create_archetype({&ids[0], idsSize});
+							pArchetype->set_hashes({hashLookup});
+
+							// No need to do anything with the archetype graph. It will build itself naturally.
+							// pArchetype->build_graph_edges(pArchetypeRight, entity);
+
+							// Register the archetype in the world
+							reg_archetype(pArchetype);
+						}
+
+						// Load archetype data
+						pArchetype->load(s);
+					}
+
+					s.load(m_worldVersion);
+				}
+
+				// Update entity records.
+				// We previously encoded the archetype id into refCnt.
+				// Now we need to convert it back to the pointer.
+				{
+					for (auto& ec: m_recs.entities) {
+						if ((ec.flags & EntityContainerFlags::Load) == 0)
+							continue;
+						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+
+						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
+						ec.pArchetype = m_archetypes[archetypeIdx];
+						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
+						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+						GAIA_LOG_N("");
+					}
+					for (auto& pair: m_recs.pairs) {
+						auto& ec = pair.second;
+
+						if ((ec.flags & EntityContainerFlags::Load) == 0)
+							continue;
+						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
+
+						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
+						ec.pArchetype = m_archetypes[archetypeIdx];
+						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
+						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+					}
+				}
+
+				// Entity names
+				{
+					uint32_t cnt = 0;
+					s.load(cnt);
+					GAIA_FOR(cnt) {
+						Entity entity;
+						s.load(entity);
+						// entity.data.gen = 0; // Reset generation to zero
+
+						const auto& ec = fetch(entity);
+						const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+
+						m_nameToEntity.emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+					}
+				}
+
+				return false;
 			}
 
 		private:
@@ -31251,7 +31626,7 @@ namespace gaia {
 
 						const auto srcRow = ec.row;
 						const auto dstRow = pDstChunk->add_entity(entity);
-						const bool wasEnabled = !ec.dis;
+						const bool wasEnabled = !ec.data.dis;
 
 						// Make sure the old entity becomes enabled now
 						archetype.enable_entity(pSrcChunk, srcRow, true, m_recs);
@@ -31429,6 +31804,7 @@ namespace gaia {
 						m_archetypesById.emplace(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()), pArchetype);
 				[[maybe_unused]] const auto it1 =
 						m_archetypesByHash.emplace(ArchetypeLookupKey(pArchetype->lookup_hash(), pArchetype), pArchetype);
+
 				GAIA_ASSERT(it0.second);
 				GAIA_ASSERT(it1.second);
 
@@ -32446,8 +32822,8 @@ namespace gaia {
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
-				GAIA_ASSERT(entity.pair() || ec.gen == entity.gen());
-				ec.dis = 0;
+				GAIA_ASSERT(entity.pair() || ec.data.gen == entity.gen());
+				ec.data.dis = 0;
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one.
@@ -32466,7 +32842,7 @@ namespace gaia {
 
 				const auto srcRow0 = ec.row;
 				const auto dstRow = pDstChunk->add_entity(entity);
-				const bool wasEnabled = !ec.dis;
+				const bool wasEnabled = !ec.data.dis;
 
 				auto& srcArchetype = *ec.pArchetype;
 #if GAIA_ASSERT_ENABLED
@@ -32823,10 +33199,10 @@ namespace gaia {
 				// Update the container record
 				EntityContainer ec{};
 				ec.idx = entity.id();
-				ec.gen = entity.gen();
-				ec.pair = 1;
-				ec.ent = 1;
-				ec.kind = EntityKind::EK_Gen;
+				ec.data.gen = entity.gen();
+				ec.data.pair = 1;
+				ec.data.ent = 1;
+				ec.data.kind = EntityKind::EK_Gen;
 
 				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(ec, entity, &archetype, pChunk);

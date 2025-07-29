@@ -12,47 +12,53 @@ namespace gaia {
 		struct ilist_item_base {};
 
 		struct ilist_item: public ilist_item_base {
+			struct ItemData {
+				//! Generation ID
+				uint32_t gen;
+			};
+
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
-			//! Generation ID
-			uint32_t gen;
+			//! Item data
+			ItemData data;
 
 			ilist_item() = default;
-			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
+			ilist_item(uint32_t index, uint32_t generation): idx(index) {
+				data.gen = generation;
+			}
 
 			ilist_item(const ilist_item& other) {
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 			}
 			ilist_item& operator=(const ilist_item& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 				return *this;
 			}
 
 			ilist_item(ilist_item&& other) {
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 
 				other.idx = (uint32_t)-1;
-				other.gen = (uint32_t)-1;
+				other.data.gen = (uint32_t)-1;
 			}
 			ilist_item& operator=(ilist_item&& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
-				gen = other.gen;
+				data.gen = other.data.gen;
 
 				other.idx = (uint32_t)-1;
-				other.gen = (uint32_t)-1;
+				other.data.gen = (uint32_t)-1;
 				return *this;
 			}
 		};
 
 		template <typename TListItem>
-		class darray_ilist_storage: public cnt::darray<TListItem> {
-		public:
+		struct darray_ilist_storage: public cnt::darray<TListItem> {
 			void add_item(TListItem&& container) {
 				this->push_back(GAIA_MOV(container));
 			}
@@ -172,7 +178,7 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				j = TListItem::create(index, j.gen, ctx);
+				j = TListItem::create(index, j.data.gen, ctx);
 				return TListItem::handle(j);
 			}
 
@@ -202,7 +208,7 @@ namespace gaia {
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
 				m_nextFreeIdx = j.idx;
-				return {index, m_items[index].gen};
+				return {index, m_items[index].data.gen};
 			}
 
 			//! Invalidates \param handle.
@@ -216,7 +222,7 @@ namespace gaia {
 					item.idx = TItemHandle::IdMask;
 				else
 					item.idx = m_nextFreeIdx;
-				++item.gen;
+				++item.data.gen;
 
 				m_nextFreeIdx = handle.id();
 				++m_freeItems;

@@ -1867,49 +1867,49 @@ TEST_CASE("Containers - ilist") {
 		il[handles[0].id()].value = 100;
 		CHECK(handles[0].id() == 0);
 		CHECK(il[0].idx == 0);
-		CHECK(handles[0].gen() == il[0].gen);
-		CHECK(il[0].gen == 0);
+		CHECK(handles[0].gen() == il[0].data.gen);
+		CHECK(il[0].data.gen == 0);
 		handles[1] = il.alloc();
 		il[handles[1].id()].value = 200;
 		CHECK(handles[1].id() == 1);
 		CHECK(il[1].idx == 1);
-		CHECK(handles[1].gen() == il[1].gen);
-		CHECK(il[1].gen == 0);
+		CHECK(handles[1].gen() == il[1].data.gen);
+		CHECK(il[1].data.gen == 0);
 		handles[2] = il.alloc();
 		il[handles[2].id()].value = 300;
 		CHECK(handles[2].id() == 2);
 		CHECK(il[2].idx == 2);
-		CHECK(handles[2].gen() == il[2].gen);
-		CHECK(il[2].gen == 0);
+		CHECK(handles[2].gen() == il[2].data.gen);
+		CHECK(il[2].data.gen == 0);
 
 		il.free(handles[2]);
 		CHECK(il[2].idx == ecs::Entity::IdMask);
-		CHECK(il[2].gen == 1);
+		CHECK(il[2].data.gen == 1);
 		il.free(handles[1]);
 		CHECK(il[1].idx == 2);
-		CHECK(il[1].gen == 1);
+		CHECK(il[1].data.gen == 1);
 		il.free(handles[0]);
 		CHECK(il[0].idx == 1);
-		CHECK(il[0].gen == 1);
+		CHECK(il[0].data.gen == 1);
 
 		handles[0] = il.alloc();
 		CHECK(handles[0].id() == 0);
 		CHECK(il[0].value == 100);
 		CHECK(il[0].idx == 1);
-		CHECK(handles[0].gen() == il[0].gen);
-		CHECK(il[0].gen == 1);
+		CHECK(handles[0].gen() == il[0].data.gen);
+		CHECK(il[0].data.gen == 1);
 		handles[1] = il.alloc();
 		CHECK(handles[1].id() == 1);
 		CHECK(il[1].value == 200);
 		CHECK(il[1].idx == 2);
-		CHECK(handles[1].gen() == il[1].gen);
-		CHECK(il[1].gen == 1);
+		CHECK(handles[1].gen() == il[1].data.gen);
+		CHECK(il[1].data.gen == 1);
 		handles[2] = il.alloc();
 		CHECK(handles[2].id() == 2);
 		CHECK(il[2].value == 300);
 		CHECK(il[2].idx == ecs::Entity::IdMask);
-		CHECK(handles[2].gen() == il[2].gen);
-		CHECK(il[2].gen == 1);
+		CHECK(handles[2].gen() == il[2].data.gen);
+		CHECK(il[2].data.gen == 1);
 	}
 	SECTION("2 -> 1 -> 0") {
 		cnt::ilist<EntityContainer, ecs::Entity> il;
@@ -1919,52 +1919,52 @@ TEST_CASE("Containers - ilist") {
 		il[handles[0].id()].value = 100;
 		CHECK(handles[0].id() == 0);
 		CHECK(il[0].idx == 0);
-		CHECK(handles[0].gen() == il[0].gen);
-		CHECK(il[0].gen == 0);
+		CHECK(handles[0].gen() == il[0].data.gen);
+		CHECK(il[0].data.gen == 0);
 		handles[1] = il.alloc();
 		il[handles[1].id()].value = 200;
 		CHECK(handles[1].id() == 1);
 		CHECK(il[1].idx == 1);
-		CHECK(handles[1].gen() == il[1].gen);
-		CHECK(il[1].gen == 0);
+		CHECK(handles[1].gen() == il[1].data.gen);
+		CHECK(il[1].data.gen == 0);
 		handles[2] = il.alloc();
 		il[handles[2].id()].value = 300;
 		CHECK(handles[2].id() == 2);
 		CHECK(il[2].idx == 2);
-		CHECK(handles[2].gen() == il[2].gen);
-		CHECK(il[2].gen == 0);
+		CHECK(handles[2].gen() == il[2].data.gen);
+		CHECK(il[2].data.gen == 0);
 
 		il.free(handles[0]);
 		CHECK(il[0].idx == ecs::Entity::IdMask);
-		CHECK(il[0].gen == 1);
+		CHECK(il[0].data.gen == 1);
 		il.free(handles[1]);
 		CHECK(il[1].idx == 0);
-		CHECK(il[1].gen == 1);
+		CHECK(il[1].data.gen == 1);
 		il.free(handles[2]);
 		CHECK(il[2].idx == 1);
-		CHECK(il[2].gen == 1);
+		CHECK(il[2].data.gen == 1);
 
 		handles[0] = il.alloc();
 		CHECK(handles[0].id() == 2);
 		const auto idx0 = handles[0].id();
 		CHECK(il[idx0].value == 300);
 		CHECK(il[idx0].idx == 1);
-		CHECK(handles[0].gen() == il[idx0].gen);
-		CHECK(il[idx0].gen == 1);
+		CHECK(handles[0].gen() == il[idx0].data.gen);
+		CHECK(il[idx0].data.gen == 1);
 		handles[1] = il.alloc();
 		CHECK(handles[1].id() == 1);
 		const auto idx1 = handles[1].id();
 		CHECK(il[idx1].value == 200);
 		CHECK(il[idx1].idx == 0);
-		CHECK(handles[1].gen() == il[idx1].gen);
-		CHECK(il[idx1].gen == 1);
+		CHECK(handles[1].gen() == il[idx1].data.gen);
+		CHECK(il[idx1].data.gen == 1);
 		handles[2] = il.alloc();
 		CHECK(handles[2].id() == 0);
 		const auto idx2 = handles[2].id();
 		CHECK(il[idx2].value == 100);
 		CHECK(il[idx2].idx == ecs::Entity::IdMask);
-		CHECK(handles[2].gen() == il[idx2].gen);
-		CHECK(il[idx2].gen == 1);
+		CHECK(handles[2].gen() == il[idx2].data.gen);
+		CHECK(il[idx2].data.gen == 1);
 	}
 }
 
@@ -9382,6 +9382,45 @@ TEST_CASE("Serialization - arrays") {
 		for (auto& a: out.arr)
 			delete a.ptr;
 	}
+}
+
+TEST_CASE("Serialization - world simple") {
+	ecs::World in;
+
+	in.add<Position>();
+
+	ecs::Entity eats = in.add();
+	ecs::Entity carrot = in.add();
+	ecs::Entity salad = in.add();
+	ecs::Entity apple = in.add();
+
+	in.add<Position>(eats, {1, 2, 3});
+	in.name(eats, "Eats");
+	in.name(carrot, "Carrot");
+	in.name(salad, "Salad");
+	in.name(apple, "Apple");
+
+	in.diag_archetypes();
+
+	auto buffer = in.save();
+
+	TestWorld twld;
+	wld.add<Position>();
+	wld.load(buffer);
+
+	Position pos = wld.get<Position>(eats);
+	CHECK(pos.x == 1.f);
+	CHECK(pos.y == 2.f);
+	CHECK(pos.z == 3.f);
+
+	auto eats2 = wld.get("Eats");
+	auto carrot2 = wld.get("Carrot");
+	auto salad2 = wld.get("Salad");
+	auto apple2 = wld.get("Apple");
+	CHECK(eats2 == eats);
+	CHECK(carrot2 == carrot);
+	CHECK(salad2 == salad);
+	CHECK(apple2 == apple);
 }
 
 //------------------------------------------------------------------------------

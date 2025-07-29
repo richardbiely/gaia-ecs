@@ -312,7 +312,7 @@ namespace gaia {
 
 				QueryImplStorage() {
 					m_queryInfo.idx = QueryIdBad;
-					m_queryInfo.gen = QueryIdBad;
+					m_queryInfo.data.gen = QueryIdBad;
 				}
 
 				GAIA_NODISCARD World* world() {
@@ -746,7 +746,7 @@ namespace gaia {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
-					const auto& filtered = queryInfo.data().changed_view();
+					const auto& filtered = queryInfo.ctx().data.changed_view();
 
 					// Skip unchanged chunks
 					if (filtered.empty())
@@ -1025,9 +1025,9 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
+								queryInfo.ctx().data.groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
+								data.groupId == queryInfo.ctx().data.groupIdSet);
 #endif
 
 						uint32_t chunkOffset = 0;
@@ -1090,9 +1090,9 @@ namespace gaia {
 						const auto& data = dataView[i];
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.data().groupIdSet == 0 ||
+								queryInfo.ctx().data.groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.data().groupIdSet);
+								data.groupId == queryInfo.ctx().data.groupIdSet);
 					}
 #endif
 
@@ -1158,8 +1158,8 @@ namespace gaia {
 					if (cache_view.empty())
 						return;
 
-					const bool isGroupBy = queryInfo.data().groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.data().groupIdSet != 0;
+					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
+					const bool isGroupSet = queryInfo.ctx().data.groupIdSet != 0;
 					if (!isGroupBy || !isGroupSet) {
 						// No group requested or group filtering is currently turned off
 						const auto idxFrom = 0;
@@ -1175,7 +1175,7 @@ namespace gaia {
 						auto group_data_view = queryInfo.group_data_view();
 						const auto cnt = group_data_view.size();
 						GAIA_FOR(cnt) {
-							if (group_data_view[i].groupId != queryInfo.data().groupIdSet)
+							if (group_data_view[i].groupId != queryInfo.ctx().data.groupIdSet)
 								continue;
 
 							const auto idxFrom = group_data_view[i].idxFirst;

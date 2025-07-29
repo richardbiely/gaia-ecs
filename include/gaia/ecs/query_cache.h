@@ -77,7 +77,7 @@ namespace gaia {
 					return false;
 
 				const auto& h = m_queryArr[handle.id()];
-				return h.idx == handle.id() && h.gen == handle.gen();
+				return h.idx == handle.id() && h.data.gen == handle.gen();
 			}
 
 			void clear() {
@@ -95,7 +95,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.gen == handle.gen());
+				GAIA_ASSERT(info.data.gen == handle.gen());
 				return &info;
 			};
 
@@ -107,7 +107,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.gen == handle.gen());
+				GAIA_ASSERT(info.data.gen == handle.gen());
 				return info;
 			};
 
@@ -144,7 +144,7 @@ namespace gaia {
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
-				add_entity_to_query_pairs(info.data().ids_view(), handle);
+				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
 
 				return info;
 			}
@@ -166,7 +166,7 @@ namespace gaia {
 				m_queryArr.free(handle);
 
 				// Remove the entity->query pair
-				del_entity_to_query_pairs(pInfo->data().ids_view(), handle);
+				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
 
 				return true;
 			}

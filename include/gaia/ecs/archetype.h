@@ -18,6 +18,7 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
+#include "data_buffer.h"
 #include "id.h"
 #include "query_mask.h"
 
@@ -279,6 +280,68 @@ namespace gaia {
 			Archetype(const Archetype&) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
+
+			void save(SerializationBufferDyn& s) {
+				s.save(m_firstFreeChunkIdx);
+				s.save(m_listIdx);
+
+				s.save((uint32_t)m_chunks.size());
+				for (auto* pChunk: m_chunks) {
+					s.save(pChunk->idx());
+
+					const auto pos0 = s.tell(); // Save the position saving chunk data
+					s.save(0); // Placeholder for the position of the next chunk data
+
+					pChunk->save(s);
+
+					// Save where to jump in case we decide not to read data stored by the archetype
+					auto pos1 = s.tell();
+					s.seek(pos0);
+					s.save(pos1);
+					s.seek(pos1);
+				}
+			}
+
+			void load(SerializationBufferDyn& s) {
+				s.load(m_firstFreeChunkIdx);
+				s.load(m_listIdx);
+
+				uint32_t chunkCnt = 0;
+				s.load(chunkCnt);
+				m_chunks.resize(chunkCnt);
+
+				GAIA_FOR(chunkCnt) {
+					uint32_t chunkIdx = 0;
+					s.load(chunkIdx);
+
+					uint32_t nextChunkPos = 0;
+					s.load(nextChunkPos);
+
+					auto* pChunk = m_chunks[chunkIdx];
+					// If the chunk doesn't exist it means it's not a part of the initial setup.
+					if (pChunk == nullptr) {
+						pChunk = Chunk::create(
+								m_world, m_cc, chunkIdx, //
+								m_properties.capacity, m_properties.cntEntities, //
+								m_properties.genEntities, m_properties.chunkDataBytes, //
+								m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
+						m_chunks[chunkIdx] = pChunk;
+
+						// Set the chunk index
+						pChunk->set_idx(chunkIdx);
+
+						pChunk->load(s);
+					}
+
+					// Make sure we are where we should be
+					s.seek(nextChunkPos);
+
+					// Make sure the chunk index is correct
+					GAIA_ASSERT(pChunk->idx() == chunkIdx);
+					// Make sure the chunk is a part of the chunk array
+					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
+				}
+			}
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
