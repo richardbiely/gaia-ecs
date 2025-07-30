@@ -56,14 +56,14 @@ namespace gaia {
 				QueryInput item;
 
 				void exec(QueryCtx& ctx) const {
-					auto& data = ctx.data;
+					auto& ctxData = ctx.data;
 
 #if GAIA_DEBUG
 					// Unique component ids only
-					GAIA_ASSERT(!core::has(data.ids_view(), item.id));
+					GAIA_ASSERT(!core::has(ctxData.ids_view(), item.id));
 
 					// There's a limit to the amount of query items which we can store
-					if (data.idsCnt >= MAX_ITEMS_IN_QUERY) {
+					if (ctxData.idsCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
 						const auto* name = ctx.cc->get(item.id).name.str();
@@ -75,16 +75,16 @@ namespace gaia {
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
-					data.readWriteMask |= (isReadWrite << data.idsCnt);
+					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
-					data._remapping[data.idsCnt] = data.idsCnt;
+					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
-					data._ids[data.idsCnt] = item.id;
-					data._terms[data.idsCnt] = {item.id, item.src, nullptr, item.op};
-					++data.idsCnt;
+					ctxData._ids[ctxData.idsCnt] = item.id;
+					ctxData._terms[ctxData.idsCnt] = {item.id, item.src, nullptr, item.op};
+					++ctxData.idsCnt;
 				}
 			};
 
@@ -95,14 +95,14 @@ namespace gaia {
 				Entity comp;
 
 				void exec(QueryCtx& ctx) const {
-					auto& data = ctx.data;
+					auto& ctxData = ctx.data;
 
 #if GAIA_DEBUG
-					GAIA_ASSERT(core::has(data.ids_view(), comp));
-					GAIA_ASSERT(!core::has(data.changed_view(), comp));
+					GAIA_ASSERT(core::has(ctxData.ids_view(), comp));
+					GAIA_ASSERT(!core::has(ctxData.changed_view(), comp));
 
 					// There's a limit to the amount of components which we can store
-					if (data.changedCnt >= MAX_ITEMS_IN_QUERY) {
+					if (ctxData.changedCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 						const auto* compName = ctx.cc->get(comp).name.str();
@@ -111,8 +111,8 @@ namespace gaia {
 					}
 
 					uint32_t compIdx = 0;
-					for (; compIdx < data.idsCnt; ++compIdx)
-						if (data._ids[compIdx] == comp)
+					for (; compIdx < ctxData.idsCnt; ++compIdx)
+						if (ctxData._ids[compIdx] == comp)
 							break;
 
 					// NOTE: Code bellow does the same as this commented piece.
@@ -122,16 +122,16 @@ namespace gaia {
 
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					GAIA_ASSERT2(data._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
-					if (data._terms[compIdx].op != QueryOpKind::Not) {
-						data._changed[data.changedCnt++] = comp;
+					GAIA_ASSERT2(ctxData._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
+					if (ctxData._terms[compIdx].op != QueryOpKind::Not) {
+						ctxData._changed[ctxData.changedCnt++] = comp;
 						return;
 					}
 
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #else
-					data._changed[data.changedCnt++] = comp;
+					ctxData._changed[ctxData.changedCnt++] = comp;
 #endif
 				}
 			};
@@ -144,10 +144,10 @@ namespace gaia {
 				TSortByFunc func;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.sortBy = sortBy;
+					auto& ctxData = ctx.data;
+					ctxData.sortBy = sortBy;
 					GAIA_ASSERT(func != nullptr);
-					data.sortByFunc = func;
+					ctxData.sortByFunc = func;
 				}
 			};
 
@@ -159,10 +159,10 @@ namespace gaia {
 				TGroupByFunc func;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.groupBy = groupBy;
+					auto& ctxData = ctx.data;
+					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
-					data.groupByFunc = func; // group_by_func_default;
+					ctxData.groupByFunc = func; // group_by_func_default;
 				}
 			};
 
@@ -173,8 +173,8 @@ namespace gaia {
 				GroupId groupId;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.groupIdSet = groupId;
+					auto& ctxData = ctx.data;
+					ctxData.groupIdSet = groupId;
 				}
 			};
 

@@ -106,14 +106,14 @@ namespace gaia {
 						id = m_ctx.cc->get<T>().entity;
 					}
 
-					const auto& data = m_ctx.data;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(data._terms.data(), id, EntityBad);
+					const auto& ctxData = m_ctx.data;
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(ctxData._terms.data(), id, EntityBad);
 
-					if (op != data._terms[compIdx].op)
+					if (op != ctxData._terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
-					const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << compIdx);
+					const uint32_t maskRW = (uint32_t)ctxData.readWriteMask & (1U << compIdx);
 					const uint32_t maskXX = (uint32_t)isReadWrite << compIdx;
 					return maskRW == maskXX;
 				}
@@ -266,10 +266,10 @@ namespace gaia {
 					}
 				} autoCleanup;
 
-				auto& data = m_ctx.data;
+				auto& ctxData = m_ctx.data;
 
 				// Recompile if necessary
-				if ((data.flags & QueryCtx::QueryFlags::Recompile) != 0)
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
 					recompile();
 
 				// Skip if nothing has been compiled.
@@ -295,13 +295,13 @@ namespace gaia {
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
-				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
-				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
-				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
-				ctx.queryMask = data.queryMask;
-				ctx.as_mask_0 = data.as_mask_0;
-				ctx.as_mask_1 = data.as_mask_1;
-				ctx.flags = data.flags;
+				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
+				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
 
 				// Run the virtual machine
 				m_vm.exec(ctx);

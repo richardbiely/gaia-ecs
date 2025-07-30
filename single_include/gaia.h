@@ -24085,23 +24085,23 @@ namespace gaia {
 		inline void sort(QueryCtx& ctx) {
 			const uint32_t idsCnt = ctx.data.idsCnt;
 
-			auto& data = ctx.data;
-			auto remappingCopy = data._remapping;
+			auto& ctxData = ctx.data;
+			auto remappingCopy = ctxData._remapping;
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
 			core::sort(
-					data._terms.data(), data._terms.data() + data.idsCnt, query_sort_cond{}, //
+					ctxData._terms.data(), ctxData._terms.data() + ctxData.idsCnt, query_sort_cond{}, //
 					[&](uint32_t left, uint32_t right) {
-						core::swap(data._ids[left], data._ids[right]);
-						core::swap(data._terms[left], data._terms[right]);
+						core::swap(ctxData._ids[left], ctxData._ids[right]);
+						core::swap(ctxData._terms[left], ctxData._terms[right]);
 						core::swap(remappingCopy[left], remappingCopy[right]);
 
 						// Make sure masks remains correct after sorting
-						core::swap_bits(data.readWriteMask, left, right);
-						core::swap_bits(data.as_mask_0, left, right);
-						core::swap_bits(data.as_mask_1, left, right);
+						core::swap_bits(ctxData.readWriteMask, left, right);
+						core::swap_bits(ctxData.as_mask_0, left, right);
+						core::swap_bits(ctxData.as_mask_1, left, right);
 					});
 
 			// Update remapping indices.
@@ -24113,17 +24113,17 @@ namespace gaia {
 
 			GAIA_FOR(idsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-				data._remapping[i] = idxBeforeRemapping;
+				ctxData._remapping[i] = idxBeforeRemapping;
 			}
 
 			if (idsCnt > 0) {
 				uint32_t i = 0;
-				while (i < idsCnt && data._terms[i].op == QueryOpKind::All)
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::All)
 					++i;
-				data.firstAny = (uint8_t)i;
-				while (i < idsCnt && data._terms[i].op == QueryOpKind::Any)
+				ctxData.firstAny = (uint8_t)i;
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Any)
 					++i;
-				data.firstNot = (uint8_t)i;
+				ctxData.firstNot = (uint8_t)i;
 			}
 		}
 
@@ -24134,19 +24134,19 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			const auto& data = ctx.data;
+			const auto& ctxData = ctx.data;
 
 			// Ids & ops
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto terms = data.terms_view();
+				auto terms = ctxData.terms_view();
 				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
 
 				hashLookup = hash;
 			}
@@ -24155,7 +24155,7 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto changed = data.changed_view();
+				auto changed = ctxData.changed_view();
 				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
@@ -24167,8 +24167,8 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupBy.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupByFunc);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupBy.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupByFunc);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -26079,14 +26079,14 @@ namespace gaia {
 						id = m_ctx.cc->get<T>().entity;
 					}
 
-					const auto& data = m_ctx.data;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(data._terms.data(), id, EntityBad);
+					const auto& ctxData = m_ctx.data;
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(ctxData._terms.data(), id, EntityBad);
 
-					if (op != data._terms[compIdx].op)
+					if (op != ctxData._terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
-					const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << compIdx);
+					const uint32_t maskRW = (uint32_t)ctxData.readWriteMask & (1U << compIdx);
 					const uint32_t maskXX = (uint32_t)isReadWrite << compIdx;
 					return maskRW == maskXX;
 				}
@@ -26239,10 +26239,10 @@ namespace gaia {
 					}
 				} autoCleanup;
 
-				auto& data = m_ctx.data;
+				auto& ctxData = m_ctx.data;
 
 				// Recompile if necessary
-				if ((data.flags & QueryCtx::QueryFlags::Recompile) != 0)
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
 					recompile();
 
 				// Skip if nothing has been compiled.
@@ -26268,13 +26268,13 @@ namespace gaia {
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
-				ctx.pLastMatchedArchetypeIdx_All = &data.lastMatchedArchetypeIdx_All;
-				ctx.pLastMatchedArchetypeIdx_Any = &data.lastMatchedArchetypeIdx_Any;
-				ctx.pLastMatchedArchetypeIdx_Not = &data.lastMatchedArchetypeIdx_Not;
-				ctx.queryMask = data.queryMask;
-				ctx.as_mask_0 = data.as_mask_0;
-				ctx.as_mask_1 = data.as_mask_1;
-				ctx.flags = data.flags;
+				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
+				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
 
 				// Run the virtual machine
 				m_vm.exec(ctx);
@@ -26991,14 +26991,14 @@ namespace gaia {
 				QueryInput item;
 
 				void exec(QueryCtx& ctx) const {
-					auto& data = ctx.data;
+					auto& ctxData = ctx.data;
 
 #if GAIA_DEBUG
 					// Unique component ids only
-					GAIA_ASSERT(!core::has(data.ids_view(), item.id));
+					GAIA_ASSERT(!core::has(ctxData.ids_view(), item.id));
 
 					// There's a limit to the amount of query items which we can store
-					if (data.idsCnt >= MAX_ITEMS_IN_QUERY) {
+					if (ctxData.idsCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
 						const auto* name = ctx.cc->get(item.id).name.str();
@@ -27010,16 +27010,16 @@ namespace gaia {
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
 					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
-					data.readWriteMask |= (isReadWrite << data.idsCnt);
+					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
-					data._remapping[data.idsCnt] = data.idsCnt;
+					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
-					data._ids[data.idsCnt] = item.id;
-					data._terms[data.idsCnt] = {item.id, item.src, nullptr, item.op};
-					++data.idsCnt;
+					ctxData._ids[ctxData.idsCnt] = item.id;
+					ctxData._terms[ctxData.idsCnt] = {item.id, item.src, nullptr, item.op};
+					++ctxData.idsCnt;
 				}
 			};
 
@@ -27030,14 +27030,14 @@ namespace gaia {
 				Entity comp;
 
 				void exec(QueryCtx& ctx) const {
-					auto& data = ctx.data;
+					auto& ctxData = ctx.data;
 
 #if GAIA_DEBUG
-					GAIA_ASSERT(core::has(data.ids_view(), comp));
-					GAIA_ASSERT(!core::has(data.changed_view(), comp));
+					GAIA_ASSERT(core::has(ctxData.ids_view(), comp));
+					GAIA_ASSERT(!core::has(ctxData.changed_view(), comp));
 
 					// There's a limit to the amount of components which we can store
-					if (data.changedCnt >= MAX_ITEMS_IN_QUERY) {
+					if (ctxData.changedCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 						const auto* compName = ctx.cc->get(comp).name.str();
@@ -27046,8 +27046,8 @@ namespace gaia {
 					}
 
 					uint32_t compIdx = 0;
-					for (; compIdx < data.idsCnt; ++compIdx)
-						if (data._ids[compIdx] == comp)
+					for (; compIdx < ctxData.idsCnt; ++compIdx)
+						if (ctxData._ids[compIdx] == comp)
 							break;
 
 					// NOTE: Code bellow does the same as this commented piece.
@@ -27057,16 +27057,16 @@ namespace gaia {
 
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					GAIA_ASSERT2(data._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
-					if (data._terms[compIdx].op != QueryOpKind::Not) {
-						data._changed[data.changedCnt++] = comp;
+					GAIA_ASSERT2(ctxData._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
+					if (ctxData._terms[compIdx].op != QueryOpKind::Not) {
+						ctxData._changed[ctxData.changedCnt++] = comp;
 						return;
 					}
 
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #else
-					data._changed[data.changedCnt++] = comp;
+					ctxData._changed[ctxData.changedCnt++] = comp;
 #endif
 				}
 			};
@@ -27079,10 +27079,10 @@ namespace gaia {
 				TSortByFunc func;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.sortBy = sortBy;
+					auto& ctxData = ctx.data;
+					ctxData.sortBy = sortBy;
 					GAIA_ASSERT(func != nullptr);
-					data.sortByFunc = func;
+					ctxData.sortByFunc = func;
 				}
 			};
 
@@ -27094,10 +27094,10 @@ namespace gaia {
 				TGroupByFunc func;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.groupBy = groupBy;
+					auto& ctxData = ctx.data;
+					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
-					data.groupByFunc = func; // group_by_func_default;
+					ctxData.groupByFunc = func; // group_by_func_default;
 				}
 			};
 
@@ -27108,8 +27108,8 @@ namespace gaia {
 				GroupId groupId;
 
 				void exec(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.groupIdSet = groupId;
+					auto& ctxData = ctx.data;
+					ctxData.groupIdSet = groupId;
 				}
 			};
 

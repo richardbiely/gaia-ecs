@@ -430,23 +430,23 @@ namespace gaia {
 		inline void sort(QueryCtx& ctx) {
 			const uint32_t idsCnt = ctx.data.idsCnt;
 
-			auto& data = ctx.data;
-			auto remappingCopy = data._remapping;
+			auto& ctxData = ctx.data;
+			auto remappingCopy = ctxData._remapping;
 
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
 			core::sort(
-					data._terms.data(), data._terms.data() + data.idsCnt, query_sort_cond{}, //
+					ctxData._terms.data(), ctxData._terms.data() + ctxData.idsCnt, query_sort_cond{}, //
 					[&](uint32_t left, uint32_t right) {
-						core::swap(data._ids[left], data._ids[right]);
-						core::swap(data._terms[left], data._terms[right]);
+						core::swap(ctxData._ids[left], ctxData._ids[right]);
+						core::swap(ctxData._terms[left], ctxData._terms[right]);
 						core::swap(remappingCopy[left], remappingCopy[right]);
 
 						// Make sure masks remains correct after sorting
-						core::swap_bits(data.readWriteMask, left, right);
-						core::swap_bits(data.as_mask_0, left, right);
-						core::swap_bits(data.as_mask_1, left, right);
+						core::swap_bits(ctxData.readWriteMask, left, right);
+						core::swap_bits(ctxData.as_mask_0, left, right);
+						core::swap_bits(ctxData.as_mask_1, left, right);
 					});
 
 			// Update remapping indices.
@@ -458,17 +458,17 @@ namespace gaia {
 
 			GAIA_FOR(idsCnt) {
 				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-				data._remapping[i] = idxBeforeRemapping;
+				ctxData._remapping[i] = idxBeforeRemapping;
 			}
 
 			if (idsCnt > 0) {
 				uint32_t i = 0;
-				while (i < idsCnt && data._terms[i].op == QueryOpKind::All)
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::All)
 					++i;
-				data.firstAny = (uint8_t)i;
-				while (i < idsCnt && data._terms[i].op == QueryOpKind::Any)
+				ctxData.firstAny = (uint8_t)i;
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Any)
 					++i;
-				data.firstNot = (uint8_t)i;
+				ctxData.firstNot = (uint8_t)i;
 			}
 		}
 
@@ -479,19 +479,19 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			const auto& data = ctx.data;
+			const auto& ctxData = ctx.data;
 
 			// Ids & ops
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto terms = data.terms_view();
+				auto terms = ctxData.terms_view();
 				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
 
 				hashLookup = hash;
 			}
@@ -500,7 +500,7 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto changed = data.changed_view();
+				auto changed = ctxData.changed_view();
 				for (auto id: changed)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
@@ -512,8 +512,8 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupBy.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)data.groupByFunc);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupBy.value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupByFunc);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
