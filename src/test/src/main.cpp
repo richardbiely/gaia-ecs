@@ -9400,8 +9400,6 @@ TEST_CASE("Serialization - world simple") {
 	in.name(salad, "Salad");
 	in.name(apple, "Apple");
 
-	in.diag_archetypes();
-
 	auto buffer = in.save();
 
 	TestWorld twld;

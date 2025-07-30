@@ -31298,7 +31298,6 @@ namespace gaia {
 						ec.pArchetype = m_archetypes[archetypeIdx];
 						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
 						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
-						GAIA_LOG_N("");
 					}
 					for (auto& pair: m_recs.pairs) {
 						auto& ec = pair.second;
