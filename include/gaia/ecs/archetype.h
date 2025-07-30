@@ -308,7 +308,12 @@ namespace gaia {
 
 				uint32_t chunkCnt = 0;
 				s.load(chunkCnt);
-				m_chunks.resize(chunkCnt);
+				{
+					const auto chunkCnt0 = m_chunks.size();
+					m_chunks.resize(chunkCnt);
+					// Make sure new chunks are set to nullptr
+					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
+				}
 
 				GAIA_FOR(chunkCnt) {
 					uint32_t chunkIdx = 0;
@@ -331,10 +336,11 @@ namespace gaia {
 						pChunk->set_idx(chunkIdx);
 
 						pChunk->load(s);
-					}
 
-					// Make sure we are where we should be
-					s.seek(nextChunkPos);
+						// Make sure we are where we should be
+						GAIA_ASSERT(s.tell() == nextChunkPos);
+					} else
+						s.seek(nextChunkPos);
 
 					// Make sure the chunk index is correct
 					GAIA_ASSERT(pChunk->idx() == chunkIdx);
