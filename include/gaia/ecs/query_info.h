@@ -709,8 +709,8 @@ namespace gaia {
 
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
-				const auto& data = m_archetypeCacheData[archetypeIdx];
-				return {(const uint8_t*)&data.indices[0], ChunkHeader::MAX_COMPONENTS};
+				const auto& ctxData = m_archetypeCacheData[archetypeIdx];
+				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
 			GAIA_NODISCARD ArchetypeDArray::iterator begin() {
