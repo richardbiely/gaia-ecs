@@ -12,6 +12,7 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 #endif
 
 #include <catch2/catch_test_macros.hpp>
+#include <cstdio>
 #include <string>
 
 using namespace gaia;
@@ -9384,7 +9385,45 @@ TEST_CASE("Serialization - arrays") {
 	}
 }
 
-TEST_CASE("Serialization - world simple") {
+TEST_CASE("Serialization - world self") {
+	ecs::World in;
+
+	in.add<Position>();
+
+	ecs::Entity eats = in.add();
+	ecs::Entity carrot = in.add();
+	ecs::Entity salad = in.add();
+	ecs::Entity apple = in.add();
+
+	in.add<Position>(eats, {1, 2, 3});
+	in.name(eats, "Eats");
+	in.name(carrot, "Carrot");
+	in.name(salad, "Salad");
+	in.name(apple, "Apple");
+
+	auto buffer = in.save();
+
+	//--------
+	in.cleanup();
+	in.add<Position>();
+	in.load(buffer);
+
+	Position pos = in.get<Position>(eats);
+	CHECK(pos.x == 1.f);
+	CHECK(pos.y == 2.f);
+	CHECK(pos.z == 3.f);
+
+	auto eats2 = in.get("Eats");
+	auto carrot2 = in.get("Carrot");
+	auto salad2 = in.get("Salad");
+	auto apple2 = in.get("Apple");
+	CHECK(eats2 == eats);
+	CHECK(carrot2 == carrot);
+	CHECK(salad2 == salad);
+	CHECK(apple2 == apple);
+}
+
+TEST_CASE("Serialization - world other") {
 	ecs::World in;
 
 	in.add<Position>();
@@ -9419,6 +9458,60 @@ TEST_CASE("Serialization - world simple") {
 	CHECK(carrot2 == carrot);
 	CHECK(salad2 == salad);
 	CHECK(apple2 == apple);
+}
+
+TEST_CASE("Serialization - world file") {
+	ecs::World in;
+
+	in.add<Position>();
+
+	ecs::Entity eats = in.add();
+	ecs::Entity carrot = in.add();
+	ecs::Entity salad = in.add();
+	ecs::Entity apple = in.add();
+
+	in.add<Position>(eats, {1, 2, 3});
+	in.name(eats, "Eats");
+	in.name(carrot, "Carrot");
+	in.name(salad, "Salad");
+	in.name(apple, "Apple");
+
+	auto buffer = in.save();
+
+	{
+		auto* f = fopen("world.bin", "wb");
+		fwrite(buffer.data(), 1, buffer.bytes(), f);
+		fclose(f);
+	}
+
+	{
+		const auto sz = buffer.bytes();
+		buffer.reset();
+		buffer.resize(sz);
+
+		auto* f = fopen("world.bin", "rb");
+		void* pBuffer = (void*)buffer.data();
+		fread(pBuffer, 1, sz, f);
+		fclose(f);
+
+		TestWorld twld;
+		wld.add<Position>();
+		wld.load(buffer);
+
+		Position pos = wld.get<Position>(eats);
+		CHECK(pos.x == 1.f);
+		CHECK(pos.y == 2.f);
+		CHECK(pos.z == 3.f);
+
+		auto eats2 = wld.get("Eats");
+		auto carrot2 = wld.get("Carrot");
+		auto salad2 = wld.get("Salad");
+		auto apple2 = wld.get("Apple");
+		CHECK(eats2 == eats);
+		CHECK(carrot2 == carrot);
+		CHECK(salad2 == salad);
+		CHECK(apple2 == apple);
+	}
 }
 
 //------------------------------------------------------------------------------

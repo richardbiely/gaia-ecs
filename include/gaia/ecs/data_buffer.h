@@ -55,6 +55,10 @@ namespace gaia {
 					m_data.reserve(newCapacity);
 				}
 
+				void resize(uint32_t size) {
+					m_data.resize(size);
+				}
+
 				//! Changes the current position in the buffer
 				void seek(uint32_t pos) {
 					m_dataPos = pos;

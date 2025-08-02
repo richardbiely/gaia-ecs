@@ -290,12 +290,12 @@ namespace gaia {
 					s.save(pChunk->idx());
 
 					const auto pos0 = s.tell(); // Save the position saving chunk data
-					s.save(0); // Placeholder for the position of the next chunk data
+					s.save((uint32_t)0); // Placeholder for the position of the next chunk data
 
 					pChunk->save(s);
 
 					// Save where to jump in case we decide not to read data stored by the archetype
-					auto pos1 = s.tell();
+					const auto pos1 = (uint32_t)s.tell();
 					s.seek(pos0);
 					s.save(pos1);
 					s.seek(pos1);

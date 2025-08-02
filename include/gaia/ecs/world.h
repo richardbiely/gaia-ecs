@@ -2372,6 +2372,14 @@ namespace gaia {
 					s.save((uint32_t)m_nameToEntity.size());
 					for (const auto& pair: m_nameToEntity) {
 						s.save(pair.second);
+						const bool isOwnedStr = pair.first.owned();
+						s.save(isOwnedStr);
+						if (isOwnedStr) {
+							const auto* str = pair.first.str();
+							const uint32_t len = pair.first.len();
+							s.save(len);
+							s.save(str, len);
+						}
 					}
 				}
 
@@ -2523,10 +2531,24 @@ namespace gaia {
 						s.load(entity);
 						// entity.data.gen = 0; // Reset generation to zero
 
-						const auto& ec = fetch(entity);
-						const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+						bool isOwned = false;
+						s.load(isOwned);
+						if (!isOwned) {
+							const auto& ec = fetch(entity);
+							const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+							m_nameToEntity.try_emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+							continue;
+						}
 
-						m_nameToEntity.emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+						uint32_t len = 0;
+						s.load(len);
+
+						// Get a pointer to where the string begin and seek to the end of the string
+						const char* entityStr = (const char*)(s.data() + s.tell());
+						s.seek(s.tell() + len);
+
+						// Name the entity using an owned string
+						name(entity, entityStr, len);
 					}
 				}
 

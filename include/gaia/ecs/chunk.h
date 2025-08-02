@@ -409,7 +409,7 @@ namespace gaia {
 				// Store component data
 				{
 					for (const auto& rec: comp_rec_view()) {
-						// Save component data if there's size associated with it
+						// Skip the component if there's no size associated with it
 						if (rec.comp.size() == 0)
 							continue;
 
@@ -450,6 +450,7 @@ namespace gaia {
 				call_gen_ctors(prevCount, cnt);
 				{
 					for (const auto& rec: comp_rec_view()) {
+						// Skip the component if there's no size associated with it
 						if (rec.comp.size() == 0)
 							continue;
 

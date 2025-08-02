@@ -20461,6 +20461,10 @@ namespace gaia {
 					m_data.reserve(newCapacity);
 				}
 
+				void resize(uint32_t size) {
+					m_data.resize(size);
+				}
+
 				//! Changes the current position in the buffer
 				void seek(uint32_t pos) {
 					m_dataPos = pos;
@@ -21352,7 +21356,7 @@ namespace gaia {
 				// Store component data
 				{
 					for (const auto& rec: comp_rec_view()) {
-						// Save component data if there's size associated with it
+						// Skip the component if there's no size associated with it
 						if (rec.comp.size() == 0)
 							continue;
 
@@ -21393,6 +21397,7 @@ namespace gaia {
 				call_gen_ctors(prevCount, cnt);
 				{
 					for (const auto& rec: comp_rec_view()) {
+						// Skip the component if there's no size associated with it
 						if (rec.comp.size() == 0)
 							continue;
 
@@ -22788,12 +22793,12 @@ namespace gaia {
 					s.save(pChunk->idx());
 
 					const auto pos0 = s.tell(); // Save the position saving chunk data
-					s.save(0); // Placeholder for the position of the next chunk data
+					s.save((uint32_t)0); // Placeholder for the position of the next chunk data
 
 					pChunk->save(s);
 
 					// Save where to jump in case we decide not to read data stored by the archetype
-					auto pos1 = s.tell();
+					const auto pos1 = (uint32_t)s.tell();
 					s.seek(pos0);
 					s.save(pos1);
 					s.seek(pos1);
@@ -31177,6 +31182,14 @@ namespace gaia {
 					s.save((uint32_t)m_nameToEntity.size());
 					for (const auto& pair: m_nameToEntity) {
 						s.save(pair.second);
+						const bool isOwnedStr = pair.first.owned();
+						s.save(isOwnedStr);
+						if (isOwnedStr) {
+							const auto* str = pair.first.str();
+							const uint32_t len = pair.first.len();
+							s.save(len);
+							s.save(str, len);
+						}
 					}
 				}
 
@@ -31328,10 +31341,24 @@ namespace gaia {
 						s.load(entity);
 						// entity.data.gen = 0; // Reset generation to zero
 
-						const auto& ec = fetch(entity);
-						const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+						bool isOwned = false;
+						s.load(isOwned);
+						if (!isOwned) {
+							const auto& ec = fetch(entity);
+							const auto& desc = ComponentGetter{ec.pChunk, ec.row}.get<EntityDesc>();
+							m_nameToEntity.try_emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+							continue;
+						}
 
-						m_nameToEntity.emplace(EntityNameLookupKey(desc.name, desc.len), entity);
+						uint32_t len = 0;
+						s.load(len);
+
+						// Get a pointer to where the string begin and seek to the end of the string
+						const char* entityStr = (const char*)(s.data() + s.tell());
+						s.seek(s.tell() + len);
+
+						// Name the entity using an owned string
+						name(entity, entityStr, len);
 					}
 				}
 
