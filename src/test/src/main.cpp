@@ -9514,6 +9514,73 @@ TEST_CASE("Serialization - world file") {
 	}
 }
 
+TEST_CASE("Serialization - world + query") {
+	auto initComponents = [](ecs::World& w) {
+		w.add<Position>();
+		w.add<Rotation>();
+	};
+
+	TestWorld in;
+	initComponents(in.m_w);
+
+	const uint32_t N = 1'500;
+
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
+
+	auto create = [&](uint32_t i) {
+		auto e = in.m_w.add();
+		ents.push_back(e);
+		in.m_w.add<Position>(e, {(float)i, (float)i, (float)i});
+	};
+	GAIA_FOR(N) create(i);
+
+	auto buffer = in.m_w.save();
+
+	// Load
+
+	TestWorld twld;
+	initComponents(wld);
+	wld.load(buffer);
+
+	auto q1 = wld.query().template all<Position>();
+
+	{
+		const auto cnt = q1.count();
+		CHECK(cnt == N);
+	}
+	{
+		cnt::darr<ecs::Entity> arr;
+		q1.arr(arr);
+
+		// Make sure the same entities are returned by each and arr
+		// and that they match out expectations.
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) CHECK(arr[i] == ents[i]);
+
+		uint32_t entIdx = 0;
+		q1.each([&](ecs::Entity ent) {
+			CHECK(ent == arr[entIdx++]);
+		});
+		entIdx = 0;
+		q1.each([&](ecs::Iter& it) {
+			auto entView = it.view<ecs::Entity>();
+			GAIA_EACH(it) CHECK(entView[i] == arr[entIdx++]);
+		});
+	}
+	{
+		cnt::darr<Position> arr;
+		q1.arr(arr);
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) {
+			const auto& pos = arr[i];
+			CHECK(pos.x == (float)i);
+			CHECK(pos.y == (float)i);
+			CHECK(pos.z == (float)i);
+		}
+	}
+}
+
 //------------------------------------------------------------------------------
 // Multithreading
 //------------------------------------------------------------------------------
