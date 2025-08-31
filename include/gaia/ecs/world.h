@@ -2296,8 +2296,14 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
-			SerializationBufferDyn save() {
-				SerializationBufferDyn s;
+			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
+			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
+			//!       of the following functions defined:
+			//!       1) member function: "void save(SerializationBufferDyn& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, SerializationBufferDyn& s,
+			//!       const YourType& data)"
+			void save(SerializationBufferDyn& s) {
+				s.reset();
 
 				// Version number, currently unused
 				s.save((uint32_t)0);
@@ -2382,10 +2388,14 @@ namespace gaia {
 						}
 					}
 				}
-
-				return s;
 			}
 
+			//! Loads a world state form a buffer. The buffer is seeked to 0 before any loading happens.
+			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
+			//!       of the following functions defined:
+			//!       1) member function: "void save(SerializationBufferDyn& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, SerializationBufferDyn& s,
+			//!       YourType& data)"
 			bool load(SerializationBufferDyn& s) {
 				// Move back to the beginning of the stream
 				s.seek(0);

@@ -1791,7 +1791,7 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Member function checks
+		// Function arguments type checks
 		//----------------------------------------------------------------------
 
 		template <typename... Type>
@@ -1800,6 +1800,20 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
+		//----------------------------------------------------------------------
+		// Member function checks
+		//----------------------------------------------------------------------
+
+#if __cpp_concepts
+	#define GAIA_DEFINE_HAS_MEMBER_FUNC(function_name)                                                                   \
+		template <typename T, typename... Args>                                                                            \
+		concept has_mfunc_check_##function_name = requires(T&& t, Args&&... args) { t.function_name(GAIA_FWD(args)...); }; \
+                                                                                                                       \
+		template <typename T, typename... Args>                                                                            \
+		struct has_func_##function_name {                                                                                  \
+			static constexpr bool value = has_mfunc_check_##function_name<T, Args...>;                                       \
+		}
+#else
 		namespace detail {
 			template <class Default, class AlwaysVoid, template <class...> class Op, class... Args>
 			struct member_func_checker {
@@ -1816,78 +1830,55 @@ namespace gaia {
 			struct member_func_none {
 				~member_func_none() = delete;
 				member_func_none(member_func_none const&) = delete;
+				member_func_none(member_func_none&&) = delete;
 				void operator=(member_func_none const&) = delete;
+				void operator=(member_func_none&&) = delete;
 			};
 		} // namespace detail
 
 		template <template <class...> class Op, typename... Args>
-		using has_member_func = typename detail::member_func_checker<detail::member_func_none, void, Op, Args...>::value_t;
+		using has_mfunc = typename detail::member_func_checker<detail::member_func_none, void, Op, Args...>::value_t;
 
-		template <typename Func, typename... Args>
-		struct has_global_func {
-			template <typename F, typename... A>
-			static auto test(F&& f, A&&... args) -> decltype(GAIA_FWD(f)(GAIA_FWD(args)...), std::true_type{});
-
-			template <typename...>
-			static std::false_type test(...);
-
-			static constexpr bool value = decltype(test(std::declval<Func>(), std::declval<Args>()...))::value;
-		};
-
-#define GAIA_DEFINE_HAS_FUNCTION(function_name)                                                                        \
-	template <typename T, typename... Args>                                                                              \
-	using has_##function_name##_check = decltype(std::declval<T>().function_name(std::declval<Args>()...));              \
+	#define GAIA_DEFINE_HAS_MEMBER_FUNC(function_name)                                                                   \
+		template <typename T, typename... Args>                                                                            \
+		using has_mfunc_check_##function_name = decltype(std::declval<T>().function_name(std::declval<Args>()...));        \
                                                                                                                        \
-	template <typename T, typename... Args>                                                                              \
-	struct has_##function_name {                                                                                         \
-		static constexpr bool value = gaia::core::has_member_func<has_##function_name##_check, T, Args...>::value;         \
-	}
+		template <typename T, typename... Args>                                                                            \
+		struct has_func_##function_name {                                                                                  \
+			static constexpr bool value = gaia::core::has_mfunc<has_mfunc_check_##function_name, T, Args...>::value;         \
+		}
+#endif
 
-#define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)                                                                    \
-	gaia::core::has_member_func<has_##function_name##_check, T, __VA_ARGS__>::value
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if_not);
 
-		// TODO: Try replacing the above with following:
-		//
-		//       #define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)
-		//         gaia::core::has_member_func<
-		//           decltype(std::declval<T>().function_name(std::declval<Args>()...)),
-		//					 T, __VA_ARGS__
-		//         >::value
-		//
-		//       This way we could drop GAIA_DEFINE_HAS. However, the issue is that std::declval<Args>
-		//       would have to be replaced with a variadic macro that expands into a series
-		//       of std::declval<Arg> which is very inconvenient to do and always has a hard limit
-		//       on the number of arguments which is super limiting.
-
-#define GAIA_HAS_GLOBAL_FUNC(function_name, ...)                                                                       \
-	gaia::core::has_global_func<decltype(&function_name), __VA_ARGS__>::value
-
-		GAIA_DEFINE_HAS_FUNCTION(find);
-		GAIA_DEFINE_HAS_FUNCTION(find_if);
-		GAIA_DEFINE_HAS_FUNCTION(find_if_not);
+		//----------------------------------------------------------------------
+		// Special function checks
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename T>
-			constexpr auto has_member_equals_check(int)
+			constexpr auto has_mfunc_equals_check(int)
 					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
-			constexpr std::false_type has_member_equals_check(...);
+			constexpr std::false_type has_mfunc_equals_check(...);
 
 			template <typename T>
-			constexpr auto has_global_equals_check(int)
+			constexpr auto has_ffunc_equals_check(int)
 					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
-			constexpr std::false_type has_global_equals_check(...);
+			constexpr std::false_type has_ffunc_equals_check(...);
 		} // namespace detail
 
 		template <typename T>
-		struct has_member_equals {
-			static constexpr bool value = decltype(detail::has_member_equals_check<T>(0))::value;
+		struct has_func_equals {
+			static constexpr bool value = decltype(detail::has_mfunc_equals_check<T>(0))::value;
 		};
 
 		template <typename T>
-		struct has_global_equals {
-			static constexpr bool value = decltype(detail::has_global_equals_check<T>(0))::value;
+		struct has_ffunc_equals {
+			static constexpr bool value = decltype(detail::has_ffunc_equals_check<T>(0))::value;
 		};
 
 		//----------------------------------------------------------------------
@@ -2163,7 +2154,7 @@ namespace gaia {
 
 		template <typename C, typename V>
 		constexpr auto find(const C& arr, const V& item) {
-			if constexpr (has_find<C>::value)
+			if constexpr (has_func_find<C>::value)
 				return arr.find(item);
 			else
 				return core::find(arr.begin(), arr.end(), item);
@@ -2194,7 +2185,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			if constexpr (has_find_if<C, UnaryPredicate>::value)
+			if constexpr (has_func_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
 				return core::find_if(arr.begin(), arr.end(), predicate);
@@ -2225,7 +2216,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
-			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
+			if constexpr (has_func_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
 				return core::find_if_not(arr.begin(), arr.end(), predicate);
@@ -15141,6 +15132,49 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
+		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(bytes);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
+
+		// --------------------
+		// Customization tags
+		// --------------------
+
+		struct bytes_tag {};
+		struct save_tag {};
+		struct load_tag {};
+		inline constexpr bytes_tag bytes_v{};
+		inline constexpr save_tag save_v{};
+		inline constexpr load_tag load_v{};
+
+		// --------------------
+		// Detection traits
+		// --------------------
+
+		template <typename T>
+		auto has_tag_bytes_impl(int) -> decltype(tag_invoke(bytes_v, std::declval<const T&>()), std::true_type{});
+		template <typename>
+		std::false_type has_tag_bytes_impl(...);
+		template <typename T>
+		using has_tag_bytes = decltype(has_tag_bytes_impl<T>(0));
+
+		template <typename S, typename T>
+		auto has_tag_save_impl(int)
+				-> decltype(tag_invoke(save_v, std::declval<S&>(), std::declval<const T&>()), std::true_type{});
+		template <typename, typename>
+		std::false_type has_tag_save_impl(...);
+		template <typename S, typename T>
+		using has_tag_save = decltype(has_tag_save_impl<S, T>(0));
+
+		template <typename S, typename T>
+		auto has_tag_load_impl(int)
+				-> decltype(tag_invoke(load_v, std::declval<S&>(), std::declval<T&>()), std::true_type{});
+		template <typename, typename>
+		std::false_type has_tag_load_impl(...);
+		template <typename S, typename T>
+		using has_tag_load = decltype(has_tag_load_impl<S, T>(0));
+
 		namespace detail {
 			enum class serialization_type_id : uint8_t {
 				// Integer types
@@ -15175,11 +15209,6 @@ namespace gaia {
 
 				Last = 255,
 			};
-
-			GAIA_DEFINE_HAS_FUNCTION(resize);
-			GAIA_DEFINE_HAS_FUNCTION(bytes);
-			GAIA_DEFINE_HAS_FUNCTION(save);
-			GAIA_DEFINE_HAS_FUNCTION(load);
 
 			template <typename T>
 			struct is_trivially_serializable {
@@ -15273,16 +15302,18 @@ namespace gaia {
 			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
 				using U = core::raw_t<T>;
 
-				constexpr auto id = type_id<U>();
-				static_assert(id != serialization_type_id::Last);
+				constexpr auto id = detail::type_id<U>();
+				static_assert(id != detail::serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
 				// Custom bytes() has precedence
-				if constexpr (has_bytes<U>::value) {
+				if constexpr (has_func_bytes<U>::value) {
 					size_in_bytes = (uint32_t)item.bytes();
+				} else if constexpr (has_tag_bytes<U>::value) {
+					size_in_bytes = (uint32_t)tag_invoke(bytes_v, item);
 				}
 				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
+				else if constexpr (detail::is_trivially_serializable<U>::value) {
 					size_in_bytes = (uint32_t)sizeof(U);
 				}
 				// Types which have data() and size() member functions
@@ -15300,47 +15331,68 @@ namespace gaia {
 				return size_in_bytes;
 			}
 
-			template <bool Write, typename Serializer, typename T>
-			void ser_data_one(Serializer& s, T&& arg) {
+			template <typename Writer, typename T>
+			void save_one(Writer& s, const T& arg) {
 				using U = core::raw_t<T>;
 
-				// Custom save() & load() have precedence
-				if constexpr (Write && has_save<U, Serializer&>::value) {
+				// Custom save() has precedence
+				if constexpr (has_func_save<U, Writer&>::value) {
 					arg.save(s);
-				} else if constexpr (!Write && has_load<U, Serializer&>::value) {
-					arg.load(s);
+				} else if constexpr (has_tag_save<Writer, U>::value) {
+					tag_invoke(save_v, s, static_cast<const U&>(arg));
 				}
 				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
-					if constexpr (Write)
-						s.save(GAIA_FWD(arg));
-					else
-						s.load(GAIA_FWD(arg));
+				else if constexpr (detail::is_trivially_serializable<U>::value) {
+					s.save(arg);
 				}
 				// Types which have data() and size() member functions
 				else if constexpr (core::has_data_and_size<U>::value) {
-					if constexpr (Write) {
-						const auto size = arg.size();
-						s.save(size);
+					const auto size = arg.size();
+					s.save(size);
 
-						for (const auto& e: arg)
-							ser_data_one<Write>(s, e);
+					for (const auto& e: arg)
+						save_one(s, e);
+				}
+				// Classes
+				else if constexpr (std::is_class_v<U>) {
+					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copyable types
+						(save_one(s, items), ...);
+					});
+				} else
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+			}
+
+			template <typename Reader, typename T>
+			void load_one(Reader& s, T& arg) {
+				using U = core::raw_t<T>;
+
+				// Custom load() has precedence
+				if constexpr (has_func_load<U, Reader&>::value) {
+					arg.load(s);
+				} else if constexpr (has_tag_load<Reader, U>::value) {
+					tag_invoke(load_v, s, static_cast<U&>(arg));
+				}
+				// Trivially serializable types
+				else if constexpr (detail::is_trivially_serializable<U>::value) {
+					s.load(arg);
+				}
+				// Types which have data() and size() member functions
+				else if constexpr (core::has_data_and_size<U>::value) {
+					auto size = arg.size();
+					s.load(size);
+
+					if constexpr (has_func_resize<U, size_t>::value) {
+						// If resize is present, use it
+						arg.resize(size);
+						for (auto& e: arg)
+							load_one(s, e);
 					} else {
-						auto size = arg.size();
-						s.load(size);
-
-						if constexpr (has_resize<U, size_t>::value) {
-							// If resize is present, use it
-							arg.resize(size);
-							for (auto& e: arg)
-								ser_data_one<Write>(s, e);
-						} else {
-							// With no resize present, write directly into memory
-							GAIA_FOR(size) {
-								using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
-								auto& e_ref = (arg_type&)arg[i];
-								ser_data_one<Write>(s, e_ref);
-							}
+						// With no resize present, write directly into memory
+						GAIA_FOR(size) {
+							using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
+							auto& e_ref = (arg_type&)arg[i];
+							load_one(s, e_ref);
 						}
 					}
 				}
@@ -15348,7 +15400,7 @@ namespace gaia {
 				else if constexpr (std::is_class_v<U>) {
 					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copyable types
-						(ser_data_one<Write>(s, items), ...);
+						(load_one(s, items), ...);
 					});
 				} else
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
@@ -15368,7 +15420,7 @@ namespace gaia {
 		//! 					template <typename T> void save(const T& arg);
 		template <typename Writer, typename T>
 		void save(Writer& writer, const T& data) {
-			detail::ser_data_one<true>(writer, data);
+			detail::save_one(writer, data);
 		}
 
 		//! Read \param data using \tparam Reader at compile-time.
@@ -15377,7 +15429,7 @@ namespace gaia {
 		//! 					template <typename T> void load(T& arg);
 		template <typename Reader, typename T>
 		void load(Reader& reader, T& data) {
-			detail::ser_data_one<false>(reader, data);
+			detail::load_one(reader, data);
 		}
 	} // namespace ser
 } // namespace gaia
@@ -18361,7 +18413,7 @@ namespace gaia {
 					std::is_trivial_v<T> ||
 							// For non-trivial T the comparison operator must be implemented because
 							// defragmentation needs it to figure out if entities can be moved around.
-							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+							(core::has_ffunc_equals<T>::value || core::has_func_equals<T>::value),
 					"Non-trivial Uni component must implement operator==");
 
 			//! Component kind
@@ -19785,6 +19837,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class SerializationBufferDyn;
+
 		namespace detail {
 			using ComponentDescId = uint32_t;
 
@@ -19901,8 +19955,8 @@ namespace gaia {
 							return false;
 						};
 					} else {
-						constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
-						constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
+						constexpr bool hasGlobalCmp = core::has_ffunc_equals<U>::value;
+						constexpr bool hasMemberCmp = core::has_func_equals<U>::value;
 						if constexpr (hasGlobalCmp || hasMemberCmp) {
 							return [](const void* left, const void* right) {
 								const auto* l = (const U*)left;
@@ -19919,6 +19973,32 @@ namespace gaia {
 						}
 					}
 				}
+
+				static constexpr auto func_save() {
+					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
+						auto* pSer = (SerializationBufferDyn*)pSerializer;
+						const auto* pComponent = (const U*)pSrc;
+						GAIA_FOR(cnt) {
+							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+							//       Therefore, we first need to load them into AoS form and then store them.
+							ser::save(*pSer, *pComponent);
+							++pComponent;
+						}
+					};
+				}
+
+				static constexpr auto func_load() {
+					return [](void* pSerializer, void* pDst, uint32_t cnt) {
+						auto* pSer = (SerializationBufferDyn*)pSerializer;
+						auto* pComponent = (U*)pDst;
+						GAIA_FOR(cnt) {
+							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+							//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA style.
+							ser::load(*pSer, *pComponent);
+							++pComponent;
+						}
+					};
+				}
 			};
 		} // namespace detail
 	} // namespace ecs
@@ -19934,6 +20014,7 @@ namespace gaia {
 
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
+
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -19941,6 +20022,9 @@ namespace gaia {
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
+
+			using FuncSave = void(void*, const void*, uint32_t);
+			using FuncLoad = void(void*, void*, uint32_t);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -19973,6 +20057,11 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
+
+			//! Function to call when saving component to a buffer
+			FuncSave* func_save{};
+			// !Function to call when saving component from a buffer
+			FuncLoad* func_load{};
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -20036,6 +20125,16 @@ namespace gaia {
 				GAIA_ASSERT(pLeft != pRight);
 				GAIA_ASSERT(func_cmp != nullptr);
 				return func_cmp(pLeft, pRight);
+			}
+
+			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
+				func_save(pSerializer, pSrc, cnt);
+			}
+
+			void load(void* pSerializer, void* pDst, uint32_t cnt) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
+				func_load(pSerializer, pDst, cnt);
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -20135,6 +20234,8 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
+				cci->func_save = detail::ComponentDesc<T>::func_save();
+				cci->func_load = detail::ComponentDesc<T>::func_load();
 				return cci;
 			}
 
@@ -20543,19 +20644,18 @@ namespace gaia {
 				}
 
 				//! Loads \param value from the buffer
-				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
+				void load_comp(const ComponentCacheItem& item, void* pDst) {
 					bool isManualDestroyNeeded = false;
 					load(isManualDestroyNeeded);
 
-					const auto& desc = cc.get(entity);
-					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
+					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
 					const auto& cdata = std::as_const(m_data);
 					auto* pSrc = (void*)&cdata[m_dataPos];
-					desc.move(pDst, pSrc, 0, 0, 1, 1);
+					item.move(pDst, pSrc, 0, 0, 1, 1);
 					if (isManualDestroyNeeded)
-						desc.dtor(pSrc);
+						item.dtor(pSrc);
 
-					m_dataPos += desc.comp.size();
+					m_dataPos += item.comp.size();
 				}
 			};
 		} // namespace detail
@@ -20795,6 +20895,15 @@ namespace gaia {
 				return *this;
 			}
 
+			void save(SerializationBufferDyn& s) const {
+				s.save(m_entity.val);
+			}
+			void load(SerializationBufferDyn& s) {
+				Identifier id{};
+				s.load(id);
+				m_entity = Entity(id);
+			}
+
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;
 			}
@@ -20852,30 +20961,10 @@ namespace gaia {
 		public:
 			WeakEntity() = default;
 			WeakEntity(World& w, Entity entity): m_w(&w), m_pTracker(new WeakEntityTracker()), m_entity(entity) {
-				m_pTracker->pWeakEntity = this;
-
-				auto& ec = fetch_mut(w, entity);
-				if (ec.pWeakTracker != nullptr) {
-					ec.pWeakTracker->prev = m_pTracker;
-					m_pTracker->next = ec.pWeakTracker;
-				} else
-					ec.pWeakTracker = m_pTracker;
+				set_tracker();
 			}
 			~WeakEntity() {
-				if (m_pTracker == nullptr)
-					return;
-
-				if (m_pTracker->next != nullptr)
-					m_pTracker->next->prev = m_pTracker->prev;
-				if (m_pTracker->prev != nullptr)
-					m_pTracker->prev->next = m_pTracker->next;
-
-				auto& ec = fetch_mut(*m_w, m_entity);
-				if (ec.pWeakTracker == m_pTracker)
-					ec.pWeakTracker = nullptr;
-
-				delete m_pTracker;
-				m_pTracker = nullptr;
+				del_tracker();
 			}
 
 			WeakEntity(const WeakEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
@@ -20931,6 +21020,46 @@ namespace gaia {
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 				return *this;
+			}
+
+			void set_tracker() {
+				GAIA_ASSERT(m_pTracker != nullptr);
+				m_pTracker->pWeakEntity = this;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				if (ec.pWeakTracker != nullptr) {
+					ec.pWeakTracker->prev = m_pTracker;
+					m_pTracker->next = ec.pWeakTracker;
+				} else
+					ec.pWeakTracker = m_pTracker;
+			}
+
+			void del_tracker() {
+				if (m_pTracker == nullptr)
+					return;
+
+				if (m_pTracker->next != nullptr)
+					m_pTracker->next->prev = m_pTracker->prev;
+				if (m_pTracker->prev != nullptr)
+					m_pTracker->prev->next = m_pTracker->next;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				if (ec.pWeakTracker == m_pTracker)
+					ec.pWeakTracker = nullptr;
+
+				delete m_pTracker;
+				m_pTracker = nullptr;
+			}
+
+			void save(SerializationBufferDyn& s) const {
+				s.save(m_entity.val);
+			}
+			void load(SerializationBufferDyn& s) {
+				del_tracker();
+				Identifier id{};
+				s.load(id);
+				m_entity = Entity(id);
+				set_tracker();
 			}
 
 			GAIA_NODISCARD Entity entity() const noexcept {
@@ -21336,6 +21465,9 @@ namespace gaia {
 
 			void save(SerializationBufferDyn& s) {
 				s.save(m_header.count);
+				if (m_header.count == 0)
+					return;
+
 				s.save(m_header.countEnabled);
 
 				const uint16_t dead = m_header.dead;
@@ -21360,10 +21492,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						GAIA_FOR(cnt) {
-							const uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
-							s.save(dst, rec.comp.size());
-						}
+						rec.pItem->save((void*)&s, rec.pData, cnt);
 					}
 				}
 			}
@@ -21371,6 +21500,9 @@ namespace gaia {
 			void load(SerializationBufferDyn& s) {
 				uint16_t prevCount = m_header.count;
 				s.load(m_header.count);
+				if (m_header.count == 0)
+					return;
+
 				s.load(m_header.countEnabled);
 
 				uint16_t dead = 0;
@@ -21401,10 +21533,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						GAIA_FOR(cnt) {
-							uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
-							s.load(dst, rec.comp.size());
-						}
+						rec.pItem->load((void*)&s, rec.pData, cnt);
 					}
 				}
 			}
@@ -31106,8 +31235,14 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
-			SerializationBufferDyn save() {
-				SerializationBufferDyn s;
+			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
+			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
+			//!       of the following functions defined:
+			//!       1) member function: "void save(SerializationBufferDyn& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, SerializationBufferDyn& s,
+			//!       const YourType& data)"
+			void save(SerializationBufferDyn& s) {
+				s.reset();
 
 				// Version number, currently unused
 				s.save((uint32_t)0);
@@ -31192,10 +31327,14 @@ namespace gaia {
 						}
 					}
 				}
-
-				return s;
 			}
 
+			//! Loads a world state form a buffer. The buffer is seeked to 0 before any loading happens.
+			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
+			//!       of the following functions defined:
+			//!       1) member function: "void save(SerializationBufferDyn& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, SerializationBufferDyn& s,
+			//!       YourType& data)"
 			bool load(SerializationBufferDyn& s) {
 				// Move back to the beginning of the stream
 				s.seek(0);
@@ -33635,7 +33774,7 @@ namespace gaia {
 	namespace ecs {
 
 	#if GAIA_PROFILER_CPU
-		inline constexpr const char* sc_query_func_str = "System2_exec";
+		inline constexpr const char* sc_query_func_str = "System_exec";
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
@@ -33703,6 +33842,15 @@ namespace gaia {
 					jobHandle = tp.add(syncJob);
 				}
 				return jobHandle;
+			}
+
+			//! Disable automatic System_ serialization
+			void save(SerializationBufferDyn& s) const {
+				(void)s;
+			}
+			//! Disable automatic System_ serialization
+			void load(SerializationBufferDyn& s) {
+				(void)s;
 			}
 		};
 
@@ -34435,7 +34583,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = pChunk->comp_idx(object);
 						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct AddComponentWithDataToTempEntityCmd: CommandBufferCmd {
@@ -34462,7 +34610,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = pChunk->comp_idx(object);
 						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct SetComponentCmd: CommandBufferCmd {
@@ -34476,7 +34624,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = ec.pChunk->comp_idx(object);
 						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get((object)), pComponentData);
 					}
 				};
 				struct SetComponentOnTempEntityCmd: CommandBufferCmd {
@@ -34498,7 +34646,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = ec.pChunk->comp_idx(object);
 						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct RemoveComponentCmd: CommandBufferCmd {

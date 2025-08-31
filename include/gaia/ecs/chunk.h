@@ -389,6 +389,9 @@ namespace gaia {
 
 			void save(SerializationBufferDyn& s) {
 				s.save(m_header.count);
+				if (m_header.count == 0)
+					return;
+
 				s.save(m_header.countEnabled);
 
 				const uint16_t dead = m_header.dead;
@@ -413,10 +416,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						GAIA_FOR(cnt) {
-							const uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
-							s.save(dst, rec.comp.size());
-						}
+						rec.pItem->save((void*)&s, rec.pData, cnt);
 					}
 				}
 			}
@@ -424,6 +424,9 @@ namespace gaia {
 			void load(SerializationBufferDyn& s) {
 				uint16_t prevCount = m_header.count;
 				s.load(m_header.count);
+				if (m_header.count == 0)
+					return;
+
 				s.load(m_header.countEnabled);
 
 				uint16_t dead = 0;
@@ -454,10 +457,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						GAIA_FOR(cnt) {
-							uint8_t* dst = rec.pData + (uintptr_t(i) * rec.comp.size());
-							s.load(dst, rec.comp.size());
-						}
+						rec.pItem->load((void*)&s, rec.pData, cnt);
 					}
 				}
 			}

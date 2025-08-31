@@ -1,4 +1,5 @@
 #include "../config/config.h"
+#include "data_buffer.h"
 
 #if !GAIA_SYSTEMS_ENABLED
 namespace gaia {
@@ -21,7 +22,7 @@ namespace gaia {
 	namespace ecs {
 
 	#if GAIA_PROFILER_CPU
-		inline constexpr const char* sc_query_func_str = "System2_exec";
+		inline constexpr const char* sc_query_func_str = "System_exec";
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
@@ -89,6 +90,15 @@ namespace gaia {
 					jobHandle = tp.add(syncJob);
 				}
 				return jobHandle;
+			}
+
+			//! Disable automatic System_ serialization
+			void save(SerializationBufferDyn& s) const {
+				(void)s;
+			}
+			//! Disable automatic System_ serialization
+			void load(SerializationBufferDyn& s) {
+				(void)s;
 			}
 		};
 

@@ -12,10 +12,13 @@
 #include "../mem/mem_utils.h"
 #include "../meta/reflection.h"
 #include "../meta/type_info.h"
+#include "../ser/serialization.h"
 #include "component.h"
 
 namespace gaia {
 	namespace ecs {
+		class SerializationBufferDyn;
+
 		namespace detail {
 			using ComponentDescId = uint32_t;
 
@@ -132,8 +135,8 @@ namespace gaia {
 							return false;
 						};
 					} else {
-						constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
-						constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
+						constexpr bool hasGlobalCmp = core::has_ffunc_equals<U>::value;
+						constexpr bool hasMemberCmp = core::has_func_equals<U>::value;
 						if constexpr (hasGlobalCmp || hasMemberCmp) {
 							return [](const void* left, const void* right) {
 								const auto* l = (const U*)left;
@@ -149,6 +152,32 @@ namespace gaia {
 							};
 						}
 					}
+				}
+
+				static constexpr auto func_save() {
+					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
+						auto* pSer = (SerializationBufferDyn*)pSerializer;
+						const auto* pComponent = (const U*)pSrc;
+						GAIA_FOR(cnt) {
+							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+							//       Therefore, we first need to load them into AoS form and then store them.
+							ser::save(*pSer, *pComponent);
+							++pComponent;
+						}
+					};
+				}
+
+				static constexpr auto func_load() {
+					return [](void* pSerializer, void* pDst, uint32_t cnt) {
+						auto* pSer = (SerializationBufferDyn*)pSerializer;
+						auto* pComponent = (U*)pDst;
+						GAIA_FOR(cnt) {
+							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+							//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA style.
+							ser::load(*pSer, *pComponent);
+							++pComponent;
+						}
+					};
 				}
 			};
 		} // namespace detail

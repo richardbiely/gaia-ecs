@@ -19,6 +19,7 @@ namespace gaia {
 
 		struct ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
+
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -26,6 +27,9 @@ namespace gaia {
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
+
+			using FuncSave = void(void*, const void*, uint32_t);
+			using FuncLoad = void(void*, void*, uint32_t);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -58,6 +62,11 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
+
+			//! Function to call when saving component to a buffer
+			FuncSave* func_save{};
+			// !Function to call when saving component from a buffer
+			FuncLoad* func_load{};
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -121,6 +130,16 @@ namespace gaia {
 				GAIA_ASSERT(pLeft != pRight);
 				GAIA_ASSERT(func_cmp != nullptr);
 				return func_cmp(pLeft, pRight);
+			}
+
+			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
+				func_save(pSerializer, pSrc, cnt);
+			}
+
+			void load(void* pSerializer, void* pDst, uint32_t cnt) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
+				func_load(pSerializer, pDst, cnt);
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -220,6 +239,8 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
+				cci->func_save = detail::ComponentDesc<T>::func_save();
+				cci->func_load = detail::ComponentDesc<T>::func_load();
 				return cci;
 			}
 

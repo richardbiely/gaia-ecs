@@ -392,7 +392,7 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Member function checks
+		// Function arguments type checks
 		//----------------------------------------------------------------------
 
 		template <typename... Type>
@@ -401,6 +401,20 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
+		//----------------------------------------------------------------------
+		// Member function checks
+		//----------------------------------------------------------------------
+
+#if __cpp_concepts
+	#define GAIA_DEFINE_HAS_MEMBER_FUNC(function_name)                                                                   \
+		template <typename T, typename... Args>                                                                            \
+		concept has_mfunc_check_##function_name = requires(T&& t, Args&&... args) { t.function_name(GAIA_FWD(args)...); }; \
+                                                                                                                       \
+		template <typename T, typename... Args>                                                                            \
+		struct has_func_##function_name {                                                                                  \
+			static constexpr bool value = has_mfunc_check_##function_name<T, Args...>;                                       \
+		}
+#else
 		namespace detail {
 			template <class Default, class AlwaysVoid, template <class...> class Op, class... Args>
 			struct member_func_checker {
@@ -417,78 +431,55 @@ namespace gaia {
 			struct member_func_none {
 				~member_func_none() = delete;
 				member_func_none(member_func_none const&) = delete;
+				member_func_none(member_func_none&&) = delete;
 				void operator=(member_func_none const&) = delete;
+				void operator=(member_func_none&&) = delete;
 			};
 		} // namespace detail
 
 		template <template <class...> class Op, typename... Args>
-		using has_member_func = typename detail::member_func_checker<detail::member_func_none, void, Op, Args...>::value_t;
+		using has_mfunc = typename detail::member_func_checker<detail::member_func_none, void, Op, Args...>::value_t;
 
-		template <typename Func, typename... Args>
-		struct has_global_func {
-			template <typename F, typename... A>
-			static auto test(F&& f, A&&... args) -> decltype(GAIA_FWD(f)(GAIA_FWD(args)...), std::true_type{});
-
-			template <typename...>
-			static std::false_type test(...);
-
-			static constexpr bool value = decltype(test(std::declval<Func>(), std::declval<Args>()...))::value;
-		};
-
-#define GAIA_DEFINE_HAS_FUNCTION(function_name)                                                                        \
-	template <typename T, typename... Args>                                                                              \
-	using has_##function_name##_check = decltype(std::declval<T>().function_name(std::declval<Args>()...));              \
+	#define GAIA_DEFINE_HAS_MEMBER_FUNC(function_name)                                                                   \
+		template <typename T, typename... Args>                                                                            \
+		using has_mfunc_check_##function_name = decltype(std::declval<T>().function_name(std::declval<Args>()...));        \
                                                                                                                        \
-	template <typename T, typename... Args>                                                                              \
-	struct has_##function_name {                                                                                         \
-		static constexpr bool value = gaia::core::has_member_func<has_##function_name##_check, T, Args...>::value;         \
-	}
+		template <typename T, typename... Args>                                                                            \
+		struct has_func_##function_name {                                                                                  \
+			static constexpr bool value = gaia::core::has_mfunc<has_mfunc_check_##function_name, T, Args...>::value;         \
+		}
+#endif
 
-#define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)                                                                    \
-	gaia::core::has_member_func<has_##function_name##_check, T, __VA_ARGS__>::value
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if_not);
 
-		// TODO: Try replacing the above with following:
-		//
-		//       #define GAIA_HAS_MEMBER_FUNC(function_name, T, ...)
-		//         gaia::core::has_member_func<
-		//           decltype(std::declval<T>().function_name(std::declval<Args>()...)),
-		//					 T, __VA_ARGS__
-		//         >::value
-		//
-		//       This way we could drop GAIA_DEFINE_HAS. However, the issue is that std::declval<Args>
-		//       would have to be replaced with a variadic macro that expands into a series
-		//       of std::declval<Arg> which is very inconvenient to do and always has a hard limit
-		//       on the number of arguments which is super limiting.
-
-#define GAIA_HAS_GLOBAL_FUNC(function_name, ...)                                                                       \
-	gaia::core::has_global_func<decltype(&function_name), __VA_ARGS__>::value
-
-		GAIA_DEFINE_HAS_FUNCTION(find);
-		GAIA_DEFINE_HAS_FUNCTION(find_if);
-		GAIA_DEFINE_HAS_FUNCTION(find_if_not);
+		//----------------------------------------------------------------------
+		// Special function checks
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename T>
-			constexpr auto has_member_equals_check(int)
+			constexpr auto has_mfunc_equals_check(int)
 					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
-			constexpr std::false_type has_member_equals_check(...);
+			constexpr std::false_type has_mfunc_equals_check(...);
 
 			template <typename T>
-			constexpr auto has_global_equals_check(int)
+			constexpr auto has_ffunc_equals_check(int)
 					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
 			template <typename T, typename... Args>
-			constexpr std::false_type has_global_equals_check(...);
+			constexpr std::false_type has_ffunc_equals_check(...);
 		} // namespace detail
 
 		template <typename T>
-		struct has_member_equals {
-			static constexpr bool value = decltype(detail::has_member_equals_check<T>(0))::value;
+		struct has_func_equals {
+			static constexpr bool value = decltype(detail::has_mfunc_equals_check<T>(0))::value;
 		};
 
 		template <typename T>
-		struct has_global_equals {
-			static constexpr bool value = decltype(detail::has_global_equals_check<T>(0))::value;
+		struct has_ffunc_equals {
+			static constexpr bool value = decltype(detail::has_ffunc_equals_check<T>(0))::value;
 		};
 
 		//----------------------------------------------------------------------
@@ -764,7 +755,7 @@ namespace gaia {
 
 		template <typename C, typename V>
 		constexpr auto find(const C& arr, const V& item) {
-			if constexpr (has_find<C>::value)
+			if constexpr (has_func_find<C>::value)
 				return arr.find(item);
 			else
 				return core::find(arr.begin(), arr.end(), item);
@@ -795,7 +786,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			if constexpr (has_find_if<C, UnaryPredicate>::value)
+			if constexpr (has_func_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
 				return core::find_if(arr.begin(), arr.end(), predicate);
@@ -826,7 +817,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
-			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
+			if constexpr (has_func_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
 				return core::find_if_not(arr.begin(), arr.end(), predicate);

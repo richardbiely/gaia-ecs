@@ -234,7 +234,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = pChunk->comp_idx(object);
 						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct AddComponentWithDataToTempEntityCmd: CommandBufferCmd {
@@ -261,7 +261,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = pChunk->comp_idx(object);
 						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct SetComponentCmd: CommandBufferCmd {
@@ -275,7 +275,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = ec.pChunk->comp_idx(object);
 						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get((object)), pComponentData);
 					}
 				};
 				struct SetComponentOnTempEntityCmd: CommandBufferCmd {
@@ -297,7 +297,7 @@ namespace gaia {
 						// Component data
 						const auto compIdx = ec.pChunk->comp_idx(object);
 						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache(), pComponentData, object);
+						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
 				struct RemoveComponentCmd: CommandBufferCmd {

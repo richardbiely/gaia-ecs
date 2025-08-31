@@ -117,7 +117,7 @@ namespace gaia {
 					std::is_trivial_v<T> ||
 							// For non-trivial T the comparison operator must be implemented because
 							// defragmentation needs it to figure out if entities can be moved around.
-							(core::has_global_equals<T>::value || core::has_member_equals<T>::value),
+							(core::has_ffunc_equals<T>::value || core::has_func_equals<T>::value),
 					"Non-trivial Uni component must implement operator==");
 
 			//! Component kind

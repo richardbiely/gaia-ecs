@@ -144,8 +144,8 @@ struct StringComponent2 {
 	StringComponent2& operator=(const StringComponent2&) = default;
 	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
-GAIA_DEFINE_HAS_FUNCTION(foo);
-GAIA_DEFINE_HAS_FUNCTION(food);
+GAIA_DEFINE_HAS_MEMBER_FUNC(foo);
+GAIA_DEFINE_HAS_MEMBER_FUNC(food);
 
 TEST_CASE("StringLookupKey") {
 	constexpr uint32_t MaxLen = 32;
@@ -181,54 +181,44 @@ struct Dummy1 {
 	}
 };
 
-GAIA_DEFINE_HAS_FUNCTION(some_func_local);
+GAIA_DEFINE_HAS_MEMBER_FUNC(some_func_local);
 struct HasFuncDummy {
 	void some_func_local(int, float*, short&) {}
 };
-void some_func_global(int, float*, short&) {}
 
 TEST_CASE("has_XYZ_check") {
 	SECTION("member_func") {
-		constexpr auto hasFunc1_0 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int);
-		constexpr auto hasFunc1_1 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float, short);
-		constexpr auto hasFunc1_2 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short);
-		constexpr auto hasFunc1_3 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short*);
-		constexpr auto hasFunc1_4 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float*, short&);
-		constexpr auto hasFunc1_5 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int, float&, short&);
-		constexpr auto hasFunc1_6 = GAIA_HAS_MEMBER_FUNC(some_func_local, HasFuncDummy, int&, float&, short&);
+		constexpr auto hasFunc1_0 = has_func_some_func_local<HasFuncDummy, int>::value;
+		constexpr auto hasFunc1_1 = has_func_some_func_local<HasFuncDummy, int, float, short>::value;
+		constexpr auto hasFunc1_2 = has_func_some_func_local<HasFuncDummy, int, float*, short>::value;
+		constexpr auto hasFunc1_3 = has_func_some_func_local<HasFuncDummy, int, float*, short*>::value;
+		constexpr auto hasFunc1_4 = has_func_some_func_local<HasFuncDummy, int, float*, short&>::value;
+		constexpr auto hasFunc1_5 = has_func_some_func_local<HasFuncDummy, int, float&, short&>::value;
+		constexpr auto hasFunc1_6 = has_func_some_func_local<HasFuncDummy, int&, float&, short&>::value;
 		CHECK_FALSE(hasFunc1_0);
+		static_assert(!hasFunc1_0);
 		CHECK_FALSE(hasFunc1_1);
+		static_assert(!hasFunc1_1);
 		CHECK_FALSE(hasFunc1_2);
+		static_assert(!hasFunc1_2);
 		CHECK_FALSE(hasFunc1_3);
+		static_assert(!hasFunc1_3);
 		CHECK(hasFunc1_4);
+		static_assert(hasFunc1_4);
 		CHECK_FALSE(hasFunc1_5);
+		static_assert(!hasFunc1_5);
 		CHECK_FALSE(hasFunc1_6);
-	}
-	SECTION("global_func") {
-		constexpr auto hasFunc1_0 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int);
-		constexpr auto hasFunc1_1 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float, short);
-		constexpr auto hasFunc1_2 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short);
-		constexpr auto hasFunc1_3 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short*);
-		constexpr auto hasFunc1_4 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float*, short&);
-		constexpr auto hasFunc1_5 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int, float&, short&);
-		constexpr auto hasFunc1_6 = GAIA_HAS_GLOBAL_FUNC(some_func_global, int&, float&, short&);
-		CHECK_FALSE(hasFunc1_0);
-		CHECK_FALSE(hasFunc1_1);
-		CHECK_FALSE(hasFunc1_2);
-		CHECK_FALSE(hasFunc1_3);
-		CHECK(hasFunc1_4);
-		CHECK_FALSE(hasFunc1_5);
-		CHECK_FALSE(hasFunc1_6);
+		static_assert(!hasFunc1_6);
 	}
 }
 
 TEST_CASE("has_XYZ_equals_check") {
 	{
-		constexpr auto hasMember = core::has_member_equals<Dummy0>::value;
-		constexpr auto hasGlobal = core::has_global_equals<Dummy0>::value;
-		constexpr auto hasFoo1 = has_foo<Dummy0, const Dummy0&>::value;
-		constexpr auto hasFoo2 = has_foo<Dummy0, int>::value;
-		constexpr auto hasFood = has_food<Dummy0>::value;
+		constexpr auto hasMember = core::has_func_equals<Dummy0>::value;
+		constexpr auto hasGlobal = core::has_ffunc_equals<Dummy0>::value;
+		constexpr auto hasFoo1 = has_func_foo<Dummy0, const Dummy0&>::value;
+		constexpr auto hasFoo2 = has_func_foo<Dummy0, int>::value;
+		constexpr auto hasFood = has_func_food<Dummy0>::value;
 		CHECK_FALSE(hasMember);
 		CHECK(hasGlobal);
 		CHECK(hasFoo1);
@@ -236,9 +226,9 @@ TEST_CASE("has_XYZ_equals_check") {
 		CHECK_FALSE(hasFood);
 	}
 	{
-		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
-		constexpr auto hasGlobal = core::has_global_equals<Dummy1>::value;
-		constexpr auto hasFoo = has_foo<Dummy1>::value;
+		constexpr auto hasMember = core::has_func_equals<Dummy1>::value;
+		constexpr auto hasGlobal = core::has_ffunc_equals<Dummy1>::value;
+		constexpr auto hasFoo = has_func_foo<Dummy1>::value;
 		CHECK(hasMember);
 		CHECK_FALSE(hasGlobal);
 		CHECK_FALSE(hasFoo);
@@ -9060,7 +9050,7 @@ TEST_CASE("Multiple worlds") {
 template <typename T>
 bool CompareSerializableType(const T& a, const T& b) {
 	if constexpr (
-			!std::is_trivially_copyable_v<T> || core::has_member_equals<T>::value || core::has_global_equals<T>::value) {
+			!std::is_trivially_copyable_v<T> || core::has_func_equals<T>::value || core::has_ffunc_equals<T>::value) {
 		return a == b;
 	} else {
 		return !std::memcmp((const void*)&a, (const void*)&b, sizeof(a));
@@ -9069,7 +9059,7 @@ bool CompareSerializableType(const T& a, const T& b) {
 
 template <typename T>
 bool CompareSerializableTypes(const T& a, const T& b) {
-	if constexpr (core::has_member_equals<T>::value || core::has_global_equals<T>::value) {
+	if constexpr (core::has_func_equals<T>::value || core::has_ffunc_equals<T>::value) {
 		return a == b;
 	} else {
 		// Convert inputs into tuples where each struct member is an element of the tuple
@@ -9124,22 +9114,21 @@ struct CustomStruct {
 };
 
 bool operator==(const CustomStruct& a, const CustomStruct& b) {
-	return a.size == b.size && !memcmp(a.ptr, b.ptr, a.size);
+	return a.size == b.size && 0 == memcmp(a.ptr, b.ptr, a.size);
 }
 namespace gaia::ser {
-	template <>
-	uint32_t bytes(const CustomStruct& data) {
+	uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
 		return data.size + sizeof(data.size);
 	}
 
 	template <typename Serializer>
-	void save(Serializer& s, const CustomStruct& data) {
+	void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
 		s.save(data.size);
 		s.save(data.ptr, data.size);
 	}
 
 	template <typename Serializer>
-	void load(Serializer& s, CustomStruct& data) {
+	void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
 		s.load(data.size);
 		data.ptr = new char[data.size];
 		s.load(data.ptr, data.size);
@@ -9185,6 +9174,9 @@ TEST_CASE("Serialization - custom") {
 
 		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
+
+		static_assert(!ser::has_func_save<CustomStruct, ecs::SerializationBuffer&>::value);
+		static_assert(ser::has_tag_save<ecs::SerializationBuffer, CustomStruct>::value);
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9388,7 +9380,7 @@ TEST_CASE("Serialization - arrays") {
 TEST_CASE("Serialization - world self") {
 	ecs::World in;
 
-	in.add<Position>();
+	(void)in.add<Position>();
 
 	ecs::Entity eats = in.add();
 	ecs::Entity carrot = in.add();
@@ -9401,11 +9393,12 @@ TEST_CASE("Serialization - world self") {
 	in.name(salad, "Salad");
 	in.name(apple, "Apple");
 
-	auto buffer = in.save();
+	ecs::SerializationBufferDyn buffer;
+	in.save(buffer);
 
 	//--------
 	in.cleanup();
-	in.add<Position>();
+	(void)in.add<Position>();
 	in.load(buffer);
 
 	Position pos = in.get<Position>(eats);
@@ -9426,7 +9419,7 @@ TEST_CASE("Serialization - world self") {
 TEST_CASE("Serialization - world other") {
 	ecs::World in;
 
-	in.add<Position>();
+	(void)in.add<Position>();
 
 	ecs::Entity eats = in.add();
 	ecs::Entity carrot = in.add();
@@ -9439,10 +9432,11 @@ TEST_CASE("Serialization - world other") {
 	in.name(salad, "Salad");
 	in.name(apple, "Apple");
 
-	auto buffer = in.save();
+	ecs::SerializationBufferDyn buffer;
+	in.save(buffer);
 
 	TestWorld twld;
-	wld.add<Position>();
+	(void)wld.add<Position>();
 	wld.load(buffer);
 
 	Position pos = wld.get<Position>(eats);
@@ -9460,70 +9454,18 @@ TEST_CASE("Serialization - world other") {
 	CHECK(apple2 == apple);
 }
 
-TEST_CASE("Serialization - world file") {
-	ecs::World in;
-
-	in.add<Position>();
-
-	ecs::Entity eats = in.add();
-	ecs::Entity carrot = in.add();
-	ecs::Entity salad = in.add();
-	ecs::Entity apple = in.add();
-
-	in.add<Position>(eats, {1, 2, 3});
-	in.name(eats, "Eats");
-	in.name(carrot, "Carrot");
-	in.name(salad, "Salad");
-	in.name(apple, "Apple");
-
-	auto buffer = in.save();
-
-	{
-		auto* f = fopen("world.bin", "wb");
-		fwrite(buffer.data(), 1, buffer.bytes(), f);
-		fclose(f);
-	}
-
-	{
-		const auto sz = buffer.bytes();
-		buffer.reset();
-		buffer.resize(sz);
-
-		auto* f = fopen("world.bin", "rb");
-		void* pBuffer = (void*)buffer.data();
-		fread(pBuffer, 1, sz, f);
-		fclose(f);
-
-		TestWorld twld;
-		wld.add<Position>();
-		wld.load(buffer);
-
-		Position pos = wld.get<Position>(eats);
-		CHECK(pos.x == 1.f);
-		CHECK(pos.y == 2.f);
-		CHECK(pos.z == 3.f);
-
-		auto eats2 = wld.get("Eats");
-		auto carrot2 = wld.get("Carrot");
-		auto salad2 = wld.get("Salad");
-		auto apple2 = wld.get("Apple");
-		CHECK(eats2 == eats);
-		CHECK(carrot2 == carrot);
-		CHECK(salad2 == salad);
-		CHECK(apple2 == apple);
-	}
-}
-
 TEST_CASE("Serialization - world + query") {
 	auto initComponents = [](ecs::World& w) {
-		w.add<Position>();
-		w.add<Rotation>();
+		(void)w.add<Position>();
+		(void)w.add<CustomStruct>();
 	};
+
+	char testStr[5] = {'g', 'a', 'i', 'a', '\0'};
 
 	TestWorld in;
 	initComponents(in.m_w);
 
-	const uint32_t N = 1'500;
+	const uint32_t N = 2;
 
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
@@ -9532,10 +9474,12 @@ TEST_CASE("Serialization - world + query") {
 		auto e = in.m_w.add();
 		ents.push_back(e);
 		in.m_w.add<Position>(e, {(float)i, (float)i, (float)i});
+		in.m_w.add<CustomStruct>(e, {testStr, 5});
 	};
 	GAIA_FOR(N) create(i);
 
-	auto buffer = in.m_w.save();
+	ecs::SerializationBufferDyn buffer;
+	in.m_w.save(buffer);
 
 	// Load
 
@@ -9544,11 +9488,17 @@ TEST_CASE("Serialization - world + query") {
 	wld.load(buffer);
 
 	auto q1 = wld.query().template all<Position>();
+	auto q2 = wld.query().template all<CustomStruct>();
 
 	{
 		const auto cnt = q1.count();
 		CHECK(cnt == N);
 	}
+	{
+		const auto cnt = q2.count();
+		CHECK(cnt == N);
+	}
+
 	{
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
@@ -9568,6 +9518,7 @@ TEST_CASE("Serialization - world + query") {
 			GAIA_EACH(it) CHECK(entView[i] == arr[entIdx++]);
 		});
 	}
+
 	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
@@ -9577,6 +9528,17 @@ TEST_CASE("Serialization - world + query") {
 			CHECK(pos.x == (float)i);
 			CHECK(pos.y == (float)i);
 			CHECK(pos.z == (float)i);
+		}
+	}
+	{
+		cnt::darr<CustomStruct> arr;
+		q2.arr(arr);
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) {
+			const auto& val = arr[i];
+			CHECK(val.size == 5);
+			const int cmp_res = strncmp(val.ptr, testStr, 5);
+			CHECK(cmp_res == 0);
 		}
 	}
 }

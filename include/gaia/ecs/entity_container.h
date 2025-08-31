@@ -229,6 +229,15 @@ namespace gaia {
 				return *this;
 			}
 
+			void save(SerializationBufferDyn& s) const {
+				s.save(m_entity.val);
+			}
+			void load(SerializationBufferDyn& s) {
+				Identifier id{};
+				s.load(id);
+				m_entity = Entity(id);
+			}
+
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;
 			}
@@ -286,30 +295,10 @@ namespace gaia {
 		public:
 			WeakEntity() = default;
 			WeakEntity(World& w, Entity entity): m_w(&w), m_pTracker(new WeakEntityTracker()), m_entity(entity) {
-				m_pTracker->pWeakEntity = this;
-
-				auto& ec = fetch_mut(w, entity);
-				if (ec.pWeakTracker != nullptr) {
-					ec.pWeakTracker->prev = m_pTracker;
-					m_pTracker->next = ec.pWeakTracker;
-				} else
-					ec.pWeakTracker = m_pTracker;
+				set_tracker();
 			}
 			~WeakEntity() {
-				if (m_pTracker == nullptr)
-					return;
-
-				if (m_pTracker->next != nullptr)
-					m_pTracker->next->prev = m_pTracker->prev;
-				if (m_pTracker->prev != nullptr)
-					m_pTracker->prev->next = m_pTracker->next;
-
-				auto& ec = fetch_mut(*m_w, m_entity);
-				if (ec.pWeakTracker == m_pTracker)
-					ec.pWeakTracker = nullptr;
-
-				delete m_pTracker;
-				m_pTracker = nullptr;
+				del_tracker();
 			}
 
 			WeakEntity(const WeakEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
@@ -365,6 +354,46 @@ namespace gaia {
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 				return *this;
+			}
+
+			void set_tracker() {
+				GAIA_ASSERT(m_pTracker != nullptr);
+				m_pTracker->pWeakEntity = this;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				if (ec.pWeakTracker != nullptr) {
+					ec.pWeakTracker->prev = m_pTracker;
+					m_pTracker->next = ec.pWeakTracker;
+				} else
+					ec.pWeakTracker = m_pTracker;
+			}
+
+			void del_tracker() {
+				if (m_pTracker == nullptr)
+					return;
+
+				if (m_pTracker->next != nullptr)
+					m_pTracker->next->prev = m_pTracker->prev;
+				if (m_pTracker->prev != nullptr)
+					m_pTracker->prev->next = m_pTracker->next;
+
+				auto& ec = fetch_mut(*m_w, m_entity);
+				if (ec.pWeakTracker == m_pTracker)
+					ec.pWeakTracker = nullptr;
+
+				delete m_pTracker;
+				m_pTracker = nullptr;
+			}
+
+			void save(SerializationBufferDyn& s) const {
+				s.save(m_entity.val);
+			}
+			void load(SerializationBufferDyn& s) {
+				del_tracker();
+				Identifier id{};
+				s.load(id);
+				m_entity = Entity(id);
+				set_tracker();
 			}
 
 			GAIA_NODISCARD Entity entity() const noexcept {

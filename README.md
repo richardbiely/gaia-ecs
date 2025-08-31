@@ -1892,13 +1892,12 @@ struct CustomStruct {
 };
 
 namespace gaia::ser {
-  template <>
-  uint32_t bytes(const CustomStruct& data) {
+  uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
     return data.size + sizeof(data.size);
   }
   
   template <typename Serializer>
-  void save(Serializer& s, const CustomStruct& data) {
+  void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
     // Save the size integer
     s.save(data.size);
     // Save data.size raw bytes staring at data.ptr
@@ -1906,7 +1905,7 @@ namespace gaia::ser {
   }
   
   template <typename Serializer>
-  void load(Serializer& s, CustomStruct& data) {
+  void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
     // Load the size integer
     s.load(data.size);
     // Load data.size raw bytes to location pointed at by data.ptr

@@ -5,7 +5,7 @@
 
 #include "../cnt/darray_ext.h"
 #include "../mem/mem_utils.h"
-#include "component_cache.h"
+#include "component_cache_item.h"
 
 namespace gaia {
 	namespace ecs {
@@ -137,19 +137,18 @@ namespace gaia {
 				}
 
 				//! Loads \param value from the buffer
-				void load_comp(const ComponentCache& cc, void* pDst, Entity entity) {
+				void load_comp(const ComponentCacheItem& item, void* pDst) {
 					bool isManualDestroyNeeded = false;
 					load(isManualDestroyNeeded);
 
-					const auto& desc = cc.get(entity);
-					GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
+					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
 					const auto& cdata = std::as_const(m_data);
 					auto* pSrc = (void*)&cdata[m_dataPos];
-					desc.move(pDst, pSrc, 0, 0, 1, 1);
+					item.move(pDst, pSrc, 0, 0, 1, 1);
 					if (isManualDestroyNeeded)
-						desc.dtor(pSrc);
+						item.dtor(pSrc);
 
-					m_dataPos += desc.comp.size();
+					m_dataPos += item.comp.size();
 				}
 			};
 		} // namespace detail
