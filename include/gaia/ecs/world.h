@@ -2296,6 +2296,8 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
+#if GAIA_USE_SERIALIZATION
+
 			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
 			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
 			//!       of the following functions defined:
@@ -2320,11 +2322,11 @@ namespace gaia {
 						s.save(ec.dataRaw);
 						s.save(ec.row);
 						s.save(ec.flags);
-#if GAIA_USE_SAFE_ENTITY
+	#if GAIA_USE_SAFE_ENTITY
 						s.save(ec.refCnt);
-#else
+	#else
 						s.save((uint32_t)0);
-#endif
+	#endif
 						s.save(ec.pArchetype->list_idx());
 						s.save(ec.pChunk->idx());
 					};
@@ -2421,15 +2423,15 @@ namespace gaia {
 						s.load(ec.flags);
 						ec.flags |= EntityContainerFlags::Load;
 
-#if GAIA_USE_SAFE_ENTITY
+	#if GAIA_USE_SAFE_ENTITY
 						s.load(ec.refCnt);
-#else
+	#else
 						s.load(ec.unused);
 						// if this value is different from zero, it means we are trying to load data
 						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
 						// because if your program used reference counting it probably won't work correctly.
 						GAIA_ASSERT(ec.unused == 0);
-#endif
+	#endif
 
 						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
 						uint32_t archetypeIdx = 0;
@@ -2564,6 +2566,8 @@ namespace gaia {
 
 				return false;
 			}
+
+#endif
 
 		private:
 			//! Sorts archetypes in the archetype list with their ids in ascending order

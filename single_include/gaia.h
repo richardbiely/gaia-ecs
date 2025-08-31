@@ -774,6 +774,11 @@ namespace gaia {
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
+//! If enabled, ECS world serialization is enabled
+#ifndef GAIA_USE_SERIALIZATION
+	#define GAIA_USE_SERIALIZATION 1
+#endif
+
 //------------------------------------------------------------------------------
 
 
@@ -19974,6 +19979,7 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
 					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
@@ -19999,6 +20005,7 @@ namespace gaia {
 						}
 					};
 				}
+#endif
 			};
 		} // namespace detail
 	} // namespace ecs
@@ -20058,10 +20065,12 @@ namespace gaia {
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
 
+#if GAIA_USE_SERIALIZATION
 			//! Function to call when saving component to a buffer
 			FuncSave* func_save{};
 			// !Function to call when saving component from a buffer
 			FuncLoad* func_load{};
+#endif
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -20127,6 +20136,7 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
+#if GAIA_USE_SERIALIZATION
 			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
 				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
 				func_save(pSerializer, pSrc, cnt);
@@ -20136,6 +20146,7 @@ namespace gaia {
 				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
 				func_load(pSerializer, pDst, cnt);
 			}
+#endif
 
 #if GAIA_ENABLE_HOOKS
 
@@ -20234,8 +20245,10 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
+#if GAIA_USE_SERIALIZATION
 				cci->func_save = detail::ComponentDesc<T>::func_save();
 				cci->func_load = detail::ComponentDesc<T>::func_load();
+#endif
 				return cci;
 			}
 
@@ -20895,6 +20908,8 @@ namespace gaia {
 				return *this;
 			}
 
+	#if GAIA_USE_SERIALIZATION
+
 			void save(SerializationBufferDyn& s) const {
 				s.save(m_entity.val);
 			}
@@ -20903,6 +20918,8 @@ namespace gaia {
 				s.load(id);
 				m_entity = Entity(id);
 			}
+
+	#endif
 
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;
@@ -21463,6 +21480,8 @@ namespace gaia {
 #endif
 			}
 
+#if GAIA_USE_SERIALIZATION
+
 			void save(SerializationBufferDyn& s) {
 				s.save(m_header.count);
 				if (m_header.count == 0)
@@ -21537,6 +21556,8 @@ namespace gaia {
 					}
 				}
 			}
+
+#endif
 
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.
@@ -22913,6 +22934,8 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
+#if GAIA_USE_SERIALIZATION
+
 			void save(SerializationBufferDyn& s) {
 				s.save(m_firstFreeChunkIdx);
 				s.save(m_listIdx);
@@ -22980,6 +23003,8 @@ namespace gaia {
 					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
 				}
 			}
+
+#endif
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
@@ -31235,6 +31260,8 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
+#if GAIA_USE_SERIALIZATION
+
 			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
 			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
 			//!       of the following functions defined:
@@ -31259,11 +31286,11 @@ namespace gaia {
 						s.save(ec.dataRaw);
 						s.save(ec.row);
 						s.save(ec.flags);
-#if GAIA_USE_SAFE_ENTITY
+	#if GAIA_USE_SAFE_ENTITY
 						s.save(ec.refCnt);
-#else
+	#else
 						s.save((uint32_t)0);
-#endif
+	#endif
 						s.save(ec.pArchetype->list_idx());
 						s.save(ec.pChunk->idx());
 					};
@@ -31360,15 +31387,15 @@ namespace gaia {
 						s.load(ec.flags);
 						ec.flags |= EntityContainerFlags::Load;
 
-#if GAIA_USE_SAFE_ENTITY
+	#if GAIA_USE_SAFE_ENTITY
 						s.load(ec.refCnt);
-#else
+	#else
 						s.load(ec.unused);
 						// if this value is different from zero, it means we are trying to load data
 						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
 						// because if your program used reference counting it probably won't work correctly.
 						GAIA_ASSERT(ec.unused == 0);
-#endif
+	#endif
 
 						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
 						uint32_t archetypeIdx = 0;
@@ -31503,6 +31530,8 @@ namespace gaia {
 
 				return false;
 			}
+
+#endif
 
 		private:
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -33844,6 +33873,8 @@ namespace gaia {
 				return jobHandle;
 			}
 
+	#if GAIA_USE_SERIALIZATION
+
 			//! Disable automatic System_ serialization
 			void save(SerializationBufferDyn& s) const {
 				(void)s;
@@ -33852,6 +33883,8 @@ namespace gaia {
 			void load(SerializationBufferDyn& s) {
 				(void)s;
 			}
+
+	#endif
 		};
 
 		// Usage:

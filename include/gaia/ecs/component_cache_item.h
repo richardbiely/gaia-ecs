@@ -63,10 +63,12 @@ namespace gaia {
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
 
+#if GAIA_USE_SERIALIZATION
 			//! Function to call when saving component to a buffer
 			FuncSave* func_save{};
 			// !Function to call when saving component from a buffer
 			FuncLoad* func_load{};
+#endif
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -132,6 +134,7 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
+#if GAIA_USE_SERIALIZATION
 			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
 				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
 				func_save(pSerializer, pSrc, cnt);
@@ -141,6 +144,7 @@ namespace gaia {
 				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
 				func_load(pSerializer, pDst, cnt);
 			}
+#endif
 
 #if GAIA_ENABLE_HOOKS
 
@@ -239,8 +243,10 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
+#if GAIA_USE_SERIALIZATION
 				cci->func_save = detail::ComponentDesc<T>::func_save();
 				cci->func_load = detail::ComponentDesc<T>::func_load();
+#endif
 				return cci;
 			}
 

@@ -281,6 +281,8 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
+#if GAIA_USE_SERIALIZATION
+
 			void save(SerializationBufferDyn& s) {
 				s.save(m_firstFreeChunkIdx);
 				s.save(m_listIdx);
@@ -348,6 +350,8 @@ namespace gaia {
 					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
 				}
 			}
+
+#endif
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;

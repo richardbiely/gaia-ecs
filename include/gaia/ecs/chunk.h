@@ -387,6 +387,8 @@ namespace gaia {
 #endif
 			}
 
+#if GAIA_USE_SERIALIZATION
+
 			void save(SerializationBufferDyn& s) {
 				s.save(m_header.count);
 				if (m_header.count == 0)
@@ -461,6 +463,8 @@ namespace gaia {
 					}
 				}
 			}
+
+#endif
 
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.

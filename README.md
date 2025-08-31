@@ -89,6 +89,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Systems and jobs](#system-jobs)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
+    * [World serialization](#world-serialization)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
     * [Job dependencies](#job-dependencies)
@@ -1892,10 +1893,12 @@ struct CustomStruct {
 };
 
 namespace gaia::ser {
-  uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
+  // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
+  constexpr uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
     return data.size + sizeof(data.size);
   }
   
+  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
     // Save the size integer
@@ -1904,6 +1907,7 @@ namespace gaia::ser {
     s.save(data.ptr, data.size);
   }
   
+  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
     // Load the size integer
@@ -1943,16 +1947,19 @@ struct CustomStruct {
   char* ptr;
   uint32_t size;
   
+  // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
   constexpr uint32_t bytes() const noexcept {
     return size + sizeof(size);
   }
   
+  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void save(Serializer& s) const {
     s.save(size);
     s.save(ptr, size);
   }
   
+  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void load(Serializer& s) {
     s.load(size);
@@ -1963,6 +1970,51 @@ struct CustomStruct {
 ```
 
  It doesn't matter which kind of specialization you use. If both are used the external one takes priority.
+
+### World serialization
+
+ECS world uses the same serialization as described above. It can be accessed via ***World::save*** and ***World::load*** functions. 
+
+```cpp
+// Save contents of world into a buffer
+ecs::World world;
+ecs::SerializationBufferDyn buffer;
+world.save(buffer);
+
+// Load contents of a buffer into our world
+world.cleanup();
+world.load(buffer);
+```
+
+Note, that in order for this feature to work properly, it is important that components are registered in a fixed order. What that means is that when you called ***save*** and registered components Position, Rotation, Foo in this order, it has to be the same at the time when ***load*** is called.
+This is not necessary an issue if you load into the same world from data written in memory from inside one program, but becomes important when you load data that were saved by a different world or a different program.
+
+```cpp
+ecs::World world0;
+// Register components
+(void)world0.add<Position>();
+(void)world0.add<Rotation>();
+(void)world0.add<Foo>();
+// Save contents of our world into a buffer
+ecs::SerializationBufferDyn buffer;
+world0.save(buffer);
+
+ecs::World world1;
+// Register components
+(void)world1.add<Position>();
+(void)world1.add<Rotation>();
+(void)world1.add<Foo>();
+// Load contents of a buffer into our world
+world1.load(buffer);
+```
+
+The feature is enabled by default but can be disabled via setting GAIA_USE_SERIALIZATION to 0.
+
+```cpp
+// Turn serialization support OFF
+#define GAIA_USE_SERIALIZATION 0
+#include <gaia.h>
+```
 
 ## Multithreading
 

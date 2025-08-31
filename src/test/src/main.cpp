@@ -9117,7 +9117,7 @@ bool operator==(const CustomStruct& a, const CustomStruct& b) {
 	return a.size == b.size && 0 == memcmp(a.ptr, b.ptr, a.size);
 }
 namespace gaia::ser {
-	uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
+	constexpr uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
 		return data.size + sizeof(data.size);
 	}
 
@@ -9377,6 +9377,8 @@ TEST_CASE("Serialization - arrays") {
 	}
 }
 
+#if GAIA_USE_SERIALIZATION
+
 TEST_CASE("Serialization - world self") {
 	ecs::World in;
 
@@ -9542,6 +9544,8 @@ TEST_CASE("Serialization - world + query") {
 		}
 	}
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 // Multithreading

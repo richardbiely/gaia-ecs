@@ -94,6 +94,11 @@
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
+//! If enabled, ECS world serialization is enabled
+#ifndef GAIA_USE_SERIALIZATION
+	#define GAIA_USE_SERIALIZATION 1
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

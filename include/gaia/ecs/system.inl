@@ -92,6 +92,8 @@ namespace gaia {
 				return jobHandle;
 			}
 
+	#if GAIA_USE_SERIALIZATION
+
 			//! Disable automatic System_ serialization
 			void save(SerializationBufferDyn& s) const {
 				(void)s;
@@ -100,6 +102,8 @@ namespace gaia {
 			void load(SerializationBufferDyn& s) {
 				(void)s;
 			}
+			
+	#endif
 		};
 
 		// Usage:

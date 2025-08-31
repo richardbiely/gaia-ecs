@@ -154,6 +154,7 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
 					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
@@ -179,6 +180,7 @@ namespace gaia {
 						}
 					};
 				}
+#endif
 			};
 		} // namespace detail
 	} // namespace ecs
