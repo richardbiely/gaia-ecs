@@ -1986,8 +1986,8 @@ world.cleanup();
 world.load(buffer);
 ```
 
-Note, that in order for this feature to work properly, it is important that components are registered in a fixed order. What that means is that when you called ***save*** and registered components Position, Rotation, Foo in this order, it has to be the same at the time when ***load*** is called.
-This is not necessary an issue if you load into the same world from data written in memory from inside one program, but becomes important when you load data that were saved by a different world or a different program.
+Note that for this feature to work correctly, components must be registered in a fixed order. If you called ***World::save*** and registered Position, Rotation, and Foo in that order, the same order must be used when calling ***World::load***.
+This usually isn’t an issue when loading data within the same program on the same world, but it matters when loading data saved by a different world or program.
 
 ```cpp
 ecs::World world0;
