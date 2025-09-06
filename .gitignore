@@ -7,4 +7,5 @@ cachegrind.*
 CMakeCache.txt
 CMakeSettings.json
 CMakeFiles
+CMakeUserPresets.json
 .DS_Store
