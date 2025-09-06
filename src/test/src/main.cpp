@@ -9386,6 +9386,9 @@ TEST_CASE("Serialization - world self") {
 
 	ecs::Entity eats = in.add();
 	ecs::Entity carrot = in.add();
+	in.del(carrot);
+	in.update();
+	carrot = in.add();
 	ecs::Entity salad = in.add();
 	ecs::Entity apple = in.add();
 

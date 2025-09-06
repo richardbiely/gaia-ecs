@@ -2449,9 +2449,6 @@ namespace gaia {
 						EntityContainer ec;
 						loadEntityContainer(ec);
 
-						// Reset generation to zero. We don't need it when recreating entities.
-						// ec.data.gen = 0;
-
 						m_recs.entities.m_items.add_item(GAIA_MOV(ec));
 					}
 
@@ -2479,8 +2476,6 @@ namespace gaia {
 						Entity ids[ChunkHeader::MAX_COMPONENTS];
 						GAIA_FOR_(idsSize, j) {
 							s.load(ids[j]);
-							// if (!ids[j].pair())
-							// 	ids[j].data.gen = 0; // Reset generation to zero
 						}
 
 						// Calculate the lookup hash

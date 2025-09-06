@@ -656,10 +656,6 @@ namespace gaia {
 					}
 				}
 
-				struct OpcodeBaseData {
-					EOpcode id;
-				};
-
 				struct OpcodeAll_Simple {
 					static constexpr EOpcode Id = EOpcode::All_Simple;
 

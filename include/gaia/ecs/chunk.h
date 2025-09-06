@@ -445,8 +445,6 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						Entity e;
 						s.load(e);
-						// e.data.gen = 0; // Reset generation to 0
-
 						entity_view_mut()[i] = e;
 					}
 				}
