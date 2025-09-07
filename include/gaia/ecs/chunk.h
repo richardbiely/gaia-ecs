@@ -125,6 +125,9 @@ namespace gaia {
 						}
 					}
 				}
+
+				// Make sure world versions are set initially.
+				update_world_version_init();
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -1044,7 +1047,7 @@ namespace gaia {
 				auto* pChunkA = ecA.pChunk;
 				auto* pChunkB = ecB.pChunk;
 
-				// Swap entitiies in the entity data part
+				// Swap entities in the entity data part
 				pChunkA->entity_view_mut()[ecA.row] = entityB;
 				pChunkB->entity_view_mut()[ecB.row] = entityA;
 
@@ -1346,6 +1349,13 @@ namespace gaia {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
+			//! Returns the internal index of a component based on the provided \param entity.
+			//! \param entity Component
+			//! \return Component index if the component was found. -1 otherwise.
+			GAIA_NODISCARD uint32_t comp_idx(Entity entity, uint32_t offset) const {
+				return ecs::comp_idx({m_records.pCompEntities + offset, m_header.count - offset}, entity);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Sets the index of this chunk in its archetype's storage
@@ -1453,16 +1463,18 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally.
 			//! Use when checking if there was a movement in data in the world. E.g. if an entity
 			//! was added, removed or moved in its archetype.
-			GAIA_NODISCARD bool changed(uint32_t version) const {
+			GAIA_NODISCARD bool changed(uint32_t requiredVersion) const {
 				const auto* versions = m_records.pVersions;
-				return ::gaia::ecs::version_changed(versions[0], version);
+				const auto changeVersion = versions[0];
+				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view();
+			GAIA_NODISCARD bool changed(uint32_t requiredVersion, uint32_t compIdx) const {
+				const auto* versions = m_records.pVersions;
 				// Do +1 because index 0 is reserved for the entity version number.
-				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
+				const auto changeVersion = versions[compIdx + 1];
+				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
 			//! Update the version of a component at the index \param compIdx
@@ -1482,6 +1494,14 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
+			}
+
+			//! Update the version of all components on chunk init
+			GAIA_FORCEINLINE void update_world_version_init() {
+				auto* versions = m_records.pVersions;
+				// We update the version of the entity and all components to match the world version.
+				versions[0] = m_header.worldVersion;
+				GAIA_FOR(m_header.genEntities) versions[1 + i] = m_header.worldVersion;
 			}
 
 			void diag() const {

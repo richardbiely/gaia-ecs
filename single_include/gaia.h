@@ -19081,6 +19081,23 @@ namespace gaia {
 			GAIA_ASSERT(false);
 			return BadIndex;
 		}
+
+		//! Located the index at which the provided component id is located in the component array
+		//! \param comps Component view to search in
+		//! \param entity Entity we search for
+		//! \warning The component id must be present in the array
+		GAIA_NODISCARD inline uint32_t comp_idx(std::span<Entity> comps, Entity entity) {
+			// We let the compiler know the upper iteration bound at compile-time.
+			// This way it can optimize better (e.g. loop unrolling, vectorization).
+			const auto sz = (uint32_t)comps.size();
+			GAIA_FOR(sz) {
+				if (comps[i] == entity)
+					return i;
+			}
+
+			GAIA_ASSERT(false);
+			return BadIndex;
+		}
 	} // namespace ecs
 } // namespace gaia
 /*** End of inlined file: component.h ***/
@@ -21286,6 +21303,9 @@ namespace gaia {
 						}
 					}
 				}
+
+				// Make sure world versions are set initially.
+				update_world_version_init();
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -22205,7 +22225,7 @@ namespace gaia {
 				auto* pChunkA = ecA.pChunk;
 				auto* pChunkB = ecB.pChunk;
 
-				// Swap entitiies in the entity data part
+				// Swap entities in the entity data part
 				pChunkA->entity_view_mut()[ecA.row] = entityB;
 				pChunkB->entity_view_mut()[ecB.row] = entityA;
 
@@ -22507,6 +22527,13 @@ namespace gaia {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
+			//! Returns the internal index of a component based on the provided \param entity.
+			//! \param entity Component
+			//! \return Component index if the component was found. -1 otherwise.
+			GAIA_NODISCARD uint32_t comp_idx(Entity entity, uint32_t offset) const {
+				return ecs::comp_idx({m_records.pCompEntities + offset, m_header.count - offset}, entity);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Sets the index of this chunk in its archetype's storage
@@ -22614,16 +22641,18 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally.
 			//! Use when checking if there was a movement in data in the world. E.g. if an entity
 			//! was added, removed or moved in its archetype.
-			GAIA_NODISCARD bool changed(uint32_t version) const {
+			GAIA_NODISCARD bool changed(uint32_t requiredVersion) const {
 				const auto* versions = m_records.pVersions;
-				return ::gaia::ecs::version_changed(versions[0], version);
+				const auto changeVersion = versions[0];
+				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool changed(uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view();
+			GAIA_NODISCARD bool changed(uint32_t requiredVersion, uint32_t compIdx) const {
+				const auto* versions = m_records.pVersions;
 				// Do +1 because index 0 is reserved for the entity version number.
-				return ::gaia::ecs::version_changed(versions[compIdx + 1], version);
+				const auto changeVersion = versions[compIdx + 1];
+				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
 			//! Update the version of a component at the index \param compIdx
@@ -22643,6 +22672,14 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
+			}
+
+			//! Update the version of all components on chunk init
+			GAIA_FORCEINLINE void update_world_version_init() {
+				auto* versions = m_records.pVersions;
+				// We update the version of the entity and all components to match the world version.
+				versions[0] = m_header.worldVersion;
+				GAIA_FOR(m_header.genEntities) versions[1 + i] = m_header.worldVersion;
 			}
 
 			void diag() const {
@@ -27915,12 +27952,15 @@ namespace gaia {
 						return false;
 
 					// See if any component has changed
+					uint32_t lastIdx = 0;
 					for (const auto comp: filtered) {
-						// TODO: Components are sorted. Therefore, we don't need to search from 0
-						//       all the time. We can search from the last found index.
-						const auto compIdx = chunk.comp_idx(comp);
+						// Components are sorted. Therefore, we don't need to search from 0  all the time.
+						// We can search from the last found index.
+						const auto compIdx = chunk.comp_idx(comp, lastIdx);
 						if (chunk.changed(queryVersion, compIdx))
 							return true;
+
+						lastIdx = compIdx;
 					}
 
 					// If the component hasn't been modified, the entity itself still might have been moved.
@@ -31418,7 +31458,7 @@ namespace gaia {
 				}
 			}
 
-			//! Loads a world state form a buffer. The buffer is seeked to 0 before any loading happens.
+			//! Loads a world state form a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
 			//!       of the following functions defined:
 			//!       1) member function: "void save(SerializationBufferDyn& s)"
