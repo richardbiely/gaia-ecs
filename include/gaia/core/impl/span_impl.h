@@ -79,7 +79,7 @@ namespace gaia {
 			template <typename C, typename U = raw_t<C>>
 			struct is_container {
 				static constexpr bool value =
-						!is_span<U>::value && !is_std_array<U>::value && !std::is_array<U>::value && has_data_and_size<C>::value;
+						!is_span<U>::value && !is_std_array<U>::value && !std::is_array<U>::value && has_data_size<C>::value;
 			};
 
 			template <typename, typename, typename = void>

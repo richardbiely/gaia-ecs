@@ -1848,7 +1848,8 @@ Serialization of arbitrary data is available via following functions:
 - ***ser::save*** - writes data to serialization buffer
 - ***ser::load*** - loads data from serialization buffer
 
-Any data structure can be serialized at compile-time into the provided serialization buffer. Native types, compound types, arrays and anything with data() + size() functions are supported out-of-the-box. If resize() is available it will be utilized.
+Any data structure can be serialized at compile time into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() are supported out of the box. If a resize() function is available, it will be used automatically.
+In some cases, you may still need to provide specializations or overrides of the default serialization functions — either because the default behavior does not match your expectations, or because the program will not compile otherwise.
 
 Example:
 ```cpp
@@ -1887,9 +1888,12 @@ Customization is possible for data types which require special attention. We can
 External specialization comes handy in cases where we can not or do not want to modify the source type:
 
 ```cpp
+// A structure with two members variables we want to custom-serialize.
+// We want to serialize ptr and size, and ignore foo.
 struct CustomStruct {
   char* ptr;
   uint32_t size;
+  bool foo;
 };
 
 namespace gaia::ser {
@@ -1915,6 +1919,10 @@ namespace gaia::ser {
     // Load data.size raw bytes to location pointed at by data.ptr
     data.ptr = new char[data.size];
     s.load(data.ptr, data.size);
+
+    // Set foo to some value. We did not save it, so we expect it to be set
+    // externally at some point.
+    data.foo = false;
   }
 }
 

@@ -128,11 +128,23 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename, typename = void>
-		struct has_data_and_size: std::false_type {};
+		struct has_data_size: std::false_type {};
 		template <typename T>
-		struct has_data_and_size<
-				T, std::void_t<decltype(detail::data(std::declval<T>())), decltype(detail::size(std::declval<T>()))>>:
-				std::true_type {};
+		struct has_data_size<
+				T, std::void_t< //
+							 decltype(detail::data(std::declval<T>())), //
+							 decltype(detail::size(std::declval<T>())) //
+							 >>: std::true_type {};
+
+		template <typename, typename = void>
+		struct has_size_begin_end: std::false_type {};
+		template <typename T>
+		struct has_size_begin_end<
+				T, std::void_t< //
+							 decltype(std::declval<T>().begin()), //
+							 decltype(std::declval<T>().end()), //
+							 decltype(detail::size(std::declval<T>())) //
+							 >>: std::true_type {};
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion

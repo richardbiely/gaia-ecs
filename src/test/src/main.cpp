@@ -9059,7 +9059,7 @@ bool CompareSerializableType(const T& a, const T& b) {
 
 template <typename T>
 bool CompareSerializableTypes(const T& a, const T& b) {
-	if constexpr (core::has_func_equals<T>::value || core::has_ffunc_equals<T>::value) {
+	if constexpr (std::is_fundamental<T>::value || core::has_func_equals<T>::value || core::has_ffunc_equals<T>::value) {
 		return a == b;
 	} else {
 		// Convert inputs into tuples where each struct member is an element of the tuple
@@ -9374,6 +9374,91 @@ TEST_CASE("Serialization - arrays") {
 			delete a.ptr;
 		for (auto& a: out.arr)
 			delete a.ptr;
+	}
+}
+
+TEST_CASE("Serialization - hashmap") {
+	{
+		gaia::cnt::map<int, CustomStruct> in{}, out{};
+		GAIA_FOR(5) {
+			CustomStruct str;
+			str.ptr = new char[6];
+			str.ptr[0] = 'g';
+			str.ptr[1] = 'a';
+			str.ptr[2] = 'i';
+			str.ptr[3] = 'a';
+			str.ptr[4] = '0' + i;
+			str.ptr[5] = '\0';
+			str.size = 6;
+			in.insert({i, str});
+		}
+
+		ecs::SerializationBuffer s;
+		s.reserve(ser::bytes(in));
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(in.size() == out.size());
+		if (in.size() == out.size()) {
+			auto it0 = in.begin();
+			auto it1 = out.begin();
+			while (it0 != in.end()) {
+				CHECK(CompareSerializableTypes(it0->first, it1->first));
+				CHECK(CompareSerializableTypes(it0->second, it1->second));
+				++it0;
+				++it1;
+			}
+		}
+
+		for (auto& it: in)
+			delete[] it.second.ptr;
+		for (auto& it: out)
+			delete[] it.second.ptr;
+	}
+}
+
+TEST_CASE("Serialization - hashset") {
+	{
+		gaia::cnt::set<CustomStruct> in{}, out{};
+		GAIA_FOR(5) {
+			CustomStruct str;
+			str.ptr = new char[6];
+			str.ptr[0] = 'g';
+			str.ptr[1] = 'a';
+			str.ptr[2] = 'i';
+			str.ptr[3] = 'a';
+			str.ptr[4] = '0' + i;
+			str.ptr[5] = '\0';
+			str.size = 6;
+			in.insert({str});
+		}
+
+		ecs::SerializationBuffer s;
+		s.reserve(ser::bytes(in));
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(in.size() == out.size());
+		// TODO: Hashset does not necessasrily return iterated items in the same order
+		//.      in which we inserted them. Sort before comparing.
+		// if (in.size() == out.size()) {
+		// 	auto it0 = in.begin();
+		// 	auto it1 = out.begin();
+		// 	while (it0 != in.end()) {
+		// 		CHECK(CompareSerializableTypes(*it0, *it1));
+		// 		++it0;
+		// 		++it1;
+		// 	}
+		// }
+
+		for (auto& it: in)
+			delete[] it.ptr;
+		for (auto& it: out)
+			delete[] it.ptr;
 	}
 }
 

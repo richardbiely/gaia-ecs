@@ -167,7 +167,7 @@ namespace gaia {
 					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
-				else if constexpr (core::has_data_and_size<T>::value)
+				else if constexpr (core::has_size_begin_end<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
@@ -193,8 +193,8 @@ namespace gaia {
 				else if constexpr (detail::is_trivially_serializable<U>::value) {
 					size_in_bytes = (uint32_t)sizeof(U);
 				}
-				// Types which have data() and size() member functions
-				else if constexpr (core::has_data_and_size<U>::value) {
+				// Types which have size(), begin() and end() member functions
+				else if constexpr (core::has_size_begin_end<U>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
@@ -222,8 +222,8 @@ namespace gaia {
 				else if constexpr (detail::is_trivially_serializable<U>::value) {
 					s.save(arg);
 				}
-				// Types which have data() and size() member functions
-				else if constexpr (core::has_data_and_size<U>::value) {
+				// Types which have size(), begin() and end() member functions
+				else if constexpr (core::has_size_begin_end<U>::value) {
 					const auto size = arg.size();
 					s.save(size);
 
@@ -254,8 +254,8 @@ namespace gaia {
 				else if constexpr (detail::is_trivially_serializable<U>::value) {
 					s.load(arg);
 				}
-				// Types which have data() and size() member functions
-				else if constexpr (core::has_data_and_size<U>::value) {
+				// Types which have size(), begin() and end() member functions
+				else if constexpr (core::has_size_begin_end<U>::value) {
 					auto size = arg.size();
 					s.load(size);
 

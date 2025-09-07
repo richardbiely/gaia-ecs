@@ -54,6 +54,10 @@
 #include "../mem/mem_alloc.h"
 #include "../mem/mem_utils.h"
 
+#if GAIA_USE_SERIALIZATION
+	#include "../ser/serialization.h"
+#endif
+
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
 	#include <memory>
@@ -1895,6 +1899,58 @@ namespace robin_hood {
 					rehashPowerOfTwo(newSize, true);
 				}
 			}
+
+#if GAIA_USE_SERIALIZATION
+			constexpr uint32_t bytes() const noexcept {
+				if constexpr (is_map) {
+					return sizeof(key_type) + sizeof(value_type);
+				} else {
+					return sizeof(key_type);
+				}
+			}
+
+			template <typename Serializer>
+			void save(Serializer& s) const {
+				const auto cnt = (uint32_t)size();
+				s.save(cnt);
+
+				if constexpr (is_map) {
+					for (auto& p: *this) {
+						::gaia::ser::save(s, p.first);
+						::gaia::ser::save(s, p.second);
+					}
+				} else {
+					for (auto& p: *this) {
+						::gaia::ser::save(s, p);
+					}
+				}
+			}
+
+			template <typename Serializer>
+			void load(Serializer& s) {
+				// Clear old data
+				clear();
+
+				uint32_t cnt = 0;
+				s.load(cnt);
+
+				if constexpr (is_map) {
+					for (uint32_t i = 0; i < cnt; ++i) {
+						typename Table::key_type key;
+						typename Table::mapped_type value;
+						::gaia::ser::load(s, key);
+						::gaia::ser::load(s, value);
+						insert({key, value});
+					}
+				} else {
+					for (uint32_t i = 0; i < cnt; ++i) {
+						typename Table::key_type key;
+						::gaia::ser::load(s, key);
+						insert(key);
+					}
+				}
+			}
+#endif
 
 			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE(this)

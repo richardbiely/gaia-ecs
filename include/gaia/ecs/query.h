@@ -143,7 +143,7 @@ namespace gaia {
 				Entity sortBy;
 				TSortByFunc func;
 
-				void exec(QueryCtx& ctx) {
+				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.sortBy = sortBy;
 					GAIA_ASSERT(func != nullptr);
@@ -158,7 +158,7 @@ namespace gaia {
 				Entity groupBy;
 				TGroupByFunc func;
 
-				void exec(QueryCtx& ctx) {
+				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
@@ -172,7 +172,7 @@ namespace gaia {
 
 				GroupId groupId;
 
-				void exec(QueryCtx& ctx) {
+				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupIdSet = groupId;
 				}
