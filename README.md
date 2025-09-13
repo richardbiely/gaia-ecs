@@ -1891,35 +1891,37 @@ External specialization comes handy in cases where we can not or do not want to 
 // A structure with two members variables we want to custom-serialize.
 // We want to serialize ptr and size, and ignore foo.
 struct CustomStruct {
+  //! Pointer to data
   char* ptr;
-  uint32_t size;
+  //! Length of data in bytes
+  uint32_t lengthInBytes;
+  //! Something not important
   bool foo;
 };
 
 namespace gaia::ser {
   // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
   constexpr uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
-    return data.size + sizeof(data.size);
+   return data.lengthInBytes + sizeof(data.lengthInBytes);
   }
   
   // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
-    // Save the size integer
-    s.save(data.size);
-    // Save data.size raw bytes staring at data.ptr
-    s.save(data.ptr, data.size);
+    // Save the byte size of our data
+    s.save(data.lengthInBytes);
+    // Save all data pointed to by ptr
+    s.save(data.ptr, data.lengthInBytes);
   }
   
   // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
-    // Load the size integer
-    s.load(data.size);
-    // Load data.size raw bytes to location pointed at by data.ptr
-    data.ptr = new char[data.size];
-    s.load(data.ptr, data.size);
-
+    // Load the byte size of our data
+    s.load(data.lengthInBytes);
+    // Allocate large-enough buffer and load it with data stored in our  serilization buffer
+    data.ptr = new char[data.lengthInBytes];
+    s.load(data.ptr, data.lengthInBytes);
     // Set foo to some value. We did not save it, so we expect it to be set
     // externally at some point.
     data.foo = false;
@@ -1953,7 +1955,8 @@ You will usually use internal specialization when you have the access to your da
 ```cpp
 struct CustomStruct {
   char* ptr;
-  uint32_t size;
+  uint32_t lengthInBytes;
+  bool foo;
   
   // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
   constexpr uint32_t bytes() const noexcept {
@@ -1963,16 +1966,17 @@ struct CustomStruct {
   // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void save(Serializer& s) const {
-    s.save(size);
-    s.save(ptr, size);
+    s.save(lengthInBytes);
+    s.save(ptr, lengthInBytes);
   }
   
   // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void load(Serializer& s) {
-    s.load(size);
-    ptr = new char[size];
-    s.load(ptr, size);
+    s.load(lengthInBytes);
+    ptr = new char[lengthInBytes];
+    s.load(ptr, lengthInBytes);
+    data.foo = false;
   }
 };
 ```
