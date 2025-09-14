@@ -45,7 +45,7 @@ namespace gaia {
 			//!			4) Entities (identifiers)
 			//!			5) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
-			uint8_t m_data[1];
+			uint8_t m_data[8];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)

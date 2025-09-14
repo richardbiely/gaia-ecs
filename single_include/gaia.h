@@ -21223,7 +21223,7 @@ namespace gaia {
 			//!			4) Entities (identifiers)
 			//!			5) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
-			uint8_t m_data[1];
+			uint8_t m_data[8];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
@@ -28943,17 +28943,11 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
-					lock(*m_storage.world());
-
 					each_inter<QueryExecType::Default, Func>(func);
-
-					unlock(*m_storage.world());
 				}
 
 				template <typename Func>
 				void each(Func func, QueryExecType execType) {
-					lock(*m_storage.world());
-
 					switch (execType) {
 						case QueryExecType::Parallel:
 							each_inter<QueryExecType::Parallel, Func>(func);
@@ -28968,8 +28962,6 @@ namespace gaia {
 							each_inter<QueryExecType::Default, Func>(func);
 							break;
 					}
-
-					unlock(*m_storage.world());
 				}
 
 				//------------------------------------------------

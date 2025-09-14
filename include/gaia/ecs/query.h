@@ -1744,17 +1744,11 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
-					lock(*m_storage.world());
-
 					each_inter<QueryExecType::Default, Func>(func);
-
-					unlock(*m_storage.world());
 				}
 
 				template <typename Func>
 				void each(Func func, QueryExecType execType) {
-					lock(*m_storage.world());
-
 					switch (execType) {
 						case QueryExecType::Parallel:
 							each_inter<QueryExecType::Parallel, Func>(func);
@@ -1769,8 +1763,6 @@ namespace gaia {
 							each_inter<QueryExecType::Default, Func>(func);
 							break;
 					}
-
-					unlock(*m_storage.world());
 				}
 
 				//------------------------------------------------

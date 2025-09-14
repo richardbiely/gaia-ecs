@@ -7633,6 +7633,43 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
+	SECTION("Entity creation form a query") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+		auto mainEntity = wld.add();
+		wld.add<Position>(mainEntity, {1, 2, 3});
+
+		uint32_t cnt = 0;
+		auto q = wld.query().all<Position>();
+		q.each([&](ecs::Iter& it) {
+			auto& cb = it.cmd_buffer_st();
+			auto e = cb.add();
+			cb.add<Position>(e, {4, 5, 6});
+			++cnt;
+		});
+		CHECK(cnt == 1);
+
+		cnt = 0;
+		q.each([&](ecs::Iter& it) {
+			auto ev = it.view<ecs::Entity>();
+			auto pv = it.view<Position>();
+			GAIA_EACH(it) {
+				const auto& p = pv[i];
+				if (ev[i] == mainEntity) {
+					CHECK(p.x == 1.f);
+					CHECK(p.y == 2.f);
+					CHECK(p.z == 3.f);
+				} else {
+					CHECK(p.x == 4.f);
+					CHECK(p.y == 5.f);
+					CHECK(p.z == 6.f);
+				}
+				++cnt;
+			}
+		});
+		CHECK(cnt == 2);
+	}
+
 	SECTION("Entity creation from another entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
