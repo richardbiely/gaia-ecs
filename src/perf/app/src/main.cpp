@@ -2,7 +2,6 @@
 
 #define PICOBENCH_IMPLEMENT
 #include <gaia.h>
-#include <gaia/external/random.h>
 #include <picobench/picobench.hpp>
 #include <string_view>
 
@@ -16,6 +15,29 @@ inline static constexpr uint32_t SpawAreaMaxX = 320;
 inline static constexpr uint32_t SpawAreaMaxY = 240;
 inline static constexpr uint32_t SpawAreaMargin = 100;
 
+namespace rnd {
+	struct pseudo_random {
+		uint32_t state = 0;
+
+		constexpr pseudo_random() {}
+		constexpr pseudo_random(uint32_t seed): state(seed) {}
+
+		constexpr uint32_t next() {
+			state = state * 1664525 + 1013904223;
+			return state;
+		}
+
+		constexpr uint32_t operator()() noexcept {
+			return next();
+		}
+
+		constexpr uint32_t range(uint32_t low, uint32_t high) noexcept {
+			const uint32_t r = high - low + 1;
+			return (operator()() % r) + low;
+		}
+	};
+} // namespace rnd
+
 namespace components {
 	inline static constexpr char PlayerSprite = '@';
 	inline static constexpr char MonsterSprite = 'k';
@@ -27,7 +49,7 @@ namespace components {
 	enum class PlayerType { NPC, Monster, Hero };
 
 	struct PlayerComponent {
-		rnd::random_xoshiro128 rng{};
+		rnd::pseudo_random rng{};
 		PlayerType type{PlayerType::NPC};
 	};
 
@@ -51,7 +73,7 @@ namespace components {
 		bool mingy{false};
 
 		uint32_t seed{DefaultSeed};
-		rnd::random_xoshiro128 rng;
+		rnd::pseudo_random rng;
 		uint32_t numgy;
 
 		DataComponent(): rng(seed), numgy(rng()) {}

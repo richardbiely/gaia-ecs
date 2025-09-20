@@ -2,7 +2,6 @@
 #include <type_traits>
 
 #include <gaia.h>
-#include <gaia/external/random.h>
 
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
@@ -14,6 +13,29 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
 #include <string>
+
+namespace rnd {
+	struct pseudo_random {
+		uint32_t state = 0;
+
+		constexpr pseudo_random() {}
+		constexpr pseudo_random(uint32_t seed): state(seed) {}
+
+		constexpr uint32_t next() {
+			state = state * 1664525 + 1013904223;
+			return state;
+		}
+
+		constexpr uint32_t operator()() noexcept {
+			return next();
+		}
+
+		constexpr uint32_t range(uint32_t low, uint32_t high) noexcept {
+			const uint32_t r = high - low + 1;
+			return (operator()() % r) + low;
+		}
+	};
+} // namespace rnd
 
 using namespace gaia;
 
@@ -9858,7 +9880,7 @@ struct JobQueueMTTester_PushPopSteal {
 		mt::JobHandle handle;
 
 		if (0 == thread_idx) {
-			rnd::random_xoshiro128 rng{};
+			rnd::pseudo_random rng{};
 			uint32_t itemsToInsert = JobQueueMTTesterItems;
 
 			// This thread generates 2 items per tick and consumes one
@@ -9936,7 +9958,7 @@ struct JobQueueMTTester_PushPop {
 		mt::JobHandle handle;
 
 		if (0 == thread_idx) {
-			rnd::random_xoshiro128 rng{};
+			rnd::pseudo_random rng{};
 			uint32_t itemsToInsert = JobQueueMTTesterItems;
 
 			// This thread generates 2 items per tick and consumes one

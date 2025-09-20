@@ -164,7 +164,7 @@ The entire project is implemented inside gaia ***namespace***. It is further spl
 - ***mt*** - multithreading framework
 - ***ecs*** - the ECS part of the project
 
-A special part of the project is ***external***. It contains 3rd-party code such as a modified [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map or random number generator from [ETLCPP](https://github.com/ETLCPP/etl).
+The project has a dedicated ***external*** section that contains 3rd-party code. At present, it only includes a modified version of the [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map.
 
 # Usage
 ## Minimum requirements
