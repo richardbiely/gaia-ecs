@@ -327,9 +327,9 @@ w.del(e, velocity);
 
 When adding components following restrictions apply:
 * There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
-* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storages types are introduced this restriction won't apply to them.
+* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storage types are introduced this restriction won't apply to them.
 * [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
-* Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. data from some 3rd party library that are beyond your control) you need to work this around by storing pointers to this data or come up with different means of accessing it.
+* Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
@@ -644,7 +644,7 @@ isValid = w.valid(playerSafe); // false
 
 Technically, ***ecs::WeakEntity*** is almost the same thing as ***ecs::Entity*** with one nuance difference. Because entity ids are recycled, in theory, ***ecs::Entity*** left lying around somewhere could end up being multiple different things over time. This is not an issue with ***ecs::WeakEntity*** because the moment the entity linked with it gets deleted, it is reset to ***ecs::EntityBad***.
 
-This is an edge-case scenario, unlikely to happen even, but should you ever need it ***ec::WeakEntity*** is there to help. If you decided to change the amount of bits allocated to ***Entity::gen*** to a lower number you will increase the likelihood of double-recycling happening and increase usefulness of ***ecs::WeakEntity***.
+This is an edge-case scenario, unlikely to happen even, but should you ever need it ***ecs::WeakEntity*** is there to help. If you decided to change the amount of bits allocated to ***Entity::gen*** to a lower number you will increase the likelihood of double-recycling happening and increase usefulness of ***ecs::WeakEntity***.
 
 A more useful use case, however, would be if you need an entity identifier that gets automatically reset when the entity gets deleted without any setup necessary from your end. Certain situations can be complex and using ***ecs::WeakEntity*** just might be the one way for you to address them.
 
@@ -671,7 +671,7 @@ w.set_max_lifespan(player0, 20);
 w.set_max_lifespan(player0);
 ```
 
-Note, if the entity used to change an archetype's lifespan moves to a new archetype, the later's lifespan is not updated.
+Note, if the entity that changed an archetype’s lifespan moves to a new archetype, the new archetype’s lifespan will not be updated.
 
 ```cpp
 ecs::World w;
@@ -696,7 +696,7 @@ ec.pArchetype->set_max_lifespan(50);
 
 ## Data processing
 ### Query
-For querying data you can use a Query. It can help you find all entities, components or chunks matching a list of conditions and constraints and iterate them or return them as an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
+For querying data you can use a Query. It can help you find all entities, components, or chunks matching a list of conditions and constraints and iterate them or return them as an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
 
 Every Query is cached internally. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
@@ -722,7 +722,7 @@ const auto numberOfMatches = q.count();
 const bool hasMatches = !q.empty();
 ```
 
-More complex queries can be created by combining All, Any and None in any way you can imagine:
+More complex queries can be created by combining All, Any, and None in any way you can imagine:
 
 ```cpp
 ecs::Query q = w.query();
@@ -846,7 +846,7 @@ ecs::Query q2 = w.query()
 ```
 
 ### Uncached query
-From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. As a result, if there are duplicates, more memory and performance will be wasted.
+From the implementation standpoint, uncached queries are the same as ordinary queries in all but one aspect - they do not use the query cache internally. This means that two uncached queries using the same setup are going to evaluate matches separately. As a result, if there are duplicates, more memory, and performance will be wasted.
 
 On the other hand, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute for the query and matching is faster because no query cache lookups are involved.
 
@@ -883,7 +883,7 @@ q.each([&](Position& p, const Velocity& v) {
 
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
-Processing via an iterator gives you even more expressive power and also opens doors for new kinds of optimizations.
+Processing via an iterator gives you even more expressive power, and opens doors for new kinds of optimizations.
 ***Iter*** is an abstraction over underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
@@ -933,12 +933,12 @@ q.each([](ecs::IterAll& it) {
 }
 ```
 
->**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simpy expect that the functor might be triggered mulitple times per a call to ***each"***.
+>**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to ***each"***.
 
 ### Constraints
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
 
-Disabling/enabling an entity is a special operation that marks it invisible to queries by default. Archetype of the entity is not changed afterwards so it can be considered fast.
+Disabling or enabling an entity is a special operation that is invisible to queries. The entity’s archetype is not changed, so the operation is fast.
 
 ```cpp
 ecs::Entity e1, e2;
@@ -1207,11 +1207,11 @@ q.each([](Iter& it) { ... });
 
 Sorting is an expensive operation and it is advised to use it only for data which is known to not change much. It is definitely not suited for actions happening all the time (unless the amount of entities to sort is small).
 
-You can currently sort only by one criterion (you can pick only one entity/component inside an archetype). If you need more, it is recomended to store your data outside of ECS. Also, make sure multiple systems working with similar data don't end up sorting archetypes as this could trigger constant resorting.
+You can currently sort only by one criterion (you can pick only one entity/component inside an archetype). If you need more, it is recommended to store your data outside of ECS. Also, make sure multiple systems working with similar data don't end up sorting archetypes as this could trigger constant resorting.
 
-During sorting, entities in chunks are reordered according to the sorting function. However, they are not sorted globaly, only independently within chunks. To get a globally sorted view an acceleration structure is created. This way we can ensure data is moved as little as possible.
+During sorting, entities in chunks are reordered according to the sorting function. However, they are not sorted globally, only independently within chunks. To get a globally sorted view an acceleration structure is created. This way we can ensure data is moved as little as possible.
 
-Resorting is triggered automatically any time the query matches a new archetype, or some of the archetypes it matched disappeared. Adding, deleting or moving entities on the matched archetypes also triggers resorting.
+Resorting is triggered automatically any time the query matches a new archetype, or some of the archetypes it matched disappeared. Adding, deleting, or moving entities on the matched archetypes also triggers resorting.
 
 ### Parallel execution
 
@@ -1230,7 +1230,7 @@ q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelPerf);
 q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelEff);
 ```
 
-Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your systems's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
+Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your system's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
 
 Queries can't make use of job dependencies directly. To do that, you need to use [systems](#system-jobs).
 
@@ -1299,7 +1299,7 @@ q3.each([]()) {
 }
 ```
 
-Relationships can be ended by calling ***World::del*** (just like it is done for regular entities/components)..
+Relationships can be ended by calling ***World::del*** (just like it is done for regular entities/components).
 
 ```cpp
 // Rabbit no longer eats carrot
@@ -1323,9 +1323,9 @@ w.add(rabbit, ecs::Pair(eats, salad));
 ```
 
 Pairs do not need to be formed from tag entities only. You can use components to build a pair which means they can store data, too!
-To determine the storage type of Pair(relation, target) the following logic is applied:
-1) if "relation" is non-empty, the storage type is rel.
-2) if "relation" is empty and "target" is non-empty, the storage type is "target".
+To determine the storage type of Pair(relation, target), the following logic is applied:
+1) If "relation" is non-empty, the storage type is rel.
+2) If "relation" is empty and "target" is non-empty, the storage type is "target".
 
 ```cpp
 struct Start{};
@@ -1491,7 +1491,7 @@ q2.each([](ecs::Entity entity) {
 
 >**NOTE:<br/>**
 Currently inheritance works only for checking if something is something else.
-In the future, all ids that are present on the entity we inherit from will also be presnet on the inherited entity.
+In the future, all ids that are present on the entity we inherit from will also be present on the inherited entity.
 
 ```cpp
 // NOT YET IMPLEMENTED, BUT THIS IS WHAT WILL HAPPEN IN THE FUTURE RELEASES.
@@ -1761,7 +1761,7 @@ struct Position {
 
 If we imagine an ordinary array of 4 such Position components they are organized like this in memory: xyz xyz xyz xyz.
 
-However, in specific cases, you might want to consider organizing your component's internal data as an structure or arrays (SoA): xxxx yyyy zzzz.
+However, in specific cases, you might want to consider organizing your component's internal data as a structure or arrays (SoA): xxxx yyyy zzzz.
 
 To achieve this you can tag the component with a GAIA_LAYOUT of your choosing. By default, GAIA_LAYOUT(AoS) is assumed.
 
@@ -2092,7 +2092,7 @@ GAIA_LOG("Sum: %u\n", sum);
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
 >**NOTE:<br/>** 
 This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to.<br/>
-Let us say there is a job A depending on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
+Let us say there is a job A that depends on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
 
 ```cpp
 mt::Job job0;
@@ -2338,7 +2338,7 @@ Project name | Description
 [External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external)|A dummy example showing how to use the framework in an external project.
 [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1)|A dummy example showing how to use the framework in a standalone project.
 [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
-[Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice. It is work-in-progress and changes and evolves with the project.
+[Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how it is used in practice. It is work-in-progress and changes and evolves with the project.
 
 ## Benchmarks
 To be able to reason about the project's performance and prevent regressions benchmarks were created.
@@ -2347,7 +2347,7 @@ Benchmarking relies on [picobench](https://github.com/iboB/picobench). It can be
 
 Project name | Description      
 -|-
-[Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel)|Compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself. DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that.
+[Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel)|Compares various coding approaches — basic OOP with scattered heap data, OOP with allocators to control memory fragmentation, and different data-oriented designs—against our ECS framework. Data-oriented performance (DOD) is the target we aim to match or approach, as it represents the fastest achievable level.
 [App](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/app)|Somewhat similar to Duel but measures in a more complex scenario. Inspired by [ECS benchmark](https://github.com/abeimler/ecs_benchmark).
 [Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter)|Covers iteration performance with different numbers of entities and archetypes.
 [Entity](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/entity)|Focuses on performance of creating and removing entities and components of various sizes.
