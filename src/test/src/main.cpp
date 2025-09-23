@@ -10,7 +10,10 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 	#endif
 #endif
 
-#include <catch2/catch_test_macros.hpp>
+#define DOCTEST_CONFIG_SUPER_FAST_ASSERTS
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
+
 #include <cstdio>
 #include <string>
 
@@ -209,7 +212,7 @@ struct HasFuncDummy {
 };
 
 TEST_CASE("has_XYZ_check") {
-	SECTION("member_func") {
+	SUBCASE("member_func") {
 		constexpr auto hasFunc1_0 = has_func_some_func_local<HasFuncDummy, int>::value;
 		constexpr auto hasFunc1_1 = has_func_some_func_local<HasFuncDummy, int, float, short>::value;
 		constexpr auto hasFunc1_2 = has_func_some_func_local<HasFuncDummy, int, float*, short>::value;
@@ -258,7 +261,7 @@ TEST_CASE("has_XYZ_equals_check") {
 }
 
 TEST_CASE("Intrinsics") {
-	SECTION("POPCNT") {
+	SUBCASE("POPCNT") {
 		const uint32_t zero32 = GAIA_POPCNT(0);
 		CHECK(zero32 == 0);
 		const uint64_t zero64 = GAIA_POPCNT64(0);
@@ -273,7 +276,7 @@ TEST_CASE("Intrinsics") {
 		const uint64_t val64_3 = GAIA_POPCNT64(0x00030020003002);
 		CHECK(val64_3 == 6);
 	}
-	SECTION("CLZ") {
+	SUBCASE("CLZ") {
 		const uint32_t zero32 = GAIA_CLZ(0);
 		CHECK(zero32 == 32);
 		const uint64_t zero64 = GAIA_CLZ64(0);
@@ -288,7 +291,7 @@ TEST_CASE("Intrinsics") {
 		const uint64_t val64_3 = GAIA_CLZ64(0x00030020003002);
 		CHECK(val64_3 == 1);
 	}
-	SECTION("CTZ") {
+	SUBCASE("CTZ") {
 		const uint32_t zero32 = GAIA_CTZ(0);
 		CHECK(zero32 == 32);
 		const uint64_t zero64 = GAIA_CTZ64(0);
@@ -303,7 +306,7 @@ TEST_CASE("Intrinsics") {
 		const uint64_t val64_3 = GAIA_CTZ64(0x00030020003002);
 		CHECK(val64_3 == 22);
 	}
-	SECTION("FFS") {
+	SUBCASE("FFS") {
 		const uint32_t zero32 = GAIA_FFS(0);
 		CHECK(zero32 == 0);
 		const uint64_t zero64 = GAIA_FFS64(0);
@@ -321,17 +324,17 @@ TEST_CASE("Intrinsics") {
 }
 
 TEST_CASE("Memory allocation") {
-	SECTION("mem_alloc") {
+	SUBCASE("mem_alloc") {
 		void* pMem = mem::mem_alloc(311);
 		CHECK(pMem != nullptr);
 		mem::mem_free(pMem);
 	}
-	SECTION("mem_alloc_alig A") {
+	SUBCASE("mem_alloc_alig A") {
 		void* pMem = mem::mem_alloc_alig(1, 16);
 		CHECK(pMem != nullptr);
 		mem::mem_free_alig(pMem);
 	}
-	SECTION("mem_alloc_alig B") {
+	SUBCASE("mem_alloc_alig B") {
 		void* pMem = mem::mem_alloc_alig(311, 16);
 		CHECK(pMem != nullptr);
 		mem::mem_free_alig(pMem);
@@ -339,7 +342,7 @@ TEST_CASE("Memory allocation") {
 }
 
 TEST_CASE("pow2") {
-	SECTION("is_pow2") {
+	SUBCASE("is_pow2") {
 		CHECK(core::is_pow2(0));
 		CHECK(core::is_pow2(1));
 		CHECK(core::is_pow2(2));
@@ -359,7 +362,7 @@ TEST_CASE("pow2") {
 		CHECK_FALSE(core::is_pow2(127));
 	}
 
-	SECTION("closest_pow2") {
+	SUBCASE("closest_pow2") {
 		constexpr uint8_t test0 = 0;
 		constexpr uint8_t test2 = 2;
 		constexpr uint8_t test8 = 19;
@@ -610,10 +613,10 @@ TEST_CASE("Containers - sarr") {
 	constexpr uint32_t N = 100;
 	using TrivialT = cnt::sarr<uint32_t, N>;
 	using NonTrivialT = cnt::sarr<TypeNonTrivial<uint32_t>, N>;
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		fixed_arr_test<TrivialT>();
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		fixed_arr_test<NonTrivialT>();
 	}
 }
@@ -785,13 +788,13 @@ TEST_CASE("Containers - sarr_ext") {
 	constexpr uint32_t N = 100;
 	using TrivialT = cnt::sarr_ext<uint32_t, 100>;
 	using NonTrivialT = cnt::sarr_ext<TypeNonTrivial<uint32_t>, 100>;
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT>(N);
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
 	}
-	SECTION("retain") {
+	SUBCASE("retain") {
 		retainable_arr_test<TrivialT>();
 	}
 }
@@ -801,15 +804,15 @@ TEST_CASE("Containers - darr") {
 	constexpr uint32_t M = 10000;
 	using TrivialT = cnt::darr<uint32_t>;
 	using NonTrivialT = cnt::darr<TypeNonTrivial<uint32_t>>;
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT>(N);
 		resizable_arr_test<TrivialT>(M);
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
 		resizable_arr_test<NonTrivialT>(M);
 	}
-	SECTION("retain") {
+	SUBCASE("retain") {
 		retainable_arr_test<TrivialT>();
 	}
 }
@@ -822,21 +825,21 @@ TEST_CASE("Containers - darr_ext") {
 	using NonTrivialT1 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 50>;
 	using NonTrivialT2 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 100>;
 
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT1>(N);
 		resizable_arr_test<TrivialT1>(M);
 
 		resizable_arr_test<TrivialT2>(N);
 		resizable_arr_test<TrivialT2>(M);
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		resizable_arr_test<NonTrivialT1>(N);
 		resizable_arr_test<NonTrivialT1>(M);
 
 		resizable_arr_test<NonTrivialT2>(N);
 		resizable_arr_test<NonTrivialT2>(M);
 	}
-	SECTION("retain") {
+	SUBCASE("retain") {
 		retainable_arr_test<TrivialT1>();
 	}
 }
@@ -1464,14 +1467,14 @@ TEST_CASE("Containers - sparse_storage") {
 	using TagT = cnt::sparse_storage<Empty>;
 	using TrivialT = cnt::sparse_storage<SparseTestItem>;
 	using NonTrivialT = cnt::sparse_storage<SparseTestItem_NonTrivial>;
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		sparse_storage_test_tag<TagT>(N);
 	}
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		sparse_storage_test<TrivialT>(N);
 		sparse_storage_test<TrivialT>(M);
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		sparse_storage_test<NonTrivialT>(N);
 		sparse_storage_test<NonTrivialT>(M);
 	}
@@ -1671,11 +1674,11 @@ TEST_CASE("Containers - paged storage") {
 	constexpr uint32_t M = 10000;
 	using TrivialT = cnt::page_storage<SparseTestItem>;
 	using NonTrivialT = cnt::page_storage<SparseTestItem_NonTrivial>;
-	SECTION("trivial_types") {
+	SUBCASE("trivial_types") {
 		paged_storage_test<TrivialT>(N);
 		paged_storage_test<TrivialT>(M);
 	}
-	SECTION("non_trivial_types") {
+	SUBCASE("non_trivial_types") {
 		paged_storage_test<NonTrivialT>(N);
 		paged_storage_test<NonTrivialT>(M);
 	}
@@ -1872,7 +1875,7 @@ TEST_CASE("Containers - ilist") {
 		EntityContainer() = default;
 		EntityContainer(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
 	};
-	SECTION("0 -> 1 -> 2") {
+	SUBCASE("0 -> 1 -> 2") {
 		cnt::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
@@ -1924,7 +1927,7 @@ TEST_CASE("Containers - ilist") {
 		CHECK(handles[2].gen() == il[2].data.gen);
 		CHECK(il[2].data.gen == 1);
 	}
-	SECTION("2 -> 1 -> 0") {
+	SUBCASE("2 -> 1 -> 0") {
 		cnt::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
@@ -1986,7 +1989,7 @@ void test_bitset() {
 	// Following tests expect at least 5 bits of space
 	static_assert(NBits >= 5);
 
-	SECTION("Bit operations") {
+	SUBCASE("Bit operations") {
 		cnt::bitset<NBits> bs;
 		CHECK(bs.count() == 0);
 		CHECK(bs.size() == NBits);
@@ -2060,7 +2063,7 @@ void test_bitset() {
 		CHECK(bs.all() == false);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Iteration") {
+	SUBCASE("Iteration") {
 		{
 			cnt::bitset<NBits> bs;
 			uint32_t i = 0;
@@ -2157,34 +2160,34 @@ void test_bitset() {
 }
 
 TEST_CASE("Containers - bitset") {
-	SECTION("5 bits") {
+	SUBCASE("5 bits") {
 		test_bitset<5>();
 	}
-	SECTION("11 bits") {
+	SUBCASE("11 bits") {
 		test_bitset<11>();
 	}
-	SECTION("32 bits") {
+	SUBCASE("32 bits") {
 		test_bitset<32>();
 	}
-	SECTION("33 bits") {
+	SUBCASE("33 bits") {
 		test_bitset<33>();
 	}
-	SECTION("64 bits") {
+	SUBCASE("64 bits") {
 		test_bitset<64>();
 	}
-	SECTION("90 bits") {
+	SUBCASE("90 bits") {
 		test_bitset<90>();
 	}
-	SECTION("128 bits") {
+	SUBCASE("128 bits") {
 		test_bitset<128>();
 	}
-	SECTION("150 bits") {
+	SUBCASE("150 bits") {
 		test_bitset<150>();
 	}
-	SECTION("512 bits") {
+	SUBCASE("512 bits") {
 		test_bitset<512>();
 	}
-	SECTION("Ranges 11 bits") {
+	SUBCASE("Ranges 11 bits") {
 		cnt::bitset<11> bs;
 		bs.set(1);
 		bs.set(10);
@@ -2219,7 +2222,7 @@ TEST_CASE("Containers - bitset") {
 		CHECK(bs.count() == 0);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Ranges 64 bits") {
+	SUBCASE("Ranges 64 bits") {
 		cnt::bitset<64> bs;
 		bs.set(1);
 		bs.set(10);
@@ -2254,7 +2257,7 @@ TEST_CASE("Containers - bitset") {
 		CHECK(bs.count() == 0);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Ranges 101 bits") {
+	SUBCASE("Ranges 101 bits") {
 		cnt::bitset<101> bs;
 		bs.set(1);
 		bs.set(100);
@@ -2296,7 +2299,7 @@ void test_dbitset() {
 	// Following tests expect at least 5 bits of space
 	static_assert(NBits >= 5);
 
-	SECTION("Bit operations") {
+	SUBCASE("Bit operations") {
 		cnt::dbitset bs;
 		CHECK(bs.count() == 0);
 		CHECK(bs.size() == 1);
@@ -2392,7 +2395,7 @@ void test_dbitset() {
 		CHECK(bs.all() == false);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Iteration") {
+	SUBCASE("Iteration") {
 		{
 			cnt::dbitset bs;
 			uint32_t i = 0;
@@ -2488,34 +2491,34 @@ void test_dbitset() {
 }
 
 TEST_CASE("Containers - dbitset") {
-	SECTION("5 bits") {
+	SUBCASE("5 bits") {
 		test_dbitset<5>();
 	}
-	SECTION("11 bits") {
+	SUBCASE("11 bits") {
 		test_dbitset<11>();
 	}
-	SECTION("32 bits") {
+	SUBCASE("32 bits") {
 		test_dbitset<32>();
 	}
-	SECTION("33 bits") {
+	SUBCASE("33 bits") {
 		test_dbitset<33>();
 	}
-	SECTION("64 bits") {
+	SUBCASE("64 bits") {
 		test_dbitset<64>();
 	}
-	SECTION("90 bits") {
+	SUBCASE("90 bits") {
 		test_dbitset<90>();
 	}
-	SECTION("128 bits") {
+	SUBCASE("128 bits") {
 		test_dbitset<128>();
 	}
-	SECTION("150 bits") {
+	SUBCASE("150 bits") {
 		test_dbitset<150>();
 	}
-	SECTION("512 bits") {
+	SUBCASE("512 bits") {
 		test_dbitset<512>();
 	}
-	SECTION("Ranges 11 bits") {
+	SUBCASE("Ranges 11 bits") {
 		cnt::dbitset bs;
 		bs.resize(11);
 
@@ -2552,7 +2555,7 @@ TEST_CASE("Containers - dbitset") {
 		CHECK(bs.count() == 0);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Ranges 64 bits") {
+	SUBCASE("Ranges 64 bits") {
 		cnt::dbitset bs;
 		bs.resize(64);
 
@@ -2589,7 +2592,7 @@ TEST_CASE("Containers - dbitset") {
 		CHECK(bs.count() == 0);
 		CHECK(bs.none() == true);
 	}
-	SECTION("Ranges 101 bits") {
+	SUBCASE("Ranges 101 bits") {
 		cnt::dbitset bs;
 		bs.resize(101);
 
@@ -2634,14 +2637,14 @@ TEST_CASE("Containers - dbitset") {
 
 TEST_CASE("each") {
 	constexpr uint32_t N = 10;
-	SECTION("index argument") {
+	SUBCASE("index argument") {
 		uint32_t cnt = 0;
 		core::each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		CHECK(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
-	SECTION("no index argument") {
+	SUBCASE("no index argument") {
 		uint32_t cnt = 0;
 		core::each<N>([&cnt]() {
 			++cnt;
@@ -2652,14 +2655,14 @@ TEST_CASE("each") {
 
 TEST_CASE("each_ext") {
 	constexpr uint32_t N = 10;
-	SECTION("index argument") {
+	SUBCASE("index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		CHECK(cnt == 2 + 4 + 6 + 8);
 	}
-	SECTION("no index argument") {
+	SUBCASE("no index argument") {
 		uint32_t cnt = 0;
 		core::each_ext<2, N - 1, 2>([&cnt]() {
 			++cnt;
@@ -2669,14 +2672,14 @@ TEST_CASE("each_ext") {
 }
 
 TEST_CASE("each_tuple") {
-	SECTION("func(Args)") {
+	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 			val += value;
 		});
 		CHECK(val == 99);
 	}
-	SECTION("func(Args, iter)") {
+	SUBCASE("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 0;
 		core::each_tuple(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
@@ -2689,14 +2692,14 @@ TEST_CASE("each_tuple") {
 }
 
 TEST_CASE("each_tuple_ext") {
-	SECTION("func(Args)") {
+	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 			val += value;
 		});
 		CHECK(val == 30);
 	}
-	SECTION("func(Args, iter)") {
+	SUBCASE("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 1;
 		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
@@ -2709,7 +2712,7 @@ TEST_CASE("each_tuple_ext") {
 }
 
 TEST_CASE("each_tuple2") {
-	SECTION("func(Args)") {
+	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		using TTuple = std::tuple<int, int, double>;
 		core::each_tuple<TTuple>([&val](auto&& item) {
@@ -2717,7 +2720,7 @@ TEST_CASE("each_tuple2") {
 		});
 		CHECK(val == 16);
 	}
-	SECTION("func(Args, iter)") {
+	SUBCASE("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 0;
 		using TTuple = std::tuple<int, int, double>;
@@ -2731,7 +2734,7 @@ TEST_CASE("each_tuple2") {
 }
 
 TEST_CASE("each_tuple_ext2") {
-	SECTION("func(Args)") {
+	SUBCASE("func(Args)") {
 		uint32_t val = 0;
 		using TTuple = std::tuple<int, int, double>;
 		core::each_tuple_ext<1, 3, TTuple>([&val](auto&& item) {
@@ -2739,7 +2742,7 @@ TEST_CASE("each_tuple_ext2") {
 		});
 		CHECK(val == 12);
 	}
-	SECTION("func(Args, iter)") {
+	SUBCASE("func(Args, iter)") {
 		uint32_t val = 0;
 		uint32_t iter = 1;
 		using TTuple = std::tuple<int, int, double>;
@@ -2777,7 +2780,7 @@ void sort_descending(C&& arr) {
 			arr[i] = i;
 		core::sort(arr, core::is_greater<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	{
@@ -2785,7 +2788,7 @@ void sort_descending(C&& arr) {
 			arr[i] = i;
 		core::sort(arr.begin(), arr.end(), core::is_greater<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	{
@@ -2793,7 +2796,7 @@ void sort_descending(C&& arr) {
 			arr[i] = i;
 		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_greater<TValue>(), arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	// Custom swap function
@@ -2805,7 +2808,7 @@ void sort_descending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	{
@@ -2815,7 +2818,7 @@ void sort_descending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 
 	{
@@ -2828,7 +2831,7 @@ void sort_descending(C&& arr) {
 				},
 				arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] > arr[i]);
+			CHECK(arr[i - 1] > arr[i]);
 	}
 }
 
@@ -2843,7 +2846,7 @@ void sort_ascending(C&& arr) {
 			arr[i] = i;
 		core::sort(arr, core::is_smaller<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	{
@@ -2851,7 +2854,7 @@ void sort_ascending(C&& arr) {
 			arr[i] = i;
 		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	{
@@ -2859,7 +2862,7 @@ void sort_ascending(C&& arr) {
 			arr[i] = i;
 		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_smaller<TValue>(), arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	// Custom swap function
@@ -2871,7 +2874,7 @@ void sort_ascending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	{
@@ -2881,7 +2884,7 @@ void sort_ascending(C&& arr) {
 			core::swap(arr[a], arr[b]);
 		});
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 
 	{
@@ -2894,7 +2897,7 @@ void sort_ascending(C&& arr) {
 				},
 				arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
-			REQUIRE(arr[i - 1] < arr[i]);
+			CHECK(arr[i - 1] < arr[i]);
 	}
 }
 
@@ -2970,7 +2973,7 @@ void TestDataLayoutAoS() {
 		CHECK(val.z == f);
 	}
 
-	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
+	SUBCASE("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		GAIA_FOR(N) {
 			const auto f = (float)(i + 1);
 
@@ -3141,7 +3144,7 @@ TEST_CASE("Entity copy") {
 
 #if GAIA_USE_SAFE_ENTITY
 TEST_CASE("Entity safe") {
-	SECTION("safe, no delete") {
+	SUBCASE("safe, no delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3162,7 +3165,7 @@ TEST_CASE("Entity safe") {
 		CHECK(wld.has(e));
 	}
 
-	SECTION("safe with delete") {
+	SUBCASE("safe with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3193,7 +3196,7 @@ TEST_CASE("Entity safe") {
 		CHECK_FALSE(wld.has(e));
 	}
 
-	SECTION("many safes with delete") {
+	SUBCASE("many safes with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3238,7 +3241,7 @@ TEST_CASE("Entity safe") {
 		CHECK_FALSE(wld.has(e));
 	}
 
-	SECTION("component") {
+	SUBCASE("component") {
 		TestWorld twld;
 
 		struct SafeComponent {
@@ -3271,7 +3274,7 @@ TEST_CASE("Entity safe") {
 
 #if GAIA_USE_WEAK_ENTITY
 TEST_CASE("Entity weak") {
-	SECTION("weak, no delete") {
+	SUBCASE("weak, no delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3293,7 +3296,7 @@ TEST_CASE("Entity weak") {
 		CHECK_FALSE(wld.has(we));
 	}
 
-	SECTION("weak with delete") {
+	SUBCASE("weak with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3330,7 +3333,7 @@ TEST_CASE("Entity weak") {
 		CHECK_FALSE(wld.has(we));
 	}
 
-	SECTION("weak, safes with delete") {
+	SUBCASE("weak, safes with delete") {
 		TestWorld twld;
 
 		auto e = wld.add();
@@ -3382,7 +3385,7 @@ TEST_CASE("Entity weak") {
 		CHECK_FALSE(wld.has(e));
 	}
 
-	SECTION("component") {
+	SUBCASE("component") {
 		TestWorld twld;
 
 		struct WeakComponent {
@@ -3882,7 +3885,7 @@ TEST_CASE("Pair") {
 }
 
 TEST_CASE("CantCombine") {
-	SECTION("One") {
+	SUBCASE("One") {
 		TestWorld twld;
 		auto weak = wld.add();
 		auto strong = wld.add();
@@ -3903,7 +3906,7 @@ TEST_CASE("CantCombine") {
 		CHECK(wld.has(dummy, strong));
 		CHECK(wld.has(dummy, weak));
 	}
-	SECTION("Two") {
+	SUBCASE("Two") {
 		TestWorld twld;
 		auto weak = wld.add();
 		auto strong = wld.add();
@@ -4268,7 +4271,7 @@ void verify_name_has_not(const ecs::ComponentCache& cc) {
 	}
 
 TEST_CASE("Component names") {
-	SECTION("direct registration") {
+	SUBCASE("direct registration") {
 		TestWorld twld;
 		const auto& cc = wld.comp_cache();
 
@@ -4297,7 +4300,7 @@ TEST_CASE("Component names") {
 		verify_name_has(Position);
 		verify_name_has(dummy::Position);
 	}
-	SECTION("entity+component") {
+	SUBCASE("entity+component") {
 		TestWorld twld;
 		const auto& cc = wld.comp_cache();
 		auto e = wld.add();
@@ -4483,13 +4486,13 @@ void Test_Query_QueryResult() {
 }
 
 TEST_CASE("Query - QueryResult") {
-	SECTION("Cached query") {
+	SUBCASE("Cached query") {
 		Test_Query_QueryResult<ecs::Query>();
 	}
-	SECTION("Non-cached query") {
+	SUBCASE("Non-cached query") {
 		Test_Query_QueryResult<ecs::QueryUncached>();
 	}
-	SECTION("Caching") {
+	SUBCASE("Caching") {
 		struct Player {};
 		struct Health {
 			uint32_t value;
@@ -4723,16 +4726,16 @@ void Test_Query_QueryResult_Complex() {
 }
 
 TEST_CASE("Query - QueryResult complex") {
-	SECTION("Cached query") {
+	SUBCASE("Cached query") {
 		Test_Query_QueryResult_Complex<ecs::Query>();
 	}
-	SECTION("Non-cached query") {
+	SUBCASE("Non-cached query") {
 		Test_Query_QueryResult_Complex<ecs::QueryUncached>();
 	}
 }
 
 TEST_CASE("Relationship") {
-	SECTION("Simple") {
+	SUBCASE("Simple") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -4788,7 +4791,7 @@ TEST_CASE("Relationship") {
 		}
 	}
 
-	SECTION("Simple - bulk") {
+	SUBCASE("Simple - bulk") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -4832,7 +4835,7 @@ TEST_CASE("Relationship") {
 		}
 	}
 
-	SECTION("Intermediate") {
+	SUBCASE("Intermediate") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto hare = wld.add();
@@ -4929,7 +4932,7 @@ TEST_CASE("Relationship") {
 		}
 	}
 
-	SECTION("Exclusive") {
+	SUBCASE("Exclusive") {
 		TestWorld twld;
 
 		auto on = wld.add();
@@ -5058,7 +5061,7 @@ void Test_Query_Equality() {
 		}
 	};
 
-	SECTION("2 components") {
+	SUBCASE("2 components") {
 		TestWorld twld;
 		GAIA_FOR(N) {
 			auto e = wld.add();
@@ -5081,7 +5084,7 @@ void Test_Query_Equality() {
 		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position");
 		verify(qq1_, qq2_, qq3_, qq4_);
 	}
-	SECTION("4 components") {
+	SUBCASE("4 components") {
 		TestWorld twld;
 		GAIA_FOR(N) {
 			auto e = wld.add();
@@ -5119,10 +5122,10 @@ void Test_Query_Equality() {
 }
 
 TEST_CASE("Query - equality") {
-	SECTION("Cached query") {
+	SUBCASE("Cached query") {
 		Test_Query_Equality<ecs::Query>();
 	}
-	SECTION("Non-cached query") {
+	SUBCASE("Non-cached query") {
 		Test_Query_Equality<ecs::QueryUncached>();
 	}
 }
@@ -5164,10 +5167,10 @@ void Test_Query_Reset() {
 }
 
 TEST_CASE("Query - delete") {
-	SECTION("Cached query") {
+	SUBCASE("Cached query") {
 		Test_Query_Reset<ecs::Query>();
 	}
-	SECTION("Cached query") {
+	SUBCASE("Cached query") {
 		Test_Query_Reset<ecs::QueryUncached>();
 	}
 }
@@ -5224,7 +5227,7 @@ TEST_CASE("Enable") {
 
 	GAIA_FOR(N) create();
 
-	SECTION("State validity") {
+	SUBCASE("State validity") {
 		wld.enable(arr[0], false);
 		CHECK_FALSE(wld.enabled(arr[0]));
 
@@ -5240,7 +5243,7 @@ TEST_CASE("Enable") {
 		CHECK(wld.enabled(arr[1]));
 	}
 
-	SECTION("State persistence") {
+	SUBCASE("State persistence") {
 		wld.enable(arr[0], false);
 		CHECK_FALSE(wld.enabled(arr[0]));
 		auto e = arr[0];
@@ -5308,17 +5311,17 @@ TEST_CASE("Enable") {
 
 		checkQuery(N, N, 0);
 
-		SECTION("Disable vs query") {
+		SUBCASE("Disable vs query") {
 			wld.enable(arr[1000], false);
 			checkQuery(N, N - 1, 1);
 		}
 
-		SECTION("Enable vs query") {
+		SUBCASE("Enable vs query") {
 			wld.enable(arr[1000], true);
 			checkQuery(N, N, 0);
 		}
 
-		SECTION("Disable vs query") {
+		SUBCASE("Disable vs query") {
 			wld.enable(arr[1], false);
 			wld.enable(arr[100], false);
 			wld.enable(arr[999], false);
@@ -5326,7 +5329,7 @@ TEST_CASE("Enable") {
 			checkQuery(N, N - 4, 4);
 		}
 
-		SECTION("Enable vs query") {
+		SUBCASE("Enable vs query") {
 			wld.enable(arr[1], true);
 			wld.enable(arr[100], true);
 			wld.enable(arr[999], true);
@@ -5334,7 +5337,7 @@ TEST_CASE("Enable") {
 			checkQuery(N, N, 0);
 		}
 
-		SECTION("Delete") {
+		SUBCASE("Delete") {
 			wld.del(arr[0]);
 			CHECK_FALSE(wld.has(arr[0]));
 			checkQuery(N - 1, N - 1, 0);
@@ -5357,7 +5360,7 @@ TEST_CASE("Enable") {
 		}
 	}
 
-	SECTION("AoS") {
+	SUBCASE("AoS") {
 		wld.cleanup();
 		auto e0 = wld.add();
 		auto e1 = wld.add();
@@ -5436,7 +5439,7 @@ TEST_CASE("Enable") {
 		}
 	}
 
-	SECTION("SoA") {
+	SUBCASE("SoA") {
 		wld.cleanup();
 		auto e0 = wld.add();
 		auto e1 = wld.add();
@@ -5515,7 +5518,7 @@ TEST_CASE("Enable") {
 		}
 	}
 
-	SECTION("AoS + SoA") {
+	SUBCASE("AoS + SoA") {
 		wld.cleanup();
 		auto e0 = wld.add();
 		auto e1 = wld.add();
@@ -6182,7 +6185,7 @@ TEST_CASE("Del - generic, unique") {
 }
 
 TEST_CASE("Del - cleanup rules") {
-	SECTION("default") {
+	SUBCASE("default") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -6212,7 +6215,7 @@ TEST_CASE("Del - cleanup rules") {
 		CHECK(wld.has(rabbit, {ecs::All, carrot}));
 		CHECK(wld.has(rabbit, {ecs::All, ecs::All}));
 	}
-	SECTION("default, relationship source") {
+	SUBCASE("default, relationship source") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -6232,7 +6235,7 @@ TEST_CASE("Del - cleanup rules") {
 		CHECK_FALSE(wld.has(wolf, {eats, rabbit}));
 		CHECK_FALSE(wld.has(rabbit, {eats, carrot}));
 	}
-	SECTION("(OnDelete,Remove)") {
+	SUBCASE("(OnDelete,Remove)") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -6254,7 +6257,7 @@ TEST_CASE("Del - cleanup rules") {
 		CHECK(wld.has({eats, carrot}));
 		CHECK(wld.has(rabbit, {eats, carrot}));
 	}
-	SECTION("(OnDelete,Delete)") {
+	SUBCASE("(OnDelete,Delete)") {
 		TestWorld twld;
 		auto wolf = wld.add();
 		auto rabbit = wld.add();
@@ -6275,7 +6278,7 @@ TEST_CASE("Del - cleanup rules") {
 		CHECK(wld.has({eats, rabbit}));
 		CHECK(wld.has({eats, carrot}));
 	}
-	SECTION("(OnDeleteTarget,Delete)") {
+	SUBCASE("(OnDeleteTarget,Delete)") {
 		TestWorld twld;
 		auto parent = wld.add();
 		auto child = wld.add();
@@ -6322,7 +6325,7 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(strcmp(tmp, ename) == 0);
 	};
 
-	SECTION("basic") {
+	SUBCASE("basic") {
 		ents.clear();
 		create();
 		verify(0);
@@ -6363,7 +6366,7 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(wld.get(original) == ecs::EntityBad);
 	}
 
-	SECTION("basic - non-owned") {
+	SUBCASE("basic - non-owned") {
 		ents.clear();
 		create_raw();
 		verify(0);
@@ -6398,7 +6401,7 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(wld.get(original) == ecs::EntityBad);
 	}
 
-	SECTION("two") {
+	SUBCASE("two") {
 		ents.clear();
 		GAIA_FOR(2) create();
 		GAIA_FOR(2) verify(i);
@@ -6406,7 +6409,7 @@ TEST_CASE("Entity name - entity only") {
 		verify(1);
 	}
 
-	SECTION("many") {
+	SUBCASE("many") {
 		ents.clear();
 		GAIA_FOR(N) create();
 		GAIA_FOR(N) verify(i);
@@ -6504,7 +6507,7 @@ TEST_CASE("Entity name - copy") {
 	// Expectations:
 	// Names are unique, so the copied entity can't have the name set.
 
-	SECTION("single entity") {
+	SUBCASE("single entity") {
 		auto e2 = wld.copy(e1);
 
 		auto e = wld.get(pTestStr);
@@ -6525,10 +6528,10 @@ TEST_CASE("Entity name - copy") {
 		CHECK(e2name == nullptr);
 	}
 
-	SECTION("many entities") {
+	SUBCASE("many entities") {
 		constexpr uint32_t N = 1'500;
 
-		SECTION("entity") {
+		SUBCASE("entity") {
 			cnt::darr<ecs::Entity> ents;
 			ents.reserve(N);
 			wld.copy_n(e1, N, [&ents](ecs::Entity entity) {
@@ -6554,7 +6557,7 @@ TEST_CASE("Entity name - copy") {
 			}
 		}
 
-		SECTION("iterator") {
+		SUBCASE("iterator") {
 			cnt::darr<ecs::Entity> ents;
 			ents.reserve(N);
 			uint32_t counter = 0;
@@ -7078,7 +7081,7 @@ TEST_CASE("Usage 3 - simple query, no") {
 	auto s2 = wld.system().on_each([]() {}).entity();
 
 	// More complex NO query, 2 operators.
-	SECTION("NO") {
+	SUBCASE("NO") {
 		uint32_t cnt = 0;
 		auto q = wld.query();
 		q.no(gaia::ecs::System).no(gaia::ecs::Core);
@@ -7094,7 +7097,7 @@ TEST_CASE("Usage 3 - simple query, no") {
 	}
 
 	// More complex NO query, 3 operators = 2x NO, 1x ALL.
-	SECTION("ALL+NO") {
+	SUBCASE("ALL+NO") {
 		uint32_t cnt = 0;
 		auto q = wld.query();
 		q.all<Position>().no(gaia::ecs::System).no(gaia::ecs::Core);
@@ -7641,7 +7644,7 @@ TEST_CASE("ChunkAllocator") {
 #endif
 
 TEST_CASE("CommandBuffer") {
-	SECTION("Entity creation") {
+	SUBCASE("Entity creation") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7655,7 +7658,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
-	SECTION("Entity creation form a query") {
+	SUBCASE("Entity creation form a query") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 		auto mainEntity = wld.add();
@@ -7692,7 +7695,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(cnt == 2);
 	}
 
-	SECTION("Entity creation from another entity") {
+	SUBCASE("Entity creation from another entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7708,7 +7711,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
-	SECTION("Entity creation from a to-be-created entity") {
+	SUBCASE("Entity creation from a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7724,7 +7727,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1 + N); // core + mainEntity + N others
 	}
 
-	SECTION("Entity creation from another entity with a component") {
+	SUBCASE("Entity creation from another entity with a component") {
 		{
 			TestWorld twld;
 			ecs::CommandBufferST cb(wld);
@@ -7778,7 +7781,7 @@ TEST_CASE("CommandBuffer") {
 		}
 	}
 
-	SECTION("Entity creation from another entity with a SoA component") {
+	SUBCASE("Entity creation from another entity with a SoA component") {
 		{
 			TestWorld twld;
 			ecs::CommandBufferST cb(wld);
@@ -7832,7 +7835,7 @@ TEST_CASE("CommandBuffer") {
 		}
 	}
 
-	SECTION("Delayed component addition to an existing entity") {
+	SUBCASE("Delayed component addition to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7843,7 +7846,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has<Position>(e));
 	}
 
-	SECTION("Delayed component addition (via entity) to an existing entity") {
+	SUBCASE("Delayed component addition (via entity) to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7856,7 +7859,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e, p));
 	}
 
-	SECTION("Delayed entity addition to an existing entity") {
+	SUBCASE("Delayed entity addition to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7872,7 +7875,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e, e2));
 	}
 
-	SECTION("Delayed component addition to a to-be-created entity") {
+	SUBCASE("Delayed component addition to a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7889,7 +7892,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has<Position>(e));
 	}
 
-	SECTION("Delayed component addition (via entity) to a to-be-created entity") {
+	SUBCASE("Delayed component addition (via entity) to a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7908,7 +7911,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e, p));
 	}
 
-	SECTION("Delayed entity addition to a to-be-created entity") {
+	SUBCASE("Delayed entity addition to a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7926,7 +7929,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e1, e2));
 	}
 
-	SECTION("Delayed component setting of an existing entity") {
+	SUBCASE("Delayed component setting of an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7945,7 +7948,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(p.z == 3);
 	}
 
-	SECTION("Delayed 2 components setting of an existing entity") {
+	SUBCASE("Delayed 2 components setting of an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7973,7 +7976,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(a.z == 6.f);
 	}
 
-	SECTION("Delayed component setting of a to-be-created entity") {
+	SUBCASE("Delayed component setting of a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -7996,7 +7999,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(p.z == 3.f);
 	}
 
-	SECTION("Delayed 2 components setting of a to-be-created entity") {
+	SUBCASE("Delayed 2 components setting of a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8024,7 +8027,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(a.z == 6.f);
 	}
 
-	SECTION("Delayed component add with setting of a to-be-created entity") {
+	SUBCASE("Delayed component add with setting of a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8043,7 +8046,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(p.z == 3.f);
 	}
 
-	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
+	SUBCASE("Delayed 2 components add with setting of a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8069,7 +8072,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(a.z == 6.f);
 	}
 
-	SECTION("Delayed component removal from an existing entity") {
+	SUBCASE("Delayed component removal from an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8089,7 +8092,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK_FALSE(wld.has<Position>(e));
 	}
 
-	SECTION("Delayed 2 component removal from an existing entity") {
+	SUBCASE("Delayed 2 component removal from an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8118,7 +8121,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK_FALSE(wld.has<Acceleration>(e));
 	}
 
-	SECTION("Delayed non-trivial component setting of an existing entity") {
+	SUBCASE("Delayed non-trivial component setting of an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8140,7 +8143,7 @@ TEST_CASE("CommandBuffer") {
 		CHECK(s2.value == StringComponent2DefaultValue);
 	}
 
-	SECTION("Delayed entity deletion") {
+	SUBCASE("Delayed entity deletion") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
@@ -8496,7 +8499,7 @@ TEST_CASE("Query - sort") {
 	wld.add<Position>(e2, {1, 0, 0});
 	wld.add<Position>(e3, {3, 0, 0});
 
-	SECTION("By entity index") {
+	SUBCASE("By entity index") {
 		auto q = wld.query().all<Position>().sort_by(
 				ecs::EntityBad, []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
 					const auto& e0 = *static_cast<const ecs::Entity*>(pData0);
@@ -8512,7 +8515,7 @@ TEST_CASE("Query - sort") {
 		});
 	}
 
-	SECTION("By component value (1)") {
+	SUBCASE("By component value (1)") {
 		auto q = wld.query().all<Position>().sort_by<Position>(
 				[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
 					const auto& p0 = *static_cast<const Position*>(pData0);
@@ -8533,7 +8536,7 @@ TEST_CASE("Query - sort") {
 		});
 	}
 
-	SECTION("By component value (2)") {
+	SUBCASE("By component value (2)") {
 		auto q = wld.query().all<Position>().sort_by(
 				wld.get<Position>(), //
 				[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
@@ -8690,7 +8693,7 @@ void TestDataLayoutSoA_ECS() {
 
 	GAIA_FOR(N) create();
 
-	SECTION("each - iterator") {
+	SUBCASE("each - iterator") {
 		ecs::Query q = wld.query().all<T&>();
 
 		{
@@ -8734,7 +8737,7 @@ void TestDataLayoutSoA_ECS() {
 	}
 
 	// TODO: Finish this part
-	// SECTION("each") {
+	// SUBCASE("each") {
 	// 	ecs::Query q = wld.query().all<T>();
 
 	// 	{
@@ -8879,7 +8882,7 @@ TEST_CASE("Component cache") {
 static thread_local int hook_trigger_cnt = 0;
 
 TEST_CASE("Hooks") {
-	SECTION("add") {
+	SUBCASE("add") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();
 		hook_trigger_cnt = 0;
@@ -8922,7 +8925,7 @@ TEST_CASE("Hooks") {
 		CHECK(hook_trigger_cnt == 3);
 	}
 
-	SECTION("del") {
+	SUBCASE("del") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();
 		hook_trigger_cnt = 0;
@@ -8978,7 +8981,7 @@ TEST_CASE("Hooks") {
 	}
 
 	#if GAIA_ENABLE_SET_HOOKS
-	SECTION("set") {
+	SUBCASE("set") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();
 		hook_trigger_cnt = 0;
@@ -9221,7 +9224,7 @@ struct CustomStructInternal {
 };
 
 TEST_CASE("Serialization - custom") {
-	SECTION("external") {
+	SUBCASE("external") {
 		CustomStruct in, out;
 		in.ptr = new char[5];
 		in.ptr[0] = 'g';
@@ -9245,7 +9248,7 @@ TEST_CASE("Serialization - custom") {
 		delete in.ptr;
 		delete out.ptr;
 	}
-	SECTION("internal") {
+	SUBCASE("internal") {
 		CustomStructInternal in, out;
 		in.ptr = new char[5];
 		in.ptr[0] = 'g';
@@ -10023,7 +10026,7 @@ TEST_CASE("JobQueue") {
 	using jc = mt::JobQueue<1024>;
 	using mpmc = mt::MpmcQueue<mt::JobHandle, 1024>;
 
-	SECTION("Basic") {
+	SUBCASE("Basic") {
 		TestJobQueue_PushPopSteal<jc>(false);
 		TestJobQueue_PushPop<mpmc>(true);
 	}
@@ -10031,17 +10034,17 @@ TEST_CASE("JobQueue") {
 	using mt_tester_jc = JobQueueMTTester_PushPopSteal<jc>;
 	using mt_tester_mpmc = JobQueueMTTester_PushPop<mpmc>;
 
-	SECTION("MT - 2 threads") {
+	SUBCASE("MT - 2 threads") {
 		TestJobQueueMT<mt_tester_jc>(2);
 		TestJobQueueMT<mt_tester_mpmc>(2);
 	}
 
-	SECTION("MT - 4 threads") {
+	SUBCASE("MT - 4 threads") {
 		TestJobQueueMT<mt_tester_jc>(4);
 		TestJobQueueMT<mt_tester_mpmc>(4);
 	}
 
-	SECTION("MT - 16 threads") {
+	SUBCASE("MT - 16 threads") {
 		TestJobQueueMT<mt_tester_jc>(16);
 		TestJobQueueMT<mt_tester_mpmc>(16);
 	}
@@ -10106,53 +10109,53 @@ TEST_CASE("Multithreading - Schedule") {
 	arr.resize(N);
 	GAIA_EACH(arr) arr[i] = 1;
 
-	SECTION("Max workers") {
+	SUBCASE("Max workers") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 1);
 	}
-	SECTION("Max workers Deps2") {
+	SUBCASE("Max workers Deps2") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 2);
 	}
-	SECTION("Max workers Deps3") {
+	SUBCASE("Max workers Deps3") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 3);
 	}
-	SECTION("Max workers Deps4") {
+	SUBCASE("Max workers Deps4") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 4);
 	}
-	SECTION("0 workers") {
+	SUBCASE("0 workers") {
 		tp.set_max_workers(0, 0);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 1);
 	}
-	SECTION("0 workers Deps2") {
+	SUBCASE("0 workers Deps2") {
 		tp.set_max_workers(0, 0);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 2);
 	}
-	SECTION("0 workers Deps3") {
+	SUBCASE("0 workers Deps3") {
 		tp.set_max_workers(0, 0);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
 		Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc, 3);
 	}
-	SECTION("0 workers Deps4") {
+	SUBCASE("0 workers Deps4") {
 		tp.set_max_workers(0, 0);
 
 		GAIA_FOR(res.max_size()) res[i] = 0;
@@ -10183,13 +10186,13 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 		CHECK(sum1 == N);
 	};
 
-	SECTION("Max workers") {
+	SUBCASE("Max workers") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		work();
 	}
-	SECTION("0 workers") {
+	SUBCASE("0 workers") {
 		tp.set_max_workers(0, 0);
 
 		work();
@@ -10233,13 +10236,13 @@ TEST_CASE("Multithreading - complete") {
 		CHECK(cnt == Jobs);
 	};
 
-	SECTION("Max workers") {
+	SUBCASE("Max workers") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		work();
 	}
-	SECTION("0 workers") {
+	SUBCASE("0 workers") {
 		tp.set_max_workers(0, 0);
 
 		work();
@@ -10286,13 +10289,13 @@ TEST_CASE("Multithreading - CompleteMany") {
 		}
 	};
 
-	SECTION("Max workers") {
+	SUBCASE("Max workers") {
 		const auto threads = tp.hw_thread_cnt();
 		tp.set_max_workers(threads, threads);
 
 		work();
 	}
-	SECTION("0 workers") {
+	SUBCASE("0 workers") {
 		tp.set_max_workers(0, 0);
 
 		work();

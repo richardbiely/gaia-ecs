@@ -323,21 +323,17 @@ endif()
 
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    if(NOT Catch2_FOUND)
+    if(NOT doctest_FOUND)
       FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.10.0
+        doctest
+        GIT_REPOSITORY "https://github.com/onqtam/doctest.git"
+        GIT_TAG v2.4.12
       )
 
-      set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON CACHE BOOL "CATCH_CONFIG_DISABLE_STRINGIFICATION override")
-      set(CATCH_CONFIG_FAST_COMPILE ON CACHE BOOL "CATCH_CONFIG_FAST_COMPILE override")
-
-      FetchContent_MakeAvailable(Catch2)
-      list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
+      FetchContent_MakeAvailable(doctest)
     endif()
   else()
-    find_package(Catch2 CONFIG REQUIRED 3.10.0)
+    find_package(doctest CONFIG REQUIRED 2.4.12)
   endif()
 endif()
 
