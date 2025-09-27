@@ -1,4 +1,5 @@
 *build*
+!vm/**/build_*.sh
 ninja
 out
 cachegrind.*

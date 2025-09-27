@@ -19,7 +19,7 @@
       "label": "Run Linux (Docker)",
       "type": "shell",
       "options": {
-        "cwd": "${workspaceFolder}/docker"
+        "cwd": "${workspaceFolder}/vm"
       },
       "windows": {
         "command": "./setup.bat"
@@ -31,6 +31,30 @@
         "command": "bash",
         "args": [
           "setup.sh"
+        ],
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Linux (Podman)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/vm"
+      },
+      "windows": {
+        "command": "./setup_podman.bat"
+      },
+      "linux": {
+        "command": ""
+      },
+      "osx": {
+        "command": "bash",
+        "args": [
+          "setup_podman.sh"
         ],
       },
       "group": "build",
