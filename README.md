@@ -1324,8 +1324,8 @@ w.add(rabbit, ecs::Pair(eats, salad));
 
 Pairs do not need to be formed from tag entities only. You can use components to build a pair which means they can store data, too!
 To determine the storage type of Pair(relation, target), the following logic is applied:
-1) If "relation" is non-empty, the storage type is rel.
-2) If "relation" is empty and "target" is non-empty, the storage type is "target".
+1) if "relation" is non-empty, the storage type is rel
+2) if "relation" is empty and "target" is non-empty, the storage type is "target"
 
 ```cpp
 struct Start{};
@@ -2250,7 +2250,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.
 
-Unit testing is handled via [Catch2](https://github.com/catchorg/Catch2/). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
+Unit testing is handled via [doctest](https://github.com/onqtam/doctest.git). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
 # Installation
 

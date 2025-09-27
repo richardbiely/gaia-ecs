@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <atomic>
 #include <type_traits>
 
