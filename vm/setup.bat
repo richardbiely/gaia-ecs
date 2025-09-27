@@ -37,7 +37,7 @@ docker run -p 2022:22 --rm -it --privileged ^
     --name %imagename% ^
     --mount type=volume,source=%imagename_tmp%,target=/work-output ^
     --mount type=bind,source=%currdir%..,target=/gaia-ecs ^
-    --workdir /gaia-ecs/docker ^
+    --workdir /gaia-ecs/vm ^
     %imagename% bash
 
 pause
