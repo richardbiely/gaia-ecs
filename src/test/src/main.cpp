@@ -9247,8 +9247,8 @@ TEST_CASE("Serialization - custom") {
 		ser::load(s, out);
 
 		CHECK(CompareSerializableTypes(in, out));
-		delete in.ptr;
-		delete out.ptr;
+		delete [] in.ptr;
+		delete [] out.ptr;
 	}
 	SUBCASE("internal") {
 		CustomStructInternal in, out;
@@ -9268,8 +9268,8 @@ TEST_CASE("Serialization - custom") {
 		ser::load(s, out);
 
 		CHECK(CompareSerializableTypes(in, out));
-		delete in.ptr;
-		delete out.ptr;
+		delete [] in.ptr;
+		delete [] out.ptr;
 	}
 }
 
@@ -9435,9 +9435,9 @@ TEST_CASE("Serialization - arrays") {
 		CHECK(CompareSerializableTypes(in, out));
 
 		for (auto& a: in.arr)
-			delete a.ptr;
+			delete [] a.ptr;
 		for (auto& a: out.arr)
-			delete a.ptr;
+			delete [] a.ptr;
 	}
 }
 
