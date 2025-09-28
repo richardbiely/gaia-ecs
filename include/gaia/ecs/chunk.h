@@ -58,7 +58,7 @@ namespace gaia {
 					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st, //
 					uint32_t& worldVersion): //
 					m_header(wld, cc, chunkIndex, capacity, genEntities, st, worldVersion) {
-				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
+				// Chunk data area consist of memory offsets, entities, and component data. Normally,  we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
 				// their constructors on-demand (if not trivial) so we do not really need to do any construction here.
