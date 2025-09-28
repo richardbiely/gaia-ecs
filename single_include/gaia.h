@@ -21223,7 +21223,9 @@ namespace gaia {
 			//!			4) Entities (identifiers)
 			//!			5) Entities (data)
 			//! Note, root archetypes store only entities, therefore it is fully occupied with entities.
-			uint8_t m_data[8];
+			//! Use m_data[1], not something bigger, to avoid triggering sanitizers. They will understand this
+			//! is a flexible array.
+			uint8_t m_data[1];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)

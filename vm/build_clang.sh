@@ -117,8 +117,8 @@ fi
 ####################################################################
 
 # Print detailed reports for every sanitizer hit without stopping execution
-export UBSAN_OPTIONS=print_stacktrace=1:report_error_type=1
-export ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
+export UBSAN_OPTIONS=halt_on_error=0:print_stacktrace=1:report_error_type=1
+export ASAN_OPTIONS=halt_on_error=0:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
 export ASAN_SYMBOLIZER_PATH=$(which llvm-symbolizer)
 
 PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
