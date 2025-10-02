@@ -7,7 +7,6 @@
 #include "../cnt/sparse_storage.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
-#include "../mem/data_layout_policy.h"
 #include "id_fwd.h"
 
 namespace gaia {

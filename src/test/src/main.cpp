@@ -7660,9 +7660,8 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1 + N);
 	}
 
-	SUBCASE("Entity creation form a query") {
+	SUBCASE("Entity creation from a query") {
 		TestWorld twld;
-		ecs::CommandBufferST cb(wld);
 		auto mainEntity = wld.add();
 		wld.add<Position>(mainEntity, {1, 2, 3});
 
@@ -9247,8 +9246,8 @@ TEST_CASE("Serialization - custom") {
 		ser::load(s, out);
 
 		CHECK(CompareSerializableTypes(in, out));
-		delete [] in.ptr;
-		delete [] out.ptr;
+		delete[] in.ptr;
+		delete[] out.ptr;
 	}
 	SUBCASE("internal") {
 		CustomStructInternal in, out;
@@ -9268,8 +9267,8 @@ TEST_CASE("Serialization - custom") {
 		ser::load(s, out);
 
 		CHECK(CompareSerializableTypes(in, out));
-		delete [] in.ptr;
-		delete [] out.ptr;
+		delete[] in.ptr;
+		delete[] out.ptr;
 	}
 }
 
@@ -9435,9 +9434,9 @@ TEST_CASE("Serialization - arrays") {
 		CHECK(CompareSerializableTypes(in, out));
 
 		for (auto& a: in.arr)
-			delete [] a.ptr;
+			delete[] a.ptr;
 		for (auto& a: out.arr)
-			delete [] a.ptr;
+			delete[] a.ptr;
 	}
 }
 

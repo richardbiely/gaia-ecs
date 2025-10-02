@@ -2392,7 +2392,7 @@ namespace gaia {
 				}
 			}
 
-			//! Loads a world state form a buffer. The buffer is sought to 0 before any loading happens.
+			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
 			//!       of the following functions defined:
 			//!       1) member function: "void save(SerializationBufferDyn& s)"

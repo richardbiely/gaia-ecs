@@ -64,8 +64,7 @@ namespace gaia {
 				};
 
 				enum CommandBufferCmdType : uint8_t {
-					CREATE_ENTITY,
-					CREATE_ENTITY_FROM_ARCHETYPE,
+					CREATE_ENTITY = 0,
 					CREATE_ENTITY_FROM_ENTITY,
 					CREATE_ENTITY_FROM_TEMPENTITY,
 					DELETE_ENTITY,
@@ -83,22 +82,11 @@ namespace gaia {
 					REMOVE_COMPONENT_00
 				};
 
-				struct CommandBufferCmd {
-					CommandBufferCmdType id;
+				struct CreateEntityCmd {
+					static constexpr CommandBufferCmdType id = CREATE_ENTITY;
 				};
-
-				struct CreateEntityCmd: CommandBufferCmd {};
-				struct CreateEntityFromArchetypeCmd: CommandBufferCmd {
-					uint64_t archetypePtr;
-
-					void commit(CommandBufferCtx& ctx) const {
-						auto* pArchetype = (Archetype*)archetypePtr;
-						[[maybe_unused]] const auto res =
-								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, true, false, EntityKind::EK_Gen));
-						GAIA_ASSERT(res.second);
-					}
-				};
-				struct CreateEntityFromEntityCmd: CommandBufferCmd {
+				struct CreateEntityFromEntityCmd {
+					static constexpr CommandBufferCmdType id = CREATE_ENTITY_FROM_ENTITY;
 					Entity entity;
 
 					void commit(CommandBufferCtx& ctx) const {
@@ -106,7 +94,8 @@ namespace gaia {
 						GAIA_ASSERT(res.second);
 					}
 				};
-				struct CreateEntityFromTempEntityCmd: CommandBufferCmd {
+				struct CreateEntityFromTempEntityCmd {
+					static constexpr CommandBufferCmdType id = CREATE_ENTITY_FROM_TEMPENTITY;
 					TempEntity tempEntity;
 
 					void commit(CommandBufferCtx& ctx) const {
@@ -121,14 +110,16 @@ namespace gaia {
 						GAIA_ASSERT(res.second);
 					}
 				};
-				struct DeleteEntityCmd: CommandBufferCmd {
+				struct DeleteEntityCmd {
+					static constexpr CommandBufferCmdType id = DELETE_ENTITY;
 					Entity entity;
 
 					void commit(CommandBufferCtx& ctx) const {
 						ctx.world.del(entity);
 					}
 				};
-				struct AddComponentCmd: CommandBufferCmd {
+				struct AddComponentCmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT;
 					Entity entity;
 					Entity object;
 
@@ -142,7 +133,8 @@ namespace gaia {
 #endif
 					}
 				};
-				struct AddComponent10Cmd: CommandBufferCmd {
+				struct AddComponent10Cmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT_10;
 					Entity entity;
 					TempEntity tempObject;
 
@@ -163,7 +155,8 @@ namespace gaia {
 #endif
 					}
 				};
-				struct AddComponent01Cmd: CommandBufferCmd {
+				struct AddComponent01Cmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT_01;
 					TempEntity tempEntity;
 					Entity object;
 
@@ -184,7 +177,8 @@ namespace gaia {
 #endif
 					}
 				};
-				struct AddComponent00Cmd: CommandBufferCmd {
+				struct AddComponent00Cmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT_00;
 					TempEntity tempEntity;
 					TempEntity tempObject;
 
@@ -216,8 +210,8 @@ namespace gaia {
 #endif
 					}
 				};
-
-				struct AddComponentWithDataCmd: CommandBufferCmd {
+				struct AddComponentWithDataCmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT_DATA;
 					Entity entity;
 					Entity object;
 
@@ -237,7 +231,8 @@ namespace gaia {
 						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
-				struct AddComponentWithDataToTempEntityCmd: CommandBufferCmd {
+				struct AddComponentWithDataToTempEntityCmd {
+					static constexpr CommandBufferCmdType id = ADD_COMPONENT_TO_TEMPENTITY_DATA;
 					TempEntity tempEntity;
 					Entity object;
 
@@ -264,7 +259,8 @@ namespace gaia {
 						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
-				struct SetComponentCmd: CommandBufferCmd {
+				struct SetComponentCmd {
+					static constexpr CommandBufferCmdType id = SET_COMPONENT;
 					Entity entity;
 					Entity object;
 
@@ -278,7 +274,8 @@ namespace gaia {
 						ctx.load_comp(ctx.world.comp_cache().get((object)), pComponentData);
 					}
 				};
-				struct SetComponentOnTempEntityCmd: CommandBufferCmd {
+				struct SetComponentOnTempEntityCmd {
+					static constexpr CommandBufferCmdType id = SET_COMPONENT_FOR_TEMPENTITY;
 					TempEntity tempEntity;
 					Entity object;
 
@@ -300,7 +297,8 @@ namespace gaia {
 						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
 					}
 				};
-				struct RemoveComponentCmd: CommandBufferCmd {
+				struct RemoveComponentCmd {
+					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT;
 					Entity entity;
 					Entity object;
 
@@ -308,7 +306,8 @@ namespace gaia {
 						World::EntityBuilder(ctx.world, entity).del(object);
 					}
 				};
-				struct RemoveComponent10Cmd: CommandBufferCmd {
+				struct RemoveComponent10Cmd {
+					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_10;
 					Entity entity;
 					TempEntity tempObject;
 
@@ -323,7 +322,8 @@ namespace gaia {
 						World::EntityBuilder(ctx.world, entity).del(object);
 					}
 				};
-				struct RemoveComponent01Cmd: CommandBufferCmd {
+				struct RemoveComponent01Cmd {
+					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_01;
 					TempEntity tempEntity;
 					Entity object;
 
@@ -338,7 +338,8 @@ namespace gaia {
 						World::EntityBuilder(ctx.world, entity).del(object);
 					}
 				};
-				struct RemoveComponent00Cmd: CommandBufferCmd {
+				struct RemoveComponent00Cmd {
+					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_00;
 					TempEntity tempEntity;
 					TempEntity tempObject;
 
@@ -368,19 +369,6 @@ namespace gaia {
 				CommandBufferCtx m_ctx;
 				uint32_t m_entities = 0;
 
-				//! Requests a new entity to be created from archetype
-				//! \return Entity that will be created. The id is not usable right away. It
-				//!         will be filled with proper data after commit(),
-				GAIA_NODISCARD TempEntity add(Archetype& archetype) {
-					m_ctx.save(CREATE_ENTITY_FROM_ARCHETYPE);
-
-					CreateEntityFromArchetypeCmd cmd;
-					cmd.archetypePtr = (uintptr_t)&archetype;
-					ser::save(m_ctx, cmd);
-
-					return {m_entities++};
-				}
-
 			public:
 				explicit CommandBuffer(World& world): m_ctx(world) {}
 				~CommandBuffer() = default;
@@ -396,7 +384,8 @@ namespace gaia {
 				GAIA_NODISCARD TempEntity add() {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(CREATE_ENTITY);
+					CreateEntityCmd cmd;
+					m_ctx.save(cmd.id);
 
 					return {m_entities++};
 				}
@@ -407,9 +396,9 @@ namespace gaia {
 				GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
-
 					CreateEntityFromEntityCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.entity = entityFrom;
 					ser::save(m_ctx, cmd);
 
@@ -422,24 +411,13 @@ namespace gaia {
 				GAIA_NODISCARD TempEntity copy(TempEntity entityFrom) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(CREATE_ENTITY_FROM_TEMPENTITY);
-
 					CreateEntityFromTempEntityCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.tempEntity = entityFrom;
 					ser::save(m_ctx, cmd);
 
 					return {m_entities++};
-				}
-
-				//! Requests an existing \param entity to be removed.
-				void del(Entity entity) {
-					core::lock_scope lock(m_acc);
-
-					m_ctx.save(DELETE_ENTITY);
-
-					DeleteEntityCmd cmd;
-					cmd.entity = entity;
-					ser::save(m_ctx, cmd);
 				}
 
 				//! Requests a component \tparam T to be added to \param entity.
@@ -463,16 +441,21 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-					add(entity, item.entity);
+					AddComponent01Cmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.tempEntity = entity;
+					cmd.object = item.entity;
+					ser::save(m_ctx, cmd);
 				}
 
 				//! Requests an entity \param other to be added to entity \param entity.
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(ADD_COMPONENT);
-
 					AddComponentCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.entity = entity;
 					cmd.object = other;
 					ser::save(m_ctx, cmd);
@@ -482,9 +465,9 @@ namespace gaia {
 				void add(Entity entity, TempEntity other) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(ADD_COMPONENT_10);
-
 					AddComponent10Cmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.entity = entity;
 					cmd.tempObject = other;
 					ser::save(m_ctx, cmd);
@@ -494,9 +477,9 @@ namespace gaia {
 				void add(TempEntity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(ADD_COMPONENT_01);
-
 					AddComponent01Cmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.tempEntity = entity;
 					cmd.object = other;
 					ser::save(m_ctx, cmd);
@@ -506,9 +489,9 @@ namespace gaia {
 				void add(TempEntity entity, TempEntity other) {
 					core::lock_scope lock(m_acc);
 
-					m_ctx.save(ADD_COMPONENT_00);
-
 					AddComponent00Cmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.tempEntity = entity;
 					cmd.tempObject = other;
 					ser::save(m_ctx, cmd);
@@ -525,9 +508,9 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-					m_ctx.save(ADD_COMPONENT_DATA);
-
 					AddComponentWithDataCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.entity = entity;
 					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
@@ -545,9 +528,9 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache_add<T>(m_ctx.world);
 
-					m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
+					AddComponentWithDataToTempEntityCmd cmd;
+					m_ctx.save(cmd.id);
 
-					AddComponent01Cmd cmd;
 					cmd.tempEntity = entity;
 					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
@@ -565,9 +548,9 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
-					m_ctx.save(SET_COMPONENT);
-
 					SetComponentCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.entity = entity;
 					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
@@ -585,55 +568,24 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
-					m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
-
 					SetComponentOnTempEntityCmd cmd;
+					m_ctx.save(cmd.id);
+
 					cmd.tempEntity = entity;
 					cmd.object = item.entity;
 					ser::save(m_ctx, cmd);
 					m_ctx.save_comp(item, GAIA_FWD(value));
 				}
+				//! Requests an existing \param entity to be removed.
+				void del(Entity entity) {
+					core::lock_scope lock(m_acc);
 
-				//! Requests removal of component \tparam T from \param entity.
-				void del(Entity entity, Entity object) {
-					m_ctx.save(REMOVE_COMPONENT);
+					DeleteEntityCmd cmd;
+					m_ctx.save(cmd.id);
 
-					RemoveComponentCmd cmd;
 					cmd.entity = entity;
-					cmd.object = object;
 					ser::save(m_ctx, cmd);
 				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(Entity entity, TempEntity object) {
-					m_ctx.save(REMOVE_COMPONENT_10);
-
-					RemoveComponent10Cmd cmd;
-					cmd.entity = entity;
-					cmd.tempObject = object;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(TempEntity entity, Entity object) {
-					m_ctx.save(REMOVE_COMPONENT_01);
-
-					RemoveComponent01Cmd cmd;
-					cmd.tempEntity = entity;
-					cmd.object = object;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(TempEntity entity, TempEntity object) {
-					m_ctx.save(REMOVE_COMPONENT_00);
-
-					RemoveComponent00Cmd cmd;
-					cmd.tempEntity = entity;
-					cmd.tempObject = object;
-					ser::save(m_ctx, cmd);
-				}
-
 				//! Requests removal of component \tparam T from \param entity.
 				//! \warning Component \tparam T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
@@ -645,7 +597,52 @@ namespace gaia {
 					// Make sure the component is registered
 					const auto& item = comp_cache(m_ctx.world).template get<T>();
 
-					del(entity, item.entity);
+					RemoveComponentCmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.entity = entity;
+					cmd.object = item.entity;
+					ser::save(m_ctx, cmd);
+				}
+
+				//! Requests removal of component \tparam T from \param entity.
+				void del(Entity entity, Entity object) {
+					RemoveComponentCmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.entity = entity;
+					cmd.object = object;
+					ser::save(m_ctx, cmd);
+				}
+
+				//! Requests removal of component \tparam T from \param entity.
+				void del(Entity entity, TempEntity object) {
+					RemoveComponent10Cmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.entity = entity;
+					cmd.tempObject = object;
+					ser::save(m_ctx, cmd);
+				}
+
+				//! Requests removal of component \tparam T from \param entity.
+				void del(TempEntity entity, Entity object) {
+					RemoveComponent01Cmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.tempEntity = entity;
+					cmd.object = object;
+					ser::save(m_ctx, cmd);
+				}
+
+				//! Requests removal of component \tparam T from \param entity.
+				void del(TempEntity entity, TempEntity object) {
+					RemoveComponent00Cmd cmd;
+					m_ctx.save(cmd.id);
+
+					cmd.tempEntity = entity;
+					cmd.tempObject = object;
+					ser::save(m_ctx, cmd);
 				}
 
 			private:
@@ -655,12 +652,6 @@ namespace gaia {
 						[](CommandBufferCtx& ctx) {
 							[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add());
 							GAIA_ASSERT(res.second);
-						},
-						// CREATE_ENTITY_FROM_ARCHETYPE
-						[](CommandBufferCtx& ctx) {
-							CreateEntityFromArchetypeCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
 						},
 						// CREATE_ENTITY_FROM_ENTITY
 						[](CommandBufferCtx& ctx) {
@@ -731,6 +722,24 @@ namespace gaia {
 						// REMOVE_COMPONENT
 						[](CommandBufferCtx& ctx) {
 							RemoveComponentCmd cmd;
+							ser::load(ctx, cmd);
+							cmd.commit(ctx);
+						},
+						// REMOVE_COMPONENT_10
+						[](CommandBufferCtx& ctx) {
+							RemoveComponent10Cmd cmd;
+							ser::load(ctx, cmd);
+							cmd.commit(ctx);
+						},
+						// REMOVE_COMPONENT_01
+						[](CommandBufferCtx& ctx) {
+							RemoveComponent01Cmd cmd;
+							ser::load(ctx, cmd);
+							cmd.commit(ctx);
+						},
+						// REMOVE_COMPONENT_00
+						[](CommandBufferCtx& ctx) {
+							RemoveComponent00Cmd cmd;
 							ser::load(ctx, cmd);
 							cmd.commit(ctx);
 						}};
