@@ -4,10 +4,8 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/map.h"
-#include "../cnt/sarray_ext.h"
-#include "../mt/spinlock.h"
-#include "../ser/serialization.h"
+#include "../cnt/darray_ext.h"
+#include "../cnt/dbitset.h"
 #include "archetype.h"
 #include "command_buffer_fwd.h"
 #include "common.h"
@@ -19,10 +17,6 @@
 
 namespace gaia {
 	namespace ecs {
-		struct TempEntity final {
-			uint32_t id;
-		};
-
 		struct AccessContextST {
 			void lock() {}
 			void unlock() {}
@@ -44,333 +38,57 @@ namespace gaia {
 			//! Buffer for deferred execution of some operations on entities.
 			//!
 			//! Adding and removing components and entities inside World::each or can result
-			//! in changes of archetypes or chunk structure. This would lead to undefined behavior.
+			//! in changes of archetypes or chunk structure. This would lead to an undefined behavior.
 			//! Therefore, such operations have to be executed after the loop is done.
 			template <typename AccessContext>
 			class CommandBuffer final {
-				struct CommandBufferCtx: SerializationBuffer {
-					uint32_t entities = 0;
-					ecs::World& world;
-					cnt::map<uint32_t, Entity> entityMap;
-
-					CommandBufferCtx(ecs::World& w): world(w) {}
-
-					using SerializationBuffer::reset;
-					void reset() {
-						SerializationBuffer::reset();
-						entities = 0;
-						entityMap.clear();
-					}
-				};
-
-				enum CommandBufferCmdType : uint8_t {
-					CREATE_ENTITY = 0,
-					CREATE_ENTITY_FROM_ENTITY,
-					CREATE_ENTITY_FROM_TEMPENTITY,
-					DELETE_ENTITY,
+				enum class OpType : uint8_t {
+					NONE = 0,
+					ADD_ENTITY,
+					CPY_ENTITY,
+					DEL_ENTITY,
 					ADD_COMPONENT,
-					ADD_COMPONENT_10,
-					ADD_COMPONENT_01,
-					ADD_COMPONENT_00,
 					ADD_COMPONENT_DATA,
-					ADD_COMPONENT_TO_TEMPENTITY_DATA,
 					SET_COMPONENT,
-					SET_COMPONENT_FOR_TEMPENTITY,
-					REMOVE_COMPONENT,
-					REMOVE_COMPONENT_10,
-					REMOVE_COMPONENT_01,
-					REMOVE_COMPONENT_00
+					DEL_COMPONENT,
 				};
 
-				struct CreateEntityCmd {
-					static constexpr CommandBufferCmdType id = CREATE_ENTITY;
-				};
-				struct CreateEntityFromEntityCmd {
-					static constexpr CommandBufferCmdType id = CREATE_ENTITY_FROM_ENTITY;
-					Entity entity;
-
-					void commit(CommandBufferCtx& ctx) const {
-						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.copy(entity));
-						GAIA_ASSERT(res.second);
-					}
-				};
-				struct CreateEntityFromTempEntityCmd {
-					static constexpr CommandBufferCmdType id = CREATE_ENTITY_FROM_TEMPENTITY;
-					TempEntity tempEntity;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempEntity.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.copy(entity));
-						GAIA_ASSERT(res.second);
-					}
-				};
-				struct DeleteEntityCmd {
-					static constexpr CommandBufferCmdType id = DELETE_ENTITY;
-					Entity entity;
-
-					void commit(CommandBufferCtx& ctx) const {
-						ctx.world.del(entity);
-					}
-				};
-				struct AddComponentCmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT;
-					Entity entity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-#if GAIA_ASSERT_ENABLED
-						[[maybe_unused]] uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-#endif
-					}
-				};
-				struct AddComponent10Cmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT_10;
-					Entity entity;
-					TempEntity tempObject;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempObject.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity object = it->second;
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-#if GAIA_ASSERT_ENABLED
-						[[maybe_unused]] uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-#endif
-					}
-				};
-				struct AddComponent01Cmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT_01;
-					TempEntity tempEntity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempEntity.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-#if GAIA_ASSERT_ENABLED
-						[[maybe_unused]] uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-#endif
-					}
-				};
-				struct AddComponent00Cmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT_00;
-					TempEntity tempEntity;
-					TempEntity tempObject;
-
-					void commit(CommandBufferCtx& ctx) const {
-						Entity entity, object;
-						{
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = ctx.entityMap.find(tempEntity.id);
-							// Link has to exist!
-							GAIA_ASSERT(it != ctx.entityMap.end());
-							entity = it->second;
-						}
-						{
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = ctx.entityMap.find(tempObject.id);
-							// Link has to exist!
-							GAIA_ASSERT(it != ctx.entityMap.end());
-							object = it->second;
-						}
-
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-#if GAIA_ASSERT_ENABLED
-						[[maybe_unused]] uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-#endif
-					}
-				};
-				struct AddComponentWithDataCmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT_DATA;
-					Entity entity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-						uint32_t indexInChunk{};
-						auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-
-						if (object.kind() == EntityKind::EK_Uni)
-							indexInChunk = 0;
-
-						// Component data
-						const auto compIdx = pChunk->comp_idx(object);
-						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
-					}
-				};
-				struct AddComponentWithDataToTempEntityCmd {
-					static constexpr CommandBufferCmdType id = ADD_COMPONENT_TO_TEMPENTITY_DATA;
-					TempEntity tempEntity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempEntity.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-						World::EntityBuilder(ctx.world, entity).add(object);
-
-						uint32_t indexInChunk{};
-						auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-
-						if (object.kind() == EntityKind::EK_Uni)
-							indexInChunk = 0;
-
-						// Component data
-						const auto compIdx = pChunk->comp_idx(object);
-						auto* pComponentData = (void*)pChunk->comp_ptr_mut(compIdx, indexInChunk);
-						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
-					}
-				};
-				struct SetComponentCmd {
-					static constexpr CommandBufferCmdType id = SET_COMPONENT;
-					Entity entity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						const auto& ec = ctx.world.m_recs.entities[entity.id()];
-						const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-
-						// Component data
-						const auto compIdx = ec.pChunk->comp_idx(object);
-						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache().get((object)), pComponentData);
-					}
-				};
-				struct SetComponentOnTempEntityCmd {
-					static constexpr CommandBufferCmdType id = SET_COMPONENT_FOR_TEMPENTITY;
-					TempEntity tempEntity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempEntity.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-
-						const auto& ec = ctx.world.m_recs.entities[entity.id()];
-						const auto row = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-
-						// Component data
-						const auto compIdx = ec.pChunk->comp_idx(object);
-						auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-						ctx.load_comp(ctx.world.comp_cache().get(object), pComponentData);
-					}
-				};
-				struct RemoveComponentCmd {
-					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT;
-					Entity entity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						World::EntityBuilder(ctx.world, entity).del(object);
-					}
-				};
-				struct RemoveComponent10Cmd {
-					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_10;
-					Entity entity;
-					TempEntity tempObject;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempObject.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-						Entity object = it->second;
-
-						World::EntityBuilder(ctx.world, entity).del(object);
-					}
-				};
-				struct RemoveComponent01Cmd {
-					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_01;
-					TempEntity tempEntity;
-					Entity object;
-
-					void commit(CommandBufferCtx& ctx) const {
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(tempEntity.id);
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-						Entity entity = it->second;
-
-						World::EntityBuilder(ctx.world, entity).del(object);
-					}
-				};
-				struct RemoveComponent00Cmd {
-					static constexpr CommandBufferCmdType id = REMOVE_COMPONENT_00;
-					TempEntity tempEntity;
-					TempEntity tempObject;
-
-					void commit(CommandBufferCtx& ctx) const {
-						Entity entity, object;
-						{
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = ctx.entityMap.find(tempObject.id);
-							// Link has to exist!
-							GAIA_ASSERT(it != ctx.entityMap.end());
-							entity = it->second;
-						}
-						{
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = ctx.entityMap.find(tempObject.id);
-							// Link has to exist!
-							GAIA_ASSERT(it != ctx.entityMap.end());
-							object = it->second;
-						}
-						World::EntityBuilder(ctx.world, entity).del(object);
-					}
+				struct Op {
+					//! Operation type
+					OpType type;
+					//! Payload offset if any
+					uint32_t off;
+					//! Entity being modified (may be temp before commit)
+					Entity target;
+					//! For ADD_COMPONENT/SET_COMPONENT/DEL_COMPONENT (other entity) or CPY_ENTITY source
+					Entity other;
 				};
 
+				//! Parent world
+				ecs::World& m_world;
+				//! Buffer with op codes
+				cnt::darray_ext<Op, 128> m_ops;
+				//! Array to hold temporary->real entity mapping [0..next_temp)
+				cnt::darray_ext<Entity, 128> m_temp2real;
+				//! Bit layout for each temporary entity (a few bits per temporary entity in m_temp2real)
+				cnt::dbitset<mem::DefaultAllocatorAdaptor> m_tmpFlags;
+				//! Id of the next temporary entity to create
+				uint32_t m_nextTemp = 0;
+				//! True if op sorting is necessary
+				bool m_needsSort = false;
+
+				bool m_haveReal = false;
+				bool m_haveTemp = false;
+				Entity m_lastRealTarget = EntityBad;
+				Entity m_lastTempTarget = EntityBad;
+
+				//! Buffer holding component data
+				SerializationBuffer m_data;
+				//! Accessor object
 				AccessContext m_acc;
-				CommandBufferCtx m_ctx;
-				uint32_t m_entities = 0;
 
 			public:
-				explicit CommandBuffer(World& world): m_ctx(world) {}
+				explicit CommandBuffer(World& world): m_world(world) {}
 				~CommandBuffer() = default;
 
 				CommandBuffer(CommandBuffer&&) = delete;
@@ -381,43 +99,23 @@ namespace gaia {
 				//! Requests a new entity to be created
 				//! \return Entity that will be created. The id is not usable right away. It
 				//!         will be filled with proper data after commit().
-				GAIA_NODISCARD TempEntity add() {
+				GAIA_NODISCARD Entity add() {
 					core::lock_scope lock(m_acc);
 
-					CreateEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					return {m_entities++};
+					Entity temp = add_temp();
+					push_op({OpType::ADD_ENTITY, 0, temp, EntityBad});
+					return temp;
 				}
 
 				//! Requests a new entity to be created by cloning an already existing entity
 				//! \return Entity that will be created. The id is not usable right away. It
 				//!         will be filled with proper data after commit()
-				GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
+				GAIA_NODISCARD Entity copy(Entity entityFrom) {
 					core::lock_scope lock(m_acc);
 
-					CreateEntityFromEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entityFrom;
-					ser::save(m_ctx, cmd);
-
-					return {m_entities++};
-				}
-
-				//! Requests a new entity to be created by cloning an already existing entity
-				//! \return Entity that will be created. The id is not usable right away. It
-				//!         will be filled with proper data after commit()
-				GAIA_NODISCARD TempEntity copy(TempEntity entityFrom) {
-					core::lock_scope lock(m_acc);
-
-					CreateEntityFromTempEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entityFrom;
-					ser::save(m_ctx, cmd);
-
-					return {m_entities++};
+					Entity temp = add_temp();
+					push_op({OpType::CPY_ENTITY, 0, temp, entityFrom});
+					return temp;
 				}
 
 				//! Requests a component \tparam T to be added to \param entity.
@@ -427,74 +125,16 @@ namespace gaia {
 					core::lock_scope lock(m_acc);
 
 					// Make sure the component is registered
-					const auto& item = comp_cache_add<T>(m_ctx.world);
+					const auto& item = comp_cache_add<T>(m_world);
 
-					add(entity, item.entity);
-				}
-
-				//! Requests a component \tparam T to be added to a temporary entity.
-				template <typename T>
-				void add(TempEntity entity) {
-					verify_comp<T>();
-					core::lock_scope lock(m_acc);
-
-					// Make sure the component is registered
-					const auto& item = comp_cache_add<T>(m_ctx.world);
-
-					AddComponent01Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
+					push_op({OpType::ADD_COMPONENT, 0, entity, item.entity});
 				}
 
 				//! Requests an entity \param other to be added to entity \param entity.
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
-					AddComponentCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.object = other;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests a temporary entity \param other to be added to entity \param entity.
-				void add(Entity entity, TempEntity other) {
-					core::lock_scope lock(m_acc);
-
-					AddComponent10Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.tempObject = other;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests a temporary entity \param entity to be added to entity \param other.
-				void add(TempEntity entity, Entity other) {
-					core::lock_scope lock(m_acc);
-
-					AddComponent01Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.object = other;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests a temporary entity \param entity to be added to a temporary entity \param other.
-				void add(TempEntity entity, TempEntity other) {
-					core::lock_scope lock(m_acc);
-
-					AddComponent00Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.tempObject = other;
-					ser::save(m_ctx, cmd);
+					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
 				//! Requests a component \tparam T to be added to entity. Also sets its value.
@@ -506,35 +146,11 @@ namespace gaia {
 					core::lock_scope lock(m_acc);
 
 					// Make sure the component is registered
-					const auto& item = comp_cache_add<T>(m_ctx.world);
+					const auto& item = comp_cache_add<T>(m_world);
 
-					AddComponentWithDataCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(item, GAIA_FWD(value));
-				}
-
-				//! Requests a component \tparam T to be added to a temporary entity. Also sets its value.
-				//! \warning Component \tparam T should be registered in the world before calling this function.
-				//!          If used in concurrent environment, race conditions may occur otherwise.
-				template <typename T>
-				void add(TempEntity entity, T&& value) {
-					verify_comp<T>();
-					core::lock_scope lock(m_acc);
-
-					// Make sure the component is registered
-					const auto& item = comp_cache_add<T>(m_ctx.world);
-
-					AddComponentWithDataToTempEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(item, GAIA_FWD(value));
+					const auto pos = m_data.tell();
+					m_data.save_comp(item, GAIA_FWD(value));
+					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, item.entity});
 				}
 
 				//! Requests component data to be set to given values for a given entity.
@@ -546,46 +162,20 @@ namespace gaia {
 					core::lock_scope lock(m_acc);
 
 					// Make sure the component is registered
-					const auto& item = comp_cache(m_ctx.world).template get<T>();
+					const auto& item = comp_cache(m_world).template get<T>();
 
-					SetComponentCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(item, GAIA_FWD(value));
+					const auto pos = m_data.tell();
+					m_data.save_comp(item, GAIA_FWD(value));
+					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
-				//! Requests component data to be set to given values for a given temp entity.
-				//! \warning Component \tparam T must be registered in the world before calling this function.
-				//!          Calling set without a previous add of the component doesn't make sense.
-				template <typename T>
-				void set(TempEntity entity, T&& value) {
-					verify_comp<T>();
-					core::lock_scope lock(m_acc);
-
-					// Make sure the component is registered
-					const auto& item = comp_cache(m_ctx.world).template get<T>();
-
-					SetComponentOnTempEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
-					m_ctx.save_comp(item, GAIA_FWD(value));
-				}
 				//! Requests an existing \param entity to be removed.
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
 
-					DeleteEntityCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					ser::save(m_ctx, cmd);
+					push_op({OpType::DEL_ENTITY, 0, entity, EntityBad});
 				}
+
 				//! Requests removal of component \tparam T from \param entity.
 				//! \warning Component \tparam T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
@@ -595,174 +185,372 @@ namespace gaia {
 					core::lock_scope lock(m_acc);
 
 					// Make sure the component is registered
-					const auto& item = comp_cache(m_ctx.world).template get<T>();
+					const auto& item = comp_cache(m_world).template get<T>();
 
-					RemoveComponentCmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.object = item.entity;
-					ser::save(m_ctx, cmd);
+					push_op({OpType::DEL_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests removal of component \tparam T from \param entity.
+				//! Requests removal of entity \param object from entity \param entity.
 				void del(Entity entity, Entity object) {
-					RemoveComponentCmd cmd;
-					m_ctx.save(cmd.id);
+					core::lock_scope lock(m_acc);
 
-					cmd.entity = entity;
-					cmd.object = object;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(Entity entity, TempEntity object) {
-					RemoveComponent10Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.entity = entity;
-					cmd.tempObject = object;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(TempEntity entity, Entity object) {
-					RemoveComponent01Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.object = object;
-					ser::save(m_ctx, cmd);
-				}
-
-				//! Requests removal of component \tparam T from \param entity.
-				void del(TempEntity entity, TempEntity object) {
-					RemoveComponent00Cmd cmd;
-					m_ctx.save(cmd.id);
-
-					cmd.tempEntity = entity;
-					cmd.tempObject = object;
-					ser::save(m_ctx, cmd);
+					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
 			private:
-				using CommandBufferReadFunc = void (*)(CommandBufferCtx& ctx);
-				static constexpr CommandBufferReadFunc CommandBufferRead[] = {
-						// CREATE_ENTITY
-						[](CommandBufferCtx& ctx) {
-							[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add());
-							GAIA_ASSERT(res.second);
-						},
-						// CREATE_ENTITY_FROM_ENTITY
-						[](CommandBufferCtx& ctx) {
-							CreateEntityFromEntityCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// CREATE_ENTITY_FROM_TEMPENTITY
-						[](CommandBufferCtx& ctx) {
-							CreateEntityFromTempEntityCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// DELETE_ENTITY
-						[](CommandBufferCtx& ctx) {
-							DeleteEntityCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT
-						[](CommandBufferCtx& ctx) {
-							AddComponentCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT_10
-						[](CommandBufferCtx& ctx) {
-							AddComponent10Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT_01
-						[](CommandBufferCtx& ctx) {
-							AddComponent01Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT_00
-						[](CommandBufferCtx& ctx) {
-							AddComponent00Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT_DATA
-						[](CommandBufferCtx& ctx) {
-							AddComponentWithDataCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// ADD_COMPONENT_TO_TEMPENTITY_DATA
-						[](CommandBufferCtx& ctx) {
-							AddComponentWithDataToTempEntityCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// SET_COMPONENT
-						[](CommandBufferCtx& ctx) {
-							SetComponentCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// SET_COMPONENT_FOR_TEMPENTITY
-						[](CommandBufferCtx& ctx) {
-							SetComponentOnTempEntityCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// REMOVE_COMPONENT
-						[](CommandBufferCtx& ctx) {
-							RemoveComponentCmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// REMOVE_COMPONENT_10
-						[](CommandBufferCtx& ctx) {
-							RemoveComponent10Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// REMOVE_COMPONENT_01
-						[](CommandBufferCtx& ctx) {
-							RemoveComponent01Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						},
-						// REMOVE_COMPONENT_00
-						[](CommandBufferCtx& ctx) {
-							RemoveComponent00Cmd cmd;
-							ser::load(ctx, cmd);
-							cmd.commit(ctx);
-						}};
+				//! Returns true if the op modifies a relationship between entities (e.g. adds or removes a component).
+				GAIA_NODISCARD bool is_rel(OpType t) const {
+					return (uint32_t)t >= (uint32_t)OpType::ADD_COMPONENT;
+				}
+
+				//! Returns true if an entity is a temporary one
+				GAIA_NODISCARD bool is_temp(Entity e) const {
+					return e.data.unused != 0;
+				}
+
+				//! Maps a temporary entity to a real one, or returns the real one immediately
+				GAIA_NODISCARD Entity resolve(Entity e) const {
+					if (is_temp(e)) {
+						const uint32_t ti = e.id();
+						return (ti < m_temp2real.size()) ? m_temp2real[ti] : EntityBad;
+					}
+					return e;
+				}
+
+				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
+				//! meaning all its operations cancel out and it should be completely ignored during commit).
+				GAIA_NODISCARD bool is_canceled_temp(uint32_t idx) const {
+					const uint32_t base = idx * 3;
+					if (base + 2 >= m_tmpFlags.size())
+						return false;
+
+					const bool destroy = m_tmpFlags.test(base);
+					const bool usedOther = m_tmpFlags.test(base + 2);
+
+					// If deleted in this batch and not referenced by others, cancel entirely
+					return destroy && !usedOther;
+				}
+
+				//! Create a temporary entity.
+				//! TODO: Add support for chunk entities and pairs.
+				GAIA_NODISCARD Entity add_temp() {
+					m_temp2real.push_back(EntityBad);
+					Entity tmp(m_nextTemp++, 0, true, false, EntityKind::EK_Gen);
+					// Use the unused flag to mark temporary entities
+					tmp.data.unused = 1;
+					return tmp;
+				}
+
+				GAIA_NODISCARD bool less_target(Entity a, Entity b) const {
+					const bool ta = is_temp(a);
+					const bool tb = is_temp(b);
+
+					// Real entities always come first in order. Temps come last.
+					if (ta != tb)
+						return !ta && tb;
+
+					// Within same domain, normal numeric order.
+					return a.id() < b.id();
+				}
+
+				//! Verifies if sorting is necessary after a given op is added
+				void check_sort(const Op& op) {
+					if (is_temp(op.target)) {
+						if (m_haveTemp) {
+							// Only compare temp indices against previous temp target
+							const uint32_t prev = m_lastTempTarget.id();
+							const uint32_t curr = op.target.id();
+							if (curr < prev)
+								m_needsSort = true;
+						}
+						m_lastTempTarget = op.target;
+						m_haveTemp = true;
+					} else {
+						if (m_haveReal) {
+							// Only compare real IDs against previous real target
+							if (op.target.id() < m_lastRealTarget.id())
+								m_needsSort = true;
+						}
+						m_lastRealTarget = op.target;
+						m_haveReal = true;
+					}
+				}
+
+				//! Pushes the op to the op buffer
+				void push_op(Op&& op) {
+					check_sort(op);
+					m_ops.push_back(GAIA_MOV(op));
+				}
+
+				//! Clears the internal buffers and effectively resets the object to its default state
+				void clear() {
+					m_ops.clear();
+					m_temp2real.clear();
+					m_tmpFlags.reset();
+					m_nextTemp = 0;
+					m_data.reset();
+
+					m_needsSort = false;
+					m_haveReal = false;
+					m_haveTemp = false;
+					m_lastRealTarget = EntityBad;
+					m_lastTempTarget = EntityBad;
+				}
 
 			public:
 				//! Commits all queued changes.
 				void commit() {
 					core::lock_scope lock(m_acc);
 
-					if (m_ctx.empty())
+					if (m_ops.empty())
 						return;
 
-					// Extract data from the buffer
-					m_ctx.seek(0);
-					while (m_ctx.tell() < m_ctx.bytes()) {
-						CommandBufferCmdType id{};
-						m_ctx.load(id);
-						CommandBufferRead[id](m_ctx);
+					GAIA_PROF_SCOPE(cmdbuf::commit);
+
+					// Build flags + allocate entities
+					if (m_nextTemp > 0) {
+						GAIA_PROF_SCOPE(cmdbuf::alloc);
+
+						// Bit layout for each temporary entity:
+						// bit 0 -> marked for destruction (DEL_ENTITY recorded)
+						// bit 1 -> used as a relation target (appeared as target in component ops)
+						// bit 2 -> used as a relation source / dependency (appeared as other in component ops)
+						m_tmpFlags.resize(m_nextTemp * 3);
+
+						// Pre-map surviving temps for ADD/CPY (avoid allocating canceled temps)
+						if (m_temp2real.size() < m_nextTemp) {
+							const auto from = m_temp2real.size();
+							m_temp2real.resize(m_nextTemp);
+							GAIA_FOR2(from, m_nextTemp) m_temp2real[i] = EntityBad;
+						}
+
+						// Build all flags
+						for (const Op& o: m_ops) {
+							// Set flag bits
+							if (is_temp(o.target)) {
+								const uint32_t ti = o.target.id();
+
+								if (o.type == OpType::DEL_ENTITY)
+									m_tmpFlags.set((ti * 3) + 0, true);
+								else if (is_rel(o.type))
+									m_tmpFlags.set((ti * 3) + 1, true);
+							}
+
+							if (is_temp(o.other) && o.other.id() < m_tmpFlags.size())
+								m_tmpFlags.set((o.other.id() * 3) + 2, true);
+						}
+
+						// Allocate real entities for the surviving temporaries
+						for (const Op& o: m_ops) {
+							if (!is_temp(o.target))
+								continue;
+
+							const uint32_t ti = o.target.id();
+							if (is_canceled_temp(ti))
+								continue;
+
+							if (o.type == OpType::ADD_ENTITY) {
+								if (m_temp2real[ti] == EntityBad)
+									m_temp2real[ti] = m_world.add();
+							} else if (o.type == OpType::CPY_ENTITY) {
+								if (m_temp2real[ti] == EntityBad) {
+									const Entity src = resolve(o.other);
+									if (src != EntityBad)
+										m_temp2real[ti] = m_world.copy(src);
+								}
+							}
+						}
 					}
 
-					m_entities = 0;
-					m_ctx.reset();
-				} // namespace ecs
+					// Sort by (target, other), reduce last-wins, apply relations.
+					// DEL_COMPONENT last per target.
+					if (m_needsSort) {
+						GAIA_PROF_SCOPE(cmdbuf::sort);
+
+						m_needsSort = false;
+						core::sort(m_ops.begin(), m_ops.end(), [](const Op& a, const Op& b) {
+							if (a.target != b.target)
+								return a.target < b.target;
+							if (a.other != b.other)
+								return a.other < b.other;
+							return false;
+						});
+					}
+
+					// Replay batched operations
+					Entity lastKey = EntityBad;
+					Entity lastResolved = EntityBad;
+					auto resolve_cached = [&](Entity e) {
+						if (e == lastKey)
+							return lastResolved;
+						lastKey = e;
+						return lastResolved = resolve(e);
+					};
+					for (uint32_t p = 0; p < m_ops.size();) {
+						GAIA_PROF_SCOPE(cmdbuf::merge);
+
+						const Entity tgtKey = m_ops[p].target;
+
+						const bool tgtIsTemp = is_temp(tgtKey);
+						const uint32_t ti = tgtIsTemp ? tgtKey.id() : 0u;
+						const Entity tgtReal =
+								tgtIsTemp ? (ti < m_temp2real.size() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);
+
+						// Range for this target
+						uint32_t q = p;
+						bool hasDelEntity = false;
+						while (q < m_ops.size() && m_ops[q].target == tgtKey) {
+							if (m_ops[q].type == OpType::DEL_ENTITY)
+								hasDelEntity = true;
+							++q;
+						}
+
+						// Skip canceled or non-existent temporary entities
+						if (tgtReal == EntityBad) {
+							p = q;
+							continue;
+						}
+						if (tgtIsTemp && is_canceled_temp(ti)) {
+							p = q;
+							continue;
+						}
+
+						enum : uint8_t { F_ADD = 1 << 0, F_ADD_DATA = 1 << 1, F_SET = 1 << 2, F_DEL = 1 << 3 };
+
+						// Emit relation groups.
+						// Inside [p..q) range (same target), process groups by 'other'.
+						// We perform per-component reduction.
+						for (uint32_t i = p; i < q;) {
+							const Entity othKey = m_ops[i].other;
+							const Entity othReal = resolve_cached(othKey);
+
+							// Group ops with same (target, other)
+							uint32_t j = i + 1;
+							while (j < q && m_ops[j].other == othKey)
+								++j;
+
+							if (tgtReal != EntityBad) {
+								const uint32_t groupSize = j - i;
+								// Fast path - single op
+								if (groupSize == 1) {
+									const Op& op = m_ops[i];
+									switch (op.type) {
+										case OpType::DEL_COMPONENT:
+											World::EntityBuilder(m_world, tgtReal).del(othReal);
+											break;
+										case OpType::ADD_COMPONENT:
+											World::EntityBuilder(m_world, tgtReal).add(othReal);
+											break;
+										case OpType::ADD_COMPONENT_DATA: {
+											World::EntityBuilder(m_world, tgtReal).add(othReal);
+
+											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+
+											// Component data
+											const auto compIdx = ec.pChunk->comp_idx(othReal);
+											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
+											m_data.seek(op.off);
+											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										} break;
+										case OpType::SET_COMPONENT: {
+											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+
+											// Component data
+											const auto compIdx = ec.pChunk->comp_idx(othReal);
+											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
+											m_data.seek(op.off);
+											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										} break;
+										default:
+											break;
+									}
+								}
+								// Slow path: merge multiple ops
+								else {
+									uint8_t mask = 0;
+									uint32_t dataPos = 0;
+
+									for (uint32_t k = i; k < j; ++k) {
+										const Op& op = m_ops[k];
+										switch (op.type) {
+											case OpType::ADD_COMPONENT:
+												mask |= F_ADD;
+												break;
+											case OpType::ADD_COMPONENT_DATA:
+												mask |= F_ADD_DATA;
+												dataPos = op.off;
+												break;
+											case OpType::SET_COMPONENT:
+												mask |= F_SET;
+												dataPos = op.off;
+												break;
+											case OpType::DEL_COMPONENT:
+												mask |= F_DEL;
+												break;
+											default:
+												break;
+										}
+									}
+
+									const bool hasAdd = mask & F_ADD;
+									const bool hasAddData = mask & F_ADD_DATA;
+									const bool hasSet = mask & F_SET;
+									const bool hasDel = mask & F_DEL;
+
+									// 1) ADD(+DATA) + DEL = no-op
+									if (hasDel && (hasAdd || hasAddData)) {
+									}
+									// 2) DEL only
+									else if (hasDel) {
+										World::EntityBuilder(m_world, tgtReal).del(othReal);
+									}
+									// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
+									else if (hasAddData || (hasAdd && hasSet)) {
+										World::EntityBuilder(m_world, tgtReal).add(othReal);
+
+										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+
+										// Component data
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
+										m_data.seek(dataPos);
+										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+									}
+									// 4) ADD only
+									else if (hasAdd) {
+										World::EntityBuilder(m_world, tgtReal).add(othReal);
+									}
+									// 5) SET only
+									else if (hasSet) {
+										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+
+										// Component data
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
+										m_data.seek(dataPos);
+										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+									}
+								}
+							}
+
+							// Advance to next component group
+							i = j;
+						}
+
+						// Safely delete entity only if it was actually created
+						if (hasDelEntity)
+							m_world.del(tgtReal);
+
+						// Advance to next target group
+						p = q;
+					}
+
+					clear();
+				}
 			};
 		} // namespace detail
 

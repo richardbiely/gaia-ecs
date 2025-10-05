@@ -7880,16 +7880,18 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+
 		const auto s = wld.size();
 
 		auto tmp = cb.add(); // no new entity created yet
 		CHECK(wld.size() == s);
 		cb.add<Position>(tmp); // component entity created
-		CHECK(wld.size() == s + 1);
+		CHECK(wld.size() == s);
 		cb.commit();
-		CHECK(wld.size() == s + 2);
+		CHECK(wld.size() == s + 1);
 
-		auto e = wld.get(s + 1); // position + new entity
+		auto e = wld.get(s); // + new entity
 		CHECK(wld.has<Position>(e));
 	}
 
@@ -7897,18 +7899,20 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+
 		const auto s = wld.size();
 		auto p = wld.add<Position>().entity;
-		CHECK(wld.size() == s + 1);
+		CHECK(wld.size() == s);
 
 		auto tmp = cb.add(); // no new entity created yet
-		CHECK(wld.size() == s + 1);
+		CHECK(wld.size() == s);
 		cb.add(tmp, p);
-		CHECK(wld.size() == s + 1);
+		CHECK(wld.size() == s);
 		cb.commit();
-		CHECK(wld.size() == s + 2);
+		CHECK(wld.size() == s + 1);
 
-		auto e = wld.get(s + 1); // core + position + new entity
+		auto e = wld.get(s); // + new entity
 		CHECK(wld.has(e, p));
 	}
 
@@ -7981,17 +7985,19 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+
 		const auto s = wld.size();
 		auto tmp = cb.add();
 		CHECK(wld.size() == s);
 
 		cb.add<Position>(tmp);
-		CHECK(wld.size() == s + 1);
+		CHECK(wld.size() == s);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
-		CHECK(wld.size() == s + 2);
+		CHECK(wld.size() == s + 1); // + new entity
 
-		auto e = wld.get(s + 1); // core + position + new entity
+		auto e = wld.get(s);
 		CHECK(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
@@ -8000,20 +8006,90 @@ TEST_CASE("CommandBuffer") {
 		CHECK(p.z == 3.f);
 	}
 
+	SUBCASE("Delayed component add+delete of a temporary entity") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		(void)wld.add<Position>();
+
+		const auto s = wld.size();
+		auto tmp = cb.add();
+		CHECK(wld.size() == s);
+
+		cb.add<Position>(tmp);
+		CHECK(wld.size() == s);
+		cb.del<Position>(tmp);
+		cb.commit();
+		CHECK(wld.size() == s + 1); // + new entity
+
+		auto e = wld.get(s);
+		CHECK_FALSE(wld.has<Position>(e));
+	}
+
+	SUBCASE("Delayed component add+set+set") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		(void)wld.add<Position>();
+
+		const auto s = wld.size();
+		auto tmp = cb.add();
+		CHECK(wld.size() == s);
+
+		cb.add<Position>(tmp);
+		cb.set<Position>(tmp, {1, 2, 3});
+		CHECK(wld.size() == s);
+		cb.set<Position>(tmp, {4, 5, 6});
+		cb.commit();
+		CHECK(wld.size() == s + 1); // + new entity
+
+		auto e = wld.get(s);
+		CHECK(wld.has<Position>(e));
+
+		auto p = wld.get<Position>(e);
+		CHECK(p.x == 4.f);
+		CHECK(p.y == 5.f);
+		CHECK(p.z == 6.f);
+	}
+
+	SUBCASE("Delayed component add+set+set+del") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		(void)wld.add<Position>();
+
+		const auto s = wld.size();
+		auto tmp = cb.add();
+		CHECK(wld.size() == s);
+
+		cb.add<Position>(tmp);
+		cb.set<Position>(tmp, {1, 2, 3});
+		CHECK(wld.size() == s);
+		cb.set<Position>(tmp, {4, 5, 6});
+		cb.del(tmp);
+		cb.commit();
+		CHECK(wld.size() == s);
+	}
+
 	SUBCASE("Delayed 2 components setting of a to-be-created entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+		(void)wld.add<Acceleration>();
+
+		const auto s = wld.size();
 		auto tmp = cb.add();
-		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == s);
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
+		CHECK(wld.size() == s + 1); // + new entity
 
-		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
+		auto e = wld.get(s);
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
 
@@ -8032,13 +8108,17 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+
+		const auto s = wld.size();
 		auto tmp = cb.add();
-		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == s);
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
+		CHECK(wld.size() == s + 1); // + new entity
 
-		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 1); // core + position + new entity
+		auto e = wld.get(s);
 		CHECK(wld.has<Position>(e));
 
 		auto p = wld.get<Position>(e);
@@ -8051,14 +8131,19 @@ TEST_CASE("CommandBuffer") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);
 
+		(void)wld.add<Position>();
+		(void)wld.add<Acceleration>();
+
+		const auto s = wld.size();
 		auto tmp = cb.add();
-		CHECK(wld.size() == ecs::GAIA_ID(LastCoreComponent).id() + 1); // core + 0 (no new entity created yet)
+		CHECK(wld.size() == s);
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
+		CHECK(wld.size() == s + 1); // + new entity
 
-		auto e = wld.get(ecs::GAIA_ID(LastCoreComponent).id() + 1 + 2); // core + 2 new components + new entity
+		auto e = wld.get(s);
 		CHECK(wld.has<Position>(e));
 		CHECK(wld.has<Acceleration>(e));
 

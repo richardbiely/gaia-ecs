@@ -1140,7 +1140,7 @@ namespace gaia {
 
 						// Copy data
 						{
-							GAIA_PROF_SCOPE(copy_n::copy_entity_data);
+							GAIA_PROF_SCOPE(World::copy_n_entity_data);
 
 							auto srcRecs = pSrcChunk->comp_rec_view();
 
@@ -3430,7 +3430,7 @@ namespace gaia {
 
 			// Force-delete all entities from the requested archetypes along with the archetype itself
 			void del_finalize_archetypes() {
-				GAIA_PROF_SCOPE(del_finalize_archetypes);
+				GAIA_PROF_SCOPE(World::del_finalize_archetypes);
 
 				for (auto& key: m_reqArchetypesToDel) {
 					auto* pArchetype = key.archetype();
@@ -3449,7 +3449,7 @@ namespace gaia {
 
 			//! Try to delete all requested entities
 			void del_finalize_entities() {
-				GAIA_PROF_SCOPE(del_finalize_entities);
+				GAIA_PROF_SCOPE(World::del_finalize_entities);
 
 				for (auto it = m_reqEntitiesToDel.begin(); it != m_reqEntitiesToDel.end();) {
 					const auto e = it->entity();
@@ -3469,7 +3469,7 @@ namespace gaia {
 
 			//! Finalize all queued delete operations
 			void del_finalize() {
-				GAIA_PROF_SCOPE(del_finalize);
+				GAIA_PROF_SCOPE(World::del_finalize);
 
 				del_finalize_archetypes();
 				del_finalize_entities();

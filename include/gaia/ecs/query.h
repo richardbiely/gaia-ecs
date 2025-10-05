@@ -668,7 +668,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void commit(QueryCtx& ctx) {
-					GAIA_PROF_SCOPE(commit);
+					GAIA_PROF_SCOPE(query::commit);
 
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
@@ -704,7 +704,7 @@ namespace gaia {
 				}
 
 				void recommit(QueryCtx& ctx) {
-					GAIA_PROF_SCOPE(recommit);
+					GAIA_PROF_SCOPE(query::recommit);
 
 					auto& serBuffer = m_storage.ser_buffer();
 
