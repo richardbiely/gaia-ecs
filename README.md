@@ -83,6 +83,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Cleanup rules](#cleanup-rules)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
+    * [Command Merging rules](#command-merging-rules)
   * [Systems](#systems)
     * [System basics](#system-basics)
     * [System dependencies](#system-dependencies)
@@ -1642,6 +1643,28 @@ There is one situation to be wary about with command buffers. Function ***add***
 world.add<YourComponent>();
 ```
 >Technically, template versions of functions ***set*** and ***del*** experience a similar issue. However, calling neither ***set*** nor ***del*** makes sense without a previous call to ***add***. Such attempts are undefined behaviors (and reported by triggering an assertion).
+
+### Command Merging rules
+Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.
+
+#### Entity Merging
+| Sequence | Result |
+|-----------|---------|
+| `add(e)` + `del(e)` | No effect — entity never created |
+| `copy(src)` + `del(copy)` | No effect — copy canceled |
+| `add(e)` + component ops + `del(e)` | No effect — full chain canceled |
+| `del(e)` on an existing entity | Entity removed normally |
+
+#### Component Merging
+| Sequence | Result |
+|-----------|---------|
+| `add<T>(e)` + `set<T>(e, value)` | Collapsed into `add<T>(e, value)` |
+| `add<T>(e, value1)` + `set<T>(e, value2)` | Only the last value is used |
+| `add<T>(e)` + `del<T>(e)` | No effect — component never added |
+| `add<T>(e, value)` + `del<T>(e)` | No effect — component never added |
+| `set<T>(e, value1)` + `set<T>(e, value2)` | Only the last value is used |
+
+Only the final state after all recorded operations is applied on commit. This means you can record commands freely, and the command buffer will merge your requests in such a way that the world update is always minimal and correct.
 
 ## Systems
 ### System basics
