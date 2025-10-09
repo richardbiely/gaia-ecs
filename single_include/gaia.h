@@ -18611,10 +18611,10 @@ namespace gaia {
 				IdentifierData ent : 1;
 				//! 0-ordinary, 1-pair
 				IdentifierData pair : 1;
-				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
+				//! 0-EntityKind::CT_Gen, 1-EntityKind::CT_Uni
 				IdentifierData kind : 1;
-				//! Unused
-				IdentifierData unused : 1;
+				//! 0-real entity, 1-temporary entity
+				IdentifierData tmp : 1;
 
 				///////////////////////////////////////////////////////////////////
 			};
@@ -18646,7 +18646,7 @@ namespace gaia {
 				data.ent = isEntity;
 				data.pair = isPair;
 				data.kind = kind;
-				data.unused = 0;
+				data.tmp = 0;
 			}
 
 			GAIA_NODISCARD constexpr auto id() const noexcept {
@@ -20839,6 +20839,8 @@ namespace gaia {
 				//! Disabled
 				//! Entity does not use this bit (always zero) so we steal it
 				//! for special purposes.
+				//! Temporary entities inside command buffer use it for special purposes,
+				//! but these entities never make it to EntityContainer.
 				uint32_t dis : 1;
 			};
 
@@ -29919,7 +29921,7 @@ namespace gaia {
 			}
 
 			//! Creates a new empty entity
-			//! \param kind Entity kind
+			//! \param kind Entity kind. Generic entity by default.
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
@@ -34572,12 +34574,13 @@ namespace gaia {
 				CommandBuffer& operator=(const CommandBuffer&) = delete;
 
 				//! Requests a new entity to be created
+				//! \param kind Entity kind. Generic entity by default.
 				//! \return Entity that will be created. The id is not usable right away. It
 				//!         will be filled with proper data after commit().
-				GAIA_NODISCARD Entity add() {
+				GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 					core::lock_scope lock(m_acc);
 
-					Entity temp = add_temp();
+					Entity temp = add_temp(kind);
 					push_op({OpType::ADD_ENTITY, 0, temp, EntityBad});
 					return temp;
 				}
@@ -34588,7 +34591,7 @@ namespace gaia {
 				GAIA_NODISCARD Entity copy(Entity entityFrom) {
 					core::lock_scope lock(m_acc);
 
-					Entity temp = add_temp();
+					Entity temp = add_temp(entityFrom.kind());
 					push_op({OpType::CPY_ENTITY, 0, temp, entityFrom});
 					return temp;
 				}
@@ -34679,17 +34682,20 @@ namespace gaia {
 				}
 
 				//! Returns true if an entity is a temporary one
-				GAIA_NODISCARD bool is_temp(Entity e) const {
-					return e.data.unused != 0;
+				GAIA_NODISCARD bool is_tmp(Entity e) const {
+					return e.data.tmp != 0;
 				}
 
 				//! Maps a temporary entity to a real one, or returns the real one immediately
 				GAIA_NODISCARD Entity resolve(Entity e) const {
-					if (is_temp(e)) {
-						const uint32_t ti = e.id();
-						return (ti < m_temp2real.size()) ? m_temp2real[ti] : EntityBad;
-					}
-					return e;
+					if (!is_tmp(e))
+						return e;
+
+					const auto ti = e.id();
+					if (ti < m_temp2real.size())
+						return m_temp2real[ti];
+
+					return EntityBad;
 				}
 
 				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
@@ -34707,18 +34713,17 @@ namespace gaia {
 				}
 
 				//! Create a temporary entity.
-				//! TODO: Add support for chunk entities and pairs.
-				GAIA_NODISCARD Entity add_temp() {
+				GAIA_NODISCARD Entity add_temp(EntityKind kind) {
 					m_temp2real.push_back(EntityBad);
-					Entity tmp(m_nextTemp++, 0, true, false, EntityKind::EK_Gen);
+					Entity tmp(m_nextTemp++, 0, true, false, kind);
 					// Use the unused flag to mark temporary entities
-					tmp.data.unused = 1;
+					tmp.data.tmp = 1;
 					return tmp;
 				}
 
 				GAIA_NODISCARD bool less_target(Entity a, Entity b) const {
-					const bool ta = is_temp(a);
-					const bool tb = is_temp(b);
+					const bool ta = is_tmp(a);
+					const bool tb = is_tmp(b);
 
 					// Real entities always come first in order. Temps come last.
 					if (ta != tb)
@@ -34730,7 +34735,7 @@ namespace gaia {
 
 				//! Verifies if sorting is necessary after a given op is added
 				void check_sort(const Op& op) {
-					if (is_temp(op.target)) {
+					if (is_tmp(op.target)) {
 						if (m_haveTemp) {
 							// Only compare temp indices against previous temp target
 							const uint32_t prev = m_lastTempTarget.id();
@@ -34802,7 +34807,7 @@ namespace gaia {
 						// Build all flags
 						for (const Op& o: m_ops) {
 							// Set flag bits
-							if (is_temp(o.target)) {
+							if (is_tmp(o.target)) {
 								const uint32_t ti = o.target.id();
 
 								if (o.type == OpType::DEL_ENTITY)
@@ -34811,13 +34816,13 @@ namespace gaia {
 									m_tmpFlags.set((ti * 3) + 1, true);
 							}
 
-							if (is_temp(o.other) && o.other.id() < m_tmpFlags.size())
+							if (is_tmp(o.other) && o.other.id() < m_tmpFlags.size())
 								m_tmpFlags.set((o.other.id() * 3) + 2, true);
 						}
 
 						// Allocate real entities for the surviving temporaries
 						for (const Op& o: m_ops) {
-							if (!is_temp(o.target))
+							if (!is_tmp(o.target))
 								continue;
 
 							const uint32_t ti = o.target.id();
@@ -34826,7 +34831,7 @@ namespace gaia {
 
 							if (o.type == OpType::ADD_ENTITY) {
 								if (m_temp2real[ti] == EntityBad)
-									m_temp2real[ti] = m_world.add();
+									m_temp2real[ti] = m_world.add(o.target.kind());
 							} else if (o.type == OpType::CPY_ENTITY) {
 								if (m_temp2real[ti] == EntityBad) {
 									const Entity src = resolve(o.other);
@@ -34866,7 +34871,7 @@ namespace gaia {
 
 						const Entity tgtKey = m_ops[p].target;
 
-						const bool tgtIsTemp = is_temp(tgtKey);
+						const bool tgtIsTemp = is_tmp(tgtKey);
 						const uint32_t ti = tgtIsTemp ? tgtKey.id() : 0u;
 						const Entity tgtReal =
 								tgtIsTemp ? (ti < m_temp2real.size() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);

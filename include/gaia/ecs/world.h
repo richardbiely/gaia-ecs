@@ -859,7 +859,7 @@ namespace gaia {
 			}
 
 			//! Creates a new empty entity
-			//! \param kind Entity kind
+			//! \param kind Entity kind. Generic entity by default.
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);

@@ -75,6 +75,8 @@ namespace gaia {
 				//! Disabled
 				//! Entity does not use this bit (always zero) so we steal it
 				//! for special purposes.
+				//! Temporary entities inside command buffer use it for special purposes,
+				//! but these entities never make it to EntityContainer.
 				uint32_t dis : 1;
 			};
 

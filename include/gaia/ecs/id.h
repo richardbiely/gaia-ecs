@@ -241,10 +241,10 @@ namespace gaia {
 				IdentifierData ent : 1;
 				//! 0-ordinary, 1-pair
 				IdentifierData pair : 1;
-				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
+				//! 0-EntityKind::CT_Gen, 1-EntityKind::CT_Uni
 				IdentifierData kind : 1;
-				//! Unused
-				IdentifierData unused : 1;
+				//! 0-real entity, 1-temporary entity
+				IdentifierData tmp : 1;
 
 				///////////////////////////////////////////////////////////////////
 			};
@@ -276,7 +276,7 @@ namespace gaia {
 				data.ent = isEntity;
 				data.pair = isPair;
 				data.kind = kind;
-				data.unused = 0;
+				data.tmp = 0;
 			}
 
 			GAIA_NODISCARD constexpr auto id() const noexcept {
