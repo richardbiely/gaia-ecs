@@ -9,8 +9,8 @@
 
 class WorldTest {
 public:
-	WorldTest();
-	virtual ~WorldTest();
+	WorldTest() = default;
+	virtual ~WorldTest() = default;
 
 	ENGINE_API void cleanup();
 
