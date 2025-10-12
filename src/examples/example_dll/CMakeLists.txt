@@ -9,7 +9,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 endif()
 
 target_include_directories(${PROJ_NAME}
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${PROJECT_SOURCE_DIR}/include
 )
 

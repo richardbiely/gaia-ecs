@@ -1,7 +1,7 @@
 #include "dll_api.h"
 
-WorldTest::WorldTest() = default;
-WorldTest::~WorldTest() = default;
+WorldTest::WorldTest() {}
+WorldTest::~WorldTest() {}
 
 void WorldTest::cleanup() {
 	m_world.cleanup();
