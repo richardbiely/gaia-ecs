@@ -9535,7 +9535,7 @@ TEST_CASE("Serialization - hashmap") {
 			str.ptr[1] = 'a';
 			str.ptr[2] = 'i';
 			str.ptr[3] = 'a';
-			str.ptr[4] = '0' + i;
+			str.ptr[4] = '0' + (char)i;
 			str.ptr[5] = '\0';
 			str.size = 6;
 			in.insert({i, str});
@@ -9577,7 +9577,7 @@ TEST_CASE("Serialization - hashset") {
 			str.ptr[1] = 'a';
 			str.ptr[2] = 'i';
 			str.ptr[3] = 'a';
-			str.ptr[4] = '0' + i;
+			str.ptr[4] = '0' + (char)i;
 			str.ptr[5] = '\0';
 			str.size = 6;
 			in.insert({str});
