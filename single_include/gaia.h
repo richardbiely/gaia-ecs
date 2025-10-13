@@ -564,9 +564,9 @@ namespace gaia {
 	#define GAIA_HIDDEN __attribute__((visibility("hidden")))
 #endif
 
-#if defined(GAIA_DLL)
+#if defined(GAIA_USE_DLL) // Use DLL file (defined by the executable)
 	#define GAIA_API GAIA_IMPORT
-#elif defined(GAIA_DLL_EXPORT)
+#elif defined(GAIA_GEN_DLL) // Generate DLL file (defined inside DLL)
 	#define GAIA_API GAIA_EXPORT
 #else
 	#define GAIA_API

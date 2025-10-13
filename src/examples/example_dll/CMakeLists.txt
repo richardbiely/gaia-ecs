@@ -13,4 +13,4 @@ target_include_directories(${PROJ_NAME}
   PRIVATE ${PROJECT_SOURCE_DIR}/include
 )
 
-target_compile_definitions(${PROJ_NAME} PRIVATE BUILDING_DLL)
+target_compile_definitions(${PROJ_NAME} PRIVATE GAIA_GEN_DLL)
