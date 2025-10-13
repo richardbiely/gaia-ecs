@@ -15,7 +15,7 @@
 
 namespace gaia {
 	namespace mt {
-		class Event final {
+		class GAIA_API Event final {
 #if GAIA_USE_MT_STD
 			GAIA_PROF_MUTEX(std::mutex, m_mtx);
 			std::condition_variable m_cv;

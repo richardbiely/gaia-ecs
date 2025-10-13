@@ -70,7 +70,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4324)
 
-		class ThreadPool final {
+		class GAIA_API ThreadPool final {
 			friend class JobManager;
 
 			//! Maximum number of worker threads of a given priority we can create.
@@ -331,7 +331,7 @@ namespace gaia {
 				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
 				core::lock_scope lock(mtx);
 				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
-				
+
 				m_jobManager.free_job(jobHandle);
 			}
 

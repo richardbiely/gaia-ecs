@@ -17,7 +17,7 @@ namespace gaia {
 		class Chunk;
 		struct ComponentRecord;
 
-		struct ComponentCacheItem final {
+		struct GAIA_API ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			using FuncCtor = void(void*, uint32_t);

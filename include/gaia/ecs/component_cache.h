@@ -20,7 +20,7 @@ namespace gaia {
 		class World;
 
 		//! Cache for compile-time defined components
-		class ComponentCache {
+		class GAIA_API ComponentCache final {
 			friend class World;
 
 			static constexpr uint32_t FastComponentCacheSize = 512;

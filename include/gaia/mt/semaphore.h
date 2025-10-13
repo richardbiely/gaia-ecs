@@ -15,7 +15,7 @@
 
 namespace gaia {
 	namespace mt {
-		class Semaphore final {
+		class GAIA_API Semaphore final {
 #if GAIA_PLATFORM_WINDOWS
 			void* m_handle;
 #elif GAIA_PLATFORM_APPLE

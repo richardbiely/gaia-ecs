@@ -25,7 +25,7 @@
 
 namespace gaia {
 	namespace ecs {
-		class Chunk final {
+		class GAIA_API Chunk final {
 		public:
 			using EntityArray = cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS>;
 			using ComponentArray = cnt::sarray_ext<Component, ChunkHeader::MAX_COMPONENTS>;

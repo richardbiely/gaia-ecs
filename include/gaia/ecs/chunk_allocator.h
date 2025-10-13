@@ -29,7 +29,7 @@ namespace gaia {
 		}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
-		struct ChunkAllocatorPageStats final {
+		struct GAIA_API ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
 			//! Memory actively used
@@ -40,7 +40,7 @@ namespace gaia {
 			uint32_t num_pages_free;
 		};
 
-		struct ChunkAllocatorStats final {
+		struct GAIA_API ChunkAllocatorStats final {
 			ChunkAllocatorPageStats stats[2];
 		};
 

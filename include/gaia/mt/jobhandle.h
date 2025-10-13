@@ -10,7 +10,7 @@ namespace gaia {
 		using JobId = JobInternalType;
 		using JobGenId = JobInternalType;
 
-		struct JobHandle final {
+		struct GAIA_API JobHandle final {
 			static constexpr JobInternalType IdBits = 20;
 			static constexpr JobInternalType GenBits = 11;
 			static constexpr JobInternalType PrioBits = 1;

@@ -16,7 +16,7 @@ namespace gaia {
 		class ComponentCache;
 		struct ComponentCacheItem;
 
-		struct ChunkDataOffsets {
+		struct GAIA_API ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions{};
 			//! Byte at which the first entity id is located
@@ -27,7 +27,7 @@ namespace gaia {
 			ChunkDataOffset firstByte_EntityData{};
 		};
 
-		struct ComponentRecord {
+		struct GAIA_API ComponentRecord {
 			//! Component id
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
@@ -36,7 +36,7 @@ namespace gaia {
 			const ComponentCacheItem* pItem;
 		};
 
-		struct ChunkRecords {
+		struct GAIA_API ChunkRecords {
 			//! Pointer to where component versions are stored
 			ComponentVersion* pVersions{};
 			//! Pointer to where (component) entities are stored
@@ -47,7 +47,7 @@ namespace gaia {
 			Entity* pEntities{};
 		};
 
-		struct ChunkHeader final {
+		struct GAIA_API ChunkHeader final {
 			static constexpr uint32_t MAX_COMPONENTS_BITS = 5U;
 			//! Maximum number of components on archetype
 			static constexpr uint32_t MAX_COMPONENTS = 1U << MAX_COMPONENTS_BITS;

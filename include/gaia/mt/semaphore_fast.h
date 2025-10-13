@@ -8,7 +8,7 @@
 namespace gaia {
 	namespace mt {
 		//! An optimized version of Semaphore that avoids expensive system calls when the counter is greater than 0.
-		class SemaphoreFast final {
+		class GAIA_API SemaphoreFast final {
 			Semaphore m_sem;
 			std::atomic_int32_t m_cnt;
 

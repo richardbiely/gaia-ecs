@@ -564,13 +564,15 @@ namespace gaia {
 	#define GAIA_HIDDEN __attribute__((visibility("hidden")))
 #endif
 
-#if defined(GAIA_USE_DLL) // Use DLL file (defined by the executable)
-	#define GAIA_API GAIA_IMPORT
-#elif defined(GAIA_GEN_DLL) // Generate DLL file (defined inside DLL)
-	#define GAIA_API GAIA_EXPORT
-#else
-	#define GAIA_API
-#endif
+#define GAIA_API
+// NOTE: Gaia is currently a header-only library so exporting/importing should not be necessary
+// #if defined(GAIA_USE_DLL) // Use DLL file (defined by the executable)
+// 	#define GAIA_API GAIA_IMPORT
+// #elif defined(GAIA_GEN_DLL) // Generate DLL file (defined inside DLL)
+// 	#define GAIA_API GAIA_EXPORT
+// #else
+// 	#define GAIA_API
+// #endif
 
 //------------------------------------------------------------------------------
 // Warning-related macros and settings
@@ -11368,7 +11370,7 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
-		struct MemoryPageHeader {
+		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
 
@@ -11523,7 +11525,7 @@ namespace gaia {
 			}
 		};
 
-		struct MemoryPageStats final {
+		struct GAIA_API MemoryPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
 			//! Memory actively used
@@ -15559,7 +15561,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		class Event final {
+		class GAIA_API Event final {
 #if GAIA_USE_MT_STD
 			GAIA_PROF_MUTEX(std::mutex, m_mtx);
 			std::condition_variable m_cv;
@@ -15836,7 +15838,7 @@ namespace gaia {
 		using JobId = JobInternalType;
 		using JobGenId = JobInternalType;
 
-		struct JobHandle final {
+		struct GAIA_API JobHandle final {
 			static constexpr JobInternalType IdBits = 20;
 			static constexpr JobInternalType GenBits = 11;
 			static constexpr JobInternalType PrioBits = 1;
@@ -16770,7 +16772,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		class Semaphore final {
+		class GAIA_API Semaphore final {
 #if GAIA_PLATFORM_WINDOWS
 			void* m_handle;
 #elif GAIA_PLATFORM_APPLE
@@ -16878,7 +16880,7 @@ namespace gaia {
 namespace gaia {
 	namespace mt {
 		//! An optimized version of Semaphore that avoids expensive system calls when the counter is greater than 0.
-		class SemaphoreFast final {
+		class GAIA_API SemaphoreFast final {
 			Semaphore m_sem;
 			std::atomic_int32_t m_cnt;
 
@@ -16926,7 +16928,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		class SpinLock final {
+		class GAIA_API SpinLock final {
 			std::atomic_int32_t m_value{};
 
 		public:
@@ -16983,7 +16985,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4324)
 
-		class ThreadPool final {
+		class GAIA_API ThreadPool final {
 			friend class JobManager;
 
 			//! Maximum number of worker threads of a given priority we can create.
@@ -18392,7 +18394,7 @@ namespace gaia {
 		// Component
 		// ------------------------------------------------------------------------------------
 
-		struct Component final {
+		struct GAIA_API Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
 			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
@@ -18592,7 +18594,7 @@ namespace gaia {
 		// Entity
 		// ------------------------------------------------------------------------------------
 
-		struct Entity final {
+		struct GAIA_API Entity final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 
 			struct InternalData {
@@ -18703,7 +18705,7 @@ namespace gaia {
 		inline static const Entity EntityBad = Entity(IdentifierBad);
 
 		//! Hashmap lookup structure used for Entity
-		struct EntityLookupKey {
+		struct GAIA_API EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
 		private:
@@ -18751,7 +18753,7 @@ namespace gaia {
 		inline static const EntityLookupKey EntityBadLookupKey = EntityLookupKey(EntityBad);
 
 		//! Component used to describe the entity name
-		struct EntityDesc {
+		struct GAIA_API EntityDesc {
 			const char* name{};
 			uint32_t len{};
 		};
@@ -18824,34 +18826,34 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		struct Core_ {};
+		struct GAIA_API Core_{};
 		// struct EntityDesc;
 		// struct Component;
-		struct OnDelete_ {};
-		struct OnDeleteTarget_ {};
-		struct Remove_ {};
-		struct Delete_ {};
-		struct Error_ {};
-		struct Requires_ {};
-		struct CantCombine_ {};
-		struct Exclusive_ {};
-		struct Acyclic_ {};
-		struct All_ {};
-		struct ChildOf_ {};
-		struct Is_ {};
-		struct Traversable_ {};
+		struct GAIA_API OnDelete_{};
+		struct GAIA_API OnDeleteTarget_{};
+		struct GAIA_API Remove_{};
+		struct GAIA_API Delete_{};
+		struct GAIA_API Error_{};
+		struct GAIA_API Requires_{};
+		struct GAIA_API CantCombine_{};
+		struct GAIA_API Exclusive_{};
+		struct GAIA_API Acyclic_{};
+		struct GAIA_API All_{};
+		struct GAIA_API ChildOf_{};
+		struct GAIA_API Is_{};
+		struct GAIA_API Traversable_{};
 		// struct System_;
-		struct DependsOn_ {};
+		struct GAIA_API DependsOn_{};
 
 		// Query variables
-		struct _Var0 {};
-		struct _Var1 {};
-		struct _Var2 {};
-		struct _Var3 {};
-		struct _Var4 {};
-		struct _Var5 {};
-		struct _Var6 {};
-		struct _Var7 {};
+		struct GAIA_API _Var0{};
+		struct GAIA_API _Var1{};
+		struct GAIA_API _Var2{};
+		struct GAIA_API _Var3{};
+		struct GAIA_API _Var4{};
+		struct GAIA_API _Var5{};
+		struct GAIA_API _Var6{};
+		struct GAIA_API _Var7{};
 
 		//----------------------------------------------------------------------
 		// Core component entities
@@ -19296,7 +19298,7 @@ namespace gaia {
 		}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
-		struct ChunkAllocatorPageStats final {
+		struct GAIA_API ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
 			//! Memory actively used
@@ -19307,7 +19309,7 @@ namespace gaia {
 			uint32_t num_pages_free;
 		};
 
-		struct ChunkAllocatorStats final {
+		struct GAIA_API ChunkAllocatorStats final {
 			ChunkAllocatorPageStats stats[2];
 		};
 
@@ -19690,7 +19692,7 @@ namespace gaia {
 		class ComponentCache;
 		struct ComponentCacheItem;
 
-		struct ChunkDataOffsets {
+		struct GAIA_API ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions{};
 			//! Byte at which the first entity id is located
@@ -19701,7 +19703,7 @@ namespace gaia {
 			ChunkDataOffset firstByte_EntityData{};
 		};
 
-		struct ComponentRecord {
+		struct GAIA_API ComponentRecord {
 			//! Component id
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
@@ -19710,7 +19712,7 @@ namespace gaia {
 			const ComponentCacheItem* pItem;
 		};
 
-		struct ChunkRecords {
+		struct GAIA_API ChunkRecords {
 			//! Pointer to where component versions are stored
 			ComponentVersion* pVersions{};
 			//! Pointer to where (component) entities are stored
@@ -19721,7 +19723,7 @@ namespace gaia {
 			Entity* pEntities{};
 		};
 
-		struct ChunkHeader final {
+		struct GAIA_API ChunkHeader final {
 			static constexpr uint32_t MAX_COMPONENTS_BITS = 5U;
 			//! Maximum number of components on archetype
 			static constexpr uint32_t MAX_COMPONENTS = 1U << MAX_COMPONENTS_BITS;
@@ -20104,7 +20106,7 @@ namespace gaia {
 		class Chunk;
 		struct ComponentRecord;
 
-		struct ComponentCacheItem final {
+		struct GAIA_API ComponentCacheItem final {
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			using FuncCtor = void(void*, uint32_t);
@@ -20360,7 +20362,7 @@ namespace gaia {
 		class World;
 
 		//! Cache for compile-time defined components
-		class ComponentCache {
+		class GAIA_API ComponentCache final {
 			friend class World;
 
 			static constexpr uint32_t FastComponentCacheSize = 512;
@@ -21205,7 +21207,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class Chunk final {
+		class GAIA_API Chunk final {
 		public:
 			using EntityArray = cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS>;
 			using ComponentArray = cnt::sarray_ext<Component, ChunkHeader::MAX_COMPONENTS>;
@@ -22841,7 +22843,7 @@ namespace gaia {
 			}
 		};
 
-		class Archetype final: public ArchetypeBase {
+		class GAIA_API Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
@@ -23884,7 +23886,7 @@ namespace gaia {
 			}
 		};
 
-		class ArchetypeLookupKey final {
+		class GAIA_API ArchetypeLookupKey final {
 			Archetype::LookupHash m_hash;
 			const ArchetypeBase* m_pArchetypeBase;
 
@@ -24780,13 +24782,13 @@ namespace gaia {
 		} // namespace detail
 
 		//! Iterator for iterating enabled entities
-		class Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
+		class GAIA_API Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
 		//! Iterator for iterating disabled entities
-		class IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
+		class GAIA_API IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
 
 		//! Iterator for iterating both enabled and disabled entities.
 		//! Disabled entities always precede enabled ones.
-		class IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
+		class GAIA_API IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
 			//! Returns the number of enabled entities accessible via the iterator.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
@@ -24801,7 +24803,7 @@ namespace gaia {
 		};
 
 		//! Iterator used when copying entities.
-		class CopyIter final {
+		class GAIA_API CopyIter final {
 		protected:
 			using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 

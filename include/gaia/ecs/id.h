@@ -22,7 +22,7 @@ namespace gaia {
 		// Component
 		// ------------------------------------------------------------------------------------
 
-		struct Component final {
+		struct GAIA_API Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
 			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
@@ -222,7 +222,7 @@ namespace gaia {
 		// Entity
 		// ------------------------------------------------------------------------------------
 
-		struct Entity final {
+		struct GAIA_API Entity final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 
 			struct InternalData {
@@ -333,7 +333,7 @@ namespace gaia {
 		inline static const Entity EntityBad = Entity(IdentifierBad);
 
 		//! Hashmap lookup structure used for Entity
-		struct EntityLookupKey {
+		struct GAIA_API EntityLookupKey {
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
 		private:
@@ -381,7 +381,7 @@ namespace gaia {
 		inline static const EntityLookupKey EntityBadLookupKey = EntityLookupKey(EntityBad);
 
 		//! Component used to describe the entity name
-		struct EntityDesc {
+		struct GAIA_API EntityDesc {
 			const char* name{};
 			uint32_t len{};
 		};
@@ -454,34 +454,34 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		struct Core_ {};
+		struct GAIA_API Core_{};
 		// struct EntityDesc;
 		// struct Component;
-		struct OnDelete_ {};
-		struct OnDeleteTarget_ {};
-		struct Remove_ {};
-		struct Delete_ {};
-		struct Error_ {};
-		struct Requires_ {};
-		struct CantCombine_ {};
-		struct Exclusive_ {};
-		struct Acyclic_ {};
-		struct All_ {};
-		struct ChildOf_ {};
-		struct Is_ {};
-		struct Traversable_ {};
+		struct GAIA_API OnDelete_{};
+		struct GAIA_API OnDeleteTarget_{};
+		struct GAIA_API Remove_{};
+		struct GAIA_API Delete_{};
+		struct GAIA_API Error_{};
+		struct GAIA_API Requires_{};
+		struct GAIA_API CantCombine_{};
+		struct GAIA_API Exclusive_{};
+		struct GAIA_API Acyclic_{};
+		struct GAIA_API All_{};
+		struct GAIA_API ChildOf_{};
+		struct GAIA_API Is_{};
+		struct GAIA_API Traversable_{};
 		// struct System_;
-		struct DependsOn_ {};
+		struct GAIA_API DependsOn_{};
 
 		// Query variables
-		struct _Var0 {};
-		struct _Var1 {};
-		struct _Var2 {};
-		struct _Var3 {};
-		struct _Var4 {};
-		struct _Var5 {};
-		struct _Var6 {};
-		struct _Var7 {};
+		struct GAIA_API _Var0{};
+		struct GAIA_API _Var1{};
+		struct GAIA_API _Var2{};
+		struct GAIA_API _Var3{};
+		struct GAIA_API _Var4{};
+		struct GAIA_API _Var5{};
+		struct GAIA_API _Var6{};
+		struct GAIA_API _Var7{};
 
 		//----------------------------------------------------------------------
 		// Core component entities

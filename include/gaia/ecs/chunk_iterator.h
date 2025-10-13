@@ -326,13 +326,13 @@ namespace gaia {
 		} // namespace detail
 
 		//! Iterator for iterating enabled entities
-		class Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
+		class GAIA_API Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
 		//! Iterator for iterating disabled entities
-		class IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
+		class GAIA_API IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
 
 		//! Iterator for iterating both enabled and disabled entities.
 		//! Disabled entities always precede enabled ones.
-		class IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
+		class GAIA_API IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
 		public:
 			//! Returns the number of enabled entities accessible via the iterator.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
@@ -347,7 +347,7 @@ namespace gaia {
 		};
 
 		//! Iterator used when copying entities.
-		class CopyIter final {
+		class GAIA_API CopyIter final {
 		protected:
 			using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 

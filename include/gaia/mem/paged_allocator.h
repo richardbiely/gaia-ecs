@@ -23,7 +23,7 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
-		struct MemoryPageHeader {
+		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
 
@@ -178,7 +178,7 @@ namespace gaia {
 			}
 		};
 
-		struct MemoryPageStats final {
+		struct GAIA_API MemoryPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
 			//! Memory actively used

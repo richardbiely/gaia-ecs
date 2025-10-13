@@ -6,4 +6,3 @@ target_include_directories(${PROJ_NAME}
   PUBLIC ${PROJECT_CURRENT_SOURCE_DIR}/../../example_dll/include)
 
 target_link_libraries(${PROJ_NAME} PRIVATE gaia_example_dll)
-target_compile_definitions(${PROJ_NAME} PRIVATE GAIA_USE_DLL)

@@ -81,7 +81,7 @@ namespace gaia {
 			}
 		};
 
-		class Archetype final: public ArchetypeBase {
+		class GAIA_API Archetype final: public ArchetypeBase {
 		public:
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
@@ -1124,7 +1124,7 @@ namespace gaia {
 			}
 		};
 
-		class ArchetypeLookupKey final {
+		class GAIA_API ArchetypeLookupKey final {
 			Archetype::LookupHash m_hash;
 			const ArchetypeBase* m_pArchetypeBase;
 

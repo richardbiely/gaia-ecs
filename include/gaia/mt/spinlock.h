@@ -5,7 +5,7 @@
 
 namespace gaia {
 	namespace mt {
-		class SpinLock final {
+		class GAIA_API SpinLock final {
 			std::atomic_int32_t m_value{};
 
 		public:
