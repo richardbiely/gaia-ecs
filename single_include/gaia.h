@@ -70,6 +70,12 @@
 	#define GAIA_COMPILER_CLANG 1
 	#undef GAIA_COMPILER_DETECTED
 	#define GAIA_COMPILER_DETECTED 1
+
+	// Distinguish clang-cl (MSVC front-end) from regular Clang
+	#if defined(_MSC_VER)
+		#undef GAIA_COMPILER_MSVC
+		#define GAIA_COMPILER_MSVC 1
+	#endif
 #endif
 #if !GAIA_COMPILER_DETECTED &&                                                                                         \
 		(defined(__INTEL_COMPILER) || defined(__ICC) || defined(__ICL) || defined(__INTEL_LLVM_COMPILER))
@@ -143,13 +149,12 @@
 
 #define GAIA_ARCH_X86 0
 #define GAIA_ARCH_ARM 1
-#define GAIA_ARCH GAIA_ARCH_X86
 
 #if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(__i386) ||                \
 		defined(i386) || defined(__x86_64__) || defined(_X86_)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_X86
-#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_ARM
 #else
@@ -214,11 +219,11 @@ namespace gaia {
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
 #define GAIA_MOV(x) static_cast<typename std::remove_reference<decltype(x)>::type&&>(x)
-//! Replacement for std::forward.
+	//! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
 #define GAIA_FWD(x) decltype(x)(x)
-//! Wrapper around std::launder.
+	//! Wrapper around std::launder.
 #define GAIA_ACC(x) std::launder(x)
 
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
@@ -311,7 +316,33 @@ namespace gaia {
 		} while (0)
 #endif
 
-#if GAIA_COMPILER_MSVC
+#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(static_cast<uint32_t>(x)))
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(static_cast<unsigned long long>(x)))
+
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
+
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
+
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
+#elif GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
 		#include <intrin.h>
 	#endif
@@ -391,32 +422,6 @@ namespace gaia {
 				return (uint32_t)(index + 1);                                                                                  \
 			return (uint32_t)0;                                                                                              \
 		}(x))
-#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
-	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(static_cast<uint32_t>(x)))
-	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(static_cast<unsigned long long>(x)))
-
-//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
-//! \warning Little-endian format.
-	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
-	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
-	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
-
-//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
-//! \warning Little-endian format.
-	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
-	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
-	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
-
-//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-//! \warning Little-endian format.
-	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
-	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
-	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
 #else
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT(x)                                                                                               \
@@ -511,25 +516,25 @@ namespace gaia {
 
 //------------------------------------------------------------------------------
 
-#if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
-	#define GAIA_FORCEINLINE __forceinline
-	#define GAIA_NOINLINE __declspec(noinline)
-#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
 	#define GAIA_NOINLINE inline __attribute__((noinline))
+#elif GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
+	#define GAIA_FORCEINLINE __forceinline
+	#define GAIA_NOINLINE __declspec(noinline)
 #else
 	#define GAIA_FORCEINLINE
 	#define GAIA_NOINLINE
 #endif
 
-#if GAIA_COMPILER_MSVC
+#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	#define GAIA_LAMBDAINLINE __attribute__((always_inline))
+#elif GAIA_COMPILER_MSVC
 	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer &&�/std:c++latest
 		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
 	#else
 		#define GAIA_LAMBDAINLINE
 	#endif
-#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
-	#define GAIA_LAMBDAINLINE __attribute__((always_inline))
 #else
 	#define GAIA_LAMBDAINLINE
 #endif
@@ -628,10 +633,10 @@ namespace gaia {
 #endif
 
 namespace gaia {
-// The dont_optimize(...) function can be used to prevent a value or
-// expression from being optimized away by the compiler. This function is
-// intended to add little to no overhead.
-// See: https://youtu.be/nXaxk27zwlk?t=2441
+	// The dont_optimize(...) function can be used to prevent a value or
+	// expression from being optimized away by the compiler. This function is
+	// intended to add little to no overhead.
+	// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 	template <class T>
 	inline void dont_optimize(T const& value) {
