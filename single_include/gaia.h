@@ -6123,8 +6123,8 @@ namespace gaia {
 			}
 
 		public:
-			constexpr darr() noexcept = default;
-			constexpr darr(core::zero_t) noexcept {}
+			darr() noexcept = default;
+			darr(core::zero_t) noexcept {}
 
 			darr(size_type count, const_reference value) {
 				resize(count);
@@ -6813,7 +6813,7 @@ namespace gaia {
 
 		public:
 			darr_ext() noexcept = default;
-			constexpr darr_ext(core::zero_t) noexcept {}
+			darr_ext(core::zero_t) noexcept {}
 
 			darr_ext(size_type count, const T& value) {
 				resize(count);

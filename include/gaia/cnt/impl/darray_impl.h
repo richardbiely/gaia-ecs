@@ -163,8 +163,8 @@ namespace gaia {
 			}
 
 		public:
-			constexpr darr() noexcept = default;
-			constexpr darr(core::zero_t) noexcept {}
+			darr() noexcept = default;
+			darr(core::zero_t) noexcept {}
 
 			darr(size_type count, const_reference value) {
 				resize(count);
