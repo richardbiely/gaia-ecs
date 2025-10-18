@@ -59,7 +59,7 @@ namespace gaia {
 				// MSVC:
 				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
-				// Clang/GCC:
+				// Clang/Clang-cl/GCC:
 				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
 				//   -> ecs::EnfEntity
 

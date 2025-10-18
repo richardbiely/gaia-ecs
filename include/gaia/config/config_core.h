@@ -158,7 +158,7 @@
 
 //------------------------------------------------------------------------------
 
-#if GAIA_COMPILER_MSVC
+#if GAIA_COMPILER_MSVC && !GAIA_COMPILER_CLANG
 	#define GAIA_PRETTY_FUNCTION __FUNCSIG__
 	#define GAIA_PRETTY_FUNCTION_PREFIX '<'
 	#define GAIA_PRETTY_FUNCTION_SUFFIX '>'
