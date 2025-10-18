@@ -1664,15 +1664,19 @@ namespace gaia {
 		template <typename T>
 		void call_ctor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
-			(void)::new (pData) T();
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				(void)::new (pData) T();
+			}
 		}
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
-			for (size_t i = 0; i < cnt; ++i)
-				(void)::new (pData + i) T();
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				for (size_t i = 0; i < cnt; ++i)
+					(void)::new (pData + i) T();
+			}
 		}
 
 		template <typename T, typename... Args>
@@ -1688,15 +1692,19 @@ namespace gaia {
 		template <typename T>
 		void call_dtor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
-			pData->~T();
+			if constexpr (!std::is_trivially_destructible_v<T>) {
+				pData->~T();
+			}
 		}
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_dtor_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
-			for (size_t i = 0; i < cnt; ++i)
-				pData[i].~T();
+			if constexpr (!std::is_trivially_destructible_v<T>) {
+				for (size_t i = 0; i < cnt; ++i)
+					pData[i].~T();
+			}
 		}
 
 		//----------------------------------------------------------------------
@@ -11100,13 +11108,12 @@ namespace gaia {
 			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
 			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
 			constexpr sarr(core::zero_t) noexcept {
-				// explicit zeroing
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-				else {
-					for (auto i = (size_type)0; i < extent; ++i)
-						operator[](i) = {};
-				}
+					core::call_ctor_raw_n(data(), extent);
+
+				// explicit zeroing
+				for (auto i = (size_type)0; i < extent; ++i)
+					operator[](i) = {};
 			}
 
 			~sarr() {
@@ -11117,7 +11124,7 @@ namespace gaia {
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 
@@ -11142,7 +11149,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
@@ -11155,7 +11162,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::copy_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
@@ -11167,7 +11174,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
@@ -12826,9 +12833,6 @@ namespace gaia {
 
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-
 				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
@@ -12853,7 +12857,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -12867,8 +12871,6 @@ namespace gaia {
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
 				resize(other.size());
 				mem::copy_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
@@ -12880,8 +12882,6 @@ namespace gaia {
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
 				resize(other.m_cnt);
 				mem::move_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,

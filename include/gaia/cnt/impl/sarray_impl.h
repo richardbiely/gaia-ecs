@@ -146,13 +146,12 @@ namespace gaia {
 			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
 			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
 			constexpr sarr(core::zero_t) noexcept {
-				// explicit zeroing
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-				else {
-					for (auto i = (size_type)0; i < extent; ++i)
-						operator[](i) = {};
-				}
+					core::call_ctor_raw_n(data(), extent);
+
+				// explicit zeroing
+				for (auto i = (size_type)0; i < extent; ++i)
+					operator[](i) = {};
 			}
 
 			~sarr() {
@@ -163,7 +162,7 @@ namespace gaia {
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 
@@ -188,7 +187,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
@@ -201,7 +200,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::copy_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
@@ -213,7 +212,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);

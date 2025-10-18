@@ -162,9 +162,6 @@ namespace gaia {
 
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-
 				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
@@ -189,7 +186,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
+					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -203,8 +200,6 @@ namespace gaia {
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
 				resize(other.size());
 				mem::copy_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
@@ -216,8 +211,6 @@ namespace gaia {
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
 				resize(other.m_cnt);
 				mem::move_elements<T>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
