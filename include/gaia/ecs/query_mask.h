@@ -66,11 +66,11 @@ namespace gaia {
 
 		//! Checks is there is a match between two masks
 		GAIA_NODISCARD inline bool match_entity_mask(const QueryMask& m1, const QueryMask& m2) {
-			const auto r0 = m1.value[0] & m2.value[0];
-			const auto r1 = m1.value[1] & m2.value[1];
-			const auto r2 = m1.value[2] & m2.value[2];
-			const auto r3 = m1.value[3] & m2.value[3];
-			return (r0 | r1 | r2 | r3) != 0;
+			const uint64_t r0 = m1.value[0] & m2.value[0];
+			const uint64_t r1 = m1.value[1] & m2.value[1];
+			const uint64_t r2 = m1.value[2] & m2.value[2];
+			const uint64_t r3 = m1.value[3] & m2.value[3];
+			return bool(int(r0 != 0) & int(r1 != 0) & int(r2 != 0) & int(r3 != 0));
 		}
 #else
 		using QueryMask = uint64_t;
