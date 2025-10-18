@@ -2753,7 +2753,7 @@ namespace gaia {
 			quick_sort(arr, pos + 1, high, cmpFunc, swapFunc);
 		}
 
-		//! A special version the quick sort algorithm.
+		//! A special version of the quick sort algorithm.
 		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparison function
@@ -2801,7 +2801,6 @@ namespace gaia {
 
 			while (sp > 0) {
 				const Range r = stack[--sp];
-				GAIA_ASSUME(r.low >= r.high);
 				if (r.low >= r.high)
 					continue;
 
