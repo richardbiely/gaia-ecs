@@ -147,6 +147,18 @@ namespace gaia {
 					core::call_ctor_raw_n(data(), extent);
 			}
 
+			//! Zero-initialization constructor. Because sarr_ext is not aggretate type, doing: sarr_ext<int,10> tmp{} does
+			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			constexpr sarr_ext(core::zero_t) noexcept {
+				// explicit zeroing
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_n(data(), extent);
+				else {
+					for (auto i = (size_type)0; i < N; ++i)
+						operator[](i) = {};
+				}
+			}
+
 			~sarr_ext() {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor_n(data(), m_cnt);

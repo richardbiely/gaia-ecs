@@ -1492,6 +1492,11 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		struct zero_t {
+			explicit constexpr zero_t() = default;
+		};
+		inline constexpr zero_t zero{};
+
 		template <class T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
 
@@ -1659,19 +1664,15 @@ namespace gaia {
 		template <typename T>
 		void call_ctor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
-			if constexpr (!std::is_trivially_constructible_v<T>) {
-				(void)::new (pData) T();
-			}
+			(void)::new (pData) T();
 		}
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
-			if constexpr (!std::is_trivially_constructible_v<T>) {
-				for (size_t i = 0; i < cnt; ++i)
-					(void)::new (pData + i) T();
-			}
+			for (size_t i = 0; i < cnt; ++i)
+				(void)::new (pData + i) T();
 		}
 
 		template <typename T, typename... Args>
@@ -1687,19 +1688,15 @@ namespace gaia {
 		template <typename T>
 		void call_dtor(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
-			if constexpr (!std::is_trivially_destructible_v<T>) {
-				pData->~T();
-			}
+			pData->~T();
 		}
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
 		void call_dtor_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
-			if constexpr (!std::is_trivially_destructible_v<T>) {
-				for (size_t i = 0; i < cnt; ++i)
-					pData[i].~T();
-			}
+			for (size_t i = 0; i < cnt; ++i)
+				pData[i].~T();
 		}
 
 		//----------------------------------------------------------------------
@@ -6127,6 +6124,7 @@ namespace gaia {
 
 		public:
 			constexpr darr() noexcept = default;
+			constexpr darr(core::zero_t) noexcept {}
 
 			darr(size_type count, const_reference value) {
 				resize(count);
@@ -6814,7 +6812,23 @@ namespace gaia {
 			}
 
 		public:
-			darr_ext() noexcept = default;
+			darr_ext() noexcept {
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_raw_n(data(), extent);
+			}
+
+			//! Zero-initialization constructor. Because darr_ext is not aggretate type, doing: darr_ext<int,10> tmp{} does
+			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			constexpr darr_ext(core::zero_t) noexcept
+			{
+				// explicit zeroing
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_n(data(), extent);
+				else {
+					for (auto i = (size_type)0; i < N; ++i)
+						operator[](i) = {};
+				}
+			}
 
 			darr_ext(size_type count, const T& value) {
 				resize(count);
@@ -11098,6 +11112,18 @@ namespace gaia {
 					core::call_ctor_raw_n(data(), extent);
 			}
 
+			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
+			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			constexpr sarr(core::zero_t) noexcept {
+				// explicit zeroing
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_n(data(), extent);
+				else {
+					for (auto i = (size_type)0; i < N; ++i)
+						operator[](i) = {};
+				}
+			}
+
 			~sarr() {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_dtor_n(data(), extent);
@@ -12798,6 +12824,18 @@ namespace gaia {
 			constexpr sarr_ext() noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_raw_n(data(), extent);
+			}
+
+			//! Zero-initialization constructor. Because sarr_ext is not aggretate type, doing: sarr_ext<int,10> tmp{} does
+			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			constexpr sarr_ext(core::zero_t) noexcept {
+				// explicit zeroing
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor_n(data(), extent);
+				else {
+					for (auto i = (size_type)0; i < N; ++i)
+						operator[](i) = {};
+				}
 			}
 
 			~sarr_ext() {

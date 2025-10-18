@@ -583,7 +583,7 @@ void fixed_arr_test() {
 
 	// Container comparison
 	{
-		Container arrEmpty;
+		Container arrEmpty(core::zero);
 		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
@@ -664,7 +664,7 @@ void resizable_arr_test(uint32_t N) {
 
 	// Container comparison
 	{
-		Container arrEmpty;
+		Container arrEmpty(core::zero);
 		CHECK_FALSE(arrEmpty == arr);
 
 		Container arr2(arr);
