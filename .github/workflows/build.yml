@@ -132,10 +132,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: [default, v142, v143]
+        # The Windows 10.0.26100 SDK header (winnt.h) expects _CountOneBits64 to exist, but that intrinsic is only defined by MSVC v143
+        # and newer for ARM/ARM64. When you compile with v142, the compiler does not provide that intrinsic, so the header breaks.
+        # As a result, we can not build on v142 for ARM.
+        toolset: [default, v143]
         include:
-          - toolset: v142
-            toolset_option: -T"v142"
           - toolset: v143
             toolset_option: -T"v143"
         build_type: [Release, Debug]

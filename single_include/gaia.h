@@ -2842,7 +2842,7 @@ namespace gaia {
 			}
 		}
 
-		//! A special version the quick sort algorithm.
+		//! A special version of the quick sort algorithm.
 		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparison function
