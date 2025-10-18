@@ -142,7 +142,6 @@ namespace gaia {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_raw_n(data(), extent);
 			}
-			
 
 			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
 			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
@@ -151,7 +150,7 @@ namespace gaia {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				else {
-					for (auto i = (size_type)0; i < N; ++i)
+					for (auto i = (size_type)0; i < extent; ++i)
 						operator[](i) = {};
 				}
 			}

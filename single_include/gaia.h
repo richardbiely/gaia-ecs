@@ -6812,23 +6812,8 @@ namespace gaia {
 			}
 
 		public:
-			darr_ext() noexcept {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_raw_n(data(), extent);
-			}
-
-			//! Zero-initialization constructor. Because darr_ext is not aggretate type, doing: darr_ext<int,10> tmp{} does
-			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
-			constexpr darr_ext(core::zero_t) noexcept
-			{
-				// explicit zeroing
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-				else {
-					for (auto i = (size_type)0; i < N; ++i)
-						operator[](i) = {};
-				}
-			}
+			darr_ext() noexcept = default;
+			constexpr darr_ext(core::zero_t) noexcept {}
 
 			darr_ext(size_type count, const T& value) {
 				resize(count);
@@ -7350,7 +7335,7 @@ namespace gaia {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
-		};
+		}; // namespace cnt
 
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
@@ -11119,7 +11104,7 @@ namespace gaia {
 				if constexpr (!mem::is_soa_layout_v<T>)
 					core::call_ctor_n(data(), extent);
 				else {
-					for (auto i = (size_type)0; i < N; ++i)
+					for (auto i = (size_type)0; i < extent; ++i)
 						operator[](i) = {};
 				}
 			}
@@ -12821,22 +12806,8 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 		public:
-			constexpr sarr_ext() noexcept {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_raw_n(data(), extent);
-			}
-
-			//! Zero-initialization constructor. Because sarr_ext is not aggretate type, doing: sarr_ext<int,10> tmp{} does
-			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
-			constexpr sarr_ext(core::zero_t) noexcept {
-				// explicit zeroing
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_n(data(), extent);
-				else {
-					for (auto i = (size_type)0; i < N; ++i)
-						operator[](i) = {};
-				}
-			}
+			constexpr sarr_ext() noexcept = default;
+			constexpr sarr_ext(core::zero_t) noexcept {}
 
 			~sarr_ext() {
 				if constexpr (!mem::is_soa_layout_v<T>)
@@ -18182,6 +18153,8 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
+// #include "../cnt/dbitset.h"
+
 
 /*** Start of inlined file: api.h ***/
 #pragma once
@@ -22923,8 +22896,6 @@ namespace gaia {
 			};
 
 		private:
-			using AsPairsIndexBuffer = cnt::sarray<uint8_t, ChunkHeader::MAX_COMPONENTS>;
-
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};

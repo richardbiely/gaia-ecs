@@ -5,9 +5,7 @@
 #include <cstdint>
 
 #include "../cnt/darray.h"
-#include "../cnt/dbitset.h"
-#include "../cnt/sarray.h"
-#include "../cnt/sarray_ext.h"
+// #include "../cnt/dbitset.h"
 #include "../core/hashing_policy.h"
 #include "../mem/mem_alloc.h"
 #include "api.h"
@@ -104,8 +102,6 @@ namespace gaia {
 			};
 
 		private:
-			using AsPairsIndexBuffer = cnt::sarray<uint8_t, ChunkHeader::MAX_COMPONENTS>;
-
 			ArchetypeIdLookupKey::LookupHash m_archetypeIdHash;
 			//! Hash of components within this archetype - used for lookups
 			LookupHash m_hashLookup = {0};
