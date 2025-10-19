@@ -222,7 +222,7 @@ namespace gaia {
 	//! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
-#define GAIA_FWD(x) decltype(x)(x)
+#define GAIA_FWD(x) static_cast<decltype(x)&&>(x)
 	//! Wrapper around std::launder.
 #define GAIA_ACC(x) std::launder(x)
 
@@ -33667,7 +33667,7 @@ namespace gaia {
 				// w.as(wolf, carnivore);
 				// w.as(carnivore, animal);
 				// q.each() ...; // animal, carnivore, wolf
-				// w.del(wolf, {Is,carnivore}) // wolf no longer a carnivore and thus no longer an animal
+				// w.del(wolf, {Is,carnivore}) // wolf is no longer a carnivore and thus no longer an animal
 				// After this deletion, we need to invalidate "q" because wolf is no longer an animal
 				// and we don't want q to include it.
 				// q.each() ...; // animal

@@ -217,7 +217,7 @@ namespace gaia {
 	//! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
-#define GAIA_FWD(x) decltype(x)(x)
+#define GAIA_FWD(x) static_cast<decltype(x)&&>(x)
 	//! Wrapper around std::launder.
 #define GAIA_ACC(x) std::launder(x)
 

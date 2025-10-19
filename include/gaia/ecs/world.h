@@ -4574,7 +4574,7 @@ namespace gaia {
 				// w.as(wolf, carnivore);
 				// w.as(carnivore, animal);
 				// q.each() ...; // animal, carnivore, wolf
-				// w.del(wolf, {Is,carnivore}) // wolf no longer a carnivore and thus no longer an animal
+				// w.del(wolf, {Is,carnivore}) // wolf is no longer a carnivore and thus no longer an animal
 				// After this deletion, we need to invalidate "q" because wolf is no longer an animal
 				// and we don't want q to include it.
 				// q.each() ...; // animal
