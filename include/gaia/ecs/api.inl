@@ -1,5 +1,7 @@
 #include "../config/config.h"
 
+#include "../ser/serialization.h"
+
 namespace gaia {
 	namespace ecs {
 		// Component API
@@ -132,6 +134,16 @@ namespace gaia {
 				return;
 			cmd_buffer_commit(world.cmd_buffer_mt());
 		}
+
+		// Serialization API
+
+#if GAIA_ASSERT_ENABLED
+		template <typename T>
+		void ser_check(const T& data) {
+			ecs::SerializationBuffer tmpBuffer;
+			ser::check(tmpBuffer, data);
+		}
+#endif
 
 	} // namespace ecs
 } // namespace gaia

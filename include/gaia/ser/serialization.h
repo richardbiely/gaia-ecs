@@ -10,7 +10,6 @@
 namespace gaia {
 	namespace ser {
 		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
-		GAIA_DEFINE_HAS_MEMBER_FUNC(bytes);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
 
@@ -18,23 +17,14 @@ namespace gaia {
 		// Customization tags
 		// --------------------
 
-		struct bytes_tag {};
 		struct save_tag {};
 		struct load_tag {};
-		inline constexpr bytes_tag bytes_v{};
 		inline constexpr save_tag save_v{};
 		inline constexpr load_tag load_v{};
 
 		// --------------------
 		// Detection traits
 		// --------------------
-
-		template <typename T>
-		auto has_tag_bytes_impl(int) -> decltype(tag_invoke(bytes_v, std::declval<const T&>()), std::true_type{});
-		template <typename>
-		std::false_type has_tag_bytes_impl(...);
-		template <typename T>
-		using has_tag_bytes = decltype(has_tag_bytes_impl<T>(0));
 
 		template <typename S, typename T>
 		auto has_tag_save_impl(int)
@@ -175,39 +165,6 @@ namespace gaia {
 				return serialization_type_id::Last;
 			}
 
-			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
-				using U = core::raw_t<T>;
-
-				constexpr auto id = detail::type_id<U>();
-				static_assert(id != detail::serialization_type_id::Last);
-				uint32_t size_in_bytes{};
-
-				// Custom bytes() has precedence
-				if constexpr (has_func_bytes<U>::value) {
-					size_in_bytes = (uint32_t)item.bytes();
-				} else if constexpr (has_tag_bytes<U>::value) {
-					size_in_bytes = (uint32_t)tag_invoke(bytes_v, item);
-				}
-				// Trivially serializable types
-				else if constexpr (detail::is_trivially_serializable<U>::value) {
-					size_in_bytes = (uint32_t)sizeof(U);
-				}
-				// Types which have size(), begin() and end() member functions
-				else if constexpr (core::has_size_begin_end<U>::value) {
-					size_in_bytes = (uint32_t)item.size();
-				}
-				// Classes
-				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(item, [&](auto&&... items) {
-						size_in_bytes += (bytes_one(items) + ...);
-					});
-				} else
-					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
-
-				return size_in_bytes;
-			}
-
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
 				using U = core::raw_t<T>;
@@ -282,14 +239,26 @@ namespace gaia {
 				} else
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
-		} // namespace detail
 
-		//! Calculates the number of bytes necessary to serialize data using the "save" function.
-		//! \warning Compile-time.
-		template <typename T>
-		GAIA_NODISCARD uint32_t bytes(const T& data) {
-			return detail::bytes_one(data);
-		}
+#if GAIA_ASSERT_ENABLED
+			template <typename Writer, typename T>
+			void check_one(Writer& s, const T& arg) {
+				T tmp{};
+
+				// Make sure that we write just as many bytes as we read.
+				// If the positions are the same there is a good chance that save and load match.
+				const auto pos0 = s.tell();
+				save_one(s, arg);
+				const auto pos1 = s.tell();
+				s.seek(pos0);
+				load_one(s, tmp);
+				GAIA_ASSERT(s.tell() == pos1);
+
+				// Return back to the original position in the buffer.
+				s.seek(pos0);
+			}
+#endif
+		} // namespace detail
 
 		//! Write \param data using \tparam Writer at compile-time.
 		//!
@@ -308,5 +277,19 @@ namespace gaia {
 		void load(Reader& reader, T& data) {
 			detail::load_one(reader, data);
 		}
+
+#if GAIA_ASSERT_ENABLED
+		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
+		//! Used to verify that both save and load work correctly.
+		//!
+		//! \warning Writer has to implement a save function as follows:
+		//! 					template <typename T> void save(const T& arg);
+		//! \warning Reader has to implement a save function as follows:
+		//! 					template <typename T> void load(T& arg);
+		template <typename Writer, typename T>
+		void check(Writer& writer, const T& data) {
+			detail::check_one(writer, data);
+		}
+#endif
 	} // namespace ser
 } // namespace gaia

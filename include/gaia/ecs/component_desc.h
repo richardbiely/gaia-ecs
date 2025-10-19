@@ -19,6 +19,9 @@ namespace gaia {
 	namespace ecs {
 		class SerializationBufferDyn;
 
+		template <typename T>
+		void ser_check(const T& arg);
+
 		namespace detail {
 			using ComponentDescId = uint32_t;
 
@@ -159,6 +162,12 @@ namespace gaia {
 					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
 						const auto* pComponent = (const U*)pSrc;
+
+	#if GAIA_ASSERT_ENABLED
+						// Check if save and load match. Testing with one item is enough.
+						ser_check(*pComponent);
+	#endif
+
 						GAIA_FOR(cnt) {
 							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
 							//       Therefore, we first need to load them into AoS form and then store them.

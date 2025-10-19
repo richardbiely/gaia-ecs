@@ -28,8 +28,10 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
+#if GAIA_USE_SERIALIZATION
 			using FuncSave = void(void*, const void*, uint32_t);
 			using FuncLoad = void(void*, void*, uint32_t);
+#endif
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -66,7 +68,7 @@ namespace gaia {
 #if GAIA_USE_SERIALIZATION
 			//! Function to call when saving component to a buffer
 			FuncSave* func_save{};
-			// !Function to call when saving component from a buffer
+			// !Function to call when loading component from a buffer
 			FuncLoad* func_load{};
 #endif
 

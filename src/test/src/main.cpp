@@ -9265,10 +9265,6 @@ bool operator==(const CustomStruct& a, const CustomStruct& b) {
 	return a.size == b.size && 0 == memcmp(a.ptr, b.ptr, a.size);
 }
 namespace gaia::ser {
-	constexpr uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
-		return data.size + sizeof(data.size);
-	}
-
 	template <typename Serializer>
 	void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
 		s.save(data.size);
@@ -9289,10 +9285,6 @@ struct CustomStructInternal {
 
 	bool operator==(const CustomStructInternal& other) const {
 		return size == other.size && !memcmp(ptr, other.ptr, other.size);
-	}
-
-	constexpr uint32_t bytes() const noexcept {
-		return size + sizeof(size);
 	}
 
 	template <typename Serializer>
@@ -9321,7 +9313,6 @@ TEST_CASE("Serialization - custom") {
 		in.size = 5;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		static_assert(!ser::has_func_save<CustomStruct, ecs::SerializationBuffer&>::value);
 		static_assert(ser::has_tag_save<ecs::SerializationBuffer, CustomStruct>::value);
@@ -9345,7 +9336,6 @@ TEST_CASE("Serialization - custom") {
 		in.size = 5;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9362,7 +9352,6 @@ TEST_CASE("Serialization - simple") {
 		Int3 in{1, 2, 3}, out{};
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9375,7 +9364,6 @@ TEST_CASE("Serialization - simple") {
 		Position in{1, 2, 3}, out{};
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9388,7 +9376,6 @@ TEST_CASE("Serialization - simple") {
 		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9401,7 +9388,6 @@ TEST_CASE("Serialization - simple") {
 		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9455,7 +9441,6 @@ TEST_CASE("Serialization - arrays") {
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9470,7 +9455,6 @@ TEST_CASE("Serialization - arrays") {
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9486,7 +9470,6 @@ TEST_CASE("Serialization - arrays") {
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9510,7 +9493,6 @@ TEST_CASE("Serialization - arrays") {
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9542,7 +9524,6 @@ TEST_CASE("Serialization - hashmap") {
 		}
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9584,7 +9565,6 @@ TEST_CASE("Serialization - hashset") {
 		}
 
 		ecs::SerializationBuffer s;
-		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);

@@ -232,11 +232,12 @@ namespace gaia {
 			}
 
 	#if GAIA_USE_SERIALIZATION
-
-			void save(SerializationBufferDyn& s) const {
+			template <typename Serializer>
+			void save(Serializer& s) const {
 				s.save(m_entity.val);
 			}
-			void load(SerializationBufferDyn& s) {
+			template <typename Serializer>
+			void load(Serializer& s) {
 				Identifier id{};
 				s.load(id);
 				m_entity = Entity(id);
@@ -391,10 +392,12 @@ namespace gaia {
 				m_pTracker = nullptr;
 			}
 
-			void save(SerializationBufferDyn& s) const {
+			template <typename Serializer>
+			void save(Serializer& s) const {
 				s.save(m_entity.val);
 			}
-			void load(SerializationBufferDyn& s) {
+			template <typename Serializer>
+			void load(Serializer& s) {
 				del_tracker();
 				Identifier id{};
 				s.load(id);

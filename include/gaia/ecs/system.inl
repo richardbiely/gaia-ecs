@@ -93,16 +93,17 @@ namespace gaia {
 			}
 
 	#if GAIA_USE_SERIALIZATION
+			//! Disable automatic System_ serialization
+			template <typename Serializer>
+			void save(Serializer& s) const {
+				(void)s;
+			}
+			//! Disable automatic System_ serialization
+			template <typename Serializer>
+			void load(Serializer& s) {
+				(void)s;
+			}
 
-			//! Disable automatic System_ serialization
-			void save(SerializationBufferDyn& s) const {
-				(void)s;
-			}
-			//! Disable automatic System_ serialization
-			void load(SerializationBufferDyn& s) {
-				(void)s;
-			}
-			
 	#endif
 		};
 

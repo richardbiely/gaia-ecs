@@ -1897,8 +1897,6 @@ GAIA_FOR(10) in.transforms.push_back({});
 in.some_int_data = 42069;
 
 ecs::SerializationBuffer s;
-// Calculate how many bytes is it necessary to serialize "in"
-s.reserve(ser::bytes(in));
 // Save "in" to our buffer
 ser::save(s, in);
 // Load the contents of buffer to "out" 
@@ -1923,12 +1921,6 @@ struct CustomStruct {
 };
 
 namespace gaia::ser {
-  // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
-  constexpr uint32_t tag_invoke(bytes_tag, const CustomStruct& data) {
-   return data.lengthInBytes + sizeof(data.lengthInBytes);
-  }
-  
-  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
     // Save the byte size of our data
@@ -1937,7 +1929,6 @@ namespace gaia::ser {
     s.save(data.ptr, data.lengthInBytes);
   }
   
-  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
     // Load the byte size of our data
@@ -1962,8 +1953,6 @@ in.ptr[4] = '\0';
 in.size = 5;
 
 ecs::SerializationBuffer s;
-// Reserve enough bytes in the buffer so it can fit the entire in
-s.reserve(ser::bytes(in));
 ser::save(s, in);
 // Move to the start of the buffer and load its contents to out
 s.seek(0);
@@ -1981,19 +1970,12 @@ struct CustomStruct {
   uint32_t lengthInBytes;
   bool foo;
   
-  // Usage of constexpr is optional. In this case, the function does not use any runtime-only features so we mark it constexpr.
-  constexpr uint32_t bytes() const noexcept {
-    return size + sizeof(size);
-  }
-  
-  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void save(Serializer& s) const {
     s.save(lengthInBytes);
     s.save(ptr, lengthInBytes);
   }
   
-  // Usage of template is not necessary so long you only serialize only into gaia::ecs::SerializationBufferDyn.
   template <typename Serializer>
   void load(Serializer& s) {
     s.load(lengthInBytes);
