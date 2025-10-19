@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install clang llvm lcov
+        sudo apt install clang llvm
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
@@ -54,21 +54,20 @@ jobs:
               -S . -B ${{github.workspace}}/build
         cmake --build ${{github.workspace}}/build --config Debug
 
-    - name: Run tests
-      working-directory: 
+    - name: Run tests and generate coverage data
+      working-directory: ${{ github.workspace }}/build/src/test
       run: |
-        ${{github.workspace}}/build/src/test/gaia_test
-    
-    - name: Collect data
-      working-directory: ${{github.workspace}}/build/src/test
-      run: |
-        lcov --gcov-tool $(which llvm-cov) -c -d . -o coverage.info --ignore-errors mismatch,missing
-        lcov -l coverage.info
+        LLVM_PROFILE_FILE=default.profraw ./gaia_test
+        llvm-profdata merge -sparse default.profraw -o coverage.profdata
+        llvm-cov export ./gaia_test \
+          -instr-profile=coverage.profdata \
+          -format=lcov > ${{ github.workspace }}/build/coverage.info
+        llvm-cov report ./gaia_test -instr-profile=coverage.profdata
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
-        token: ${{secrets.CODECOV_TOKEN}}
-        files: ${{github.workspace}}/build/src/test/coverage.info
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ${{ github.workspace }}/build/coverage.info
         name: gaia-ecs
         fail_ci_if_error: true
