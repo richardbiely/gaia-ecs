@@ -47,6 +47,7 @@ jobs:
         CXX: ccache clang++
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug \
+              -DCMAKE_CXX_FLAGS="--coverage -O0 -g -fno-inline -fno-elide-constructors -fprofile-instr-generate -fcoverage-mapping" \
               -DGAIA_BUILD_UNITTEST=ON \
               -DGAIA_BUILD_EXAMPLES=OFF \
               -DGAIA_BUILD_BENCHMARK=OFF \
@@ -54,20 +55,24 @@ jobs:
               -S . -B ${{github.workspace}}/build
         cmake --build ${{github.workspace}}/build --config Debug
 
-    - name: Run tests and generate coverage data
-      working-directory: ${{ github.workspace }}/build/src/test
+    - name: Run tests
+      working-directory: ${{github.workspace}}/build/src/test
       run: |
-        LLVM_PROFILE_FILE=default.profraw ./gaia_test
+        LLVM_PROFILE_FILE="${{github.workspace}}/build/src/test/default.profraw" ./gaia_test
+
+    - name: Generate coverage data
+      working-directory: ${{github.workspace}}/build/src/test
+      run: |
         llvm-profdata merge -sparse default.profraw -o coverage.profdata
         llvm-cov export ./gaia_test \
           -instr-profile=coverage.profdata \
-          -format=lcov > ${{ github.workspace }}/build/coverage.info
+          -format=lcov > ${{github.workspace}}/build/coverage.info
         llvm-cov report ./gaia_test -instr-profile=coverage.profdata
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ${{ github.workspace }}/build/coverage.info
+        token: ${{secrets.CODECOV_TOKEN}}
+        files: ${{github.workspace}}/build/coverage.info
         name: gaia-ecs
         fail_ci_if_error: true
