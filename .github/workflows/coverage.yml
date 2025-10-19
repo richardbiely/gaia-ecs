@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install lcov
+        sudo apt install -y lcov clang clang++ llvm
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
@@ -43,8 +43,8 @@ jobs:
     - name: Compile tests
       env:
         CXXFLAGS: "--coverage -fno-elide-constructors -fno-inline -fno-default-inline -fprofile-update=atomic"
-        CC: clang
-        CXX: clang++
+        CC: ccache clang
+        CXX: ccache clang++
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug \
               -DGAIA_BUILD_UNITTEST=ON \
@@ -62,8 +62,8 @@ jobs:
     - name: Collect data
       working-directory: ${{github.workspace}}/build/src/test
       run: |
-        sudo ln -sf $(which llvm-cov) /usr/local/bin/gcov
-        lcov -c -d . -o coverage.info --ignore-errors gcov,gcov,mismatch,mismatch
+        llvm-cov gcov -v
+        lcov --gcov-tool $(which llvm-cov) -c -d . -o coverage.info --ignore-errors gcov,gcov,mismatch,mismatch
         lcov -l coverage.info
 
     - name: Upload coverage to Codecov
