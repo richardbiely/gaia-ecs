@@ -62,8 +62,7 @@ jobs:
     - name: Collect data
       working-directory: ${{github.workspace}}/build/src/test
       run: |
-        llvm-cov gcov -v
-        lcov --gcov-tool $(which llvm-cov) -c -d . -o coverage.info --ignore-errors gcov,gcov,mismatch,mismatch
+        lcov --gcov-tool $(which llvm-cov) -c -d . -o coverage.info --ignore-errors mismatch,missing
         lcov -l coverage.info
 
     - name: Upload coverage to Codecov
