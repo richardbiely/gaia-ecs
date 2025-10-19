@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y lcov clang clang++ llvm
+        sudo apt install lcov clang clang++ llvm
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
