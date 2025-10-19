@@ -61,6 +61,8 @@ jobs:
     
     - name: Collect data
       working-directory: ${{github.workspace}}/build/src/test
+      env:
+        GCOV: llvm-cov gcov
       run: |
         lcov -c -d . -o coverage.info --ignore-errors gcov,gcov,mismatch,mismatch
         lcov -l coverage.info
