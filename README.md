@@ -2261,8 +2261,6 @@ float f = 10.123f;
 GAIA_LOG_E("This is an error log. %d,%.2f", x, f);
 ```
 
-By default all log levels below the level of warning are cached. They will be flushed either when the cache is full, when logging a warning or an error, or when the flush is requested manually via **util::log_flush**. 
-
 Overriding how logging behaves is possible via ***util::set_log_func*** and ***util::set_log_line_func***. The first one overrides the entire gaia logging behavior. The second one keeps the internal logic intact, and only changes how logging a single line is handled.
 
 To override the entire logging logic you can do:
@@ -2305,7 +2303,17 @@ util::set_log_flush_func(nullptr);
 util::log_flush(); // this will use the internal implementation to flush flogs
 ```
 
-Call these from the main thread only.
+By default all loging is done directy to stdout (debug, info) or stderr (warning, error). No custom caching is implemented.
+
+If this is undesired, and you want to use gaia also as a simple logging server, you can do so by invoking following command before you start interfacing with gaia:
+```cpp
+util::set_log_func(util::detail::log_cached);
+util::set_log_flush_func(util::detail::log_flush_cached);
+```
+
+After this, all logs below the level of warning are cached. They will be flushed either when the cache is full, when logging a warning or an error, or when the flush is requested manually via **util::log_flush**.
+
+The size of the cache can be controlled via preprocessor definitions **GAIA_LOG_BUFFER_SIZE** (how logs can grow in bytes before flush is triggered) and **GAIA_LOG_BUFFER_ENTRIES** (how many log entries are possible before flush).
 
 # Requirements
 

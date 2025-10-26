@@ -11335,6 +11335,15 @@ namespace gaia {
 #include <cstdint>
 #include <cstdio>
 
+// Controls how logs can grow in bytes before flush is triggered
+#ifndef GAIA_LOG_BUFFER_SIZE
+	#define GAIA_LOG_BUFFER_SIZE 32 * 1024
+#endif
+// Controls how many log entries are possible before flush
+#ifndef GAIA_LOG_BUFFER_ENTRIES
+	#define GAIA_LOG_BUFFER_ENTRIES 2048
+#endif
+
 namespace gaia {
 	namespace util {
 		using LogLevelType = uint8_t;
@@ -11363,8 +11372,8 @@ namespace gaia {
 		using LogFlushFunc = void (*)();
 
 		namespace detail {
-			inline constexpr uint32_t LOG_BUFFER_SIZE = 100 * 1024; // 100 KiB text buffer
-			inline constexpr size_t LOG_RECORD_LIMIT = 2048; // metadata entries
+			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
+			inline constexpr size_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
 
 			inline FILE* get_log_out(LogLevel level) {
 				FILE* out = (level == LogLevel::Error || level == LogLevel::Warning) ? stderr : stdout;
@@ -11485,7 +11494,7 @@ namespace gaia {
 			}
 
 			//! Default implementation of log handler
-			inline void log_default(LogLevel level, const char* fmt, va_list args) {
+			inline void log_cached(LogLevel level, const char* fmt, va_list args) {
 				// Early exit if there is nothing to write
 				va_list args_copy;
 				va_copy(args_copy, args);
@@ -11506,12 +11515,36 @@ namespace gaia {
 				// Otherwise, we flush once the buffer is filled or on-demand manually.
 				g_log()->log(level, msg.size(), msg.data());
 			}
-			inline LogFunc g_log_func = log_default;
 
 			//! Default implementation of log flushing
-			inline void log_flush_default() {
+			inline void log_flush_cached() {
 				g_log()->flush();
 			}
+
+			//! Implementation of log handler that logs data directly (no caching)
+			inline void log_default(LogLevel level, const char* fmt, va_list args) {
+				// Early exit if there is nothing to write
+				va_list args_copy;
+				va_copy(args_copy, args);
+				int l = vsnprintf(nullptr, 0, fmt, args_copy);
+				va_end(args_copy);
+				if (l < 0)
+					return;
+
+				const auto len = (uint32_t)l;
+
+				cnt::darray_ext<char, 1024> msg(len + 1);
+				vsnprintf(msg.data(), msg.size(), fmt, args);
+				// Always null-terminate logs
+				msg[len] = 0;
+
+				g_log_line_func(level, msg.data());
+			}
+
+			//! Implementation of log handler that flushes directly (no cachce)
+			inline void log_flush_default() {}
+
+			inline LogFunc g_log_func = log_default;
 			inline LogFlushFunc g_log_flush_func = log_flush_default;
 		} // namespace detail
 

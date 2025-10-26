@@ -12,8 +12,8 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 	#endif
 #endif
 
+#define DOCTEST_CONFIG_IMPLEMENT
 #define DOCTEST_CONFIG_SUPER_FAST_ASSERTS
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include <cstdio>
@@ -1685,11 +1685,15 @@ TEST_CASE("Containers - paged storage") {
 		paged_storage_test<NonTrivialT>(M);
 	}
 
-	// Only for coverage
+	// Only for coverage.
+	// Hide logging so it does not spam the results of unit testing.
+	const auto logLevelBackup = util::g_logLevelMask;
+	util::g_logLevelMask = 0;
 	TrivialT::Allocator::get().flush();
 	TrivialT::Allocator::get().diag();
 	NonTrivialT::Allocator::get().flush();
 	NonTrivialT::Allocator::get().diag();
+	util::g_logLevelMask = logLevelBackup;
 }
 
 TEST_CASE("Containers - alignment check") {
@@ -10443,3 +10447,11 @@ TEST_CASE("Multithreading - Systems") {
 }
 
 #endif
+
+int main(int argc, char** argv) {
+	// Use custom logging. Just for code coverage.
+	util::set_log_func(util::detail::log_cached);
+	util::set_log_flush_func(util::detail::log_flush_cached);
+
+	return doctest::Context(argc, argv).run();
+}
