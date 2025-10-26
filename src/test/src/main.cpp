@@ -7640,8 +7640,12 @@ TEST_CASE("ChunkAllocator") {
 		ecs::ChunkAllocator::get().flush();
 	}
 
-	// We do this just for code coverage
+	// We do this just for code coverage.
+	// Hide logging so it does not spam the results of unit testing.
+	const auto logLevelBackup = util::g_logLevelMask;
+	util::g_logLevelMask = 0;
 	ecs::ChunkAllocator::get().diag();
+	util::g_logLevelMask = logLevelBackup;
 }
 #endif
 
