@@ -115,7 +115,7 @@ namespace gaia {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by MemoryBlockUsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + (index * mem_block_size(m_sizeType));
-							GAIA_ASSERT((uintptr_t)pMemoryBlock % 16 == 0);
+							GAIA_ASSERT((uintptr_t)pMemoryBlock % sizeof(uintptr_t) == 0);
 							mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
@@ -150,7 +150,7 @@ namespace gaia {
 						// Offset the chunk memory so we get the real block address
 						const auto* pMemoryBlock = (uint8_t*)pBlock - MemoryBlockUsableOffset;
 						const auto blckAddr = (uintptr_t)pMemoryBlock;
-						GAIA_ASSERT(blckAddr % 16 == 0);
+						GAIA_ASSERT(blckAddr % sizeof(uintptr_t) == 0);
 						const auto dataAddr = (uintptr_t)m_data;
 						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / mem_block_size(m_sizeType));
 
@@ -267,7 +267,7 @@ namespace gaia {
 				void free(void* pBlock) {
 					// Decode the page from the address
 					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
-					GAIA_ASSERT(pageAddr % 16 == 0);
+					GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
 					auto* pPage = (MemoryPage*)pageAddr;
 					const bool wasFull = pPage->full();
 

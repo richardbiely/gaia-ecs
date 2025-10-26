@@ -26,6 +26,7 @@
 * very simple and safe API
 * based on [C++17](https://en.cppreference.com/w/cpp/17) with no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
+* can be compiled to run in a web browser using [Emscripten](https://emscripten.org)
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * supports applications with large number of components and archetypes
 * automatic component registration
@@ -2414,8 +2415,10 @@ Project name | Description
 -|-
 [External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external)|A dummy example showing how to use the framework in an external project.
 [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1)|A dummy example showing how to use the framework in a standalone project.
+[DLL](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/app)|A dummy example showing how to use the framework as a dynamic library that is used by an executable.
 [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
 [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how it is used in practice. It is work-in-progress and changes and evolves with the project.
+[WASM](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm)|Barebone example showing that the library can run in the web browser natively (built with Emscripten into a WASM assembly).
 
 ## Benchmarks
 To be able to reason about the project's performance and prevent regressions benchmarks were created.
