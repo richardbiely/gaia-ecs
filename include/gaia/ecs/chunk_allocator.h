@@ -1,6 +1,5 @@
 #pragma once
 #include "../config/config.h"
-#include "../config/logging.h"
 
 #include <cinttypes>
 #include <cstdint>
@@ -11,6 +10,7 @@
 #include "../core/dyn_singleton.h"
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
+#include "../util/logging.h"
 #include "common.h"
 
 namespace gaia {

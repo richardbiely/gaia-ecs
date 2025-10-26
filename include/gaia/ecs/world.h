@@ -32,6 +32,7 @@
 #include "component_setter.h"
 #include "data_buffer.h"
 #include "entity_container.h"
+#include "gaia/util/logging.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
@@ -2070,6 +2071,8 @@ namespace gaia {
 
 				// Run garbage collector
 				gc();
+
+				util::log_flush();
 
 				// Signal the end of the frame
 				GAIA_PROF_FRAME();

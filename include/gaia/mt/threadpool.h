@@ -48,9 +48,9 @@
 #include <thread>
 
 #include "../cnt/sarray_ext.h"
-#include "../config/logging.h"
 #include "../core/span.h"
 #include "../core/utility.h"
+#include "../util/logging.h"
 
 #include "event.h"
 #include "futex.h"

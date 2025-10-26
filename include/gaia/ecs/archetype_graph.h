@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "../cnt/map.h"
-#include "../config/logging.h"
+#include "../util/logging.h"
 #include "api.h"
 #include "archetype_common.h"
 #include "component.h"

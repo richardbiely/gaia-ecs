@@ -1,5 +1,4 @@
 #include "gaia/config/config.h"
-#include "gaia/config/logging.h"
 #include "gaia/config/profiler.h"
 
 #include "gaia/core/bit_utils.h"
@@ -33,6 +32,7 @@
 #include "gaia/cnt/sparse_storage.h"
 #include "gaia/cnt/sringbuffer.h"
 
+#include "gaia/util/logging.h"
 #include "gaia/util/signal.h"
 
 #include "gaia/ser/serialization.h"

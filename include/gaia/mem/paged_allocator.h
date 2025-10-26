@@ -1,6 +1,5 @@
 #pragma once
 #include "../config/config.h"
-#include "../config/logging.h"
 
 #include <cinttypes>
 #include <cstdint>
@@ -12,6 +11,7 @@
 #include "../core/dyn_singleton.h"
 #include "../core/utility.h"
 #include "../meta/type_info.h"
+#include "../util/logging.h"
 #include "mem_alloc.h"
 
 namespace gaia {
@@ -94,7 +94,7 @@ namespace gaia {
 				auto StoreBlockAddress = [&](uint32_t index) {
 					// Encode info about the block's page in the memory block.
 					// The actual pointer returned is offset by MemoryBlockUsableOffset bytes
-					uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockBytes;
+					uint8_t* pMemoryBlock = (uint8_t*)m_data + (index * MemoryBlockBytes);
 					GAIA_ASSERT((uintptr_t)pMemoryBlock % MemoryBlockAlignment == 0);
 					mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 					return (void*)(pMemoryBlock + MemoryBlockUsableOffset);

@@ -7,9 +7,9 @@
 
 #include "../cnt/darray.h"
 #include "../cnt/map.h"
-#include "../config/logging.h"
 #include "../core/hashing_string.h"
 #include "../meta/type_info.h"
+#include "../util/logging.h"
 #include "component.h"
 #include "component_cache_item.h"
 #include "component_desc.h"
