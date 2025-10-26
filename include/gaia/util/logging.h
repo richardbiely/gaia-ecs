@@ -122,8 +122,9 @@ namespace gaia {
 
 				LogBuffer() {
 					// Disable flushing on the new lines. We will control flushing fully.
-					setvbuf(stdout, nullptr, _IOFBF, 0);
-					setvbuf(stderr, nullptr, _IOFBF, 0);
+					// To avoid issues with Windows’ UCRT we set some reasonable non-zero value.
+					setvbuf(stdout, nullptr, _IOFBF, 4096);
+					setvbuf(stderr, nullptr, _IOFBF, 4096);
 				}
 				~LogBuffer() {
 					// Flush before the object disappears
