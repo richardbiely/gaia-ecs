@@ -6,23 +6,37 @@
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
 	#include <windows.h>
+#endif
+
+#define GAIA_THREAD_OFF 0
+#define GAIA_THREAD_STD 1
+#define GAIA_THREAD_PTHREAD 2
+
+#if GAIA_PLATFORM_WINDOWS || GAIA_PLATFORM_WASM
+	#include <thread>
+	// Emscripten supports std::thread if compiled with -sUSE_PTHREADS=1.
+	// Otherwise, std::thread calls are no-ops that compile but do not run concurrently.
 	#define GAIA_THREAD std::thread
+	#define GAIA_THREAD_PLATFORM GAIA_THREAD_STD
 #elif GAIA_PLATFORM_APPLE
 	#include <pthread.h>
 	#include <pthread/sched.h>
 	#include <sys/qos.h>
 	#include <sys/sysctl.h>
 	#define GAIA_THREAD pthread_t
+	#define GAIA_THREAD_PLATFORM GAIA_THREAD_PTHREAD
 #elif GAIA_PLATFORM_LINUX
 	#include <dirent.h>
 	#include <fcntl.h>
 	#include <pthread.h>
 	#include <unistd.h>
 	#define GAIA_THREAD pthread_t
+	#define GAIA_THREAD_PLATFORM GAIA_THREAD_PTHREAD
 #elif GAIA_PLATFORM_FREEBSD
 	#include <pthread.h>
 	#include <sys/sysctl.h>
 	#define GAIA_THREAD pthread_t
+	#define GAIA_THREAD_PLATFORM GAIA_THREAD_PTHREAD
 #endif
 
 #if GAIA_PLATFORM_WINDOWS
@@ -711,7 +725,7 @@ namespace gaia {
 				ctx.workerIdx = workerIdx;
 				ctx.prio = prio;
 
-#if GAIA_PLATFORM_WINDOWS
+#if GAIA_THREAD_PLATFORM == GAIA_THREAD_STD
 				m_workers[workerIdx - 1] = std::thread([&ctx]() {
 					thread_func((void*)&ctx);
 				});
@@ -812,7 +826,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (workerIdx > m_workers.size())
 					return;
 
-#if GAIA_PLATFORM_WINDOWS
+#if GAIA_THREAD_PLATFORM == GAIA_THREAD_STD
 				auto& t = m_workers[workerIdx - 1];
 				if (t.joinable())
 					t.join();

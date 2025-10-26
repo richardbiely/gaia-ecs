@@ -149,6 +149,7 @@
 
 #define GAIA_ARCH_X86 0
 #define GAIA_ARCH_ARM 1
+#define GAIA_ARCH_WASM 2
 
 #if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(__i386) ||                \
 		defined(i386) || defined(__x86_64__) || defined(_X86_)
@@ -157,6 +158,9 @@
 #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_ARM
+#elif defined(__EMSCRIPTEN__) || defined(__wasm__) || defined(__wasm32__) || defined(__wasm64__)
+	#undef GAIA_ARCH
+	#define GAIA_ARCH GAIA_ARCH_WASM
 #else
 	#error "Unrecognized target architecture."
 #endif
