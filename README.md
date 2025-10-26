@@ -2266,54 +2266,54 @@ Overriding how logging behaves is possible via ***util::set_log_func*** and ***u
 To override the entire logging logic you can do:
 ```cpp
 void MyCustomLogger(util::LogLevel level, const char* fmt, va_list args) {
-	char buf[2048];
-	vsnprintf(buf, sizeof(buf), fmt, args);
+  char buf[2048];
+  vsnprintf(buf, sizeof(buf), fmt, args);
 	// Do whatever you want — e.g., forward to engine logger.
-	printf("[CUSTOM] %s\n", buf);
+  printf("[CUSTOM] %s\n", buf);
 }
 
 util::set_log_func(MyCustomLogger);
 GAIA_LOG_N("gaia-ecs"); // this will use MyLineLogger
 util::set_log_func(nullptr);
-GAIA_LOG_N("gaia-ecs"); // this will use the internal implementation of logging
+GAIA_LOG_N("gaia-ecs"); // this will use the default implementation
 ```
 
 If you just want to handle formatted, null-terminated messages (the usual case) and do not want to worry about anything else:
 ```cpp
-void MyLineLogger(gaia::util::LogLevel level, const char* msg) {
+void MyLineLogger(util::LogLevel level, const char* msg) {
   // Print a line-terminated message
-	printf("[CUSTOM LINE] %s\n", msg);
+  printf("[CUSTOM LINE] %s\n", msg);
 }
 
 util::set_log_line_func(MyLineLogger);
 GAIA_LOG_N("gaia-ecs"); // this will use MyLineLogger
 util::set_log_line_func(nullptr);
-GAIA_LOG_N("gaia-ecs"); // this will use the internal implementation of logging
+GAIA_LOG_N("gaia-ecs"); // this will use the default implementation
 ```
 
-Because you might want to commit all your logs at a specific point in time you can also override the  flushing behavior:
+Because you might want to commit all your logs only at a specific point in time you can also override the flushing behavior:
 ```cpp
-void MyLogFlusher(gaia::util::LogLevel level) {
+void MyLogFlusher(util::LogLevel level) {
   fflush(stdout);
 }
 
 util::set_log_flush_func(MyLogFlusher);
 util::log_flush(); // this will use MyLogFlusher to flush flogs
 util::set_log_flush_func(nullptr);
-util::log_flush(); // this will use the internal implementation to flush flogs
+util::log_flush(); // this will use the default implementation
 ```
 
 By default all loging is done directy to stdout (debug, info) or stderr (warning, error). No custom caching is implemented.
 
-If this is undesired, and you want to use gaia also as a simple logging server, you can do so by invoking following command before you start interfacing with gaia:
+If this is undesired, and you want to use gaia-ecs also as a simple logging server, you can do so by invoking following commands before you start using the library:
 ```cpp
 util::set_log_func(util::detail::log_cached);
 util::set_log_flush_func(util::detail::log_flush_cached);
 ```
 
-After this, all logs below the level of warning are cached. They will be flushed either when the cache is full, when logging a warning or an error, or when the flush is requested manually via **util::log_flush**.
+Once called, all logs below the level of warning are going to be cached. They will be flushed either when the cache is full, when a warning or an error is logged, or when the flush is requested manually via **util::log_flush**.
 
-The size of the cache can be controlled via preprocessor definitions **GAIA_LOG_BUFFER_SIZE** (how logs can grow in bytes before flush is triggered) and **GAIA_LOG_BUFFER_ENTRIES** (how many log entries are possible before flush).
+The size of the cache can be controlled via preprocessor definitions **GAIA_LOG_BUFFER_SIZE** (how large logs can grow in bytes before flush is triggered) and **GAIA_LOG_BUFFER_ENTRIES** (how many log entries are possible before flush is triggered).
 
 # Requirements
 
