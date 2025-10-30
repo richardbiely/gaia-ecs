@@ -168,11 +168,19 @@ namespace gaia {
 						ser_check(*pComponent);
 	#endif
 
-						GAIA_FOR(cnt) {
-							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-							//       Therefore, we first need to load them into AoS form and then store them.
-							ser::save(*pSer, *pComponent);
-							++pComponent;
+						if constexpr (mem::is_soa_layout_v<U>) {
+							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cnt}};
+							GAIA_FOR(cnt) {
+								auto val = view[i];
+								ser::save(*pSer, val);
+							}
+						} else {
+							GAIA_FOR(cnt) {
+								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+								//       Therefore, we first need to load them into AoS form and then store them.
+								ser::save(*pSer, *pComponent);
+								++pComponent;
+							}
 						}
 					};
 				}
@@ -180,12 +188,23 @@ namespace gaia {
 				static constexpr auto func_load() {
 					return [](void* pSerializer, void* pDst, uint32_t cnt) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
-						auto* pComponent = (U*)pDst;
-						GAIA_FOR(cnt) {
-							// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-							//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA style.
-							ser::load(*pSer, *pComponent);
-							++pComponent;
+
+						if constexpr (mem::is_soa_layout_v<U>) {
+							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cnt}};
+							GAIA_FOR(cnt) {
+								U val;
+								ser::load(*pSer, val);
+								view[i] = val;
+							}
+						} else {
+							auto* pComponent = (U*)pDst;
+							GAIA_FOR(cnt) {
+								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
+								//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA
+								//       style.
+								ser::load(*pSer, *pComponent);
+								++pComponent;
+							}
 						}
 					};
 				}

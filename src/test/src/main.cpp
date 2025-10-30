@@ -9601,9 +9601,13 @@ TEST_CASE("Serialization - hashset") {
 #if GAIA_USE_SERIALIZATION
 
 TEST_CASE("Serialization - world self") {
-	ecs::World in;
+	auto initComponents = [](ecs::World& w) {
+		(void)w.add<Position>();
+		(void)w.add<PositionSoA>();
+	};
 
-	(void)in.add<Position>();
+	ecs::World in;
+	initComponents(in);
 
 	ecs::Entity eats = in.add();
 	ecs::Entity carrot = in.add();
@@ -9614,6 +9618,7 @@ TEST_CASE("Serialization - world self") {
 	ecs::Entity apple = in.add();
 
 	in.add<Position>(eats, {1, 2, 3});
+	in.add<PositionSoA>(eats, {10, 20, 30});
 	in.name(eats, "Eats");
 	in.name(carrot, "Carrot");
 	in.name(salad, "Salad");
@@ -9624,13 +9629,18 @@ TEST_CASE("Serialization - world self") {
 
 	//--------
 	in.cleanup();
-	(void)in.add<Position>();
+	initComponents(in);
 	in.load(buffer);
 
 	Position pos = in.get<Position>(eats);
 	CHECK(pos.x == 1.f);
 	CHECK(pos.y == 2.f);
 	CHECK(pos.z == 3.f);
+
+	PositionSoA pos_soa = in.get<PositionSoA>(eats);
+	CHECK(pos_soa.x == 10.f);
+	CHECK(pos_soa.y == 20.f);
+	CHECK(pos_soa.z == 30.f);
 
 	auto eats2 = in.get("Eats");
 	auto carrot2 = in.get("Carrot");
@@ -9644,8 +9654,12 @@ TEST_CASE("Serialization - world self") {
 
 TEST_CASE("Serialization - world other") {
 	ecs::World in;
+	auto initComponents = [](ecs::World& w) {
+		(void)w.add<Position>();
+		(void)w.add<PositionSoA>();
+	};
 
-	(void)in.add<Position>();
+	initComponents(in);
 
 	ecs::Entity eats = in.add();
 	ecs::Entity carrot = in.add();
@@ -9653,6 +9667,7 @@ TEST_CASE("Serialization - world other") {
 	ecs::Entity apple = in.add();
 
 	in.add<Position>(eats, {1, 2, 3});
+	in.add<PositionSoA>(eats, {10, 20, 30});
 	in.name(eats, "Eats");
 	in.name(carrot, "Carrot");
 	in.name(salad, "Salad");
@@ -9662,13 +9677,18 @@ TEST_CASE("Serialization - world other") {
 	in.save(buffer);
 
 	TestWorld twld;
-	(void)wld.add<Position>();
+	initComponents(wld);
 	wld.load(buffer);
 
 	Position pos = wld.get<Position>(eats);
 	CHECK(pos.x == 1.f);
 	CHECK(pos.y == 2.f);
 	CHECK(pos.z == 3.f);
+
+	PositionSoA pos_soa = in.get<PositionSoA>(eats);
+	CHECK(pos_soa.x == 10.f);
+	CHECK(pos_soa.y == 20.f);
+	CHECK(pos_soa.z == 30.f);
 
 	auto eats2 = wld.get("Eats");
 	auto carrot2 = wld.get("Carrot");
@@ -9683,6 +9703,7 @@ TEST_CASE("Serialization - world other") {
 TEST_CASE("Serialization - world + query") {
 	auto initComponents = [](ecs::World& w) {
 		(void)w.add<Position>();
+		(void)w.add<PositionSoA>();
 		(void)w.add<CustomStruct>();
 	};
 
@@ -9700,6 +9721,7 @@ TEST_CASE("Serialization - world + query") {
 		auto e = in.m_w.add();
 		ents.push_back(e);
 		in.m_w.add<Position>(e, {(float)i, (float)i, (float)i});
+		in.m_w.add<PositionSoA>(e, {(float)(i * 10), (float)(i * 10), (float)(i * 10)});
 		in.m_w.add<CustomStruct>(e, {testStr, 5});
 	};
 	GAIA_FOR(N) create(i);
@@ -9714,7 +9736,8 @@ TEST_CASE("Serialization - world + query") {
 	wld.load(buffer);
 
 	auto q1 = wld.query().template all<Position>();
-	auto q2 = wld.query().template all<CustomStruct>();
+	auto q2 = wld.query().template all<PositionSoA>();
+	auto q3 = wld.query().template all<CustomStruct>();
 
 	{
 		const auto cnt = q1.count();
@@ -9722,6 +9745,10 @@ TEST_CASE("Serialization - world + query") {
 	}
 	{
 		const auto cnt = q2.count();
+		CHECK(cnt == N);
+	}
+	{
+		const auto cnt = q3.count();
 		CHECK(cnt == N);
 	}
 
@@ -9757,8 +9784,25 @@ TEST_CASE("Serialization - world + query") {
 		}
 	}
 	{
-		cnt::darr<CustomStruct> arr;
+		cnt::darr<PositionSoA> arr;
 		q2.arr(arr);
+		CHECK(arr.size() == N);
+		gaia::mem::auto_view_policy_get<PositionSoA> pv{arr};
+		auto ppx = pv.get<0>();
+		auto ppy = pv.get<1>();
+		auto ppz = pv.get<2>();
+		GAIA_EACH(arr) {
+			const auto x = ppx[i];
+			const auto y = ppy[i];
+			const auto z = ppz[i];
+			CHECK(x == (float)(i * 10));
+			CHECK(y == (float)(i * 10));
+			CHECK(z == (float)(i * 10));
+		}
+	}
+	{
+		cnt::darr<CustomStruct> arr;
+		q3.arr(arr);
 		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& val = arr[i];
