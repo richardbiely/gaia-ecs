@@ -3910,9 +3910,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
-		class DefaultAllocator {
-		public:
-			void* alloc(size_t size) {
+		struct DefaultAllocator {
+			GAIA_NODISCARD static void* alloc(size_t size) {
 				GAIA_ASSERT(size > 0);
 
 				void* ptr = GAIA_MEM_ALLC(size);
@@ -3921,7 +3920,7 @@ namespace gaia {
 				return ptr;
 			}
 
-			void* alloc([[maybe_unused]] const char* name, size_t size) {
+			GAIA_NODISCARD static void* alloc([[maybe_unused]] const char* name, size_t size) {
 				GAIA_ASSERT(size > 0);
 
 				void* ptr = GAIA_MEM_ALLC(size);
@@ -3930,7 +3929,7 @@ namespace gaia {
 				return ptr;
 			}
 
-			void* alloc_alig(size_t size, size_t alig) {
+			GAIA_NODISCARD static void* alloc_alig(size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
 
@@ -3942,7 +3941,7 @@ namespace gaia {
 				return ptr;
 			}
 
-			void* alloc_alig([[maybe_unused]] const char* name, size_t size, size_t alig) {
+			GAIA_NODISCARD static void* alloc_alig([[maybe_unused]] const char* name, size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
 
@@ -3954,28 +3953,28 @@ namespace gaia {
 				return ptr;
 			}
 
-			void free(void* ptr) {
+			static void free(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE(ptr);
 				GAIA_PROF_FREE(ptr);
 			}
 
-			void free([[maybe_unused]] const char* name, void* ptr) {
+			static void free([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE(ptr);
 				GAIA_PROF_FREE2(ptr, name);
 			}
 
-			void free_alig(void* ptr) {
+			static void free_alig(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE_A(ptr);
 				GAIA_PROF_FREE(ptr);
 			}
 
-			void free_alig([[maybe_unused]] const char* name, void* ptr) {
+			static void free_alig([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
 				GAIA_MEM_FREE_A(ptr);
@@ -3992,23 +3991,23 @@ namespace gaia {
 
 		struct AllocHelper {
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
-			static T* alloc(uint32_t cnt = 1) {
+			GAIA_NODISCARD static T* alloc(uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
 			}
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
-			static T* alloc(const char* name, uint32_t cnt = 1) {
+			GAIA_NODISCARD static T* alloc(const char* name, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(name, sizeof(T) * cnt);
 			}
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
-			static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
+			GAIA_NODISCARD static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
 			}
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
-			static T* alloc_alig(const char* name, size_t alig, uint32_t cnt = 1) {
+			GAIA_NODISCARD static T* alloc_alig(const char* name, size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(name, sizeof(T) * cnt, alig);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
-			static void free(void* ptr) {
+			GAIA_NODISCARD static void free(void* ptr) {
 				Adaptor::get().free(ptr);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
@@ -4026,45 +4025,45 @@ namespace gaia {
 		};
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		inline void* mem_alloc(size_t size) {
+		GAIA_NODISCARD inline void* mem_alloc(size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
-		inline void* mem_alloc(const char* name, size_t size) {
+		GAIA_NODISCARD inline void* mem_alloc(const char* name, size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(name, size);
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
 		//! The memory is aligned to \param alig boundary.
-		inline void* mem_alloc_alig(size_t size, size_t alig) {
+		GAIA_NODISCARD inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
 		//! Allocate \param size bytes of memory using the default allocator.
 		//! The memory is aligned to \param alig boundary.
-		inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
+		GAIA_NODISCARD inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
 
 		//! Release memory allocated by the default allocator.
 		inline void mem_free(void* ptr) {
-			return DefaultAllocatorAdaptor::get().free(ptr);
+			DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
 		//! Release memory allocated by the default allocator.
 		inline void mem_free(const char* name, void* ptr) {
-			return DefaultAllocatorAdaptor::get().free(name, ptr);
+			DefaultAllocatorAdaptor::get().free(name, ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
 		inline void mem_free_alig(void* ptr) {
-			return DefaultAllocatorAdaptor::get().free_alig(ptr);
+			DefaultAllocatorAdaptor::get().free_alig(ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
 		inline void mem_free_alig(const char* name, void* ptr) {
-			return DefaultAllocatorAdaptor::get().free_alig(name, ptr);
+			DefaultAllocatorAdaptor::get().free_alig(name, ptr);
 		}
 
 		//! Align a number to the requested byte alignment
@@ -4072,7 +4071,7 @@ namespace gaia {
 		//! \param alignment Requested alignment
 		//! \return Aligned number
 		template <typename T, typename V>
-		constexpr T align(T num, V alignment) {
+		GAIA_NODISCARD constexpr T align(T num, V alignment) {
 			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
 		}
 
@@ -4081,7 +4080,7 @@ namespace gaia {
 		//! \param num Number to align
 		//! return Aligned number
 		template <size_t alignment, typename T>
-		constexpr T align(T num) {
+		GAIA_NODISCARD constexpr T align(T num) {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
 		}
 
@@ -4090,7 +4089,7 @@ namespace gaia {
 		//! \param alignment Requested alignment
 		//! \return Padding in bytes
 		template <typename T, typename V>
-		constexpr uint32_t padding(T num, V alignment) {
+		GAIA_NODISCARD constexpr uint32_t padding(T num, V alignment) {
 			return (uint32_t)(align(num, alignment) - num);
 		}
 
@@ -4099,13 +4098,13 @@ namespace gaia {
 		//! \param num Number to align
 		//! return Aligned number
 		template <size_t alignment, typename T>
-		constexpr uint32_t padding(T num) {
+		GAIA_NODISCARD constexpr uint32_t padding(T num) {
 			return (uint32_t)(align<alignment>(num) - num);
 		}
 
 		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
 		template <typename Dst, typename Src>
-		Dst bit_cast(const Src& src) {
+		GAIA_NODISCARD Dst bit_cast(const Src& src) {
 			static_assert(sizeof(Dst) == sizeof(Src));
 			static_assert(std::is_trivially_copyable_v<Src>);
 			static_assert(std::is_trivially_copyable_v<Dst>);
@@ -4131,7 +4130,7 @@ namespace gaia {
 				return *this;
 			}
 
-			operator T() const {
+			GAIA_NODISCARD operator T() const {
 				T tmp;
 				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
 				return tmp;
