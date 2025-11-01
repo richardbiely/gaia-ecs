@@ -3009,14 +3009,14 @@ void TestDataLayoutSoA() {
 		CHECK(val.y == f[1]);
 		CHECK(val.z == f[2]);
 
-		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<2>()[i]};
+		const float ff[] = {data.template view<0>()[i], data.template view<1>()[i], data.template view<2>()[i]};
 		CHECK(ff[0] == f[0]);
 		CHECK(ff[1] == f[1]);
 		CHECK(ff[2] == f[2]);
 	};
 
 	{
-		cnt::sarray<T, N> data;
+		cnt::sarray_soa<T, N> data;
 
 		GAIA_FOR(N) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -3031,7 +3031,7 @@ void TestDataLayoutSoA() {
 		}
 	}
 	{
-		cnt::darray<T> data;
+		cnt::darray_soa<T> data;
 
 		GAIA_FOR(N) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -3057,8 +3057,8 @@ void TestDataLayoutSoA<DummySoA>() {
 		CHECK(val.b == true);
 		CHECK(val.w == f[2]);
 
-		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<3>()[i]};
-		const bool b = data.template soa_view<2>()[i];
+		const float ff[] = {data.template view<0>()[i], data.template view<1>()[i], data.template view<3>()[i]};
+		const bool b = data.template view<2>()[i];
 		CHECK(ff[0] == f[0]);
 		CHECK(ff[1] == f[1]);
 		CHECK(b == true);
@@ -3066,7 +3066,7 @@ void TestDataLayoutSoA<DummySoA>() {
 	};
 
 	{
-		cnt::sarray<DummySoA, N> data{};
+		cnt::sarray_soa<DummySoA, N> data{};
 
 		GAIA_FOR(N) {
 			float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -3081,7 +3081,7 @@ void TestDataLayoutSoA<DummySoA>() {
 		}
 	}
 	{
-		cnt::darray<DummySoA> data;
+		cnt::darray_soa<DummySoA> data;
 
 		GAIA_FOR(N) {
 			float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -9427,7 +9427,7 @@ struct SerializeStructSArray {
 };
 
 struct SerializeStructSArray_PositionSoA {
-	cnt::sarray<PositionSoA, 8> arr;
+	cnt::sarray_soa<PositionSoA, 8> arr;
 	float f;
 
 	bool operator==(const SerializeStructSArray_PositionSoA& other) const {
@@ -9445,7 +9445,7 @@ struct SerializeStructSArrayNonTrivial {
 };
 
 struct SerializeStructDArray_PositionSoA {
-	cnt::darr<PositionSoA> arr;
+	cnt::darr_soa<PositionSoA> arr;
 	float f;
 
 	bool operator==(const SerializeStructDArray_PositionSoA& other) const {
@@ -9494,9 +9494,9 @@ TEST_CASE("Serialization - arrays") {
 	{
 		SerializeStructSArray_PositionSoA in{}, out{};
 		GAIA_EACH(in.arr) {
-			in.arr.soa_view_mut<0>()[i] = (float)i;
-			in.arr.soa_view_mut<1>()[i] = (float)i;
-			in.arr.soa_view_mut<2>()[i] = (float)i;
+			in.arr.view_mut<0>()[i] = (float)i;
+			in.arr.view_mut<1>()[i] = (float)i;
+			in.arr.view_mut<2>()[i] = (float)i;
 		}
 		in.f = 3.12345f;
 
@@ -9853,6 +9853,17 @@ TEST_CASE("Serialization - world + query") {
 	}
 	{
 		cnt::darr<PositionSoA> arr;
+		q2.arr(arr);
+		CHECK(arr.size() == N);
+		GAIA_EACH(arr) {
+			const auto& pos = arr[i];
+			CHECK(pos.x == (float)i);
+			CHECK(pos.y == (float)i);
+			CHECK(pos.z == (float)i);
+		}
+	}
+	{
+		cnt::darr_soa<PositionSoA> arr;
 		q2.arr(arr);
 		CHECK(arr.size() == N);
 		gaia::mem::auto_view_policy_get<PositionSoA> pv{arr};

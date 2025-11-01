@@ -1396,7 +1396,9 @@ namespace gaia {
 
 							const auto dataView = it.template view<ContainerItemType>();
 							GAIA_FOR(cnt) {
-								outArray.push_back(dataView[it.template acc_index<ContainerItemType>(i)]);
+								const auto idx = it.template acc_index<ContainerItemType>(i);
+								auto tmp = dataView[idx];
+								outArray.push_back(tmp);
 							}
 						}
 					}
