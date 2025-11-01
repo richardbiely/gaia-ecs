@@ -22424,7 +22424,7 @@ namespace gaia {
 
 #if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
-					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
+					return [](void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
 						const auto* pComponent = (const U*)pSrc;
 
@@ -22434,7 +22434,7 @@ namespace gaia {
 	#endif
 
 						if constexpr (mem::is_soa_layout_v<U>) {
-							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cnt}};
+							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cap}};
 							GAIA_FOR(cnt) {
 								auto val = view[i];
 								ser::save(*pSer, val);
@@ -22451,11 +22451,11 @@ namespace gaia {
 				}
 
 				static constexpr auto func_load() {
-					return [](void* pSerializer, void* pDst, uint32_t cnt) {
+					return [](void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
 
 						if constexpr (mem::is_soa_layout_v<U>) {
-							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cnt}};
+							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cap}};
 							GAIA_FOR(cnt) {
 								U val;
 								ser::load(*pSer, val);
@@ -22499,8 +22499,8 @@ namespace gaia {
 			using FuncCmp = bool(const void*, const void*);
 
 #if GAIA_USE_SERIALIZATION
-			using FuncSave = void(void*, const void*, uint32_t);
-			using FuncLoad = void(void*, void*, uint32_t);
+			using FuncSave = void(void*, const void*, uint32_t, uint32_t);
+			using FuncLoad = void(void*, void*, uint32_t, uint32_t);
 #endif
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
@@ -22607,14 +22607,14 @@ namespace gaia {
 			}
 
 #if GAIA_USE_SERIALIZATION
-			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
-				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
-				func_save(pSerializer, pSrc, cnt);
+			void save(void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0 && cnt <= cap);
+				func_save(pSerializer, pSrc, cnt, cap);
 			}
 
-			void load(void* pSerializer, void* pDst, uint32_t cnt) const {
-				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
-				func_load(pSerializer, pDst, cnt);
+			void load(void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0 && cnt <= cap);
+				func_load(pSerializer, pDst, cnt, cap);
 			}
 #endif
 
@@ -23975,6 +23975,7 @@ namespace gaia {
 				s.save(lifespanCountdown);
 
 				const auto cnt = (uint32_t)m_header.count;
+				const auto cap = (uint32_t)m_header.capacity;
 
 				// Store entity data
 				{
@@ -23991,7 +23992,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->save((void*)&s, rec.pData, cnt);
+						rec.pItem->save((void*)&s, rec.pData, cnt, cap);
 					}
 				}
 			}
@@ -24012,6 +24013,7 @@ namespace gaia {
 				m_header.lifespanCountdown = lifespanCountdown;
 
 				const auto cnt = (uint32_t)m_header.count;
+				const auto cap = (uint32_t)m_header.capacity;
 
 				// Load entity data
 				{
@@ -24030,7 +24032,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->load((void*)&s, rec.pData, cnt);
+						rec.pItem->load((void*)&s, rec.pData, cnt, cap);
 					}
 				}
 			}

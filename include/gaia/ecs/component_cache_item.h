@@ -29,8 +29,8 @@ namespace gaia {
 			using FuncCmp = bool(const void*, const void*);
 
 #if GAIA_USE_SERIALIZATION
-			using FuncSave = void(void*, const void*, uint32_t);
-			using FuncLoad = void(void*, void*, uint32_t);
+			using FuncSave = void(void*, const void*, uint32_t, uint32_t);
+			using FuncLoad = void(void*, void*, uint32_t, uint32_t);
 #endif
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
@@ -137,14 +137,14 @@ namespace gaia {
 			}
 
 #if GAIA_USE_SERIALIZATION
-			void save(void* pSerializer, const void* pSrc, uint32_t cnt) const {
-				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0);
-				func_save(pSerializer, pSrc, cnt);
+			void save(void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0 && cnt <= cap);
+				func_save(pSerializer, pSrc, cnt, cap);
 			}
 
-			void load(void* pSerializer, void* pDst, uint32_t cnt) const {
-				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0);
-				func_load(pSerializer, pDst, cnt);
+			void load(void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0 && cnt <= cap);
+				func_load(pSerializer, pDst, cnt, cap);
 			}
 #endif
 

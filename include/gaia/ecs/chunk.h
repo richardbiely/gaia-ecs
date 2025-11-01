@@ -407,6 +407,7 @@ namespace gaia {
 				s.save(lifespanCountdown);
 
 				const auto cnt = (uint32_t)m_header.count;
+				const auto cap = (uint32_t)m_header.capacity;
 
 				// Store entity data
 				{
@@ -423,7 +424,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->save((void*)&s, rec.pData, cnt);
+						rec.pItem->save((void*)&s, rec.pData, cnt, cap);
 					}
 				}
 			}
@@ -444,6 +445,7 @@ namespace gaia {
 				m_header.lifespanCountdown = lifespanCountdown;
 
 				const auto cnt = (uint32_t)m_header.count;
+				const auto cap = (uint32_t)m_header.capacity;
 
 				// Load entity data
 				{
@@ -462,7 +464,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->load((void*)&s, rec.pData, cnt);
+						rec.pItem->load((void*)&s, rec.pData, cnt, cap);
 					}
 				}
 			}

@@ -159,7 +159,7 @@ namespace gaia {
 
 #if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
-					return [](void* pSerializer, const void* pSrc, uint32_t cnt) {
+					return [](void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
 						const auto* pComponent = (const U*)pSrc;
 
@@ -169,7 +169,7 @@ namespace gaia {
 	#endif
 
 						if constexpr (mem::is_soa_layout_v<U>) {
-							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cnt}};
+							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cap}};
 							GAIA_FOR(cnt) {
 								auto val = view[i];
 								ser::save(*pSer, val);
@@ -186,11 +186,11 @@ namespace gaia {
 				}
 
 				static constexpr auto func_load() {
-					return [](void* pSerializer, void* pDst, uint32_t cnt) {
+					return [](void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) {
 						auto* pSer = (SerializationBufferDyn*)pSerializer;
 
 						if constexpr (mem::is_soa_layout_v<U>) {
-							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cnt}};
+							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cap}};
 							GAIA_FOR(cnt) {
 								U val;
 								ser::load(*pSer, val);

@@ -9857,19 +9857,18 @@ TEST_CASE("Serialization - world + query") {
 		CHECK(arr.size() == N);
 		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
-			CHECK(pos.x == (float)i);
-			CHECK(pos.y == (float)i);
-			CHECK(pos.z == (float)i);
+			CHECK(pos.x == (float)(i * 10));
+			CHECK(pos.y == (float)(i * 10));
+			CHECK(pos.z == (float)(i * 10));
 		}
 	}
 	{
 		cnt::darr_soa<PositionSoA> arr;
 		q2.arr(arr);
 		CHECK(arr.size() == N);
-		gaia::mem::auto_view_policy_get<PositionSoA> pv{arr};
-		auto ppx = pv.get<0>();
-		auto ppy = pv.get<1>();
-		auto ppz = pv.get<2>();
+		auto ppx = arr.view<0>();
+		auto ppy = arr.view<1>();
+		auto ppz = arr.view<2>();
 		GAIA_EACH(arr) {
 			const auto x = ppx[i];
 			const auto y = ppy[i];
