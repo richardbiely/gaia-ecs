@@ -184,7 +184,7 @@ namespace gaia {
 					const auto size = arg.size();
 					s.save(size);
 
-					for (const auto& e: arg)
+					for (const auto& e: std::as_const(arg))
 						save_one(s, e);
 				}
 				// Classes
@@ -219,14 +219,15 @@ namespace gaia {
 					if constexpr (has_func_resize<U, size_t>::value) {
 						// If resize is present, use it
 						arg.resize(size);
-						for (auto& e: arg)
+						for (auto&& e: arg)
 							load_one(s, e);
 					} else {
 						// With no resize present, write directly into memory
 						GAIA_FOR(size) {
 							using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
-							auto& e_ref = (arg_type&)arg[i];
-							load_one(s, e_ref);
+							arg_type val;
+							load_one(s, val);
+							arg[i] = val;
 						}
 					}
 				}

@@ -83,6 +83,10 @@ struct PositionSoA {
 	GAIA_LAYOUT(SoA);
 	float x, y, z;
 };
+bool operator==(const PositionSoA& a, const PositionSoA& b) {
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
 struct PositionSoA8 {
 	GAIA_LAYOUT(SoA8);
 	float x, y, z;
@@ -9381,6 +9385,18 @@ TEST_CASE("Serialization - simple") {
 	}
 
 	{
+		PositionSoA in{1, 2, 3}, out{};
+
+		ecs::SerializationBuffer s;
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(CompareSerializableTypes(in, out));
+	}
+
+	{
 		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
 
 		ecs::SerializationBuffer s;
@@ -9410,11 +9426,29 @@ struct SerializeStructSArray {
 	float f;
 };
 
+struct SerializeStructSArray_PositionSoA {
+	cnt::sarray<PositionSoA, 8> arr;
+	float f;
+
+	bool operator==(const SerializeStructSArray_PositionSoA& other) const {
+		return f == other.f && arr == other.arr;
+	}
+};
+
 struct SerializeStructSArrayNonTrivial {
 	cnt::sarray<FooNonTrivial, 8> arr;
 	float f;
 
 	bool operator==(const SerializeStructSArrayNonTrivial& other) const {
+		return f == other.f && arr == other.arr;
+	}
+};
+
+struct SerializeStructDArray_PositionSoA {
+	cnt::darr<PositionSoA> arr;
+	float f;
+
+	bool operator==(const SerializeStructDArray_PositionSoA& other) const {
 		return f == other.f && arr == other.arr;
 	}
 };
@@ -9458,6 +9492,24 @@ TEST_CASE("Serialization - arrays") {
 	}
 
 	{
+		SerializeStructSArray_PositionSoA in{}, out{};
+		GAIA_EACH(in.arr) {
+			in.arr.soa_view_mut<0>()[i] = (float)i;
+			in.arr.soa_view_mut<1>()[i] = (float)i;
+			in.arr.soa_view_mut<2>()[i] = (float)i;
+		}
+		in.f = 3.12345f;
+
+		ecs::SerializationBuffer s;
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(CompareSerializableTypes(in, out));
+	}
+
+	{
 		SerializeStructSArrayNonTrivial in{}, out{};
 		GAIA_EACH(in.arr) in.arr[i] = FooNonTrivial(i);
 		in.f = 3.12345f;
@@ -9475,6 +9527,22 @@ TEST_CASE("Serialization - arrays") {
 		SerializeStructDArray in{}, out{};
 		in.arr.resize(10);
 		GAIA_EACH(in.arr) in.arr[i] = i;
+		in.f = 3.12345f;
+
+		ecs::SerializationBuffer s;
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeStructDArray_PositionSoA in{}, out{};
+		GAIA_EACH(in.arr) {
+			in.arr.push_back({(float)i, (float)i, (float)i});
+		}
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
