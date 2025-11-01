@@ -74,10 +74,12 @@ namespace gaia {
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				//! Function to call whenever a component is added to an entity
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+	#endif
 	#if GAIA_ENABLE_SET_HOOKS
 				//! Function to call whenever a component is accessed for modification
 				FuncOnSet* func_set{};

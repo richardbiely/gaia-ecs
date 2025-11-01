@@ -8980,6 +8980,7 @@ TEST_CASE("Component cache") {
 static thread_local int hook_trigger_cnt = 0;
 
 TEST_CASE("Hooks") {
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
 	SUBCASE("add") {
 		TestWorld twld;
 		const auto& pitem = wld.add<Position>();
@@ -9039,13 +9040,13 @@ TEST_CASE("Hooks") {
 					++hook_trigger_cnt;
 				};
 
-	#if !GAIA_ASSERT_ENABLED
+		#if !GAIA_ASSERT_ENABLED
 		// No components were added yet so we don't expect the hook to trigger
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 0);
 		wld.del<Rotation>(e);
 		CHECK(hook_trigger_cnt == 0);
-	#endif
+		#endif
 
 		// The component has been added. No triggering yet
 		wld.add<Rotation>(e);
@@ -9060,23 +9061,24 @@ TEST_CASE("Hooks") {
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 1);
 
-	#if !GAIA_ASSERT_ENABLED
+		#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 1);
-	#endif
+		#endif
 
 		// Component added and removed. Trigger again.
 		wld.add<Position>(e);
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 2);
 
-	#if !GAIA_ASSERT_ENABLED
+		#if !GAIA_ASSERT_ENABLED
 		// Don't trigger again
 		wld.del<Position>(e);
 		CHECK(hook_trigger_cnt == 2);
-	#endif
+		#endif
 	}
+	#endif
 
 	#if GAIA_ENABLE_SET_HOOKS
 	SUBCASE("set") {

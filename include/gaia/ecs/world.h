@@ -366,7 +366,7 @@ namespace gaia {
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_add_hooks() {
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_ADD_DEL_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_new_comps) {
@@ -384,7 +384,7 @@ namespace gaia {
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_del_hooks() {
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_ADD_DEL_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_del_comps) {

@@ -415,6 +415,8 @@ w.acc(e).sset<Position>({}); // Don't trigger the set hook
 
 Unlike *add* and *del* hooks, *set* hooks will not tell you what entity the hook triggered for. This is because any write access is done for the entire chunk, not just one of its entities. If one-entity behavior is required, the best thing you can do is moving your entity to a separate archetype (e.g. by adding some unique tag component to it).
 
+Hooks can be disabled by defining GAIA_ENABLE_HOOKS 0. Add and del hooks are controled by GAIA_ENABLE_ADD_DEL_HOOKS, set hooks by GAIA_ENABLE_SET_HOOKS. They are all enabled by default.
+
 ### Bulk editing
 
 Adding an entity to entity means it becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means that all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additions / removals per frame.
