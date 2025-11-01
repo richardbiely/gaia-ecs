@@ -4007,7 +4007,7 @@ namespace gaia {
 				return (T*)Adaptor::get().alloc_alig(name, sizeof(T) * cnt, alig);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
-			GAIA_NODISCARD static void free(void* ptr) {
+			static void free(void* ptr) {
 				Adaptor::get().free(ptr);
 			}
 			template <typename Adaptor = DefaultAllocatorAdaptor>
