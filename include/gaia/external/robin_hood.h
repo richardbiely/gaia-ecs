@@ -53,10 +53,7 @@
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
 #include "../mem/mem_utils.h"
-
-#if GAIA_USE_SERIALIZATION
-	#include "../ser/serialization.h"
-#endif
+#include "../ser/ser_ct.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
@@ -1900,7 +1897,6 @@ namespace robin_hood {
 				}
 			}
 
-#if GAIA_USE_SERIALIZATION
 			constexpr uint32_t bytes() const noexcept {
 				if constexpr (is_map) {
 					return sizeof(key_type) + sizeof(value_type);
@@ -1950,7 +1946,6 @@ namespace robin_hood {
 					}
 				}
 			}
-#endif
 
 			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE(this)

@@ -231,7 +231,6 @@ namespace gaia {
 				return *this;
 			}
 
-	#if GAIA_USE_SERIALIZATION
 			template <typename Serializer>
 			void save(Serializer& s) const {
 				s.save(m_entity.val);
@@ -242,8 +241,6 @@ namespace gaia {
 				s.load(id);
 				m_entity = Entity(id);
 			}
-
-	#endif
 
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;

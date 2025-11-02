@@ -749,6 +749,15 @@ namespace gaia {
 #ifndef GAIA_ENABLE_HOOKS
 	#define GAIA_ENABLE_HOOKS 1
 #endif
+#ifndef GAIA_ENABLE_ADD_DEL_HOOKS
+	#define GAIA_ENABLE_ADD_DEL_HOOKS (GAIA_ENABLE_HOOKS && 1)
+#else
+// If GAIA_ENABLE_ADD_DEL_HOOKS is defined and GAIA_ENABLE_HOOKS is not, unset it
+	#ifndef GAIA_ENABLE_HOOKS
+		#undef GAIA_ENABLE_ADD_DEL_HOOKS
+		#define GAIA_ENABLE_ADD_DEL_HOOKS 0
+	#endif
+#endif
 #ifndef GAIA_ENABLE_SET_HOOKS
 	#define GAIA_ENABLE_SET_HOOKS (GAIA_ENABLE_HOOKS && 1)
 #else
@@ -787,11 +796,6 @@ namespace gaia {
 //! Therefore, it will be more useful when there is a lot of archetypes with very different components.
 #ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
-#endif
-
-//! If enabled, ECS world serialization is enabled
-#ifndef GAIA_USE_SERIALIZATION
-	#define GAIA_USE_SERIALIZATION 1
 #endif
 
 //------------------------------------------------------------------------------
@@ -9450,17 +9454,196 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if GAIA_USE_SERIALIZATION
 
-/*** Start of inlined file: serialization.h ***/
+/*** Start of inlined file: ser_ct.h ***/
 #pragma once
 
 #include <type_traits>
 #include <utility>
 
+
+/*** Start of inlined file: ser_common.h ***/
+#pragma once
+
+#include <cstdint>
+#include <type_traits>
+
 namespace gaia {
 	namespace ser {
-		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
+		enum class serialization_type_id : uint8_t {
+			// Dummy
+			ignore = 0,
+
+			// Integer types
+			s8 = 1,
+			u8 = 2,
+			s16 = 3,
+			u16 = 4,
+			s32 = 5,
+			u32 = 6,
+			s64 = 7,
+			u64 = 8,
+
+			// Boolean
+			b = 9,
+
+			// Character types
+			c8 = 10,
+			c16 = 11,
+			c32 = 12,
+			cw = 13,
+
+			// Floating point types
+			f8 = 14,
+			f16 = 15,
+			f32 = 16,
+			f64 = 17,
+			f128 = 18,
+
+			// Special
+			special_begin = 19,
+			trivial_wrapper = special_begin,
+			data_and_size = 20,
+
+			Last = data_and_size,
+		};
+
+		inline uint32_t serialization_type_size(serialization_type_id id, uint32_t size) {
+			static const uint32_t sizes[] = {
+					// Dummy
+					0, // ignore
+
+					// Integer types
+					1, // s8
+					1, // u8
+					2, // s16
+					2, // u16
+					4, // s32
+					4, // u32
+					8, // s64
+					8, // u64
+
+					// Boolean
+					1, // b
+
+					// Character types
+					1, // c8
+					2, // c16
+					4, // c32
+					8, // cw
+
+					// Floating point types
+					1, // f8
+					2, // f16
+					4, // f32
+					8, // f64
+					16, // f128
+
+					// Special
+					size, // trivial_wrapper
+					sizeof(uintptr_t), // data_and_size, assume natural alignment
+			};
+
+			const auto s = sizes[(uint32_t)id];
+			// Make sure we do not return an invalid value
+			GAIA_ASSERT(s != (uint32_t)-1);
+			return s;
+		}
+
+		template <typename T>
+		struct is_trivially_serializable {
+		private:
+			static constexpr bool update() {
+				return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
+			}
+
+		public:
+			static constexpr bool value = update();
+		};
+
+		template <typename T>
+		struct is_int_kind_id:
+				std::disjunction<
+						std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
+						std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
+						std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
+						std::is_same<T, int64_t>, std::is_same<T, uint64_t>, //
+						std::is_same<T, size_t>, std::is_same<T, bool>> {};
+
+		template <typename T>
+		struct is_flt_kind_id:
+				std::disjunction<
+						// std::is_same<T, float8_t>, //
+						// std::is_same<T, float16_t>, //
+						std::is_same<T, float>, //
+						std::is_same<T, double>, //
+						std::is_same<T, long double>> {};
+
+		template <typename T>
+		GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
+			static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
+
+			if constexpr (std::is_same_v<int8_t, T>) {
+				return serialization_type_id::s8;
+			} else if constexpr (std::is_same_v<uint8_t, T>) {
+				return serialization_type_id::u8;
+			} else if constexpr (std::is_same_v<int16_t, T>) {
+				return serialization_type_id::s16;
+			} else if constexpr (std::is_same_v<uint16_t, T>) {
+				return serialization_type_id::u16;
+			} else if constexpr (std::is_same_v<int32_t, T>) {
+				return serialization_type_id::s32;
+			} else if constexpr (std::is_same_v<uint32_t, T>) {
+				return serialization_type_id::u32;
+			} else if constexpr (std::is_same_v<int64_t, T>) {
+				return serialization_type_id::s64;
+			} else if constexpr (std::is_same_v<uint64_t, T>) {
+				return serialization_type_id::u64;
+			} else if constexpr (std::is_same_v<size_t, T>) {
+				return serialization_type_id::u64;
+			} else { // if constexpr (std::is_same_v<bool, T>) {
+				return serialization_type_id::b;
+			}
+		}
+
+		template <typename T>
+		GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
+			static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
+
+			// if constexpr (std::is_same_v<float8_t, T>) {
+			// 	return serialization_type_id::f8;
+			// } else if constexpr (std::is_same_v<float16_t, T>) {
+			// 	return serialization_type_id::f16;
+			// } else
+			if constexpr (std::is_same_v<float, T>) {
+				return serialization_type_id::f32;
+			} else if constexpr (std::is_same_v<double, T>) {
+				return serialization_type_id::f64;
+			} else { // if constexpr (std::is_same_v<long double, T>) {
+				return serialization_type_id::f128;
+			}
+		}
+
+		template <typename T>
+		GAIA_NODISCARD constexpr serialization_type_id type_id() {
+			if constexpr (std::is_enum_v<T>)
+				return int_kind_id<std::underlying_type_t<T>>();
+			else if constexpr (std::is_integral_v<T>)
+				return int_kind_id<T>();
+			else if constexpr (std::is_floating_point_v<T>)
+				return flt_type_id<T>();
+			else if constexpr (core::has_size_begin_end<T>::value)
+				return serialization_type_id::data_and_size;
+			else if constexpr (std::is_class_v<T>)
+				return serialization_type_id::trivial_wrapper;
+
+			return serialization_type_id::Last;
+		}
+
+		// --------------------
+		// Define function detectors
+		// --------------------
+
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
 
@@ -9492,130 +9675,16 @@ namespace gaia {
 		std::false_type has_tag_load_impl(...);
 		template <typename S, typename T>
 		using has_tag_load = decltype(has_tag_load_impl<S, T>(0));
+	} // namespace ser
+} // namespace gaia
+
+/*** End of inlined file: ser_common.h ***/
+
+namespace gaia {
+	namespace ser {
+		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
 
 		namespace detail {
-			enum class serialization_type_id : uint8_t {
-				// Integer types
-				s8 = 1,
-				u8 = 2,
-				s16 = 3,
-				u16 = 4,
-				s32 = 5,
-				u32 = 6,
-				s64 = 7,
-				u64 = 8,
-
-				// Boolean
-				b = 40,
-
-				// Character types
-				c8 = 41,
-				c16 = 42,
-				c32 = 43,
-				cw = 44,
-
-				// Floating point types
-				f8 = 81,
-				f16 = 82,
-				f32 = 83,
-				f64 = 84,
-				f128 = 85,
-
-				// Special
-				trivial_wrapper = 200,
-				data_and_size = 201,
-
-				Last = 255,
-			};
-
-			template <typename T>
-			struct is_trivially_serializable {
-			private:
-				static constexpr bool update() {
-					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
-				}
-
-			public:
-				static constexpr bool value = update();
-			};
-
-			template <typename T>
-			struct is_int_kind_id:
-					std::disjunction<
-							std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
-							std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
-							std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
-							std::is_same<T, int64_t>, std::is_same<T, uint64_t>, //
-							std::is_same<T, bool>> {};
-
-			template <typename T>
-			struct is_flt_kind_id:
-					std::disjunction<
-							// std::is_same<T, float8_t>, //
-							// std::is_same<T, float16_t>, //
-							std::is_same<T, float>, //
-							std::is_same<T, double>, //
-							std::is_same<T, long double>> {};
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
-				static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
-
-				if constexpr (std::is_same_v<int8_t, T>) {
-					return serialization_type_id::s8;
-				} else if constexpr (std::is_same_v<uint8_t, T>) {
-					return serialization_type_id::u8;
-				} else if constexpr (std::is_same_v<int16_t, T>) {
-					return serialization_type_id::s16;
-				} else if constexpr (std::is_same_v<uint16_t, T>) {
-					return serialization_type_id::u16;
-				} else if constexpr (std::is_same_v<int32_t, T>) {
-					return serialization_type_id::s32;
-				} else if constexpr (std::is_same_v<uint32_t, T>) {
-					return serialization_type_id::u32;
-				} else if constexpr (std::is_same_v<int64_t, T>) {
-					return serialization_type_id::s64;
-				} else if constexpr (std::is_same_v<uint64_t, T>) {
-					return serialization_type_id::u64;
-				} else { // if constexpr (std::is_same_v<bool, T>) {
-					return serialization_type_id::b;
-				}
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
-				static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
-
-				// if constexpr (std::is_same_v<float8_t, T>) {
-				// 	return serialization_type_id::f8;
-				// } else if constexpr (std::is_same_v<float16_t, T>) {
-				// 	return serialization_type_id::f16;
-				// } else
-				if constexpr (std::is_same_v<float, T>) {
-					return serialization_type_id::f32;
-				} else if constexpr (std::is_same_v<double, T>) {
-					return serialization_type_id::f64;
-				} else { // if constexpr (std::is_same_v<long double, T>) {
-					return serialization_type_id::f128;
-				}
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id type_id() {
-				if constexpr (std::is_enum_v<T>)
-					return int_kind_id<std::underlying_type_t<T>>();
-				else if constexpr (std::is_integral_v<T>)
-					return int_kind_id<T>();
-				else if constexpr (std::is_floating_point_v<T>)
-					return flt_type_id<T>();
-				else if constexpr (core::has_size_begin_end<T>::value)
-					return serialization_type_id::data_and_size;
-				else if constexpr (std::is_class_v<T>)
-					return serialization_type_id::trivial_wrapper;
-
-				return serialization_type_id::Last;
-			}
-
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
 				using U = core::raw_t<T>;
@@ -9627,7 +9696,7 @@ namespace gaia {
 					tag_invoke(save_v, s, static_cast<const U&>(arg));
 				}
 				// Trivially serializable types
-				else if constexpr (detail::is_trivially_serializable<U>::value) {
+				else if constexpr (is_trivially_serializable<U>::value) {
 					s.save(arg);
 				}
 				// Types which have size(), begin() and end() member functions
@@ -9659,7 +9728,7 @@ namespace gaia {
 					tag_invoke(load_v, s, static_cast<U&>(arg));
 				}
 				// Trivially serializable types
-				else if constexpr (detail::is_trivially_serializable<U>::value) {
+				else if constexpr (is_trivially_serializable<U>::value) {
 					s.load(arg);
 				}
 				// Types which have size(), begin() and end() member functions
@@ -9692,7 +9761,7 @@ namespace gaia {
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
 
-#if GAIA_ASSERT_ENABLED
+	#if GAIA_ASSERT_ENABLED
 			template <typename Writer, typename T>
 			void check_one(Writer& s, const T& arg) {
 				T tmp{};
@@ -9709,28 +9778,26 @@ namespace gaia {
 				// Return back to the original position in the buffer.
 				s.seek(pos0);
 			}
-#endif
+	#endif
 		} // namespace detail
 
 		//! Write \param data using \tparam Writer at compile-time.
-		//!
 		//! \warning Writer has to implement a save function as follows:
-		//! 					template <typename T> void save(const T& arg);
+		//! 					 template <typename T> void save(const T& arg);
 		template <typename Writer, typename T>
 		void save(Writer& writer, const T& data) {
 			detail::save_one(writer, data);
 		}
 
 		//! Read \param data using \tparam Reader at compile-time.
-		//!
 		//! \warning Reader has to implement a save function as follows:
-		//! 					template <typename T> void load(T& arg);
+		//! 					 template <typename T> void load(T& arg);
 		template <typename Reader, typename T>
 		void load(Reader& reader, T& data) {
 			detail::load_one(reader, data);
 		}
 
-#if GAIA_ASSERT_ENABLED
+	#if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
 		//!
@@ -9742,13 +9809,11 @@ namespace gaia {
 		void check(Writer& writer, const T& data) {
 			detail::check_one(writer, data);
 		}
-#endif
+	#endif
 	} // namespace ser
 } // namespace gaia
-/*** End of inlined file: serialization.h ***/
 
-
-#endif
+/*** End of inlined file: ser_ct.h ***/
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
@@ -11592,7 +11657,6 @@ namespace robin_hood {
 				}
 			}
 
-#if GAIA_USE_SERIALIZATION
 			constexpr uint32_t bytes() const noexcept {
 				if constexpr (is_map) {
 					return sizeof(key_type) + sizeof(value_type);
@@ -11642,7 +11706,6 @@ namespace robin_hood {
 					}
 				}
 			}
-#endif
 
 			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE(this)
@@ -17848,6 +17911,164 @@ namespace gaia {
 /*** End of inlined file: signal.h ***/
 
 
+/*** Start of inlined file: ser_rt.h ***/
+#pragma once
+
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace ser {
+		struct ISerializer {
+			ISerializer() = default;
+			virtual ~ISerializer() = default;
+			ISerializer(const ISerializer&) = default;
+			ISerializer(ISerializer&&) = default;
+			ISerializer& operator=(const ISerializer&) = default;
+			ISerializer& operator=(ISerializer&&) = default;
+
+			template <typename T>
+			void save(const T& arg) {
+				using U = core::raw_t<T>;
+
+				// Custom save() has precedence
+				if constexpr (has_func_save<U, ISerializer&>::value) {
+					arg.save(*this);
+				} else if constexpr (has_tag_save<ISerializer, U>::value) {
+					tag_invoke(save_v, *this, static_cast<const U&>(arg));
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<U>::value) {
+					this->save_raw(arg);
+				}
+				// Types which have size(), begin() and end() member functions
+				else if constexpr (core::has_size_begin_end<U>::value) {
+					const auto size = arg.size();
+					this->save_raw(size);
+
+					for (const auto& e: std::as_const(arg))
+						save(e);
+				}
+				// Classes
+				else if constexpr (std::is_class_v<U>) {
+					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copyable types
+						(save(items), ...);
+					});
+				} else
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+			}
+
+			template <typename T>
+			void load(T& arg) {
+				using U = core::raw_t<T>;
+
+				// Custom load() has precedence
+				if constexpr (has_func_load<U, ISerializer&>::value) {
+					arg.load(*this);
+				} else if constexpr (has_tag_load<ISerializer, U>::value) {
+					tag_invoke(load_v, *this, static_cast<U&>(arg));
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<U>::value) {
+					this->load_raw(arg);
+				}
+				// Types which have size(), begin() and end() member functions
+				else if constexpr (core::has_size_begin_end<U>::value) {
+					auto size = arg.size();
+					this->load_raw(size);
+
+					if constexpr (has_func_resize<U, size_t>::value) {
+						// If resize is present, use it
+						arg.resize(size);
+						for (auto&& e: arg)
+							load(e);
+					} else {
+						// With no resize present, write directly into memory
+						GAIA_FOR(size) {
+							using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
+							arg_type val;
+							load(val);
+							arg[i] = val;
+						}
+					}
+				}
+				// Classes
+				else if constexpr (std::is_class_v<U>) {
+					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copyable types
+						(load(items), ...);
+					});
+				} else
+					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+			}
+
+#if GAIA_ASSERT_ENABLED
+			template <typename T>
+			void check(const T& arg) {
+				T tmp{};
+
+				// Make sure that we write just as many bytes as we read.
+				// If positions are the same there is a good chance that save and load match.
+				const auto pos0 = tell();
+				save(arg);
+				const auto pos1 = tell();
+				seek(pos0);
+				load(tmp);
+				const auto pos2 = tell();
+				GAIA_ASSERT(pos2 == pos1);
+
+				// Return back to the original position in the buffer.
+				seek(pos0);
+			}
+#endif
+
+			template <typename T>
+			void save_raw(const T& value) {
+				save_raw(&value, sizeof(value), ser::type_id<T>());
+			}
+
+			template <typename T>
+			void load_raw(T& value) {
+				load_raw(&value, sizeof(value), ser::type_id<T>());
+			}
+
+			virtual void save_raw(const void* src, uint32_t size, serialization_type_id id) {
+				(void)id;
+				(void)src;
+				(void)size;
+			}
+
+			virtual void load_raw(void* src, uint32_t size, serialization_type_id id) {
+				(void)id;
+				(void)src;
+				(void)size;
+			}
+
+			virtual const char* data() const {
+				return nullptr;
+			}
+
+			virtual void reset() {}
+
+			virtual uint32_t tell() const {
+				return 0;
+			}
+
+			virtual uint32_t bytes() const {
+				return 0;
+			}
+
+			virtual void seek(uint32_t pos) {
+				(void)pos;
+			}
+		};
+	} // namespace ser
+} // namespace gaia
+
+/*** End of inlined file: ser_rt.h ***/
+
+
 /*** Start of inlined file: threadpool.h ***/
 #pragma once
 
@@ -20548,19 +20769,11 @@ namespace gaia {
 #pragma once
 #include <cstdint>
 
-
-/*** Start of inlined file: data_buffer_fwd.h ***/
-#pragma once
-
 namespace gaia {
-	namespace ecs {
-		class SerializationBuffer;
-		class SerializationBufferDyn;
-	} // namespace ecs
-} // namespace gaia
-/*** End of inlined file: data_buffer_fwd.h ***/
+	namespace ser {
+		class ser_buffer_binary;
+	}
 
-namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
@@ -20568,7 +20781,7 @@ namespace gaia {
 
 		using QueryId = uint32_t;
 		using GroupId = uint32_t;
-		using QuerySerBuffer = SerializationBufferDyn;
+		using QuerySerBuffer = ser::ser_buffer_binary;
 
 		using TSortByFunc = int (*)(const World&, const void*, const void*);
 		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
@@ -22282,11 +22495,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class SerializationBufferDyn;
-
-		template <typename T>
-		void ser_check(const T& arg);
-
 		namespace detail {
 			using ComponentDescId = uint32_t;
 
@@ -22422,28 +22630,25 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
-					return [](void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) {
-						auto* pSer = (SerializationBufferDyn*)pSerializer;
+					return [](ser::ISerializer* pSer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) {
 						const auto* pComponent = (const U*)pSrc;
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 						// Check if save and load match. Testing with one item is enough.
-						ser_check(*pComponent);
-	#endif
+						pSer->check(*pComponent);
+#endif
 
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cap}};
-							GAIA_FOR(cnt) {
+							GAIA_FOR2(from, to) {
 								auto val = view[i];
-								ser::save(*pSer, val);
+								pSer->save(val);
 							}
 						} else {
-							GAIA_FOR(cnt) {
-								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-								//       Therefore, we first need to load them into AoS form and then store them.
-								ser::save(*pSer, *pComponent);
+							pComponent += from;
+							GAIA_FOR2(from, to) {
+								pSer->save(*pComponent);
 								++pComponent;
 							}
 						}
@@ -22451,29 +22656,23 @@ namespace gaia {
 				}
 
 				static constexpr auto func_load() {
-					return [](void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) {
-						auto* pSer = (SerializationBufferDyn*)pSerializer;
-
+					return [](ser::ISerializer* pSer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) {
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cap}};
-							GAIA_FOR(cnt) {
+							GAIA_FOR2(from, to) {
 								U val;
-								ser::load(*pSer, val);
+								pSer->load(val);
 								view[i] = val;
 							}
 						} else {
-							auto* pComponent = (U*)pDst;
-							GAIA_FOR(cnt) {
-								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-								//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA
-								//       style.
-								ser::load(*pSer, *pComponent);
+							auto* pComponent = (U*)pDst + from;
+							GAIA_FOR2(from, to) {
+								pSer->load(*pComponent);
 								++pComponent;
 							}
 						}
 					};
 				}
-#endif
 			};
 		} // namespace detail
 	} // namespace ecs
@@ -22482,6 +22681,10 @@ namespace gaia {
 /*** End of inlined file: component_desc.h ***/
 
 namespace gaia {
+	namespace ser {
+		class ISerializer;
+	} // namespace ser
+
 	namespace ecs {
 		class World;
 		class Chunk;
@@ -22498,10 +22701,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
-#if GAIA_USE_SERIALIZATION
-			using FuncSave = void(void*, const void*, uint32_t, uint32_t);
-			using FuncLoad = void(void*, void*, uint32_t, uint32_t);
-#endif
+			using FuncSave = void(ser::ISerializer*, const void*, uint32_t, uint32_t, uint32_t);
+			using FuncLoad = void(ser::ISerializer*, void*, uint32_t, uint32_t, uint32_t);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -22534,20 +22735,19 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
-
-#if GAIA_USE_SERIALIZATION
 			//! Function to call when saving component to a buffer
 			FuncSave* func_save{};
 			// !Function to call when loading component from a buffer
 			FuncLoad* func_load{};
-#endif
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
 				//! Function to call whenever a component is added to an entity
 				FuncOnAdd* func_add{};
 				//! Function to call whenever a component is deleted from an entity
 				FuncOnDel* func_del{};
+	#endif
 	#if GAIA_ENABLE_SET_HOOKS
 				//! Function to call whenever a component is accessed for modification
 				FuncOnSet* func_set{};
@@ -22606,17 +22806,15 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
-#if GAIA_USE_SERIALIZATION
-			void save(void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) const {
-				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0 && cnt <= cap);
-				func_save(pSerializer, pSrc, cnt, cap);
+			void save(ser::ISerializer* pSerializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && from < to && to <= cap);
+				func_save(pSerializer, pSrc, from, to, cap);
 			}
 
-			void load(void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) const {
-				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0 && cnt <= cap);
-				func_load(pSerializer, pDst, cnt, cap);
+			void load(ser::ISerializer* pSerializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && from < to && to <= cap);
+				func_load(pSerializer, pDst, from, to, cap);
 			}
-#endif
 
 #if GAIA_ENABLE_HOOKS
 
@@ -22715,10 +22913,9 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
-#if GAIA_USE_SERIALIZATION
 				cci->func_save = detail::ComponentDesc<T>::func_save();
 				cci->func_load = detail::ComponentDesc<T>::func_load();
-#endif
+
 				return cci;
 			}
 
@@ -22992,167 +23189,6 @@ namespace gaia {
 /*** End of inlined file: component_cache.h ***/
 
 
-/*** Start of inlined file: data_buffer.h ***/
-#pragma once
-
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		namespace detail {
-			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
-
-			template <typename DataContainer>
-			class SerializationBufferImpl {
-				// Increase the capacity by multiples of CapacityIncreaseSize
-				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
-
-				//! Buffer holding raw data
-				DataContainer m_data;
-				//! Current position in the buffer
-				uint32_t m_dataPos = 0;
-
-			public:
-				void reset() {
-					m_dataPos = 0;
-					m_data.clear();
-				}
-
-				//! Returns the number of bytes written in the buffer
-				GAIA_NODISCARD uint32_t bytes() const {
-					return (uint32_t)m_data.size();
-				}
-
-				//! Returns true if there is no data written in the buffer
-				GAIA_NODISCARD bool empty() const {
-					return m_data.empty();
-				}
-
-				//! Returns the pointer to the data in the buffer
-				GAIA_NODISCARD const auto* data() const {
-					return m_data.data();
-				}
-
-				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-				void reserve(uint32_t size) {
-					const auto nextSize = m_dataPos + size;
-					if (nextSize <= bytes())
-						return;
-
-					// Make sure there is enough capacity to hold our data
-					const auto newSize = bytes() + size;
-					const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
-					m_data.reserve(newCapacity);
-				}
-
-				void resize(uint32_t size) {
-					m_data.resize(size);
-				}
-
-				//! Changes the current position in the buffer
-				void seek(uint32_t pos) {
-					m_dataPos = pos;
-				}
-
-				//! Returns the current position in the buffer
-				GAIA_NODISCARD uint32_t tell() const {
-					return m_dataPos;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save(T&& value) {
-					reserve(sizeof(T));
-
-					m_data.resize(m_dataPos + sizeof(T));
-					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
-					mem = GAIA_FWD(value);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-				void save(const void* pSrc, uint32_t size) {
-					reserve(size);
-
-					// Copy "size" bytes of raw data starting at pSrc
-					m_data.resize(m_dataPos + size);
-					memcpy((void*)&m_data[m_dataPos], pSrc, size);
-
-					m_dataPos += size;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save_comp(const ComponentCacheItem& item, T&& value) {
-					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && item.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param value from the buffer
-				template <typename T>
-				void load(T& value) {
-					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-				void load(void* pDst, uint32_t size) {
-					GAIA_ASSERT(m_dataPos + size <= bytes());
-
-					const auto& cdata = std::as_const(m_data);
-					memmove(pDst, (const void*)&cdata[m_dataPos], size);
-
-					m_dataPos += size;
-				}
-
-				//! Loads \param value from the buffer
-				void load_comp(const ComponentCacheItem& item, void* pDst) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					item.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						item.dtor(pSrc);
-
-					m_dataPos += item.comp.size();
-				}
-			};
-		} // namespace detail
-
-		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
-		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
-
-		class SerializationBuffer: public detail::SerializationBufferImpl<SerializationBuffer_DArrExt> {};
-		class SerializationBufferDyn: public detail::SerializationBufferImpl<SerializationBuffer_DArr> {};
-	} // namespace ecs
-} // namespace gaia
-/*** End of inlined file: data_buffer.h ***/
-
-
 /*** Start of inlined file: entity_container.h ***/
 #pragma once
 
@@ -23380,7 +23416,6 @@ namespace gaia {
 				return *this;
 			}
 
-	#if GAIA_USE_SERIALIZATION
 			template <typename Serializer>
 			void save(Serializer& s) const {
 				s.save(m_entity.val);
@@ -23391,8 +23426,6 @@ namespace gaia {
 				s.load(id);
 				m_entity = Entity(id);
 			}
-
-	#endif
 
 			GAIA_NODISCARD Entity entity() const noexcept {
 				return m_entity;
@@ -23590,6 +23623,198 @@ namespace gaia {
 } // namespace gaia
 
 /*** End of inlined file: entity_container.h ***/
+
+
+/*** Start of inlined file: ser_binary.h ***/
+#pragma once
+
+
+/*** Start of inlined file: ser_buffer_binary.h ***/
+#pragma once
+
+#include <type_traits>
+
+namespace gaia {
+	namespace ser {
+		enum class serialization_type_id : uint8_t;
+
+		namespace detail {
+			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
+
+			template <typename DataContainer>
+			class ser_buffer_binary_impl {
+			protected:
+				// Increase the capacity by multiples of CapacityIncreaseSize
+				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
+
+				//! Buffer holding raw data
+				DataContainer m_data;
+				//! Current position in the buffer
+				uint32_t m_dataPos = 0;
+
+			public:
+				void reset() {
+					m_dataPos = 0;
+					m_data.clear();
+				}
+
+				//! Returns the number of bytes written in the buffer
+				GAIA_NODISCARD uint32_t bytes() const {
+					return (uint32_t)m_data.size();
+				}
+
+				//! Returns true if there is no data written in the buffer
+				GAIA_NODISCARD bool empty() const {
+					return m_data.empty();
+				}
+
+				//! Returns the pointer to the data in the buffer
+				GAIA_NODISCARD const auto* data() const {
+					return m_data.data();
+				}
+
+				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				void reserve(uint32_t size) {
+					const auto nextSize = m_dataPos + size;
+					if (nextSize <= bytes())
+						return;
+
+					// Make sure there is enough capacity to hold our data
+					const auto newSize = bytes() + size;
+					const auto newCapacity = ((newSize / CapacityIncreaseSize) * CapacityIncreaseSize) + CapacityIncreaseSize;
+					m_data.reserve(newCapacity);
+				}
+
+				void resize(uint32_t size) {
+					m_data.resize(size);
+				}
+
+				//! Changes the current position in the buffer
+				void seek(uint32_t pos) {
+					m_dataPos = pos;
+				}
+
+				//! Advances \param size bytes from the current buffer position
+				void skip(uint32_t size) {
+					m_dataPos += size;
+				}
+
+				//! Returns the current position in the buffer
+				GAIA_NODISCARD uint32_t tell() const {
+					return m_dataPos;
+				}
+
+				//! Writes \param value to the buffer
+				template <typename T>
+				void save(T&& value) {
+					reserve(sizeof(T));
+
+					m_data.resize(m_dataPos + sizeof(T));
+					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
+					mem = GAIA_FWD(value);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				void save_raw(const void* pSrc, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
+					if (size == 0)
+						return;
+
+					reserve(size);
+
+					// Copy "size" bytes of raw data starting at pSrc
+					m_data.resize(m_dataPos + size);
+					memcpy((void*)&m_data[m_dataPos], pSrc, size);
+
+					m_dataPos += size;
+				}
+
+				//! Loads \param value from the buffer
+				template <typename T>
+				void load(T& value) {
+					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				void load_raw(void* pDst, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
+					if (size == 0)
+						return;
+
+					GAIA_ASSERT(m_dataPos + size <= bytes());
+
+					const auto& cdata = std::as_const(m_data);
+					memmove(pDst, (const void*)&cdata[m_dataPos], size);
+
+					m_dataPos += size;
+				}
+			};
+		} // namespace detail
+
+		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+
+		//! Minimal binary serializer meant to runtime data.
+		//! It does not offer any versioning, or type information.
+		class ser_buffer_binary: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage> {};
+	} // namespace ser
+} // namespace gaia
+
+/*** End of inlined file: ser_buffer_binary.h ***/
+
+namespace gaia {
+	namespace ecs {
+		class BinarySerializer: public ser::ISerializer {
+			ser::ser_buffer_binary m_buffer;
+
+			//! Makes sure data is aligned
+			void align(uint32_t size, ser::serialization_type_id id) {
+				const auto pos = m_buffer.tell();
+				const auto posAligned = mem::align(pos, ser::serialization_type_size(id, size));
+				const auto offset = posAligned - pos;
+				m_buffer.reserve(offset + size);
+				m_buffer.skip(offset);
+			}
+
+		public:
+			void save_raw(const void* src, uint32_t size, ser::serialization_type_id id) override {
+				align(size, id);
+				m_buffer.save_raw((const char*)src, size, id);
+			}
+
+			void load_raw(void* src, uint32_t size, ser::serialization_type_id id) override {
+				align(size, id);
+				m_buffer.load_raw((char*)src, size, id);
+			}
+
+			const char* data() const override {
+				return (const char*)m_buffer.data();
+			}
+
+			void reset() override {
+				m_buffer.reset();
+			}
+
+			uint32_t tell() const override {
+				return m_buffer.tell();
+			}
+
+			uint32_t bytes() const override {
+				return m_buffer.bytes();
+			}
+
+			void seek(uint32_t pos) override {
+				m_buffer.seek(pos);
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+/*** End of inlined file: ser_binary.h ***/
 
 namespace gaia {
 	namespace ecs {
@@ -23960,9 +24185,7 @@ namespace gaia {
 #endif
 			}
 
-#if GAIA_USE_SERIALIZATION
-
-			void save(SerializationBufferDyn& s) {
+			void save(ser::ISerializer& s) {
 				s.save(m_header.count);
 				if (m_header.count == 0)
 					return;
@@ -23980,9 +24203,7 @@ namespace gaia {
 				// Store entity data
 				{
 					const auto* pData = m_records.pEntities;
-					GAIA_FOR(cnt) {
-						s.save(pData[i]);
-					}
+					GAIA_FOR(cnt) s.save(pData[i]);
 				}
 
 				// Store component data
@@ -23992,12 +24213,12 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->save((void*)&s, rec.pData, cnt, cap);
+						rec.pItem->save(&s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}
 
-			void load(SerializationBufferDyn& s) {
+			void load(ser::ISerializer& s) {
 				uint16_t prevCount = m_header.count;
 				s.load(m_header.count);
 				if (m_header.count == 0)
@@ -24032,12 +24253,10 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->load((void*)&s, rec.pData, cnt, cap);
+						rec.pItem->load(&s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}
-
-#endif
 
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.
@@ -25443,9 +25662,7 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
-#if GAIA_USE_SERIALIZATION
-
-			void save(SerializationBufferDyn& s) {
+			void save(ser::ISerializer& s) {
 				s.save(m_firstFreeChunkIdx);
 				s.save(m_listIdx);
 
@@ -25466,14 +25683,14 @@ namespace gaia {
 				}
 			}
 
-			void load(SerializationBufferDyn& s) {
+			void load(ser::ISerializer& s) {
 				s.load(m_firstFreeChunkIdx);
 				s.load(m_listIdx);
 
 				uint32_t chunkCnt = 0;
 				s.load(chunkCnt);
 				{
-					const auto chunkCnt0 = m_chunks.size();
+					const auto chunkCnt0 = (uint32_t)m_chunks.size();
 					m_chunks.resize(chunkCnt);
 					// Make sure new chunks are set to nullptr
 					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
@@ -25512,8 +25729,6 @@ namespace gaia {
 					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
 				}
 			}
-
-#endif
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;
@@ -29972,7 +30187,7 @@ namespace gaia {
 					uint16_t to;
 				};
 
-				using CmdBuffer = SerializationBufferDyn;
+				using CmdBuffer = ser::ser_buffer_binary;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
@@ -31519,6 +31734,9 @@ namespace gaia {
 			friend void lock(World&);
 			friend void unlock(World&);
 
+			BinarySerializer m_binarySerializer;
+			ser::ISerializer* m_pSerializer{};
+
 			using TFunc_Void_With_Entity = void(Entity);
 			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
 
@@ -31612,6 +31830,27 @@ namespace gaia {
 			uint32_t m_structuralChangesLocked = 0;
 
 		public:
+			World():
+					// Command buffer for the main thread
+					m_pCmdBufferST(cmd_buffer_st_create(*this)),
+					// Command buffer safe for concurrent access
+					m_pCmdBufferMT(cmd_buffer_mt_create(*this)) {
+				init();
+			}
+
+			~World() {
+				done();
+				cmd_buffer_destroy(*m_pCmdBufferST);
+				cmd_buffer_destroy(*m_pCmdBufferMT);
+			}
+
+			World(World&&) = delete;
+			World(const World&) = delete;
+			World& operator=(World&&) = delete;
+			World& operator=(const World&) = delete;
+
+			//----------------------------------------------------------------------
+
 			//! Provides a query set up to work with the parent world.
 			//! \tparam UseCache If true, results of the query are cached
 			//! \return Valid query object
@@ -31658,6 +31897,24 @@ namespace gaia {
 
 				return false;
 			}
+
+			//----------------------------------------------------------------------
+
+			void set_serializer(ser::ISerializer* pSerializer) {
+				if (pSerializer == nullptr) {
+					// Always use the binary serializer as the default
+					m_pSerializer = &m_binarySerializer;
+					return;
+				}
+
+				m_pSerializer = pSerializer;
+			}
+
+			ser::ISerializer* get_serializer() const {
+				return m_pSerializer;
+			}
+
+			//----------------------------------------------------------------------
 
 			struct EntityBuilder final {
 				friend class World;
@@ -31833,7 +32090,7 @@ namespace gaia {
 				//! Triggers add hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_add_hooks() {
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_ADD_DEL_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_new_comps) {
@@ -31851,7 +32108,7 @@ namespace gaia {
 				//! Triggers del hooks for the component if there are any
 				//! \param pChunk Chunk use to initialize the iterator passed to the hook
 				void trigger_del_hooks() {
-#if GAIA_ENABLE_HOOKS
+#if GAIA_ENABLE_ADD_DEL_HOOKS
 					m_world.lock();
 
 					for (auto entity: tl_del_comps) {
@@ -32248,25 +32505,6 @@ namespace gaia {
 					return true;
 				}
 			};
-
-			World():
-					// Command buffer for the main thread
-					m_pCmdBufferST(cmd_buffer_st_create(*this)),
-					// Command buffer safe for concurrent access
-					m_pCmdBufferMT(cmd_buffer_mt_create(*this)) {
-				init();
-			}
-
-			~World() {
-				done();
-				cmd_buffer_destroy(*m_pCmdBufferST);
-				cmd_buffer_destroy(*m_pCmdBufferMT);
-			}
-
-			World(World&&) = delete;
-			World(const World&) = delete;
-			World& operator=(World&&) = delete;
-			World& operator=(const World&) = delete;
 
 			//----------------------------------------------------------------------
 
@@ -33764,15 +34002,15 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
-#if GAIA_USE_SERIALIZATION
-
 			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
 			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
 			//!       of the following functions defined:
-			//!       1) member function: "void save(SerializationBufferDyn& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, SerializationBufferDyn& s,
+			//!       1) member function: "void save(BinarySerializer& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, BinarySerializer& s,
 			//!       const YourType& data)"
-			void save(SerializationBufferDyn& s) {
+			void save() {
+				auto& s = *m_pSerializer;
+
 				s.reset();
 
 				// Version number, currently unused
@@ -33789,14 +34027,19 @@ namespace gaia {
 						s.save(ec.idx);
 						s.save(ec.dataRaw);
 						s.save(ec.row);
-						s.save(ec.flags);
-	#if GAIA_USE_SAFE_ENTITY
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
+						s.save(ec.flags); // ignore Load
+
+#if GAIA_USE_SAFE_ENTITY
 						s.save(ec.refCnt);
-	#else
+#else
 						s.save((uint32_t)0);
-	#endif
-						s.save(ec.pArchetype->list_idx());
-						s.save(ec.pChunk->idx());
+#endif
+
+						uint32_t archetypeIdx = ec.pArchetype->list_idx();
+						s.save(archetypeIdx);
+						uint32_t chunkIdx = ec.pChunk->idx();
+						s.save(chunkIdx);
 					};
 
 					const auto recEntities = (uint32_t)m_recs.entities.size();
@@ -33810,7 +34053,7 @@ namespace gaia {
 					const auto pos0 = s.tell(); // Save the current position in the stream
 					uint32_t pairsCnt = 0;
 					{
-						s.save(0);
+						s.save(0U);
 						for (const auto& pair: m_recs.pairs) {
 							// Skip core pairs
 							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
@@ -33837,7 +34080,7 @@ namespace gaia {
 						for (auto e: pArchetype->ids_view())
 							s.save(e);
 
-						pArchetype->save(s);
+						pArchetype->save(*m_pSerializer);
 					}
 
 					s.save(m_worldVersion);
@@ -33854,7 +34097,7 @@ namespace gaia {
 							const auto* str = pair.first.str();
 							const uint32_t len = pair.first.len();
 							s.save(len);
-							s.save(str, len);
+							s.save_raw(str, len, ser::serialization_type_id::c8);
 						}
 					}
 				}
@@ -33863,10 +34106,12 @@ namespace gaia {
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
 			//!       of the following functions defined:
-			//!       1) member function: "void save(SerializationBufferDyn& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, SerializationBufferDyn& s,
+			//!       1) member function: "void save(BinarySerializer& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, BinarySerializer& s,
 			//!       YourType& data)"
-			bool load(SerializationBufferDyn& s) {
+			bool load(ser::ISerializer* pOutputSerializer = nullptr) {
+				auto& s = (pOutputSerializer == nullptr) ? m_binarySerializer : *pOutputSerializer;
+
 				// Move back to the beginning of the stream
 				s.seek(0);
 
@@ -33891,15 +34136,15 @@ namespace gaia {
 						s.load(ec.flags);
 						ec.flags |= EntityContainerFlags::Load;
 
-	#if GAIA_USE_SAFE_ENTITY
+#if GAIA_USE_SAFE_ENTITY
 						s.load(ec.refCnt);
-	#else
+#else
 						s.load(ec.unused);
 						// if this value is different from zero, it means we are trying to load data
 						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
 						// because if your program used reference counting it probably won't work correctly.
 						GAIA_ASSERT(ec.unused == 0);
-	#endif
+#endif
 
 						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
 						uint32_t archetypeIdx = 0;
@@ -34029,8 +34274,6 @@ namespace gaia {
 
 				return false;
 			}
-
-#endif
 
 		private:
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -36279,17 +36522,6 @@ namespace gaia {
 				return;
 			cmd_buffer_commit(world.cmd_buffer_mt());
 		}
-
-		// Serialization API
-
-#if GAIA_ASSERT_ENABLED
-		template <typename T>
-		void ser_check(const T& data) {
-			ecs::SerializationBuffer tmpBuffer;
-			ser::check(tmpBuffer, data);
-		}
-#endif
-
 	} // namespace ecs
 } // namespace gaia
 /*** End of inlined file: api.inl ***/
@@ -36382,7 +36614,6 @@ namespace gaia {
 				return jobHandle;
 			}
 
-	#if GAIA_USE_SERIALIZATION
 			//! Disable automatic System_ serialization
 			template <typename Serializer>
 			void save(Serializer& s) const {
@@ -36393,8 +36624,6 @@ namespace gaia {
 			void load(Serializer& s) {
 				(void)s;
 			}
-
-	#endif
 		};
 
 		// Usage:
@@ -36633,6 +36862,9 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::init() {
+			// Use the default serializer
+			set_serializer(nullptr);
+
 			// Register the root archetype
 			{
 				m_pRootArchetype = create_archetype({});
@@ -36929,6 +37161,47 @@ namespace gaia {
 		};
 
 		namespace detail {
+			class CommandBufferSer: public ser::ser_buffer_binary {
+			public:
+				//! Writes \param value to the buffer
+				template <typename T>
+				void comp_save(const ComponentCacheItem& item, T&& value) {
+					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
+					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+
+					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
+					save(isManualDestroyNeeded);
+					m_data.resize(m_dataPos + sizeof(T));
+
+					auto* pSrc = (void*)&value;
+					auto* pDst = (void*)&m_data[m_dataPos];
+					if (isRValue && item.func_move_ctor != nullptr) {
+						if constexpr (mem::is_movable<T>())
+							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+						else
+							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+					} else
+						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param value from the buffer
+				void comp_load(const ComponentCacheItem& item, void* pDst) {
+					bool isManualDestroyNeeded = false;
+					load(isManualDestroyNeeded);
+
+					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
+					const auto& cdata = std::as_const(m_data);
+					auto* pSrc = (void*)&cdata[m_dataPos];
+					item.move(pDst, pSrc, 0, 0, 1, 1);
+					if (isManualDestroyNeeded)
+						item.dtor(pSrc);
+
+					m_dataPos += item.comp.size();
+				}
+			};
+
 			//! Buffer for deferred execution of some operations on entities.
 			//!
 			//! Adding and removing components and entities inside World::each or can result
@@ -36977,7 +37250,7 @@ namespace gaia {
 				Entity m_lastTempTarget = EntityBad;
 
 				//! Buffer holding component data
-				SerializationBuffer m_data;
+				BinarySerializer m_data;
 				//! Accessor object
 				AccessContext m_acc;
 
@@ -37044,7 +37317,7 @@ namespace gaia {
 					const auto& item = comp_cache_add<T>(m_world);
 
 					const auto pos = m_data.tell();
-					m_data.save_comp(item, GAIA_FWD(value));
+					item.save(&m_data, &value, 0, 1, 1);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, item.entity});
 				}
 
@@ -37060,7 +37333,7 @@ namespace gaia {
 					const auto& item = comp_cache(m_world).template get<T>();
 
 					const auto pos = m_data.tell();
-					m_data.save_comp(item, GAIA_FWD(value));
+					item.save(&m_data, &value, 0, 1, 1);
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
@@ -37338,27 +37611,19 @@ namespace gaia {
 										case OpType::ADD_COMPONENT:
 											World::EntityBuilder(m_world, tgtReal).add(othReal);
 											break;
-										case OpType::ADD_COMPONENT_DATA: {
+										case OpType::ADD_COMPONENT_DATA:
 											World::EntityBuilder(m_world, tgtReal).add(othReal);
-
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-
-											// Component data
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-											m_data.seek(op.off);
-											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
-										} break;
+											GAIA_FALLTHROUGH;
 										case OpType::SET_COMPONENT: {
 											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+											const auto compIdx = ec.pChunk->comp_idx(othReal);
+											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 											// Component data
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 											m_data.seek(op.off);
-											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+											const auto& item = m_world.comp_cache().get(othReal);
+											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 										} break;
 										default:
 											break;
@@ -37409,12 +37674,13 @@ namespace gaia {
 
 										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 										// Component data
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 										m_data.seek(dataPos);
-										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										const auto& item = m_world.comp_cache().get(othReal);
+										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 									}
 									// 4) ADD only
 									else if (hasAdd) {
@@ -37424,12 +37690,13 @@ namespace gaia {
 									else if (hasSet) {
 										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 										// Component data
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 										m_data.seek(dataPos);
-										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										const auto& item = m_world.comp_cache().get(othReal);
+										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 									}
 								}
 							}

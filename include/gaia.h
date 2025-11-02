@@ -39,7 +39,8 @@
 #include "gaia/util/logging.h"
 #include "gaia/util/signal.h"
 
-#include "gaia/ser/serialization.h"
+#include "gaia/ser/ser_ct.h"
+#include "gaia/ser/ser_rt.h"
 
 #include "gaia/mt/threadpool.h"
 

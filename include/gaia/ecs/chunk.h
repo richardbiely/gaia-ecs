@@ -12,6 +12,7 @@
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
 #include "../mem/mem_alloc.h"
+#include "../ser/ser_rt.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
@@ -19,9 +20,9 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_desc.h"
-#include "data_buffer.h"
 #include "entity_container.h"
 #include "id.h"
+#include "ser_binary.h"
 
 namespace gaia {
 	namespace ecs {
@@ -392,9 +393,7 @@ namespace gaia {
 #endif
 			}
 
-#if GAIA_USE_SERIALIZATION
-
-			void save(SerializationBufferDyn& s) {
+			void save(ser::ISerializer& s) {
 				s.save(m_header.count);
 				if (m_header.count == 0)
 					return;
@@ -412,9 +411,7 @@ namespace gaia {
 				// Store entity data
 				{
 					const auto* pData = m_records.pEntities;
-					GAIA_FOR(cnt) {
-						s.save(pData[i]);
-					}
+					GAIA_FOR(cnt) s.save(pData[i]);
 				}
 
 				// Store component data
@@ -424,12 +421,12 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->save((void*)&s, rec.pData, cnt, cap);
+						rec.pItem->save(&s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}
 
-			void load(SerializationBufferDyn& s) {
+			void load(ser::ISerializer& s) {
 				uint16_t prevCount = m_header.count;
 				s.load(m_header.count);
 				if (m_header.count == 0)
@@ -464,12 +461,10 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->load((void*)&s, rec.pData, cnt, cap);
+						rec.pItem->load(&s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}
-
-#endif
 
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.

@@ -12,16 +12,11 @@
 #include "../mem/mem_utils.h"
 #include "../meta/reflection.h"
 #include "../meta/type_info.h"
-#include "../ser/serialization.h"
+#include "../ser/ser_rt.h"
 #include "component.h"
 
 namespace gaia {
 	namespace ecs {
-		class SerializationBufferDyn;
-
-		template <typename T>
-		void ser_check(const T& arg);
-
 		namespace detail {
 			using ComponentDescId = uint32_t;
 
@@ -157,28 +152,25 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_USE_SERIALIZATION
 				static constexpr auto func_save() {
-					return [](void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) {
-						auto* pSer = (SerializationBufferDyn*)pSerializer;
+					return [](ser::ISerializer* pSer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) {
 						const auto* pComponent = (const U*)pSrc;
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 						// Check if save and load match. Testing with one item is enough.
-						ser_check(*pComponent);
-	#endif
+						pSer->check(*pComponent);
+#endif
 
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cap}};
-							GAIA_FOR(cnt) {
+							GAIA_FOR2(from, to) {
 								auto val = view[i];
-								ser::save(*pSer, val);
+								pSer->save(val);
 							}
 						} else {
-							GAIA_FOR(cnt) {
-								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-								//       Therefore, we first need to load them into AoS form and then store them.
-								ser::save(*pSer, *pComponent);
+							pComponent += from;
+							GAIA_FOR2(from, to) {
+								pSer->save(*pComponent);
 								++pComponent;
 							}
 						}
@@ -186,29 +178,23 @@ namespace gaia {
 				}
 
 				static constexpr auto func_load() {
-					return [](void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) {
-						auto* pSer = (SerializationBufferDyn*)pSerializer;
-
+					return [](ser::ISerializer* pSer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) {
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cap}};
-							GAIA_FOR(cnt) {
+							GAIA_FOR2(from, to) {
 								U val;
-								ser::load(*pSer, val);
+								pSer->load(val);
 								view[i] = val;
 							}
 						} else {
-							auto* pComponent = (U*)pDst;
-							GAIA_FOR(cnt) {
-								// TODO: Add support for SoA types. They are not stored in the chunk contiguously.
-								//       Therefore, after we read them form the buffer in their AoS form, we need to store them SoA
-								//       style.
-								ser::load(*pSer, *pComponent);
+							auto* pComponent = (U*)pDst + from;
+							GAIA_FOR2(from, to) {
+								pSer->load(*pComponent);
 								++pComponent;
 							}
 						}
 					};
 				}
-#endif
 			};
 		} // namespace detail
 	} // namespace ecs

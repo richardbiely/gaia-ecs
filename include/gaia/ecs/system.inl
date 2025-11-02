@@ -1,5 +1,5 @@
 #include "../config/config.h"
-#include "data_buffer.h"
+#include "ser_binary.h"
 
 #if !GAIA_SYSTEMS_ENABLED
 namespace gaia {
@@ -92,7 +92,6 @@ namespace gaia {
 				return jobHandle;
 			}
 
-	#if GAIA_USE_SERIALIZATION
 			//! Disable automatic System_ serialization
 			template <typename Serializer>
 			void save(Serializer& s) const {
@@ -103,8 +102,6 @@ namespace gaia {
 			void load(Serializer& s) {
 				(void)s;
 			}
-
-	#endif
 		};
 
 		// Usage:

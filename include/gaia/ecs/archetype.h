@@ -16,9 +16,9 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
-#include "data_buffer.h"
 #include "id.h"
 #include "query_mask.h"
+#include "ser_binary.h"
 
 namespace gaia {
 	namespace ecs {
@@ -277,9 +277,7 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
-#if GAIA_USE_SERIALIZATION
-
-			void save(SerializationBufferDyn& s) {
+			void save(ser::ISerializer& s) {
 				s.save(m_firstFreeChunkIdx);
 				s.save(m_listIdx);
 
@@ -300,14 +298,14 @@ namespace gaia {
 				}
 			}
 
-			void load(SerializationBufferDyn& s) {
+			void load(ser::ISerializer& s) {
 				s.load(m_firstFreeChunkIdx);
 				s.load(m_listIdx);
 
 				uint32_t chunkCnt = 0;
 				s.load(chunkCnt);
 				{
-					const auto chunkCnt0 = m_chunks.size();
+					const auto chunkCnt0 = (uint32_t)m_chunks.size();
 					m_chunks.resize(chunkCnt);
 					// Make sure new chunks are set to nullptr
 					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
@@ -346,8 +344,6 @@ namespace gaia {
 					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
 				}
 			}
-
-#endif
 
 			void list_idx(uint32_t idx) {
 				m_listIdx = idx;

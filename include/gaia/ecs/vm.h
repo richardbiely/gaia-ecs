@@ -11,10 +11,10 @@
 #include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
-#include "data_buffer.h"
 #include "id.h"
 #include "query_common.h"
 #include "query_mask.h"
+#include "ser_binary.h"
 
 namespace gaia {
 	namespace ecs {

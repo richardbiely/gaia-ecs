@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "../config/profiler.h"
-#include "gaia/config/config_core.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)

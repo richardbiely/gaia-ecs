@@ -4,16 +4,17 @@
 #include <type_traits>
 
 #include "../cnt/darray_ext.h"
-#include "../mem/mem_utils.h"
-#include "component_cache_item.h"
 
 namespace gaia {
-	namespace ecs {
+	namespace ser {
+		enum class serialization_type_id : uint8_t;
+
 		namespace detail {
 			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
 
 			template <typename DataContainer>
-			class SerializationBufferImpl {
+			class ser_buffer_binary_impl {
+			protected:
 				// Increase the capacity by multiples of CapacityIncreaseSize
 				static constexpr uint32_t CapacityIncreaseSize = SerializationBufferCapacityIncreaseSize;
 
@@ -64,6 +65,11 @@ namespace gaia {
 					m_dataPos = pos;
 				}
 
+				//! Advances \param size bytes from the current buffer position
+				void skip(uint32_t size) {
+					m_dataPos += size;
+				}
+
 				//! Returns the current position in the buffer
 				GAIA_NODISCARD uint32_t tell() const {
 					return m_dataPos;
@@ -82,7 +88,10 @@ namespace gaia {
 				}
 
 				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-				void save(const void* pSrc, uint32_t size) {
+				void save_raw(const void* pSrc, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
+					if (size == 0)
+						return;
+
 					reserve(size);
 
 					// Copy "size" bytes of raw data starting at pSrc
@@ -90,29 +99,6 @@ namespace gaia {
 					memcpy((void*)&m_data[m_dataPos], pSrc, size);
 
 					m_dataPos += size;
-				}
-
-				//! Writes \param value to the buffer
-				template <typename T>
-				void save_comp(const ComponentCacheItem& item, T&& value) {
-					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value; // TODO: GAIA_FWD(value)?
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && item.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
 				}
 
 				//! Loads \param value from the buffer
@@ -127,7 +113,10 @@ namespace gaia {
 				}
 
 				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-				void load(void* pDst, uint32_t size) {
+				void load_raw(void* pDst, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
+					if (size == 0)
+						return;
+
 					GAIA_ASSERT(m_dataPos + size <= bytes());
 
 					const auto& cdata = std::as_const(m_data);
@@ -135,28 +124,13 @@ namespace gaia {
 
 					m_dataPos += size;
 				}
-
-				//! Loads \param value from the buffer
-				void load_comp(const ComponentCacheItem& item, void* pDst) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					item.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						item.dtor(pSrc);
-
-					m_dataPos += item.comp.size();
-				}
 			};
 		} // namespace detail
 
-		using SerializationBuffer_DArrExt = cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
-		using SerializationBuffer_DArr = cnt::darray<uint8_t>;
+		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
 
-		class SerializationBuffer: public detail::SerializationBufferImpl<SerializationBuffer_DArrExt> {};
-		class SerializationBufferDyn: public detail::SerializationBufferImpl<SerializationBuffer_DArr> {};
-	} // namespace ecs
+		//! Minimal binary serializer meant to runtime data.
+		//! It does not offer any versioning, or type information.
+		class ser_buffer_binary: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage> {};
+	} // namespace ser
 } // namespace gaia

@@ -12,6 +12,10 @@
 #include "id.h"
 
 namespace gaia {
+	namespace ser {
+		class ISerializer;
+	} // namespace ser
+
 	namespace ecs {
 		class World;
 		class Chunk;
@@ -28,10 +32,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
-#if GAIA_USE_SERIALIZATION
-			using FuncSave = void(void*, const void*, uint32_t, uint32_t);
-			using FuncLoad = void(void*, void*, uint32_t, uint32_t);
-#endif
+			using FuncSave = void(ser::ISerializer*, const void*, uint32_t, uint32_t, uint32_t);
+			using FuncLoad = void(ser::ISerializer*, void*, uint32_t, uint32_t, uint32_t);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -64,13 +66,10 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type for equality
 			FuncCmp* func_cmp{};
-
-#if GAIA_USE_SERIALIZATION
 			//! Function to call when saving component to a buffer
 			FuncSave* func_save{};
 			// !Function to call when loading component from a buffer
 			FuncLoad* func_load{};
-#endif
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -138,17 +137,15 @@ namespace gaia {
 				return func_cmp(pLeft, pRight);
 			}
 
-#if GAIA_USE_SERIALIZATION
-			void save(void* pSerializer, const void* pSrc, uint32_t cnt, uint32_t cap) const {
-				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && cnt > 0 && cnt <= cap);
-				func_save(pSerializer, pSrc, cnt, cap);
+			void save(ser::ISerializer* pSerializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && from < to && to <= cap);
+				func_save(pSerializer, pSrc, from, to, cap);
 			}
 
-			void load(void* pSerializer, void* pDst, uint32_t cnt, uint32_t cap) const {
-				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && cnt > 0 && cnt <= cap);
-				func_load(pSerializer, pDst, cnt, cap);
+			void load(ser::ISerializer* pSerializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && from < to && to <= cap);
+				func_load(pSerializer, pDst, from, to, cap);
 			}
-#endif
 
 #if GAIA_ENABLE_HOOKS
 
@@ -247,10 +244,9 @@ namespace gaia {
 				cci->func_move = detail::ComponentDesc<T>::func_move();
 				cci->func_swap = detail::ComponentDesc<T>::func_swap();
 				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
-#if GAIA_USE_SERIALIZATION
 				cci->func_save = detail::ComponentDesc<T>::func_save();
 				cci->func_load = detail::ComponentDesc<T>::func_load();
-#endif
+
 				return cci;
 			}
 

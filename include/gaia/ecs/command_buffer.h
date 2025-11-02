@@ -6,12 +6,13 @@
 
 #include "../cnt/darray_ext.h"
 #include "../cnt/dbitset.h"
+#include "../ser/ser_buffer_binary.h"
 #include "archetype.h"
 #include "command_buffer_fwd.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
-#include "data_buffer.h"
+#include "component_cache_item.h"
 #include "id.h"
 #include "world.h"
 
@@ -35,6 +36,47 @@ namespace gaia {
 		};
 
 		namespace detail {
+			class CommandBufferSer: public ser::ser_buffer_binary {
+			public:
+				//! Writes \param value to the buffer
+				template <typename T>
+				void comp_save(const ComponentCacheItem& item, T&& value) {
+					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
+					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+
+					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
+					save(isManualDestroyNeeded);
+					m_data.resize(m_dataPos + sizeof(T));
+
+					auto* pSrc = (void*)&value;
+					auto* pDst = (void*)&m_data[m_dataPos];
+					if (isRValue && item.func_move_ctor != nullptr) {
+						if constexpr (mem::is_movable<T>())
+							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
+						else
+							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+					} else
+						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
+
+					m_dataPos += sizeof(T);
+				}
+
+				//! Loads \param value from the buffer
+				void comp_load(const ComponentCacheItem& item, void* pDst) {
+					bool isManualDestroyNeeded = false;
+					load(isManualDestroyNeeded);
+
+					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
+					const auto& cdata = std::as_const(m_data);
+					auto* pSrc = (void*)&cdata[m_dataPos];
+					item.move(pDst, pSrc, 0, 0, 1, 1);
+					if (isManualDestroyNeeded)
+						item.dtor(pSrc);
+
+					m_dataPos += item.comp.size();
+				}
+			};
+
 			//! Buffer for deferred execution of some operations on entities.
 			//!
 			//! Adding and removing components and entities inside World::each or can result
@@ -83,7 +125,7 @@ namespace gaia {
 				Entity m_lastTempTarget = EntityBad;
 
 				//! Buffer holding component data
-				SerializationBuffer m_data;
+				BinarySerializer m_data;
 				//! Accessor object
 				AccessContext m_acc;
 
@@ -150,7 +192,7 @@ namespace gaia {
 					const auto& item = comp_cache_add<T>(m_world);
 
 					const auto pos = m_data.tell();
-					m_data.save_comp(item, GAIA_FWD(value));
+					item.save(&m_data, &value, 0, 1, 1);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, item.entity});
 				}
 
@@ -166,7 +208,7 @@ namespace gaia {
 					const auto& item = comp_cache(m_world).template get<T>();
 
 					const auto pos = m_data.tell();
-					m_data.save_comp(item, GAIA_FWD(value));
+					item.save(&m_data, &value, 0, 1, 1);
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
@@ -444,27 +486,19 @@ namespace gaia {
 										case OpType::ADD_COMPONENT:
 											World::EntityBuilder(m_world, tgtReal).add(othReal);
 											break;
-										case OpType::ADD_COMPONENT_DATA: {
+										case OpType::ADD_COMPONENT_DATA:
 											World::EntityBuilder(m_world, tgtReal).add(othReal);
-
-											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-
-											// Component data
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
-											m_data.seek(op.off);
-											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
-										} break;
+											GAIA_FALLTHROUGH;
 										case OpType::SET_COMPONENT: {
 											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+											const auto compIdx = ec.pChunk->comp_idx(othReal);
+											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 											// Component data
-											const auto compIdx = ec.pChunk->comp_idx(othReal);
-											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 											m_data.seek(op.off);
-											m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+											const auto& item = m_world.comp_cache().get(othReal);
+											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 										} break;
 										default:
 											break;
@@ -515,12 +549,13 @@ namespace gaia {
 
 										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 										// Component data
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 										m_data.seek(dataPos);
-										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										const auto& item = m_world.comp_cache().get(othReal);
+										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 									}
 									// 4) ADD only
 									else if (hasAdd) {
@@ -530,12 +565,13 @@ namespace gaia {
 									else if (hasSet) {
 										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+										const auto compIdx = ec.pChunk->comp_idx(othReal);
+										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 										// Component data
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, row);
 										m_data.seek(dataPos);
-										m_data.load_comp(m_world.comp_cache().get((othReal)), pComponentData);
+										const auto& item = m_world.comp_cache().get(othReal);
+										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 									}
 								}
 							}

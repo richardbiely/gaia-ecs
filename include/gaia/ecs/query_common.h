@@ -12,10 +12,10 @@
 #include "../core/utility.h"
 #include "api.h"
 #include "component.h"
-#include "data_buffer.h"
 #include "id.h"
 #include "query_fwd.h"
 #include "query_mask.h"
+#include "ser_binary.h"
 
 namespace gaia {
 	namespace ecs {

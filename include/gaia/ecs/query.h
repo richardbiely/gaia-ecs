@@ -13,7 +13,8 @@
 #include "../core/string.h"
 #include "../core/utility.h"
 #include "../mt/threadpool.h"
-#include "../ser/serialization.h"
+#include "../ser/ser_buffer_binary.h"
+#include "../ser/ser_ct.h"
 #include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -22,7 +23,6 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
-#include "data_buffer.h"
 #include "id.h"
 #include "query_cache.h"
 #include "query_common.h"
@@ -367,7 +367,7 @@ namespace gaia {
 					uint16_t to;
 				};
 
-				using CmdBuffer = SerializationBufferDyn;
+				using CmdBuffer = ser::ser_buffer_binary;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;

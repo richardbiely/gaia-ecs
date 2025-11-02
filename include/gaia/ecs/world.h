@@ -17,6 +17,8 @@
 #include "../core/string.h"
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
+#include "../ser/ser_rt.h"
+#include "../util/logging.h"
 #include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -30,14 +32,13 @@
 #include "component_cache_item.h"
 #include "component_getter.h"
 #include "component_setter.h"
-#include "data_buffer.h"
 #include "entity_container.h"
-#include "gaia/util/logging.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
+#include "ser_binary.h"
 
 namespace gaia {
 	namespace ecs {
@@ -51,6 +52,9 @@ namespace gaia {
 			friend CommandBufferMT;
 			friend void lock(World&);
 			friend void unlock(World&);
+
+			BinarySerializer m_binarySerializer;
+			ser::ISerializer* m_pSerializer{};
 
 			using TFunc_Void_With_Entity = void(Entity);
 			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
@@ -145,6 +149,27 @@ namespace gaia {
 			uint32_t m_structuralChangesLocked = 0;
 
 		public:
+			World():
+					// Command buffer for the main thread
+					m_pCmdBufferST(cmd_buffer_st_create(*this)),
+					// Command buffer safe for concurrent access
+					m_pCmdBufferMT(cmd_buffer_mt_create(*this)) {
+				init();
+			}
+
+			~World() {
+				done();
+				cmd_buffer_destroy(*m_pCmdBufferST);
+				cmd_buffer_destroy(*m_pCmdBufferMT);
+			}
+
+			World(World&&) = delete;
+			World(const World&) = delete;
+			World& operator=(World&&) = delete;
+			World& operator=(const World&) = delete;
+
+			//----------------------------------------------------------------------
+
 			//! Provides a query set up to work with the parent world.
 			//! \tparam UseCache If true, results of the query are cached
 			//! \return Valid query object
@@ -191,6 +216,24 @@ namespace gaia {
 
 				return false;
 			}
+
+			//----------------------------------------------------------------------
+
+			void set_serializer(ser::ISerializer* pSerializer) {
+				if (pSerializer == nullptr) {
+					// Always use the binary serializer as the default
+					m_pSerializer = &m_binarySerializer;
+					return;
+				}
+
+				m_pSerializer = pSerializer;
+			}
+
+			ser::ISerializer* get_serializer() const {
+				return m_pSerializer;
+			}
+
+			//----------------------------------------------------------------------
 
 			struct EntityBuilder final {
 				friend class World;
@@ -781,25 +824,6 @@ namespace gaia {
 					return true;
 				}
 			};
-
-			World():
-					// Command buffer for the main thread
-					m_pCmdBufferST(cmd_buffer_st_create(*this)),
-					// Command buffer safe for concurrent access
-					m_pCmdBufferMT(cmd_buffer_mt_create(*this)) {
-				init();
-			}
-
-			~World() {
-				done();
-				cmd_buffer_destroy(*m_pCmdBufferST);
-				cmd_buffer_destroy(*m_pCmdBufferMT);
-			}
-
-			World(World&&) = delete;
-			World(const World&) = delete;
-			World& operator=(World&&) = delete;
-			World& operator=(const World&) = delete;
 
 			//----------------------------------------------------------------------
 
@@ -2297,15 +2321,15 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
-#if GAIA_USE_SERIALIZATION
-
 			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
 			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
 			//!       of the following functions defined:
-			//!       1) member function: "void save(SerializationBufferDyn& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, SerializationBufferDyn& s,
+			//!       1) member function: "void save(BinarySerializer& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, BinarySerializer& s,
 			//!       const YourType& data)"
-			void save(SerializationBufferDyn& s) {
+			void save() {
+				auto& s = *m_pSerializer;
+
 				s.reset();
 
 				// Version number, currently unused
@@ -2322,14 +2346,19 @@ namespace gaia {
 						s.save(ec.idx);
 						s.save(ec.dataRaw);
 						s.save(ec.row);
-						s.save(ec.flags);
-	#if GAIA_USE_SAFE_ENTITY
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
+						s.save(ec.flags); // ignore Load
+
+#if GAIA_USE_SAFE_ENTITY
 						s.save(ec.refCnt);
-	#else
+#else
 						s.save((uint32_t)0);
-	#endif
-						s.save(ec.pArchetype->list_idx());
-						s.save(ec.pChunk->idx());
+#endif
+
+						uint32_t archetypeIdx = ec.pArchetype->list_idx();
+						s.save(archetypeIdx);
+						uint32_t chunkIdx = ec.pChunk->idx();
+						s.save(chunkIdx);
 					};
 
 					const auto recEntities = (uint32_t)m_recs.entities.size();
@@ -2343,7 +2372,7 @@ namespace gaia {
 					const auto pos0 = s.tell(); // Save the current position in the stream
 					uint32_t pairsCnt = 0;
 					{
-						s.save(0);
+						s.save(0U);
 						for (const auto& pair: m_recs.pairs) {
 							// Skip core pairs
 							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
@@ -2370,7 +2399,7 @@ namespace gaia {
 						for (auto e: pArchetype->ids_view())
 							s.save(e);
 
-						pArchetype->save(s);
+						pArchetype->save(*m_pSerializer);
 					}
 
 					s.save(m_worldVersion);
@@ -2387,7 +2416,7 @@ namespace gaia {
 							const auto* str = pair.first.str();
 							const uint32_t len = pair.first.len();
 							s.save(len);
-							s.save(str, len);
+							s.save_raw(str, len, ser::serialization_type_id::c8);
 						}
 					}
 				}
@@ -2396,10 +2425,12 @@ namespace gaia {
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
 			//!       of the following functions defined:
-			//!       1) member function: "void save(SerializationBufferDyn& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, SerializationBufferDyn& s,
+			//!       1) member function: "void save(BinarySerializer& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, BinarySerializer& s,
 			//!       YourType& data)"
-			bool load(SerializationBufferDyn& s) {
+			bool load(ser::ISerializer* pOutputSerializer = nullptr) {
+				auto& s = (pOutputSerializer == nullptr) ? m_binarySerializer : *pOutputSerializer;
+
 				// Move back to the beginning of the stream
 				s.seek(0);
 
@@ -2424,15 +2455,15 @@ namespace gaia {
 						s.load(ec.flags);
 						ec.flags |= EntityContainerFlags::Load;
 
-	#if GAIA_USE_SAFE_ENTITY
+#if GAIA_USE_SAFE_ENTITY
 						s.load(ec.refCnt);
-	#else
+#else
 						s.load(ec.unused);
 						// if this value is different from zero, it means we are trying to load data
 						// that was previously saved with GAIA_USE_SAFE_ENTITY. It's probably not a good idea
 						// because if your program used reference counting it probably won't work correctly.
 						GAIA_ASSERT(ec.unused == 0);
-	#endif
+#endif
 
 						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
 						uint32_t archetypeIdx = 0;
@@ -2562,8 +2593,6 @@ namespace gaia {
 
 				return false;
 			}
-
-#endif
 
 		private:
 			//! Sorts archetypes in the archetype list with their ids in ascending order
@@ -4684,6 +4713,9 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::init() {
+			// Use the default serializer
+			set_serializer(nullptr);
+
 			// Register the root archetype
 			{
 				m_pRootArchetype = create_archetype({});

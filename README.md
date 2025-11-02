@@ -91,6 +91,8 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Systems and jobs](#system-jobs)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
+    * [Compile-time serialization](#compile-time-serialization)
+    * [Run-time serialization](#run-time-serialization)
     * [World serialization](#world-serialization)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
@@ -1871,13 +1873,19 @@ process_data(pz.data(), vz.data(), it.size());
 Different layouts use different memory alignments. **GAIA_LAYOUT(SoA)** and **GAIA_LAYOUT(AoS)** align data to 8-byte boundaries, while **GAIA_LAYOUT(SoA8)** and **GAIA_LAYOUT(SoA16)** align to 16 and 32 bytes respectively. This makes them a good candidate for AVX and AVX512 instruction sets (or their equivalent on different platforms, such as NEON on ARM).
 
 ## Serialization
-Serialization of arbitrary data is available via following functions:
+Any data structure can be serialized into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() functions are supported out of the box. If a resize() function is available, it will be used automatically.
+In some cases, you may still need to provide specializations, though. Either because the default behavior does not match your expectations, or because the program will not compile otherwise.
+
+Serialization of arbitrary data is available in two different formats. One for compile-time serialization, and the other for runtime serialization. Their interface is the same.
+
+### Compile-time serialization
+
+Compile-time serialization is available via following functions:
 - ***ser::bytes*** - calculates how many bytes the data needs to serialize
 - ***ser::save*** - writes data to serialization buffer
 - ***ser::load*** - loads data from serialization buffer
 
-Any data structure can be serialized at compile time into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() are supported out of the box. If a resize() function is available, it will be used automatically.
-In some cases, you may still need to provide specializations or overrides of the default serialization functions — either because the default behavior does not match your expectations, or because the program will not compile otherwise.
+It is not tied to ECS world and you can use it anywhere in your codebase.
 
 Example:
 ```cpp
@@ -1901,7 +1909,7 @@ TransformsContainer in, out;
 GAIA_FOR(10) in.transforms.push_back({});
 in.some_int_data = 42069;
 
-ecs::SerializationBuffer s;
+ser::ser_buffer_binary s;
 // Save "in" to our buffer
 ser::save(s, in);
 // Load the contents of buffer to "out" 
@@ -1917,47 +1925,53 @@ External specialization comes handy in cases where we can not or do not want to 
 // A structure with two members variables we want to custom-serialize.
 // We want to serialize ptr and size, and ignore foo.
 struct CustomStruct {
-  //! Pointer to data
-  char* ptr;
-  //! Length of data in bytes
-  uint32_t lengthInBytes;
-  //! Something not important
-  bool foo;
+  //! Standard library string object. It has size(), begin() and end() functions,
+  //! but to interpret the type correctly we will need a custom serializer.
+  std::string str;
+  //! Something not important. We won't serialize it.
+  bool not_important;
+  //! Something important.
+  int foo;
 };
 
 namespace gaia::ser {
   template <typename Serializer>
   void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
+    const auto lenInBytes = (uint64_t)data.str.size();
     // Save the byte size of our data
-    s.save(data.lengthInBytes);
-    // Save all data pointed to by ptr
-    s.save(data.ptr, data.lengthInBytes);
+    s.save(lenInBytes);
+    // Save all data pointed to by ptr. Tell the serializer this "char" data
+    s.save_raw(data.str.data(), lenInBytes, ser::serialization_type_id::c8);
+    // Save foo
+    s.save(data.foo);
   }
   
   template <typename Serializer>
   void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
+    uint64_t lenInBytes;
     // Load the byte size of our data
-    s.load(data.lengthInBytes);
-    // Allocate large-enough buffer and load it with data stored in our  serilization buffer
-    data.ptr = new char[data.lengthInBytes];
-    s.load(data.ptr, data.lengthInBytes);
-    // Set foo to some value. We did not save it, so we expect it to be set
+    s.load(lengthInBytes);
+
+    // Copy the string from our serialization buffer to std::string
+    data.str.assign(s.data(), lengthInBytes);
+    // Explicitely tell the serializer to move by lengthInBytes because we only gave the std::string
+    // a pointer and length. We did not read data any data from the buffer, so its head did not move.
+    s.seek(s.tell() + lengthInBytes);
+
+    // Load foo
+    s.load(data.foo);
+
+    // Set not_important to some value. We did not save it, so we expect it to be set
     // externally at some point.
-    data.foo = false;
+    data.not_important = false;
   }
 }
 
 ...
 CustomStruct in, out;
-in.ptr = new char[5];
-in.ptr[0] = 'g';
-in.ptr[1] = 'a';
-in.ptr[2] = 'i';
-in.ptr[3] = 'a';
-in.ptr[4] = '\0';
-in.size = 5;
+in.str = "gaia";
 
-ecs::SerializationBuffer s;
+ser::ser_buffer_binary s;
 ser::save(s, in);
 // Move to the start of the buffer and load its contents to out
 s.seek(0);
@@ -1971,41 +1985,110 @@ You will usually use internal specialization when you have the access to your da
 
 ```cpp
 struct CustomStruct {
-  char* ptr;
-  uint32_t lengthInBytes;
-  bool foo;
+  std::string str;
+  bool not_important;
+  int foo;
   
   template <typename Serializer>
   void save(Serializer& s) const {
-    s.save(lengthInBytes);
-    s.save(ptr, lengthInBytes);
+    const auto lenInBytes = (uint64_t)data.str.size();
+    s.save(lenInBytes);
+    s.save_raw(data.str.data(), lenInBytes, ser::serialization_type_id::c8);
+    s.save(data.foo);
   }
   
   template <typename Serializer>
   void load(Serializer& s) {
+    uint64_t lenInBytes;
     s.load(lengthInBytes);
-    ptr = new char[lengthInBytes];
-    s.load(ptr, lengthInBytes);
-    data.foo = false;
+    data.str.assign(s.data(), lengthInBytes);
+    s.seek(s.tell() + lengthInBytes);
+    s.load(data.foo);
+    data.not_important = false;
   }
 };
 ```
 
  It doesn't matter which kind of specialization you use. If both are used the external one takes priority.
 
-### World serialization
+### Run-time serialization
 
-ECS world uses the same serialization as described above. It can be accessed via ***World::save*** and ***World::load*** functions. 
+For runtime serialization you need to use the provided ***ser::ISerializer*** base and override the exposed virtual functions.
 
 ```cpp
-// Save contents of world into a buffer
-ecs::World world;
-ecs::SerializationBufferDyn buffer;
-world.save(buffer);
+class CustomBinarySerializer: public ser::ISerializer {
+  //! Buffer object used to write binary data
+  ser::ser_buffer_binary m_buffer;
 
-// Load contents of a buffer into our world
+  //! Makes sure data is aligned
+  void align(uint32_t size, ser::serialization_type_id id) {
+    const auto pos = m_buffer.tell();
+    const auto posAligned = mem::align(pos, ser::serialization_type_size(id, size));
+    const auto offset = posAligned - pos;
+    m_buffer.reserve(offset + size);
+    m_buffer.skip(offset);
+  }
+
+public:
+  void save_raw(const void* src, uint32_t size, ser::serialization_type_id id) override {
+    align(size, id);
+    m_buffer.save_raw((const char*)src, size, id);
+  }
+
+  void load_raw(void* src, uint32_t size, ser::serialization_type_id id) override {
+    align(size, id);
+    m_buffer.load_raw((char*)src, size, id);
+  }
+
+  const char* data() const override {
+    return (const char*)m_buffer.data();
+  }
+
+  void reset() override {
+    m_buffer.reset();
+  }
+
+  uint32_t tell() const override {
+    return m_buffer.tell();
+  }
+
+  uint32_t bytes() const override {
+    return m_buffer.bytes();
+  }
+
+  void seek(uint32_t pos) override {
+    m_buffer.seek(pos);
+  }
+};
+```
+
+This way you can create any serializer you want. For example, you can serialize your data to json or any other custom format you can imagine. You can give it support for versioning and so on.
+
+Runtime serialization it tied to ECS world. You can hook it up via ***World::set_serializer***.
+
+```cpp
+ecs::World world;
+// Make the world use the custom serializer
+CustomBinarySerializer customSerializer;
+world.set_serializer(&buffer);
+// Make the world use the default serializer
+world.set_serializer(nullptr);
+```
+
+Your serializer must remain valid for the entire time it is used by ***ecs::World***. The world only stores a plain pointer to it. Therefore, if the serializer disappered and you forgot to call set_serializer(nullptr), the world would end up with a dangling pointer.
+
+### World serialization
+
+World serialization can be accessed via ***World::save*** and ***World::load*** functions. 
+
+```cpp
+// Save contents of our world into the current world serializer's buffer
+ecs::World world;
+world.save();
+
+// Load contents of the current world serializer's buffer into our world
 world.cleanup();
-world.load(buffer);
+world.load();
 ```
 
 Note that for this feature to work correctly, components must be registered in a fixed order. If you called ***World::save*** and registered Position, Rotation, and Foo in that order, the same order must be used when calling ***World::load***.
@@ -2018,24 +2101,16 @@ ecs::World world0;
 (void)world0.add<Rotation>();
 (void)world0.add<Foo>();
 // Save contents of our world into a buffer
-ecs::SerializationBufferDyn buffer;
-world0.save(buffer);
+world0.save();
 
 ecs::World world1;
 // Register components
 (void)world1.add<Position>();
 (void)world1.add<Rotation>();
 (void)world1.add<Foo>();
-// Load contents of a buffer into our world
-world1.load(buffer);
-```
-
-The feature is enabled by default but can be disabled via setting GAIA_USE_SERIALIZATION to 0.
-
-```cpp
-// Turn serialization support OFF
-#define GAIA_USE_SERIALIZATION 0
-#include <gaia.h>
+// Load contents of a buffer into our second world
+world1.set_serializer(world0.get_serializer());
+world1.load();
 ```
 
 ## Multithreading

@@ -161,11 +161,26 @@ static constexpr const char* StringComponentEmptyValue =
 
 struct StringComponent {
 	std::string value;
-};
-struct StringComponent2 {
-	std::string value = StringComponent2DefaultValue;
 
-	StringComponent2() = default;
+	template <typename Serializer>
+	void save(Serializer& s) const {
+		const auto len = (uint32_t)value.size();
+		s.save(len);
+		s.save_raw(value.data(), len, ser::serialization_type_id::c8);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s) {
+		uint32_t len{};
+		s.load(len);
+		value.assign(s.data() + s.tell(), len);
+		s.seek(s.tell() + len);
+	}
+};
+struct StringComponent2: public StringComponent {
+	StringComponent2() {
+		value = StringComponent2DefaultValue;
+	}
 	~StringComponent2() {
 		value = StringComponentEmptyValue;
 	}
@@ -9282,14 +9297,14 @@ namespace gaia::ser {
 	template <typename Serializer>
 	void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
 		s.save(data.size);
-		s.save(data.ptr, data.size);
+		s.save_raw(data.ptr, data.size, ser::serialization_type_id::c8);
 	}
 
 	template <typename Serializer>
 	void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
 		s.load(data.size);
 		data.ptr = new char[data.size];
-		s.load(data.ptr, data.size);
+		s.load_raw(data.ptr, data.size, ser::serialization_type_id::c8);
 	}
 } // namespace gaia::ser
 
@@ -9304,14 +9319,14 @@ struct CustomStructInternal {
 	template <typename Serializer>
 	void save(Serializer& s) const {
 		s.save(size);
-		s.save(ptr, size);
+		s.save_raw(ptr, size, ser::serialization_type_id::c8);
 	}
 
 	template <typename Serializer>
 	void load(Serializer& s) {
 		s.load(size);
 		ptr = new char[size];
-		s.load(ptr, size);
+		s.load_raw(ptr, size, ser::serialization_type_id::c8);
 	}
 };
 
@@ -9326,10 +9341,10 @@ TEST_CASE("Serialization - custom") {
 		in.ptr[4] = '\0';
 		in.size = 5;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
-		static_assert(!ser::has_func_save<CustomStruct, ecs::SerializationBuffer&>::value);
-		static_assert(ser::has_tag_save<ecs::SerializationBuffer, CustomStruct>::value);
+		static_assert(!ser::has_func_save<CustomStruct, ser::ser_buffer_binary&>::value);
+		static_assert(ser::has_tag_save<ser::ser_buffer_binary, CustomStruct>::value);
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9349,7 +9364,7 @@ TEST_CASE("Serialization - custom") {
 		in.ptr[4] = '\0';
 		in.size = 5;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9365,7 +9380,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		Int3 in{1, 2, 3}, out{};
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9377,7 +9392,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		Position in{1, 2, 3}, out{};
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9389,7 +9404,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		PositionSoA in{1, 2, 3}, out{};
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9401,7 +9416,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9413,7 +9428,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9484,7 +9499,7 @@ TEST_CASE("Serialization - arrays") {
 		GAIA_EACH(in.arr) in.arr[i] = i;
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9502,7 +9517,7 @@ TEST_CASE("Serialization - arrays") {
 		}
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9516,7 +9531,7 @@ TEST_CASE("Serialization - arrays") {
 		GAIA_EACH(in.arr) in.arr[i] = FooNonTrivial(i);
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9531,7 +9546,7 @@ TEST_CASE("Serialization - arrays") {
 		GAIA_EACH(in.arr) in.arr[i] = i;
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9547,7 +9562,7 @@ TEST_CASE("Serialization - arrays") {
 		}
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9570,7 +9585,7 @@ TEST_CASE("Serialization - arrays") {
 		}
 		in.f = 3.12345f;
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9601,7 +9616,7 @@ TEST_CASE("Serialization - hashmap") {
 			in.insert({i, str});
 		}
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9642,7 +9657,7 @@ TEST_CASE("Serialization - hashset") {
 			in.insert({str});
 		}
 
-		ecs::SerializationBuffer s;
+		ser::ser_buffer_binary s;
 
 		ser::save(s, in);
 		s.seek(0);
@@ -9668,8 +9683,6 @@ TEST_CASE("Serialization - hashset") {
 	}
 }
 
-#if GAIA_USE_SERIALIZATION
-
 TEST_CASE("Serialization - world self") {
 	auto initComponents = [](ecs::World& w) {
 		(void)w.add<Position>();
@@ -9694,13 +9707,12 @@ TEST_CASE("Serialization - world self") {
 	in.name(salad, "Salad");
 	in.name(apple, "Apple");
 
-	ecs::SerializationBufferDyn buffer;
-	in.save(buffer);
+	in.save();
 
 	//--------
 	in.cleanup();
 	initComponents(in);
-	in.load(buffer);
+	in.load();
 
 	Position pos = in.get<Position>(eats);
 	CHECK(pos.x == 1.f);
@@ -9743,12 +9755,13 @@ TEST_CASE("Serialization - world other") {
 	in.name(salad, "Salad");
 	in.name(apple, "Apple");
 
-	ecs::SerializationBufferDyn buffer;
-	in.save(buffer);
+	ecs::BinarySerializer buffer;
+	in.set_serializer(&buffer);
+	in.save();
 
 	TestWorld twld;
 	initComponents(wld);
-	wld.load(buffer);
+	wld.load(&buffer);
 
 	Position pos = wld.get<Position>(eats);
 	CHECK(pos.x == 1.f);
@@ -9796,14 +9809,15 @@ TEST_CASE("Serialization - world + query") {
 	};
 	GAIA_FOR(N) create(i);
 
-	ecs::SerializationBufferDyn buffer;
-	in.m_w.save(buffer);
+	ecs::BinarySerializer buffer;
+	in.m_w.set_serializer(&buffer);
+	in.m_w.save();
 
 	// Load
 
 	TestWorld twld;
 	initComponents(wld);
-	wld.load(buffer);
+	wld.load(&buffer);
 
 	auto q1 = wld.query().template all<Position>();
 	auto q2 = wld.query().template all<PositionSoA>();
@@ -9892,8 +9906,6 @@ TEST_CASE("Serialization - world + query") {
 		}
 	}
 }
-
-#endif
 
 //------------------------------------------------------------------------------
 // Multithreading
