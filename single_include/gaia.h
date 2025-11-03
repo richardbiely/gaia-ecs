@@ -9636,8 +9636,6 @@ namespace gaia {
 				return serialization_type_id::data_and_size;
 			else if constexpr (std::is_class_v<T>)
 				return serialization_type_id::trivial_wrapper;
-
-			return serialization_type_id::Last;
 		}
 
 		// --------------------
@@ -11761,7 +11759,7 @@ namespace robin_hood {
 			// calculation only allowed for 2^n values
 			GAIA_NODISCARD size_t calcNumBytesTotal(size_t numElements) const {
 #if ROBIN_HOOD(BITNESS) == 64
-				return numElements * sizeof(Node) + calcNumBytesInfo(numElements);
+				return (numElements * sizeof(Node)) + calcNumBytesInfo(numElements);
 #else
 				// make sure we're doing 64bit operations, so we are at least safe against 32bit overflows.
 				auto const ne = static_cast<uint64_t>(numElements);
@@ -11931,7 +11929,7 @@ namespace robin_hood {
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
-				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
+				std::memset(mInfo, 0, numBytesTotal - (numElementsWithBuffer * sizeof(Node)));
 
 				// set sentinel
 				mInfo[numElementsWithBuffer] = 1;
@@ -17951,7 +17949,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copyable types
 						(save(items), ...);
 					});
@@ -17995,7 +17993,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copyable types
 						(load(items), ...);
 					});
@@ -22682,7 +22680,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
-		class ISerializer;
+		struct ISerializer;
 	} // namespace ser
 
 	namespace ecs {
@@ -32232,12 +32230,12 @@ namespace gaia {
 						flags |= flag;
 					else
 						flags &= ~flag;
-				};
+				}
 
 				void set_flag(Entity entity, EntityContainerFlags flag, bool enable) {
 					auto& ec = m_world.fetch(entity);
 					set_flag(ec.flags, flag, enable);
-				};
+				}
 
 				void try_set_flags(Entity entity, bool enable) {
 					auto& ecMain = m_world.fetch(m_entity);

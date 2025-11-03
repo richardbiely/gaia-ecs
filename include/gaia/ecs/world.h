@@ -551,12 +551,12 @@ namespace gaia {
 						flags |= flag;
 					else
 						flags &= ~flag;
-				};
+				}
 
 				void set_flag(Entity entity, EntityContainerFlags flag, bool enable) {
 					auto& ec = m_world.fetch(entity);
 					set_flag(ec.flags, flag, enable);
-				};
+				}
 
 				void try_set_flags(Entity entity, bool enable) {
 					auto& ecMain = m_world.fetch(m_entity);

@@ -174,8 +174,6 @@ namespace gaia {
 				return serialization_type_id::data_and_size;
 			else if constexpr (std::is_class_v<T>)
 				return serialization_type_id::trivial_wrapper;
-
-			return serialization_type_id::Last;
 		}
 
 		// --------------------

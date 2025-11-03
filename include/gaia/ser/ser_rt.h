@@ -42,7 +42,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copyable types
 						(save(items), ...);
 					});
@@ -86,7 +86,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [this](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copyable types
 						(load(items), ...);
 					});

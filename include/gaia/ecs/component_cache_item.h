@@ -13,7 +13,7 @@
 
 namespace gaia {
 	namespace ser {
-		class ISerializer;
+		struct ISerializer;
 	} // namespace ser
 
 	namespace ecs {

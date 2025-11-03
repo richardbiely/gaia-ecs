@@ -2001,7 +2001,7 @@ namespace robin_hood {
 			// calculation only allowed for 2^n values
 			GAIA_NODISCARD size_t calcNumBytesTotal(size_t numElements) const {
 #if ROBIN_HOOD(BITNESS) == 64
-				return numElements * sizeof(Node) + calcNumBytesInfo(numElements);
+				return (numElements * sizeof(Node)) + calcNumBytesInfo(numElements);
 #else
 				// make sure we're doing 64bit operations, so we are at least safe against 32bit overflows.
 				auto const ne = static_cast<uint64_t>(numElements);
@@ -2171,7 +2171,7 @@ namespace robin_hood {
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
-				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
+				std::memset(mInfo, 0, numBytesTotal - (numElementsWithBuffer * sizeof(Node)));
 
 				// set sentinel
 				mInfo[numElementsWithBuffer] = 1;

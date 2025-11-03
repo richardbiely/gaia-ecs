@@ -9443,6 +9443,9 @@ struct SerializeStructSArray {
 	float f;
 };
 
+GAIA_MSVC_WARNING_PUSH()
+GAIA_MSVC_WARNING_DISABLE(4324)
+
 struct SerializeStructSArray_PositionSoA {
 	cnt::sarray_soa<PositionSoA, 8> arr;
 	float f;
@@ -9451,6 +9454,8 @@ struct SerializeStructSArray_PositionSoA {
 		return f == other.f && arr == other.arr;
 	}
 };
+
+GAIA_MSVC_WARNING_POP()
 
 struct SerializeStructSArrayNonTrivial {
 	cnt::sarray<FooNonTrivial, 8> arr;
@@ -9461,6 +9466,9 @@ struct SerializeStructSArrayNonTrivial {
 	}
 };
 
+GAIA_MSVC_WARNING_PUSH()
+GAIA_MSVC_WARNING_DISABLE(4324)
+
 struct SerializeStructDArray_PositionSoA {
 	cnt::darr_soa<PositionSoA> arr;
 	float f;
@@ -9469,6 +9477,8 @@ struct SerializeStructDArray_PositionSoA {
 		return f == other.f && arr == other.arr;
 	}
 };
+
+GAIA_MSVC_WARNING_POP()
 
 struct SerializeStructDArray {
 	cnt::darr<uint32_t> arr;
