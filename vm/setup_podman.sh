@@ -1,5 +1,7 @@
 #!/bin/bash
 
+podman machine start 2>/dev/null || true
+
 imagename="gaiaecs-linux-builder"
 imagename_tmp=${imagename}"tmp"
 

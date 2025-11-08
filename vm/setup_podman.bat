@@ -1,6 +1,8 @@
 @echo off
 setlocal
 
+podman machine start 2>nul
+
 set "imagename=gaiaecs-linux-builder"
 set "imagename_tmp=%imagename%-tmp"
 
