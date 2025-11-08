@@ -13,7 +13,7 @@
 // Copyright (c) 2018-2021 Martin Ankerl <http://martin.ankerl.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
+// of this software and associated documentation files (the "Software";, to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
@@ -62,40 +62,18 @@
 
 // #define ROBIN_HOOD_LOG_ENABLED
 #ifdef ROBIN_HOOD_LOG_ENABLED
-	#include <iostream>
-	#define ROBIN_HOOD_LOG(...) std::cout << __FUNCTION__ << "@" << __LINE__ << ": " << __VA_ARGS__ << std::endl;
+	#include "gaia/util/logging.h"
+	#define ROBIN_HOOD_LOG(x, ...) GAIA_LOG_D("L:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-	#define ROBIN_HOOD_LOG(x)
+	#define ROBIN_HOOD_LOG(x, ...)
 #endif
 
 // #define ROBIN_HOOD_TRACE_ENABLED
 #ifdef ROBIN_HOOD_TRACE_ENABLED
-	#include <iostream>
-	#define ROBIN_HOOD_TRACE(...) std::cout << __FUNCTION__ << "@" << __LINE__ << ": " << __VA_ARGS__ << std::endl;
+	#include "gaia/util/logging.h"
+	#define ROBIN_HOOD_TRACE(x, ...) GAIA_LOG_D("T:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
-	#define ROBIN_HOOD_TRACE(x)
-#endif
-
-// #define ROBIN_HOOD_COUNT_ENABLED
-#ifdef ROBIN_HOOD_COUNT_ENABLED
-	#include <iostream>
-	#define ROBIN_HOOD_COUNT(x) ++counts().x;
-namespace robin_hood {
-	struct Counts {
-		uint64_t shiftUp{};
-		uint64_t shiftDown{};
-	};
-	inline std::ostream& operator<<(std::ostream& os, Counts const& c) {
-		return os << c.shiftUp << " shiftUp" << std::endl << c.shiftDown << " shiftDown" << std::endl;
-	}
-
-	static Counts& counts() {
-		static Counts counts{};
-		return counts;
-	}
-} // namespace robin_hood
-#else
-	#define ROBIN_HOOD_COUNT(x)
+	#define ROBIN_HOOD_TRACE(x, ...)
 #endif
 
 // all non-argument macros should use this facility. See
@@ -283,7 +261,7 @@ namespace robin_hood {
 			void reset() noexcept {
 				while (mListForFree) {
 					T* tmp = *mListForFree;
-					ROBIN_HOOD_LOG("std::free")
+					ROBIN_HOOD_LOG("gaia::mem::mem_free");
 					gaia::mem::mem_free(mListForFree);
 					mListForFree = reinterpret_cast_no_cast_align_warning<T**>(tmp);
 				}
@@ -295,7 +273,7 @@ namespace robin_hood {
 			//   ::new (static_cast<void*>(obj)) T();
 			T* allocate() {
 				T* tmp = mHead;
-				if (!tmp) {
+				if (tmp == nullptr) {
 					tmp = performAllocation();
 				}
 
@@ -319,10 +297,10 @@ namespace robin_hood {
 				// calculate number of available elements in ptr
 				if (numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and return.
-					ROBIN_HOOD_LOG("std::free")
+					ROBIN_HOOD_LOG("gaia::mem::mem_free");
 					gaia::mem::mem_free(ptr);
 				} else {
-					ROBIN_HOOD_LOG("add to buffer")
+					ROBIN_HOOD_LOG("add to buffer");
 					add(ptr, numBytes);
 				}
 			}
@@ -385,8 +363,7 @@ namespace robin_hood {
 				// alloc new memory: [prev |T, T, ... T]
 				size_t const bytes = ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				ROBIN_HOOD_LOG(
-						"gaia::mem::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
-																		<< numElementsToAlloc)
+						"gaia::mem::mem_alloc %zu = %zu + %zu * %zu", bytes, ALIGNMENT, ALIGNED_SIZE, numElementsToAlloc);
 				add(assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(bytes)), bytes);
 				return mHead;
 			}
@@ -416,7 +393,7 @@ namespace robin_hood {
 
 			// we are not using the data, so just free it.
 			void addOrFree(void* ptr, size_t ROBIN_HOOD_UNUSED(numBytes) /*unused*/) noexcept {
-				ROBIN_HOOD_LOG("std::free")
+				ROBIN_HOOD_LOG("gaia::mem::mem_free");
 				gaia::mem::mem_free(ptr);
 			}
 		};
@@ -1189,7 +1166,6 @@ namespace robin_hood {
 
 				idx = startIdx;
 				while (idx != insertion_idx) {
-					ROBIN_HOOD_COUNT(shiftUp)
 					mInfo[idx] = static_cast<uint8_t>(mInfo[idx - 1] + mInfoInc);
 					if GAIA_UNLIKELY (mInfo[idx] + mInfoInc > 0xFF) {
 						mMaxNumElementsAllowed = 0;
@@ -1206,7 +1182,6 @@ namespace robin_hood {
 
 				// until we find one that is either empty or has zero offset.
 				while (mInfo[idx + 1] >= 2 * mInfoInc) {
-					ROBIN_HOOD_COUNT(shiftDown)
 					mInfo[idx] = static_cast<uint8_t>(mInfo[idx + 1] - mInfoInc);
 					mKeyVals[idx] = GAIA_MOV(mKeyVals[idx + 1]);
 					++idx;
@@ -1301,7 +1276,7 @@ namespace robin_hood {
 			using const_iterator = Iter<true>;
 
 			Table() noexcept(noexcept(Hash()) && noexcept(KeyEqual())): WHash(), WKeyEqual() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
@@ -1314,7 +1289,7 @@ namespace robin_hood {
 					size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/, const Hash& h = Hash{},
 					const KeyEqual& equal = KeyEqual{}) noexcept(noexcept(Hash(h)) && noexcept(KeyEqual(equal))):
 					WHash(h), WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this);
+				ROBIN_HOOD_TRACE("%p", this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
@@ -1322,7 +1297,7 @@ namespace robin_hood {
 			Table(
 					Iter first, Iter last, size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0, const Hash& h = Hash{},
 					const KeyEqual& equal = KeyEqual{}): WHash(h), WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this);
+				ROBIN_HOOD_TRACE("%p", this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(first, last);
 			}
@@ -1330,7 +1305,7 @@ namespace robin_hood {
 			Table(
 					std::initializer_list<value_type> initlist, size_t ROBIN_HOOD_UNUSED(bucket_count) /*unused*/ = 0,
 					const Hash& h = Hash{}, const KeyEqual& equal = KeyEqual{}): WHash(h), WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this);
+				ROBIN_HOOD_TRACE("%p", this);
 				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(initlist.begin(), initlist.end());
 			}
@@ -1338,7 +1313,7 @@ namespace robin_hood {
 			Table(Table&& o) noexcept:
 					WHash(GAIA_MOV(static_cast<WHash&>(o))), WKeyEqual(GAIA_MOV(static_cast<WKeyEqual&>(o))),
 					DataPool(GAIA_MOV(static_cast<DataPool&>(o))) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (o.mMask) {
 					mHashMultiplier = GAIA_MOV(o.mHashMultiplier);
 					mKeyVals = GAIA_MOV(o.mKeyVals);
@@ -1354,7 +1329,7 @@ namespace robin_hood {
 			}
 
 			Table& operator=(Table&& o) noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (&o != this) {
 					if (o.mMask) {
 						// only move stuff if the other map actually has some data
@@ -1384,7 +1359,7 @@ namespace robin_hood {
 			Table(const Table& o):
 					WHash(static_cast<const WHash&>(o)), WKeyEqual(static_cast<const WKeyEqual&>(o)),
 					DataPool(static_cast<const DataPool&>(o)) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (!o.empty()) {
 					// not empty: create an exact copy. it is also possible to just iterate through all
 					// elements and insert them, but copying is probably faster.
@@ -1392,8 +1367,7 @@ namespace robin_hood {
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 
-					ROBIN_HOOD_LOG(
-							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					ROBIN_HOOD_LOG("gaia::mem::mem_alloc %zu = calcNumBytesTotal(%zu)", numBytesTotal, numElementsWithBuffer);
 					mHashMultiplier = o.mHashMultiplier;
 					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 					// no need for calloc because clonData does memcpy
@@ -1411,7 +1385,7 @@ namespace robin_hood {
 			// Not sure why clang-tidy thinks this doesn't handle self assignment, it does
 			// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
 			Table& operator=(Table const& o) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (&o == this) {
 					// prevent assigning of itself
 					return *this;
@@ -1443,14 +1417,13 @@ namespace robin_hood {
 					// no luck: we don't have the same array size allocated, so we need to realloc.
 					if (0 != mMask) {
 						// only deallocate if we actually have data!
-						ROBIN_HOOD_LOG("std::free")
+						ROBIN_HOOD_LOG("gaia::mem::mem_free");
 						gaia::mem::mem_free(mKeyVals);
 					}
 
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
-					ROBIN_HOOD_LOG(
-							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					ROBIN_HOOD_LOG("gaia::mem::mem_alloc %zu = calcNumBytesTotal(%zu)", numBytesTotal, numElementsWithBuffer);
 					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 
 					// no need for calloc here because cloneData performs a memcpy.
@@ -1473,14 +1446,14 @@ namespace robin_hood {
 
 			// Swaps everything between the two maps.
 			void swap(Table& o) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				using gaia::core::swap;
 				swap(o, *this);
 			}
 
 			// Clears all data, without resizing.
 			void clear() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (empty()) {
 					// don't do anything! also important because we don't want to write to
 					// DummyInfoByte::b, even though we would just write 0 to it.
@@ -1501,13 +1474,13 @@ namespace robin_hood {
 
 			// Destroys the map and all it's contents.
 			~Table() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				destroy();
 			}
 
 			// Checks if both tables contain the same entries. Order is irrelevant.
 			bool operator==(const Table& other) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (other.size() != size()) {
 					return false;
 				}
@@ -1521,13 +1494,13 @@ namespace robin_hood {
 			}
 
 			bool operator!=(const Table& other) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return !operator==(other);
 			}
 
 			template <typename Q = mapped_type>
 			typename std::enable_if<!std::is_void<Q>::value, Q&>::type operator[](const key_type& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -1552,7 +1525,7 @@ namespace robin_hood {
 
 			template <typename Q = mapped_type>
 			typename std::enable_if<!std::is_void<Q>::value, Q&>::type operator[](key_type&& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -1591,7 +1564,7 @@ namespace robin_hood {
 
 			template <typename... Args>
 			std::pair<iterator, bool> emplace(Args&&... args) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				Node n{*this, GAIA_FWD(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
 				switch (idxAndState.second) {
@@ -1669,7 +1642,7 @@ namespace robin_hood {
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return emplace(keyval);
 			}
 
@@ -1689,7 +1662,7 @@ namespace robin_hood {
 
 			// Returns 1 if key is found, 0 otherwise.
 			GAIA_NODISCARD size_t count(const key_type& key) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
 					return 1;
@@ -1699,7 +1672,7 @@ namespace robin_hood {
 
 			template <typename OtherKey, typename Self_ = Self>
 			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
 					return 1;
@@ -1720,7 +1693,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
 					doThrow<ROBIN_HOOD_STD_OUT_OF_RANGE>("key not found");
@@ -1732,7 +1705,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
 					doThrow<ROBIN_HOOD_STD_OUT_OF_RANGE>("key not found");
@@ -1741,14 +1714,14 @@ namespace robin_hood {
 			}
 
 			GAIA_NODISCARD const_iterator find(const key_type& key) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
 			GAIA_NODISCARD const_iterator find(const OtherKey& key, is_transparent_tag /*unused*/) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
@@ -1756,44 +1729,44 @@ namespace robin_hood {
 			template <typename OtherKey, typename Self_ = Self>
 			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, const_iterator>::type
 			find(const OtherKey& key) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			GAIA_NODISCARD iterator find(const key_type& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
 			GAIA_NODISCARD iterator find(const OtherKey& key, is_transparent_tag /*unused*/) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
 			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, iterator>::type find(const OtherKey& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			GAIA_NODISCARD iterator begin() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (empty()) {
 					return end();
 				}
 				return iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
 			GAIA_NODISCARD const_iterator begin() const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return cbegin();
 			}
 			GAIA_NODISCARD const_iterator cbegin() const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				if (empty()) {
 					return cend();
 				}
@@ -1801,22 +1774,22 @@ namespace robin_hood {
 			}
 
 			GAIA_NODISCARD iterator end() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				// no need to supply valid info pointer: end() must not be dereferenced, and only node
 				// pointer is compared.
 				return iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 			GAIA_NODISCARD const_iterator end() const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return cend();
 			}
 			GAIA_NODISCARD const_iterator cend() const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 
 			iterator erase(const_iterator pos) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				// its safe to perform const cast here
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
 				return erase(iterator{const_cast<Node*>(pos.mKeyVals), const_cast<uint8_t*>(pos.mInfo)});
@@ -1824,7 +1797,7 @@ namespace robin_hood {
 
 			// Erases element at pos, returns iterator to the next element.
 			iterator erase(iterator pos) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				// we assume that pos always points to a valid entry, and not end().
 				auto const idx = static_cast<size_t>(pos.mKeyVals - mKeyVals);
 
@@ -1841,7 +1814,7 @@ namespace robin_hood {
 			}
 
 			size_t erase(const key_type& key) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				size_t idx{};
 				InfoType info{};
 				keyToIdx(key, &idx, &info);
@@ -1877,7 +1850,7 @@ namespace robin_hood {
 			// If possible reallocates the map to a smaller one. This frees the underlying table.
 			// Does not do anything if load_factor is too large for decreasing the table's size.
 			void compact() {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < mNumElements && newSize != 0) {
 					newSize *= 2;
@@ -1886,7 +1859,7 @@ namespace robin_hood {
 					throwOverflowError();
 				}
 
-				ROBIN_HOOD_LOG("newSize > mMask + 1: " << newSize << " > " << mMask << " + 1")
+				ROBIN_HOOD_LOG("newSize > mMask + 1: %zu > %zu + 1", newSize, mMask);
 
 				// only actually do anything when the new size is bigger than the old one. This prevents to
 				// continuously allocate for each reserve() call.
@@ -1946,33 +1919,33 @@ namespace robin_hood {
 			}
 
 			GAIA_NODISCARD size_type size() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return mNumElements;
 			}
 
 			GAIA_NODISCARD size_type max_size() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return static_cast<size_type>(-1);
 			}
 
 			GAIA_NODISCARD bool empty() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return 0 == mNumElements;
 			}
 
 			GAIA_NODISCARD float max_load_factor() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return MaxLoadFactor100 / 100.0f;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
 			GAIA_NODISCARD float load_factor() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return static_cast<float>(size()) / static_cast<float>(mMask + 1);
 			}
 
 			GAIA_NODISCARD size_t mask() const noexcept {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return mMask;
 			}
 
@@ -2019,19 +1992,19 @@ namespace robin_hood {
 		private:
 			template <typename Q = mapped_type>
 			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto it = find(e.first);
 				return it != end() && it->second == e.second;
 			}
 
 			template <typename Q = mapped_type>
 			GAIA_NODISCARD typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				return find(e) != end();
 			}
 
 			void reserve(size_t c, bool forceRehash) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto const minElementsAllowed = gaia::core::get_max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
@@ -2041,7 +2014,7 @@ namespace robin_hood {
 					throwOverflowError();
 				}
 
-				ROBIN_HOOD_LOG("newSize > mMask + 1: " << newSize << " > " << mMask << " + 1")
+				ROBIN_HOOD_LOG("newSize > mMask + 1: %zu > %zu + 1", newSize, mMask);
 
 				// only actually do anything when the new size is bigger than the old one. This prevents to
 				// continuously allocate for each reserve() call.
@@ -2054,7 +2027,7 @@ namespace robin_hood {
 			// only works if numBuckets if power of two
 			// True on success, false otherwise
 			void rehashPowerOfTwo(size_t numBuckets, bool forceFree) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 
 				Node* const oldKeyVals = mKeyVals;
 				uint8_t const* const oldInfo = mInfo;
@@ -2098,7 +2071,7 @@ namespace robin_hood {
 
 			template <typename OtherKey, typename... Args>
 			std::pair<iterator, bool> try_emplace_impl(OtherKey&& key, Args&&... args) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -2128,7 +2101,7 @@ namespace robin_hood {
 
 			template <typename OtherKey, typename Mapped>
 			std::pair<iterator, bool> insertOrAssignImpl(OtherKey&& key, Mapped&& obj) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE("%p", this);
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -2166,7 +2139,8 @@ namespace robin_hood {
 
 				// malloc & zero mInfo. Faster than calloc everything.
 				auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
-				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+
+				ROBIN_HOOD_LOG("gaia::mem::mem_alloc %zu = calcNumBytesTotal(%zu)", numBytesTotal, numElementsWithBuffer);
 				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 				std::memset(mInfo, 0, numBytesTotal - (numElementsWithBuffer * sizeof(Node)));
@@ -2237,8 +2211,8 @@ namespace robin_hood {
 
 			bool try_increase_info() {
 				ROBIN_HOOD_LOG(
-						"mInfoInc=" << mInfoInc << ", numElements=" << mNumElements
-												<< ", maxNumElementsAllowed=" << calcMaxNumElementsAllowed(mMask + 1))
+						"mInfoInc %zu, numElements=%zu, maxNumElementsAllowed=%zu", mInfoInc, mNumElements,
+						calcMaxNumElementsAllowed(mMask + 1));
 				if (mInfoInc <= 2) {
 					// need to be > 2 so that shift works (otherwise undefined behavior!)
 					return false;
@@ -2277,8 +2251,8 @@ namespace robin_hood {
 				}
 
 				ROBIN_HOOD_LOG(
-						"mNumElements=" << mNumElements << ", maxNumElementsAllowed=" << maxNumElementsAllowed << ", load="
-														<< (static_cast<double>(mNumElements) * 100.0 / (static_cast<double>(mMask) + 1)))
+						"mNumElements=%zu, maxNumElementsAllowed=%zu, load=%f", mNumElements, maxNumElementsAllowed,
+						(static_cast<double>(mNumElements) * 100.0 / (static_cast<double>(mMask) + 1)))
 
 				if (mNumElements * 2 < calcMaxNumElementsAllowed(mMask + 1)) {
 					// we have to resize, even though there would still be plenty of space left!
@@ -2312,7 +2286,7 @@ namespace robin_hood {
 				// reports a compile error: attempt to free a non-heap object 'fm'
 				// [-Werror=free-nonheap-object]
 				if (mKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
-					ROBIN_HOOD_LOG("std::free")
+					ROBIN_HOOD_LOG("gaia::mem::mem_free");
 					gaia::mem::mem_free(mKeyVals);
 				}
 			}
