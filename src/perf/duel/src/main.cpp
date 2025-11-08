@@ -1084,7 +1084,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_SoA);
 
 	struct UnitDynamic {
-		static void update_pos(cnt::darray<PositionSoA>& p, const cnt::darray<VelocitySoA>& v) {
+		static void update_pos(cnt::darray_soa<PositionSoA>& p, const cnt::darray_soa<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(update_pos);
 
 			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
@@ -1109,7 +1109,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(ppz[0]);
 		}
 
-		static void handle_collision(cnt::darray<PositionSoA>& p, cnt::darray<VelocitySoA>& v) {
+		static void handle_collision(cnt::darray_soa<PositionSoA>& p, cnt::darray_soa<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(handle_collision);
 
 			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
@@ -1130,7 +1130,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(vvy[0]);
 		}
 
-		static void apply_gravity(cnt::darray<VelocitySoA>& v) {
+		static void apply_gravity(cnt::darray_soa<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(apply_gravity);
 
 			gaia::mem::auto_view_policy_set<VelocitySoA> vv{v};
@@ -1163,15 +1163,15 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 	const auto N = (uint32_t)state.user_data() / 2;
 	const uint32_t NGroup = N / Groups;
 	struct static_units_group {
-		cnt::darray<PositionSoA> units_p;
+		cnt::darray_soa<PositionSoA> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
 	struct dynamic_units_group {
-		cnt::darray<PositionSoA> units_p;
+		cnt::darray_soa<PositionSoA> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
-		cnt::darray<VelocitySoA> units_v;
+		cnt::darray_soa<VelocitySoA> units_v;
 		cnt::darray<Direction> units_d;
 		cnt::darray<Health> units_h;
 		cnt::darray<IsEnemy> units_e;

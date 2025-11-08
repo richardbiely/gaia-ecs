@@ -4455,7 +4455,7 @@ namespace gaia {
 				// Align the address for the first type
 				address = mem::align<Alignment>(address);
 				// Offset and align the rest
-				((address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
+				((address = mem::align<Alignment>(address + (sizeof(value_type<Ids>) * cnt))), ...);
 				return address;
 			}
 
@@ -4480,7 +4480,7 @@ namespace gaia {
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
 						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)address, idx),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + (sizeof(value_type<Ids>) * s.size()))),
 				 ...);
 				return meta::tuple_to_struct<ValueType, TTuple>(GAIA_FWD(t));
 			}
@@ -4493,7 +4493,7 @@ namespace gaia {
 						 // Set the tuple value. Data is aligned so we can write directly.
 						 get_ref<value_type<Ids>>((uint8_t*)address, idx) = std::get<Ids>(t),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + (sizeof(value_type<Ids>) * s.size()))),
 				 ...);
 			}
 		};
