@@ -30,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { os: ubuntu-22.04, pkg: gcc-9,  exe: g++-9 }
           - { os: ubuntu-22.04, pkg: gcc-10, exe: g++-10 }
           - { os: ubuntu-22.04, pkg: clang-11, exe: clang++-11 }
           - { os: ubuntu-22.04, pkg: clang-12, exe: clang++-12 }
