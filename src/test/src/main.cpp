@@ -207,6 +207,63 @@ TEST_CASE("StringLookupKey") {
 }
 
 //------------------------------------------------------------------------------
+// Logging (for code coverage only)
+//------------------------------------------------------------------------------
+
+void custom_log_line_func(gaia::util::LogLevel level, const char* msg) {
+	(void)level;
+	(void)msg;
+}
+
+TEST_CASE("logging") {
+	gaia::util::log_enable(util::LogLevel::Debug, false);
+	gaia::util::log_enable(util::LogLevel::Info, false);
+	gaia::util::log_enable(util::LogLevel::Warning, false);
+	gaia::util::log_enable(util::LogLevel::Error, false);
+
+	GAIA_FOR(gaia::util::detail::LOG_RECORD_LIMIT) {
+		GAIA_LOG_D("");
+		GAIA_LOG_N("");
+		GAIA_LOG_W("");
+		GAIA_LOG_E("");
+		GAIA_LOG_D("dummy");
+		GAIA_LOG_N("dummy");
+		GAIA_LOG_W("dummy");
+		GAIA_LOG_E("dummy");
+	}
+	{
+		ecs::World w;
+		GAIA_FOR(1000) w.diag_archetypes();
+	}
+	gaia::util::log_flush();
+
+	gaia::util::log_enable(util::LogLevel::Debug, true);
+	gaia::util::log_enable(util::LogLevel::Info, true);
+	gaia::util::log_enable(util::LogLevel::Warning, true);
+	gaia::util::log_enable(util::LogLevel::Error, true);
+
+	gaia::util::set_log_line_func(custom_log_line_func);
+
+	GAIA_FOR(gaia::util::detail::LOG_RECORD_LIMIT) {
+		GAIA_LOG_D("");
+		GAIA_LOG_N("");
+		GAIA_LOG_W("");
+		GAIA_LOG_E("");
+		GAIA_LOG_D("dummy");
+		GAIA_LOG_N("dummy");
+		GAIA_LOG_W("dummy");
+		GAIA_LOG_E("dummy");
+	}
+	{
+		ecs::World w;
+		GAIA_FOR(1000) w.diag_archetypes();
+	}
+	gaia::util::log_flush();
+
+	gaia::util::set_log_line_func(nullptr);
+}
+
+//------------------------------------------------------------------------------
 // Utility functions
 //------------------------------------------------------------------------------
 
