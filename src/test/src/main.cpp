@@ -1,3 +1,4 @@
+#include "gaia/util/logging.h"
 #define NOMINMAX
 
 #include <atomic>
@@ -215,6 +216,8 @@ void custom_log_line_func(gaia::util::LogLevel level, const char* msg) {
 	(void)msg;
 }
 
+void custom_log_flush_func() {}
+
 TEST_CASE("logging") {
 	gaia::util::log_enable(util::LogLevel::Debug, false);
 	gaia::util::log_enable(util::LogLevel::Info, false);
@@ -261,6 +264,11 @@ TEST_CASE("logging") {
 	gaia::util::log_flush();
 
 	gaia::util::set_log_line_func(nullptr);
+
+	gaia::util::set_log_flush_func(custom_log_flush_func);
+	gaia::util::log_flush();
+	gaia::util::set_log_flush_func(nullptr);
+	gaia::util::log_flush();
 }
 
 //------------------------------------------------------------------------------

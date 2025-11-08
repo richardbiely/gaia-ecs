@@ -12541,6 +12541,8 @@ namespace gaia {
 				return mask != 0 ? stderr : stdout;
 			}
 
+			// LCOV_EXCL_START
+
 			//! Default implementation of logging a line
 			inline void log_line(LogLevel level, const char* msg) {
 				FILE* out = get_log_out(level);
@@ -12557,6 +12559,8 @@ namespace gaia {
 				fprintf(out, "%s%s\033[0m\n", colors[idx], msg);
 			}
 			inline LogLineFunc g_log_line_func = log_line;
+
+			// LCOV_EXCL_STOP
 
 			struct LogBuffer {
 				struct LogRecord {
@@ -12661,7 +12665,7 @@ namespace gaia {
 				va_copy(args_copy, args);
 				int l = vsnprintf(nullptr, 0, fmt, args_copy);
 				va_end(args_copy);
-				if (l < 0)
+				if (l <= 0)
 					return;
 
 				const auto len = (uint32_t)l;
@@ -12682,6 +12686,8 @@ namespace gaia {
 				g_log()->flush();
 			}
 
+			// LCOV_EXCL_START
+
 			//! Implementation of log handler that logs data directly (no caching)
 			inline void log_default(LogLevel level, const char* fmt, va_list args) {
 				// Early exit if there is nothing to write
@@ -12689,7 +12695,7 @@ namespace gaia {
 				va_copy(args_copy, args);
 				int l = vsnprintf(nullptr, 0, fmt, args_copy);
 				va_end(args_copy);
-				if (l < 0)
+				if (l <= 0)
 					return;
 
 				const auto len = (uint32_t)l;
@@ -12701,6 +12707,8 @@ namespace gaia {
 
 				g_log_line_func(level, msg.data());
 			}
+
+			// LCOV_EXCL_STOP
 
 			//! Implementation of log handler that flushes directly (no cachce)
 			inline void log_flush_default() {}
@@ -12747,6 +12755,7 @@ namespace gaia {
 	} // namespace util
 } // namespace gaia
 
+// LCOV_EXCL_START
 extern "C" {
 
 typedef void (*gaia_log_line_func_t)(gaia::util::LogLevelType level, const char* msg);
@@ -12775,6 +12784,7 @@ inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
 	return gaia::util::is_logging_enabled((gaia::util::LogLevel)level);
 }
 }
+// LCOV_EXCL_STOP
 
 #define GAIA_LOG_D(...) gaia::util::log(gaia::util::LogLevel::Debug, __VA_ARGS__)
 #define GAIA_LOG_N(...) gaia::util::log(gaia::util::LogLevel::Info, __VA_ARGS__)
