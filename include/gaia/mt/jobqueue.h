@@ -8,7 +8,7 @@
 #include "gaia/cnt/sarray.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/utility.h"
-#include "jobhandle.h"
+#include "gaia/mt/jobhandle.h"
 
 // MSVC might warn about applying additional padding around alignas usage.
 // This is perfectly fine but can cause builds with warning-as-error turned on to fail.

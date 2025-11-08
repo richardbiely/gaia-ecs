@@ -5,15 +5,15 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "api.h"
-#include "archetype.h"
-#include "chunk.h"
-#include "command_buffer_fwd.h"
-#include "component.h"
-#include "component_cache_item.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/archetype.h"
+#include "gaia/ecs/chunk.h"
+#include "gaia/ecs/command_buffer_fwd.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_cache_item.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query_common.h"
 #include "gaia/mem/data_layout_policy.h"
-#include "id.h"
-#include "query_common.h"
 
 namespace gaia {
 	namespace ecs {

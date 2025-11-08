@@ -5,14 +5,6 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "api.h"
-#include "archetype.h"
-#include "archetype_common.h"
-#include "chunk.h"
-#include "chunk_iterator.h"
-#include "common.h"
-#include "component.h"
-#include "component_cache.h"
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/sarray_ext.h"
@@ -20,13 +12,21 @@
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/string.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/archetype.h"
+#include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/chunk.h"
+#include "gaia/ecs/chunk_iterator.h"
+#include "gaia/ecs/common.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_cache.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query_cache.h"
+#include "gaia/ecs/query_common.h"
+#include "gaia/ecs/query_info.h"
 #include "gaia/mt/threadpool.h"
 #include "gaia/ser/ser_buffer_binary.h"
 #include "gaia/ser/ser_ct.h"
-#include "id.h"
-#include "query_cache.h"
-#include "query_common.h"
-#include "query_info.h"
 
 namespace gaia {
 	namespace ecs {

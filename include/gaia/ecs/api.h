@@ -3,10 +3,10 @@
 
 #include <cstdarg>
 
-#include "command_buffer_fwd.h"
 #include "gaia/core/span.h"
-#include "id_fwd.h"
-#include "query_fwd.h"
+#include "gaia/ecs/command_buffer_fwd.h"
+#include "gaia/ecs/id_fwd.h"
+#include "gaia/ecs/query_fwd.h"
 
 namespace gaia {
 	namespace ecs {

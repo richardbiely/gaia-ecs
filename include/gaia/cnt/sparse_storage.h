@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "darray.h"
+#include "gaia/cnt/darray.h"
 #include "gaia/core/iterator.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/data_layout_policy.h"

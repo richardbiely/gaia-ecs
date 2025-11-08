@@ -7,7 +7,7 @@
 #include "gaia/cnt/sparse_storage.h"
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
-#include "id_fwd.h"
+#include "gaia/ecs/id_fwd.h"
 
 namespace gaia {
 	namespace ecs {

@@ -3,7 +3,7 @@
 
 #include <cinttypes>
 
-#include "data_layout_policy.h"
+#include "gaia/mem/data_layout_policy.h"
 
 namespace gaia {
 	namespace mem {

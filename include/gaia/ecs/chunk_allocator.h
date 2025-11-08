@@ -4,15 +4,14 @@
 #include <cinttypes>
 #include <cstdint>
 
-#include "common.h"
 #include "gaia/cnt/fwd_llist.h"
 #include "gaia/cnt/sarray.h"
 #include "gaia/core/bit_utils.h"
 #include "gaia/core/dyn_singleton.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/common.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/util/logging.h"
-
 
 namespace gaia {
 	namespace ecs {

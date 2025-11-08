@@ -4,11 +4,11 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "api.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/paged_storage.h"
-#include "id.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {

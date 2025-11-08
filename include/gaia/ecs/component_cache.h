@@ -5,15 +5,15 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "component.h"
-#include "component_cache_item.h"
-#include "component_desc.h"
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/map.h"
 #include "gaia/core/hashing_string.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_cache_item.h"
+#include "gaia/ecs/component_desc.h"
+#include "gaia/ecs/id.h"
 #include "gaia/meta/type_info.h"
 #include "gaia/util/logging.h"
-#include "id.h"
 
 namespace gaia {
 	namespace ecs {

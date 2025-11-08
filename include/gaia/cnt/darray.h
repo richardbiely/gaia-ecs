@@ -1,6 +1,6 @@
 #pragma once
 
-#include "impl/darray_impl.h"
+#include "gaia/cnt/impl/darray_impl.h"
 
 namespace gaia {
 	namespace cnt {

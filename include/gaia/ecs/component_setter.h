@@ -3,9 +3,9 @@
 
 #include <cstdint>
 
-#include "chunk.h"
-#include "component.h"
-#include "component_getter.h"
+#include "gaia/ecs/chunk.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_getter.h"
 
 namespace gaia {
 	namespace ecs {

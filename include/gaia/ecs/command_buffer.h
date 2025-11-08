@@ -4,17 +4,17 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "archetype.h"
-#include "command_buffer_fwd.h"
-#include "common.h"
-#include "component.h"
-#include "component_cache.h"
-#include "component_cache_item.h"
 #include "gaia/cnt/darray_ext.h"
 #include "gaia/cnt/dbitset.h"
+#include "gaia/ecs/archetype.h"
+#include "gaia/ecs/command_buffer_fwd.h"
+#include "gaia/ecs/common.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_cache.h"
+#include "gaia/ecs/component_cache_item.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/world.h"
 #include "gaia/ser/ser_buffer_binary.h"
-#include "id.h"
-#include "world.h"
 
 namespace gaia {
 	namespace ecs {
@@ -36,47 +36,6 @@ namespace gaia {
 		};
 
 		namespace detail {
-			class CommandBufferSer: public ser::ser_buffer_binary {
-			public:
-				//! Writes \param value to the buffer
-				template <typename T>
-				void comp_save(const ComponentCacheItem& item, T&& value) {
-					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value;
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && item.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param value from the buffer
-				void comp_load(const ComponentCacheItem& item, void* pDst) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					item.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						item.dtor(pSrc);
-
-					m_dataPos += item.comp.size();
-				}
-			};
-
 			//! Buffer for deferred execution of some operations on entities.
 			//!
 			//! Adding and removing components and entities inside World::each or can result

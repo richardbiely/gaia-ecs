@@ -52,14 +52,14 @@
 #include "gaia/core/utility.h"
 #include "gaia/util/logging.h"
 
-#include "event.h"
-#include "futex.h"
-#include "jobcommon.h"
-#include "jobhandle.h"
-#include "jobmanager.h"
-#include "jobqueue.h"
-#include "semaphore_fast.h"
-#include "spinlock.h"
+#include "gaia/mt/event.h"
+#include "gaia/mt/futex.h"
+#include "gaia/mt/jobcommon.h"
+#include "gaia/mt/jobhandle.h"
+#include "gaia/mt/jobmanager.h"
+#include "gaia/mt/jobqueue.h"
+#include "gaia/mt/semaphore_fast.h"
+#include "gaia/mt/spinlock.h"
 
 namespace gaia {
 	namespace mt {

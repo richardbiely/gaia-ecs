@@ -6,7 +6,7 @@
 
 #include "gaia/core/utility.h"
 #include "gaia/meta/reflection.h"
-#include "ser_common.h"
+#include "gaia/ser/ser_common.h"
 
 namespace gaia {
 	namespace ser {

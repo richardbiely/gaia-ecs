@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "bitset_iterator.h"
+#include "gaia/cnt/bitset_iterator.h"
 
 namespace gaia {
 	namespace cnt {

@@ -3,12 +3,12 @@
 
 #include <cstdint>
 
-#include "api.h"
-#include "archetype_common.h"
-#include "component.h"
 #include "gaia/cnt/map.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/id.h"
 #include "gaia/util/logging.h"
-#include "id.h"
 
 namespace gaia {
 	namespace ecs {

@@ -6,9 +6,9 @@
 #include <tuple>
 #include <type_traits>
 
-#include "component.h"
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/component.h"
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/mem/mem_utils.h"
 #include "gaia/meta/reflection.h"

@@ -4,17 +4,17 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "api.h"
-#include "archetype.h"
-#include "archetype_common.h"
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/set.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/utility.h"
-#include "id.h"
-#include "query_common.h"
-#include "query_mask.h"
-#include "ser_binary.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/archetype.h"
+#include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query_common.h"
+#include "gaia/ecs/query_mask.h"
+#include "gaia/ecs/ser_binary.h"
 
 namespace gaia {
 	namespace ecs {

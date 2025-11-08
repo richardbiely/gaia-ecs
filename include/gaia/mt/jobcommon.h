@@ -5,9 +5,8 @@
 #include <functional>
 
 #include "gaia/core/utility.h"
-
-#include "event.h"
-#include "jobqueue.h"
+#include "gaia/mt/event.h"
+#include "gaia/mt/jobqueue.h"
 
 namespace gaia {
 	namespace mt {

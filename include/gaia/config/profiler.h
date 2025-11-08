@@ -1,5 +1,5 @@
 #pragma once
-#include "config.h"
+#include "gaia/config/config.h"
 
 #ifndef GAIA_PROFILER_CPU
 	#define GAIA_PROFILER_CPU 0

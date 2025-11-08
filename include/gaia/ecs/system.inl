@@ -1,5 +1,4 @@
 #include "gaia/config/config.h"
-#include "ser_binary.h"
 
 #if !GAIA_SYSTEMS_ENABLED
 namespace gaia {
@@ -8,15 +7,14 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #else
-
 	#include <cinttypes>
 	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
 
-	#include "chunk_iterator.h"
+	#include "gaia/ecs/chunk_iterator.h"
+	#include "gaia/ecs/id.h"
+	#include "gaia/ecs/query.h"
 	#include "gaia/mt/jobhandle.h"
-	#include "id.h"
-	#include "query.h"
 
 namespace gaia {
 	namespace ecs {

@@ -1,6 +1,6 @@
 #pragma once
-#include "config_core.h"
-#include "version.h"
+#include "gaia/config/config_core.h"
+#include "gaia/config/version.h"
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -105,4 +105,4 @@
 
 //------------------------------------------------------------------------------
 
-#include "config_core_end.h"
+#include "gaia/config/config_core_end.h"

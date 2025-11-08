@@ -3,7 +3,7 @@
 
 #include <cinttypes>
 
-#include "raw_data_holder.h"
+#include "gaia/mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace mem {

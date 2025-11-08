@@ -12,8 +12,8 @@
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
-#include "jobcommon.h"
-#include "jobhandle.h"
+#include "gaia/mt/jobcommon.h"
+#include "gaia/mt/jobhandle.h"
 
 #define GAIA_LOG_JOB_STATES 0
 

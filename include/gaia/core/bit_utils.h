@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "span.h"
+#include "gaia/core/span.h"
 
 namespace gaia {
 	namespace core {

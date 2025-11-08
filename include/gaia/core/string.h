@@ -1,7 +1,7 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include "span.h"
+#include "gaia/core/span.h"
 
 namespace gaia {
 	namespace core {

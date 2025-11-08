@@ -3,12 +3,12 @@
 
 #include <cstdint>
 
-#include "archetype_common.h"
-#include "chunk_allocator.h"
-#include "component.h"
 #include "gaia/cnt/bitset.h"
 #include "gaia/core/utility.h"
-#include "id.h"
+#include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/chunk_allocator.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {

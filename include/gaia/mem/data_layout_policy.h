@@ -7,8 +7,8 @@
 
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
 #include "gaia/meta/reflection.h"
-#include "mem_alloc.h"
 
 namespace gaia {
 	namespace mem {

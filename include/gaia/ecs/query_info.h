@@ -1,21 +1,21 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include "api.h"
-#include "archetype.h"
-#include "archetype_common.h"
-#include "component.h"
-#include "component_cache.h"
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/set.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/archetype.h"
+#include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_cache.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query_common.h"
+#include "gaia/ecs/vm.h"
 #include "gaia/mem/mem_utils.h"
-#include "id.h"
-#include "query_common.h"
-#include "vm.h"
 
 namespace gaia {
 	namespace ecs {

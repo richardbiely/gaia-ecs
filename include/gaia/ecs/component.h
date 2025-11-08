@@ -6,9 +6,9 @@
 
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
+#include "gaia/ecs/id.h"
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/meta/type_info.h"
-#include "id.h"
 
 namespace gaia {
 	namespace ecs {

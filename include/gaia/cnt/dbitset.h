@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "bitset_iterator.h"
+#include "gaia/cnt/bitset_iterator.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"

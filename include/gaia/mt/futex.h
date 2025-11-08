@@ -5,8 +5,8 @@
 #include <atomic>
 #include <mutex>
 
-#include "event.h"
 #include "gaia/core/utility.h"
+#include "gaia/mt/event.h"
 
 namespace gaia {
 	namespace mt {

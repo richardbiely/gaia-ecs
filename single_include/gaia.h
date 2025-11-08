@@ -1255,7 +1255,7 @@ namespace tracy {
 
 // The same gaia headers used inside span_impl.h must be included here.
 // Amalgamated file would not be generated properly otherwise
-// because of the conditional nature of usage of this file's usage.
+// because of the conditional nature of this file's usage.
 
 /*** Start of inlined file: iterator.h ***/
 #pragma once
@@ -19143,6 +19143,8 @@ namespace gaia {
 /*** Start of inlined file: semaphore_fast.h ***/
 #pragma once
 
+#include <atomic>
+
 
 /*** Start of inlined file: semaphore.h ***/
 #pragma once
@@ -19262,8 +19264,6 @@ namespace gaia {
 	} // namespace mt
 } // namespace gaia
 /*** End of inlined file: semaphore.h ***/
-
-#include <atomic>
 
 namespace gaia {
 	namespace mt {
@@ -20529,6 +20529,7 @@ namespace gaia {
 
 // #include "gaia/cnt/dbitset.h"
 
+
 /*** Start of inlined file: api.h ***/
 #pragma once
 
@@ -20674,7 +20675,6 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 /*** End of inlined file: api.h ***/
-
 
 
 /*** Start of inlined file: archetype_common.h ***/
@@ -22196,6 +22196,104 @@ namespace gaia {
 #include <type_traits>
 
 
+/*** Start of inlined file: hashing_string.h ***/
+#pragma once
+
+#include <cstdint>
+
+namespace gaia {
+	namespace core {
+		template <uint32_t MaxLen>
+		struct StringLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Pointer to the string
+			const char* m_pStr;
+			//! Length of the string
+			uint32_t m_len : 31;
+			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
+			uint32_t m_owned : 1;
+			//! String hash
+			LookupHash m_hash;
+
+			static uint32_t len(const char* pStr) {
+				GAIA_FOR(MaxLen) {
+					if (pStr[i] == 0)
+						return i;
+				}
+				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
+				return BadIndex;
+			}
+
+			static LookupHash calc(const char* pStr, uint32_t len) {
+				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
+			//! Constructor calculating hash and length from the provided string \param pStr
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr):
+					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
+			//! Constructor calculating hash from the provided string \param pStr and \param length
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr, uint32_t len):
+					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
+			//! Constructor just for setting values
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
+					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
+
+			const char* str() const {
+				return m_pStr;
+			}
+
+			uint32_t len() const {
+				return m_len;
+			}
+
+			bool owned() const {
+				return m_owned == 1;
+			}
+
+			uint32_t hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const StringLookupKey& other) const {
+				// Hash doesn't match we don't have a match.
+				// Hash collisions are expected to be very unlikely so optimize for this case.
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				// Lengths have to match
+				if (m_len != other.m_len)
+					return false;
+
+				// Contents have to match
+				const auto l = m_len;
+				GAIA_ASSUME(l < MaxLen);
+				GAIA_FOR(l) {
+					if (m_pStr[i] != other.m_pStr[i])
+						return false;
+				}
+
+				return true;
+			}
+
+			bool operator!=(const StringLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: hashing_string.h ***/
+
+
 /*** Start of inlined file: component_cache_item.h ***/
 #pragma once
 
@@ -22397,104 +22495,6 @@ namespace gaia {
 } // namespace gaia
 
 /*** End of inlined file: component_desc.h ***/
-
-
-/*** Start of inlined file: hashing_string.h ***/
-#pragma once
-
-#include <cstdint>
-
-namespace gaia {
-	namespace core {
-		template <uint32_t MaxLen>
-		struct StringLookupKey {
-			using LookupHash = core::direct_hash_key<uint32_t>;
-
-		private:
-			//! Pointer to the string
-			const char* m_pStr;
-			//! Length of the string
-			uint32_t m_len : 31;
-			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
-			uint32_t m_owned : 1;
-			//! String hash
-			LookupHash m_hash;
-
-			static uint32_t len(const char* pStr) {
-				GAIA_FOR(MaxLen) {
-					if (pStr[i] == 0)
-						return i;
-				}
-				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
-				return BadIndex;
-			}
-
-			static LookupHash calc(const char* pStr, uint32_t len) {
-				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
-			}
-
-		public:
-			static constexpr bool IsDirectHashKey = true;
-
-			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr):
-					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
-			//! Constructor calculating hash from the provided string \param pStr and \param length
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len):
-					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
-			//! Constructor just for setting values
-			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
-					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
-
-			const char* str() const {
-				return m_pStr;
-			}
-
-			uint32_t len() const {
-				return m_len;
-			}
-
-			bool owned() const {
-				return m_owned == 1;
-			}
-
-			uint32_t hash() const {
-				return m_hash.hash;
-			}
-
-			bool operator==(const StringLookupKey& other) const {
-				// Hash doesn't match we don't have a match.
-				// Hash collisions are expected to be very unlikely so optimize for this case.
-				if GAIA_LIKELY (m_hash != other.m_hash)
-					return false;
-
-				// Lengths have to match
-				if (m_len != other.m_len)
-					return false;
-
-				// Contents have to match
-				const auto l = m_len;
-				GAIA_ASSUME(l < MaxLen);
-				GAIA_FOR(l) {
-					if (m_pStr[i] != other.m_pStr[i])
-						return false;
-				}
-
-				return true;
-			}
-
-			bool operator!=(const StringLookupKey& other) const {
-				return !operator==(other);
-			}
-		};
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: hashing_string.h ***/
 
 namespace gaia {
 	namespace ser {
@@ -27439,6 +27439,32 @@ namespace gaia {
 #include <type_traits>
 
 
+/*** Start of inlined file: string.h ***/
+#pragma once
+
+namespace gaia {
+	namespace core {
+		inline bool is_whitespace(char c) {
+			return c == ' ' || (c >= '\t' && c <= '\r');
+		}
+
+		inline auto trim(std::span<const char> expr) {
+			if (expr.empty())
+				return std::span<const char>{};
+
+			uint32_t beg = 0;
+			while (is_whitespace(expr[beg]))
+				++beg;
+			uint32_t end = (uint32_t)expr.size() - 1;
+			while (end > beg && is_whitespace(expr[end]))
+				--end;
+			return expr.subspan(beg, end - beg + 1);
+		}
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: string.h ***/
+
+
 /*** Start of inlined file: component_getter.h ***/
 #pragma once
 
@@ -27554,32 +27580,6 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 /*** End of inlined file: component_setter.h ***/
-
-
-/*** Start of inlined file: string.h ***/
-#pragma once
-
-namespace gaia {
-	namespace core {
-		inline bool is_whitespace(char c) {
-			return c == ' ' || (c >= '\t' && c <= '\r');
-		}
-
-		inline auto trim(std::span<const char> expr) {
-			if (expr.empty())
-				return std::span<const char>{};
-
-			uint32_t beg = 0;
-			while (is_whitespace(expr[beg]))
-				++beg;
-			uint32_t end = (uint32_t)expr.size() - 1;
-			while (end > beg && is_whitespace(expr[end]))
-				--end;
-			return expr.subspan(beg, end - beg + 1);
-		}
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: string.h ***/
 
 
 /*** Start of inlined file: query.h ***/
@@ -36351,7 +36351,6 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #else
-
 	#include <cinttypes>
 	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
@@ -36977,47 +36976,6 @@ namespace gaia {
 		};
 
 		namespace detail {
-			class CommandBufferSer: public ser::ser_buffer_binary {
-			public:
-				//! Writes \param value to the buffer
-				template <typename T>
-				void comp_save(const ComponentCacheItem& item, T&& value) {
-					const bool isManualDestroyNeeded = item.func_copy_ctor != nullptr || item.func_move_ctor != nullptr;
-					constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-					reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
-					save(isManualDestroyNeeded);
-					m_data.resize(m_dataPos + sizeof(T));
-
-					auto* pSrc = (void*)&value;
-					auto* pDst = (void*)&m_data[m_dataPos];
-					if (isRValue && item.func_move_ctor != nullptr) {
-						if constexpr (mem::is_movable<T>())
-							mem::detail::move_ctor_element_aos<T>((T*)pDst, (T*)pSrc, 0, 0);
-						else
-							mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-					} else
-						mem::detail::copy_ctor_element_aos<T>((T*)pDst, (const T*)pSrc, 0, 0);
-
-					m_dataPos += sizeof(T);
-				}
-
-				//! Loads \param value from the buffer
-				void comp_load(const ComponentCacheItem& item, void* pDst) {
-					bool isManualDestroyNeeded = false;
-					load(isManualDestroyNeeded);
-
-					GAIA_ASSERT(m_dataPos + item.comp.size() <= bytes());
-					const auto& cdata = std::as_const(m_data);
-					auto* pSrc = (void*)&cdata[m_dataPos];
-					item.move(pDst, pSrc, 0, 0, 1, 1);
-					if (isManualDestroyNeeded)
-						item.dtor(pSrc);
-
-					m_dataPos += item.comp.size();
-				}
-			};
-
 			//! Buffer for deferred execution of some operations on entities.
 			//!
 			//! Adding and removing components and entities inside World::each or can result

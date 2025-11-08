@@ -1,13 +1,12 @@
 #pragma once
 #include "gaia/config/config.h"
+#include "gaia/config/profiler.h"
 
 #include <cstdint>
 #include <cstring>
 #include <stdlib.h>
 #include <type_traits>
 #include <utility>
-
-#include "gaia/config/profiler.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)

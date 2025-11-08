@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "darray.h"
+#include "gaia/cnt/darray.h"
 #include "gaia/core/utility.h"
 
 namespace gaia {

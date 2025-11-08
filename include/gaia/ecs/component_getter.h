@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#include "chunk.h"
-#include "component.h"
+#include "gaia/ecs/chunk.h"
+#include "gaia/ecs/component.h"
 
 namespace gaia {
 	namespace ecs {

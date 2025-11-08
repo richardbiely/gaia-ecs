@@ -5,8 +5,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "data_layout_policy.h"
 #include "gaia/core/utility.h"
+#include "gaia/mem/data_layout_policy.h"
 
 namespace gaia {
 	namespace mem {

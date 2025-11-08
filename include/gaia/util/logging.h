@@ -1,11 +1,11 @@
 #pragma once
+#include "gaia/config/config_core.h"
 
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 
 #include "gaia/cnt/darray_ext.h"
-#include "gaia/config/config_core.h"
 
 // Controls how logs can grow in bytes before flush is triggered
 #ifndef GAIA_LOG_BUFFER_SIZE

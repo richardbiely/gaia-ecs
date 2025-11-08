@@ -2,8 +2,9 @@
 
 #include "gaia/config/config.h"
 
-#include "semaphore.h"
 #include <atomic>
+
+#include "gaia/mt/semaphore.h"
 
 namespace gaia {
 	namespace mt {

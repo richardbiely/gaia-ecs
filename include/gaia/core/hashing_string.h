@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#include "hashing_policy.h"
-#include "utility.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace core {

@@ -1,8 +1,8 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include "component.h"
-#include "id.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {

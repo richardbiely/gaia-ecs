@@ -1,5 +1,6 @@
 #pragma once
 #include "gaia/config/config.h"
+
 #include <type_traits>
 
 namespace gaia {

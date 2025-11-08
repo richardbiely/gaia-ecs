@@ -12,7 +12,7 @@
 	#include <alloca.h>
 #endif
 
-#include "iterator.h"
+#include "gaia/core/iterator.h"
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);

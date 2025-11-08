@@ -3,8 +3,6 @@
 
 #include <type_traits>
 
-#include "api.h"
-#include "component.h"
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/map.h"
 #include "gaia/cnt/sarray.h"
@@ -12,10 +10,12 @@
 #include "gaia/core/bit_utils.h"
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
-#include "id.h"
-#include "query_fwd.h"
-#include "query_mask.h"
-#include "ser_binary.h"
+#include "gaia/ecs/api.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query_fwd.h"
+#include "gaia/ecs/query_mask.h"
+#include "gaia/ecs/ser_binary.h"
 
 namespace gaia {
 	namespace ecs {

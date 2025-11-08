@@ -10,9 +10,9 @@
 #include "gaia/core/bit_utils.h"
 #include "gaia/core/dyn_singleton.h"
 #include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
 #include "gaia/meta/type_info.h"
 #include "gaia/util/logging.h"
-#include "mem_alloc.h"
 
 namespace gaia {
 	namespace mem {

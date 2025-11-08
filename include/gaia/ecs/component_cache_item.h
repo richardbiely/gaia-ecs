@@ -4,12 +4,12 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "component.h"
-#include "component_desc.h"
 #include "gaia/core/hashing_string.h"
+#include "gaia/ecs/component.h"
+#include "gaia/ecs/component_desc.h"
+#include "gaia/ecs/id.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
-#include "id.h"
 
 namespace gaia {
 	namespace ser {

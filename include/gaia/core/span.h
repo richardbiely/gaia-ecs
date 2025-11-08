@@ -3,14 +3,14 @@
 
 // The same gaia headers used inside span_impl.h must be included here.
 // Amalgamated file would not be generated properly otherwise
-// because of the conditional nature of usage of this file's usage.
-#include "iterator.h"
-#include "utility.h"
+// because of the conditional nature of this file's usage.
+#include "gaia/core/iterator.h"
+#include "gaia/core/utility.h"
 
 #if GAIA_USE_STD_SPAN
 	#include <span>
 #else
-	#include "impl/span_impl.h"
+	#include "gaia/core/impl/span_impl.h"
 namespace std {
 	using gaia::core::span;
 }
