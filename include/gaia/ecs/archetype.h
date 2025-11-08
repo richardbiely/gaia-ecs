@@ -1,13 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cinttypes>
 #include <cstdint>
 
-#include "../cnt/darray.h"
-// #include "../cnt/dbitset.h"
-#include "../core/hashing_policy.h"
-#include "../mem/mem_alloc.h"
+#include "gaia/cnt/darray.h"
+// #include "gaia/cnt/dbitset.h"
 #include "api.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
@@ -16,6 +14,8 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/mem/mem_alloc.h"
 #include "id.h"
 #include "query_mask.h"
 #include "ser_binary.h"
@@ -144,13 +144,13 @@ namespace gaia {
 			//! If set the archetype is to be deleted
 			uint32_t m_dead : 1;
 			//! Max lifespan of the archetype
-			uint32_t m_lifespanCountdownMax: ARCHETYPE_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdownMax : ARCHETYPE_LIFESPAN_BITS;
 			//! Remaining lifespan of the archetype
-			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdown : ARCHETYPE_LIFESPAN_BITS;
 			//! Number of relationship pairs on the archetype
-			uint32_t m_pairCnt: ChunkHeader::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt : ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Number of Is relationship pairs on the archetype
-			uint32_t m_pairCnt_is: ChunkHeader::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt_is : ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Unused bits
 			// uint32_t m_unused : 6;
 

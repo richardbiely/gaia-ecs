@@ -9755,7 +9755,7 @@ namespace gaia {
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 			template <typename Writer, typename T>
 			void check_one(Writer& s, const T& arg) {
 				T tmp{};
@@ -9772,7 +9772,7 @@ namespace gaia {
 				// Return back to the original position in the buffer.
 				s.seek(pos0);
 			}
-	#endif
+#endif
 		} // namespace detail
 
 		//! Write \param data using \tparam Writer at compile-time.
@@ -9791,7 +9791,7 @@ namespace gaia {
 			detail::load_one(reader, data);
 		}
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
 		//!
@@ -9803,7 +9803,7 @@ namespace gaia {
 		void check(Writer& writer, const T& data) {
 			detail::check_one(writer, data);
 		}
-	#endif
+#endif
 	} // namespace ser
 } // namespace gaia
 
@@ -9969,14 +9969,12 @@ namespace robin_hood {
 		template <typename E, typename... Args>
 		[[noreturn]] GAIA_NOINLINE
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
-				void
-				doThrow(Args&&... args) {
+				void doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(GAIA_FWD(args)...);
 		}
 #else
-				void
-				doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+				void doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 #endif
@@ -10026,7 +10024,7 @@ namespace robin_hood {
 
 			BulkPoolAllocator&
 			// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
-			operator=(const BulkPoolAllocator & ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
+			operator=(const BulkPoolAllocator& ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
 				// does not do anything
 				return *this;
 			}
@@ -12538,8 +12536,9 @@ namespace gaia {
 			inline constexpr size_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
 
 			inline FILE* get_log_out(LogLevel level) {
-				FILE* out = (level == LogLevel::Error || level == LogLevel::Warning) ? stderr : stdout;
-				return out;
+				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)level);
+				// If a warning or error level is set we will use stderr for output.
+				return mask != 0 ? stderr : stdout;
 			}
 
 			//! Default implementation of logging a line
@@ -12826,13 +12825,13 @@ namespace gaia {
 			BlockArray m_blocks;
 
 			//! Number of blocks in the block array
-			uint32_t m_blockCnt: NBlocks_Bits;
+			uint32_t m_blockCnt : NBlocks_Bits;
 			//! Number of used blocks out of NBlocks
-			uint32_t m_usedBlocks: NBlocks_Bits;
+			uint32_t m_usedBlocks : NBlocks_Bits;
 			//! Index of the next block to recycle
-			uint32_t m_nextFreeBlock: NBlocks_Bits;
+			uint32_t m_nextFreeBlock : NBlocks_Bits;
 			//! Number of blocks to recycle
-			uint32_t m_freeBlocks: NBlocks_Bits;
+			uint32_t m_freeBlocks : NBlocks_Bits;
 			//! Free bits to use in the future
 			// uint32_t m_unused : 8;
 
@@ -17257,8 +17256,7 @@ namespace gaia {
 	} // namespace detail
 
 	template <class F, class... Args>
-	constexpr decltype(auto)
-	invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
+	constexpr decltype(auto) invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
 		if constexpr (std::is_member_pointer_v<std::decay_t<F>>)
 			return detail::invoke_memptr(f, GAIA_FWD(args)...);
 		else
@@ -18246,11 +18244,11 @@ namespace gaia {
 		private:
 			struct JobData {
 				//! Index in entity array
-				JobInternalType id: IdBits;
+				JobInternalType id : IdBits;
 				//! Generation index. Incremented every time an item is deleted
-				JobInternalType gen: GenBits;
+				JobInternalType gen : GenBits;
 				//! Job priority. 1-priority, 0-background
-				JobInternalType prio: PrioBits;
+				JobInternalType prio : PrioBits;
 			};
 
 			union {
@@ -20529,8 +20527,7 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
-// #include "../cnt/dbitset.h"
-
+// #include "gaia/cnt/dbitset.h"
 
 /*** Start of inlined file: api.h ***/
 #pragma once
@@ -20679,6 +20676,7 @@ namespace gaia {
 /*** End of inlined file: api.h ***/
 
 
+
 /*** Start of inlined file: archetype_common.h ***/
 #pragma once
 
@@ -20790,11 +20788,11 @@ namespace gaia {
 				// detail::ComponentDescId id;
 				uint32_t id;
 				//! Component is SoA
-				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
+				IdentifierData soa : meta::StructToTupleMaxTypes_Bits;
 				//! Component size
-				IdentifierData size: MaxComponentSize_Bits;
+				IdentifierData size : MaxComponentSize_Bits;
 				//! Component alignment
-				IdentifierData alig: MaxAlignment_Bits;
+				IdentifierData alig : MaxAlignment_Bits;
 				//! Unused part
 				IdentifierData unused : 6;
 			};
@@ -21210,34 +21208,34 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		struct GAIA_API Core_{};
+		struct GAIA_API Core_ {};
 		// struct EntityDesc;
 		// struct Component;
-		struct GAIA_API OnDelete_{};
-		struct GAIA_API OnDeleteTarget_{};
-		struct GAIA_API Remove_{};
-		struct GAIA_API Delete_{};
-		struct GAIA_API Error_{};
-		struct GAIA_API Requires_{};
-		struct GAIA_API CantCombine_{};
-		struct GAIA_API Exclusive_{};
-		struct GAIA_API Acyclic_{};
-		struct GAIA_API All_{};
-		struct GAIA_API ChildOf_{};
-		struct GAIA_API Is_{};
-		struct GAIA_API Traversable_{};
+		struct GAIA_API OnDelete_ {};
+		struct GAIA_API OnDeleteTarget_ {};
+		struct GAIA_API Remove_ {};
+		struct GAIA_API Delete_ {};
+		struct GAIA_API Error_ {};
+		struct GAIA_API Requires_ {};
+		struct GAIA_API CantCombine_ {};
+		struct GAIA_API Exclusive_ {};
+		struct GAIA_API Acyclic_ {};
+		struct GAIA_API All_ {};
+		struct GAIA_API ChildOf_ {};
+		struct GAIA_API Is_ {};
+		struct GAIA_API Traversable_ {};
 		// struct System_;
-		struct GAIA_API DependsOn_{};
+		struct GAIA_API DependsOn_ {};
 
 		// Query variables
-		struct GAIA_API _Var0{};
-		struct GAIA_API _Var1{};
-		struct GAIA_API _Var2{};
-		struct GAIA_API _Var3{};
-		struct GAIA_API _Var4{};
-		struct GAIA_API _Var5{};
-		struct GAIA_API _Var6{};
-		struct GAIA_API _Var7{};
+		struct GAIA_API _Var0 {};
+		struct GAIA_API _Var1 {};
+		struct GAIA_API _Var2 {};
+		struct GAIA_API _Var3 {};
+		struct GAIA_API _Var4 {};
+		struct GAIA_API _Var5 {};
+		struct GAIA_API _Var6 {};
+		struct GAIA_API _Var7 {};
 
 		//----------------------------------------------------------------------
 		// Core component entities
@@ -21729,13 +21727,13 @@ namespace gaia {
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
-					uint32_t m_blockCnt: NBlocks_Bits;
+					uint32_t m_blockCnt : NBlocks_Bits;
 					//! Number of used blocks out of NBlocks
-					uint32_t m_usedBlocks: NBlocks_Bits;
+					uint32_t m_usedBlocks : NBlocks_Bits;
 					//! Index of the next block to recycle
-					uint32_t m_nextFreeBlock: NBlocks_Bits;
+					uint32_t m_nextFreeBlock : NBlocks_Bits;
 					//! Number of blocks to recycle
-					uint32_t m_freeBlocks: NBlocks_Bits;
+					uint32_t m_freeBlocks : NBlocks_Bits;
 					//! Free bits to use in the future
 					// uint32_t m_unused : 7;
 
@@ -22135,7 +22133,7 @@ namespace gaia {
 			uint16_t capacity;
 
 			//! Index of the first enabled entity in the chunk
-			uint16_t rowFirstEnabledEntity: MAX_CHUNK_ENTITIES_BITS;
+			uint16_t rowFirstEnabledEntity : MAX_CHUNK_ENTITIES_BITS;
 			//! True if there's any generic component that requires custom construction
 			uint16_t hasAnyCustomGenCtor : 1;
 			//! True if there's any unique component that requires custom construction
@@ -22147,7 +22145,7 @@ namespace gaia {
 			//! Chunk size type. This tells whether it's 8K or 16K
 			uint16_t sizeType : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
-			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint16_t lifespanCountdown : CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
 			//! Empty space for future use
@@ -22196,104 +22194,6 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 #include <type_traits>
-
-
-/*** Start of inlined file: hashing_string.h ***/
-#pragma once
-
-#include <cstdint>
-
-namespace gaia {
-	namespace core {
-		template <uint32_t MaxLen>
-		struct StringLookupKey {
-			using LookupHash = core::direct_hash_key<uint32_t>;
-
-		private:
-			//! Pointer to the string
-			const char* m_pStr;
-			//! Length of the string
-			uint32_t m_len : 31;
-			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
-			uint32_t m_owned : 1;
-			//! String hash
-			LookupHash m_hash;
-
-			static uint32_t len(const char* pStr) {
-				GAIA_FOR(MaxLen) {
-					if (pStr[i] == 0)
-						return i;
-				}
-				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
-				return BadIndex;
-			}
-
-			static LookupHash calc(const char* pStr, uint32_t len) {
-				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
-			}
-
-		public:
-			static constexpr bool IsDirectHashKey = true;
-
-			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr):
-					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
-			//! Constructor calculating hash from the provided string \param pStr and \param length
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len):
-					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
-			//! Constructor just for setting values
-			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
-					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
-
-			const char* str() const {
-				return m_pStr;
-			}
-
-			uint32_t len() const {
-				return m_len;
-			}
-
-			bool owned() const {
-				return m_owned == 1;
-			}
-
-			uint32_t hash() const {
-				return m_hash.hash;
-			}
-
-			bool operator==(const StringLookupKey& other) const {
-				// Hash doesn't match we don't have a match.
-				// Hash collisions are expected to be very unlikely so optimize for this case.
-				if GAIA_LIKELY (m_hash != other.m_hash)
-					return false;
-
-				// Lengths have to match
-				if (m_len != other.m_len)
-					return false;
-
-				// Contents have to match
-				const auto l = m_len;
-				GAIA_ASSUME(l < MaxLen);
-				GAIA_FOR(l) {
-					if (m_pStr[i] != other.m_pStr[i])
-						return false;
-				}
-
-				return true;
-			}
-
-			bool operator!=(const StringLookupKey& other) const {
-				return !operator==(other);
-			}
-		};
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: hashing_string.h ***/
 
 
 /*** Start of inlined file: component_cache_item.h ***/
@@ -22497,6 +22397,104 @@ namespace gaia {
 } // namespace gaia
 
 /*** End of inlined file: component_desc.h ***/
+
+
+/*** Start of inlined file: hashing_string.h ***/
+#pragma once
+
+#include <cstdint>
+
+namespace gaia {
+	namespace core {
+		template <uint32_t MaxLen>
+		struct StringLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Pointer to the string
+			const char* m_pStr;
+			//! Length of the string
+			uint32_t m_len : 31;
+			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
+			uint32_t m_owned : 1;
+			//! String hash
+			LookupHash m_hash;
+
+			static uint32_t len(const char* pStr) {
+				GAIA_FOR(MaxLen) {
+					if (pStr[i] == 0)
+						return i;
+				}
+				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
+				return BadIndex;
+			}
+
+			static LookupHash calc(const char* pStr, uint32_t len) {
+				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
+			//! Constructor calculating hash and length from the provided string \param pStr
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr):
+					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
+			//! Constructor calculating hash from the provided string \param pStr and \param length
+			//! \warning String has to be null-terminated and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr, uint32_t len):
+					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
+			//! Constructor just for setting values
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
+					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
+
+			const char* str() const {
+				return m_pStr;
+			}
+
+			uint32_t len() const {
+				return m_len;
+			}
+
+			bool owned() const {
+				return m_owned == 1;
+			}
+
+			uint32_t hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const StringLookupKey& other) const {
+				// Hash doesn't match we don't have a match.
+				// Hash collisions are expected to be very unlikely so optimize for this case.
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				// Lengths have to match
+				if (m_len != other.m_len)
+					return false;
+
+				// Contents have to match
+				const auto l = m_len;
+				GAIA_ASSUME(l < MaxLen);
+				GAIA_FOR(l) {
+					if (m_pStr[i] != other.m_pStr[i])
+						return false;
+				}
+
+				return true;
+			}
+
+			bool operator!=(const StringLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: hashing_string.h ***/
 
 namespace gaia {
 	namespace ser {
@@ -25347,13 +25345,13 @@ namespace gaia {
 			//! If set the archetype is to be deleted
 			uint32_t m_dead : 1;
 			//! Max lifespan of the archetype
-			uint32_t m_lifespanCountdownMax: ARCHETYPE_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdownMax : ARCHETYPE_LIFESPAN_BITS;
 			//! Remaining lifespan of the archetype
-			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdown : ARCHETYPE_LIFESPAN_BITS;
 			//! Number of relationship pairs on the archetype
-			uint32_t m_pairCnt: ChunkHeader::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt : ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Number of Is relationship pairs on the archetype
-			uint32_t m_pairCnt_is: ChunkHeader::MAX_COMPONENTS_BITS;
+			uint32_t m_pairCnt_is : ChunkHeader::MAX_COMPONENTS_BITS;
 			//! Unused bits
 			// uint32_t m_unused : 6;
 
@@ -27441,32 +27439,6 @@ namespace gaia {
 #include <type_traits>
 
 
-/*** Start of inlined file: string.h ***/
-#pragma once
-
-namespace gaia {
-	namespace core {
-		inline bool is_whitespace(char c) {
-			return c == ' ' || (c >= '\t' && c <= '\r');
-		}
-
-		inline auto trim(std::span<const char> expr) {
-			if (expr.empty())
-				return std::span<const char>{};
-
-			uint32_t beg = 0;
-			while (is_whitespace(expr[beg]))
-				++beg;
-			uint32_t end = (uint32_t)expr.size() - 1;
-			while (end > beg && is_whitespace(expr[end]))
-				--end;
-			return expr.subspan(beg, end - beg + 1);
-		}
-	} // namespace core
-} // namespace gaia
-/*** End of inlined file: string.h ***/
-
-
 /*** Start of inlined file: component_getter.h ***/
 #pragma once
 
@@ -27582,6 +27554,32 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 /*** End of inlined file: component_setter.h ***/
+
+
+/*** Start of inlined file: string.h ***/
+#pragma once
+
+namespace gaia {
+	namespace core {
+		inline bool is_whitespace(char c) {
+			return c == ' ' || (c >= '\t' && c <= '\r');
+		}
+
+		inline auto trim(std::span<const char> expr) {
+			if (expr.empty())
+				return std::span<const char>{};
+
+			uint32_t beg = 0;
+			while (is_whitespace(expr[beg]))
+				++beg;
+			uint32_t end = (uint32_t)expr.size() - 1;
+			while (end > beg && is_whitespace(expr[end]))
+				--end;
+			return expr.subspan(beg, end - beg + 1);
+		}
+	} // namespace core
+} // namespace gaia
+/*** End of inlined file: string.h ***/
 
 
 /*** Start of inlined file: query.h ***/

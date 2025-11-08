@@ -1,9 +1,9 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
-#include "../mem/mem_alloc.h"
-#include "../ser/ser_buffer_binary.h"
-#include "../ser/ser_rt.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/ser/ser_buffer_binary.h"
+#include "gaia/ser/ser_rt.h"
 
 namespace gaia {
 	namespace ecs {

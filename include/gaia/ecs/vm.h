@@ -1,16 +1,16 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/darray.h"
-#include "../cnt/set.h"
-#include "../config/profiler.h"
-#include "../core/utility.h"
 #include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/cnt/set.h"
+#include "gaia/config/profiler.h"
+#include "gaia/core/utility.h"
 #include "id.h"
 #include "query_common.h"
 #include "query_mask.h"

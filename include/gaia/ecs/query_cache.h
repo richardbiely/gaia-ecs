@@ -1,10 +1,10 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
-#include "../cnt/darray.h"
-#include "../cnt/map.h"
-#include "../core/utility.h"
 #include "component.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
+#include "gaia/core/utility.h"
 #include "id.h"
 #include "query_common.h"
 #include "query_info.h"

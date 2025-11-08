@@ -1,17 +1,17 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <type_traits>
 
-#include "../cnt/darray.h"
-#include "../cnt/map.h"
-#include "../cnt/sarray.h"
-#include "../cnt/sarray_ext.h"
-#include "../core/bit_utils.h"
-#include "../core/hashing_policy.h"
-#include "../core/utility.h"
 #include "api.h"
 #include "component.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
+#include "gaia/cnt/sarray.h"
+#include "gaia/cnt/sarray_ext.h"
+#include "gaia/core/bit_utils.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/utility.h"
 #include "id.h"
 #include "query_fwd.h"
 #include "query_mask.h"

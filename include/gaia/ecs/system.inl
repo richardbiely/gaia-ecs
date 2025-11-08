@@ -1,4 +1,4 @@
-#include "../config/config.h"
+#include "gaia/config/config.h"
 #include "ser_binary.h"
 
 #if !GAIA_SYSTEMS_ENABLED
@@ -13,8 +13,8 @@ namespace gaia {
 	// TODO: Currently necessary due to std::function. Replace them!
 	#include <functional>
 
-	#include "../mt/jobhandle.h"
 	#include "chunk_iterator.h"
+	#include "gaia/mt/jobhandle.h"
 	#include "id.h"
 	#include "query.h"
 

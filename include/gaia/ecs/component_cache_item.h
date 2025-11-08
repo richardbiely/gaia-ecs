@@ -1,14 +1,14 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../core/hashing_string.h"
-#include "../mem/mem_alloc.h"
-#include "../mem/mem_utils.h"
 #include "component.h"
 #include "component_desc.h"
+#include "gaia/core/hashing_string.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/mem/mem_utils.h"
 #include "id.h"
 
 namespace gaia {

@@ -1,17 +1,17 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cinttypes>
 #include <cstdint>
 #include <type_traits>
 
-#include "../mem/data_layout_policy.h"
 #include "api.h"
 #include "archetype.h"
 #include "chunk.h"
 #include "command_buffer_fwd.h"
 #include "component.h"
 #include "component_cache_item.h"
+#include "gaia/mem/data_layout_policy.h"
 #include "id.h"
 #include "query_common.h"
 

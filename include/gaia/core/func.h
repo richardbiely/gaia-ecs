@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 #include <type_traits>
 
 namespace gaia {
@@ -36,8 +36,7 @@ namespace gaia {
 	} // namespace detail
 
 	template <class F, class... Args>
-	constexpr decltype(auto)
-	invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
+	constexpr decltype(auto) invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
 		if constexpr (std::is_member_pointer_v<std::decay_t<F>>)
 			return detail::invoke_memptr(f, GAIA_FWD(args)...);
 		else

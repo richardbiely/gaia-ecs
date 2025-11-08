@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -7,15 +7,15 @@
 #include <type_traits>
 #include <utility>
 
-#include "../cnt/bitset.h"
-#include "../cnt/darray.h"
-#include "../core/iterator.h"
-#include "../core/utility.h"
-#include "../mem/data_layout_policy.h"
-#include "../mem/mem_alloc.h"
-#include "../mem/mem_utils.h"
-#include "../mem/paged_allocator.h"
-#include "../mem/raw_data_holder.h"
+#include "gaia/cnt/bitset.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/core/iterator.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/data_layout_policy.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/mem/mem_utils.h"
+#include "gaia/mem/paged_allocator.h"
+#include "gaia/mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace cnt {

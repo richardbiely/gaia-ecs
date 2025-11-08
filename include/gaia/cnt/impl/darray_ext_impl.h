@@ -1,17 +1,17 @@
 #pragma once
-#include "../../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstddef>
 #include <initializer_list>
 #include <type_traits>
 #include <utility>
 
-#include "../../core/iterator.h"
-#include "../../core/utility.h"
-#include "../../mem/data_layout_policy.h"
-#include "../../mem/mem_sani.h"
-#include "../../mem/mem_utils.h"
-#include "../../mem/raw_data_holder.h"
+#include "gaia/core/iterator.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/data_layout_policy.h"
+#include "gaia/mem/mem_sani.h"
+#include "gaia/mem/mem_utils.h"
+#include "gaia/mem/raw_data_holder.h"
 
 namespace gaia {
 	namespace cnt {

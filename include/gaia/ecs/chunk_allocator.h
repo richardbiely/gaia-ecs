@@ -1,17 +1,18 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cinttypes>
 #include <cstdint>
 
-#include "../cnt/fwd_llist.h"
-#include "../cnt/sarray.h"
-#include "../core/bit_utils.h"
-#include "../core/dyn_singleton.h"
-#include "../core/utility.h"
-#include "../mem/mem_alloc.h"
-#include "../util/logging.h"
 #include "common.h"
+#include "gaia/cnt/fwd_llist.h"
+#include "gaia/cnt/sarray.h"
+#include "gaia/core/bit_utils.h"
+#include "gaia/core/dyn_singleton.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/util/logging.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -76,13 +77,13 @@ namespace gaia {
 					//! Block size type, 0=8K, 1=16K blocks
 					uint32_t m_sizeType : 1;
 					//! Number of blocks in the block array
-					uint32_t m_blockCnt: NBlocks_Bits;
+					uint32_t m_blockCnt : NBlocks_Bits;
 					//! Number of used blocks out of NBlocks
-					uint32_t m_usedBlocks: NBlocks_Bits;
+					uint32_t m_usedBlocks : NBlocks_Bits;
 					//! Index of the next block to recycle
-					uint32_t m_nextFreeBlock: NBlocks_Bits;
+					uint32_t m_nextFreeBlock : NBlocks_Bits;
 					//! Number of blocks to recycle
-					uint32_t m_freeBlocks: NBlocks_Bits;
+					uint32_t m_freeBlocks : NBlocks_Bits;
 					//! Free bits to use in the future
 					// uint32_t m_unused : 7;
 

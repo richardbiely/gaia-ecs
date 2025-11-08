@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 
-#include "../cnt/bitset.h"
-#include "../core/utility.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "component.h"
+#include "gaia/cnt/bitset.h"
+#include "gaia/core/utility.h"
 #include "id.h"
 
 namespace gaia {
@@ -75,7 +75,7 @@ namespace gaia {
 			uint16_t capacity;
 
 			//! Index of the first enabled entity in the chunk
-			uint16_t rowFirstEnabledEntity: MAX_CHUNK_ENTITIES_BITS;
+			uint16_t rowFirstEnabledEntity : MAX_CHUNK_ENTITIES_BITS;
 			//! True if there's any generic component that requires custom construction
 			uint16_t hasAnyCustomGenCtor : 1;
 			//! True if there's any unique component that requires custom construction
@@ -87,7 +87,7 @@ namespace gaia {
 			//! Chunk size type. This tells whether it's 8K or 16K
 			uint16_t sizeType : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
-			uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint16_t lifespanCountdown : CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
 			uint16_t dead : 1;
 			//! Empty space for future use

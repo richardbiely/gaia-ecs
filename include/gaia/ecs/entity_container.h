@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/ilist.h"
-#include "../cnt/map.h"
-#include "../cnt/paged_storage.h"
 #include "api.h"
+#include "gaia/cnt/ilist.h"
+#include "gaia/cnt/map.h"
+#include "gaia/cnt/paged_storage.h"
 #include "id.h"
 
 namespace gaia {

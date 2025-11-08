@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <cstring>
@@ -7,12 +7,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "../cnt/sarray_ext.h"
-#include "../config/profiler.h"
-#include "../core/utility.h"
-#include "../mem/data_layout_policy.h"
-#include "../mem/mem_alloc.h"
-#include "../ser/ser_rt.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
@@ -21,6 +15,12 @@
 #include "component_cache.h"
 #include "component_desc.h"
 #include "entity_container.h"
+#include "gaia/cnt/sarray_ext.h"
+#include "gaia/config/profiler.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/data_layout_policy.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/ser/ser_rt.h"
 #include "id.h"
 #include "ser_binary.h"
 

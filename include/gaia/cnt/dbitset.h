@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../core/utility.h"
-#include "../mem/mem_alloc.h"
-#include "../mem/mem_utils.h"
 #include "bitset_iterator.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/mem/mem_utils.h"
 
 namespace gaia {
 	namespace cnt {

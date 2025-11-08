@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 // The same gaia headers used inside span_impl.h must be included here.
 // Amalgamated file would not be generated properly otherwise

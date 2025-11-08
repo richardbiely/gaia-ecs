@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <atomic>
 #include <mutex>
 
-#include "../cnt/sarray.h"
-#include "../config/profiler.h"
-#include "../core/utility.h"
+#include "gaia/cnt/sarray.h"
+#include "gaia/config/profiler.h"
+#include "gaia/core/utility.h"
 #include "jobhandle.h"
 
 // MSVC might warn about applying additional padding around alignas usage.

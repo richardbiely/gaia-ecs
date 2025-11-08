@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <cstring>
@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "../config/profiler.h"
+#include "gaia/config/profiler.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_MEM_ALLC(size) ::malloc(size)

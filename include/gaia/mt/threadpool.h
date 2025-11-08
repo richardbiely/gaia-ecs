@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../config/config.h"
-#include "../config/profiler.h"
+#include "gaia/config/config.h"
+#include "gaia/config/profiler.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
@@ -47,10 +47,10 @@
 #include <atomic>
 #include <thread>
 
-#include "../cnt/sarray_ext.h"
-#include "../core/span.h"
-#include "../core/utility.h"
-#include "../util/logging.h"
+#include "gaia/cnt/sarray_ext.h"
+#include "gaia/core/span.h"
+#include "gaia/core/utility.h"
+#include "gaia/util/logging.h"
 
 #include "event.h"
 #include "futex.h"

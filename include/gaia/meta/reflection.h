@@ -1,11 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-#include "../core/utility.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace meta {

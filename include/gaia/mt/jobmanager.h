@@ -1,17 +1,17 @@
 #pragma once
 
-#include "../config/config.h"
-#include "../config/profiler.h"
+#include "gaia/config/config.h"
+#include "gaia/config/profiler.h"
 
 #include <atomic>
 #include <cinttypes>
 // TODO: Currently necessary due to std::function. Replace them!
 #include <functional>
 
-#include "../cnt/ilist.h"
-#include "../core/span.h"
-#include "../core/utility.h"
-#include "../mem/mem_alloc.h"
+#include "gaia/cnt/ilist.h"
+#include "gaia/core/span.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
 #include "jobcommon.h"
 #include "jobhandle.h"
 

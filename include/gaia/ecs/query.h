@@ -1,20 +1,10 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdarg>
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/darray.h"
-#include "../cnt/map.h"
-#include "../cnt/sarray_ext.h"
-#include "../config/profiler.h"
-#include "../core/hashing_policy.h"
-#include "../core/string.h"
-#include "../core/utility.h"
-#include "../mt/threadpool.h"
-#include "../ser/ser_buffer_binary.h"
-#include "../ser/ser_ct.h"
 #include "api.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -23,6 +13,16 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
+#include "gaia/cnt/sarray_ext.h"
+#include "gaia/config/profiler.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/string.h"
+#include "gaia/core/utility.h"
+#include "gaia/mt/threadpool.h"
+#include "gaia/ser/ser_buffer_binary.h"
+#include "gaia/ser/ser_ct.h"
 #include "id.h"
 #include "query_cache.h"
 #include "query_common.h"

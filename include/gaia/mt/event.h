@@ -1,6 +1,6 @@
 #pragma once
-#include "../config/config.h"
-#include "../config/profiler.h"
+#include "gaia/config/config.h"
+#include "gaia/config/profiler.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#define GAIA_USE_MT_STD 1

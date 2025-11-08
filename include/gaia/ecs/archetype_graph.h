@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 
-#include "../cnt/map.h"
-#include "../util/logging.h"
 #include "api.h"
 #include "archetype_common.h"
 #include "component.h"
+#include "gaia/cnt/map.h"
+#include "gaia/util/logging.h"
 #include "id.h"
 
 namespace gaia {

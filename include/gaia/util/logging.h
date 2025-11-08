@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "../cnt/darray_ext.h"
-#include "../config/config_core.h"
+#include "gaia/cnt/darray_ext.h"
+#include "gaia/config/config_core.h"
 
 // Controls how logs can grow in bytes before flush is triggered
 #ifndef GAIA_LOG_BUFFER_SIZE
@@ -48,8 +48,9 @@ namespace gaia {
 			inline constexpr size_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
 
 			inline FILE* get_log_out(LogLevel level) {
-				FILE* out = (level == LogLevel::Error || level == LogLevel::Warning) ? stderr : stdout;
-				return out;
+				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)level);
+				// If a warning or error level is set we will use stderr for output.
+				return mask != 0 ? stderr : stdout;
 			}
 
 			//! Default implementation of logging a line

@@ -3,9 +3,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "../core/iterator.h"
-#include "../mem/data_layout_policy.h"
-#include "../mem/mem_utils.h"
+#include "gaia/core/iterator.h"
+#include "gaia/mem/data_layout_policy.h"
+#include "gaia/mem/mem_utils.h"
 
 namespace gaia {
 	namespace cnt {

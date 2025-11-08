@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <tuple>
 #include <typeinfo>
 #include <utility>
 
-#include "../cnt/darray.h"
-#include "../core/func.h"
-#include "../core/utility.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/core/func.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace util {

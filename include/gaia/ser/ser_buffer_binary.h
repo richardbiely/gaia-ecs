@@ -1,9 +1,9 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <type_traits>
 
-#include "../cnt/darray_ext.h"
+#include "gaia/cnt/darray_ext.h"
 
 namespace gaia {
 	namespace ser {

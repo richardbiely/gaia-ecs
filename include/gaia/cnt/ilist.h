@@ -1,11 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../core/utility.h"
 #include "darray.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace cnt {

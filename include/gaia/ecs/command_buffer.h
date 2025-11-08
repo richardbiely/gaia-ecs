@@ -1,18 +1,18 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/darray_ext.h"
-#include "../cnt/dbitset.h"
-#include "../ser/ser_buffer_binary.h"
 #include "archetype.h"
 #include "command_buffer_fwd.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
 #include "component_cache_item.h"
+#include "gaia/cnt/darray_ext.h"
+#include "gaia/cnt/dbitset.h"
+#include "gaia/ser/ser_buffer_binary.h"
 #include "id.h"
 #include "world.h"
 

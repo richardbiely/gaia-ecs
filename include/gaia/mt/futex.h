@@ -1,12 +1,12 @@
 #pragma once
-#include "../config/config.h"
-#include "../config/profiler.h"
+#include "gaia/config/config.h"
+#include "gaia/config/profiler.h"
 
 #include <atomic>
 #include <mutex>
 
-#include "../core/utility.h"
 #include "event.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace mt {

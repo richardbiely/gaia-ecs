@@ -38,7 +38,7 @@
 #define ROBIN_HOOD_VERSION_MINOR 11 // for adding functionality in a backwards-compatible manner
 #define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
 
-#include "../config/config_core.h"
+#include "gaia/config/config_core.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -48,12 +48,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "../core/hashing_policy.h"
-#include "../core/iterator.h"
-#include "../core/utility.h"
-#include "../mem/mem_alloc.h"
-#include "../mem/mem_utils.h"
-#include "../ser/ser_ct.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/iterator.h"
+#include "gaia/core/utility.h"
+#include "gaia/mem/mem_alloc.h"
+#include "gaia/mem/mem_utils.h"
+#include "gaia/ser/ser_ct.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
@@ -215,14 +215,12 @@ namespace robin_hood {
 		template <typename E, typename... Args>
 		[[noreturn]] GAIA_NOINLINE
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
-				void
-				doThrow(Args&&... args) {
+				void doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(GAIA_FWD(args)...);
 		}
 #else
-				void
-				doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+				void doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 #endif
@@ -272,7 +270,7 @@ namespace robin_hood {
 
 			BulkPoolAllocator&
 			// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
-			operator=(const BulkPoolAllocator & ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
+			operator=(const BulkPoolAllocator& ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
 				// does not do anything
 				return *this;
 			}

@@ -1,7 +1,7 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
-#include "../core/iterator.h"
+#include "gaia/core/iterator.h"
 
 namespace gaia {
 	namespace cnt {

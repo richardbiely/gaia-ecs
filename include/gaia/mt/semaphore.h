@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #if GAIA_PLATFORM_WINDOWS
 	#include <windows.h>

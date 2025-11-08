@@ -1,12 +1,12 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
 
-#include "../cnt/sparse_storage.h"
-#include "../core/hashing_policy.h"
-#include "../core/utility.h"
+#include "gaia/cnt/sparse_storage.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/utility.h"
 #include "id_fwd.h"
 
 namespace gaia {
@@ -34,11 +34,11 @@ namespace gaia {
 				// detail::ComponentDescId id;
 				uint32_t id;
 				//! Component is SoA
-				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
+				IdentifierData soa : meta::StructToTupleMaxTypes_Bits;
 				//! Component size
-				IdentifierData size: MaxComponentSize_Bits;
+				IdentifierData size : MaxComponentSize_Bits;
 				//! Component alignment
-				IdentifierData alig: MaxAlignment_Bits;
+				IdentifierData alig : MaxAlignment_Bits;
 				//! Unused part
 				IdentifierData unused : 6;
 			};
@@ -454,34 +454,34 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		// Core component. The entity it is attached to is ignored by queries
-		struct GAIA_API Core_{};
+		struct GAIA_API Core_ {};
 		// struct EntityDesc;
 		// struct Component;
-		struct GAIA_API OnDelete_{};
-		struct GAIA_API OnDeleteTarget_{};
-		struct GAIA_API Remove_{};
-		struct GAIA_API Delete_{};
-		struct GAIA_API Error_{};
-		struct GAIA_API Requires_{};
-		struct GAIA_API CantCombine_{};
-		struct GAIA_API Exclusive_{};
-		struct GAIA_API Acyclic_{};
-		struct GAIA_API All_{};
-		struct GAIA_API ChildOf_{};
-		struct GAIA_API Is_{};
-		struct GAIA_API Traversable_{};
+		struct GAIA_API OnDelete_ {};
+		struct GAIA_API OnDeleteTarget_ {};
+		struct GAIA_API Remove_ {};
+		struct GAIA_API Delete_ {};
+		struct GAIA_API Error_ {};
+		struct GAIA_API Requires_ {};
+		struct GAIA_API CantCombine_ {};
+		struct GAIA_API Exclusive_ {};
+		struct GAIA_API Acyclic_ {};
+		struct GAIA_API All_ {};
+		struct GAIA_API ChildOf_ {};
+		struct GAIA_API Is_ {};
+		struct GAIA_API Traversable_ {};
 		// struct System_;
-		struct GAIA_API DependsOn_{};
+		struct GAIA_API DependsOn_ {};
 
 		// Query variables
-		struct GAIA_API _Var0{};
-		struct GAIA_API _Var1{};
-		struct GAIA_API _Var2{};
-		struct GAIA_API _Var3{};
-		struct GAIA_API _Var4{};
-		struct GAIA_API _Var5{};
-		struct GAIA_API _Var6{};
-		struct GAIA_API _Var7{};
+		struct GAIA_API _Var0 {};
+		struct GAIA_API _Var1 {};
+		struct GAIA_API _Var2 {};
+		struct GAIA_API _Var3 {};
+		struct GAIA_API _Var4 {};
+		struct GAIA_API _Var5 {};
+		struct GAIA_API _Var6 {};
+		struct GAIA_API _Var7 {};
 
 		//----------------------------------------------------------------------
 		// Core component entities

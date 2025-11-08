@@ -1,4 +1,4 @@
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 namespace gaia {
 	namespace ecs {

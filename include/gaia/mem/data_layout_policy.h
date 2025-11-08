@@ -1,13 +1,13 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-#include "../core/span.h"
-#include "../core/utility.h"
-#include "../meta/reflection.h"
+#include "gaia/core/span.h"
+#include "gaia/core/utility.h"
+#include "gaia/meta/reflection.h"
 #include "mem_alloc.h"
 
 namespace gaia {

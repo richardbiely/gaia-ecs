@@ -1,11 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 
-#include "../cnt/darray.h"
-#include "../cnt/map.h"
-#include "../core/hashing_policy.h"
+#include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
+#include "gaia/core/hashing_policy.h"
 
 namespace gaia {
 	namespace ecs {

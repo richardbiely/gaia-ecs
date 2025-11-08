@@ -1,8 +1,8 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
-#include "../core/hashing_policy.h"
-#include "../core/span.h"
+#include "gaia/core/hashing_policy.h"
+#include "gaia/core/span.h"
 
 namespace gaia {
 	namespace meta {

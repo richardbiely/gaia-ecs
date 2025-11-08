@@ -7,13 +7,13 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "../../config/config.h"
+#include "gaia/config/config.h"
 
 #include <tuple>
 #include <type_traits>
 
-#include "../iterator.h"
-#include "../utility.h"
+#include "gaia/core/iterator.h"
+#include "gaia/core/utility.h"
 
 namespace gaia {
 	namespace core {

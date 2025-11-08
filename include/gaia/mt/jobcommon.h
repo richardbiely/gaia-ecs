@@ -4,7 +4,7 @@
 // TODO: Currently necessary due to std::function. Replace them!
 #include <functional>
 
-#include "../core/utility.h"
+#include "gaia/core/utility.h"
 
 #include "event.h"
 #include "jobqueue.h"

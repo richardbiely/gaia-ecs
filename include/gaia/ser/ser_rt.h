@@ -1,11 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <type_traits>
 #include <utility>
 
-#include "../core/utility.h"
-#include "../meta/reflection.h"
+#include "gaia/core/utility.h"
+#include "gaia/meta/reflection.h"
 #include "ser_common.h"
 
 namespace gaia {

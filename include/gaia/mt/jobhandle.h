@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -28,11 +28,11 @@ namespace gaia {
 		private:
 			struct JobData {
 				//! Index in entity array
-				JobInternalType id: IdBits;
+				JobInternalType id : IdBits;
 				//! Generation index. Incremented every time an item is deleted
-				JobInternalType gen: GenBits;
+				JobInternalType gen : GenBits;
 				//! Job priority. 1-priority, 0-background
-				JobInternalType prio: PrioBits;
+				JobInternalType prio : PrioBits;
 			};
 
 			union {

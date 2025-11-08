@@ -1,10 +1,10 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <cstdarg>
 
-#include "../core/span.h"
 #include "command_buffer_fwd.h"
+#include "gaia/core/span.h"
 #include "id_fwd.h"
 #include "query_fwd.h"
 

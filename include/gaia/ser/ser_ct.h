@@ -1,11 +1,11 @@
 #pragma once
-#include "../config/config.h"
+#include "gaia/config/config.h"
 
 #include <type_traits>
 #include <utility>
 
-#include "../core/utility.h"
-#include "../meta/reflection.h"
+#include "gaia/core/utility.h"
+#include "gaia/meta/reflection.h"
 #include "ser_common.h"
 
 namespace gaia {
@@ -89,7 +89,7 @@ namespace gaia {
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 			template <typename Writer, typename T>
 			void check_one(Writer& s, const T& arg) {
 				T tmp{};
@@ -106,7 +106,7 @@ namespace gaia {
 				// Return back to the original position in the buffer.
 				s.seek(pos0);
 			}
-	#endif
+#endif
 		} // namespace detail
 
 		//! Write \param data using \tparam Writer at compile-time.
@@ -125,7 +125,7 @@ namespace gaia {
 			detail::load_one(reader, data);
 		}
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
 		//!
@@ -137,6 +137,6 @@ namespace gaia {
 		void check(Writer& writer, const T& data) {
 			detail::check_one(writer, data);
 		}
-	#endif
+#endif
 	} // namespace ser
 } // namespace gaia
