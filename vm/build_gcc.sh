@@ -20,6 +20,7 @@ mkdir ${PATH_BASE} -p
 
 export CC="/usr/bin/gcc"
 export CXX="/usr/bin/g++"
+export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
 
 ####################################################################
 # Build the project
