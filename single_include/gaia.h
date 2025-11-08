@@ -12533,10 +12533,10 @@ namespace gaia {
 
 		namespace detail {
 			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
-			inline constexpr size_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
+			inline constexpr uint32_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
 
 			inline FILE* get_log_out(LogLevel level) {
-				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)level);
+				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)LogLevel::Warning);
 				// If a warning or error level is set we will use stderr for output.
 				return mask != 0 ? stderr : stdout;
 			}
