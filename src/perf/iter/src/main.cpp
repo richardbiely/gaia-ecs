@@ -283,7 +283,7 @@ DEFINE_BUILD_QUERY_U(7)
 		GAIA_PROF_SCOPE(BM_Each_##ArchetypeCount##_##QueryComponents);                                                     \
 		ecs::World w;                                                                                                      \
 		auto types = create_archetypes<true>(w, ArchetypeCount, MaxIdsPerArchetype, nullptr);                              \
-		ecs::Entity tmp[(QueryComponents) + 1];                                                                            \
+		ecs::Entity tmp[(QueryComponents)];                                                                                \
 		prepare_query_types({types.data(), types.size()}, tmp);                                                            \
 		auto query = create_query<true>(w, tmp);                                                                           \
 		bench_query_each(state, query);                                                                                    \
@@ -297,7 +297,7 @@ template <bool UseCachedQuery, uint32_t QueryComponents, typename IterKind>
 void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t MaxIdsPerArchetype) {
 	ecs::World w;
 	auto types = create_archetypes<true>(w, ArchetypeCount, MaxIdsPerArchetype, nullptr);
-	ecs::Entity tmp[QueryComponents + 1];
+	ecs::Entity tmp[QueryComponents];
 	prepare_query_types({types.data(), types.size()}, tmp);
 	auto query = create_query<UseCachedQuery>(w, tmp);
 	bench_query_each_iter<IterKind>(state, query);
