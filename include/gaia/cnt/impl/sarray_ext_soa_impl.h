@@ -221,7 +221,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = sarr_ext_soa_detail::difference_type;
 			using size_type = sarr_ext_soa_detail::size_type;
 
@@ -240,10 +240,7 @@ namespace gaia {
 			constexpr sarr_ext_soa() noexcept = default;
 			constexpr sarr_ext_soa(core::zero_t) noexcept {}
 
-			~sarr_ext_soa() {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor_n(data(), m_cnt);
-			}
+			~sarr_ext_soa() = default;
 
 			constexpr sarr_ext_soa(size_type count, const_reference value) noexcept {
 				resize(count);
@@ -280,8 +277,6 @@ namespace gaia {
 			constexpr sarr_ext_soa(sarr_ext_soa&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);

@@ -153,12 +153,8 @@ namespace gaia {
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
-				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = arg;
-				} else {
-					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, arg);
-				}
+				auto* ptr = &data()[m_cnt++];
+				core::call_ctor(ptr, arg);
 			}
 
 			constexpr void push_back(T&& arg) noexcept {

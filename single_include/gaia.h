@@ -4147,31 +4147,28 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
-		enum class DataLayout : uint32_t {
-			AoS, //< Array Of Structures
-			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
-			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
-			SoA16, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+		enum class DataLayout : uint8_t {
+			AoS = 0, //< Array Of Structures
+			SoA = 1, //< Structure Of Arrays, 4 packed items, good for SSE and similar
+			SoA8 = 2, //< Structure Of Arrays, 8 packed items, good for AVX and similar
+			SoA16 = 3, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
 
 			Count = 4
 		};
 
-#ifndef GAIA_LAYOUT
-	#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
-#endif
+#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
 
 		// Helper templates
 		namespace detail {
 			//! Returns the alignment for a given type \tparam T
 			template <typename T>
-			inline constexpr uint32_t get_alignment() {
+			constexpr uint32_t get_alignment() {
 				if constexpr (std::is_empty_v<T>)
 					// Always consider 0 for empty types
-					return 0;
+					return 0U;
 				else {
 					// Use at least 4 (32-bit systems) or 8 (64-bit systems) bytes for alignment
-					constexpr auto s = (uint32_t)sizeof(uintptr_t);
-					return core::get_min(s, (uint32_t)alignof(T));
+					return (uint32_t)core::get_min(sizeof(uintptr_t), alignof(T));
 				}
 			}
 
@@ -4179,7 +4176,7 @@ namespace gaia {
 			// Byte offset of a member of SoA-organized data
 			//----------------------------------------------------------------------
 
-			inline constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
+			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
 				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
@@ -4379,7 +4376,6 @@ namespace gaia {
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
 			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
-			static_assert(sizeof(ValueType) > 0U, "SoA data can't be zero-size");
 
 			template <size_t Item>
 			using value_type = typename std::tuple_element<Item, TTuple>::type;
@@ -7295,7 +7291,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = darr_ext_soa_detail::difference_type;
 			using size_type = darr_ext_soa_detail::size_type;
 
@@ -8058,7 +8054,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = darr_soa_detail::difference_type;
 			using size_type = darr_soa_detail::size_type;
 
@@ -14228,12 +14224,8 @@ namespace gaia {
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
-				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = arg;
-				} else {
-					auto* ptr = &data()[m_cnt++];
-					core::call_ctor(ptr, arg);
-				}
+				auto* ptr = &data()[m_cnt++];
+				core::call_ctor(ptr, arg);
 			}
 
 			constexpr void push_back(T&& arg) noexcept {
@@ -14768,7 +14760,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = sarr_ext_soa_detail::difference_type;
 			using size_type = sarr_ext_soa_detail::size_type;
 
@@ -14787,10 +14779,7 @@ namespace gaia {
 			constexpr sarr_ext_soa() noexcept = default;
 			constexpr sarr_ext_soa(core::zero_t) noexcept {}
 
-			~sarr_ext_soa() {
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor_n(data(), m_cnt);
-			}
+			~sarr_ext_soa() = default;
 
 			constexpr sarr_ext_soa(size_type count, const_reference value) noexcept {
 				resize(count);
@@ -14827,8 +14816,6 @@ namespace gaia {
 			constexpr sarr_ext_soa(sarr_ext_soa&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -15409,7 +15396,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = sarr_soa_detail::difference_type;
 			using size_type = sarr_soa_detail::size_type;
 
@@ -15458,8 +15445,6 @@ namespace gaia {
 			constexpr sarr_soa(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor_raw_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
@@ -15888,123 +15873,20 @@ namespace gaia {
 			}
 		};
 
-		template <typename T, uint32_t PageCapacity, typename Allocator>
-		struct sparse_iterator_soa {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			// using pointer = T*; not supported
-			// using reference = T&; not supported
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = sparse_iterator_soa;
-
-		private:
-			static_assert(
-					(PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator_soa must be a power of 2");
-			constexpr static sparse_id page_mask = PageCapacity - 1;
-			constexpr static sparse_id to_page_index = core::count_bits(page_mask);
-
-			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
-
-			sparse_id* m_pDense;
-			page_type* m_pPages;
-
-		public:
-			sparse_iterator_soa(sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
-
-			value_type operator*() const {
-				const auto sid = *m_pDense;
-				const auto pid = uint32_t(sid >> to_page_index);
-				const auto did = uint32_t(sid & page_mask);
-				const auto& page = m_pPages[pid];
-				return page.get_data(did);
-			}
-			value_type operator->() const {
-				const auto sid = *m_pDense;
-				const auto pid = uint32_t(sid >> to_page_index);
-				const auto did = uint32_t(sid & page_mask);
-				const auto& page = m_pPages[pid];
-				return page.get_data(did);
-			}
-			iterator operator[](size_type offset) const {
-				return iterator(m_pDense + offset, m_pPages);
-			}
-
-			iterator& operator+=(size_type diff) {
-				m_pDense += diff;
-				return *this;
-			}
-			iterator& operator-=(size_type diff) {
-				m_pDense -= diff;
-				return *this;
-			}
-			iterator& operator++() {
-				++m_pDense;
-				return *this;
-			}
-			iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-			iterator& operator--() {
-				--m_pDense;
-				return *this;
-			}
-			iterator operator--(int) {
-				iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			iterator operator+(size_type offset) const {
-				return {m_pDense + offset, m_pPages};
-			}
-			iterator operator-(size_type offset) const {
-				return {m_pDense - offset, m_pPages};
-			}
-			difference_type operator-(const iterator& other) const {
-				return (difference_type)(m_pDense - other.m_pDense);
-			}
-
-			GAIA_NODISCARD bool operator==(const iterator& other) const {
-				return m_pDense == other.m_pDense;
-			}
-			GAIA_NODISCARD bool operator!=(const iterator& other) const {
-				return m_pDense != other.m_pDense;
-			}
-			GAIA_NODISCARD bool operator>(const iterator& other) const {
-				return m_pDense > other.m_pDense;
-			}
-			GAIA_NODISCARD bool operator>=(const iterator& other) const {
-				return m_pDense >= other.m_pDense;
-			}
-			GAIA_NODISCARD bool operator<(const iterator& other) const {
-				return m_pDense < other.m_pDense;
-			}
-			GAIA_NODISCARD bool operator<=(const iterator& other) const {
-				return m_pDense <= other.m_pDense;
-			}
-		};
-
 		namespace detail {
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
 			class sparse_page {
 			public:
-				static_assert(
-						!std::is_empty_v<T>, "It only makes sense to use sparse storage for data types with non-zero size");
-
 				using value_type = T;
 				using reference = T&;
 				using const_reference = const T&;
 				using pointer = T*;
 				using const_pointer = T*;
-				using view_policy = mem::auto_view_policy<T>;
+				using view_policy = mem::data_view_policy_aos<T>;
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 
 				using iterator = sparse_iterator<T, PageCapacity, Allocator>;
-				using iterator_soa = sparse_iterator_soa<T, PageCapacity, Allocator>;
 
 			private:
 				size_type* m_pSparse = nullptr;
@@ -16027,10 +15909,8 @@ namespace gaia {
 				void dtr_data_inter(uint32_t idx) noexcept {
 					GAIA_ASSERT(!empty());
 
-					if constexpr (!mem::is_soa_layout_v<T>) {
-						auto* ptr = &data()[idx];
-						core::call_dtor(ptr);
-					}
+					auto* ptr = &data()[idx];
+					core::call_dtor(ptr);
 				}
 
 				void dtr_active_data() noexcept {
@@ -16040,10 +15920,8 @@ namespace gaia {
 						if (m_pSparse[i] == detail::InvalidDenseId)
 							continue;
 
-						if constexpr (!mem::is_soa_layout_v<T>) {
-							auto* ptr = &data()[i];
-							core::call_dtor(ptr);
-						}
+						auto* ptr = &data()[i];
+						core::call_dtor(ptr);
 					}
 				}
 
@@ -16185,23 +16063,15 @@ namespace gaia {
 				}
 
 				decltype(auto) add_data(uint32_t idx, const T& arg) {
-					if constexpr (mem::is_soa_layout_v<T>) {
-						set_data(idx) = arg;
-					} else {
-						auto* ptr = &set_data(idx);
-						core::call_ctor(ptr, arg);
-						return (reference)(*ptr);
-					}
+					auto* ptr = &set_data(idx);
+					core::call_ctor(ptr, arg);
+					return (reference)(*ptr);
 				}
 
 				decltype(auto) add_data(uint32_t idx, T&& arg) {
-					if constexpr (mem::is_soa_layout_v<T>) {
-						set_data(idx) = GAIA_MOV(arg);
-					} else {
-						auto* ptr = &set_data(idx);
-						core::call_ctor(ptr, GAIA_MOV(arg));
-						return (reference)(*ptr);
-					}
+					auto* ptr = &set_data(idx);
+					core::call_ctor(ptr, GAIA_MOV(arg));
+					return (reference)(*ptr);
 				}
 
 				void del_data(uint32_t idx) noexcept {
@@ -16225,62 +16095,38 @@ namespace gaia {
 
 				GAIA_NODISCARD decltype(auto) front() noexcept {
 					GAIA_ASSERT(!empty());
-					if constexpr (mem::is_soa_layout_v<T>)
-						return *begin();
-					else
-						return (reference)*begin();
+					return (reference)*begin();
 				}
 
 				GAIA_NODISCARD decltype(auto) front() const noexcept {
 					GAIA_ASSERT(!empty());
-					if constexpr (mem::is_soa_layout_v<T>)
-						return *begin();
-					else
-						return (const_reference)*begin();
+					return (const_reference)*begin();
 				}
 
 				GAIA_NODISCARD decltype(auto) back() noexcept {
 					GAIA_ASSERT(!empty());
-					if constexpr (mem::is_soa_layout_v<T>)
-						return set_data(m_cnt - 1);
-					else
-						return (reference)(set_data(m_cnt - 1));
+					return (reference)(set_data(m_cnt - 1));
 				}
 
 				GAIA_NODISCARD decltype(auto) back() const noexcept {
 					GAIA_ASSERT(!empty());
-					if constexpr (mem::is_soa_layout_v<T>)
-						return set_data(m_cnt - 1);
-					else
-						return (const_reference)set_data(m_cnt - 1);
+					return (const_reference)set_data(m_cnt - 1);
 				}
 
 				GAIA_NODISCARD auto begin() const noexcept {
-					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa(m_pData, size(), 0);
-					else
-						return iterator(data());
+					return iterator(data());
 				}
 
 				GAIA_NODISCARD auto rbegin() const noexcept {
-					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa(m_pData, size(), size() - 1);
-					else
-						return iterator((pointer)&back());
+					return iterator((pointer)&back());
 				}
 
 				GAIA_NODISCARD auto end() const noexcept {
-					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa(m_pData, size(), size());
-					else
-						return iterator(data() + size());
+					return iterator(data() + size());
 				}
 
 				GAIA_NODISCARD auto rend() const noexcept {
-					if constexpr (mem::is_soa_layout_v<T>)
-						return iterator_soa(m_pData, size(), -1);
-					else
-						return iterator(data() - 1);
+					return iterator(data() - 1);
 				}
 
 				GAIA_NODISCARD bool operator==(const sparse_page& other) const {
@@ -16307,7 +16153,7 @@ namespace gaia {
 				// using const_reference = const T&; not supported
 				using pointer = T*;
 				using const_pointer = T*;
-				using view_policy = mem::auto_view_policy<T>;
+				using view_policy = mem::data_view_policy_aos<T>;
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
 
@@ -16518,12 +16364,11 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_aos<T>;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 
 			using iterator = sparse_iterator<T, PageCapacity, Allocator>;
-			using iterator_soa = sparse_iterator_soa<T, PageCapacity, Allocator>;
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
 
 		private:
@@ -16650,14 +16495,10 @@ namespace gaia {
 			decltype(auto) add(TType&& arg) {
 				const auto sid = to_sparse_id<T>::get(arg);
 				if (has(sid)) {
-					if constexpr (mem::is_soa_layout_v<TType>)
-						return;
-					else {
-						const auto pid = uint32_t(sid >> to_page_index);
-						const auto did = uint32_t(sid & page_mask);
-						auto& page = m_pages[pid];
-						return page.set_data(did);
-					}
+					const auto pid = uint32_t(sid >> to_page_index);
+					const auto did = uint32_t(sid & page_mask);
+					auto& page = m_pages[pid];
+					return page.set_data(did);
 				}
 
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -16668,10 +16509,7 @@ namespace gaia {
 
 				auto& page = m_pages[pid];
 				page.set_id(did) = m_cnt++;
-				if constexpr (mem::is_soa_layout_v<TType>)
-					page.add_data(did, GAIA_FWD(arg));
-				else
-					return page.add_data(did, GAIA_FWD(arg));
+				return page.add_data(did, GAIA_FWD(arg));
 			}
 
 			//! Update the record at the index \param sid.
@@ -16737,18 +16575,12 @@ namespace gaia {
 
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return *begin();
-				else
-					return (reference)*begin();
+				return (reference)*begin();
 			}
 
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>)
-					return *begin();
-				else
-					return (const_reference)*begin();
+				return (const_reference)*begin();
 			}
 
 			GAIA_NODISCARD decltype(auto) back() noexcept {
@@ -16758,10 +16590,7 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				if constexpr (mem::is_soa_layout_v<T>)
-					return m_pages[pid].set_data(did);
-				else
-					return (reference)m_pages[pid].set_data(did);
+				return (reference)m_pages[pid].set_data(did);
 			}
 
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
@@ -16771,28 +16600,19 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				if constexpr (mem::is_soa_layout_v<T>)
-					return m_pages[pid].get_data(did);
-				else
-					return (const_reference)m_pages[pid].get_data(did);
+				return (const_reference)m_pages[pid].get_data(did);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_dense.data(), size(), 0);
-				else
-					return iterator(m_dense.data(), m_pages.data());
+				return iterator(m_dense.data(), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (mem::is_soa_layout_v<T>)
-					return iterator_soa(m_dense.data() + m_cnt, size(), size());
-				else
-					return iterator(m_dense.data() + size(), m_pages.data());
+				return iterator(m_dense.data() + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
@@ -16841,7 +16661,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_aos<T>;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
 

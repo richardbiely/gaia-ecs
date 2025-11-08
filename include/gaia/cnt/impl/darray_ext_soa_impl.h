@@ -222,7 +222,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using view_policy = mem::auto_view_policy<T>;
+			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = darr_ext_soa_detail::difference_type;
 			using size_type = darr_ext_soa_detail::size_type;
 

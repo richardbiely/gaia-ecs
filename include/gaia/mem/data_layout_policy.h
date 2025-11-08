@@ -12,31 +12,28 @@
 
 namespace gaia {
 	namespace mem {
-		enum class DataLayout : uint32_t {
-			AoS, //< Array Of Structures
-			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
-			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
-			SoA16, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+		enum class DataLayout : uint8_t {
+			AoS = 0, //< Array Of Structures
+			SoA = 1, //< Structure Of Arrays, 4 packed items, good for SSE and similar
+			SoA8 = 2, //< Structure Of Arrays, 8 packed items, good for AVX and similar
+			SoA16 = 3, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
 
 			Count = 4
 		};
 
-#ifndef GAIA_LAYOUT
-	#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
-#endif
+#define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
 
 		// Helper templates
 		namespace detail {
 			//! Returns the alignment for a given type \tparam T
 			template <typename T>
-			inline constexpr uint32_t get_alignment() {
+			constexpr uint32_t get_alignment() {
 				if constexpr (std::is_empty_v<T>)
 					// Always consider 0 for empty types
-					return 0;
+					return 0U;
 				else {
 					// Use at least 4 (32-bit systems) or 8 (64-bit systems) bytes for alignment
-					constexpr auto s = (uint32_t)sizeof(uintptr_t);
-					return core::get_min(s, (uint32_t)alignof(T));
+					return (uint32_t)core::get_min(sizeof(uintptr_t), alignof(T));
 				}
 			}
 
@@ -44,7 +41,7 @@ namespace gaia {
 			// Byte offset of a member of SoA-organized data
 			//----------------------------------------------------------------------
 
-			inline constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
+			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
 				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
@@ -244,7 +241,6 @@ namespace gaia {
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
 			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
-			static_assert(sizeof(ValueType) > 0U, "SoA data can't be zero-size");
 
 			template <size_t Item>
 			using value_type = typename std::tuple_element<Item, TTuple>::type;
