@@ -536,12 +536,16 @@ TEST_CASE("fwd_llist") {
 	};
 
 	constexpr uint32_t N = 16;
+	cnt::darray<Foo*> foos_backup;
 	cnt::darray<Foo*> foos;
+	foos_backup.resize(N);
 	foos.resize(N);
 	GAIA_FOR(N) {
 		auto*& f = foos[i];
 		f = new Foo();
 		f->value = i;
+
+		foos_backup[i] = f;
 	}
 
 	cnt::fwd_llist<Foo> list;
@@ -623,6 +627,9 @@ TEST_CASE("fwd_llist") {
 		}
 		CHECK(idx == N - 3);
 	}
+
+	for (auto* f: foos_backup)
+		delete f;
 }
 
 template <typename Container>
