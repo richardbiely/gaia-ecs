@@ -8441,12 +8441,11 @@ TEST_CASE("Query Filter - no systems") {
 }
 
 TEST_CASE("Query Filter - systems") {
-	TestWorld twld;
-
 	uint32_t expectedCnt = 0;
 	uint32_t actualCnt = 0;
 	uint32_t wsCnt = 0;
 	uint32_t wssCnt = 0;
+	TestWorld twld;
 
 	auto e = wld.add();
 	wld.add<Position>(e);
@@ -8813,6 +8812,11 @@ TEST_CASE("Query - sort") {
 #if GAIA_SYSTEMS_ENABLED
 
 TEST_CASE("System - simple") {
+	uint32_t sys1_cnt = 0;
+	uint32_t sys2_cnt = 0;
+	uint32_t sys3_cnt = 0;
+	bool sys3_run_before_sys1 = false;
+	bool sys3_run_before_sys2 = false;
 	TestWorld twld;
 
 	constexpr uint32_t N = 10;
@@ -8824,12 +8828,6 @@ TEST_CASE("System - simple") {
 			[[maybe_unused]] auto newEntity = wld.copy(e);
 		}
 	}
-
-	uint32_t sys1_cnt = 0;
-	uint32_t sys2_cnt = 0;
-	uint32_t sys3_cnt = 0;
-	bool sys3_run_before_sys1 = false;
-	bool sys3_run_before_sys2 = false;
 
 	auto testRun = [&]() {
 		GAIA_FOR(100) {
@@ -10624,6 +10622,9 @@ struct SomeData2 {
 
 TEST_CASE("Multithreading - Systems") {
 	auto& tp = mt::ThreadPool::get();
+
+	uint32_t data1 = 0;
+	uint32_t data2 = 0;
 	TestWorld twld;
 
 	constexpr uint32_t Iters = 15000;
@@ -10640,9 +10641,6 @@ TEST_CASE("Multithreading - Systems") {
 		wld.add<SomeData2>(e2, {0});
 		wld.copy_n(e2, 9999);
 	}
-
-	uint32_t data1 = 0;
-	uint32_t data2 = 0;
 
 	auto sys1 = wld.system()
 									.all<SomeData1>()

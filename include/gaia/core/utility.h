@@ -251,7 +251,7 @@ namespace gaia {
 
 		//! Constructs an object of type \tparam T in at the memory address \param pData.
 		template <typename T>
-		void call_ctor(T* pData) {
+		void call_ctor([[maybe_unused]]T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				(void)::new (pData) T();
@@ -260,7 +260,7 @@ namespace gaia {
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
-		void call_ctor_n(T* pData, size_t cnt) {
+		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
@@ -279,7 +279,7 @@ namespace gaia {
 
 		//! Constructs an object of type \tparam T at the memory address \param pData.
 		template <typename T>
-		void call_dtor(T* pData) {
+		void call_dtor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				pData->~T();
@@ -288,7 +288,7 @@ namespace gaia {
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
-		void call_dtor_n(T* pData, size_t cnt) {
+		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)

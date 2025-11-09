@@ -4280,15 +4280,11 @@ namespace gaia {
 				// Make sure the name does not contain a dot because this character is reserved for
 				// hierarchical lookups, e.g. "parent.child.subchild".
 #ifdef GAIA_ASSERT_ENABLED
-				{
-					const char* pName = name;
-					while (*pName != '\0') {
-						const bool hasInvalidCharacter = *pName == '.';
-						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
-						if (hasInvalidCharacter)
-							return;
-						++pName;
-					}
+				GAIA_FOR(len) {
+					const bool hasInvalidCharacter = name[i] == '.';
+					GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
+					if (hasInvalidCharacter)
+						return;
 				}
 #endif
 

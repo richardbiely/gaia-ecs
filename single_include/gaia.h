@@ -1627,7 +1627,7 @@ namespace gaia {
 
 		//! Constructs an object of type \tparam T in at the memory address \param pData.
 		template <typename T>
-		void call_ctor(T* pData) {
+		void call_ctor([[maybe_unused]]T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				(void)::new (pData) T();
@@ -1636,7 +1636,7 @@ namespace gaia {
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
-		void call_ctor_n(T* pData, size_t cnt) {
+		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
@@ -1655,7 +1655,7 @@ namespace gaia {
 
 		//! Constructs an object of type \tparam T at the memory address \param pData.
 		template <typename T>
-		void call_dtor(T* pData) {
+		void call_dtor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				pData->~T();
@@ -1664,7 +1664,7 @@ namespace gaia {
 
 		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
 		template <typename T>
-		void call_dtor_n(T* pData, size_t cnt) {
+		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
@@ -4690,27 +4690,35 @@ namespace gaia {
 	#define GAIA_MEM_SANI_ADD_BLOCK(type, ptr, cap, size)                                                                \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (cap) * sizeof(type),               \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
 				(unsigned char*)(ptr) + (size) * sizeof(type))
 	// Unpoison an existing contiguous block of buffer
 	#define GAIA_MEM_SANI_DEL_BLOCK(type, ptr, cap, size)                                                                \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (size) * sizeof(type),              \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
 				(unsigned char*)(ptr) + (cap) * sizeof(type))
 
 	// Unpoison memory for N new elements, use before adding the elements
 	#define GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, diff)                                                             \
 		if (ptr != nullptr)                                                                                                \
-			__sanitizer_annotate_contiguous_container(                                                                       \
-					ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (size) * sizeof(type),            \
-					(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type));
+		__sanitizer_annotate_contiguous_container(                                                                         \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
+				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type))
 	// Poison memory for last N elements, use after removing the elements
 	#define GAIA_MEM_SANI_POP_N(type, ptr, cap, size, diff)                                                              \
 		if (ptr != nullptr)                                                                                                \
-			__sanitizer_annotate_contiguous_container(                                                                       \
-					ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type), \
-					(unsigned char*)(ptr) + (size) * sizeof(type));
+		__sanitizer_annotate_contiguous_container(                                                                         \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type), /**/                                                 \
+				(unsigned char*)(ptr) + (size) * sizeof(type))
 
 	// Unpoison memory for a new element, use before adding it
 	#define GAIA_MEM_SANI_PUSH(type, ptr, cap, size) GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, 1)
@@ -16530,7 +16538,7 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
@@ -16784,7 +16792,7 @@ namespace gaia {
 				if (!has_internal(pid, did))
 					return;
 
-				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
@@ -35778,15 +35786,11 @@ namespace gaia {
 				// Make sure the name does not contain a dot because this character is reserved for
 				// hierarchical lookups, e.g. "parent.child.subchild".
 #ifdef GAIA_ASSERT_ENABLED
-				{
-					const char* pName = name;
-					while (*pName != '\0') {
-						const bool hasInvalidCharacter = *pName == '.';
-						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
-						if (hasInvalidCharacter)
-							return;
-						++pName;
-					}
+				GAIA_FOR(len) {
+					const bool hasInvalidCharacter = name[i] == '.';
+					GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
+					if (hasInvalidCharacter)
+						return;
 				}
 #endif
 

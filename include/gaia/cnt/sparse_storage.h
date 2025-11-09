@@ -889,7 +889,7 @@ namespace gaia {
 				const auto pid = uint32_t(sid >> to_page_index);
 				const auto did = uint32_t(sid & page_mask);
 
-				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
@@ -1143,7 +1143,7 @@ namespace gaia {
 				if (!has_internal(pid, did))
 					return;
 
-				const auto sidPrev = m_dense[m_cnt - 1];
+				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];

@@ -31,27 +31,35 @@
 	#define GAIA_MEM_SANI_ADD_BLOCK(type, ptr, cap, size)                                                                \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (cap) * sizeof(type),               \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
 				(unsigned char*)(ptr) + (size) * sizeof(type))
 	// Unpoison an existing contiguous block of buffer
 	#define GAIA_MEM_SANI_DEL_BLOCK(type, ptr, cap, size)                                                                \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (size) * sizeof(type),              \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
 				(unsigned char*)(ptr) + (cap) * sizeof(type))
 
 	// Unpoison memory for N new elements, use before adding the elements
 	#define GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, diff)                                                             \
 		if (ptr != nullptr)                                                                                                \
-			__sanitizer_annotate_contiguous_container(                                                                       \
-					ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + (size) * sizeof(type),            \
-					(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type));
+		__sanitizer_annotate_contiguous_container(                                                                         \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
+				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type))
 	// Poison memory for last N elements, use after removing the elements
 	#define GAIA_MEM_SANI_POP_N(type, ptr, cap, size, diff)                                                              \
 		if (ptr != nullptr)                                                                                                \
-			__sanitizer_annotate_contiguous_container(                                                                       \
-					ptr, (unsigned char*)(ptr) + (cap) * sizeof(type), (unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type), \
-					(unsigned char*)(ptr) + (size) * sizeof(type));
+		__sanitizer_annotate_contiguous_container(                                                                         \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
+				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type), /**/                                                 \
+				(unsigned char*)(ptr) + (size) * sizeof(type))
 
 	// Unpoison memory for a new element, use before adding it
 	#define GAIA_MEM_SANI_PUSH(type, ptr, cap, size) GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, 1)
