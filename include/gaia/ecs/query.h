@@ -367,40 +367,39 @@ namespace gaia {
 					uint16_t to;
 				};
 
-				using CmdBuffer = ser::ser_buffer_binary;
 				using ChunkSpan = std::span<const Chunk*>;
 				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
-				using CmdFunc = void (*)(CmdBuffer& buffer, QueryCtx& ctx);
+				using CmdFunc = void (*)(QuerySerBuffer& buffer, QueryCtx& ctx);
 
 			private:
 				static constexpr CmdFunc CommandBufferRead[] = {
 						// Add item
-						[](CmdBuffer& buffer, QueryCtx& ctx) {
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_AddItem cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](CmdBuffer& buffer, QueryCtx& ctx) {
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_AddFilter cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// SortBy
-						[](CmdBuffer& buffer, QueryCtx& ctx) {
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_SortBy cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// GroupBy
-						[](CmdBuffer& buffer, QueryCtx& ctx) {
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_GroupBy cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// SetGroupId
-						[](CmdBuffer& buffer, QueryCtx& ctx) {
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_SetGroupId cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);

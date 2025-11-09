@@ -3,6 +3,7 @@
 
 #include <type_traits>
 
+#include "gaia/cnt/darray.h"
 #include "gaia/cnt/darray_ext.h"
 
 namespace gaia {
@@ -128,9 +129,11 @@ namespace gaia {
 		} // namespace detail
 
 		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+		using ser_buffer_binary_storage_dyn = gaia::cnt::darray<uint8_t>;
 
 		//! Minimal binary serializer meant to runtime data.
 		//! It does not offer any versioning, or type information.
 		class ser_buffer_binary: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage> {};
+		class ser_buffer_binary_dyn: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage_dyn> {};
 	} // namespace ser
 } // namespace gaia
