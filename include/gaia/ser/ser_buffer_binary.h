@@ -81,7 +81,9 @@ namespace gaia {
 				void save(T&& value) {
 					reserve(sizeof(T));
 
-					m_data.resize(m_dataPos + sizeof(T));
+					const auto cnt = m_dataPos + sizeof(T);
+					if (cnt > m_data.size())
+						m_data.resize(cnt);
 					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
 					mem = GAIA_FWD(value);
 
@@ -96,7 +98,9 @@ namespace gaia {
 					reserve(size);
 
 					// Copy "size" bytes of raw data starting at pSrc
-					m_data.resize(m_dataPos + size);
+					const auto cnt = m_dataPos + size;
+					if (cnt > m_data.size())
+						m_data.resize(cnt);
 					memcpy((void*)&m_data[m_dataPos], pSrc, size);
 
 					m_dataPos += size;

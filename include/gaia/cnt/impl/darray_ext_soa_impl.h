@@ -260,16 +260,15 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pDataHeap, m_cap, cnt);
+					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
 					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pDataHeap, m_cap, cnt);
+					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
-					GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, cap, cnt);
-					view_policy::template free<Allocator>(pDataOld, cnt);
+					view_policy::template free<Allocator>(pDataOld, cap, cnt);
 				}
 
 				m_pData = m_pDataHeap;
@@ -355,8 +354,7 @@ namespace gaia {
 				// Moving from heap-allocated source
 				if (other.m_pDataHeap != nullptr) {
 					// Release current heap memory and replace it with the source
-					GAIA_MEM_SANI_DEL_BLOCK(value_type, m_pDataHeap, m_cap, m_cnt);
-					view_policy::template free<Allocator>(m_pDataHeap, m_cnt);
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
 
 					m_pDataHeap = other.m_pDataHeap;
 					m_pData = m_pDataHeap;
@@ -380,8 +378,7 @@ namespace gaia {
 			}
 
 			~darr_ext_soa() {
-				GAIA_MEM_SANI_DEL_BLOCK(value_type, m_pDataHeap, m_cap, m_cnt);
-				view_policy::template free<Allocator>(m_pDataHeap, m_cnt);
+				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -415,11 +412,10 @@ namespace gaia {
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pDataHeap, cap, m_cnt);
+					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
 
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
-					GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, m_cap, m_cnt);
-					view_policy::template free<Allocator>(pDataOld, m_cnt);
+					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
@@ -444,14 +440,13 @@ namespace gaia {
 
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
-				GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
+					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
 					// Move old data to the new location
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 
 					// Release old memory
-					GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, m_cap, m_cnt);
-					view_policy::template free<Allocator>(pDataOld, m_cnt);
+					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
 				}
@@ -584,12 +579,12 @@ namespace gaia {
 						m_cap = extent;
 					} else {
 						m_pDataHeap = view_policy::mem_alloc(m_cap = cnt);
-						GAIA_MEM_SANI_ADD_BLOCK(value_type, m_pDataHeap, m_cap, m_cnt);
+						//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
 						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
-					GAIA_MEM_SANI_DEL_BLOCK(value_type, pDataOld, cap, cnt);
+					//GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
 					view_policy::mem_free(pDataOld);
 				} else
 					resize(cnt);

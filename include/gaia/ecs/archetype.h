@@ -290,7 +290,7 @@ namespace gaia {
 
 					pChunk->save(s);
 
-					// Save where to jump in case we decide not to read data stored by the archetype
+					// Save where to jump in case we decide not to read data stored by the chunk
 					const auto pos1 = (uint32_t)s.tell();
 					s.seek(pos0);
 					s.save(pos1);

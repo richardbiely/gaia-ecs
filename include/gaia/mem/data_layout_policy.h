@@ -8,6 +8,7 @@
 #include "gaia/core/span.h"
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
+#include "gaia/mem/mem_sani.h"
 #include "gaia/meta/reflection.h"
 
 namespace gaia {
@@ -126,6 +127,15 @@ namespace gaia {
 				auto* pData = (ValueType*)mem::AllocHelper::alloc<uint8_t, Allocator>(bytes);
 				core::call_ctor_raw_n(pData, cnt);
 				return (uint8_t*)pData;
+			}
+
+			template <typename Allocator>
+			static void free(void* pData, size_t cap, size_t cnt) noexcept {
+				if (pData == nullptr)
+					return;
+				core::call_dtor_n((ValueType*)pData, cnt);
+				GAIA_MEM_SANI_DEL_BLOCK(sizeof(ValueType), pData, cap, cnt);
+				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
 			template <typename Allocator>
@@ -259,7 +269,7 @@ namespace gaia {
 			}
 
 			template <typename Allocator>
-			static void free(void* pData, [[maybe_unused]] size_t cnt) noexcept {
+			static void free(void* pData, [[maybe_unused]] size_t cap, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				return mem::AllocHelper::free_alig<Allocator>(pData);

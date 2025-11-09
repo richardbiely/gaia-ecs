@@ -7,7 +7,7 @@
 		#else
 			#define GAIA_HAS_SANI_FEATURE 0
 		#endif
-		#if GAIA_HAS_SANI_FEATURE || GAIA_USE_SANITIZER || defined(__SANITIZE_ADDRESS__)
+		#if (GAIA_HAS_SANI_FEATURE && GAIA_USE_SANITIZER) || defined(__SANITIZE_ADDRESS__)
 			#define GAIA_USE_MEM_SANI 1
 		#else
 			#define GAIA_USE_MEM_SANI 0
@@ -22,55 +22,52 @@
 #endif
 
 #if GAIA_USE_MEM_SANI
-	#ifndef __SANITIZE_ADDRESS__
-		#define __SANITIZE_ADDRESS__
-	#endif
 	#include <sanitizer/asan_interface.h>
 
 	// Poison a new contiguous block of memory
-	#define GAIA_MEM_SANI_ADD_BLOCK(type, ptr, cap, size)                                                                \
+	#define GAIA_MEM_SANI_ADD_BLOCK(type_size, ptr, cap, size)                                                           \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
 				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
-				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
-				(unsigned char*)(ptr) + (size) * sizeof(type))
+				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
+				ptr, /**/                                                                                                      \
+				(unsigned char*)(ptr) + ((size) * type_size))
 	// Unpoison an existing contiguous block of buffer
-	#define GAIA_MEM_SANI_DEL_BLOCK(type, ptr, cap, size)                                                                \
+	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size)                                                           \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
 				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
-				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
-				(unsigned char*)(ptr) + (cap) * sizeof(type))
+				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
+				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
+				ptr)
 
 	// Unpoison memory for N new elements, use before adding the elements
-	#define GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, diff)                                                             \
+	#define GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, diff)                                                        \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
 				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
-				(unsigned char*)(ptr) + (size) * sizeof(type), /**/                                                            \
-				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type))
+				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
+				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
+				(unsigned char*)(ptr) + (((size) + (diff)) * type_size))
 	// Poison memory for last N elements, use after removing the elements
-	#define GAIA_MEM_SANI_POP_N(type, ptr, cap, size, diff)                                                              \
+	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff)                                                         \
 		if (ptr != nullptr)                                                                                                \
 		__sanitizer_annotate_contiguous_container(                                                                         \
 				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + (cap) * sizeof(type), /**/                                                             \
-				(unsigned char*)(ptr) + ((size) + (diff)) * sizeof(type), /**/                                                 \
-				(unsigned char*)(ptr) + (size) * sizeof(type))
+				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
+				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
+				(unsigned char*)(ptr) + (((size) - (diff)) * type_size))
 
 	// Unpoison memory for a new element, use before adding it
-	#define GAIA_MEM_SANI_PUSH(type, ptr, cap, size) GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, 1)
+	#define GAIA_MEM_SANI_PUSH(type_size, ptr, cap, size) GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, 1)
 	// Poison memory for the last elements, use after removing it
-	#define GAIA_MEM_SANI_POP(type, ptr, cap, size) GAIA_MEM_SANI_POP_N(type, ptr, cap, size, 1)
+	#define GAIA_MEM_SANI_POP(type_size, ptr, cap, size) GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, 1)
 
 #else
-	#define GAIA_MEM_SANI_ADD_BLOCK(type, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_DEL_BLOCK(type, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_PUSH_N(type, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
-	#define GAIA_MEM_SANI_POP_N(type, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
-	#define GAIA_MEM_SANI_PUSH(type, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_POP(type, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_ADD_BLOCK(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
+	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
+	#define GAIA_MEM_SANI_PUSH(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_POP(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
 #endif
