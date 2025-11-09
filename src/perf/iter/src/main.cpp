@@ -144,10 +144,7 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 
 		uint32_t iters = 0;
 		query.each([&](TIter& it) {
-			const auto cnt = it.size();
-			GAIA_FOR(cnt) {
-				++iters;
-			}
+			iters += it.size();
 		});
 		gaia::dont_optimize(iters);
 
