@@ -30430,12 +30430,12 @@ namespace gaia {
 					// helps with edge cases.
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
-					gaia::prefetch(&batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+					gaia::prefetch(batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
 					run_query_func<Func, TIter>(pWorld, func, batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
-						gaia::prefetch(&batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+						gaia::prefetch(batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
 						run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 					}
 
