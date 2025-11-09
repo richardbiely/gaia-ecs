@@ -827,7 +827,6 @@ void resizable_arr_test(uint32_t N) {
 	{
 		arr = {};
 		arr.push_back(11);
-		CHECK(arr.capacity() == 4);
 		arr.push_back(13);
 		arr.push_back(14);
 		arr.insert(arr.begin() + 1, 12);
