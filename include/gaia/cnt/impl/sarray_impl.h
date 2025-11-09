@@ -152,6 +152,10 @@ namespace gaia {
 				return begin() == end();
 			}
 
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
+			}
+
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}

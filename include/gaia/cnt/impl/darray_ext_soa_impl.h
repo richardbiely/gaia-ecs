@@ -491,9 +491,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
@@ -510,9 +509,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);

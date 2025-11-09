@@ -4992,21 +4992,23 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
-				const auto max = idxDst - idxSrc + 1;
+				const auto max = idxDst - idxSrc;
+				const auto idx = idxDst - 1;
+
 				// Move first if possible
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idx - i + n] = GAIA_MOV(dst[idx - i]);
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = T(GAIA_MOV(dst[idxDst - i]));
+					GAIA_FOR(max) dst[idx - i + n] = T(GAIA_MOV(dst[idx - i]));
 				}
 				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
+					GAIA_FOR(max) dst[idx - i + n] = dst[idx - i];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idx - i + n] = T(dst[idx - i]);
 				} else {
 					// Fallback to raw memory copy
-					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+					GAIA_FOR(max) memmove((void*)&dst[idx - i + n], (const void*)&dst[idx - i], sizeof(T));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -5022,21 +5024,23 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
-				const auto max = idxDst - idxSrc + 1;
+				const auto max = idxDst - idxSrc;
+				const auto idx = idxDst - 1;
+
 				// Move first if possible
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = GAIA_MOV(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idx - i + n] = GAIA_MOV(dst[idx - i]);
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = T(GAIA_MOV(dst[idxDst - i]));
+					GAIA_FOR(max) dst[idx - i + n] = T(GAIA_MOV(dst[idx - i]));
 				}
 				// Try to copy if moves are not possible
 				else if constexpr (std::is_copy_assignable_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = dst[idxDst - i];
+					GAIA_FOR(max) dst[idx - i + n] = dst[idx - i];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
-					GAIA_FOR(max) dst[idxDst - i + n] = T(dst[idxDst - i]);
+					GAIA_FOR(max) dst[idx - i + n] = T(dst[idx - i]);
 				} else {
 					// Fallback to raw memory copy
-					GAIA_FOR(max) memmove((void*)&dst[idxDst - i + n], (const void*)&dst[idxDst - i], sizeof(T));
+					GAIA_FOR(max) memmove((void*)&dst[idx - i + n], (const void*)&dst[idx - i], sizeof(T));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -6216,16 +6220,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
+				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[m_cnt];
 				core::call_ctor(ptr, arg);
-				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 
 				++m_cnt;
 
@@ -6237,16 +6239,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
+				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, GAIA_MOV(arg));
-				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 
 				++m_cnt;
 
@@ -6792,16 +6792,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
+				GAIA_MEM_SANI_PUSH(value_type, data(), m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, arg);
-				GAIA_MEM_SANI_PUSH(value_type, data(), m_cap, m_cnt);
 
 				++m_cnt;
 
@@ -6813,16 +6811,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
+				GAIA_MEM_SANI_PUSH(value_type, data(), m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, GAIA_MOV(arg));
-				GAIA_MEM_SANI_PUSH(value_type, data(), m_cap, m_cnt);
 
 				++m_cnt;
 
@@ -7560,9 +7556,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
@@ -7579,9 +7574,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
@@ -8293,9 +8287,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
@@ -8312,9 +8305,8 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
@@ -11978,6 +11970,10 @@ namespace robin_hood {
 				}
 			}
 
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return calcMaxNumElementsAllowed(mMask);
+			}
+
 			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE("%p", this);
 				return mNumElements;
@@ -12600,6 +12596,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
+			}
+
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
@@ -14398,6 +14398,10 @@ namespace gaia {
 				return size() == 0;
 			}
 
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
+			}
+
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
@@ -15023,6 +15027,10 @@ namespace gaia {
 				return size() == 0;
 			}
 
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
+			}
+
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
@@ -15486,6 +15494,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
+			}
+
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
@@ -17125,6 +17137,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {

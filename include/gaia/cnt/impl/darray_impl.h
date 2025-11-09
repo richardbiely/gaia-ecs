@@ -289,16 +289,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
+				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[m_cnt];
 				core::call_ctor(ptr, arg);
-				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 
 				++m_cnt;
 
@@ -310,16 +308,14 @@ namespace gaia {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
-				try_grow();
-
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
+				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
-
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, GAIA_MOV(arg));
-				GAIA_MEM_SANI_PUSH(value_type, m_pData, m_cap, m_cnt);
 
 				++m_cnt;
 

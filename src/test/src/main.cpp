@@ -823,26 +823,53 @@ void resizable_arr_test(uint32_t N) {
 	CHECK(arr.size() == 0);
 	CHECK(arr.empty());
 
-	// 11, 13, 14, 15
-	// 11, 13, 13, 14, 15
-	// 11, [12], 13, 14, 15
-	arr.push_back(11);
-	arr.push_back(13);
-	arr.push_back(14);
-	arr.insert(arr.begin() + 1, 12);
-	CHECK(arr.size() == 4);
-	CHECK(arr[0] == 11);
-	CHECK(arr[1] == 12);
-	CHECK(arr[2] == 13);
-	CHECK(arr[3] == 14);
+	// Insert before capacity changes
+	{
+		arr = {};
+		arr.push_back(11);
+		CHECK(arr.capacity() == 4);
+		arr.push_back(13);
+		arr.push_back(14);
+		arr.insert(arr.begin() + 1, 12);
+		CHECK(arr.size() == 4);
+		CHECK(arr[0] == 11);
+		CHECK(arr[1] == 12);
+		CHECK(arr[2] == 13);
+		CHECK(arr[3] == 14);
 
-	arr.insert(arr.begin(), 10);
-	CHECK(arr.size() == 5);
-	CHECK(arr[0] == 10);
-	CHECK(arr[1] == 11);
-	CHECK(arr[2] == 12);
-	CHECK(arr[3] == 13);
-	CHECK(arr[4] == 14);
+		arr.insert(arr.begin(), 10);
+		CHECK(arr.size() == 5);
+		CHECK(arr[0] == 10);
+		CHECK(arr[1] == 11);
+		CHECK(arr[2] == 12);
+		CHECK(arr[3] == 13);
+		CHECK(arr[4] == 14);
+	}
+
+	// Insert with capacity change
+	{
+		arr = {};
+		arr.push_back(11);
+		arr.push_back(13);
+		arr.push_back(14);
+		arr.push_back(15);
+		arr.insert(arr.begin() + 1, 12);
+		CHECK(arr.size() == 5);
+		CHECK(arr[0] == 11);
+		CHECK(arr[1] == 12);
+		CHECK(arr[2] == 13);
+		CHECK(arr[3] == 14);
+		CHECK(arr[4] == 15);
+
+		arr.insert(arr.begin(), 10);
+		CHECK(arr.size() == 6);
+		CHECK(arr[0] == 10);
+		CHECK(arr[1] == 11);
+		CHECK(arr[2] == 12);
+		CHECK(arr[3] == 13);
+		CHECK(arr[4] == 14);
+		CHECK(arr[5] == 15);
+	}
 }
 
 template <typename Container>
@@ -10661,8 +10688,8 @@ TEST_CASE("Multithreading - Systems") {
 
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
-	util::set_log_func(util::detail::log_cached);
-	util::set_log_flush_func(util::detail::log_flush_cached);
+	// util::set_log_func(util::detail::log_cached);
+	// util::set_log_flush_func(util::detail::log_flush_cached);
 
 	return doctest::Context(argc, argv).run();
 }

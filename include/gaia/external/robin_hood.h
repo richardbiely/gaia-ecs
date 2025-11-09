@@ -1918,6 +1918,10 @@ namespace robin_hood {
 				}
 			}
 
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return calcMaxNumElementsAllowed(mMask);
+			}
+
 			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE("%p", this);
 				return mNumElements;
