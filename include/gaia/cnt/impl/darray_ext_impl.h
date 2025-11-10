@@ -252,7 +252,7 @@ namespace gaia {
 				}
 
 				// Resizing to a bigger size but still within allocated capacity
-				if (count < m_cap) {
+				if (count <= m_cap) {
 					// Construct new elements
 					GAIA_MEM_SANI_PUSH_N(value_size, data(), m_cap, m_cnt, count - m_cnt);
 					core::call_ctor_n(&data()[m_cnt], count - m_cnt);

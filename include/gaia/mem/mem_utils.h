@@ -76,7 +76,7 @@ namespace gaia {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(src[i]);
 				} else {
 					// Fallback to raw memory copy
-					GAIA_FOR2(idxSrc, idxDst) memmove((void*)dst[i], (const void*)dst[i], sizeof(T));
+					memmove((void*)dst[idxSrc], (const void*)dst[idxSrc], sizeof(T) * (idxDst - idxSrc));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -170,7 +170,7 @@ namespace gaia {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(src[i]));
 				} else {
 					// Fallback to raw memory copy
-					GAIA_FOR2(idxSrc, idxDst) memmove((void*)&dst[i], (const void*)&src[i], sizeof(T));
+					memmove((void*)&dst[idxSrc], (const void*)&src[idxSrc], sizeof(T) * (idxDst - idxSrc));
 				}
 
 				GAIA_MSVC_WARNING_POP()
