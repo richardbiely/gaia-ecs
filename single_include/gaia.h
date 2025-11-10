@@ -23518,15 +23518,15 @@ namespace gaia {
 				//! Writes \param value to the buffer
 				template <typename T>
 				void save(T&& value) {
-					reserve(sizeof(T));
+					reserve((uint32_t)sizeof(T));
 
-					const auto cnt = m_dataPos + sizeof(T);
+					const auto cnt = m_dataPos + (uint32_t)sizeof(T);
 					if (cnt > m_data.size())
 						m_data.resize(cnt);
 					mem::unaligned_ref<T> mem((void*)&m_data[m_dataPos]);
 					mem = GAIA_FWD(value);
 
-					m_dataPos += sizeof(T);
+					m_dataPos += (uint32_t)sizeof(T);
 				}
 
 				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
@@ -23548,12 +23548,12 @@ namespace gaia {
 				//! Loads \param value from the buffer
 				template <typename T>
 				void load(T& value) {
-					GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
+					GAIA_ASSERT(m_dataPos + (uint32_t)sizeof(T) <= bytes());
 
 					const auto& cdata = std::as_const(m_data);
 					value = mem::unaligned_ref<T>((void*)&cdata[m_dataPos]);
 
-					m_dataPos += sizeof(T);
+					m_dataPos += (uint32_t)sizeof(T);
 				}
 
 				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
