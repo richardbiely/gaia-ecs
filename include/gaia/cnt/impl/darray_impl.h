@@ -205,7 +205,7 @@ namespace gaia {
 				if (count < m_cnt) {
 					// Destroy elements at the end
 					core::call_dtor_n(&data()[count], m_cnt - count);
-					GAIA_MEM_SANI_POP_N(value_size, m_pData, m_cap, m_cnt, count);
+					GAIA_MEM_SANI_POP_N(value_size, m_pData, m_cap, m_cnt, m_cnt - count);
 
 					m_cnt = count;
 					return;

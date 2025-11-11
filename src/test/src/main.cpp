@@ -1465,7 +1465,6 @@ void sparse_storage_test_tag(uint32_t N) {
 		return i * CONV;
 	};
 
-	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
 	Container arr;
 
 	GAIA_FOR(N) {
@@ -1537,11 +1536,13 @@ void sparse_storage_test_tag(uint32_t N) {
 	CHECK(arr.size() == 4);
 	CHECK(arr.has(to_sid(11)));
 	CHECK(arr.has(to_sid(12)));
+	CHECK_FALSE(arr.has(to_sid(13)));
 	CHECK(arr.has(to_sid(14)));
 	CHECK(arr.has(to_sid(15)));
 
 	arr.del(to_sid(11));
 	CHECK(arr.size() == 3);
+	CHECK_FALSE(arr.has(to_sid(11)));
 	CHECK(arr.has(to_sid(12)));
 	CHECK(arr.has(to_sid(14)));
 	CHECK(arr.has(to_sid(15)));
@@ -1550,6 +1551,7 @@ void sparse_storage_test_tag(uint32_t N) {
 	CHECK(arr.size() == 2);
 	CHECK(arr.has(to_sid(12)));
 	CHECK(arr.has(to_sid(14)));
+	CHECK_FALSE(arr.has(to_sid(15)));
 
 	arr.add(to_sid(9));
 	CHECK(arr.size() == 3);
@@ -1576,6 +1578,7 @@ void sparse_storage_test_tag(uint32_t N) {
 	CHECK(arr.has(to_sid(12)));
 	CHECK(arr.has(to_sid(14)));
 	CHECK(arr.has(to_sid(9001)));
+	CHECK_FALSE(arr.has(to_sid(9002)));
 	CHECK(arr.has(to_sid(9003)));
 	CHECK(arr.has(to_sid(9030)));
 

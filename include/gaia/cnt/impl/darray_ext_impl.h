@@ -130,7 +130,7 @@ namespace gaia {
 				if (other.m_pDataHeap == nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, 0);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				} else {
@@ -171,7 +171,7 @@ namespace gaia {
 				if (other.m_pDataHeap == nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, 0);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
 				} else {
@@ -245,7 +245,7 @@ namespace gaia {
 				if (count < m_cnt) {
 					// Destroy elements at the end
 					core::call_dtor_n(&data()[count], m_cnt - count);
-					GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, count);
+					GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, m_cnt - count);
 
 					m_cnt = count;
 					return;

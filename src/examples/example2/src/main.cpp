@@ -21,7 +21,7 @@ void MoveSystem(ecs::World& w, float dt) {
 int main() {
 	ecs::World w;
 
-	constexpr uint32_t N = 1'500;
+	constexpr uint32_t N = 100;
 
 	// Create entities with position and acceleration
 	auto e = w.add();
@@ -35,7 +35,7 @@ int main() {
 	auto p0 = w.get<Position>(e);
 
 	// Move until a key is hit
-	constexpr uint32_t GameLoops = 1'000;
+	constexpr uint32_t GameLoops = 10;
 	GAIA_FOR(GameLoops) {
 		float dt = 0.01f; // simulate 100 FPS
 		MoveSystem(w, dt);
