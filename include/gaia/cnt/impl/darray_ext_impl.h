@@ -126,15 +126,16 @@ namespace gaia {
 			darr_ext(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if (other.m_pDataHeap != nullptr) {
-					GAIA_ASSERT(m_pDataHeap == nullptr);
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				} else {
-					resize(other.size());
+				// Moving from stack-allocated source
+				if (other.m_pDataHeap == nullptr) {
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, 0);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				}
 
 				m_cnt = other.m_cnt;
@@ -155,8 +156,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(
-						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -164,28 +164,28 @@ namespace gaia {
 			darr_ext& operator=(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				// Moving from heap-allocated source
-				if (other.m_pDataHeap != nullptr) {
-					// Release current heap memory and replace it with the source
-					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				// Release previously allocated memory if there was anything
+				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
 
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				} else
 				// Moving from stack-allocated source
-				{
-					resize(other.size());
+				if (other.m_pDataHeap == nullptr) {
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, 0);
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				}
+
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 
-				other.m_cnt = size_type(0);
-				other.m_cap = extent;
 				other.m_pDataHeap = nullptr;
 				other.m_pData = other.m_data;
+				other.m_cnt = size_type(0);
+				other.m_cap = extent;
 
 				return *this;
 			}
@@ -222,15 +222,15 @@ namespace gaia {
 				if (cap <= m_cap)
 					return;
 
-				if (m_pDataHeap) {
-					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
+				auto* pDataOld = m_pDataHeap;
+				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
+				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
 				}
 
 				m_cap = cap;
@@ -263,13 +263,14 @@ namespace gaia {
 
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
 				}
 
 				m_cap = count;
@@ -329,7 +330,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(ptr);
 			}
 
 			//! Insert the element to the position given by iterator \param pos
@@ -348,7 +349,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(ptr);
 			}
 
 			//! Removes the element at pos

@@ -105,18 +105,10 @@ namespace gaia {
 
 			darr(const darr& other): darr(other.begin(), other.end()) {}
 
-			darr(darr&& other) noexcept {
-				// This is a newly constructed object.
-				// It can't have any memory allocated, yet.
-				GAIA_ASSERT(m_pData == nullptr);
-
-				m_pData = other.m_pData;
-				m_cnt = other.m_cnt;
-				m_cap = other.m_cap;
-
+			darr(darr&& other) noexcept: m_pData(other.m_pData), m_cnt(other.m_cnt), m_cap(other.m_cap) {
+				other.m_pData = nullptr;
 				other.m_cnt = size_type(0);
 				other.m_cap = size_type(0);
-				other.m_pData = nullptr;
 			}
 
 			darr& operator=(std::initializer_list<T> il) {
@@ -128,8 +120,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(
-						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -232,14 +223,11 @@ namespace gaia {
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(count);
-				{
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
-					// Move old data to the new location
-					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
-					// Default-construct new items
-					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
-				}
-
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
+				// Move old data to the new location
+				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				// Default-construct new items
+				core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 				// Release old memory
 				view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 

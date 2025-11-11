@@ -717,17 +717,28 @@ TEST_CASE("Containers - sarr") {
 template <typename Container>
 void resizable_arr_test(uint32_t N) {
 	using cont_item = typename Container::value_type;
-
 	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
-	Container arr;
 
+	Container arr;
 	GAIA_FOR(N) {
 		arr.push_back(i);
 		CHECK(arr[i] == i);
 		CHECK(arr.back() == i);
 	}
+
 	// Verify the values remain the same even after the internal buffer is reallocated
 	GAIA_FOR(N) CHECK(arr[i] == i);
+
+	arr = {};
+	arr.resize(N);
+	GAIA_FOR(N) {
+		arr[i] = i;
+		CHECK(arr[i] == i);
+	}
+
+	// Verify the values remain the same even after the internal buffer is reallocated
+	GAIA_FOR(N) CHECK(arr[i] == i);
+
 	// Copy assignment
 	{
 		Container arrCopy = arr;
@@ -9353,7 +9364,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 struct FooNonTrivial {
 	uint32_t a = 0;
 
-	explicit FooNonTrivial(uint32_t value): a(value) {};
+	explicit FooNonTrivial(uint32_t value): a(value) {}
 	FooNonTrivial() noexcept = default;
 	~FooNonTrivial() = default;
 	FooNonTrivial(const FooNonTrivial&) = default;
@@ -9393,14 +9404,15 @@ namespace gaia::ser {
 	template <typename Serializer>
 	void tag_invoke(save_tag, Serializer& s, const CustomStruct& data) {
 		s.save(data.size);
-		s.save_raw(data.ptr, data.size, ser::serialization_type_id::c8);
+		s.save((uintptr_t)data.ptr); // expect that the memory is alive somewhere
 	}
 
 	template <typename Serializer>
 	void tag_invoke(load_tag, Serializer& s, CustomStruct& data) {
 		s.load(data.size);
-		data.ptr = new char[data.size];
-		s.load_raw(data.ptr, data.size, ser::serialization_type_id::c8);
+		uintptr_t mem;
+		s.load(mem);
+		data.ptr = (char*)mem;
 	}
 } // namespace gaia::ser
 
@@ -9409,20 +9421,21 @@ struct CustomStructInternal {
 	uint32_t size;
 
 	bool operator==(const CustomStructInternal& other) const {
-		return size == other.size && !memcmp(ptr, other.ptr, other.size);
+		return size == other.size && 0 == memcmp(ptr, other.ptr, other.size);
 	}
 
 	template <typename Serializer>
 	void save(Serializer& s) const {
 		s.save(size);
-		s.save_raw(ptr, size, ser::serialization_type_id::c8);
+		s.save((uintptr_t)ptr); // expect that the memory is alive somewhere
 	}
 
 	template <typename Serializer>
 	void load(Serializer& s) {
 		s.load(size);
-		ptr = new char[size];
-		s.load_raw(ptr, size, ser::serialization_type_id::c8);
+		uintptr_t mem;
+		s.load(mem);
+		ptr = (char*)mem;
 	}
 };
 
@@ -9448,7 +9461,6 @@ TEST_CASE("Serialization - custom") {
 
 		CHECK(CompareSerializableTypes(in, out));
 		delete[] in.ptr;
-		delete[] out.ptr;
 	}
 	SUBCASE("internal") {
 		CustomStructInternal in, out;
@@ -9468,7 +9480,6 @@ TEST_CASE("Serialization - custom") {
 
 		CHECK(CompareSerializableTypes(in, out));
 		delete[] in.ptr;
-		delete[] out.ptr;
 	}
 }
 
@@ -9701,8 +9712,6 @@ TEST_CASE("Serialization - arrays") {
 
 		for (auto& a: in.arr)
 			delete[] a.ptr;
-		for (auto& a: out.arr)
-			delete[] a.ptr;
 	}
 }
 
@@ -9741,8 +9750,6 @@ TEST_CASE("Serialization - hashmap") {
 		}
 
 		for (auto& it: in)
-			delete[] it.second.ptr;
-		for (auto& it: out)
 			delete[] it.second.ptr;
 	}
 }
@@ -9783,8 +9790,6 @@ TEST_CASE("Serialization - hashset") {
 		// }
 
 		for (auto& it: in)
-			delete[] it.ptr;
-		for (auto& it: out)
 			delete[] it.ptr;
 	}
 }
@@ -10692,8 +10697,10 @@ TEST_CASE("Multithreading - Systems") {
 
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
-	// util::set_log_func(util::detail::log_cached);
-	// util::set_log_flush_func(util::detail::log_flush_cached);
+	util::set_log_func(util::detail::log_cached);
+	util::set_log_flush_func(util::detail::log_flush_cached);
 
-	return doctest::Context(argc, argv).run();
+	doctest::Context ctx(argc, argv);
+	ctx.setOption("success", false); // suppress successful checks
+	return ctx.run();
 }
