@@ -30,10 +30,10 @@ export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
 BUILD_SETTINGS_COMMON_BASE="-DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF -DGAIA_MAKE_SINGLE_HEADER=OFF -DGAIA_PROFILER_BUILD=OFF"
 BUILD_SETTINGS_COMMON="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=ON -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF"
 BUILD_SETTINGS_COMMON_PROF="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=ON -DGAIA_PROFILER_MEM=ON"
-# For sanitizer builds we have to turn off unit tests because Catch2 generates unitialized memory alerts.
-# These are false alerts happening due to us not linking against a standard library built with memory sanitizers enabled. 
-# TODO: Build custom libc++ with msan enabled
-BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -DGAIA_DEVMODE=OFF"
+# Doctest triggers a few use-of-uninitialized-value alerts. However, we still want to run sanitizer so we will accept that for now.
+# Maybe they are false alerts happening due to us not linking against a standard library built with memory sanitizers enabled. 
+# TODO: Build custom libc++ with msan enabled?
+BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=ON -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -DGAIA_DEVMODE=OFF"
 
 # Paths
 PATH_DEBUG="./${PATH_BASE}/debug"
@@ -122,11 +122,26 @@ export UBSAN_OPTIONS=halt_on_error=0:print_stacktrace=1:report_error_type=1
 export ASAN_OPTIONS=halt_on_error=0:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
 export ASAN_SYMBOLIZER_PATH=$(which llvm-symbolizer)
 
+UNIT_TEST_PATH="src/test/gaia_test"
 PERF_ENTITY_PATH="src/perf/entity/gaia_perf_entity"
 PERF_ITER_PATH="src/perf/iter/gaia_perf_iter"
 PERF_DUEL_PATH="src/perf/duel/gaia_perf_duel"
 PERF_APP_PATH="src/perf/app/gaia_perf_app"
 PERF_MT_PATH="src/perf/mt/gaia_perf_mt"
+
+echo ${PATH_DEBUG_ADDR}/${UNIT_TEST_PATH}
+echo "Debug mode + addr sanitizer"
+chmod +x ${PATH_DEBUG_ADDR}/${UNIT_TEST_PATH}
+${PATH_DEBUG_ADDR}/${UNIT_TEST_PATH} -s
+echo "Debug mode + mem sanitizer"
+chmod +x ${PATH_DEBUG_MEM}/${UNIT_TEST_PATH}
+${PATH_DEBUG_MEM}/${UNIT_TEST_PATH} -s
+echo "Release mode + addr sanitizer"
+chmod +x ${PATH_RELEASE_ADDR}/${UNIT_TEST_PATH}
+${PATH_RELEASE_ADDR}/${UNIT_TEST_PATH} -s
+echo "Release mode + mem sanitizer"
+chmod +x ${PATH_RELEASE_MEM}/${UNIT_TEST_PATH}
+${PATH_RELEASE_MEM}/${UNIT_TEST_PATH} -s
 
 echo ${PATH_DEBUG_ADDR}/${PERF_ENTITY_PATH}
 echo "Debug mode + addr sanitizer"
