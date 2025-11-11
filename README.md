@@ -37,7 +37,7 @@
 * comes with [multithreading](#multithreading) support with job-dependencies, supported on the [ECS level](#parallel-execution), too
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiles almost instantly
-* stability and correctness secured by running thousands of [unit tests](#unit-testing) and debug-mode asserts in the code
+* stability and correctness ensured by thousands of [unit tests](#unit-testing), in-code asserts, and sanitizers
 * thoroughly documented both public and internal code
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
