@@ -26,14 +26,14 @@
 * very simple and safe API
 * based on [C++17](https://en.cppreference.com/w/cpp/17) with no external dependencies (no STL strings or containers)
 * compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
-* can be compiled to run in a web browser using [Emscripten](https://emscripten.org)
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * supports applications with large number of components and archetypes
+* can be compiled to run in a web browser using [Emscripten](https://emscripten.org)
 * automatic component registration
 * supports [run-time defined tags](#create-or-delete-entity)
 * supports [entity relationships](#relationships)
 * supports smart pointer-like [entity lifespan](#entity-lifespan) management
-* integrated [compile-time serialization](#serialization)
+* integrated both [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
 * comes with [multithreading](#multithreading) support with job-dependencies, supported on the [ECS level](#parallel-execution), too
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiles almost instantly
@@ -2011,7 +2011,7 @@ struct CustomStruct {
 
  It doesn't matter which kind of specialization you use. If both are used the external one takes priority.
 
-### Run-time serialization
+### Runtime serialization
 
 For runtime serialization you need to use the provided ***ser::ISerializer*** base and override the exposed virtual functions.
 
