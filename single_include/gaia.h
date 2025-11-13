@@ -8953,7 +8953,7 @@ namespace gaia {
 			//! Pointer the the next element
 			T* next = nullptr;
 			//! Pointer to the memory address of the previous node's "next". This is not meant for traversal.
-			//! It merely allows for maintaining the forward links of the list when removing an item and allows
+			//! It merely allows for maintaining the forward links of the list when removing an item, and allows
 			//! O(1) removals even in a forward list.
 			T** prevs_next = nullptr;
 
@@ -9020,8 +9020,7 @@ namespace gaia {
 		};
 
 		//! Forward list container.
-		//! No memory allocation is performed because the list is stored directly inside
-		//! the allocated nodes.
+		//! No memory allocation is performed because the list is stored directly inside allocated nodes.
 		//! Inserts: O(1)
 		//! Removals: O(1)
 		//! Iteration: O(N)
@@ -21655,11 +21654,11 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
-		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
+		constexpr uint16_t mem_block_size(uint32_t sizeType) {
 			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
 		}
 
-		inline constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
+		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
 			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
 		}
 
@@ -25411,7 +25410,7 @@ namespace gaia {
 			}
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
-			static bool est_max_entities_per_archetype(
+			static bool est_max_entities_per_chunk(
 					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
 					uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
@@ -25434,7 +25433,7 @@ namespace gaia {
 				}
 
 				return true;
-			};
+			}
 
 			static void reg_components(
 					Archetype& arch, EntitySpan ids, ComponentSpan comps, uint8_t from, uint8_t to, uint32_t& currOff,
@@ -25563,8 +25562,6 @@ namespace gaia {
 				//       We could simply take the predecessor's mask and update it with the new ids.
 				newArch->m_queryMask = build_entity_mask({ids.data(), ids.size()});
 
-				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
-
 				const auto cnt = (uint32_t)ids.size();
 				newArch->m_properties.cntEntities = (uint8_t)ids.size();
 
@@ -25624,60 +25621,83 @@ namespace gaia {
 					}
 				}
 
-				// Calculate the number of entities per chunks precisely so we can
-				// fit as many of them into chunk as possible.
 				uint32_t genCompsSize = 0;
 				uint32_t uniCompsSize = 0;
 				GAIA_FOR(entsGeneric) genCompsSize += newArch->m_comps[i].size();
 				GAIA_FOR2(entsGeneric, cnt) uniCompsSize += newArch->m_comps[i].size();
 
-				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
-				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
-				const auto sizeM = (size0 + size1) / 2;
+				auto compute_max_entities_for_chunk = [&](uint32_t maxEntities, uint32_t dataLimit) -> uint32_t {
+					uint32_t low = 1;
+					uint32_t high = maxEntities;
+					uint32_t best = 1;
 
-				uint32_t maxDataOffsetTarget = size1;
-				// Theoretical maximum number of components we can fit into one chunk.
-				// This can be further reduced due alignment and padding.
-				auto maxGenItemsInArchetype = (maxDataOffsetTarget - offs.firstByte_EntityData - uniCompsSize - 1) /
-																			(genCompsSize + (uint32_t)sizeof(Entity));
+					// Helper to test if a given entity count fits in the chunk
+					auto try_fit = [&](uint32_t count) -> bool {
+						uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
+						uint32_t tmpCount = count;
 
-				bool finalCheck = false;
-			recalculate:
-				auto currOff = offs.firstByte_EntityData + ((uint32_t)sizeof(Entity) * maxGenItemsInArchetype);
+						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(0, entsGeneric), tmpCount, dataLimit))
+							return false;
+						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(entsGeneric), 1, dataLimit))
+							return false;
 
-				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
-				// for entity count is not right (most likely because of padding or usage of SoA components).
-				if (!est_max_entities_per_archetype(
-								cc, currOff, maxGenItemsInArchetype, comps.subspan(0, entsGeneric), maxGenItemsInArchetype,
-								maxDataOffsetTarget))
-					goto recalculate;
-				if (!est_max_entities_per_archetype(
-								cc, currOff, maxGenItemsInArchetype, comps.subspan(entsGeneric), 1, maxDataOffsetTarget))
-					goto recalculate;
+						return true;
+					};
 
-				// Limit the number of entities to a certain number so we can make use of smaller
-				// chunks where it makes sense.
-				// TODO: Tweak this so the full remaining capacity is used. So if we occupy 7000 B we still
-				//       have 1000 B left to fill.
-				if (maxGenItemsInArchetype > maxEntities) {
-					maxGenItemsInArchetype = maxEntities;
-					goto recalculate;
-				}
+					while (low <= high) {
+						uint32_t mid = (low + high) / 2;
+						if (try_fit(mid)) {
+							best = mid;
+							low = mid + 1;
+						} else {
+							high = mid - 1;
+						}
+					}
 
-				// We create chunks of either 8K or 16K but might end up with requested capacity 8.1K. Allocating a 16K chunk
-				// in this case would be wasteful. Therefore, let's find the middle ground. Anything 12K or smaller we'll
-				// allocate into 8K chunks so we avoid wasting too much memory.
-				if (!finalCheck && currOff < sizeM) {
-					finalCheck = true;
-					maxDataOffsetTarget = size0;
+					return best;
+				};
 
-					maxGenItemsInArchetype = (maxDataOffsetTarget - offs.firstByte_EntityData - uniCompsSize - 1) /
-																	 (genCompsSize + (uint32_t)sizeof(Entity));
-					goto recalculate;
+				// Calculate the number of entities per chunks precisely so we can fit as many of them into chunk as possible.
+				// There are multiple chunk size we can pick from. We start at the smallest one, and try do upsize if we can't
+				// fit at least MinEntitiesPerChunk.
+				constexpr uint32_t MinEntitiesPerChunk = 256;
+				uint32_t maxGenItemsInArchetype = 0;
+
+				// Always go big for the root archetype so we can fit as many entities as possible into it
+				if (archetypeId == 0) {
+					const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
+					maxGenItemsInArchetype =
+							(size1 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
+					maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size1);
+					if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES)
+						maxGenItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
+				} else {
+					// Theoretical maximum number of components we can fit into one chunk.
+					// This can be further reduced due to alignment and padding.
+					const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
+					maxGenItemsInArchetype =
+							(size0 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
+					// NOTE: No need to check because MAX_CHUNK_ENTITIES is calculated for the largest chunk.
+					//       A smaller one can't fit more anyway.
+					// if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) 	maxGenItemsInArchetype =
+					// ChunkHeader::MAX_CHUNK_ENTITIES;
+
+					// If we can't fit 512 into the smaller chunk, go with the larger one
+					const uint32_t maxEntitiesPerChunk = compute_max_entities_for_chunk(maxGenItemsInArchetype, size0);
+					if (maxEntitiesPerChunk < MinEntitiesPerChunk) {
+						const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
+						maxGenItemsInArchetype =
+								(size1 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
+						maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size1);
+						if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES)
+							maxGenItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
+					} else {
+						maxGenItemsInArchetype = maxEntitiesPerChunk;
+					}
 				}
 
 				// Update the offsets according to the recalculated maxGenItemsInArchetype
-				currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenItemsInArchetype;
+				auto currOff = offs.firstByte_EntityData + ((uint32_t)sizeof(Entity) * maxGenItemsInArchetype);
 				reg_components(*newArch, ids, comps, (uint8_t)0, (uint8_t)entsGeneric, currOff, maxGenItemsInArchetype);
 				reg_components(*newArch, ids, comps, (uint8_t)entsGeneric, (uint8_t)ids.size(), currOff, 1);
 

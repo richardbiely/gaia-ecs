@@ -10,7 +10,7 @@ namespace gaia {
 			//! Pointer the the next element
 			T* next = nullptr;
 			//! Pointer to the memory address of the previous node's "next". This is not meant for traversal.
-			//! It merely allows for maintaining the forward links of the list when removing an item and allows
+			//! It merely allows for maintaining the forward links of the list when removing an item, and allows
 			//! O(1) removals even in a forward list.
 			T** prevs_next = nullptr;
 
@@ -77,8 +77,7 @@ namespace gaia {
 		};
 
 		//! Forward list container.
-		//! No memory allocation is performed because the list is stored directly inside
-		//! the allocated nodes.
+		//! No memory allocation is performed because the list is stored directly inside allocated nodes.
 		//! Inserts: O(1)
 		//! Removals: O(1)
 		//! Iteration: O(N)

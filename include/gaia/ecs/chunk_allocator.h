@@ -20,11 +20,11 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
-		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
+		constexpr uint16_t mem_block_size(uint32_t sizeType) {
 			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
 		}
 
-		inline constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
+		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
 			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
 		}
 
