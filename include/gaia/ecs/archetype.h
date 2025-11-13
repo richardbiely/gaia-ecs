@@ -471,15 +471,15 @@ namespace gaia {
 				// Calculate the number of entities per chunks precisely so we can fit as many of them into chunk as possible.
 				// There are multiple chunk size we can pick from. We start at the smallest one, and try do upsize if we can't
 				// fit at least MinEntitiesPerChunk.
-				constexpr uint32_t MinEntitiesPerChunk = 256;
+				constexpr uint32_t MinEntitiesPerChunk = 384;
 				uint32_t maxGenItemsInArchetype = 0;
 
 				// Always go big for the root archetype so we can fit as many entities as possible into it
 				if (archetypeId == 0) {
-					const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
+					const uint32_t size2 = Chunk::chunk_data_bytes(mem_block_size(2));
 					maxGenItemsInArchetype =
-							(size1 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
-					maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size1);
+							(size2 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
+					maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size2);
 					if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES)
 						maxGenItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
 				} else {
@@ -488,22 +488,28 @@ namespace gaia {
 					const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
 					maxGenItemsInArchetype =
 							(size0 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
-					// NOTE: No need to check because MAX_CHUNK_ENTITIES is calculated for the largest chunk.
-					//       A smaller one can't fit more anyway.
-					// if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) 	maxGenItemsInArchetype =
-					// ChunkHeader::MAX_CHUNK_ENTITIES;
+					maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size0);
 
-					// If we can't fit 512 into the smaller chunk, go with the larger one
-					const uint32_t maxEntitiesPerChunk = compute_max_entities_for_chunk(maxGenItemsInArchetype, size0);
-					if (maxEntitiesPerChunk < MinEntitiesPerChunk) {
+					// If we can't fit MinEntitiesPerChunk, go with a larger one
+					if (maxGenItemsInArchetype < MinEntitiesPerChunk) {
 						const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
 						maxGenItemsInArchetype =
 								(size1 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
 						maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size1);
+					}
+
+					// If we still can't fit MinEntitiesPerChunk, go with the largest one
+					if (maxGenItemsInArchetype < MinEntitiesPerChunk) {
+						const uint32_t size2 = Chunk::chunk_data_bytes(mem_block_size(2));
+						maxGenItemsInArchetype =
+								(size2 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
+						maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size2);
+
+						// NOTE:
+						// No we only check against MAX_CHUNK_ENTITIES for the largest size chunk because MAX_CHUNK_ENTITIES is
+						// calculated relative to its size. Therefore, smaller chunks can't possibly fit more.
 						if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES)
 							maxGenItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
-					} else {
-						maxGenItemsInArchetype = maxEntitiesPerChunk;
 					}
 				}
 
@@ -512,7 +518,6 @@ namespace gaia {
 				reg_components(*newArch, ids, comps, (uint8_t)0, (uint8_t)entsGeneric, currOff, maxGenItemsInArchetype);
 				reg_components(*newArch, ids, comps, (uint8_t)entsGeneric, (uint8_t)ids.size(), currOff, 1);
 
-				GAIA_ASSERT(Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 				newArch->m_properties.genEntities = (uint8_t)entsGeneric;
@@ -1078,14 +1083,17 @@ namespace gaia {
 					GAIA_FOR2(p.genEntities, comps.size()) uniCompsSize += comps[i].size();
 				}
 
+				const auto chunkBytes = Chunk::chunk_total_bytes(archetype.props().chunkDataBytes);
+				const auto sizeType = mem_block_size_type(chunkBytes);
+				const auto allocSize = mem_block_size(sizeType) / 1024;
+
 				GAIA_LOG_N(
 						"aid:%u, "
 						"hash:%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.id(), archetype.lookup_hash().hash, (uint32_t)archetype.chunks().size(),
-						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genCompsSize, uniCompsSize,
-						archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
+						archetype.id(), archetype.lookup_hash().hash, (uint32_t)archetype.chunks().size(), allocSize, genCompsSize,
+						uniCompsSize, archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
 
 				if (!ids.empty()) {
 					GAIA_LOG_N("  Components - count:%u", (uint32_t)ids.size());

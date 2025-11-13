@@ -58,9 +58,9 @@ namespace gaia {
 
 			Chunk(
 					const World& wld, const ComponentCache& cc, //
-					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, uint16_t st, //
+					uint32_t chunkIndex, uint16_t capacity, uint8_t genEntities, //
 					uint32_t& worldVersion): //
-					m_header(wld, cc, chunkIndex, capacity, genEntities, st, worldVersion) {
+					m_header(wld, cc, chunkIndex, capacity, genEntities, worldVersion) {
 				// Chunk data area consist of memory offsets, entities, and component data. Normally,  we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -357,16 +357,16 @@ namespace gaia {
 					// component offsets
 					const ChunkDataOffset* compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
-				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				(void)new (pChunk) Chunk(wld, cc, chunkIndex, capacity, genEntities, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
+				const auto sizeType = mem_block_size_type(totalBytes);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = mem::AllocHelper::alloc<uint8_t>(allocSize);
 				std::memset(pChunkMem, 0, allocSize);
-				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, genEntities, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(wld, cc, chunkIndex, capacity, genEntities, worldVersion);
 #endif
 
 				pChunk->init((uint32_t)cntEntities, ids, comps, offsets, compOffs);
@@ -1452,11 +1452,6 @@ namespace gaia {
 			//! Returns the total number of generic entities/components in the chunk
 			GAIA_NODISCARD uint8_t size_generic() const {
 				return m_header.genEntities;
-			}
-
-			//! Returns the number of bytes the chunk spans over
-			GAIA_NODISCARD uint32_t bytes() const {
-				return mem_block_size(m_header.sizeType);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally.

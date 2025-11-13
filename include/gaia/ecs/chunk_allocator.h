@@ -15,17 +15,21 @@
 
 namespace gaia {
 	namespace ecs {
-		//! Size of one allocated block of memory
-		static constexpr uint32_t MaxMemoryBlockSize = 16384;
+		static constexpr uint32_t MinMemoryBlockSize = 1024 * 8;
+		//! Size of one allocated block of memory in kiB
+		static constexpr uint32_t MaxMemoryBlockSize = MinMemoryBlockSize * 4;
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		constexpr uint16_t mem_block_size(uint32_t sizeType) {
-			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
+			constexpr uint16_t sizes[] = {MinMemoryBlockSize, MinMemoryBlockSize * 2, MaxMemoryBlockSize};
+			return sizes[sizeType];
 		}
 
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
-			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
+			// Ceil division by smallest block size
+			const uint32_t blocks = (sizeBytes + MinMemoryBlockSize) / MinMemoryBlockSize;
+			return blocks > 2 ? 2 : static_cast<uint8_t>(blocks - 1);
 		}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -41,7 +45,7 @@ namespace gaia {
 		};
 
 		struct GAIA_API ChunkAllocatorStats final {
-			ChunkAllocatorPageStats stats[2];
+			ChunkAllocatorPageStats stats[3];
 		};
 
 		namespace detail {
@@ -73,8 +77,8 @@ namespace gaia {
 					//! Implicit list of blocks
 					BlockArray m_blocks;
 
-					//! Block size type, 0=8K, 1=16K blocks
-					uint32_t m_sizeType : 1;
+					//! Block size type, 0=8K, 1=16K blocks, 2=32K blocks
+					uint32_t m_sizeType : 2;
 					//! Number of blocks in the block array
 					uint32_t m_blockCnt : NBlocks_Bits;
 					//! Number of used blocks out of NBlocks
@@ -84,7 +88,7 @@ namespace gaia {
 					//! Number of blocks to recycle
 					uint32_t m_freeBlocks : NBlocks_Bits;
 					//! Free bits to use in the future
-					// uint32_t m_unused : 7;
+					// uint32_t m_unused : 6;
 
 					MemoryPage(void* ptr, uint8_t sizeType):
 							MemoryPageHeader(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
@@ -190,7 +194,7 @@ namespace gaia {
 				};
 
 				//! Container for pages storing various-sized chunks
-				MemoryPageContainer m_pages[2];
+				MemoryPageContainer m_pages[3];
 
 				//! When true, destruction has been requested
 				bool m_isDone = false;
@@ -313,6 +317,7 @@ namespace gaia {
 					ChunkAllocatorStats stats;
 					stats.stats[0] = page_stats(0);
 					stats.stats[1] = page_stats(1);
+					stats.stats[2] = page_stats(2);
 					return stats;
 				}
 
@@ -353,6 +358,7 @@ namespace gaia {
 					auto memStats = stats();
 					diagPage(memStats.stats[0], 0);
 					diagPage(memStats.stats[1], 1);
+					diagPage(memStats.stats[2], 2);
 				}
 
 			private:
@@ -389,7 +395,7 @@ namespace gaia {
 
 				ChunkAllocatorPageStats page_stats(uint32_t sizeType) const {
 					ChunkAllocatorPageStats stats{};
-					const MemoryPageContainer& container = m_pages[sizeType];
+					const auto& container = m_pages[sizeType];
 
 					stats.num_pages = (uint32_t)container.pagesFree.size() + (uint32_t)container.pagesFull.size();
 					stats.num_pages_free = (uint32_t)container.pagesFree.size();

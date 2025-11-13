@@ -54,7 +54,7 @@ namespace gaia {
 
 			//! Maximum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
-			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);
+			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(2) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
 
 			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
@@ -84,8 +84,6 @@ namespace gaia {
 			uint16_t hasAnyCustomGenDtor : 1;
 			//! True if there's any unique component that requires custom destruction
 			uint16_t hasAnyCustomUniDtor : 1;
-			//! Chunk size type. This tells whether it's 8K or 16K
-			uint16_t sizeType : 1;
 			//! When it hits 0 the chunk is scheduled for deletion
 			uint16_t lifespanCountdown : CHUNK_LIFESPAN_BITS;
 			//! True if deleted, false otherwise
@@ -105,11 +103,11 @@ namespace gaia {
 
 			ChunkHeader(
 					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
-					uint16_t st, uint32_t& version):
+					uint32_t& version):
 					world(&wld), cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), lifespanCountdown(0), dead(0), unused(0),
+					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
 					//
 					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
 				// Make sure the alignment is right

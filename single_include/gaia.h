@@ -21649,17 +21649,20 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		//! Size of one allocated block of memory
-		static constexpr uint32_t MaxMemoryBlockSize = 16384;
+		//! Size of one allocated block of memory in kiB
+		static constexpr uint32_t MaxMemoryBlockSize = 1024 * 32;
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		constexpr uint16_t mem_block_size(uint32_t sizeType) {
-			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
+			constexpr uint16_t sizes[] = {1024 * 8, 1024 * 16, 1024 * 32};
+			return sizes[sizeType];
 		}
 
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
-			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
+			// divide by 8K (smallest block)
+			const uint32_t blocks = (sizeBytes + 8191) >> 13; // ceil division by 8K
+			return blocks > 2 ? 2 : static_cast<uint8_t>(blocks - 1);
 		}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -25644,6 +25647,7 @@ namespace gaia {
 						return true;
 					};
 
+					// Binary search for the lookup
 					while (low <= high) {
 						uint32_t mid = (low + high) / 2;
 						if (try_fit(mid)) {
