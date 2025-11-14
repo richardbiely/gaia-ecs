@@ -9,7 +9,6 @@
 #include "gaia/core/bit_utils.h"
 #include "gaia/core/dyn_singleton.h"
 #include "gaia/core/utility.h"
-#include "gaia/ecs/common.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/util/logging.h"
 

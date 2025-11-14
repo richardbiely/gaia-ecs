@@ -780,8 +780,8 @@ namespace gaia {
 	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
-//! If enabled, various API supporting variadic template arguments is made available.
-//! More comfortable to use, but compilation time may increase.
+//! If enabled, API supporting variadic template arguments is made available.
+//! More comfortable to use, but compilation times may suffer.
 #ifndef GAIA_USE_VARIADIC_API
 	#define GAIA_USE_VARIADIC_API 0
 #endif
@@ -4278,8 +4278,7 @@ namespace gaia {
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
 				const auto padding = mem::padding<Alignment>(address);
-				const auto itemSize = sizeof(T);
-				address += padding + itemSize * cnt;
+				address += padding + sizeof(T) * cnt;
 				return address;
 			}
 		} // namespace detail
@@ -4557,7 +4556,7 @@ namespace gaia {
 			}
 
 			template <size_t Item>
-			constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
+			GAIA_NODISCARD constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
 				const auto& ref = get_ref<const value_type<Item>>((const uint8_t*)offset, idx);
 				return std::span{&ref, s.size() - idx};
@@ -4585,12 +4584,12 @@ namespace gaia {
 				}
 			};
 
-			constexpr static auto set(std::span<uint8_t> s, size_t idx) noexcept {
+			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx) noexcept {
 				return accessor(s, idx);
 			}
 
 			template <size_t Item>
-			constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
+			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
 				auto& ref = get_ref<value_type<Item>>((const uint8_t*)offset, idx);
 				return std::span{&ref, s.size() - idx};
@@ -21714,36 +21713,6 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
-
-/*** Start of inlined file: common.h ***/
-#pragma once
-
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		GAIA_NODISCARD inline bool version_changed(uint32_t changeVersion, uint32_t requiredVersion) {
-			// When a system runs for the first time, everything is considered changed.
-			if GAIA_UNLIKELY (requiredVersion == 0U)
-				return true;
-
-			// Supporting wrap-around for version numbers. ChangeVersion must be
-			// bigger than requiredVersion (never detect change of something the
-			// system itself changed).
-			return (int)(changeVersion - requiredVersion) > 0;
-		}
-
-		inline void update_version(uint32_t& version) {
-			++version;
-			// Handle wrap-around, 0 is reserved for systems that have never run.
-			if GAIA_UNLIKELY (version == 0U)
-				++version;
-		}
-	} // namespace ecs
-} // namespace gaia
-
-/*** End of inlined file: common.h ***/
-
 namespace gaia {
 	namespace ecs {
 		static constexpr uint32_t MinMemoryBlockSize = 1024 * 8;
@@ -22272,6 +22241,36 @@ namespace gaia {
 /*** End of inlined file: chunk_header.h ***/
 
 
+/*** Start of inlined file: common.h ***/
+#pragma once
+
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
+		GAIA_NODISCARD inline bool version_changed(uint32_t changeVersion, uint32_t requiredVersion) {
+			// When a system runs for the first time, everything is considered changed.
+			if GAIA_UNLIKELY (requiredVersion == 0U)
+				return true;
+
+			// Supporting wrap-around for version numbers. ChangeVersion must be
+			// bigger than requiredVersion (never detect change of something the
+			// system itself changed).
+			return (int)(changeVersion - requiredVersion) > 0;
+		}
+
+		inline void update_version(uint32_t& version) {
+			++version;
+			// Handle wrap-around, 0 is reserved for systems that have never run.
+			if GAIA_UNLIKELY (version == 0U)
+				++version;
+		}
+	} // namespace ecs
+} // namespace gaia
+
+/*** End of inlined file: common.h ***/
+
+
 /*** Start of inlined file: component_cache.h ***/
 #pragma once
 
@@ -22717,7 +22716,6 @@ namespace gaia {
 			}
 
 #if GAIA_ENABLE_HOOKS
-
 			Hooks& hooks() {
 				return comp_hooks;
 			}
@@ -22728,17 +22726,17 @@ namespace gaia {
 
 #endif
 
-			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
+			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t cnt) const noexcept {
 				if (comp.soa() == 0) {
-					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), N);
+					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), cnt);
 				} else {
 					GAIA_FOR(comp.soa()) {
-						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
+						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], cnt);
 					}
 					// TODO: Magic offset. Otherwise, SoA data might leak past the chunk boundary when accessing
 					//       the last element. By faking the memory offset we can bypass this is issue for now.
 					//       Obviously, this needs fixing at some point.
-					addr += comp.soa() * 4;
+					addr += comp.soa() * 12;
 				}
 				return addr;
 			}
@@ -25507,8 +25505,7 @@ namespace gaia {
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
 			static bool est_max_entities_per_chunk(
-					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
-					uint32_t maxDataOffset) {
+					const ComponentCache& cc, uint32_t offs, ComponentSpan comps, uint32_t cap, uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
 					if (comp.alig() == 0)
 						continue;
@@ -25516,16 +25513,9 @@ namespace gaia {
 					const auto& desc = cc.get(comp.id());
 
 					// If we're beyond what the chunk could take, subtract one entity
-					const auto nextOffset = desc.calc_new_mem_offset(offs, size);
-					if (nextOffset >= maxDataOffset) {
-						const auto subtractItems = (nextOffset - maxDataOffset + comp.size()) / comp.size();
-						GAIA_ASSERT(subtractItems > 0);
-						GAIA_ASSERT(maxItems > subtractItems);
-						maxItems -= subtractItems;
+					offs = desc.calc_new_mem_offset(offs, cap);
+					if (offs >= maxDataOffset)
 						return false;
-					}
-
-					offs = nextOffset;
 				}
 
 				return true;
@@ -25729,12 +25719,11 @@ namespace gaia {
 
 					// Helper to test if a given entity count fits in the chunk
 					auto try_fit = [&](uint32_t count) -> bool {
-						uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
-						uint32_t tmpCount = count;
+						const uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
 
-						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(0, entsGeneric), tmpCount, dataLimit))
+						if (!est_max_entities_per_chunk(cc, currOff, comps.subspan(0, entsGeneric), count, dataLimit))
 							return false;
-						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(entsGeneric), 1, dataLimit))
+						if (!est_max_entities_per_chunk(cc, currOff, comps.subspan(entsGeneric), 1, dataLimit))
 							return false;
 
 						return true;
@@ -31886,7 +31875,7 @@ namespace gaia {
 					if (m_pArchetype == nullptr)
 						return;
 
-					const auto& ec = m_world.fetch(m_entity);
+					auto& ec = m_world.fetch(m_entity);
 					// Change in archetype detected
 					if (ec.pArchetype != m_pArchetype) {
 						// Trigger remove hooks if there are any
@@ -32601,12 +32590,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
-				EntityBuilder(*this, entity).add<T>();
+				EntityBuilder builder(*this, entity);
+				auto object = builder.register_component<T>();
+				builder.add(object);
+				builder.commit();
 
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
-				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
 			}
 
@@ -35178,8 +35169,10 @@ namespace gaia {
 						auto* pDstChunk = dstArchetype.foc_free_chunk();
 						const uint32_t dstSpaceLeft = pDstChunk->capacity() - pDstChunk->size();
 						const uint32_t cnt = core::get_min(dstSpaceLeft, i);
-						for (uint32_t j = 0; j < cnt; ++j)
-							move_entity(srcEnts[i - j - 1], dstArchetype, *pDstChunk);
+						for (uint32_t j = 0; j < cnt; ++j) {
+							auto e = srcEnts[i - j - 1];
+							move_entity(e, fetch(e), dstArchetype, *pDstChunk);
+						}
 
 						pDstChunk->update_world_version();
 
@@ -35700,14 +35693,13 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one.
 			//! \param entity Entity to move
+			//! \param ec Container containing the entity
 			//! \param dstArchetype Destination archetype
 			//! \param dstChunk Destination chunk
-			void move_entity(Entity entity, Archetype& dstArchetype, Chunk& dstChunk) {
+			void move_entity(Entity entity, EntityContainer& ec, Archetype& dstArchetype, Chunk& dstChunk) {
 				GAIA_PROF_SCOPE(World::move_entity);
 
 				auto* pDstChunk = &dstChunk;
-
-				auto& ec = fetch(entity);
 				auto* pSrcChunk = ec.pChunk;
 
 				GAIA_ASSERT(pDstChunk != pSrcChunk);
@@ -35756,12 +35748,14 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
-			void move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
+			void move_entity_raw(Entity entity, EntityContainer& ec, Archetype& dstArchetype) {
+				// Update the old chunk's world version first
+				ec.pChunk->update_world_version();
+
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
-				move_entity(entity, dstArchetype, *pDstChunk);
+				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
-				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
 			}
@@ -35770,15 +35764,17 @@ namespace gaia {
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
 			Chunk* move_entity(Entity entity, Archetype& dstArchetype) {
 				// Archetypes need to be different
-				const auto& ec = fetch(entity);
+				auto& ec = fetch(entity);
 				if (ec.pArchetype == &dstArchetype)
 					return nullptr;
 
+				// Update the old chunk's world version first
+				ec.pChunk->update_world_version();
+
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
-				move_entity(entity, dstArchetype, *pDstChunk);
+				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
-				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
 

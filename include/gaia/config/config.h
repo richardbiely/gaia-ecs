@@ -85,8 +85,8 @@
 	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
-//! If enabled, various API supporting variadic template arguments is made available.
-//! More comfortable to use, but compilation time may increase.
+//! If enabled, API supporting variadic template arguments is made available.
+//! More comfortable to use, but compilation times may suffer.
 #ifndef GAIA_USE_VARIADIC_API
 	#define GAIA_USE_VARIADIC_API 0
 #endif

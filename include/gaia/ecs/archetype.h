@@ -221,8 +221,7 @@ namespace gaia {
 
 			//! Estimates how many entities can fit into the chunk described by \param comps components.
 			static bool est_max_entities_per_chunk(
-					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
-					uint32_t maxDataOffset) {
+					const ComponentCache& cc, uint32_t offs, ComponentSpan comps, uint32_t cap, uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
 					if (comp.alig() == 0)
 						continue;
@@ -230,16 +229,9 @@ namespace gaia {
 					const auto& desc = cc.get(comp.id());
 
 					// If we're beyond what the chunk could take, subtract one entity
-					const auto nextOffset = desc.calc_new_mem_offset(offs, size);
-					if (nextOffset >= maxDataOffset) {
-						const auto subtractItems = (nextOffset - maxDataOffset + comp.size()) / comp.size();
-						GAIA_ASSERT(subtractItems > 0);
-						GAIA_ASSERT(maxItems > subtractItems);
-						maxItems -= subtractItems;
+					offs = desc.calc_new_mem_offset(offs, cap);
+					if (offs >= maxDataOffset)
 						return false;
-					}
-
-					offs = nextOffset;
 				}
 
 				return true;
@@ -443,12 +435,11 @@ namespace gaia {
 
 					// Helper to test if a given entity count fits in the chunk
 					auto try_fit = [&](uint32_t count) -> bool {
-						uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
-						uint32_t tmpCount = count;
+						const uint32_t currOff = offs.firstByte_EntityData + (count * sizeof(Entity));
 
-						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(0, entsGeneric), tmpCount, dataLimit))
+						if (!est_max_entities_per_chunk(cc, currOff, comps.subspan(0, entsGeneric), count, dataLimit))
 							return false;
-						if (!est_max_entities_per_chunk(cc, currOff, tmpCount, comps.subspan(entsGeneric), 1, dataLimit))
+						if (!est_max_entities_per_chunk(cc, currOff, comps.subspan(entsGeneric), 1, dataLimit))
 							return false;
 
 						return true;

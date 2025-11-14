@@ -148,7 +148,6 @@ namespace gaia {
 			}
 
 #if GAIA_ENABLE_HOOKS
-
 			Hooks& hooks() {
 				return comp_hooks;
 			}
@@ -159,17 +158,17 @@ namespace gaia {
 
 #endif
 
-			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
+			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t cnt) const noexcept {
 				if (comp.soa() == 0) {
-					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), N);
+					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), cnt);
 				} else {
 					GAIA_FOR(comp.soa()) {
-						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
+						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], cnt);
 					}
 					// TODO: Magic offset. Otherwise, SoA data might leak past the chunk boundary when accessing
 					//       the last element. By faking the memory offset we can bypass this is issue for now.
 					//       Obviously, this needs fixing at some point.
-					addr += comp.soa() * 4;
+					addr += comp.soa() * 12;
 				}
 				return addr;
 			}

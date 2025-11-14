@@ -51,8 +51,7 @@ namespace gaia {
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
 				const auto padding = mem::padding<Alignment>(address);
-				const auto itemSize = sizeof(T);
-				address += padding + itemSize * cnt;
+				address += padding + sizeof(T) * cnt;
 				return address;
 			}
 		} // namespace detail
@@ -330,7 +329,7 @@ namespace gaia {
 			}
 
 			template <size_t Item>
-			constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
+			GAIA_NODISCARD constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
 				const auto& ref = get_ref<const value_type<Item>>((const uint8_t*)offset, idx);
 				return std::span{&ref, s.size() - idx};
@@ -358,12 +357,12 @@ namespace gaia {
 				}
 			};
 
-			constexpr static auto set(std::span<uint8_t> s, size_t idx) noexcept {
+			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx) noexcept {
 				return accessor(s, idx);
 			}
 
 			template <size_t Item>
-			constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
+			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
 				auto& ref = get_ref<value_type<Item>>((const uint8_t*)offset, idx);
 				return std::span{&ref, s.size() - idx};
