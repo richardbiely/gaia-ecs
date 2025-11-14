@@ -371,11 +371,11 @@ namespace gaia {
 					return;
 
 				auto* pDataOld = m_pData;
-				m_pData = view_policy::mem_alloc(m_cap = cnt);
+				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, m_cnt);
 				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
 				GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
-				view_policy::mem_free(pDataOld);
+				view_policy::template free<Allocator>(pDataOld);
 			}
 
 			//! Removes all elements that fail the predicate.

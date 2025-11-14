@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <utility>
 
 #include "gaia/core/utility.h"
 #include "gaia/mem/data_layout_policy.h"
@@ -91,8 +90,8 @@ namespace gaia {
 
 				static_assert(mem::is_soa_layout_v<T>);
 
-				(data_view_policy_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[idxDst] =
-						(data_view_policy_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[idxSrc];
+				(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[idxDst] =
+						(data_view_policy_soa_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[idxSrc];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -109,8 +108,8 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[i] =
-							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[i];
+					(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span{dst, sizeDst}}))[i] =
+							(data_view_policy_soa_get<T::gaia_Data_Layout, T>({std::span{(const uint8_t*)src, sizeSrc}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -246,8 +245,8 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
-							(data_view_policy_get<T::gaia_Data_Layout, T>(
+					(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
+							(data_view_policy_soa_get<T::gaia_Data_Layout, T>(
 									{std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
 				}
 
@@ -329,8 +328,9 @@ namespace gaia {
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				GAIA_FOR2(idxSrc, idxDst) {
-					(data_view_policy_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
-							(data_view_policy_get<T::gaia_Data_Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
+					(data_view_policy_soa_set<T::gaia_Data_Layout, T>({std::span<uint8_t>{dst, size}}))[i + n] =
+							(data_view_policy_soa_get<T::gaia_Data_Layout, T>(
+									{std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -461,9 +461,9 @@ namespace gaia {
 					detail::copy_element_aos<T>(r, &tmp, idxDst, 0);
 				}
 			} else {
-				T tmp = mem::data_view_policy_get<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)src, sizeSrc}}[idxSrc];
+				T tmp = mem::data_view_policy_soa_get<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)src, sizeSrc}}[idxSrc];
 				detail::copy_element_soa<T>(src, dst, idxSrc, idxDst, sizeSrc, sizeDst);
-				mem::data_view_policy_set<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)dst, sizeDst}}[idxDst] = tmp;
+				mem::data_view_policy_soa_set<T::gaia_Data_Layout, T>{std::span{(const uint8_t*)dst, sizeDst}}[idxDst] = tmp;
 			}
 		}
 

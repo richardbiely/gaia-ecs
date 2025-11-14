@@ -269,10 +269,60 @@ namespace gaia {
 			}
 
 			template <typename Allocator>
-			static void free(void* pData, [[maybe_unused]] size_t cap, [[maybe_unused]] size_t cnt) noexcept {
+			static void free(void* pData, size_t cap, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
+
+				mem_del_block(pData, cap, cnt);
 				return mem::AllocHelper::free_alig<Allocator>(pData);
+			}
+
+			static void mem_add_block(void* pData, size_t cap, size_t count) {
+				meta::each_member(ValueType{}, [&](auto&&... item) {
+					auto address = mem::align<Alignment>((uintptr_t)pData);
+					((
+							 //
+							 GAIA_MEM_SANI_ADD_BLOCK(sizeof(item), (void*)address, cap, count),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+					 ...);
+				});
+			}
+
+			static void mem_del_block(void* pData, size_t cap, size_t count) {
+				meta::each_member(ValueType{}, [&](auto&&... item) {
+					auto address = mem::align<Alignment>((uintptr_t)pData);
+					((
+							 //
+							 GAIA_MEM_SANI_DEL_BLOCK(sizeof(item), (void*)address, cap, count),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+					 ...);
+				});
+			}
+
+			static void mem_push_block(void* pData, size_t cap, size_t count, size_t n) {
+				meta::each_member(ValueType{}, [&](auto&&... item) {
+					auto address = mem::align<Alignment>((uintptr_t)pData);
+					((
+							 //
+							 GAIA_MEM_SANI_PUSH_N(sizeof(item), (void*)address, cap, count, n),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+					 ...);
+				});
+			}
+
+			static void mem_pop_block(void* pData, size_t cap, size_t count, size_t n) {
+				meta::each_member(ValueType{}, [&](auto&&... item) {
+					auto address = mem::align<Alignment>((uintptr_t)pData);
+					((
+							 //
+							 GAIA_MEM_SANI_POP_N(sizeof(item), (void*)address, cap, count, n),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+					 ...);
+				});
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
@@ -321,7 +371,7 @@ namespace gaia {
 
 		private:
 			template <size_t... Ids>
-			constexpr static size_t
+			GAIA_NODISCARD constexpr static size_t
 			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				// Align the address for the first type
 				address = mem::align<Alignment>(address);
@@ -331,12 +381,12 @@ namespace gaia {
 			}
 
 			template <uint32_t N>
-			constexpr static size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
+			GAIA_NODISCARD constexpr static size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
 				return get_aligned_byte_offset_seq(address, cnt, std::make_index_sequence<N>());
 			}
 
 			template <typename TMemberType>
-			constexpr static TMemberType& get_ref(const uint8_t* data, size_t idx) noexcept {
+			GAIA_NODISCARD constexpr static TMemberType& get_ref(const uint8_t* data, size_t idx) noexcept {
 				// Write the value directly to the memory address.
 				// Usage of unaligned_ref is not necessary because the memory is aligned.
 				auto* pCastData = (TMemberType*)data;
@@ -370,11 +420,14 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA, ValueType>: data_view_policy_soa<DataLayout::SoA, ValueType> {};
+		struct data_view_policy<DataLayout::SoA, ValueType>: //
+			data_view_policy_soa<DataLayout::SoA, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA8, ValueType>: data_view_policy_soa<DataLayout::SoA8, ValueType> {};
+		struct data_view_policy<DataLayout::SoA8, ValueType>: //
+			data_view_policy_soa<DataLayout::SoA8, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA16, ValueType>: data_view_policy_soa<DataLayout::SoA16, ValueType> {};
+		struct data_view_policy<DataLayout::SoA16, ValueType>: //
+			data_view_policy_soa<DataLayout::SoA16, ValueType> {};
 
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa_get {
@@ -417,11 +470,13 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA, ValueType>: data_view_policy_soa_get<DataLayout::SoA, ValueType> {};
+		struct data_view_policy_get<DataLayout::SoA, ValueType>: //
+			data_view_policy_soa_get<DataLayout::SoA, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA8, ValueType>: data_view_policy_soa_get<DataLayout::SoA8, ValueType> {};
+		struct data_view_policy_get<DataLayout::SoA8, ValueType>: //
+			data_view_policy_soa_get<DataLayout::SoA8, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA16, ValueType>:
+		struct data_view_policy_get<DataLayout::SoA16, ValueType>: //
 				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
 
 		template <DataLayout TDataLayout, typename ValueType>
@@ -487,11 +542,13 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA, ValueType>: data_view_policy_soa_set<DataLayout::SoA, ValueType> {};
+		struct data_view_policy_set<DataLayout::SoA, ValueType>: //
+			data_view_policy_soa_set<DataLayout::SoA, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA8, ValueType>: data_view_policy_soa_set<DataLayout::SoA8, ValueType> {};
+		struct data_view_policy_set<DataLayout::SoA8, ValueType>: //
+			data_view_policy_soa_set<DataLayout::SoA8, ValueType> {};
 		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA16, ValueType>:
+		struct data_view_policy_set<DataLayout::SoA16, ValueType>: //
 				data_view_policy_soa_set<DataLayout::SoA16, ValueType> {};
 
 		//----------------------------------------------------------------------

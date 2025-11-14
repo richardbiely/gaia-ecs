@@ -260,13 +260,13 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
+					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
 					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
+					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
 					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
 					view_policy::template free<Allocator>(pDataOld, cap, cnt);
 				}
@@ -313,15 +313,16 @@ namespace gaia {
 			darr_ext_soa(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				if (other.m_pDataHeap != nullptr) {
-					GAIA_ASSERT(m_pDataHeap == nullptr);
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				} else {
-					resize(other.size());
+				// Moving from stack-allocated source
+				if (other.m_pDataHeap == nullptr) {
+					view_policy::mem_add_block(m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				}
 
 				m_cnt = other.m_cnt;
@@ -351,21 +352,21 @@ namespace gaia {
 			darr_ext_soa& operator=(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				// Moving from heap-allocated source
-				if (other.m_pDataHeap != nullptr) {
-					// Release current heap memory and replace it with the source
-					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				// Release previously allocated memory if there was anything
+				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
 
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				} else
 				// Moving from stack-allocated source
-				{
-					resize(other.size());
+				if (other.m_pDataHeap == nullptr) {
+					view_policy::mem_add_block(m_data, extent, other.size());
 					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
 				}
+
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 
@@ -409,11 +410,10 @@ namespace gaia {
 				if (cap <= m_cap)
 					return;
 
+				auto* pDataOld = m_pDataHeap;
+				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
+				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
 				if (m_pDataHeap) {
-					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
-
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
@@ -426,29 +426,34 @@ namespace gaia {
 			}
 
 			void resize(size_type count) {
+				if (count == m_cnt)
+					return;
+
 				// Resizing to a smaller size
-				if (count <= m_cnt) {
+				if (count < m_cnt) {
+					view_policy::mem_pop_block(data(), m_cap, m_cnt, m_cnt - count);
+
 					m_cnt = count;
 					return;
 				}
 
 				// Resizing to a bigger size but still within allocated capacity
 				if (count <= m_cap) {
+					view_policy::mem_push_block(data(), m_cap, m_cnt, count - m_cnt);
+
 					m_cnt = count;
 					return;
 				}
 
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
+				view_policy::mem_add_block(m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
-					// Move old data to the new location
 					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
-
-					// Release old memory
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					view_policy::mem_del_block(m_data, m_cap, m_cnt);
 				}
 
 				m_cap = count;
@@ -459,12 +464,14 @@ namespace gaia {
 			void push_back(const T& arg) {
 				try_grow();
 
+				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				operator[](m_cnt++) = arg;
 			}
 
 			void push_back(T&& arg) {
 				try_grow();
 
+				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				operator[](m_cnt++) = GAIA_MOV(arg);
 			}
 
@@ -472,11 +479,14 @@ namespace gaia {
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
 
+				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
 			}
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
+
+				view_policy::mem_pop_block(data(), m_cap, m_cnt, 1);
 
 				--m_cnt;
 			}
@@ -490,6 +500,7 @@ namespace gaia {
 				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
+				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
 
 				operator[](idxSrc) = arg;
@@ -508,6 +519,7 @@ namespace gaia {
 				try_grow();
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
+				view_policy::mem_push_block(data(), m_cap, m_cnt, 1);
 				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
 
 				operator[](idxSrc) = GAIA_MOV(arg);
@@ -530,6 +542,7 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
 				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
+				view_policy::mem_pop_block(data(), m_cap, m_cnt, 1);
 
 				--m_cnt;
 
@@ -553,6 +566,7 @@ namespace gaia {
 				const auto cnt = (size_type)(last - first);
 
 				mem::shift_elements_left_n<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
+				view_policy::mem_pop_block(data(), m_cap, m_cnt, cnt);
 
 				m_cnt -= cnt;
 
@@ -578,14 +592,14 @@ namespace gaia {
 						m_pData = m_data;
 						m_cap = extent;
 					} else {
-						m_pDataHeap = view_policy::mem_alloc(m_cap = cnt);
-						//GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
+						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
+						view_policy::mem_add_block(m_pDataHeap, m_cap, m_cnt);
 						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
-					//GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
-					view_policy::mem_free(pDataOld);
+					view_policy::mem_del_block(pDataOld, cap, cnt);
+					view_policy::template free<Allocator>(pDataOld);
 				} else
 					resize(cnt);
 			}
@@ -603,19 +617,17 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::move_element<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
-							auto* ptr2 = &data()[idxSrc];
-							core::call_dtor(ptr2);
+							mem::move_elements<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
 						}
 						++idxDst;
 					} else {
-						auto* ptr = &data()[idxSrc];
-						core::call_dtor(ptr);
 						++erased;
 					}
 
 					++idxSrc;
 				}
+
+				view_policy::mem_pop_block(data(), m_cap, m_cnt, erased);
 
 				m_cnt -= erased;
 				return idxDst;

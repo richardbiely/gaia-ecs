@@ -420,14 +420,14 @@ namespace gaia {
 						m_pData = m_data;
 						m_cap = extent;
 					} else {
-						m_pDataHeap = view_policy::mem_alloc(m_cap = cnt);
+						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
 						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
 						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
 					GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
-					view_policy::mem_free(pDataOld);
+					view_policy::template free<Allocator>(pDataOld);
 				} else
 					resize(cnt);
 			}
