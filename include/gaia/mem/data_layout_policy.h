@@ -284,7 +284,7 @@ namespace gaia {
 							 //
 							 GAIA_MEM_SANI_ADD_BLOCK(sizeof(item), (void*)address, cap, count),
 							 // Skip towards the next element and make sure the address is aligned properly
-							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 address = mem::align<Alignment>(address + (sizeof(item) * cap))),
 					 ...);
 				});
 			}
@@ -296,7 +296,7 @@ namespace gaia {
 							 //
 							 GAIA_MEM_SANI_DEL_BLOCK(sizeof(item), (void*)address, cap, count),
 							 // Skip towards the next element and make sure the address is aligned properly
-							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 address = mem::align<Alignment>(address + (sizeof(item) * cap))),
 					 ...);
 				});
 			}
@@ -308,7 +308,7 @@ namespace gaia {
 							 //
 							 GAIA_MEM_SANI_PUSH_N(sizeof(item), (void*)address, cap, count, n),
 							 // Skip towards the next element and make sure the address is aligned properly
-							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 address = mem::align<Alignment>(address + (sizeof(item) * cap))),
 					 ...);
 				});
 			}
@@ -320,7 +320,7 @@ namespace gaia {
 							 //
 							 GAIA_MEM_SANI_POP_N(sizeof(item), (void*)address, cap, count, n),
 							 // Skip towards the next element and make sure the address is aligned properly
-							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 address = mem::align<Alignment>(address + (sizeof(item) * cap))),
 					 ...);
 				});
 			}
