@@ -32,7 +32,7 @@
 						ptr, /**/                                                                                                  \
 						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
 						ptr, /**/                                                                                                  \
-						(unsigned char*)(ptr) + ((size) * type_size))                                                              \
+						(unsigned char*)(ptr) + ((size) * type_size));                                                             \
 		}
 	// Unpoison an existing contiguous block of buffer
 	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size)                                                           \
@@ -42,7 +42,7 @@
 						ptr, /**/                                                                                                  \
 						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
 						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
-						ptr)                                                                                                       \
+						ptr);                                                                                                      \
 		}
 
 	// Unpoison memory for N new elements, use before adding the elements
@@ -53,7 +53,7 @@
 						ptr, /**/                                                                                                  \
 						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
 						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
-						(unsigned char*)(ptr) + (((size) + (diff)) * type_size))                                                   \
+						(unsigned char*)(ptr) + (((size) + (diff)) * type_size));                                                  \
 		}
 	// Poison memory for last N elements, use after removing the elements
 	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff)                                                         \
@@ -63,7 +63,7 @@
 						ptr, /**/                                                                                                  \
 						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
 						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
-						(unsigned char*)(ptr) + (((size) - (diff)) * type_size))                                                   \
+						(unsigned char*)(ptr) + (((size) - (diff)) * type_size));                                                  \
 		}
 
 	// Unpoison memory for a new element, use before adding it

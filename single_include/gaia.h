@@ -4181,33 +4181,39 @@ namespace gaia {
 						ptr, /**/                                                                                                  \
 						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
 						ptr, /**/                                                                                                  \
-						(unsigned char*)(ptr) + ((size) * type_size))                                                              \
+						(unsigned char*)(ptr) + ((size) * type_size));                                                             \
 		}
 	// Unpoison an existing contiguous block of buffer
 	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size)                                                           \
-		if (ptr != nullptr)                                                                                                \
-		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
-				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
-				ptr)
+		{                                                                                                                  \
+			if (ptr != nullptr)                                                                                              \
+				__sanitizer_annotate_contiguous_container(                                                                     \
+						ptr, /**/                                                                                                  \
+						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
+						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
+						ptr);                                                                                                      \
+		}
 
 	// Unpoison memory for N new elements, use before adding the elements
 	#define GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, diff)                                                        \
-		if (ptr != nullptr)                                                                                                \
-		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
-				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
-				(unsigned char*)(ptr) + (((size) + (diff)) * type_size))
+		{                                                                                                                  \
+			if (ptr != nullptr)                                                                                              \
+				__sanitizer_annotate_contiguous_container(                                                                     \
+						ptr, /**/                                                                                                  \
+						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
+						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
+						(unsigned char*)(ptr) + (((size) + (diff)) * type_size));                                                  \
+		}
 	// Poison memory for last N elements, use after removing the elements
 	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff)                                                         \
-		if (ptr != nullptr)                                                                                                \
-		__sanitizer_annotate_contiguous_container(                                                                         \
-				ptr, /**/                                                                                                      \
-				(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                              \
-				(unsigned char*)(ptr) + ((size) * type_size), /**/                                                             \
-				(unsigned char*)(ptr) + (((size) - (diff)) * type_size))
+		{                                                                                                                  \
+			if (ptr != nullptr)                                                                                              \
+				__sanitizer_annotate_contiguous_container(                                                                     \
+						ptr, /**/                                                                                                  \
+						(unsigned char*)(ptr) + ((cap) * type_size), /**/                                                          \
+						(unsigned char*)(ptr) + ((size) * type_size), /**/                                                         \
+						(unsigned char*)(ptr) + (((size) - (diff)) * type_size));                                                  \
+		}
 
 	// Unpoison memory for a new element, use before adding it
 	#define GAIA_MEM_SANI_PUSH(type_size, ptr, cap, size) GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, 1)
@@ -4215,12 +4221,14 @@ namespace gaia {
 	#define GAIA_MEM_SANI_POP(type_size, ptr, cap, size) GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, 1)
 
 #else
-	#define GAIA_MEM_SANI_ADD_BLOCK(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
-	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff) ((void)(ptr), (void)(cap), (void)(size), (void)(diff))
-	#define GAIA_MEM_SANI_PUSH(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
-	#define GAIA_MEM_SANI_POP(type_size, ptr, cap, size) ((void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_ADD_BLOCK(type_size, ptr, cap, size) ((void)type_size, (void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_DEL_BLOCK(type_size, ptr, cap, size) ((void)type_size, (void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_PUSH_N(type_size, ptr, cap, size, diff)                                                        \
+		((void)type_size, (void)(ptr), (void)(cap), (void)(size), (void)(diff))
+	#define GAIA_MEM_SANI_POP_N(type_size, ptr, cap, size, diff)                                                         \
+		((void)type_size, (void)(ptr), (void)(cap), (void)(size), (void)(diff))
+	#define GAIA_MEM_SANI_PUSH(type_size, ptr, cap, size) ((void)type_size, (void)(ptr), (void)(cap), (void)(size))
+	#define GAIA_MEM_SANI_POP(type_size, ptr, cap, size) ((void)type_size, (void)(ptr), (void)(cap), (void)(size))
 #endif
 
 /*** End of inlined file: mem_sani.h ***/
@@ -4495,10 +4503,10 @@ namespace gaia {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
 					((
-						//
-						GAIA_MEM_SANI_ADD_BLOCK(sizeof(item), (void*)address, cap, count),
-						// Skip towards the next element and make sure the address is aligned properly
-						address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 //
+							 GAIA_MEM_SANI_ADD_BLOCK(sizeof(item), (void*)address, cap, count),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
 					 ...);
 				});
 			}
@@ -4507,10 +4515,10 @@ namespace gaia {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
 					((
-						//
-						GAIA_MEM_SANI_DEL_BLOCK(sizeof(item), (void*)address, cap, count),
-						// Skip towards the next element and make sure the address is aligned properly
-						address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 //
+							 GAIA_MEM_SANI_DEL_BLOCK(sizeof(item), (void*)address, cap, count),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
 					 ...);
 				});
 			}
@@ -4519,10 +4527,10 @@ namespace gaia {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
 					((
-						//
-						GAIA_MEM_SANI_PUSH_N(sizeof(item), (void*)address, cap, count, n),
-						// Skip towards the next element and make sure the address is aligned properly
-						address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 //
+							 GAIA_MEM_SANI_PUSH_N(sizeof(item), (void*)address, cap, count, n),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
 					 ...);
 				});
 			}
@@ -4531,10 +4539,10 @@ namespace gaia {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
 					((
-						//
-						GAIA_MEM_SANI_POP_N(sizeof(item), (void*)address, cap, count, n),
-						// Skip towards the next element and make sure the address is aligned properly
-						address = mem::align<Alignment>(address + (sizeof(item) * count))),
+							 //
+							 GAIA_MEM_SANI_POP_N(sizeof(item), (void*)address, cap, count, n),
+							 // Skip towards the next element and make sure the address is aligned properly
+							 address = mem::align<Alignment>(address + (sizeof(item) * count))),
 					 ...);
 				});
 			}
@@ -7433,7 +7441,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					view_policy::mem_add_block(m_data, extent, other.size());
-					mem::detail::copy_elements_soa<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -7460,7 +7468,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::detail::copy_elements_soa<T>(
+				mem::copy_elements<T>(
 						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
@@ -7531,11 +7539,11 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
 				if (m_pDataHeap) {
-					mem::detail::copy_elements_soa<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					mem::detail::copy_elements_soa<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
 				}
 
 				m_cap = cap;
@@ -7566,10 +7574,10 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					mem::detail::copy_elements_soa<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					mem::detail::copy_elements_soa<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
 					view_policy::mem_del_block(m_data, m_cap, m_cnt);
 				}
 
@@ -7734,7 +7742,7 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::detail::copy_element_soa<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
+							mem::move_elements<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
 						}
 						++idxDst;
 					} else {
@@ -8131,7 +8139,6 @@ namespace gaia {
 				// If no data is allocated go with at least 4 elements
 				if GAIA_UNLIKELY (m_pData == nullptr) {
 					m_pData = view_policy::template alloc<Allocator>(m_cap = 4);
-					view_policy::mem_add_block(m_pData, m_cap, cnt);
 					return;
 				}
 
@@ -8142,7 +8149,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				view_policy::mem_add_block(m_pData, m_cap, cnt);
-				mem::detail::copy_element_soa<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -8265,7 +8272,7 @@ namespace gaia {
 
 				if (pDataOld != nullptr) {
 					view_policy::mem_add_block(m_pData, cap, m_cnt);
-					mem::detail::copy_element_soa<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -8307,7 +8314,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pData, count, count);
 				// Move old data to the new location
-				mem::detail::copy_element_soa<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 				// Release old memory
 				view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 
@@ -8440,7 +8447,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				view_policy::mem_add_block(m_pData, m_cap, m_cnt);
-				mem::detail::copy_element_soa<T>(m_pData, pDataOld, cnt, 0);
+				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -26414,9 +26421,9 @@ namespace gaia {
 			//! \param archetype Archetype to run diagnostics on
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);
-				// diag_graph_info(world, archetype);
-				// diag_chunk_info(archetype);
-				// diag_entity_info(world, archetype);
+				diag_graph_info(world, archetype);
+				diag_chunk_info(archetype);
+				diag_entity_info(world, archetype);
 			}
 		};
 
