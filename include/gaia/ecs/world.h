@@ -990,12 +990,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
-				EntityBuilder(*this, entity).add<T>();
+				EntityBuilder builder(*this, entity);
+				auto object = builder.register_component<T>();
+				builder.add(object);
+				builder.commit();
 
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
-				constexpr auto kind = (uint32_t)actual_type_t<T>::Kind;
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)kind));
+				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
 			}
 
@@ -4146,11 +4148,13 @@ namespace gaia {
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
 			void move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
+				// Update the old chunk's world version first
+				ec.pChunk->update_world_version();
+
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
 
 				// Update world versions
-				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
 			}
@@ -4163,11 +4167,13 @@ namespace gaia {
 				if (ec.pArchetype == &dstArchetype)
 					return nullptr;
 
+				// Update the old chunk's world version first
+				ec.pChunk->update_world_version();
+
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, dstArchetype, *pDstChunk);
 
 				// Update world versions
-				ec.pChunk->update_world_version();
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
 
