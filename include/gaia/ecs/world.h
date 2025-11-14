@@ -275,7 +275,7 @@ namespace gaia {
 					if (m_pArchetype == nullptr)
 						return;
 
-					const auto& ec = m_world.fetch(m_entity);
+					auto& ec = m_world.fetch(m_entity);
 					// Change in archetype detected
 					if (ec.pArchetype != m_pArchetype) {
 						// Trigger remove hooks if there are any
@@ -3569,8 +3569,10 @@ namespace gaia {
 						auto* pDstChunk = dstArchetype.foc_free_chunk();
 						const uint32_t dstSpaceLeft = pDstChunk->capacity() - pDstChunk->size();
 						const uint32_t cnt = core::get_min(dstSpaceLeft, i);
-						for (uint32_t j = 0; j < cnt; ++j)
-							move_entity(srcEnts[i - j - 1], dstArchetype, *pDstChunk);
+						for (uint32_t j = 0; j < cnt; ++j) {
+							auto e = srcEnts[i - j - 1];
+							move_entity(e, fetch(e), dstArchetype, *pDstChunk);
+						}
 
 						pDstChunk->update_world_version();
 
@@ -4091,14 +4093,13 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one.
 			//! \param entity Entity to move
+			//! \param ec Container containing the entity
 			//! \param dstArchetype Destination archetype
 			//! \param dstChunk Destination chunk
-			void move_entity(Entity entity, Archetype& dstArchetype, Chunk& dstChunk) {
+			void move_entity(Entity entity, EntityContainer& ec, Archetype& dstArchetype, Chunk& dstChunk) {
 				GAIA_PROF_SCOPE(World::move_entity);
 
 				auto* pDstChunk = &dstChunk;
-
-				auto& ec = fetch(entity);
 				auto* pSrcChunk = ec.pChunk;
 
 				GAIA_ASSERT(pDstChunk != pSrcChunk);
@@ -4147,12 +4148,12 @@ namespace gaia {
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
-			void move_entity_raw(Entity entity, const EntityContainer& ec, Archetype& dstArchetype) {
+			void move_entity_raw(Entity entity, EntityContainer& ec, Archetype& dstArchetype) {
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
-				move_entity(entity, dstArchetype, *pDstChunk);
+				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
@@ -4163,7 +4164,7 @@ namespace gaia {
 			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
 			Chunk* move_entity(Entity entity, Archetype& dstArchetype) {
 				// Archetypes need to be different
-				const auto& ec = fetch(entity);
+				auto& ec = fetch(entity);
 				if (ec.pArchetype == &dstArchetype)
 					return nullptr;
 
@@ -4171,7 +4172,7 @@ namespace gaia {
 				ec.pChunk->update_world_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
-				move_entity(entity, dstArchetype, *pDstChunk);
+				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
