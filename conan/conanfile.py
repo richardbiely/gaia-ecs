@@ -16,14 +16,14 @@ class GaiaConan(ConanFile):
     description = "A simple and powerful entity component system (ECS) written in C++17"
     homepage = "https://github.com/richardbiely/gaia-ecs"
     url = "https://github.com/conan-io/conan-center-index"
-    topics = ("gamedev", "performance", "entity", "ecs")
-    exports_sources = "include/*", "LICENSE"
+    topics = ("gamedev", "performance", "entity", "ecs", "dod", "data-oriented-design", "data-oriented", "entity-framework", "entity-component-system", "cpp17")
+    exports_sources = "LICENSE", "single_include/*"
     no_copy_source = True
     settings = "os", "arch", "compiler", "build_type"
 
     @property
     def _min_cppstd(self):
-        return "17"
+        return 17
 
     @property
     def _compilers_minimum_version(self):
@@ -35,24 +35,11 @@ class GaiaConan(ConanFile):
             "apple-clang": "10.0"
         }
     
-    def source(self):
-        # Dual Conan 1.x / 2.x get()
-        try:
-            # Conan 2.x
-            from conan.tools.files import get as conan_get
-            conan_get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        except ImportError:
-            # Conan 1.x
-            from conans import tools
-            tools.get(**self.conan_data["sources"][self.version], strip_root=True)
-
+    def layout(self):
+        basic_layout(self, src_folder="src")
+    
     def package_id(self):
-        # Header-only: make package independent of settings
-        try:
-            self.info.header_only()
-        except AttributeError:
-            # Conan 1.x old version fallback
-            self.info.settings.clear()
+        self.info.clear()
 
     def validate(self):
         if self.settings.compiler.get_safe("cppstd"):
@@ -63,14 +50,16 @@ class GaiaConan(ConanFile):
             raise ConanInvalidConfiguration(
                 f"{self.ref} requires C++{self._min_cppstd}, which your compiler does not support."
             )
+    
+    def source(self):
+        get(self, **self.conan_data["sources"][self.version], strip_root=True)
+
+    def build(self):
+        pass
 
     def package(self):
-        copy(self, "LICENSE", self.source_folder, self.package_folder)
-        copy(self,
-         pattern="*",
-         src=os.path.join(self.source_folder, "include"),
-         dst=os.path.join(self.package_folder, "include"),
-         keep_path=True)
+        copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
+        copy(self, "*", src=os.path.join(self.source_folder, "single_include"), dst=os.path.join(self.package_folder, "include"))
 
     def package_info(self):
         if self.settings.os in ["FreeBSD", "Linux"]:
@@ -79,18 +68,6 @@ class GaiaConan(ConanFile):
         self.cpp_info.bindirs = []
         self.cpp_info.libdirs = []
         self.cpp_info.includedirs = ["include"]
-
-        # Conan 1.x old CMake generators
-        try:
-            self.cpp_info.names["cmake_find_package"] = "gaia"
-            self.cpp_info.names["cmake_find_package_multi"] = "gaia"
-        except AttributeError:
-            pass
-
-        # Conan 2.x / modern generators
-        try:
-            self.cpp_info.set_property("cmake_file_name", "gaia")
-            self.cpp_info.set_property("cmake_target_name", "gaia::gaia")
-        except AttributeError:
-            pass
+        self.cpp_info.set_property("cmake_file_name", "gaia")
+        self.cpp_info.set_property("cmake_target_name", "gaia::gaia")
         
