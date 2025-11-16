@@ -56,7 +56,7 @@ endif()
 option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
-option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
+option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." OFF)
 option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
 option(GAIA_MAKE_PACKAGES, "Generates packages" OFF)
 
