@@ -28,7 +28,7 @@ message(STATUS "CompSim: ${CMAKE_CXX_SIMULATE_ID}")
 message(STATUS "CPU: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "*************************************************************")
 
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/pkg/cmake/sanitizers.cmake")
 
 # CPU
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
@@ -58,6 +58,7 @@ option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
+option(GAIA_MAKE_PACKAGES, "Generates packages" OFF)
 
 # Profiling settings
 option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
@@ -113,10 +114,11 @@ include(GNUInstallDirs)
 
 add_library(${PROJECT_NAME} INTERFACE)
 
+# Interface library
 target_include_directories(
     ${PROJECT_NAME}
     INTERFACE
-    $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/single_include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -128,41 +130,52 @@ target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_17)
 
 # Install
 install(TARGETS ${PROJECT_NAME}
-    EXPORT ${PROJECT_NAME}_Targets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    EXPORT ${PROJECT_NAME}-targets
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file("${PROJECT_NAME}ConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion)
+install(DIRECTORY single_include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-if(NOT INCLUDE_INSTALL_DIR)
-    set(INCLUDE_INSTALL_DIR include/gaia)
-endif()
-
-configure_package_config_file(
-    "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake
-    PATH_VARS INCLUDE_INSTALL_DIR)
-
-install(EXPORT ${PROJECT_NAME}_Targets
-    FILE ${PROJECT_NAME}Targets.cmake
+# Export targets
+install(EXPORT ${PROJECT_NAME}-targets
+    FILE ${PROJECT_NAME}-targets.cmake
     NAMESPACE ${PROJECT_NAME}::
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
 
-install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+# Config & version files
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
 
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+configure_file(
+    pkg/cmake/${PROJECT_NAME}Config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+    @ONLY
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
 
 if(NOT GAIA_USE_SANITIZER STREQUAL "")
     add_definitions(-DGAIA_USE_SANITIZER=1)
 else()
     add_definitions(-DGAIA_USE_SANITIZER=0)
+endif()
+
+if(GAIA_MAKE_PACKAGES)
+    add_custom_target(
+        conan_run
+        COMMAND conan create ${CMAKE_SOURCE_DIR}/pkg/conan
+        COMMENT "Conan: building + running test_package"
+        USES_TERMINAL
+    )
+
+    add_custom_target(default ALL DEPENDS conan_run)
 endif()
 
 set(IS_FETCH_AVAILABLE OFF)

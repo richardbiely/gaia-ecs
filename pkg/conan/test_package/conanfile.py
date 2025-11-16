@@ -8,8 +8,12 @@ class TestPackageConan(ConanFile):
     generators = "CMakeDeps", "CMakeToolchain"
     test_type = "explicit"
 
+    def config_options(self):
+        self.conf.define("tools.cmake.cmaketoolchain:user_presets", "")
+
     def layout(self):
-        cmake_layout(self)
+        # Force build in temp
+        cmake_layout(self, build_folder="$TMP")
 
     def requirements(self):
         self.requires(self.tested_reference_str)
@@ -23,4 +27,3 @@ class TestPackageConan(ConanFile):
         if can_run(self):
             bin_path = os.path.join(self.cpp.build.bindirs[0], "test_package")
             self.run(bin_path, env="conanrun")
-            
