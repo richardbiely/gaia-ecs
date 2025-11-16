@@ -2371,23 +2371,26 @@ namespace gaia {
 						saveEntityContainer(ec);
 					}
 
-					const auto pos0 = s.tell(); // Save the current position in the stream
-					uint32_t pairsCnt = 0;
 					{
-						s.save(0U);
+						uint32_t pairsCnt = 0;
 						for (const auto& pair: m_recs.pairs) {
 							// Skip core pairs
 							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
 								continue;
 
 							++pairsCnt;
+						}
+						s.save(pairsCnt);
+					}
+					{
+						for (const auto& pair: m_recs.pairs) {
+							// Skip core pairs
+							if (pair.first.entity().id() < lastCoreComponentId && pair.first.entity().gen() < lastCoreComponentId)
+								continue;
+
 							saveEntityContainer(pair.second);
 						}
 					}
-					const auto pos1 = s.tell(); // Save the position after pairs
-					s.seek(pos0);
-					s.save(pairsCnt);
-					s.seek(pos1);
 
 					s.save(m_recs.entities.m_nextFreeIdx);
 					s.save(m_recs.entities.m_freeItems);

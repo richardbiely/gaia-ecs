@@ -275,18 +275,8 @@ namespace gaia {
 
 				s.save((uint32_t)m_chunks.size());
 				for (auto* pChunk: m_chunks) {
-					s.save(pChunk->idx());
-
-					const auto pos0 = s.tell(); // Save the position saving chunk data
-					s.save((uint32_t)0); // Placeholder for the position of the next chunk data
-
+					s.save((uint32_t)pChunk->idx());
 					pChunk->save(s);
-
-					// Save where to jump in case we decide not to read data stored by the chunk
-					const auto pos1 = (uint32_t)s.tell();
-					s.seek(pos0);
-					s.save(pos1);
-					s.seek(pos1);
 				}
 			}
 
@@ -307,9 +297,6 @@ namespace gaia {
 					uint32_t chunkIdx = 0;
 					s.load(chunkIdx);
 
-					uint32_t nextChunkPos = 0;
-					s.load(nextChunkPos);
-
 					auto* pChunk = m_chunks[chunkIdx];
 					// If the chunk doesn't exist it means it's not a part of the initial setup.
 					if (pChunk == nullptr) {
@@ -319,21 +306,10 @@ namespace gaia {
 								m_properties.genEntities, m_properties.chunkDataBytes, //
 								m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
 						m_chunks[chunkIdx] = pChunk;
+					} 
 
-						// Set the chunk index
-						pChunk->set_idx(chunkIdx);
-
-						pChunk->load(s);
-
-						// Make sure we are where we should be
-						GAIA_ASSERT(s.tell() == nextChunkPos);
-					} else
-						s.seek(nextChunkPos);
-
-					// Make sure the chunk index is correct
-					GAIA_ASSERT(pChunk->idx() == chunkIdx);
-					// Make sure the chunk is a part of the chunk array
-					GAIA_ASSERT(chunkIdx == core::get_index(m_chunks, pChunk));
+					pChunk->set_idx(chunkIdx);
+					pChunk->load(s);
 				}
 			}
 
