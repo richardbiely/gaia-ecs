@@ -42,7 +42,7 @@ jobs:
 
     - name: Compile tests
       env:
-        CXXFLAGS: "-fno-elide-constructors -fno-inline -fno-default-inline -fprofile-update=atomic"
+        CXXFLAGS: "-fno-elide-constructors -fno-inline -fno-default-inline"
         CC: ccache clang
         CXX: ccache clang++
       run: |
