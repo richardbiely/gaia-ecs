@@ -39,16 +39,11 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr):
-					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
 			//! Constructor calculating hash from the provided string \param pStr and \param length
 			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len):
-					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owner):
+					m_pStr(pStr), m_len(len), m_owned(owner), m_hash(calc(pStr, len)) {}
 			//! Constructor just for setting values
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}

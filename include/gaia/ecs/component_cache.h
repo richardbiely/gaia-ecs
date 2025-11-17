@@ -192,8 +192,8 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
-				const auto it = m_compByString.find(
-						len != 0 ? ComponentCacheItem::SymbolLookupKey(name, len) : ComponentCacheItem::SymbolLookupKey(name));
+				const auto l = len == 0 ? (uint32_t)strlen(name) : len;
+				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
 				if (it != m_compByString.end())
 					return it->second;
 

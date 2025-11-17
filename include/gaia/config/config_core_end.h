@@ -36,7 +36,7 @@
 
 #if GAIA_DISABLE_ASSERTS
 	#ifdef GAIA_ASSERT_ENABLED
-		#undef
+		#undef GAIA_ASSERT_ENABLED
 	#endif
 	#define GAIA_ASSERT_ENABLED 0
 

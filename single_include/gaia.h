@@ -840,7 +840,7 @@ namespace gaia {
 
 #if GAIA_DISABLE_ASSERTS
 	#ifdef GAIA_ASSERT_ENABLED
-		#undef
+		#undef GAIA_ASSERT_ENABLED
 	#endif
 	#define GAIA_ASSERT_ENABLED 0
 
@@ -22317,16 +22317,11 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminated and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr):
-					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
 			//! Constructor calculating hash from the provided string \param pStr and \param length
 			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len):
-					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owner):
+					m_pStr(pStr), m_len(len), m_owned(owner), m_hash(calc(pStr, len)) {}
 			//! Constructor just for setting values
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
@@ -22800,8 +22795,7 @@ namespace gaia {
 				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
 				name[nameTmpLen] = 0;
 
-				SymbolLookupKey tmp(name, nameTmpLen);
-				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
+				cci->name = SymbolLookupKey(name, nameTmpLen, 1);
 
 				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
 				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
@@ -23012,8 +23006,8 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
-				const auto it = m_compByString.find(
-						len != 0 ? ComponentCacheItem::SymbolLookupKey(name, len) : ComponentCacheItem::SymbolLookupKey(name));
+				const auto l = len == 0 ? (uint32_t)strlen(name) : len;
+				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
 				if (it != m_compByString.end())
 					return it->second;
 
@@ -31901,7 +31895,8 @@ namespace gaia {
 						// Update the entity string pointer if necessary
 						if (m_targetNameKey.str() != nullptr) {
 							const auto compIdx = ec.pChunk->comp_idx(GAIA_ID(EntityDesc));
-							auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, ec.row);
+							// No need to update version, entity move did it already.
+							auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut_gen<false>(compIdx, ec.row);
 							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
 						}
 
@@ -31912,21 +31907,20 @@ namespace gaia {
 						m_pChunkSrc = ec.pChunk;
 						m_rowSrc = ec.row;
 					}
-#if GAIA_ASSERT_ENABLED
 					// Archetype is still the same. Make sure no chunk movement has happened.
 					else {
+#if GAIA_ASSERT_ENABLED
 						auto& ec = m_world.fetch(m_entity);
 						GAIA_ASSERT(ec.pChunk == m_pChunkSrc);
-						m_rowSrc = ec.row;
+#endif
 
 						// Update the entity string pointer if necessary
 						if (m_targetNameKey.str() != nullptr) {
-							const auto compIdx = ec.pChunk->comp_idx(GAIA_ID(EntityDesc));
-							auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, ec.row);
+							const auto compIdx = m_pChunkSrc->comp_idx(GAIA_ID(EntityDesc));
+							auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc);
 							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
 						}
 					}
-#endif
 
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
@@ -31979,21 +31973,9 @@ namespace gaia {
 							return;
 					}
 
-					auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc);
-
-					const auto it = m_world.m_nameToEntity.find(EntityNameLookupKey(pDesc->name, pDesc->len));
-					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
-					// That should not be possible for strings managed internally so the only other option is user-managed
-					// strings are broken.
-					GAIA_ASSERT(it != m_world.m_nameToEntity.end());
-					if (it != m_world.m_nameToEntity.end()) {
-						// Release memory allocated for the string if we own it
-						if (it->first.owned())
-							mem::mem_free((void*)pDesc->name);
-
-						m_world.m_nameToEntity.erase(it);
-					}
-					pDesc->name = nullptr;
+					// No need to update version, commit() will do it
+					auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc);
+					del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
 
 					del_inter(GAIA_ID(EntityDesc));
 					m_targetNameKey = {};
@@ -32525,6 +32507,21 @@ namespace gaia {
 					return true;
 				}
 
+				void del_inter(EntityNameLookupKey key) {
+					const auto it = m_world.m_nameToEntity.find(key);
+					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
+					// That should not be possible for strings managed internally so the only other option is user-managed
+					// strings are broken.
+					GAIA_ASSERT(it != m_world.m_nameToEntity.end());
+					if (it != m_world.m_nameToEntity.end()) {
+						// Release memory allocated for the string if we own it
+						if (it->first.owned())
+							mem::mem_free((void*)key.str());
+
+						m_world.m_nameToEntity.erase(it);
+					}
+				}
+
 				template <bool IsOwned>
 				void name_inter(const char* name, uint32_t len) {
 					//! We can't name pairs
@@ -32541,7 +32538,7 @@ namespace gaia {
 
 					// Make sure the name does not contain a dot because this character is reserved for
 					// hierarchical lookups, e.g. "parent.child.subchild".
-#ifdef GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 					GAIA_FOR(len) {
 						const bool hasInvalidCharacter = name[i] == '.';
 						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
@@ -32550,22 +32547,38 @@ namespace gaia {
 					}
 #endif
 
-					EntityNameLookupKey key(
-							len == 0 //
-									? EntityNameLookupKey(name) //
-									: EntityNameLookupKey(name, len));
+					EntityNameLookupKey key(name, len == 0 ? (uint32_t)strlen(name) : len, IsOwned);
 
 					// Make sure the name is unique. Ignore setting the same name twice on the same entity.
 					// If it is not, there is nothing to do.
 					auto it = m_world.m_nameToEntity.find(key);
-					if (it == m_world.m_nameToEntity.end())
+					if (it == m_world.m_nameToEntity.end()) {
+						// If we already had some name, remove the pair from the map first.
+						if (m_targetNameKey.str() != nullptr) {
+							del_inter(m_targetNameKey);
+						} else {
+							const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
+							if (compIdx != BadIndex) {
+								auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr(compIdx, m_rowSrc);
+								if (pDesc->name != nullptr) {
+									del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
+									pDesc->name = nullptr;
+								}
+							} else {
+								// Make sure EntityDesc is added to the entity.
+								add_inter(GAIA_ID(EntityDesc));
+							}
+						}
+
+						// Insert the new pair
 						it = m_world.m_nameToEntity.emplace(key, m_entity).first;
-					else if (it->second == m_entity) {
-						GAIA_ASSERT(false && "Trying to set the same name for the entity that is not unique");
+					} else {
+						if (it->second != m_entity)
+							GAIA_ASSERT(false && "Trying to set non-unique name for an entity");
+
+						// Attempts to set the same name again, or not a unique name, will be dropped.
 						return;
 					}
-
-					add_inter(GAIA_ID(EntityDesc));
 
 					if constexpr (IsOwned) {
 						// Allocate enough storage for the name
@@ -32581,6 +32594,7 @@ namespace gaia {
 						it->swap(p);
 					} else {
 						m_targetNameKey = key;
+
 						// We tell the map the string is non-owned.
 						auto p = robin_hood::pair(std::make_pair(key, m_entity));
 						it->swap(p);
@@ -33446,7 +33460,7 @@ namespace gaia {
 				if (name == nullptr || name[0] == 0)
 					return EntityBad;
 
-				auto key = len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len);
+				auto key = EntityNameLookupKey(name, len, 0);
 
 				const auto it = m_nameToEntity.find(key);
 				if (it != m_nameToEntity.end())
@@ -34181,11 +34195,23 @@ namespace gaia {
 						s.save(pair.second);
 						const bool isOwnedStr = pair.first.owned();
 						s.save(isOwnedStr);
+
+						// For owner string we copy the entire string into the buffer
 						if (isOwnedStr) {
 							const auto* str = pair.first.str();
 							const uint32_t len = pair.first.len();
 							s.save(len);
 							s.save_raw(str, len, ser::serialization_type_id::c8);
+						}
+						// Non-owned strings will only store the pointer.
+						// However, if it is a component, we do not store anything at all because we can reconstruct
+						// the name from our component cache.
+						else if (!pair.second.comp()) {
+							const auto* str = pair.first.str();
+							const uint32_t len = pair.first.len();
+							s.save(len);
+							const auto ptr_val = (uint64_t)str;
+							s.save_raw(&ptr_val, sizeof(ptr_val), ser::serialization_type_id::u64);
 						}
 					}
 				}
@@ -34339,24 +34365,31 @@ namespace gaia {
 						s.load(entity);
 						// entity.data.gen = 0; // Reset generation to zero
 
+						const auto& ec = fetch(entity);
+						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+						auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut(compIdx, ec.row);
+
 						bool isOwned = false;
 						s.load(isOwned);
 						if (!isOwned) {
-							const auto& ec = fetch(entity);
 							if (entity.comp()) {
 								// Make components point back to their component cache record because if we save the world and load
 								// it back in runtime, EntityDesc would still point to the old pointers to component names.
 								const auto& ci = comp_cache().get(entity);
-								const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
-								auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut(compIdx, ec.row);
 								pDesc->name = ci.name.str();
 								// Length should still be the same. Only the pointer has changed.
 								GAIA_ASSERT(pDesc->len == ci.name.len());
-								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len), entity);
+								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len, 0), entity);
 							} else {
-								const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
-								const auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr(compIdx, ec.row);
-								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len), entity);
+								uint32_t len = 0;
+								s.load(len);
+								uint64_t ptr_val = 0;
+								s.load_raw(&ptr_val, sizeof(ptr_val), ser::serialization_type_id::u64);
+
+								// Simply point to whereever the original pointer pointed to
+								pDesc->name = (const char*)ptr_val;
+								pDesc->len = len;
+								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len, 0), entity);
 							}
 
 							continue;
@@ -34365,9 +34398,15 @@ namespace gaia {
 						uint32_t len = 0;
 						s.load(len);
 
-						// Get a pointer to where the string begin and seek to the end of the string
+						// Get a pointer to where the string begins and seek to the end of the string
 						const char* entityStr = (const char*)(s.data() + s.tell());
 						s.seek(s.tell() + len);
+
+						// Make sure EntityDesc does not point anywhere right now.
+						{
+							pDesc->name = nullptr;
+							pDesc->len = 0;
+						}
 
 						// Name the entity using an owned string
 						name(entity, entityStr, len);

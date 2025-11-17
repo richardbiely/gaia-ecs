@@ -232,8 +232,7 @@ namespace gaia {
 				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
 				name[nameTmpLen] = 0;
 
-				SymbolLookupKey tmp(name, nameTmpLen);
-				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
+				cci->name = SymbolLookupKey(name, nameTmpLen, 1);
 
 				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
 				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
