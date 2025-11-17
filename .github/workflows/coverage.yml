@@ -42,12 +42,12 @@ jobs:
 
     - name: Compile tests
       env:
-        CXXFLAGS: "--coverage -fno-elide-constructors -fno-inline -fno-default-inline -fprofile-update=atomic"
+        CXXFLAGS: "-fno-elide-constructors -fno-inline -fno-default-inline -fprofile-update=atomic"
         CC: ccache clang
         CXX: ccache clang++
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug \
-              -DCMAKE_CXX_FLAGS="--coverage -O0 -g -fno-inline -fno-elide-constructors -fprofile-instr-generate -fcoverage-mapping" \
+              -DCMAKE_CXX_FLAGS="-O0 -g -fno-inline -fno-elide-constructors -fprofile-instr-generate -fcoverage-mapping" \
               -DGAIA_BUILD_UNITTEST=ON \
               -DGAIA_BUILD_EXAMPLES=OFF \
               -DGAIA_BUILD_BENCHMARK=OFF \
