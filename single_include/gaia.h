@@ -36805,6 +36805,18 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			SystemBuilder& name(const char* name, uint32_t len = 0) {
+				m_world.name(m_entity, name, len);
+				return *this;
+			}
+
+			SystemBuilder& name_raw(const char* name, uint32_t len = 0) {
+				m_world.name_raw(m_entity, name, len);
+				return *this;
+			}
+
+			//------------------------------------------------
+
 			SystemBuilder& mode(QueryExecType type) {
 				auto& ctx = data();
 				ctx.execType = type;

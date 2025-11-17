@@ -579,6 +579,7 @@ int main() {
 		// InputSystem
 		{
 			auto sb = w.system() //
+										.name("InputSystem")
 										.all<Velocity&>()
 										.all<Position>()
 										.all<Orientation>()
@@ -604,11 +605,11 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupPreSimulation);
-			w.name(sb.entity(), "InputSystem");
 		}
 		// UpdateMapSystem
 		{
 			auto sb = w.system() //
+										.name("UpdateMapSystem")
 										.all<Position>()
 										.all<RigidBody>()
 										.on_each([](ecs::Iter& it) {
@@ -622,7 +623,6 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupPreSimulation);
-			w.name(sb.entity(), "UpdateMapSystem");
 		}
 	}
 	// Simulation
@@ -630,6 +630,7 @@ int main() {
 		// OrientationSystem
 		{
 			auto sb = w.system() //
+										.name("OrientationSystem")
 										.all<Orientation&>()
 										.all<Velocity>()
 										.on_each([](Orientation& o, const Velocity& v) {
@@ -646,11 +647,11 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "OrientationSystem");
 		}
 		// CollisionSystem
 		{
 			auto sb = w.system() //
+										.name("CollisionSystem")
 										.all<Velocity&>()
 										.all<Position>()
 										.all<RigidBody>()
@@ -754,11 +755,11 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "CollisionSystem");
 		}
 		// MoveSystem
 		{
 			auto sb = w.system() //
+										.name("MoveSystem")
 										.all<Position&>()
 										.all<Velocity>()
 										.on_each([](Position& p, const Velocity& v) {
@@ -769,11 +770,11 @@ int main() {
 											p.y += v.y;
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "MoveSystem");
 		}
 		// HandleDamageSystem
 		{
 			auto sb = w.system() //
+										.name("HandleDamageSystem")
 										.all<GameWorldComponent>()
 										.on_each([](ecs::Iter& iter) {
 #if PRINT_SYSTEM_NAME
@@ -812,12 +813,12 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "HandleDamageSystem");
 			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
 		}
 		// HandleItemHitSystem
 		{
 			auto sb = w.system() //
+										.name("HandleItemHitSystem")
 										.all<GameWorldComponent>()
 										.on_each([](ecs::Iter& iter) {
 #if PRINT_SYSTEM_NAME
@@ -875,12 +876,12 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "HandleItemHitSystem");
 			w.add(sb.entity(), {ecs::DependsOn, w.get("CollisionSystem")});
 		}
 		// HandleHealthSystem
 		{
 			auto sb = w.system() //
+										.name("HandleHealthSystem")
 										.all<Health&>()
 										.changed<Health>()
 										.on_each([](Health& h) {
@@ -891,12 +892,12 @@ int main() {
 												h.value = h.valueMax;
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "HandleHealthSystem");
 			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleDamageSystem")});
 		}
 		// HandleDeathSystem
 		{
 			auto sb = w.system() //
+										.name("HandleDeathSystem")
 										.all<Health>()
 										.all<Position>()
 										.changed<Health>()
@@ -919,7 +920,6 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupSimulation);
-			w.name(sb.entity(), "HandleDeathSystem");
 			w.add(sb.entity(), {ecs::DependsOn, w.get("HandleHealthSystem")});
 		}
 	}
@@ -928,6 +928,7 @@ int main() {
 		// ClearMapSystem
 		{
 			auto sb = w.system() //
+										.name("ClearMapSystem")
 										.all<GameWorldComponent&>()
 										.on_each([](GameWorldComponent& value) {
 #if PRINT_SYSTEM_NAME
@@ -937,22 +938,22 @@ int main() {
 											value.pGameWorld->InitWorldMap();
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "ClearMapSystem");
 		}
 		// WriteSpritesToMapSystem
 		{
 			auto sb = w.system() //
+										.name("WriteSpritesToMapSystem")
 										.all<Position>()
 										.all<Sprite>()
 										.on_each([](const Position& p, const Sprite& s) {
 											g_pGameWorld->map[p.y][p.x] = s.value;
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "WriteSpritesToMapSystem");
 		}
 		// RenderSystem
 		{
 			auto sb = w.system() //
+										.name("RenderSystem")
 										.all<GameWorldComponent>()
 										.on_each([](const GameWorldComponent& value) {
 #if PRINT_SYSTEM_NAME
@@ -966,22 +967,22 @@ int main() {
 											}
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "RenderSystem");
 		}
 		// UISystem Player
 		{
 			auto sb = w.system() //
+										.name("UISystemP")
 										.all<Health>()
 										.all<Player>()
 										.on_each([](const Health& h) {
 											printf("Player health: %d/%d\n", h.value, h.valueMax);
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "UISystemP");
 		}
 		// UISystem Non-player
 		{
 			auto sb = w.system() //
+										.name("UISystemNP")
 										.all<Health>()
 										.no<Player>()
 										.no<Item>()
@@ -989,7 +990,6 @@ int main() {
 											printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "UISystemNP");
 		}
 		// GameStateSystem Player
 		{
@@ -999,6 +999,7 @@ int main() {
 			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
 
 			auto sb = w.system() //
+										.name("GameStateSystemP")
 										.all<Health>()
 										.all<Player>()
 										.on_each([](ecs::Iter& it) {
@@ -1013,7 +1014,6 @@ int main() {
 											sysData.hadPlayer = !hasNoPlayer;
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "GameStateSystemP");
 			w.add<GameStateSystemPData>(sb.entity());
 			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
 		}
@@ -1025,6 +1025,7 @@ int main() {
 			// auto sysDataEntity = w.add<GameStateSystemPData>().entity;
 
 			auto sb = w.system() //
+										.name("GameStateSystemNP")
 										.all<Health>()
 										.no<Player>()
 										.no<Item>()
@@ -1040,7 +1041,6 @@ int main() {
 											sysData.hadEnemies = !hasNoEnemies;
 										});
 			w.child(sb.entity(), groupPostSimulation);
-			w.name(sb.entity(), "GameStateSystemNP");
 			w.add<GameStateSystemNPData>(sb.entity());
 			// sb.add({ecs::QueryOpKind::All, ecs::QueryAccess::Write, sysDataEntity, sb.entity()});
 		}

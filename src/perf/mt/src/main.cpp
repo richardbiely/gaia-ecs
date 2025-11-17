@@ -137,16 +137,16 @@ void BM_Schedule_ECS_Simple(picobench::state& state) {
 	const auto type =
 			ExecMode < (uint32_t)ecs::QueryExecType::ParallelEff ? (ecs::QueryExecType)ExecMode : ecs::QueryExecType::Default;
 
-	auto sb = w.system() //
-								.all<Data>()
-								.mode(type)
-								.on_each([&](ecs::Iter& it) {
-									auto dv = it.view<Data>();
-									auto sp = std::span((const Data*)dv.data(), dv.size());
-									auto res = BenchFunc_Simple(sp);
-									gaia::dont_optimize(res);
-								});
-	w.name(sb.entity(), "BM_Schedule_ECS_Simple");
+	w.system() //
+			.name("BM_Schedule_ECS_Simple")
+			.all<Data>()
+			.mode(type)
+			.on_each([&](ecs::Iter& it) {
+				auto dv = it.view<Data>();
+				auto sp = std::span((const Data*)dv.data(), dv.size());
+				auto res = BenchFunc_Simple(sp);
+				gaia::dont_optimize(res);
+			});
 
 	GAIA_FOR(N) {
 		auto e = w.add();
@@ -172,16 +172,16 @@ void BM_Schedule_ECS_Complex(picobench::state& state) {
 	const auto type =
 			ExecMode < (uint32_t)ecs::QueryExecType::ParallelEff ? (ecs::QueryExecType)ExecMode : ecs::QueryExecType::Default;
 
-	auto sb = w.system() //
-								.all<Data>()
-								.mode(type)
-								.on_each([&](ecs::Iter& it) {
-									auto dv = it.view<Data>();
-									auto sp = std::span((const Data*)dv.data(), dv.size());
-									auto res = BenchFunc_Complex(sp);
-									gaia::dont_optimize(res);
-								});
-	w.name(sb.entity(), "BM_Schedule_ECS_Complex");
+	w.system() //
+			.name("BM_Schedule_ECS_Complex")
+			.all<Data>()
+			.mode(type)
+			.on_each([&](ecs::Iter& it) {
+				auto dv = it.view<Data>();
+				auto sp = std::span((const Data*)dv.data(), dv.size());
+				auto res = BenchFunc_Complex(sp);
+				gaia::dont_optimize(res);
+			});
 
 	GAIA_FOR(N) {
 		auto e = w.add();

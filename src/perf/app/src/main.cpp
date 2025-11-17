@@ -197,6 +197,7 @@ namespace sys {
 	void init_DamageSystem(ecs::World& world) {
 		world
 				.system() //
+				.name("DamageSystem")
 				.all<HealthComponent>()
 				.all<DamageComponent>()
 				.on_each([](ecs::Iter& it) {
@@ -213,7 +214,9 @@ namespace sys {
 	}
 
 	void init_DataSystem(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("DataSystem")
 				.all<DataComponent>()
 				.on_each([](ecs::Iter& it) {
 					auto data = it.view_mut<DataComponent>(0);
@@ -231,7 +234,9 @@ namespace sys {
 	}
 
 	void init_HealthSystem(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("HealthSystem")
 				.all<HealthComponent>()
 				.on_each([](ecs::Iter& it) {
 					auto health = it.view_mut<HealthComponent>(0);
@@ -242,7 +247,9 @@ namespace sys {
 	}
 
 	void init_MoreComplexSystem(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("MoreComplexSystem")
 				.all<PositionComponent>()
 				.all<VelocityComponent&>()
 				.all<DataComponent&>()
@@ -268,7 +275,9 @@ namespace sys {
 	}
 
 	void init_MoreComplexSystemSoA(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("MoreComplexSystemSoA")
 				.all<SoAPositionComponent>()
 				.all<SoAVelocityComponent&>()
 				.all<DataComponent&>()
@@ -300,7 +309,9 @@ namespace sys {
 	}
 
 	void init_MovementSystem(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("MovementSystem")
 				.all<PositionComponent>()
 				.all<VelocityComponent>()
 				.on_each([](ecs::Iter& it) {
@@ -317,7 +328,9 @@ namespace sys {
 	}
 
 	void init_MovementSystemSoA(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("MovementSystemSoA")
 				.all<SoAPositionComponent>()
 				.all<SoAVelocityComponent>()
 				.on_each([](ecs::Iter& it) {
@@ -339,7 +352,9 @@ namespace sys {
 	}
 
 	void init_RenderSystem(ecs::World& world, FrameBuffer& fb) {
-		world.system()
+		world
+				.system() //
+				.name("RenderSystem")
 				.all<PositionComponent>()
 				.all<SpriteComponent>()
 				.on_each([&](ecs::Iter& it) {
@@ -355,7 +370,9 @@ namespace sys {
 	}
 
 	void init_RenderSystemSoA(ecs::World& world, FrameBuffer& fb) {
-		world.system()
+		world
+				.system() //
+				.name("RenderSystemSoA")
 				.all<SoAPositionComponent>()
 				.all<SpriteComponent>()
 				.on_each([&](ecs::Iter& it) {
@@ -374,7 +391,9 @@ namespace sys {
 	}
 
 	void init_SpriteSystem(ecs::World& world) {
-		world.system()
+		world
+				.system() //
+				.name("SpriteSystem")
 				.all<SpriteComponent>()
 				.all<PlayerComponent>()
 				.all<HealthComponent>()

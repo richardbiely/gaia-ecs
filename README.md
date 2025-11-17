@@ -440,7 +440,9 @@ w.build(e)
  // remove Position from entity e
  .del<Position>()
  // add Rotation to entity e
- .add<Rotation>();
+ .add<Rotation>()
+ // set a name for the entity if desired
+ .name("MyEntity);
 ```
 
 It is also possible to manually commit all changes by calling ***ecs::EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
@@ -1681,6 +1683,8 @@ Creating a system is very similar to creating a [query](#query). In fact, the bu
 
 ```cpp
 SystemBuilder mySystem = w.system()
+  // Set a name for the system (optional)
+  .name("PosAndVelSystem")
   // System considers all entities with Position and Velocity components.
   // Position is mutable.
   .all<Position&>()
@@ -1698,6 +1702,8 @@ Entity mySystemEntity = mySystem.entity();
 w.enable(mySystemEntity, false);
 // Enable the entity. This effectively makes the system runnable again.
 w.enable(mySystemEntity, true);
+// System is an entity. Therefore, it is easy to change its name at any point.
+w.name("MoveSystem");
 ```
 
 The system can be run manually or automatically.
