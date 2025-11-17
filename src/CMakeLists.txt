@@ -124,9 +124,6 @@ if(MSVC)
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
 
-  # fast-math
-  enable_cxx_compiler_flag_if_supported("/fp:fast")
-
   # instruction sets
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     enable_cxx_compiler_flag_if_supported("-msse4.1")
@@ -204,9 +201,6 @@ else()
   else()
     enable_cxx_compiler_flag_if_supported("-Wno-deprecated-declarations")
   endif()
-
-  # fast-math
-  enable_cxx_compiler_flag_if_supported("-ffast-math")
 
   # instruction sets
   enable_cxx_compiler_flag_if_supported("-ftree-vectorize")
