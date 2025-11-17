@@ -251,7 +251,7 @@ namespace gaia {
 
 		//! Constructs an object of type \tparam T in at the memory address \param pData.
 		template <typename T>
-		void call_ctor([[maybe_unused]]T* pData) {
+		void call_ctor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				(void)::new (pData) T();

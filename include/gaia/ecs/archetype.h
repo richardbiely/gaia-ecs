@@ -306,7 +306,7 @@ namespace gaia {
 								m_properties.genEntities, m_properties.chunkDataBytes, //
 								m_worldVersion, m_dataOffsets, m_ids, m_comps, m_compOffs);
 						m_chunks[chunkIdx] = pChunk;
-					} 
+					}
 
 					pChunk->set_idx(chunkIdx);
 					pChunk->load(s);

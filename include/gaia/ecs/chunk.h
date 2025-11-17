@@ -286,6 +286,30 @@ namespace gaia {
 				}
 			}
 
+		public:
+			//! Returns a read-write span of the component data. Also updates the world version for the component.
+			//! \warning It is expected the component with \param compIdx is present. Undefined behavior otherwise.
+			//! \param compIdx Component index
+			//! \param row Row of entity in the chunk
+			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
+			//! \return Pointer to component data.
+			template <bool WorldVersionUpdateWanted>
+			GAIA_NODISCARD GAIA_FORCEINLINE auto comp_ptr_mut_gen(uint32_t compIdx, uint32_t row) {
+				// Update version number if necessary so we know RW access was used on the chunk
+				if constexpr (WorldVersionUpdateWanted) {
+					update_world_version(compIdx);
+
+#if GAIA_ENABLE_SET_HOOKS
+					const auto& rec = m_records.pRecords[compIdx];
+					if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+						rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
+				}
+
+				return comp_ptr_mut(compIdx, row);
+			}
+
+		private:
 			//! Returns the value stored in the component \tparam T on \param row in the chunk.
 			//! \warning It is expected the \param row is valid. Undefined behavior otherwise.
 			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.

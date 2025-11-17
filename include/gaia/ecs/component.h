@@ -157,11 +157,11 @@ namespace gaia {
 		//! \param comps Component view to search in
 		//! \param entity Entity we search for
 		//! \warning The component id must be present in the array
-		GAIA_NODISCARD inline uint32_t comp_idx(std::span<Entity> comps, Entity entity) {
+		GAIA_NODISCARD inline uint32_t comp_idx(std::span<const Entity> comps, Entity entity) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			const auto sz = (uint32_t)comps.size();
-			GAIA_FOR(sz) {
+			const auto cnt = (uint32_t)comps.size();
+			GAIA_FOR(cnt) {
 				if (comps[i] == entity)
 					return i;
 			}
