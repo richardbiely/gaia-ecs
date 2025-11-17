@@ -1,3 +1,4 @@
+#include "gaia/ecs/query.h"
 #include "gaia/util/logging.h"
 #define NOMINMAX
 
@@ -7214,8 +7215,8 @@ TEST_CASE("Usage 3 - simple query, no") {
 	wld.add<Acceleration>(e3, {});
 	wld.add<Scale>(e3, {});
 
-	auto s1 = wld.system().all<Position>().on_each([]() {}).entity();
-	auto s2 = wld.system().on_each([]() {}).entity();
+	auto s1 = wld.system().name("s1").all<Position>().on_each([]() {}).entity();
+	auto s2 = wld.system().name("s2").on_each([]() {}).entity();
 
 	// More complex NO query, 2 operators.
 	SUBCASE("NO") {
@@ -8473,6 +8474,8 @@ TEST_CASE("Query Filter - systems") {
 
 	// WriterSystem
 	auto ws = wld.system()
+								.name("WriterSystem")
+								.mode(ecs::QueryExecType::Default) // satisfty code coverage
 								.all<Position&>()
 								.on_each([&](Position& a) {
 									++wsCnt;
@@ -8481,6 +8484,7 @@ TEST_CASE("Query Filter - systems") {
 								.entity();
 	// WriterSystemSilent
 	auto wss = wld.system()
+								 .name("WriterSystemSilent")
 								 .all<Position&>()
 								 .on_each([&](ecs::Iter& it) {
 									 ++wssCnt;
@@ -8490,6 +8494,7 @@ TEST_CASE("Query Filter - systems") {
 								 .entity();
 	// ReaderSystem
 	auto rs = wld.system()
+								.name("ReaderSystem")
 								.all<Position>()
 								.changed<Position>()
 								.on_each([&](ecs::Iter& it) {
@@ -8866,6 +8871,7 @@ TEST_CASE("System - simple") {
 
 	// Our systems
 	auto sys1 = wld.system()
+									.name("sys1")
 									.all<Position>()
 									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
@@ -8874,6 +8880,7 @@ TEST_CASE("System - simple") {
 										++sys1_cnt;
 									});
 	auto sys2 = wld.system()
+									.name("sys2")
 									.all<Position>() //
 									.on_each([&](ecs::Iter& it) {
 										if (sys2_cnt == 0 && sys3_cnt > 0)
@@ -8881,6 +8888,7 @@ TEST_CASE("System - simple") {
 										GAIA_EACH(it)++ sys2_cnt;
 									});
 	auto sys3 = wld.system()
+									.name("sys3")
 									.all<Acceleration>() //
 									.on_each([&](ecs::Iter& it) {
 										GAIA_EACH(it)++ sys3_cnt;
@@ -10658,6 +10666,7 @@ TEST_CASE("Multithreading - Systems") {
 	}
 
 	auto sys1 = wld.system()
+									.name("sys1")
 									.all<SomeData1>()
 									.all<SomeData2>() //
 									.on_each([&](SomeData1, SomeData2) {
@@ -10665,6 +10674,7 @@ TEST_CASE("Multithreading - Systems") {
 										++data2;
 									});
 	auto sys2 = wld.system()
+									.name("sys2")
 									.all<SomeData1>() //
 									.on_each([&](SomeData1) {
 										++data1;
@@ -10700,8 +10710,8 @@ TEST_CASE("Multithreading - Systems") {
 
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
-	util::set_log_func(util::detail::log_cached);
-	util::set_log_flush_func(util::detail::log_flush_cached);
+	// util::set_log_func(util::detail::log_cached);
+	// util::set_log_flush_func(util::detail::log_flush_cached);
 
 	doctest::Context ctx(argc, argv);
 	ctx.setOption("success", false); // suppress successful checks
