@@ -31,7 +31,7 @@ namespace gaia {
 			using reference = T&;
 			using const_reference = const T&;
 			using pointer = T*;
-			using const_pointer = T*;
+			using const_pointer = const T*;
 			using view_policy = mem::data_view_policy_aos<T>;
 			using difference_type = sarr_detail::difference_type;
 			using size_type = sarr_detail::size_type;
@@ -181,7 +181,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]));
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) begin() const noexcept {
+			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]));
 			}
 
@@ -193,7 +193,7 @@ namespace gaia {
 				return iterator((pointer)&back());
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) rbegin() const noexcept {
+			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
@@ -205,7 +205,7 @@ namespace gaia {
 				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) end() const noexcept {
+			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
 			}
 
@@ -217,7 +217,7 @@ namespace gaia {
 				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) rend() const noexcept {
+			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
 			}
 

@@ -128,11 +128,12 @@ namespace gaia {
 			using reference = T&;
 			using const_reference = const T&;
 			using pointer = T*;
-			using const_pointer = T*;
+			using const_pointer = const T*;
 			using difference_type = sringbuffer_detail::size_type;
 			using size_type = sringbuffer_detail::size_type;
 
 			using iterator = sringbuffer_iterator<T, N>;
+			using const_iterator = sringbuffer_iterator<const T, N>;
 			using iterator_category = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = N;
@@ -291,12 +292,28 @@ namespace gaia {
 				return m_data[head];
 			}
 
-			GAIA_NODISCARD constexpr iterator begin() const noexcept {
+			GAIA_NODISCARD constexpr auto begin() noexcept {
 				return iterator((T*)&m_data[0], m_tail, m_size, 0);
 			}
 
-			GAIA_NODISCARD constexpr iterator end() const noexcept {
+			GAIA_NODISCARD constexpr auto begin() const noexcept {
+				return const_iterator((T*)&m_data[0], m_tail, m_size, 0);
+			}
+
+			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
+				return const_iterator((T*)&m_data[0], m_tail, m_size, 0);
+			}
+
+			GAIA_NODISCARD constexpr auto end() noexcept {
 				return iterator((T*)&m_data[0], m_tail, m_size, m_size);
+			}
+
+			GAIA_NODISCARD constexpr auto end() const noexcept {
+				return const_iterator((T*)&m_data[0], m_tail, m_size, m_size);
+			}
+
+			GAIA_NODISCARD constexpr auto cend() const noexcept {
+				return const_iterator((T*)&m_data[0], m_tail, m_size, m_size);
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const sringbuffer& other) const {

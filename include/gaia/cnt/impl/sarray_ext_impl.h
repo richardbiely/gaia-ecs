@@ -32,7 +32,7 @@ namespace gaia {
 			using reference = T&;
 			using const_reference = const T&;
 			using pointer = T*;
-			using const_pointer = T*;
+			using const_pointer = const T*;
 			using view_policy = mem::data_view_policy_aos<T>;
 			using difference_type = sarr_ext_detail::difference_type;
 			using size_type = sarr_ext_detail::size_type;
@@ -40,7 +40,7 @@ namespace gaia {
 			using iterator = pointer;
 			using const_iterator = const_pointer;
 			using iterator_category = core::random_access_iterator_tag;
-			
+
 			static constexpr size_t value_size = sizeof(T);
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);

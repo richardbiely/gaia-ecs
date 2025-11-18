@@ -180,7 +180,7 @@ namespace gaia {
 				using reference = T&;
 				using const_reference = const T&;
 				using pointer = T*;
-				using const_pointer = T*;
+				using const_pointer = const T*;
 				using view_policy = mem::auto_view_policy<T>;
 				using difference_type = detail::difference_type;
 				using size_type = detail::size_type;
@@ -587,6 +587,96 @@ namespace gaia {
 		};
 
 		template <typename T, typename Allocator, bool IsFwd>
+		struct const_page_iterator {
+			using value_type = T;
+			using pointer = const T*;
+			using reference = const T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = const_page_iterator;
+			using iterator_category = core::bidirectional_iterator_tag;
+
+		private:
+			using page_type = detail::mem_page<T, Allocator>;
+
+			const page_type* m_pPage;
+			const page_type* m_pPageLast;
+			typename page_type::template iterator_base<IsFwd> m_it;
+
+		public:
+			const_page_iterator(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
+
+			const_page_iterator(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					while (m_it == m_pPage->rend()) {
+						--m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							break;
+						}
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						++m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							break;
+						}
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			reference operator*() const {
+				return m_it.operator*();
+			}
+			pointer operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					if (m_it == m_pPage->rend()) {
+						--m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							return *this;
+						}
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					if (m_it == m_pPage->end()) {
+						++m_pPage;
+						if (m_pPage == m_pPageLast) {
+							m_it = {};
+							return *this;
+						}
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
+		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator_soa {
 			using value_type = T;
 			// using pointer = T*;
@@ -664,6 +754,84 @@ namespace gaia {
 			}
 		};
 
+		template <typename T, typename Allocator, bool IsFwd>
+		struct const_page_iterator_soa {
+			using value_type = T;
+			// using pointer = T*;
+			// using reference = T&;
+			using difference_type = detail::difference_type;
+			using size_type = detail::size_type;
+			using iterator = const_page_iterator_soa;
+			using iterator_category = core::bidirectional_iterator_tag;
+
+		private:
+			using page_type = detail::mem_page<T, Allocator>;
+
+			const page_type* m_pPage;
+			const page_type* m_pPageLast;
+			typename page_type::template iterator_soa_base<IsFwd> m_it;
+
+		public:
+			const_page_iterator_soa(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
+
+			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+				// Find first page with data
+				if constexpr (!IsFwd) {
+					m_it = m_pPage->rbegin();
+					while (m_it == m_pPage->rend()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					m_it = m_pPage->begin();
+					while (m_it == m_pPage->end()) {
+						if (m_pPage == m_pPageLast)
+							break;
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+			}
+
+			value_type operator*() const {
+				return m_it.operator*();
+			}
+			value_type operator->() const {
+				return m_it.operator->();
+			}
+
+			iterator& operator++() {
+				if constexpr (!IsFwd) {
+					++m_it;
+					while (m_it == m_pPage->rend()) {
+						--m_pPage;
+						m_it = m_pPage->rbegin();
+					}
+				} else {
+					++m_it;
+					while (m_it == m_pPage->end()) {
+						++m_pPage;
+						m_it = m_pPage->begin();
+					}
+				}
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pPage == other.m_pPage && m_it == other.m_it;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pPage != other.m_pPage || m_it != other.m_it;
+			}
+		};
+
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Allocates enough memory to support \tparam PageCapacity elements.
 		//! Uses \tparam Allocator to allocate memory.
@@ -674,7 +842,7 @@ namespace gaia {
 			using reference = T&;
 			using const_reference = const T&;
 			using pointer = T*;
-			using const_pointer = T*;
+			using const_pointer = const T*;
 			using view_policy = mem::auto_view_policy<T>;
 			using difference_type = detail::difference_type;
 			using size_type = detail::size_type;
@@ -690,6 +858,10 @@ namespace gaia {
 			using iterator_reverse = page_iterator<T, Allocator, false>;
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
+			using const_iterator = const_page_iterator<T, Allocator, true>;
+			using const_iterator_reverse = const_page_iterator<T, Allocator, false>;
+			using const_iterator_soa = const_page_iterator_soa<T, Allocator, true>;
+			using const_iterator_soa_reverse = const_page_iterator_soa<T, Allocator, false>;
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -884,24 +1056,64 @@ namespace gaia {
 				return (const_reference)*rbegin();
 			}
 
-			GAIA_NODISCARD auto begin() const noexcept {
+			GAIA_NODISCARD auto begin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
-			GAIA_NODISCARD auto end() const noexcept {
+			GAIA_NODISCARD auto begin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
+			}
+
+			GAIA_NODISCARD auto cbegin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
+			}
+
+			GAIA_NODISCARD auto end() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data() + m_pages.size());
 			}
 
-			GAIA_NODISCARD auto rbegin() const noexcept {
+			GAIA_NODISCARD auto end() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator(m_pages.data() + m_pages.size());
+			}
+
+			GAIA_NODISCARD auto cend() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator(m_pages.data() + m_pages.size());
+			}
+
+			GAIA_NODISCARD auto rbegin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
-			GAIA_NODISCARD auto rend() const noexcept {
+			GAIA_NODISCARD auto rbegin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto crbegin() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto rend() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto rend() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator_reverse(m_pages.data() - 1);
+			}
+
+			GAIA_NODISCARD auto crend() const noexcept {
+				GAIA_ASSERT(!empty());
+				return const_iterator_reverse(m_pages.data() - 1);
 			}
 
 			GAIA_NODISCARD bool operator==(const page_storage& other) const noexcept {

@@ -25,7 +25,7 @@ namespace gaia {
 			using reference = size_type&;
 			using const_reference = const size_type&;
 			using pointer = size_type*;
-			using const_pointer = size_type*;
+			using const_pointer = const size_type*;
 
 			static constexpr uint32_t BitsPerItem = sizeof(typename size_type_selector::type) * 8;
 

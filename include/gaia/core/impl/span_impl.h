@@ -118,6 +118,7 @@ namespace gaia {
 			using const_reference = const element_kind&;
 
 			using iterator = pointer;
+			using const_iterator = const_pointer;
 			using iterator_type = core::random_access_iterator_tag;
 
 			static constexpr size_type extent = Extent;
@@ -191,11 +192,27 @@ namespace gaia {
 				return *(m_data.beg + index);
 			}
 
+			GAIA_NODISCARD constexpr iterator begin() noexcept {
+				return {m_data.beg};
+			}
+
 			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {m_data.beg};
 			}
 
-			GAIA_NODISCARD constexpr iterator end() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
+				return {m_data.beg};
+			}
+
+			GAIA_NODISCARD constexpr iterator end() noexcept {
+				return {m_data.end};
+			}
+
+			GAIA_NODISCARD constexpr const_iterator end() const noexcept {
+				return {m_data.end};
+			}
+
+			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {m_data.end};
 			}
 

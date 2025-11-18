@@ -75,17 +75,19 @@ namespace gaia {
 		template <typename TListItem, typename TItemHandle, typename TInternalStorage = darray_ilist_storage<TListItem>>
 		struct ilist {
 			using internal_storage = TInternalStorage;
-			// TODO: replace this iterator with a real list iterator
-			using iterator = typename internal_storage::iterator;
 
-			using iterator_category = typename internal_storage::iterator_category;
 			using value_type = TListItem;
 			using reference = TListItem&;
 			using const_reference = const TListItem&;
 			using pointer = TListItem*;
-			using const_pointer = TListItem*;
+			using const_pointer = const TListItem*;
 			using difference_type = typename internal_storage::difference_type;
 			using size_type = typename internal_storage::size_type;
+
+			// TODO: replace this iterator with a real list iterator
+			using iterator = typename internal_storage::iterator;
+			using const_iterator = typename internal_storage::const_iterator;
+			using iterator_category = typename internal_storage::iterator_category;
 
 			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
 			//! Implicit list items
@@ -96,11 +98,11 @@ namespace gaia {
 			size_type m_freeItems = 0;
 
 			GAIA_NODISCARD pointer data() noexcept {
-				return (pointer)m_items.data();
+				return reinterpret_cast<pointer>(m_items.data());
 			}
 
 			GAIA_NODISCARD const_pointer data() const noexcept {
-				return (const_pointer)m_items.data();
+				return reinterpret_cast<const_pointer>(m_items.data());
 			}
 
 			GAIA_NODISCARD reference operator[](size_type index) {
@@ -140,11 +142,27 @@ namespace gaia {
 				return (size_type)m_items.capacity();
 			}
 
-			GAIA_NODISCARD iterator begin() const noexcept {
+			GAIA_NODISCARD iterator begin() noexcept {
 				return m_items.begin();
 			}
 
-			GAIA_NODISCARD iterator end() const noexcept {
+			GAIA_NODISCARD const_iterator begin() const noexcept {
+				return m_items.begin();
+			}
+
+			GAIA_NODISCARD const_iterator cbegin() const noexcept {
+				return m_items.begin();
+			}
+
+			GAIA_NODISCARD iterator end() noexcept {
+				return m_items.end();
+			}
+
+			GAIA_NODISCARD const_iterator end() const noexcept {
+				return m_items.end();
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
 				return m_items.end();
 			}
 

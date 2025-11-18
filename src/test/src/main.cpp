@@ -690,8 +690,8 @@ void fixed_arr_test() {
 
 	std::span<const cont_item> view{arr.data(), arr.size()};
 
-	CHECK(core::find(arr, 0U) == arr.begin());
-	CHECK(core::find(arr, N) == arr.end());
+	CHECK(core::find(arr, 0U) == arr.cbegin());
+	CHECK(core::find(arr, N) == arr.cend());
 	CHECK(core::find(view, 0U) == view.begin());
 	CHECK(core::find(view, N) == view.end());
 
@@ -782,8 +782,8 @@ void resizable_arr_test(uint32_t N) {
 
 	std::span<const cont_item> view{arr.data(), arr.size()};
 
-	CHECK(core::find(arr, 0U) == arr.begin());
-	CHECK(core::find(arr, N) == arr.end());
+	CHECK(core::find(arr, 0U) == arr.cbegin());
+	CHECK(core::find(arr, N) == arr.cend());
 	CHECK(core::find(view, 0U) == view.begin());
 	CHECK(core::find(view, N) == view.end());
 
@@ -794,7 +794,7 @@ void resizable_arr_test(uint32_t N) {
 
 	arr.erase(arr.begin());
 	CHECK(arr.size() == (N - 1));
-	CHECK(core::find(arr, 0U) == arr.end());
+	CHECK(core::find(arr, 0U) == arr.cend());
 	GAIA_EACH(arr)
 	CHECK(arr[i] == i + 1);
 
@@ -1336,8 +1336,8 @@ void sparse_storage_test(uint32_t N) {
 	CHECK(cnt == N);
 	CHECK(cnt == arr.size());
 
-	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.begin());
-	CHECK(core::find(arr, cont_item{N, N}) == arr.end());
+	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.cbegin());
+	CHECK(core::find(arr, cont_item{N, N}) == arr.cend());
 	CHECK(core::has(arr, cont_item{0U, 0U}));
 	CHECK_FALSE(core::has(arr, cont_item{N, N}));
 
@@ -1680,8 +1680,8 @@ void paged_storage_test(uint32_t N) {
 	CHECK(cnt == N);
 	CHECK(cnt == arr.size());
 
-	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.begin());
-	CHECK(core::find(arr, cont_item{N, N}) == arr.end());
+	CHECK(core::find(arr, cont_item{0U, 0U}) == arr.cbegin());
+	CHECK(core::find(arr, cont_item{N, N}) == arr.cend());
 	CHECK(core::has(arr, cont_item{0U, 0U}));
 	CHECK_FALSE(core::has(arr, cont_item{N, N}));
 

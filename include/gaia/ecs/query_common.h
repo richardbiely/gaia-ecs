@@ -259,16 +259,19 @@ namespace gaia {
 				//! Query flags
 				uint8_t flags;
 
-				GAIA_NODISCARD std::span<Entity> ids_view() const {
+				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
 				}
 
-				GAIA_NODISCARD std::span<QueryTerm> terms_view() const {
-					return {_terms.data(), idsCnt};
+				GAIA_NODISCARD std::span<const Entity> changed_view() const {
+					return {_changed.data(), changedCnt};
 				}
 
-				GAIA_NODISCARD std::span<Entity> changed_view() const {
-					return {_changed.data(), changedCnt};
+				GAIA_NODISCARD std::span<QueryTerm> terms_view_mut() {
+					return {_terms.data(), idsCnt};
+				}
+				GAIA_NODISCARD std::span<const QueryTerm> terms_view() const {
+					return {_terms.data(), idsCnt};
 				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask

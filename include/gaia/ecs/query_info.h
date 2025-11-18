@@ -717,7 +717,11 @@ namespace gaia {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator begin() const {
+			GAIA_NODISCARD ArchetypeDArray::const_iterator begin() const {
+				return m_archetypeCache.begin();
+			}
+
+			GAIA_NODISCARD ArchetypeDArray::const_iterator cbegin() const {
 				return m_archetypeCache.begin();
 			}
 
@@ -725,19 +729,26 @@ namespace gaia {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator end() const {
+			GAIA_NODISCARD ArchetypeDArray::const_iterator end() const {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD std::span<Archetype*> cache_archetype_view() const {
-				return std::span{m_archetypeCache.data(), m_archetypeCache.size()};
+			GAIA_NODISCARD ArchetypeDArray::const_iterator cend() const {
+				return m_archetypeCache.end();
 			}
+
+			GAIA_NODISCARD std::span<const Archetype*> cache_archetype_view() const {
+				return std::span{(const Archetype**)m_archetypeCache.data(), m_archetypeCache.size()};
+			}
+
 			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
 				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
 			}
+
 			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
 				return std::span{m_archetypeSortData.data(), m_archetypeSortData.size()};
 			}
+			
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
 				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
 			}

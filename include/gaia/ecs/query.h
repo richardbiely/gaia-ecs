@@ -359,7 +359,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 32;
 
 				struct ChunkBatch {
-					Archetype* pArchetype;
+					const Archetype* pArchetype;
 					Chunk* pChunk;
 					const uint8_t* pIndicesMapping;
 					GroupId groupId;
@@ -858,9 +858,9 @@ namespace gaia {
 							}
 
 							auto* pArchetype = cacheView[view.archetypeIdx];
-							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indices_view.data(), 0U, startRow, endRow});
+							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
@@ -873,7 +873,7 @@ namespace gaia {
 							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 								continue;
 
-							auto indices_view = queryInfo.indices_mapping_view(i);
+							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto& chunks = pArchetype->chunks();
 
 							uint32_t chunkOffset = 0;
@@ -892,7 +892,7 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), 0, 0, 0});
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -948,18 +948,18 @@ namespace gaia {
 									continue;
 							}
 
-							auto* pArchetype = cacheView[view.archetypeIdx];
-							auto indices_view = queryInfo.indices_mapping_view(view.archetypeIdx);
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							m_batches.push_back(ChunkBatch{pArchetype, view.pChunk, indices_view.data(), 0U, startRow, endRow});
+							m_batches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
-							auto* pArchetype = cacheView[i];
+							const auto* pArchetype = cacheView[i];
 							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 								continue;
 
-							auto indices_view = queryInfo.indices_mapping_view(i);
+							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
 								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
@@ -970,7 +970,7 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back({pArchetype, pChunk, indices_view.data(), 0, 0, 0});
+								m_batches.push_back({pArchetype, pChunk, indicesView.data(), 0, 0, 0});
 							}
 						}
 					}
@@ -1016,11 +1016,11 @@ namespace gaia {
 					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
-						auto indices_view = queryInfo.indices_mapping_view(i);
+						auto indicesView = queryInfo.indices_mapping_view(i);
 						const auto& chunks = pArchetype->chunks();
 						const auto& data = dataView[i];
 
@@ -1048,7 +1048,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId, 0, 0});
+								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), data.groupId, 0, 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -1099,11 +1099,11 @@ namespace gaia {
 #endif
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						Archetype* pArchetype = cacheView[i];
+						const Archetype* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
-						auto indices_view = queryInfo.indices_mapping_view(i);
+						auto indicesView = queryInfo.indices_mapping_view(i);
 						const auto& data = dataView[i];
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -1115,7 +1115,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indices_view.data(), data.groupId, 0, 0});
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), data.groupId, 0, 0});
 						}
 					}
 
@@ -1338,7 +1338,7 @@ namespace gaia {
 						it.set_archetype(pArchetype);
 
 						// No mapping for count(). It doesn't need to access data cache.
-						// auto indices_view = queryInfo.indices_mapping_view(aid);
+						// auto indicesView = queryInfo.indices_mapping_view(aid);
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -1377,7 +1377,7 @@ namespace gaia {
 						it.set_archetype(pArchetype);
 
 						// No mapping for arr(). It doesn't need to access data cache.
-						// auto indices_view = queryInfo.indices_mapping_view(aid);
+						// auto indicesView = queryInfo.indices_mapping_view(aid);
 
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {

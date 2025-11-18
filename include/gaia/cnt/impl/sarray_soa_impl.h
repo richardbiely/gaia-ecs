@@ -357,7 +357,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), size(), 0);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) begin() const noexcept {
+			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), size(), 0);
 			}
 
@@ -369,7 +369,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), size(), size() - 1);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) rbegin() const noexcept {
+			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
 				return const_iterator(m_data, size(), size() - 1);
 			}
 
@@ -381,7 +381,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), size(), size());
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) end() const noexcept {
+			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), size(), size());
 			}
 
@@ -393,7 +393,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), size(), -1);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) rend() const noexcept {
+			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), size(), -1);
 			}
 

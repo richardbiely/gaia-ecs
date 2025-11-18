@@ -217,7 +217,7 @@ namespace gaia {
 			using reference = T&;
 			using const_reference = const T&;
 			using pointer = T*;
-			using const_pointer = T*;
+			using const_pointer = const T*;
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
 			using difference_type = darr_soa_detail::difference_type;
 			using size_type = darr_soa_detail::size_type;
@@ -347,11 +347,11 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			GAIA_NODISCARD pointer data() noexcept {
-				return (pointer)m_pData;
+				return reinterpret_cast<pointer>(m_pData);
 			}
 
 			GAIA_NODISCARD const_pointer data() const noexcept {
-				return (const_pointer)m_pData;
+				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {

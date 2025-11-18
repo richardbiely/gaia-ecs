@@ -153,15 +153,23 @@ namespace gaia {
 				return fwd_llist_iterator<T>(first);
 			}
 
-			fwd_llist_iterator<T> end() {
-				return fwd_llist_iterator<T>(nullptr);
-			}
-
 			fwd_llist_iterator<const T> begin() const {
 				return fwd_llist_iterator((const T*)first);
 			}
 
+			fwd_llist_iterator<const T> cbegin() const {
+				return fwd_llist_iterator((const T*)first);
+			}
+
+			fwd_llist_iterator<T> end() {
+				return fwd_llist_iterator<T>(nullptr);
+			}
+
 			fwd_llist_iterator<const T> end() const {
+				return fwd_llist_iterator((const T*)nullptr);
+			}
+
+			fwd_llist_iterator<const T> cend() const {
 				return fwd_llist_iterator((const T*)nullptr);
 			}
 		};
