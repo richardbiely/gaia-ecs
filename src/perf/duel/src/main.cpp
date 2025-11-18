@@ -227,7 +227,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 
 	ecs::World w;
 
-	w.system().all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("update_pos").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto p = it.view_mut<Position>(0);
 		auto v = it.view<Velocity>(1);
@@ -245,7 +245,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		}
 	});
 
-	w.system().all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("handle_collision").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto p = it.view_mut<Position>(0);
 		auto v = it.view_mut<Velocity>(1);
@@ -263,7 +263,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		}
 	});
 
-	w.system().all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("apply_gravity").all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto v = it.view_mut<Velocity>(0);
 #else
@@ -277,7 +277,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		}
 	});
 
-	w.system().all<Health>().on_each([](ecs::Iter& it) {
+	w.system().name("calc_alive").all<Health>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto h = it.view<Health>(0);
 #else
@@ -317,7 +317,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 
 	ecs::World w;
 
-	w.system().all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
+	w.system().name("update_pos").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto p = it.view_mut<PositionSoA>(0);
 		auto v = it.view<VelocitySoA>(1);
@@ -343,7 +343,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		}
 	});
 
-	w.system().all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
+	w.system().name("handle_collision").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto p = it.view_mut<PositionSoA>(0);
 		auto v = it.view_mut<VelocitySoA>(1);
@@ -363,7 +363,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		}
 	});
 
-	w.system().all<VelocitySoA>().on_each([](ecs::Iter& it) {
+	w.system().name("apply_gravity").all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto v = it.view_mut<VelocitySoA>(0);
 #else
@@ -379,7 +379,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 		}
 	});
 
-	w.system().all<Health>().on_each([](ecs::Iter& it) {
+	w.system().name("calc_alive").all<Health>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
 		auto h = it.view<Health>(0);
 #else
