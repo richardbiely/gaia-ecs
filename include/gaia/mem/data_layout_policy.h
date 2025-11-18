@@ -331,7 +331,7 @@ namespace gaia {
 			template <size_t Item>
 			GAIA_NODISCARD constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
-				const auto& ref = get_ref<const value_type<Item>>((const uint8_t*)offset, idx);
+				const auto& ref = get_ref<const value_type<Item>>(reinterpret_cast<const uint8_t*>(offset), idx);
 				return std::span{&ref, s.size() - idx};
 			}
 

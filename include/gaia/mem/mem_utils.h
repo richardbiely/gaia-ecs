@@ -10,13 +10,13 @@
 namespace gaia {
 	namespace mem {
 		template <typename T>
-		inline constexpr bool is_copyable() {
+		constexpr bool is_copyable() {
 			return std::is_trivially_copyable_v<T> || std::is_trivially_assignable_v<T, T> || //
 						 std::is_copy_assignable_v<T> || std::is_copy_constructible_v<T>;
 		}
 
 		template <typename T>
-		inline constexpr bool is_movable() {
+		constexpr bool is_movable() {
 			return std::is_trivially_move_assignable_v<T> || std::is_trivially_move_constructible_v<T> || //
 						 std::is_move_assignable_v<T> || std::is_move_constructible_v<T>;
 		}

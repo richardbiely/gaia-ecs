@@ -302,7 +302,8 @@ namespace gaia {
 						if (m_targetNameKey.str() != nullptr) {
 							const auto compIdx = ec.pChunk->comp_idx(GAIA_ID(EntityDesc));
 							// No need to update version, entity move did it already.
-							auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut_gen<false>(compIdx, ec.row);
+							auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut_gen<false>(compIdx, ec.row));
+							GAIA_ASSERT(core::check_alignment(pDesc));
 							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
 						}
 
@@ -323,7 +324,8 @@ namespace gaia {
 						// Update the entity string pointer if necessary
 						if (m_targetNameKey.str() != nullptr) {
 							const auto compIdx = m_pChunkSrc->comp_idx(GAIA_ID(EntityDesc));
-							auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc);
+							auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc));
+							GAIA_ASSERT(core::check_alignment(pDesc));
 							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
 						}
 					}
@@ -374,13 +376,14 @@ namespace gaia {
 						return;
 
 					{
-						const auto* pDesc = (const EntityDesc*)m_pChunkSrc->comp_ptr(compIdx, m_rowSrc);
+						const auto* pDesc = reinterpret_cast<const EntityDesc*>(m_pChunkSrc->comp_ptr(compIdx, m_rowSrc));
+						GAIA_ASSERT(core::check_alignment(pDesc));
 						if (pDesc->name == nullptr)
 							return;
 					}
 
 					// No need to update version, commit() will do it
-					auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc);
+					auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc));
 					del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
 
 					del_inter(GAIA_ID(EntityDesc));
@@ -965,7 +968,8 @@ namespace gaia {
 						} else {
 							const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
 							if (compIdx != BadIndex) {
-								auto* pDesc = (EntityDesc*)m_pChunkSrc->comp_ptr(compIdx, m_rowSrc);
+								auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut(compIdx, m_rowSrc));
+								GAIA_ASSERT(core::check_alignment(pDesc));
 								if (pDesc->name != nullptr) {
 									del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
 									pDesc->name = nullptr;
@@ -1777,7 +1781,8 @@ namespace gaia {
 					return nullptr;
 				}
 
-				const auto* pDesc = (const EntityDesc*)ec.pChunk->comp_ptr(compIdx, ec.row);
+				const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+				GAIA_ASSERT(core::check_alignment(pDesc));
 				return pDesc->name;
 			}
 
@@ -2773,7 +2778,8 @@ namespace gaia {
 
 						const auto& ec = fetch(entity);
 						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
-						auto* pDesc = (EntityDesc*)ec.pChunk->comp_ptr_mut(compIdx, ec.row);
+						auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+						GAIA_ASSERT(core::check_alignment(pDesc));
 
 						bool isOwned = false;
 						s.load(isOwned);

@@ -1,6 +1,7 @@
 #pragma once
 #include "gaia/config/config.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <tuple>
 #include <type_traits>
@@ -86,13 +87,13 @@ namespace gaia {
 		};
 		inline constexpr zero_t zero{};
 
-		template <class T>
+		template <typename T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
 
 		template <typename T>
 		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
 
-		template <class T>
+		template <typename T>
 		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
 
 		template <typename T>
@@ -108,8 +109,13 @@ namespace gaia {
 		}
 
 		//! Rvalue overload is deleted to prevent taking the address of const rvalues.
-		template <class T>
+		template <typename T>
 		const T* addressof(const T&&) = delete;
+
+		template <typename T>
+		constexpr bool check_alignment(const T* ptr) noexcept {
+			return (reinterpret_cast<uintptr_t>(ptr)) % alignof(T) == 0;
+		}
 
 		template <typename T>
 		struct lock_scope {
@@ -1379,13 +1385,13 @@ namespace gaia {
 					if (cmpFunc(arr[a], arr[c]))
 						return c;
 					return a;
-				} else {
-					if (cmpFunc(arr[a], arr[c]))
-						return a;
-					if (cmpFunc(arr[b], arr[c]))
-						return c;
-					return b;
 				}
+
+				if (cmpFunc(arr[a], arr[c]))
+					return a;
+				if (cmpFunc(arr[b], arr[c]))
+					return c;
+				return b;
 			};
 
 			while (sp > 0) {
