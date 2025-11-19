@@ -6311,7 +6311,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, const T& arg) noexcept {
+			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -6330,7 +6330,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, T&& arg) noexcept {
+			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -6398,7 +6398,7 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			void clear() {
+			void clear() noexcept {
 				resize(0);
 			}
 
@@ -6533,7 +6533,7 @@ namespace gaia {
 				return const_iterator(data() - 1);
 			}
 
-			GAIA_NODISCARD bool operator==(const darr& other) const {
+			GAIA_NODISCARD bool operator==(const darr& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -6543,7 +6543,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const darr& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const darr& other) const noexcept {
 				return !operator==(other);
 			}
 		};
@@ -6876,7 +6876,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, const T& arg) noexcept {
+			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -6895,7 +6895,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, T&& arg) noexcept {
+			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -6962,7 +6962,7 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			void clear() {
+			void clear() noexcept {
 				resize(0);
 			}
 
@@ -6997,7 +6997,7 @@ namespace gaia {
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
-			auto retain(Func&& func) {
+			auto retain(Func&& func) noexcept {
 				size_type erased = 0;
 				size_type idxDst = 0;
 				size_type idxSrc = 0;
@@ -7110,7 +7110,7 @@ namespace gaia {
 				return const_iterator(data() - 1);
 			}
 
-			GAIA_NODISCARD bool operator==(const darr_ext& other) const {
+			GAIA_NODISCARD bool operator==(const darr_ext& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -7120,7 +7120,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const noexcept {
 				return !operator==(other);
 			}
 		};
@@ -7644,7 +7644,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, const T& arg) noexcept {
+			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -7663,7 +7663,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, T&& arg) noexcept {
+			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -7725,7 +7725,7 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			void clear() {
+			void clear() noexcept {
 				resize(0);
 			}
 
@@ -7760,7 +7760,7 @@ namespace gaia {
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
-			auto retain(Func&& func) {
+			auto retain(Func&& func) noexcept {
 				size_type erased = 0;
 				size_type idxDst = 0;
 				size_type idxSrc = 0;
@@ -7869,7 +7869,7 @@ namespace gaia {
 				return const_iterator(m_pData, size(), -1);
 			}
 
-			GAIA_NODISCARD bool operator==(const darr_ext_soa& other) const {
+			GAIA_NODISCARD bool operator==(const darr_ext_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -7879,7 +7879,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const darr_ext_soa& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const darr_ext_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
@@ -8379,7 +8379,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, const T& arg) noexcept {
+			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -8398,7 +8398,7 @@ namespace gaia {
 			}
 
 			//! Insert the element to the position given by iterator \param pos
-			iterator insert(iterator pos, T&& arg) noexcept {
+			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
@@ -8460,7 +8460,7 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			void clear() {
+			void clear() noexcept {
 				resize(0);
 			}
 
@@ -8482,7 +8482,7 @@ namespace gaia {
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
-			auto retain(Func&& func) {
+			auto retain(Func&& func) noexcept {
 				size_type erased = 0;
 				size_type idxDst = 0;
 				size_type idxSrc = 0;
@@ -8594,7 +8594,7 @@ namespace gaia {
 				return const_iterator(m_pData, size(), -1);
 			}
 
-			GAIA_NODISCARD bool operator==(const darr_soa& other) const {
+			GAIA_NODISCARD bool operator==(const darr_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -8604,7 +8604,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const darr_soa& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const darr_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
@@ -14559,7 +14559,7 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			constexpr decltype(auto) emplace_back(Args&&... args) {
+			constexpr decltype(auto) emplace_back(Args&&... args) noexcept {
 				GAIA_ASSERT(size() < N);
 
 				auto* ptr = &data()[m_cnt++];
@@ -14703,7 +14703,7 @@ namespace gaia {
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
-			auto retain(Func&& func) {
+			auto retain(Func&& func) noexcept {
 				size_type erased = 0;
 				size_type idxDst = 0;
 				size_type idxSrc = 0;
@@ -14814,7 +14814,7 @@ namespace gaia {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==(const sarr_ext& other) const {
+			GAIA_NODISCARD constexpr bool operator==(const sarr_ext& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -14824,7 +14824,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext& other) const noexcept {
 				return !operator==(other);
 			}
 		};
@@ -15214,7 +15214,7 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			constexpr decltype(auto) emplace_back(Args&&... args) {
+			constexpr decltype(auto) emplace_back(Args&&... args) noexcept {
 				GAIA_ASSERT(size() < N);
 
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
@@ -15332,7 +15332,7 @@ namespace gaia {
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
-			auto retain(Func&& func) {
+			auto retain(Func&& func) noexcept {
 				size_type erased = 0;
 				size_type idxDst = 0;
 				size_type idxSrc = 0;
@@ -15443,7 +15443,7 @@ namespace gaia {
 				return const_iterator(GAIA_ACC(&m_data[0]), size(), -1);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==(const sarr_ext_soa& other) const {
+			GAIA_NODISCARD constexpr bool operator==(const sarr_ext_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
 				const size_type n = size();
@@ -15453,7 +15453,7 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext_soa& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
