@@ -38,11 +38,10 @@ namespace gaia {
 			}
 
 		public:
-			using this_bitset = bitset<NBits>;
-			using iter = const_iterator<this_bitset>;
-			using iter_inv = const_iterator_inverse<this_bitset>;
-			using iter_rev = const_reverse_iterator<this_bitset>;
-			using iter_rev_inv = const_reverse_inverse_iterator<this_bitset>;
+			using iter = const_iterator<bitset>;
+			using iter_inv = const_iterator_inverse<bitset>;
+			using iter_rev = const_reverse_iterator<bitset>;
+			using iter_rev_inv = const_reverse_inverse_iterator<bitset>;
 			friend iter;
 			friend iter_inv;
 			friend iter_rev;
