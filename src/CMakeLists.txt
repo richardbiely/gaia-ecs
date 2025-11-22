@@ -240,7 +240,7 @@ if(NOT EMSCRIPTEN)
     Include(FetchContent OPTIONAL RESULT_VARIABLE FetchContent_FOUND)
 
     if(NOT FetchContent_FOUND)
-      message(WARNING "FetchContent might be necessary but it is not available")
+      message(SEND_ERROR "FetchContent might be necessary but it is not available")
     else()
       set(IS_FETCH_AVAILABLE ON)
     endif()
@@ -282,12 +282,12 @@ if(NOT EMSCRIPTEN)
       # Add a custom target to build the Tracy profiler GUI
       if(UNIX)
         set(tracy_profiler_build_dir "build/unix")
-        message("Building profiler for UNIX platform in: " ${tracy_profiler_build_dir})
+        message(STATUS "Building profiler for UNIX platform in: " ${tracy_profiler_build_dir})
       elseif(WIN32)
         set(tracy_profiler_build_dir "build/win32")
-        message("Building profiler for Windows platform in: " ${tracy_profiler_build_dir})
+        message(STATUS "Building profiler for Windows platform in: " ${tracy_profiler_build_dir})
       else()
-        message(WARNING "Unsupported platform. Building profiler won't be possible")
+        message(SEND_ERROR "Unsupported platform. Building profiler won't be possible")
       endif()
 
       if(DEFINED tracy_profiler_build_dir)
@@ -324,21 +324,21 @@ if(NOT EMSCRIPTEN)
 
     # Add a custom target to build amalgamate
     if(UNIX)
-      message("Building amalgamate for Unix platform in: " ${amalgamate_SOURCE_DIR})
+      message(STATUS "Building amalgamate for Unix platform in: " ${amalgamate_SOURCE_DIR})
 
       add_custom_target(build_amalgamate ALL
         WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
         COMMAND make
       )
     elseif(WIN32)
-      message("Building amalgamate for Windows platform in: " ${amalgamate_SOURCE_DIR})
+      message(STATUS "Building amalgamate for Windows platform in: " ${amalgamate_SOURCE_DIR})
       add_custom_target(build_amalgamate ALL
         WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
         COMMAND build.bat
       )
 
     else()
-      message(WARNING "Unsupported platform. Building amalgamate won't be possible")
+      message(SEND_ERROR "Unsupported platform. Building amalgamate won't be possible")
     endif()
 
     add_custom_target(generate_single_header ALL)

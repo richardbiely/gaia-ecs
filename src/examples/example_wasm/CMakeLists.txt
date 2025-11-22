@@ -17,7 +17,7 @@ endif()
 find_program(EMCC_EXECUTABLE emcc)
 
 if(NOT EMCC_EXECUTABLE)
-  message(WARNING
+  message(FATAL_ERROR
     "Emscripten not found on this system. "
     "Skipping WASM example.\n"
     "To build it manually:\n"
