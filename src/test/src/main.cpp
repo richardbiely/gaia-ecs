@@ -199,8 +199,8 @@ TEST_CASE("StringLookupKey") {
 	char tmp1[MaxLen];
 	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
 	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
-	core::StringLookupKey<128> l0(tmp0, (uint32_t)strlen(tmp0), 0);
-	core::StringLookupKey<128> l1(tmp1, (uint32_t)strlen(tmp1), 0);
+	core::StringLookupKey<128> l0(tmp0, (uint32_t)GAIA_STRLEN(tmp0, MaxLen), 0);
+	core::StringLookupKey<128> l1(tmp1, (uint32_t)GAIA_STRLEN(tmp1, MaxLen), 0);
 	CHECK(l0.len() == l1.len());
 	// Two different addresses in memory have to return the same hash if the string is the same
 	CHECK(l0.hash() == l1.hash());
@@ -6455,8 +6455,8 @@ TEST_CASE("Entity name - entity only") {
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
 		const auto* ename = wld.name(e);
 
-		const auto l0 = strlen(tmp);
-		const auto l1 = strlen(ename);
+		const auto l0 = GAIA_STRLEN(tmp, ecs::ComponentCacheItem::MaxNameLength);
+		const auto l1 = GAIA_STRLEN(ename, ecs::ComponentCacheItem::MaxNameLength);
 		CHECK(l0 == l1);
 		CHECK(strcmp(tmp, ename) == 0);
 	};
