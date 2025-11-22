@@ -23,7 +23,7 @@ namespace gaia {
 		strncpy_s((var), (text), (size_t)-1);                                                                              \
 		(void)max_len
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
-	#define GAIA_STRLEN(var, max_len) strnlen_s((var), max_len)
+	#define GAIA_STRLEN(var, max_len) strnlen_s((var), (max_len))
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
 		{                                                                                                                  \
@@ -31,7 +31,7 @@ namespace gaia {
 			(var)[(max_len) - 1] = 0;                                                                                        \
 		}
 	#define GAIA_STRFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
-	#define GAIA_STRLEN(var, max_len) strnlen((var), max_len)
+	#define GAIA_STRLEN(var, max_len) strnlen((var), (max_len))
 #endif
 
 	namespace core {
