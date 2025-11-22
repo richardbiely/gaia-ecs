@@ -1611,7 +1611,7 @@ The command buffer provided by the iterator is committed in a safe manner when t
 // the iteration is over in a safe manner (takes into account other threads
 // and only applies the changes when no ECS threads are doing changes).
 // This is the recommended way for most use cases.
-ecs::Query q = w.query().add<Position>();
+ecs::Query q = w.query().all<Position>();
 q.each([&](ecs::Iter& it) {
   ecs::CommandBufferST& cb = it.cmd_buffer_st();
 
