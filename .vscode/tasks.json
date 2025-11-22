@@ -25,7 +25,10 @@
         "command": "./setup.bat"
       },
       "linux": {
-        "command": ""
+        "command": "bash",
+        "args": [
+          "setup.sh"
+        ],
       },
       "osx": {
         "command": "bash",
@@ -49,7 +52,10 @@
         "command": "./setup_podman.bat"
       },
       "linux": {
-        "command": ""
+        "command": "bash",
+        "args": [
+          "setup_podman.sh"
+        ],
       },
       "osx": {
         "command": "bash",
@@ -86,7 +92,10 @@
         "command": "make_single_header.bat"
       },
       "linux": {
-        "command": "make_single_header.sh"
+        "command": "bash",
+        "args": [
+          "make_single_header.sh"
+        ],
       },
       "osx": {
         "command": "bash",

@@ -26,23 +26,23 @@ using namespace gaia;
 
 #ifndef _WIN32
 char get_char() {
-	char buf = 0;
+	char buf[1];
 	termios old{};
 	if (tcgetattr(0, &old) < 0)
-		perror("tcsetattr()");
+		perror("tcgetattr()");
 	old.c_lflag &= ~ICANON;
 	old.c_lflag &= ~ECHO;
 	old.c_cc[VMIN] = 1;
 	old.c_cc[VTIME] = 0;
 	if (tcsetattr(0, TCSANOW, &old) < 0)
 		perror("tcsetattr ICANON");
-	if (read(0, &buf, 1) < 0)
+	if (read(0, buf, sizeof(buf)) < 0)
 		perror("read()");
 	old.c_lflag |= ICANON;
 	old.c_lflag |= ECHO;
 	if (tcsetattr(0, TCSADRAIN, &old) < 0)
 		perror("tcsetattr ~ICANON");
-	return (buf);
+	return buf[0];
 }
 
 void ClearScreen() {

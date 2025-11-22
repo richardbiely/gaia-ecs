@@ -43,7 +43,7 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 	sync.flags = mt::JobCreationFlags::ManualDelete;
 	auto syncHandle = tp.add(sync);
 
-	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
+	auto* pHandles = static_cast<mt::JobHandle*>(alloca(sizeof(mt::JobHandle) * (Jobs + 1)));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = []() {};
@@ -76,7 +76,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 
 	std::atomic_uint32_t sum = 0;
 
-	auto* pHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * (Jobs + 1));
+	auto* pHandles = static_cast<mt::JobHandle*>(alloca(sizeof(mt::JobHandle) * (Jobs + 1)));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&pArr, &sum, i, ItemsPerJob, func]() {
