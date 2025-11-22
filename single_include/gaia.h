@@ -9944,13 +9944,6 @@ namespace gaia {
 
 /*** End of inlined file: ser_ct.h ***/
 
-// #define ROBIN_HOOD_STD_SMARTPOINTERS
-#if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
-	#include <memory>
-#endif
-
-// #define ROBIN_HOOD_LOG_ENABLED
-#ifdef ROBIN_HOOD_LOG_ENABLED
 
 /*** Start of inlined file: logging.h ***/
 #pragma once
@@ -10124,6 +10117,10 @@ namespace gaia {
 
 			//! Default implementation of log handler
 			inline void log_cached(LogLevel level, const char* fmt, va_list args) {
+				GAIA_CLANG_WARNING_PUSH()
+				GAIA_GCC_WARNING_PUSH()
+				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
+				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
 				// Early exit if there is nothing to write
 				va_list args_copy;
 				va_copy(args_copy, args);
@@ -10136,6 +10133,8 @@ namespace gaia {
 
 				cnt::darray_ext<char, 1024> msg(len + 1);
 				vsnprintf(msg.data(), msg.size(), fmt, args);
+				GAIA_GCC_WARNING_POP()
+				GAIA_CLANG_WARNING_POP()
 				// Always null-terminate logs
 				msg[len] = 0;
 
@@ -10154,6 +10153,10 @@ namespace gaia {
 
 			//! Implementation of log handler that logs data directly (no caching)
 			inline void log_default(LogLevel level, const char* fmt, va_list args) {
+				GAIA_CLANG_WARNING_PUSH()
+				GAIA_GCC_WARNING_PUSH()
+				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
+				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
 				// Early exit if there is nothing to write
 				va_list args_copy;
 				va_copy(args_copy, args);
@@ -10166,6 +10169,8 @@ namespace gaia {
 
 				cnt::darray_ext<char, 1024> msg(len + 1);
 				vsnprintf(msg.data(), msg.size(), fmt, args);
+				GAIA_GCC_WARNING_POP()
+				GAIA_CLANG_WARNING_POP()
 				// Always null-terminate logs
 				msg[len] = 0;
 
@@ -10257,7 +10262,13 @@ inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
 
 /*** End of inlined file: logging.h ***/
 
+// #define ROBIN_HOOD_STD_SMARTPOINTERS
+#if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
+	#include <memory>
+#endif
 
+// #define ROBIN_HOOD_LOG_ENABLED
+#ifdef ROBIN_HOOD_LOG_ENABLED
 	#define ROBIN_HOOD_LOG(x, ...) GAIA_LOG_D("L:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
 	#define ROBIN_HOOD_LOG(x, ...)
@@ -10265,7 +10276,6 @@ inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
 
 // #define ROBIN_HOOD_TRACE_ENABLED
 #ifdef ROBIN_HOOD_TRACE_ENABLED
-
 	#define ROBIN_HOOD_TRACE(x, ...) GAIA_LOG_D("T:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
 	#define ROBIN_HOOD_TRACE(x, ...)

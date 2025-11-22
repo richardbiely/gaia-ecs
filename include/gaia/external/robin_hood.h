@@ -54,6 +54,7 @@
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
 #include "gaia/ser/ser_ct.h"
+#include "gaia/util/logging.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
@@ -62,7 +63,6 @@
 
 // #define ROBIN_HOOD_LOG_ENABLED
 #ifdef ROBIN_HOOD_LOG_ENABLED
-	#include "gaia/util/logging.h"
 	#define ROBIN_HOOD_LOG(x, ...) GAIA_LOG_D("L:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
 	#define ROBIN_HOOD_LOG(x, ...)
@@ -70,7 +70,6 @@
 
 // #define ROBIN_HOOD_TRACE_ENABLED
 #ifdef ROBIN_HOOD_TRACE_ENABLED
-	#include "gaia/util/logging.h"
 	#define ROBIN_HOOD_TRACE(x, ...) GAIA_LOG_D("T:%s@%d: " x, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #else
 	#define ROBIN_HOOD_TRACE(x, ...)
