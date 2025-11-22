@@ -521,12 +521,12 @@ namespace gaia {
 
 #if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
-	#define GAIA_NOINLINE inline __attribute__((noinline))
+	#define GAIA_NOINLINE __attribute__((noinline))
 #elif GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
 	#define GAIA_FORCEINLINE __forceinline
 	#define GAIA_NOINLINE __declspec(noinline)
 #else
-	#define GAIA_FORCEINLINE
+	#define GAIA_FORCEINLINE inline
 	#define GAIA_NOINLINE
 #endif
 

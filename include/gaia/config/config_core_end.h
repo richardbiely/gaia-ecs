@@ -1,4 +1,5 @@
 #pragma once
+#include "gaia/config/config_core.h"
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
@@ -130,7 +131,7 @@ namespace gaia {
 	};
 
 	//! Prefetch intrinsic
-	inline void prefetch([[maybe_unused]] const void* x, [[maybe_unused]] int hint) {
+	GAIA_FORCEINLINE void prefetch(const void* x, int hint) {
 #if GAIA_USE_PREFETCH
 	#if GAIA_COMPILER_CLANG
 		// In the gcc version of prefetch(), hint is only a constant _after_ inlining
@@ -150,9 +151,6 @@ namespace gaia {
 		// This should however not be a problem in the general case of well behaved
 		// caller code that uses the supplied prefetch hint enumerations.
 		switch (hint) {
-			case PREFETCH_HINT_T0:
-				__builtin_prefetch(x, 0, PREFETCH_HINT_T0);
-				break;
 			case PREFETCH_HINT_T1:
 				__builtin_prefetch(x, 0, PREFETCH_HINT_T1);
 				break;
@@ -163,7 +161,7 @@ namespace gaia {
 				__builtin_prefetch(x, 0, PREFETCH_HINT_NTA);
 				break;
 			default:
-				__builtin_prefetch(x);
+				__builtin_prefetch(x, 0, PREFETCH_HINT_T0);
 				break;
 		}
 	#elif GAIA_COMPILER_GCC
@@ -182,9 +180,30 @@ namespace gaia {
 		if (hint == PREFETCH_HINT_NTA)
 			asm volatile("prefetchnta (%0)" : : "r"(x));
 		#endif
+	#elif GAIA_COMPILER_MSVC && GAIA_ARCH == GAIA_ARCH_X86
+		switch (hint) {
+			case PREFETCH_HINT_T1:
+				_mm_prefetch(static_cast<const char*>(x), _MM_HINT_T1);
+				break;
+			case PREFETCH_HINT_T2:
+				_mm_prefetch(static_cast<const char*>(x), _MM_HINT_T2);
+				break;
+			case PREFETCH_HINT_NTA:
+				_mm_prefetch(static_cast<const char*>(x), _MM_HINT_NTA);
+				break;
+			default:
+				_mm_prefetch(static_cast<const char*>(x), _MM_HINT_T0);
+				break;
+		}
 	#else
-			// Not implemented
+		(void)x;
+		(void)hint;
+			// Not implemented. Not critical, so we can stay silent about it.
 	#endif
+#else
+		(void)x;
+		(void)hint;
+		// Not implemented. Not critical, so we can stay silent about it.
 #endif
 	}
 
