@@ -37,6 +37,8 @@ BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=
 
 # Paths
 PATH_DEBUG="./${PATH_BASE}/debug"
+PATH_DEBUG20="./${PATH_BASE}/debug20"
+PATH_DEBUG23="./${PATH_BASE}/debug23"
 PATH_DEBUG_SYSA="./${PATH_BASE}/debug-sysa"
 PATH_DEBUG_PROF="${PATH_DEBUG}-prof"
 PATH_RELEASE="./${PATH_BASE}/release"
@@ -54,6 +56,22 @@ cmake -E make_directory ${PATH_DEBUG}
 cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
 if ! cmake --build ${PATH_DEBUG} --config Debug; then
     echo "${PATH_DEBUG} build failed"
+    exit 1
+fi
+
+# Debug mode C++20
+cmake -E make_directory ${PATH_DEBUG20}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=20 -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG20}
+if ! cmake --build ${PATH_DEBUG20} --config Debug; then
+    echo "${PATH_DEBUG20} build failed"
+    exit 1
+fi
+
+# Debug mode C++23
+cmake -E make_directory ${PATH_DEBUG23}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=23 -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG23}
+if ! cmake --build ${PATH_DEBUG23} --config Debug; then
+    echo "${PATH_DEBUG23} build failed"
     exit 1
 fi
 
@@ -128,6 +146,21 @@ PERF_ITER_PATH="src/perf/iter/gaia_perf_iter"
 PERF_DUEL_PATH="src/perf/duel/gaia_perf_duel"
 PERF_APP_PATH="src/perf/app/gaia_perf_app"
 PERF_MT_PATH="src/perf/mt/gaia_perf_mt"
+
+echo ${PATH_DEBUG}/${UNIT_TEST_PATH}
+echo "Debug mode"
+chmod +x ${PATH_DEBUG}/${UNIT_TEST_PATH}
+${PATH_DEBUG}/${UNIT_TEST_PATH}
+
+echo ${PATH_DEBUG20}/${UNIT_TEST_PATH}
+echo "Debug mode C++20"
+chmod +x ${PATH_DEBUG20}/${UNIT_TEST_PATH}
+${PATH_DEBUG20}/${UNIT_TEST_PATH}
+
+echo ${PATH_DEBUG23}/${UNIT_TEST_PATH}
+echo "Debug mode C++23"
+chmod +x ${PATH_DEBUG23}/${UNIT_TEST_PATH}
+${PATH_DEBUG23}/${UNIT_TEST_PATH}
 
 echo ${PATH_DEBUG_ADDR}/${UNIT_TEST_PATH}
 echo "Debug mode + addr sanitizer"

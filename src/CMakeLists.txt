@@ -30,10 +30,12 @@ endif()
 # Compiler settings
 include(CheckCXXCompilerFlag)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_REQUIRED_QUIET TRUE)
+
+message(STATUS "Compiling for C++${CMAKE_CXX_STANDARD}")
 
 function(enable_cxx_compiler_flag_if_supported flag)
   string(FIND "${CMAKE_CXX_FLAGS}" "${flag}" flag_already_set)
