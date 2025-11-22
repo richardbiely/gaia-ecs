@@ -983,8 +983,10 @@ namespace gaia {
 						// Insert the new pair
 						it = m_world.m_nameToEntity.emplace(key, m_entity).first;
 					} else {
+#if GAIA_ASSERT_ENABLED
 						if (it->second != m_entity)
 							GAIA_ASSERT(false && "Trying to set non-unique name for an entity");
+#endif
 
 						// Attempts to set the same name again, or not a unique name, will be dropped.
 						return;
