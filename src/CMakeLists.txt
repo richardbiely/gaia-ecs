@@ -126,14 +126,9 @@ if(MSVC)
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
 
-  # instruction sets
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    enable_cxx_compiler_flag_if_supported("-msse4.1")
-    enable_cxx_compiler_flag_if_supported("-mfma")
-  else()
-    if(NOT IsARM)
-      enable_cxx_compiler_flag_if_supported("/arch:AVX2")
-    endif()
+  # optimization flags
+  if(NOT IsARM)
+    enable_cxx_compiler_flag_if_supported("/arch:AVX2")
   endif()
 
   enable_cxx_compiler_flag_if_supported("/permissive-")
@@ -204,13 +199,9 @@ else()
     enable_cxx_compiler_flag_if_supported("-Wno-deprecated-declarations")
   endif()
 
-  # instruction sets
+  # optimization flags
   enable_cxx_compiler_flag_if_supported("-ftree-vectorize")
-
-  if(NOT IsARM)
-    enable_cxx_compiler_flag_if_supported("-msse4.1")
-    enable_cxx_compiler_flag_if_supported("-mfma")
-  endif()
+  enable_cxx_compiler_flag_if_supported("-march=native")
 endif()
 
 # Turn off RTTI and exception handling
