@@ -25,27 +25,39 @@ using namespace gaia;
 //----------------------------------------------------------------------
 
 #ifndef _WIN32
+void enable_raw_mode(termios* old) {
+	if (tcgetattr(0, old) < 0)
+		perror("tcgetattr");
+
+	termios raw = *old;
+	raw.c_lflag &= ~(ICANON | ECHO);
+	raw.c_cc[VMIN] = 1;
+	raw.c_cc[VTIME] = 0;
+
+	if (tcsetattr(0, TCSANOW, &raw) < 0)
+		perror("tcsetattr raw");
+}
+
+void disable_raw_mode(termios* old) {
+	if (tcsetattr(0, TCSADRAIN, old) < 0)
+		perror("tcsetattr restore");
+}
+
 char get_char() {
-	char buf[1];
-	termios old{};
-	if (tcgetattr(0, &old) < 0)
-		perror("tcgetattr()");
-	old.c_lflag &= ~ICANON;
-	old.c_lflag &= ~ECHO;
-	old.c_cc[VMIN] = 1;
-	old.c_cc[VTIME] = 0;
-	if (tcsetattr(0, TCSANOW, &old) < 0)
-		perror("tcsetattr ICANON");
-	if (read(0, buf, sizeof(buf)) < 0)
-		perror("read()");
-	old.c_lflag |= ICANON;
-	old.c_lflag |= ECHO;
-	if (tcsetattr(0, TCSADRAIN, &old) < 0)
-		perror("tcsetattr ~ICANON");
+	char buf[2] = {};
+	termios old;
+	enable_raw_mode(&old);
+
+	const auto n = read(0, buf, sizeof(buf) - 1);
+	if (n < 0)
+		perror("read");
+
+	disable_raw_mode(&old);
+
 	return buf[0];
 }
 
-void ClearScreen() {
+void clear_screen() {
 	auto res = system("clear");
 	(void)res;
 }
@@ -53,7 +65,7 @@ void ClearScreen() {
 char get_char() {
 	return (char)_getch();
 }
-void ClearScreen() {
+void clear_screen() {
 	system("cls");
 }
 #endif
@@ -540,7 +552,7 @@ GameWorld* g_pGameWorld = nullptr;
 #define PRINT_SYSTEM_NAME 1
 
 int main() {
-	ClearScreen();
+	clear_screen();
 	printf(
 			"Welcome to the most rudimentary of rogue-likes driven by Gaia-ECS.\n"
 			"\nControls:\n"
@@ -934,7 +946,7 @@ int main() {
 #if PRINT_SYSTEM_NAME
 											GAIA_LOG_D("10 - ClearMapSystem");
 #endif
-											ClearScreen();
+											clear_screen();
 											value.pGameWorld->InitWorldMap();
 										});
 			w.child(sb.entity(), groupPostSimulation);
