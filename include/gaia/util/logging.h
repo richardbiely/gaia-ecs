@@ -165,6 +165,11 @@ namespace gaia {
 								s_log = nullptr;
 							}
 						}
+
+						LogAtExit(const LogAtExit&) = delete;
+						LogAtExit(LogAtExit&&) = delete;
+						LogAtExit& operator=(const LogAtExit&) = delete;
+						LogAtExit& operator=(LogAtExit&&) = delete;
 					} s_logDeleter;
 				}
 				return s_log;
@@ -172,12 +177,13 @@ namespace gaia {
 
 			//! Default implementation of log handler
 			inline void log_cached(LogLevel level, const char* fmt, va_list args) {
+				va_list args_copy{};
+
 				GAIA_CLANG_WARNING_PUSH()
 				GAIA_GCC_WARNING_PUSH()
 				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
 				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
 				// Early exit if there is nothing to write
-				va_list args_copy;
 				va_copy(args_copy, args);
 				int l = vsnprintf(nullptr, 0, fmt, args_copy);
 				va_end(args_copy);
@@ -185,11 +191,14 @@ namespace gaia {
 					return;
 
 				const auto len = (uint32_t)l;
-
 				cnt::darray_ext<char, 1024> msg(len + 1);
-				vsnprintf(msg.data(), msg.size(), fmt, args);
+
+				va_copy(args_copy, args);
+				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
+				va_end(args_copy);
 				GAIA_GCC_WARNING_POP()
 				GAIA_CLANG_WARNING_POP()
+
 				// Always null-terminate logs
 				msg[len] = 0;
 
@@ -208,12 +217,13 @@ namespace gaia {
 
 			//! Implementation of log handler that logs data directly (no caching)
 			inline void log_default(LogLevel level, const char* fmt, va_list args) {
+				va_list args_copy{};
+
 				GAIA_CLANG_WARNING_PUSH()
 				GAIA_GCC_WARNING_PUSH()
 				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
 				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
 				// Early exit if there is nothing to write
-				va_list args_copy;
 				va_copy(args_copy, args);
 				int l = vsnprintf(nullptr, 0, fmt, args_copy);
 				va_end(args_copy);
@@ -221,11 +231,14 @@ namespace gaia {
 					return;
 
 				const auto len = (uint32_t)l;
-
 				cnt::darray_ext<char, 1024> msg(len + 1);
-				vsnprintf(msg.data(), msg.size(), fmt, args);
+
+				va_copy(args_copy, args);
+				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
+				va_end(args_copy);
 				GAIA_GCC_WARNING_POP()
 				GAIA_CLANG_WARNING_POP()
+
 				// Always null-terminate logs
 				msg[len] = 0;
 

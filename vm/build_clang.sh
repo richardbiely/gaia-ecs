@@ -53,7 +53,7 @@ SANI_MEM="'MemoryWithOrigins'"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
 if ! cmake --build ${PATH_DEBUG} --config Debug; then
     echo "${PATH_DEBUG} build failed"
     exit 1
@@ -61,7 +61,7 @@ fi
 
 # Debug mode C++20
 cmake -E make_directory ${PATH_DEBUG20}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=20 -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG20}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=20 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG20}
 if ! cmake --build ${PATH_DEBUG20} --config Debug; then
     echo "${PATH_DEBUG20} build failed"
     exit 1
@@ -69,7 +69,7 @@ fi
 
 # Debug mode C++23
 cmake -E make_directory ${PATH_DEBUG23}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=23 -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG23}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=23 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG23}
 if ! cmake --build ${PATH_DEBUG23} --config Debug; then
     echo "${PATH_DEBUG23} build failed"
     exit 1
@@ -77,7 +77,7 @@ fi
 
 # Debug mode + system allocator
 cmake -E make_directory ${PATH_DEBUG_SYSA}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_DEVMODE=ON -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -S .. -B ${PATH_DEBUG_SYSA}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -DGAIA_ECS_CHUNK_ALLOCATOR=OFF -S .. -B ${PATH_DEBUG_SYSA}
 if ! cmake --build ${PATH_DEBUG_SYSA} --config Debug; then
     echo "${PATH_DEBUG_SYSA} build failed"
     exit 1
@@ -85,7 +85,7 @@ fi
 
 # Debug mode + profiler
 cmake -E make_directory ${PATH_DEBUG_PROF}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG_PROF}
+cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG_PROF}
 if ! cmake --build ${PATH_DEBUG_PROF} --config Debug; then
     echo "${PATH_DEBUG_PROF} build failed"
     exit 1
@@ -93,7 +93,7 @@ fi
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
+cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_USE_SANITIZER="" -S .. -B ${PATH_RELEASE}
 if ! cmake --build ${PATH_RELEASE} --config Release; then
     echo "${PATH_RELEASE} build failed"
     exit 1
