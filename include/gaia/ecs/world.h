@@ -945,6 +945,8 @@ namespace gaia {
 						return;
 					}
 
+					GAIA_ASSERT(len < ComponentCacheItem::MaxNameLength);
+
 					// Make sure the name does not contain a dot because this character is reserved for
 					// hierarchical lookups, e.g. "parent.child.subchild".
 #if GAIA_ASSERT_ENABLED
@@ -956,7 +958,8 @@ namespace gaia {
 					}
 #endif
 
-					EntityNameLookupKey key(name, len == 0 ? (uint32_t)strlen(name) : len, IsOwned);
+					EntityNameLookupKey key(
+							name, len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len, IsOwned);
 
 					// Make sure the name is unique. Ignore setting the same name twice on the same entity.
 					// If it is not, there is nothing to do.

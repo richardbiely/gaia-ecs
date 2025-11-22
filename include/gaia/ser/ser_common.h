@@ -182,6 +182,7 @@ namespace gaia {
 
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
 
 		// --------------------
 		// Customization tags

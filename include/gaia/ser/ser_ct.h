@@ -10,8 +10,6 @@
 
 namespace gaia {
 	namespace ser {
-		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
-
 		namespace detail {
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {

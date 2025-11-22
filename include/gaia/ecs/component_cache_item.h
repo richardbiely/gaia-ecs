@@ -22,6 +22,8 @@ namespace gaia {
 		struct ComponentRecord;
 
 		struct GAIA_API ComponentCacheItem final {
+			static constexpr uint32_t MaxNameLength = 256;
+
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			using FuncCtor = void(void*, uint32_t);
@@ -206,9 +208,9 @@ namespace gaia {
 				//   MSVC     : gaia::ecs::uni<struct Position>
 				// Therefore, we first copy the compile-time string and then tweak it so it is
 				// the same on all supported compilers.
-				char nameTmp[256];
+				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
-				GAIA_ASSERT(nameTmpLen < 256);
+				GAIA_ASSERT(nameTmpLen < MaxNameLength);
 				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen + 1);
 				nameTmp[ct_name.size()] = 0;
 

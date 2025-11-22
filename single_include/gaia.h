@@ -1417,6 +1417,7 @@ namespace gaia {
 		strncpy_s((var), (text), (size_t)-1);                                                                              \
 		(void)max_len
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
+	#define GAIA_STRLEN(var, max_len) strnlen_s((var), max_len)
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
 		{                                                                                                                  \
@@ -1424,6 +1425,7 @@ namespace gaia {
 			(var)[(max_len) - 1] = 0;                                                                                        \
 		}
 	#define GAIA_STRFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
+	#define GAIA_STRLEN(var, max_len) strnlen((var), max_len)
 #endif
 
 	namespace core {
@@ -9775,6 +9777,7 @@ namespace gaia {
 
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
+		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
 
 		// --------------------
 		// Customization tags
@@ -9811,8 +9814,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
-		GAIA_DEFINE_HAS_MEMBER_FUNC(resize);
-
 		namespace detail {
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
@@ -23191,6 +23192,8 @@ namespace gaia {
 		struct ComponentRecord;
 
 		struct GAIA_API ComponentCacheItem final {
+			static constexpr uint32_t MaxNameLength = 256;
+
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			using FuncCtor = void(void*, uint32_t);
@@ -23375,9 +23378,9 @@ namespace gaia {
 				//   MSVC     : gaia::ecs::uni<struct Position>
 				// Therefore, we first copy the compile-time string and then tweak it so it is
 				// the same on all supported compilers.
-				char nameTmp[256];
+				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
-				GAIA_ASSERT(nameTmpLen < 256);
+				GAIA_ASSERT(nameTmpLen < MaxNameLength);
 				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen + 1);
 				nameTmp[ct_name.size()] = 0;
 
@@ -23612,7 +23615,11 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
-				const auto l = len == 0 ? (uint32_t)strlen(name) : len;
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+
 				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
 				if (it != m_compByString.end())
 					return it->second;
@@ -33159,6 +33166,8 @@ namespace gaia {
 						return;
 					}
 
+					GAIA_ASSERT(len < ComponentCacheItem::MaxNameLength);
+
 					// Make sure the name does not contain a dot because this character is reserved for
 					// hierarchical lookups, e.g. "parent.child.subchild".
 #if GAIA_ASSERT_ENABLED
@@ -33170,7 +33179,8 @@ namespace gaia {
 					}
 #endif
 
-					EntityNameLookupKey key(name, len == 0 ? (uint32_t)strlen(name) : len, IsOwned);
+					EntityNameLookupKey key(
+							name, len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len, IsOwned);
 
 					// Make sure the name is unique. Ignore setting the same name twice on the same entity.
 					// If it is not, there is nothing to do.
