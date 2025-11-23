@@ -122,7 +122,6 @@ namespace gaia {
 		class sringbuffer {
 		public:
 			static_assert(N > 1);
-			static_assert(!mem::is_soa_layout_v<T>);
 
 			using value_type = T;
 			using reference = T&;
@@ -170,11 +169,11 @@ namespace gaia {
 			constexpr sringbuffer(std::initializer_list<T> il) noexcept: sringbuffer(il.begin(), il.end()) {}
 
 			constexpr sringbuffer(const sringbuffer& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::copy_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::copy_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			constexpr sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);

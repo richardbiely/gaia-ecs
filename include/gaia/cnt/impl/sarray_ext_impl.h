@@ -93,7 +93,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
 			}
@@ -118,7 +118,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
-				mem::move_elements<T>(
+				mem::move_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 

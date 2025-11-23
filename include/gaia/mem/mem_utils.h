@@ -27,8 +27,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (std::is_copy_assignable_v<T>) {
 					dst[idxDst] = src[idxSrc];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -46,8 +44,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (std::is_copy_assignable_v<T>) {
 					dst[idxDst] = src[idxSrc];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -64,8 +60,6 @@ namespace gaia {
 			void copy_elements_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -120,8 +114,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 					core::call_ctor(&dst[idxDst]);
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
@@ -140,8 +132,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
@@ -158,8 +148,6 @@ namespace gaia {
 			void move_elements_aos(T* GAIA_RESTRICT dst, T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -180,8 +168,6 @@ namespace gaia {
 			void shift_elements_left_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -209,8 +195,6 @@ namespace gaia {
 			void shift_elements_left_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -259,8 +243,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				const auto max = idxDst - idxSrc;
@@ -290,8 +272,6 @@ namespace gaia {
 			void shift_elements_right_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -342,35 +322,35 @@ namespace gaia {
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_ctor_element_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_element_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
@@ -378,21 +358,21 @@ namespace gaia {
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_elements_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_ctor_element_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -402,14 +382,14 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_element_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -419,7 +399,7 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
@@ -427,7 +407,7 @@ namespace gaia {
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_elements_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -437,14 +417,14 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void swap_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>()) {
 					auto* l = (T*)src;
 					auto* r = (T*)dst;
@@ -468,54 +448,54 @@ namespace gaia {
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the left by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the left by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void
 		shift_elements_left_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the right by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the right by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void
 		shift_elements_right_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_right_aos_n<T>((T*)dst, idxDst, idxSrc, n);

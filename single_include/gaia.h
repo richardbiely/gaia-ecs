@@ -4883,8 +4883,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (std::is_copy_assignable_v<T>) {
 					dst[idxDst] = src[idxSrc];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -4902,8 +4900,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (std::is_copy_assignable_v<T>) {
 					dst[idxDst] = src[idxSrc];
 				} else if constexpr (std::is_copy_constructible_v<T>) {
@@ -4920,8 +4916,6 @@ namespace gaia {
 			void copy_elements_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -4976,8 +4970,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 					core::call_ctor(&dst[idxDst]);
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
@@ -4996,8 +4988,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
@@ -5014,8 +5004,6 @@ namespace gaia {
 			void move_elements_aos(T* GAIA_RESTRICT dst, T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -5036,8 +5024,6 @@ namespace gaia {
 			void shift_elements_left_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -5065,8 +5051,6 @@ namespace gaia {
 			void shift_elements_left_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -5115,8 +5099,6 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!mem::is_soa_layout_v<T>);
-
 				GAIA_ASSERT(idxSrc < idxDst);
 
 				const auto max = idxDst - idxSrc;
@@ -5146,8 +5128,6 @@ namespace gaia {
 			void shift_elements_right_aos_n(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
-
-				static_assert(!mem::is_soa_layout_v<T>);
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
@@ -5198,35 +5178,35 @@ namespace gaia {
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_ctor_element_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_element_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
@@ -5234,21 +5214,21 @@ namespace gaia {
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>)
+			if constexpr (!SOA)
 				detail::copy_elements_aos<T>((T*)dst, (const T*)src, idxDst, idxSrc);
 			else
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_ctor_element_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -5258,14 +5238,14 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_element_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -5275,7 +5255,7 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
@@ -5283,7 +5263,7 @@ namespace gaia {
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>())
 					detail::move_elements_aos<T>((T*)dst, (T*)src, idxDst, idxSrc);
 				else
@@ -5293,14 +5273,14 @@ namespace gaia {
 		}
 
 		//! Move or copy \param cnt elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void swap_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;
 
-			if constexpr (!mem::is_soa_layout_v<T>) {
+			if constexpr (!SOA) {
 				if constexpr (is_movable<T>()) {
 					auto* l = (T*)src;
 					auto* r = (T*)dst;
@@ -5324,54 +5304,54 @@ namespace gaia {
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the left by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the left by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void
 		shift_elements_left_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_left_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the right by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, 1, size);
 			else
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
 		//! Shift elements at the address pointed to by \param dst to the right by one
-		template <typename T>
+		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void
 		shift_elements_right_n(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
 			if GAIA_UNLIKELY (idxSrc == idxDst)
 				return;
 
-			if constexpr (mem::is_soa_layout_v<T>)
+			if constexpr (SOA)
 				detail::shift_elements_right_soa<T>(*dst, idxDst, idxSrc, n, size);
 			else
 				detail::shift_elements_right_aos_n<T>((T*)dst, idxDst, idxSrc, n);
@@ -6123,7 +6103,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_elements<T, false>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -6236,7 +6216,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(cap);
 				if (pDataOld != nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, cap, m_cnt);
-					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -6283,7 +6263,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
 				// Move old data to the new location
-				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 				// Default-construct new items
 				core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 				// Release old memory
@@ -6431,7 +6411,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, m_cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
+				mem::move_elements<T, false>(m_pData, pDataOld, cnt, 0);
 				GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
 				view_policy::template free<Allocator>(pDataOld);
 			}
@@ -6654,13 +6634,13 @@ namespace gaia {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
+					mem::move_elements<T, false>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
 					view_policy::template free<Allocator>(pDataOld, cap, cnt);
 				}
 
@@ -6709,7 +6689,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -6750,7 +6730,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -6806,10 +6786,10 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
 					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
 				}
 
@@ -6845,11 +6825,11 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
 					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
 				}
 
@@ -6996,13 +6976,13 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (cnt < extent) {
-						mem::move_elements<T>(m_data, pDataOld, cnt, 0);
+						mem::move_elements<T, false>(m_data, pDataOld, cnt, 0);
 						m_pData = m_data;
 						m_cap = extent;
 					} else {
 						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
 						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
+						mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
@@ -7432,13 +7412,13 @@ namespace gaia {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
 					view_policy::template free<Allocator>(pDataOld, cap, cnt);
 				}
 
@@ -7487,7 +7467,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					view_policy::mem_add_block(m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, true>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -7529,7 +7509,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					view_policy::mem_add_block(m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, true>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -7585,11 +7565,11 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
 				if (m_pDataHeap) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
 				}
 
 				m_cap = cap;
@@ -7620,10 +7600,10 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
 					view_policy::mem_del_block(m_data, m_cap, m_cnt);
 				}
 
@@ -7759,13 +7739,13 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (cnt < extent) {
-						mem::move_elements<T>(m_data, pDataOld, cnt, 0);
+						mem::move_elements<T, true>(m_data, pDataOld, cnt, 0);
 						m_pData = m_data;
 						m_cap = extent;
 					} else {
 						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
 						view_policy::mem_add_block(m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
+						mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
@@ -7788,7 +7768,7 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::move_elements<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
+							mem::move_elements<T, true>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
 						}
 						++idxDst;
 					} else {
@@ -8195,7 +8175,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				view_policy::mem_add_block(m_pData, m_cap, cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -8318,7 +8298,7 @@ namespace gaia {
 
 				if (pDataOld != nullptr) {
 					view_policy::mem_add_block(m_pData, cap, m_cnt);
-					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -8360,7 +8340,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pData, count, count);
 				// Move old data to the new location
-				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_elements<T, true>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 				// Release old memory
 				view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 
@@ -8493,7 +8473,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				view_policy::mem_add_block(m_pData, m_cap, m_cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
+				mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -12715,7 +12695,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			sarr& operator=(std::initializer_list<T> il) {
@@ -12738,7 +12718,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>(
+				mem::move_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -14538,7 +14518,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
 			}
@@ -14563,7 +14543,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
-				mem::move_elements<T>(
+				mem::move_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -15195,7 +15175,7 @@ namespace gaia {
 			constexpr sarr_ext_soa(sarr_ext_soa&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, true>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_cnt = size_type(0);
 			}
@@ -15209,7 +15189,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(
+				mem::copy_elements<T, true>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -15220,7 +15200,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
-				mem::move_elements<T>(
+				mem::move_elements<T, true>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -15828,7 +15808,7 @@ namespace gaia {
 			constexpr sarr_soa(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, true>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			sarr_soa& operator=(std::initializer_list<T> il) {
@@ -15849,7 +15829,7 @@ namespace gaia {
 			constexpr sarr_soa& operator=(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T>(
+				mem::move_elements<T, true>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -17693,7 +17673,6 @@ namespace gaia {
 		class sringbuffer {
 		public:
 			static_assert(N > 1);
-			static_assert(!mem::is_soa_layout_v<T>);
 
 			using value_type = T;
 			using reference = T&;
@@ -17741,11 +17720,11 @@ namespace gaia {
 			constexpr sringbuffer(std::initializer_list<T> il) noexcept: sringbuffer(il.begin(), il.end()) {}
 
 			constexpr sringbuffer(const sringbuffer& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::copy_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::copy_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			constexpr sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);

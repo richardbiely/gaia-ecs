@@ -252,7 +252,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				view_policy::mem_add_block(m_pData, m_cap, cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -375,7 +375,7 @@ namespace gaia {
 
 				if (pDataOld != nullptr) {
 					view_policy::mem_add_block(m_pData, cap, m_cnt);
-					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -417,7 +417,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pData, count, count);
 				// Move old data to the new location
-				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_elements<T, true>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 				// Release old memory
 				view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 
@@ -550,7 +550,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				view_policy::mem_add_block(m_pData, m_cap, m_cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
+				mem::move_elements<T, true>(m_pData, pDataOld, cnt, 0);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 

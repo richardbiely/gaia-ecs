@@ -261,13 +261,13 @@ namespace gaia {
 					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
 				} else {
 					// Move items from the old heap array to the new one. Delete the old
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
 					view_policy::mem_add_block(m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
 					view_policy::template free<Allocator>(pDataOld, cap, cnt);
 				}
 
@@ -316,7 +316,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					view_policy::mem_add_block(m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, true>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -358,7 +358,7 @@ namespace gaia {
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
 					view_policy::mem_add_block(m_data, extent, other.size());
-					mem::move_elements<T>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					mem::move_elements<T, true>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 					view_policy::mem_del_block(other.m_data, extent, other.size());
 					m_pDataHeap = nullptr;
 					m_pData = m_data;
@@ -414,11 +414,11 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
 				if (m_pDataHeap) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
 				}
 
 				m_cap = cap;
@@ -449,10 +449,10 @@ namespace gaia {
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				view_policy::mem_add_block(m_pDataHeap, count, count);
 				if (pDataOld != nullptr) {
-					mem::move_elements<T>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					mem::move_elements<T>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
 					view_policy::mem_del_block(m_data, m_cap, m_cnt);
 				}
 
@@ -588,13 +588,13 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (cnt < extent) {
-						mem::move_elements<T>(m_data, pDataOld, cnt, 0);
+						mem::move_elements<T, true>(m_data, pDataOld, cnt, 0);
 						m_pData = m_data;
 						m_cap = extent;
 					} else {
 						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
 						view_policy::mem_add_block(m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T>(m_pDataHeap, pDataOld, cnt, 0);
+						mem::move_elements<T, true>(m_pDataHeap, pDataOld, cnt, 0);
 						m_pData = m_pDataHeap;
 					}
 
@@ -617,7 +617,7 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::move_elements<T>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
+							mem::move_elements<T, true>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
 						}
 						++idxDst;
 					} else {

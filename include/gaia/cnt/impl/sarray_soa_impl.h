@@ -269,7 +269,7 @@ namespace gaia {
 			constexpr sarr_soa(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, true>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			sarr_soa& operator=(std::initializer_list<T> il) {
@@ -290,7 +290,7 @@ namespace gaia {
 			constexpr sarr_soa& operator=(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::move_elements<T>(
+				mem::move_elements<T, true>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 

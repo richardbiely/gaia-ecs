@@ -65,7 +65,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0, m_cap, cap);
+				mem::move_elements<T, false>(m_pData, pDataOld, cnt, 0, m_cap, cap);
 				view_policy::template free<Allocator>(pDataOld, cap, cnt);
 			}
 
@@ -178,7 +178,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(cap);
 				if (pDataOld != nullptr) {
 					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, cap, m_cnt);
-					mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
+					mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				}
 
@@ -225,7 +225,7 @@ namespace gaia {
 				m_pData = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, count, count);
 				// Move old data to the new location
-				mem::move_elements<T>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
+				mem::move_elements<T, false>(m_pData, pDataOld, m_cnt, 0, count, m_cap);
 				// Default-construct new items
 				core::call_ctor_n(&data()[m_cnt], count - m_cnt);
 				// Release old memory
@@ -373,7 +373,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::template alloc<Allocator>(m_cap = cnt);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pData, m_cap, m_cnt);
-				mem::move_elements<T>(m_pData, pDataOld, cnt, 0);
+				mem::move_elements<T, false>(m_pData, pDataOld, cnt, 0);
 				GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
 				view_policy::template free<Allocator>(pDataOld);
 			}

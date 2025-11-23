@@ -91,7 +91,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
+				mem::move_elements<T, false>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
 			sarr& operator=(std::initializer_list<T> il) {
@@ -114,7 +114,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T>(
+				mem::move_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
