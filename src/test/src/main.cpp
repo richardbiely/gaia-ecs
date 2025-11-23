@@ -1,6 +1,7 @@
 #define NOMINMAX
 
 #include <atomic>
+#include <cstdint>
 #include <type_traits>
 #if GAIA_SYSTEMS_ENABLED
 	#include <mutex>
@@ -3153,6 +3154,17 @@ void TestDataLayoutSoA() {
 			test(data, f, i);
 		}
 
+		{
+			uint32_t i = 0;
+			for (const auto& val: std::as_const(data)) {
+				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+				CHECK(val.x == f[0]);
+				CHECK(val.y == f[1]);
+				CHECK(val.z == f[2]);
+				++i;
+			}
+		}
+
 		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
 		GAIA_FOR(N) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -3166,6 +3178,17 @@ void TestDataLayoutSoA() {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 			data.push_back({f[0], f[1], f[2]});
 			test(data, f, i);
+		}
+
+		{
+			uint32_t i = 0;
+			for (const auto& val: std::as_const(data)) {
+				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+				CHECK(val.x == f[0]);
+				CHECK(val.y == f[1]);
+				CHECK(val.z == f[2]);
+				++i;
+			}
 		}
 
 		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
@@ -3203,6 +3226,19 @@ void TestDataLayoutSoA<DummySoA>() {
 			test(data, f, i);
 		}
 
+		{
+			uint32_t i = 0;
+			for (const auto& val: std::as_const(data)) {
+				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+				const bool b = data.template view<2>()[i];
+				CHECK(val.x == f[0]);
+				CHECK(val.y == f[1]);
+				CHECK(val.b == b);
+				CHECK(val.w == f[2]);
+				++i;
+			}
+		}
+
 		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
 		GAIA_FOR(N) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -3216,6 +3252,19 @@ void TestDataLayoutSoA<DummySoA>() {
 			float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 			data.push_back({f[0], f[1], true, f[2]});
 			test(data, f, i);
+		}
+		
+		{
+			uint32_t i = 0;
+			for (const auto& val: std::as_const(data)) {
+				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+				const bool b = data.template view<2>()[i];
+				CHECK(val.x == f[0]);
+				CHECK(val.y == f[1]);
+				CHECK(val.b == b);
+				CHECK(val.w == f[2]);
+				++i;
+			}
 		}
 
 		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
@@ -9660,6 +9709,15 @@ struct SerializeStructDArray_PositionSoA {
 	}
 };
 
+struct SerializeStructDArray_PositionSoA_AOS {
+	cnt::darr<PositionSoA> arr;
+	float f;
+
+	bool operator==(const SerializeStructDArray_PositionSoA_AOS& other) const {
+		return f == other.f && arr == other.arr;
+	}
+};
+
 GAIA_MSVC_WARNING_POP()
 
 struct SerializeStructDArray {
@@ -9748,8 +9806,24 @@ TEST_CASE("Serialization - arrays") {
 	}
 
 	{
+		SerializeStructDArray_PositionSoA_AOS in{}, out{};
+		GAIA_FOR(10) {
+			in.arr.push_back({(float)i, (float)i, (float)i});
+		}
+		in.f = 3.12345f;
+
+		ser::ser_buffer_binary s;
+
+		ser::save(s, in);
+		s.seek(0);
+		ser::load(s, out);
+
+		CHECK(CompareSerializableTypes(in, out));
+	}
+
+	{
 		SerializeStructDArray_PositionSoA in{}, out{};
-		GAIA_EACH(in.arr) {
+		GAIA_FOR(10) {
 			in.arr.push_back({(float)i, (float)i, (float)i});
 		}
 		in.f = 3.12345f;

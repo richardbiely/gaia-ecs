@@ -470,7 +470,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(m_pData, capacity(), idxSrc);
 			}
 
 			//! Insert the element to the position given by iterator \param pos
@@ -489,7 +489,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(m_pData, capacity(), idxSrc);
 			}
 
 			//! Removes the element at pos
@@ -509,7 +509,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(m_pData, capacity(), idxSrc);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -623,51 +623,51 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD auto begin() noexcept {
-				return iterator(m_pData, size(), 0);
+				return iterator(m_pData, capacity(), 0);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				return const_iterator(m_pData, size(), 0);
+				return const_iterator(m_pData, capacity(), 0);
 			}
 
 			GAIA_NODISCARD auto cbegin() const noexcept {
-				return const_iterator(m_pData, size(), 0);
+				return const_iterator(m_pData, capacity(), 0);
 			}
 
 			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator(m_pData, size(), size() - 1);
+				return iterator(m_pData, capacity(), size() - 1);
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator(m_pData, size(), size() - 1);
+				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
 			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator(m_pData, size(), size() - 1);
+				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
 			GAIA_NODISCARD auto end() noexcept {
-				return iterator(m_pData, size(), size());
+				return iterator(m_pData, capacity(), size());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				return const_iterator(m_pData, size(), size());
+				return const_iterator(m_pData, capacity(), size());
 			}
 
 			GAIA_NODISCARD auto cend() const noexcept {
-				return const_iterator(m_pData, size(), size());
+				return const_iterator(m_pData, capacity(), size());
 			}
 
 			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(m_pData, size(), -1);
+				return iterator(m_pData, capacity(), -1);
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(m_pData, size(), -1);
+				return const_iterator(m_pData, capacity(), -1);
 			}
 
 			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(m_pData, size(), -1);
+				return const_iterator(m_pData, capacity(), -1);
 			}
 
 			GAIA_NODISCARD bool operator==(const darr_soa& other) const noexcept {

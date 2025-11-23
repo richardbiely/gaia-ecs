@@ -72,8 +72,19 @@ namespace gaia {
 					if constexpr (has_func_resize<U, size_t>::value) {
 						// If resize is present, use it
 						arg.resize(size);
-						for (auto&& e: arg)
+
+						// NOTE: We can't do it this way. If there are containers with the overloaded
+						//       operator=, the result might not be what one would expect.
+						//       E.g., in our case, SoA containers need specific handling.
+						// for (auto&& e: arg)
+						// 	load(e);
+
+						uint32_t i = 0;
+						for (auto e: arg) {
 							load(e);
+							arg[i] = std::move(e);
+							++i;
+						}
 					} else {
 						// With no resize present, write directly into memory
 						GAIA_FOR(size) {

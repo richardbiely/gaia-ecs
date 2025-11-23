@@ -375,7 +375,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
 			//! Insert the element to the position given by iterator \param pos
@@ -393,7 +393,7 @@ namespace gaia {
 
 				++m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
 			//! Removes the element at pos
@@ -412,7 +412,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -435,7 +435,7 @@ namespace gaia {
 
 				m_cnt -= cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
 			//! Removes the element at index \param pos
@@ -449,7 +449,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(&data()[idxSrc]);
+				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
 			constexpr void clear() noexcept {
@@ -530,51 +530,51 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr auto begin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), size(), 0);
+				return iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), 0);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), 0);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), size(), size() - 1);
+				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), size() - 1);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), size() - 1);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto end() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), size(), size());
+				return iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), size());
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), size());
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]), size(), -1);
+				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), -1);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]), size(), -1);
+				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const sarr_ext_soa& other) const noexcept {
