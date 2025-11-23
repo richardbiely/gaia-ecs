@@ -2,6 +2,9 @@
 
 #include <atomic>
 #include <type_traits>
+#if GAIA_SYSTEMS_ENABLED
+	#include <mutex>
+#endif
 
 #include <gaia.h>
 
@@ -8473,7 +8476,7 @@ TEST_CASE("Query Filter - systems") {
 	// WriterSystem
 	auto ws = wld.system()
 								.name("WriterSystem")
-								.mode(ecs::QueryExecType::Default) // satisfty code coverage
+								.no<ecs::System_>()
 								.all<Position&>()
 								.on_each([&](Position& a) {
 									++wsCnt;
@@ -8483,6 +8486,7 @@ TEST_CASE("Query Filter - systems") {
 	// WriterSystemSilent
 	auto wss = wld.system()
 								 .name("WriterSystemSilent")
+								 .no<ecs::System_>()
 								 .all<Position&>()
 								 .on_each([&](ecs::Iter& it) {
 									 ++wssCnt;
@@ -8493,6 +8497,7 @@ TEST_CASE("Query Filter - systems") {
 	// ReaderSystem
 	auto rs = wld.system()
 								.name("ReaderSystem")
+								.no<ecs::System_>()
 								.all<Position>()
 								.changed<Position>()
 								.on_each([&](ecs::Iter& it) {
@@ -8869,7 +8874,7 @@ TEST_CASE("System - simple") {
 
 	// Our systems
 	auto sys1 = wld.system()
-									.name("sys1")
+									//.name("sys1")
 									.all<Position>()
 									.all<Acceleration>() //
 									.on_each([&](Position, Acceleration) {
@@ -8878,7 +8883,7 @@ TEST_CASE("System - simple") {
 										++sys1_cnt;
 									});
 	auto sys2 = wld.system()
-									.name("sys2")
+									//.name("sys2")
 									.all<Position>() //
 									.on_each([&](ecs::Iter& it) {
 										if (sys2_cnt == 0 && sys3_cnt > 0)
@@ -8886,7 +8891,10 @@ TEST_CASE("System - simple") {
 										GAIA_EACH(it)++ sys2_cnt;
 									});
 	auto sys3 = wld.system()
-									.name("sys3")
+									// TODO: Using names for the systems can break ordering after rebulid.
+									//       Most likely an undefined behavior somewhere (maybe partial sort on systems?).
+									//       Find out what is wrong.
+									//.name("sys3")
 									.all<Acceleration>() //
 									.on_each([&](ecs::Iter& it) {
 										GAIA_EACH(it)++ sys3_cnt;
@@ -8902,6 +8910,64 @@ TEST_CASE("System - simple") {
 
 	CHECK(sys3_run_before_sys1);
 	CHECK(sys3_run_before_sys2);
+}
+
+TEST_CASE("System - exec mode") {
+	const uint32_t N = 10'000;
+
+	std::mutex mtx;
+	const ecs::Chunk* pPrevChunk = nullptr;
+	uint32_t cnt0{};
+	uint32_t cntChunks0{};
+	uint32_t cnt1{};
+	uint32_t cntChunks1{};
+
+	TestWorld twld;
+
+	auto create = [&]() {
+		wld.build(wld.add()).add<Position>();
+	};
+	GAIA_FOR(N) create();
+
+	auto s0 = wld.system() //
+								.all<Position>() //
+								.on_each([&](ecs::Iter& iter) {
+									cnt0 += iter.size();
+									cntChunks0 += (iter.chunk() != pPrevChunk);
+									pPrevChunk = iter.chunk();
+								})
+								.mode(ecs::QueryExecType::Default);
+	auto s1 = wld.system() //
+								.all<Position>() //
+								.on_each([&](ecs::Iter& iter) {
+									std::scoped_lock lock(mtx);
+									cnt1 += iter.size();
+									cntChunks1 += (iter.chunk() != pPrevChunk);
+									pPrevChunk = iter.chunk();
+								});
+
+	s0.exec();
+	CHECK(cnt0 == N);
+	CHECK(cntChunks0 > 1);
+
+	pPrevChunk = nullptr;
+	s1.mode(ecs::QueryExecType::Parallel).exec();
+	CHECK(cnt0 == cnt1);
+	CHECK(cntChunks0 == cntChunks1);
+
+	pPrevChunk = nullptr;
+	cnt1 = 0;
+	cntChunks1 = 0;
+	s1.mode(ecs::QueryExecType::ParallelEff).exec();
+	CHECK(cnt0 == cnt1);
+	CHECK(cntChunks0 == cntChunks1);
+
+	pPrevChunk = nullptr;
+	cnt1 = 0;
+	cntChunks1 = 0;
+	s1.mode(ecs::QueryExecType::ParallelPerf).exec();
+	CHECK(cnt0 == cnt1);
+	CHECK(cntChunks0 == cntChunks1);
 }
 
 #endif

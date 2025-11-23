@@ -20458,25 +20458,19 @@ namespace gaia {
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 
-				// Create one job per group
-				uint32_t jobIndex = 0;
-				auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
-					const uint32_t groupJobIdxStart = jobIndex * groupSize;
-					const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
-					const uint32_t groupJobIdxEnd =
-							groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
-
-					JobArgs args;
-					args.idxStart = groupJobIdxStart;
-					args.idxEnd = groupJobIdxEnd;
-					job.func(args);
-				};
-
 				// Only one job is created, use the job directly.
 				// Generally, this is the case we would want to avoid because it means this particular case
 				// is not worth of being scheduled via sched_par. However, we can never know for sure what
 				// the reason for that is so let's stay silent.
 				if (jobs == 1) {
+					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
+					auto groupJobFunc = [job, groupJobIdxEnd]() {
+						JobArgs args;
+						args.idxStart = 0;
+						args.idxEnd = groupJobIdxEnd;
+						job.func(args);
+					};
+
 					auto handle = add(Job{groupJobFunc, prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
@@ -20495,7 +20489,19 @@ namespace gaia {
 #endif
 
 				// Work jobs
-				for (jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					const uint32_t groupJobIdxStart = jobIndex * groupSize;
+					const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
+					const uint32_t groupJobIdxEnd =
+							groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
+
+					auto groupJobFunc = [job, groupJobIdxStart, groupJobIdxEnd]() {
+						JobArgs args;
+						args.idxStart = groupJobIdxStart;
+						args.idxEnd = groupJobIdxEnd;
+						job.func(args);
+					};
+
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
 					jobData.func = groupJobFunc;
 					jobData.prio = prio;
