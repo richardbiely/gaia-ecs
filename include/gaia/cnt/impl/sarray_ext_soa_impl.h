@@ -431,7 +431,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_n<T>(m_data, idxDst, idxSrc, cnt, extent);
+				mem::shift_elements_left_fast<T>(m_data, idxDst, idxSrc, cnt, extent);
 
 				m_cnt -= cnt;
 

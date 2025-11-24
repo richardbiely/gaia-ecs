@@ -259,7 +259,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_n<T>(m_data, idxDst, idxSrc, cnt, extent);
+				mem::shift_elements_left_fast<T>(m_data, idxDst, idxSrc, cnt, extent);
 				// Destroy if it's the last element
 				core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
