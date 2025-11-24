@@ -103,7 +103,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				core::call_ctor_raw_n(data(), extent);
-				mem::copy_elements<T>(
+				mem::copy_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 

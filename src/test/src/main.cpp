@@ -150,6 +150,40 @@ struct TypeNonTrivial {
 	}
 };
 
+template <typename T>
+struct TypeNonTrivialC {
+	T x;
+	TypeNonTrivialC(): x(T(1)) {}
+	TypeNonTrivialC(T xx): x(xx) {}
+	TypeNonTrivialC(const TypeNonTrivialC& xx): x(xx.x) {}
+	TypeNonTrivialC& operator=(const TypeNonTrivialC& xx) {
+		x = xx.x;
+		return *this;
+	}
+	operator T() const {
+		return x;
+	}
+};
+
+template <typename T>
+struct TypeNonTrivialM {
+	T x;
+	TypeNonTrivialM(): x(T(1)) {}
+	TypeNonTrivialM(T xx): x(xx) {}
+	TypeNonTrivialM(TypeNonTrivialM&& xx): x(xx.x) {}
+	TypeNonTrivialM& operator=(TypeNonTrivialM&& xx) {
+		x = xx.x;
+		return *this;
+	}
+	TypeNonTrivialM& operator=(const TypeNonTrivialM& xx) {
+		x = xx.x;
+		return *this;
+	}
+	operator T() const {
+		return x;
+	}
+};
+
 //------------------------------------------------------------------------------
 // Strings
 //------------------------------------------------------------------------------
@@ -777,7 +811,7 @@ void resizable_arr_test(uint32_t N) {
 	}
 
 	uint32_t cnt = 0;
-	for (auto val: arr) {
+	for (auto&& val: arr) {
 		CHECK(val == cnt);
 		++cnt;
 	}
@@ -921,11 +955,15 @@ TEST_CASE("Containers - sarr_ext") {
 	constexpr uint32_t N = 100;
 	using TrivialT = cnt::sarr_ext<uint32_t, 100>;
 	using NonTrivialT = cnt::sarr_ext<TypeNonTrivial<uint32_t>, 100>;
+	using NonTrivialT3 = cnt::darr<TypeNonTrivialC<uint32_t>>;
+	using NonTrivialT4 = cnt::darr<TypeNonTrivialM<uint32_t>>;
 	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT>(N);
 	}
 	SUBCASE("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
+		resizable_arr_test<NonTrivialT3>(N);
+		resizable_arr_test<NonTrivialT4>(N);
 	}
 	SUBCASE("retain") {
 		retainable_arr_test<TrivialT>();
@@ -937,6 +975,8 @@ TEST_CASE("Containers - darr") {
 	constexpr uint32_t M = 10000;
 	using TrivialT = cnt::darr<uint32_t>;
 	using NonTrivialT = cnt::darr<TypeNonTrivial<uint32_t>>;
+	using NonTrivialT3 = cnt::darr<TypeNonTrivialC<uint32_t>>;
+	using NonTrivialT4 = cnt::darr<TypeNonTrivialM<uint32_t>>;
 	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT>(N);
 		resizable_arr_test<TrivialT>(M);
@@ -944,6 +984,12 @@ TEST_CASE("Containers - darr") {
 	SUBCASE("non_trivial_types") {
 		resizable_arr_test<NonTrivialT>(N);
 		resizable_arr_test<NonTrivialT>(M);
+
+		resizable_arr_test<NonTrivialT3>(N);
+		resizable_arr_test<NonTrivialT3>(M);
+
+		resizable_arr_test<NonTrivialT4>(N);
+		resizable_arr_test<NonTrivialT4>(M);
 	}
 	SUBCASE("retain") {
 		retainable_arr_test<TrivialT>();
@@ -957,9 +1003,12 @@ TEST_CASE("Containers - darr_ext") {
 	using TrivialT2 = cnt::darr_ext<uint32_t, 100>;
 	using NonTrivialT1 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 50>;
 	using NonTrivialT2 = cnt::darr_ext<TypeNonTrivial<uint32_t>, 100>;
+	using NonTrivialT3 = cnt::darr_ext<TypeNonTrivialC<uint32_t>, 100>;
+	using NonTrivialT4 = cnt::darr_ext<TypeNonTrivialM<uint32_t>, 100>;
 
 	SUBCASE("trivial_types") {
 		resizable_arr_test<TrivialT1>(N);
+		resizable_arr_test<TrivialT1>(M);
 		resizable_arr_test<TrivialT1>(M);
 
 		resizable_arr_test<TrivialT2>(N);
@@ -971,6 +1020,12 @@ TEST_CASE("Containers - darr_ext") {
 
 		resizable_arr_test<NonTrivialT2>(N);
 		resizable_arr_test<NonTrivialT2>(M);
+
+		resizable_arr_test<NonTrivialT3>(N);
+		resizable_arr_test<NonTrivialT3>(M);
+
+		resizable_arr_test<NonTrivialT4>(N);
+		resizable_arr_test<NonTrivialT4>(M);
 	}
 	SUBCASE("retain") {
 		retainable_arr_test<TrivialT1>();
@@ -3253,7 +3308,7 @@ void TestDataLayoutSoA<DummySoA>() {
 			data.push_back({f[0], f[1], true, f[2]});
 			test(data, f, i);
 		}
-		
+
 		{
 			uint32_t i = 0;
 			for (const auto& val: std::as_const(data)) {

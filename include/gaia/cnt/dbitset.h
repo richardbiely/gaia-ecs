@@ -66,7 +66,7 @@ namespace gaia {
 					GAIA_FOR(itemsNew) m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld, 0, 0, 0);
+					mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld, 0, 0, 0);
 					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release the old data
@@ -105,14 +105,14 @@ namespace gaia {
 
 			dbitset(const dbitset& other) {
 				resize(other.m_cnt);
-				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
+				mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
 			}
 
 			dbitset& operator=(const dbitset& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.m_cnt);
-				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
+				mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
 				return *this;
 			}
 
@@ -160,7 +160,7 @@ namespace gaia {
 					} else {
 						const uint32_t itemsOld2 = items();
 						// Copy the old data over and set the old data to zeros
-						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
+						mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
 						GAIA_FOR2(itemsOld2, itemsNew) m_pData[i] = 0;
 
 						// Release old data
@@ -192,7 +192,7 @@ namespace gaia {
 					} else {
 						const uint32_t itemsOld2 = items();
 						// Copy the old data over
-						mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
+						mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
 						// Set the old data to zeros.
 						// If resizing to a smaller size this will do nothing
 						GAIA_FOR2(itemsOld2, itemsNew) m_pData[i] = 0;

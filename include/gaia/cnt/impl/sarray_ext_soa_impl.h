@@ -369,7 +369,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_right<T, true>(m_data, idxDst, idxSrc, extent);
 
 				operator[](idxSrc) = arg;
 
@@ -387,7 +387,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_right<T, true>(m_data, idxDst, idxSrc, extent);
 
 				operator[](idxSrc) = GAIA_MOV(arg);
 
@@ -408,7 +408,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_left<T, true>(m_data, idxDst, idxSrc, extent);
 
 				--m_cnt;
 
@@ -431,7 +431,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_fast<T>(m_data, idxDst, idxSrc, cnt, extent);
+				mem::shift_elements_left_fast<T, true>(m_data, idxDst, idxSrc, cnt, extent);
 
 				m_cnt -= cnt;
 
@@ -445,7 +445,7 @@ namespace gaia {
 				const auto idxSrc = pos;
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_left<T, true>(m_data, idxDst, idxSrc, extent);
 
 				--m_cnt;
 
@@ -475,7 +475,7 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::move_element<T>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
+							mem::move_element<T, true>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
 							auto* ptr2 = &data()[idxSrc];
 							core::call_dtor(ptr2);
 						}

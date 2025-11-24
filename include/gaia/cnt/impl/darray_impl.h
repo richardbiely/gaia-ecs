@@ -120,7 +120,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T, false>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -281,7 +281,7 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
 				GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
-				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
 				auto* ptr = &data()[m_cnt];
 				core::call_ctor(ptr, arg);
 
@@ -300,7 +300,7 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				GAIA_MEM_SANI_PUSH(value_size, m_pData, m_cap, m_cnt);
-				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, GAIA_MOV(arg));
 
@@ -321,7 +321,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_left<T, false>(m_pData, idxDst, idxSrc, m_cap);
 				// Destroy if it's the last element
 				auto* ptr = &data()[m_cnt - 1];
 				core::call_dtor(ptr);
@@ -348,7 +348,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_fast<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
+				mem::shift_elements_left_fast<T, false>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				// Destroy if it's the last element
 				auto* ptr = &data()[m_cnt - cnt];
 				core::call_dtor_n(ptr, cnt);
@@ -390,7 +390,7 @@ namespace gaia {
 				while (idxSrc < m_cnt) {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
-							mem::move_element<T>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
+							mem::move_element<T, false>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
 							auto* ptr = &data()[idxSrc];
 							core::call_dtor(ptr);
 						}

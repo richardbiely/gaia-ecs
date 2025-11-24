@@ -107,7 +107,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(
+				mem::copy_elements<T, false>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 
@@ -192,7 +192,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_right<T, false>(m_data, idxDst, idxSrc, extent);
 
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, arg);
@@ -211,7 +211,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
-				mem::shift_elements_right<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_right<T, false>(m_data, idxDst, idxSrc, extent);
 
 				auto* ptr = &data()[idxSrc];
 				core::call_ctor(ptr, GAIA_MOV(arg));
@@ -233,7 +233,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_left<T, false>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
 				auto* ptr = &data()[m_cnt - 1];
 				core::call_dtor(ptr);
@@ -259,7 +259,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_fast<T>(m_data, idxDst, idxSrc, cnt, extent);
+				mem::shift_elements_left_fast<T, false>(m_data, idxDst, idxSrc, cnt, extent);
 				// Destroy if it's the last element
 				core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
@@ -275,7 +275,7 @@ namespace gaia {
 				const auto idxSrc = pos;
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_data, idxDst, idxSrc, extent);
+				mem::shift_elements_left<T, false>(m_data, idxDst, idxSrc, extent);
 				// Destroy if it's the last element
 				auto* ptr = &data()[m_cnt - 1];
 				core::call_dtor(ptr);
@@ -319,7 +319,7 @@ namespace gaia {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
 							auto* ptr = (uint8_t*)data();
-							mem::move_element<T>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
+							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, max_size(), max_size());
 							auto* ptr2 = &data()[idxSrc];
 							core::call_dtor(ptr2);
 						}

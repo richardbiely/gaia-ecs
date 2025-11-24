@@ -27,13 +27,15 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				if constexpr (std::is_copy_assignable_v<T>) {
+				if constexpr (std::is_trivially_copyable_v<T>) {
+					memcpy(dst + idxDst, src + idxSrc, sizeof(T));
+				} else if constexpr (std::is_copy_assignable_v<T>) {
+					// Prefer assignment path — it can be faster for types with data reuse
+					core::call_ctor(&dst[idxDst]);
 					dst[idxDst] = src[idxSrc];
-				} else if constexpr (std::is_copy_constructible_v<T>) {
-					dst[idxDst] = T(src[idxSrc]);
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)dst[idxDst], (const void*)dst[idxSrc], sizeof(T));
+					static_assert(std::is_copy_constructible_v<T>);
+					core::call_ctor(&dst[idxDst], T(src[idxSrc]));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -44,13 +46,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				if constexpr (std::is_copy_assignable_v<T>) {
+				if constexpr (std::is_trivially_copyable_v<T>) {
+					memcpy(dst + idxDst, src + idxSrc, sizeof(T));
+				} else if constexpr (std::is_copy_assignable_v<T>) {
 					dst[idxDst] = src[idxSrc];
-				} else if constexpr (std::is_copy_constructible_v<T>) {
-					dst[idxDst] = T(src[idxSrc]);
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)dst[idxDst], (const void*)dst[idxSrc], sizeof(T));
+					static_assert(std::is_copy_constructible_v<T>);
+					dst[idxDst] = T(src[idxSrc]);
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -63,13 +65,19 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
-				if constexpr (std::is_copy_assignable_v<T>) {
-					GAIA_FOR2(idxSrc, idxDst) dst[i] = src[i];
-				} else if constexpr (std::is_copy_constructible_v<T>) {
-					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(src[i]);
+				const auto cnt = idxDst - idxSrc;
+
+				if constexpr (std::is_trivially_copyable_v<T>) {
+					memcpy(dst + idxSrc, src + idxSrc, sizeof(T) * cnt);
+				} else if constexpr (std::is_copy_assignable_v<T>) {
+					const T* s = src + idxSrc;
+					T* d = dst + idxSrc;
+					GAIA_FOR(cnt) d[i] = s[i];
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)dst[idxSrc], (const void*)dst[idxSrc], sizeof(T) * (idxDst - idxSrc));
+					static_assert(std::is_copy_constructible_v<T>);
+					const T* s = src + idxSrc;
+					T* d = dst + idxSrc;
+					GAIA_FOR(cnt) d[i] = T(s[i]);
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -110,18 +118,18 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void move_ctor_element_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
+			void move_ctor_element_aos(T* GAIA_RESTRICT dst, T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				if constexpr (std::is_trivially_move_constructible_v<T> && std::is_trivially_destructible_v<T>) {
+					memcpy(dst + idxDst, src + idxSrc, sizeof(T));
+				} else if constexpr (std::is_move_assignable_v<T>) {
 					core::call_ctor(&dst[idxDst]);
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					core::call_ctor(&dst[idxDst], T(GAIA_MOV(src[idxSrc])));
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)&dst[idxDst], (const void*)&src[idxSrc], sizeof(T));
+					static_assert(std::is_move_constructible_v<T>);
+					core::call_ctor(&dst[idxDst], T(GAIA_MOV(src[idxSrc])));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -132,13 +140,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				if constexpr (std::is_trivially_move_assignable_v<T>) {
+					memcpy(dst + idxDst, src + idxSrc, sizeof(T));
+				} else if constexpr (std::is_move_assignable_v<T>) {
 					dst[idxDst] = GAIA_MOV(src[idxSrc]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					dst[idxDst] = T(GAIA_MOV(src[idxSrc]));
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)&dst[idxDst], (const void*)&src[idxSrc], sizeof(T));
+					static_assert(std::is_move_constructible_v<T>);
+					dst[idxDst] = T(GAIA_MOV(src[idxSrc]));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -151,13 +159,13 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				if constexpr (std::is_trivially_move_assignable_v<T>) {
+					memcpy((void*)&dst[idxSrc], (const void*)&src[idxSrc], sizeof(T) * (idxDst - idxSrc));
+				} else if constexpr (std::is_move_assignable_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(src[i]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(src[i]));
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)&dst[idxSrc], (const void*)&src[idxSrc], sizeof(T) * (idxDst - idxSrc));
+					static_assert(std::is_move_constructible_v<T>);
+					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(src[i]));
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -171,10 +179,13 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc < idxDst);
 
+				if constexpr (std::is_trivially_copy_assignable_v<T> || std::is_trivially_move_assignable_v<T>) {
+					memmove((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * (idxDst - idxSrc));
+				}
 				// Move first if possible
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				else if constexpr (std::is_move_assignable_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(dst[i + n]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+				} else if constexpr (std::is_move_constructible_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(GAIA_MOV(dst[i + n]));
 				}
 				// Try to copy if moves are not possible
@@ -183,8 +194,7 @@ namespace gaia {
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					GAIA_FOR2(idxSrc, idxDst) dst[i] = T(dst[i + n]);
 				} else {
-					// Fallback to raw memory copy
-					memmove((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * (idxDst - idxSrc));
+					GAIA_ASSERT(false && "Not implemented");
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -201,10 +211,13 @@ namespace gaia {
 
 				const auto max = idxDst - idxSrc - n;
 
+				if constexpr (std::is_trivially_copy_assignable_v<T> || std::is_trivially_move_assignable_v<T>) {
+					memcpy((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * max);
+				}
 				// Move first if possible
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				else if constexpr (std::is_move_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = GAIA_MOV(dst[idxSrc + i + n]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+				} else if constexpr (std::is_move_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = T(GAIA_MOV(dst[idxSrc + i + n]));
 				}
 				// Try to copy if moves are not possible
@@ -213,8 +226,7 @@ namespace gaia {
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i] = T(dst[idxSrc + i + n]);
 				} else {
-					// Fallback to raw memory copy
-					memcpy((void*)&dst[idxSrc], (const void*)&dst[idxSrc + n], sizeof(T) * max);
+					GAIA_ASSERT(false && "Not implemented");
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -250,10 +262,13 @@ namespace gaia {
 				const auto max = idxDst - idxSrc;
 				const auto idx = idxDst - 1;
 
+				if constexpr (std::is_trivially_copy_assignable_v<T> || std::is_trivially_move_assignable_v<T>) {
+					memmove(dst + idxSrc + n, dst + idxSrc, sizeof(T) * max);
+				}
 				// Move first if possible
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				else if constexpr (std::is_move_assignable_v<T>) {
 					GAIA_FOR(max) dst[idx - i + n] = GAIA_MOV(dst[idx - i]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+				} else if constexpr (std::is_move_constructible_v<T>) {
 					GAIA_FOR(max) dst[idx - i + n] = T(GAIA_MOV(dst[idx - i]));
 				}
 				// Try to copy if moves are not possible
@@ -262,8 +277,7 @@ namespace gaia {
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					GAIA_FOR(max) dst[idx - i + n] = T(dst[idx - i]);
 				} else {
-					// Fallback to raw memory copy
-					memmove(dst + idxSrc + n, dst + idxSrc, sizeof(T) * max);
+					GAIA_ASSERT(false && "Not implemented");
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -278,14 +292,15 @@ namespace gaia {
 
 				GAIA_ASSERT(idxSrc + n < idxDst);
 
-				// Src range: [idxSrc.   , idxSrc     + cnt)
-				// Dst range: [idxSrc + n, idxSrc + n + cnt)
-
 				const auto max = idxDst - idxSrc - n;
+
+				if constexpr (std::is_trivially_copy_assignable_v<T> || std::is_trivially_move_assignable_v<T>) {
+					memcpy(dst + idxSrc + n, dst + idxSrc, sizeof(T) * max);
+				}
 				// Move/copy from the end to avoid overwriting data
-				if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+				else if constexpr (std::is_move_assignable_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i + n] = GAIA_MOV(dst[idxSrc + i]);
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+				} else if constexpr (std::is_move_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i + n] = T(GAIA_MOV(dst[idxSrc + i]));
 				}
 				// Try to copy if moves are not possible
@@ -294,8 +309,7 @@ namespace gaia {
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					GAIA_FOR(max) dst[idxSrc + i + n] = T(dst[idxSrc + i]);
 				} else {
-					// Fallback to raw memory copy
-					memcpy(dst + idxSrc + n, dst + idxSrc, sizeof(T) * max);
+					GAIA_ASSERT(false && "Not implemented");
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -373,7 +387,7 @@ namespace gaia {
 		//! Move or copy \param cnt elements of type \tparam T from the address pointed to by \param src to \param dst
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
-				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
+				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
 			if GAIA_UNLIKELY (src == dst && idxSrc == idxDst)
 				return;

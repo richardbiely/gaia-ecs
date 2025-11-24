@@ -280,7 +280,7 @@ namespace gaia {
 			constexpr sarr_soa& operator=(const sarr_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				mem::copy_elements<T>(
+				mem::copy_elements<T, true>(
 						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
 						other.extent);
 

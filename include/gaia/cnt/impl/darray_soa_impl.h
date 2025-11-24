@@ -315,7 +315,7 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T>(
+				mem::copy_elements<T, true>(
 						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
@@ -464,7 +464,7 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
 
 				view_policy::mem_push_block(m_pData, m_cap, m_cnt, 1);
-				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_right<T, true>(m_pData, idxDst, idxSrc, m_cap);
 
 				operator[](idxSrc) = arg;
 
@@ -483,7 +483,7 @@ namespace gaia {
 				const auto idxDst = (size_type)core::distance(begin(), end());
 
 				view_policy::mem_push_block(m_pData, m_cap, m_cnt, 1);
-				mem::shift_elements_right<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_right<T, true>(m_pData, idxDst, idxSrc, m_cap);
 
 				operator[](idxSrc) = GAIA_MOV(arg);
 
@@ -504,7 +504,7 @@ namespace gaia {
 				const auto idxSrc = (size_type)core::distance(begin(), pos);
 				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
-				mem::shift_elements_left<T>(m_pData, idxDst, idxSrc, m_cap);
+				mem::shift_elements_left<T, true>(m_pData, idxDst, idxSrc, m_cap);
 				view_policy::mem_pop_block(m_pData, m_cap, m_cnt, 1);
 
 				--m_cnt;
@@ -528,7 +528,7 @@ namespace gaia {
 				const auto idxDst = size();
 				const auto cnt = (size_type)(last - first);
 
-				mem::shift_elements_left_fast<T>(m_pData, idxDst, idxSrc, cnt, m_cap);
+				mem::shift_elements_left_fast<T, true>(m_pData, idxDst, idxSrc, cnt, m_cap);
 				view_policy::mem_pop_block(m_pData, m_cap, m_cnt, cnt);
 
 				m_cnt -= cnt;
@@ -566,7 +566,7 @@ namespace gaia {
 				while (idxSrc < m_cnt) {
 					if (func(operator[](idxSrc))) {
 						if (idxDst < idxSrc) {
-							mem::move_element<T>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
+							mem::move_element<T, true>(m_pData, m_pData, idxDst, idxSrc, m_cap, m_cap);
 							auto* ptr = &data()[idxSrc];
 							core::call_dtor(ptr);
 						}
