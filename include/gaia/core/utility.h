@@ -222,14 +222,19 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -239,15 +244,19 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Value-constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param
-		//! pData.
+		//! Value-constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -257,7 +266,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type \tparam T in at the memory address \param pData.
+		//! Constructs an object of type @a T at the given memory address.
+		//! \tparam T Type to construct
+		//! \param pData Pointer to the memory where the object should be constructed.
+		//! \warning pData must not be nullptr.
 		template <typename T>
 		void call_ctor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
@@ -266,7 +278,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
+		//! Constructs @a cnt objects of type @a T at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -285,7 +300,10 @@ namespace gaia {
 				(void)::new (pData) T{GAIA_FWD(args)...};
 		}
 
-		//! Constructs an object of type \tparam T at the memory address \param pData.
+		//! Destructs an object of type @a T at the given memory address.
+		//! \tparam T Type to destruct
+		//! \param pData Pointer to the memory where the object should be destructed.
+		//! \warning pData must not be nullptr.
 		template <typename T>
 		void call_dtor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
@@ -294,7 +312,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
+		//! Destructs @a cnt objects of type @a T at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be destructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -896,10 +917,13 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
-		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
-		//! important and the size of the array changes after calling this function you need to sort the array.
-		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
+		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! removes its last item. Use when shifting of the entire array is not wanted.
+		//! \param arr Array
+		//! \param idx Array index
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//!          to sort the array.
+		//! \warning Does not do bound checks. Undefined behavior when @a idx is out of bounds.
 		template <typename C>
 		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
@@ -910,9 +934,12 @@ namespace gaia {
 			arr.pop_back();
 		}
 
-		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
-		//! important and the size of the array changes after calling this function you need to sort the array.
+		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! removes its last item. Use when shifting of the entire array is not wanted.
+		//! \param arr Array
+		//! \param idx Array index
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//           to sort the array.
 		template <typename C>
 		void swap_erase(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
@@ -1361,7 +1388,7 @@ namespace gaia {
 		//! \param cmpFunc Comparison function
 		//! \param swapFunc Swap function
 		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
 		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
 		//!					 you can not easily predict the depth of the stack used by the algorithm.
 		template <typename Container, typename TCmpFunc, typename TSwapFunc>
@@ -1449,7 +1476,7 @@ namespace gaia {
 		//! \param high High index of the array to sort
 		//! \param cmpFunc Comparison function
 		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
 		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
 		//!					 you can not easily predict the depth of the stack used by the algorithm.
 		template <typename Container, typename TCmpFunc>
@@ -1462,11 +1489,14 @@ namespace gaia {
 					maxStackSize);
 		}
 
-		//! Sort the array \param arr given a comparison function \param cmpFunc.
-		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparision function
-		//! \param arr Container to sort
+		//! Sorts a range of elements.
+		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
+		//! For anything else, quicksort is used.
+		//! Use when it is necessary to sort multiple arrays at once.
+		//! \tparam T Element type
+		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
+		//! \param beg Pointer to first element
+		//! \param end Pointer to one-past-last element
 		//! \param cmpFunc Comparision function
 		template <typename T, typename TCmpFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc) {
@@ -1482,15 +1512,16 @@ namespace gaia {
 			sort(c.begin(), c.end(), cmpFunc);
 		}
 
-		//! Sort the array \param arr given a comparison function \param cmpFunc.
-		//! If cmpFunc returns true it performs \param swapFunc which can perform the sorting.
+		//! Sorts a range of elements given a comparison function @a cmpFunc.
+		//! If @a cmpFunc returns true it performs @a swapFunc which can perform the sorting.
+		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
+		//! For anything else, quicksort is used.
 		//! Use when it is necessary to sort multiple arrays at once.
-		//! Sorts using a sorting network up to 8 elements.
-		//! \warning Currently only up to 32 elements are supported.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparision function
-		//! \tparam TSwapFunc Sorting function
-		//! \param arr Container to sort
+		//! \tparam T Element type
+		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
+		//! \tparam TSwapFunc Functor type for swapping: void swapFunc(i, j)
+		//! \param beg Pointer to first element
+		//! \param end Pointer to one-past-last element
 		//! \param cmpFunc Comparision function
 		//! \param swapFunc Sorting function
 		template <typename T, typename TCmpFunc, typename TSwapFunc>

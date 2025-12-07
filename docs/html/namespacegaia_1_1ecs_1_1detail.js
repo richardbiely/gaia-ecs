@@ -1,0 +1,28 @@
+var namespacegaia_1_1ecs_1_1detail =
+[
+    [ "ChunkIterImpl", "classgaia_1_1ecs_1_1detail_1_1_chunk_iter_impl.html", "classgaia_1_1ecs_1_1detail_1_1_chunk_iter_impl" ],
+    [ "CommandBuffer", "classgaia_1_1ecs_1_1detail_1_1_command_buffer.html", "classgaia_1_1ecs_1_1detail_1_1_command_buffer" ],
+    [ "storage_type", "structgaia_1_1ecs_1_1detail_1_1storage__type.html", null ],
+    [ "storage_type&lt; T, std::void_t&lt; decltype(T::gaia_Storage_Type)&gt; &gt;", "structgaia_1_1ecs_1_1detail_1_1storage__type_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1gaia___storage___type_08_4_01_4.html", null ],
+    [ "ComponentDesc", "structgaia_1_1ecs_1_1detail_1_1_component_desc.html", null ],
+    [ "has_entity_kind", "structgaia_1_1ecs_1_1detail_1_1has__entity__kind.html", null ],
+    [ "has_entity_kind&lt; T, std::void_t&lt; decltype(T::Kind)&gt; &gt;", "structgaia_1_1ecs_1_1detail_1_1has__entity__kind_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1_kind_08_4_01_4.html", null ],
+    [ "ExtractComponentType_NoEntityKind", "structgaia_1_1ecs_1_1detail_1_1_extract_component_type___no_entity_kind.html", "structgaia_1_1ecs_1_1detail_1_1_extract_component_type___no_entity_kind" ],
+    [ "ExtractComponentType_WithEntityKind", "structgaia_1_1ecs_1_1detail_1_1_extract_component_type___with_entity_kind.html", "structgaia_1_1ecs_1_1detail_1_1_extract_component_type___with_entity_kind" ],
+    [ "is_gen_component", "structgaia_1_1ecs_1_1detail_1_1is__gen__component.html", null ],
+    [ "is_gen_component&lt; T, std::void_t&lt; decltype(T::Kind)&gt; &gt;", "structgaia_1_1ecs_1_1detail_1_1is__gen__component_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1_kind_08_4_01_4.html", null ],
+    [ "component_type", "structgaia_1_1ecs_1_1detail_1_1component__type.html", null ],
+    [ "component_type&lt; T, std::void_t&lt; decltype(T::Kind)&gt; &gt;", "structgaia_1_1ecs_1_1detail_1_1component__type_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1_kind_08_4_01_4.html", null ],
+    [ "pair_base", "structgaia_1_1ecs_1_1detail_1_1pair__base.html", null ],
+    [ "actual_type", "structgaia_1_1ecs_1_1detail_1_1actual__type.html", null ],
+    [ "actual_type&lt; T, std::enable_if_t&lt; is_pair&lt; T &gt;::value &gt; &gt;", "structgaia_1_1ecs_1_1detail_1_1actual__type_3_01_t_00_01std_1_1enable__if__t_3_01is__pair_3_01_t_01_4_1_1value_01_4_01_4.html", null ],
+    [ "QueryCmd_AddItem", "structgaia_1_1ecs_1_1detail_1_1_query_cmd___add_item.html", null ],
+    [ "QueryCmd_AddFilter", "structgaia_1_1ecs_1_1detail_1_1_query_cmd___add_filter.html", null ],
+    [ "QueryCmd_SortBy", "structgaia_1_1ecs_1_1detail_1_1_query_cmd___sort_by.html", null ],
+    [ "QueryCmd_GroupBy", "structgaia_1_1ecs_1_1detail_1_1_query_cmd___group_by.html", null ],
+    [ "QueryCmd_SetGroupId", "structgaia_1_1ecs_1_1detail_1_1_query_cmd___set_group_id.html", null ],
+    [ "QueryImplStorage", "structgaia_1_1ecs_1_1detail_1_1_query_impl_storage.html", "structgaia_1_1ecs_1_1detail_1_1_query_impl_storage" ],
+    [ "QueryImplStorage&lt; false &gt;", "structgaia_1_1ecs_1_1detail_1_1_query_impl_storage_3_01false_01_4.html", "structgaia_1_1ecs_1_1detail_1_1_query_impl_storage_3_01false_01_4" ],
+    [ "QueryImpl", "classgaia_1_1ecs_1_1detail_1_1_query_impl.html", "classgaia_1_1ecs_1_1detail_1_1_query_impl" ],
+    [ "QueryCmdType", "namespacegaia_1_1ecs_1_1detail.html#ae41a6f63619f5d4c7abf7bbd9e2f93c1", null ]
+];

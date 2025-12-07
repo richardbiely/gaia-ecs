@@ -122,7 +122,9 @@ namespace gaia {
 				}
 			}
 
-			//! Sets the bit at the postion \param pos to value \param value
+			//! Sets the bit at the given position.
+			//! \param pos Bit position to set (0-based, must be < NBits)
+			//! \param value Value to set the bit to. Defaults to true.
 			constexpr void set(uint32_t pos, bool value = true) {
 				GAIA_ASSERT(pos < NBits);
 				if (value)

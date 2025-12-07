@@ -58,9 +58,10 @@ namespace gaia {
 				WakeUp
 			};
 
+			//! Suspends the caller on the futex while its value remains @a expected.
 			//! \param pFutexValue Target futex
 			//! \param expected Expected futex value
-			//! \param wakeMask Mask of waiters to wait for
+			//! \param waitMask Mask of waiters to wait for
 			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
 				GAIA_PROF_SCOPE(futex::wait);
 
@@ -88,6 +89,7 @@ namespace gaia {
 				return Result::WakeUp;
 			}
 
+			//! Wakes up to @a wakeCount waiters whose @a waitMask matches @a wakeMask.
 			//! \param pFutexValue Target futex
 			//! \param wakeCount How many waiters are supposed to make up
 			//! \param wakeMask Mask of callers to wake

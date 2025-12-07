@@ -229,8 +229,9 @@ namespace gaia {
 				return {index, m_items[index].data.gen};
 			}
 
-			//! Invalidates \param handle.
+			//! Invalidates @a handle.
 			//! Every time an item is deallocated its generation is increased by one.
+			//! \param handle Handle
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 				m_items.del_item(item);

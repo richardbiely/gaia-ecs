@@ -1,0 +1,27 @@
+var structgaia_1_1mt_1_1_job_handle =
+[
+    [ "JobSizeType", "structgaia_1_1mt_1_1_job_handle.html#af9d5f68f44a42147f73d3f175ce9e81d", null ],
+    [ "JobHandle", "structgaia_1_1mt_1_1_job_handle.html#a8ba224b0093b507a8ececd3240332382", null ],
+    [ "JobHandle", "structgaia_1_1mt_1_1_job_handle.html#add691287a8f216d46034b0d5a317480d", null ],
+    [ "JobHandle", "structgaia_1_1mt_1_1_job_handle.html#a1280276f7dfd0f476469aa52fd4f1fad", null ],
+    [ "~JobHandle", "structgaia_1_1mt_1_1_job_handle.html#a18d432acbf1f8ee87cdec7276cc5329b", null ],
+    [ "JobHandle", "structgaia_1_1mt_1_1_job_handle.html#ac6f55c5f20348a7cbec54e06230dadb5", null ],
+    [ "JobHandle", "structgaia_1_1mt_1_1_job_handle.html#abc14f15274adf755b1ea0849b1e3c071", null ],
+    [ "gen", "structgaia_1_1mt_1_1_job_handle.html#a964940f03c0e6c10b9246110f5b5c848", null ],
+    [ "id", "structgaia_1_1mt_1_1_job_handle.html#a312daf0e7dcf9b293cde0168d1246d6a", null ],
+    [ "operator!=", "structgaia_1_1mt_1_1_job_handle.html#af63e81ae5726f7c43d924c3234003994", null ],
+    [ "operator=", "structgaia_1_1mt_1_1_job_handle.html#a0c5506c24cb73e9dd2810c2877ef3e0d", null ],
+    [ "operator=", "structgaia_1_1mt_1_1_job_handle.html#ae67c0435ec3cfe0a8689b12a3c262c8f", null ],
+    [ "operator==", "structgaia_1_1mt_1_1_job_handle.html#a0b2c0bd4cc41e637d0ae4b224b12481f", null ],
+    [ "prio", "structgaia_1_1mt_1_1_job_handle.html#a7b018d23a2c07dc1bed0a12fac313c73", null ],
+    [ "value", "structgaia_1_1mt_1_1_job_handle.html#af6d1b5b7a176f88a5b61c3d76916c9f1", null ],
+    [ "AllBits", "structgaia_1_1mt_1_1_job_handle.html#a7183ba746b13f7bde2377ae6d593abbc", null ],
+    [ "data", "structgaia_1_1mt_1_1_job_handle.html#adb6f51ae687ee373995eda6edf428d00", null ],
+    [ "GenBits", "structgaia_1_1mt_1_1_job_handle.html#a90f2a8338b1f47a5ca3ea043340a6d33", null ],
+    [ "GenMask", "structgaia_1_1mt_1_1_job_handle.html#ae2c1b9bf07627a0f00f417c919a07568", null ],
+    [ "IdBits", "structgaia_1_1mt_1_1_job_handle.html#a49e8fd1b767fd4be1eee9b70c18168f0", null ],
+    [ "IdMask", "structgaia_1_1mt_1_1_job_handle.html#ac4d49839b6f0b87e025d35cf64213647", null ],
+    [ "PrioBits", "structgaia_1_1mt_1_1_job_handle.html#a42ae97d44795e88d0ca34d2207df081f", null ],
+    [ "PrioMask", "structgaia_1_1mt_1_1_job_handle.html#a9593385ef2fca6ee54a6326c26fcffcc", null ],
+    [ "val", "structgaia_1_1mt_1_1_job_handle.html#a17968f549f5addec1d22d43cc4b0cdf5", null ]
+];

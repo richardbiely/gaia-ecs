@@ -54,6 +54,7 @@ namespace gaia {
 			//! Creates an "add" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
+			//! \param hash Archetype hash.
 			void add_edge_right(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
 				add_edge(m_edgesAdd, entity, archetypeId, hash);
 			}
@@ -61,27 +62,32 @@ namespace gaia {
 			//! Creates a "del" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
+			//! \param hash Archetype hash.
 			void add_edge_left(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
 				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
-			//! Deletes the "add" edge formed by the entity \param entity.
+			//! Deletes the "add" edge formed by the entity @a entity.
+			//! \param entity Edge entity.
 			void del_edge_right(Entity entity) {
 				del_edge(m_edgesAdd, entity);
 			}
 
-			//! Deletes the "del" edge formed by the entity \param entity.
+			//! Deletes the "del" edge formed by the entity @a entity.
+			//! \param entity Edge entity.
 			void del_edge_left(Entity entity) {
 				del_edge(m_edgesDel, entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity \param entity exists.
+			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity \param entity exists.
+			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return find_edge(m_edgesDel, entity);

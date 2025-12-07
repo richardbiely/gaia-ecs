@@ -86,8 +86,8 @@ namespace gaia {
 				m_entityToQuery.clear();
 			}
 
-			//! Returns a QueryInfo object stored at the index \param idx.
-			//! \param idx Index of the QueryInfo we try to retrieve
+			//! Returns a QueryInfo object associated with @a handle.
+			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo* try_get(QueryHandle handle) {
 				if (!valid(handle))
@@ -97,10 +97,10 @@ namespace gaia {
 				GAIA_ASSERT(info.idx == handle.id());
 				GAIA_ASSERT(info.data.gen == handle.gen());
 				return &info;
-			};
+			}
 
-			//! Returns a QueryInfo object stored at the index \param idx.
-			//! \param idx Index of the QueryInfo we try to retrieve
+			//! Returns a QueryInfo object associated with @a handle.
+			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo& get(QueryHandle handle) {
 				GAIA_ASSERT(valid(handle));
@@ -109,10 +109,13 @@ namespace gaia {
 				GAIA_ASSERT(info.idx == handle.id());
 				GAIA_ASSERT(info.data.gen == handle.gen());
 				return info;
-			};
+			}
 
-			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
-			//! \return Reference a newly created or an already existing QueryInfo object.
+			//! Registers the provided query lookup context @a ctx. If it already exists it is returned.
+			//! \param ctx Query context
+			//! \param entityToArchetypeMap Map of all archetypes
+			//! \param allArchetypes Array of all archetypes
+			//! \return Reference to the newly created or an already existing QueryInfo object.
 			QueryInfo&
 			add(QueryCtx&& ctx, //
 					const EntityToArchetypeMap& entityToArchetypeMap, //
@@ -149,7 +152,9 @@ namespace gaia {
 				return info;
 			}
 
-			//! Deletes an existing QueryInfo object given the provided query lookup context \param ctx.
+			//! Deletes an existing QueryInfo object given the provided query handle.
+			//! \param handle Query handle
+			//! \return True if handle was found. False otherwise.
 			bool del(QueryHandle handle) {
 				auto* pInfo = try_get(handle);
 				if (pInfo == nullptr)
@@ -184,6 +189,7 @@ namespace gaia {
 			//! 1) X
 			//! 2) (*, X)
 			//! 3) (X, *)
+			//! \param entityKey Entity lookup key
 			void invalidate_queries_for_entity(EntityLookupKey entityKey) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())

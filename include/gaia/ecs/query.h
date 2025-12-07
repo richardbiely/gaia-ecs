@@ -1841,9 +1841,9 @@ namespace gaia {
 				}
 
 				//! Appends all components or entities matching the query to the output array
-				//! \tparam outArray Container storing entities or components
+				//! \tparam Container Container type
+				//! \param[out] outArray Container storing entities or components
 				//! \param constraints QueryImpl constraints
-				//! \return Array with entities or components
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
 					const auto entCnt = count();
@@ -1881,7 +1881,7 @@ namespace gaia {
 					}
 				}
 
-				//!
+				//! Run diagnostics
 				void diag() {
 					// Make sure matching happened
 					auto& info = fetch();

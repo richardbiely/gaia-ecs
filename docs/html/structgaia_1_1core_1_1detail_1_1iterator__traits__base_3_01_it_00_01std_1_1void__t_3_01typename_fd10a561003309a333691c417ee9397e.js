@@ -1,0 +1,8 @@
+var structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e =
+[
+    [ "difference_type", "structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e.html#a100fad8bcba082110a9f2a1e43df9357", null ],
+    [ "iterator_category", "structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e.html#a31be2054fc43d7d03f8c8c49c71ac4f5", null ],
+    [ "pointer", "structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e.html#ad5e416b7fd0ee790389360d8e461db66", null ],
+    [ "reference", "structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e.html#a1e0823169415452cf755081533d55424", null ],
+    [ "value_type", "structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01_it_00_01std_1_1void__t_3_01typename_fd10a561003309a333691c417ee9397e.html#a477243686fa5dc28cda02e64c52ea95c", null ]
+];

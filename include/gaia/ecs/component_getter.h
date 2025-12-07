@@ -12,7 +12,7 @@ namespace gaia {
 			const Chunk* m_pChunk;
 			uint16_t m_row;
 
-			//! Returns the value stored in the component \tparam T on \param entity.
+			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>

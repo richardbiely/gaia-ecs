@@ -207,8 +207,13 @@ namespace gaia {
 					return true;
 				}
 
-				//! Tries to match ids in \param queryIds with ids in \param archetypeIds given
-				//! the comparison function \param func bool(Entity queryId, Entity archetypeId).
+				//! Tries to match ids in @a queryIds with ids in @a archetypeIds given
+				//! the comparison function @a func bool(Entity queryId, Entity archetypeId).
+				//! \tparam OpKind Operation kind
+				//! \tparam CmpFunc Comparison function
+				//! \param queryIds Entity ids inside archetype
+				//! \param archetypeIds Entity ids inside archetype
+				//! \param func Comparison function
 				//! \return True if there is a match, false otherwise.
 				template <typename OpKind, typename CmpFunc>
 				GAIA_NODISCARD inline bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
@@ -425,8 +430,11 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				//! Tries to match entity ids in \param queryIds with those in \param archetype given
-				//! the comparison function \param func. Does not consider Is relationships.
+				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Does not consider Is relationships.
+				//! \tparam OpKind Operation kind
+				//! \param archetype Archetype checked against
+				//! \param queryIds Entity ids to match
 				//! \return True on the first match, false otherwise.
 				template <typename OpKind>
 				GAIA_NODISCARD inline bool match_res(const Archetype& archetype, EntitySpan queryIds) {
@@ -450,8 +458,11 @@ namespace gaia {
 							});
 				}
 
-				//! Tries to match entity ids in \param queryIds with those in \param archetype given
-				//! the comparison function \param func. Considers Is relationships.
+				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! \tparam OpKind Kind of VM operation
+				//! \param w Parent world
+				//! \param archetype Archetype checked against
+				//! \param queryIds Entity ids to match
 				//! \return True on the first match, false otherwise.
 				template <typename OpKind>
 				GAIA_NODISCARD inline bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {

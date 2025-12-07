@@ -335,12 +335,10 @@ namespace gaia {
 					m_targetNameKey = {};
 				}
 
-				//! Assigns a \param name to \param entity. Ignored if used with pair.
+				//! Assigns a @a name to entity. Ignored if used with pair.
 				//! The string is copied and kept internally.
-				//! \param entity Entity
-				//! \param name A null-terminated string
-				//! \param len String length. If zero, the length is calculated
-				//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+				//! \param name A null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
 				//! \warning Name is expected to be unique. If it is not this function does nothing.
 				//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 				//!          such as "parent.child.subchild".
@@ -348,12 +346,10 @@ namespace gaia {
 					name_inter<true>(name, len);
 				}
 
-				//! Assigns a \param name to \param entity. Ignored if used with pair.
+				//! Assigns a @a name to entity. Ignored if used with pair.
 				//! The string is NOT copied. Your are responsible for its lifetime.
-				//! \param entity Entity
-				//! \param name Pointer to a stable null-terminated string
-				//! \param len String length. If zero, the length is calculated
-				//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+				//! \param name Pointer to a stable null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
 				//! \warning The name is expected to be unique. If it is not this function does nothing.
 				//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 				//!          such as "parent.child.subchild".
@@ -366,7 +362,6 @@ namespace gaia {
 				}
 
 				//! Removes any name associated with the entity
-				//! \param entity Entity the name of which we want to delete
 				void del_name() {
 					if (m_entity.pair())
 						return;
@@ -414,12 +409,15 @@ namespace gaia {
 				}
 
 				//! Shortcut for add(Pair(Is, entityBase)).
-				//! Effectively makes an entity inherit from \param entityBase
+				//! Effectively makes an entity inherit from @a entityBase
+				//! \param entityBase Entity to inherit from
 				EntityBuilder& as(Entity entityBase) {
 					return add(Pair(Is, entityBase));
 				}
 
-				//! Check if \param entity inherits from \param entityBase
+				//! Check if @a entity inherits from @a entityBase
+				//! \param entity Source entity
+				//! \param entityBase Base entity
 				//! \return True if entity inherits from entityBase
 				GAIA_NODISCARD bool as(Entity entity, Entity entityBase) const {
 					return static_cast<const World&>(m_world).is(entity, entityBase);
@@ -1032,7 +1030,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Checks if \param entity is valid.
+			//! Checks if @a entity is valid.
+			//! \param entity Checked entity.
 			//! \return True if the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
 				return entity.pair() //
@@ -1042,7 +1041,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns the entity located at the index \param id
+			//! Returns the entity located at the index @a id
+			//! \param id Entity id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
 				GAIA_ASSERT(valid_entity_id(id));
@@ -1065,10 +1065,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk add/remove operation on \param entity.
+			//! Starts a bulk add/remove operation on @a entity.
 			//! \param entity Entity
 			//! \return EntityBuilder
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			EntityBuilder build(Entity entity) {
 				return EntityBuilder(*this, entity);
 			}
@@ -1080,14 +1080,17 @@ namespace gaia {
 				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
-			//! Creates \param count new empty entities
+			//! Creates @a count new empty entities
+			//! \param count Number of enities to create
 			//! \param func Functor to execute every time an entity is added
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(uint32_t count, Func func = func_void_with_entity) {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
-			//! Creates \param count of entities of the same archetype as \param entity.
+			//! Creates @a count of entities of the same archetype as @a entity.
+			//! \param entity Source entity to copy
+			//! \param count Number of enities to create
 			//! \param func Functor to execute every time an entity is added
 			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
 			//!       if they provide a constructor
@@ -1102,7 +1105,7 @@ namespace gaia {
 			}
 
 			//! Creates a new component if not found already.
-			//! \param kind Component kind
+			//! \tparam T Component
 			//! \return Component cache item of the component
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& add() {
@@ -1128,10 +1131,10 @@ namespace gaia {
 				return item;
 			}
 
-			//! Attaches entity \param object to entity \param entity.
+			//! Attaches entity @a object to entity @a entity.
 			//! \param entity Source entity
 			//! \param object Added entity
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void add(Entity entity, Entity object) {
 				EntityBuilder(*this, entity).add(object);
 			}
@@ -1139,29 +1142,29 @@ namespace gaia {
 			//! Creates a new entity relationship pair
 			//! \param entity Source entity
 			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
 				EntityBuilder(*this, entity).add(pair);
 			}
 
-			//! Attaches a new component \tparam T to \param entity.
+			//! Attaches a new component @a T to @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
 				EntityBuilder(*this, entity).add<T>();
 			}
 
-			//! Attaches \param object to \param entity. Also sets its value.
+			//! Attaches @a object to @a entity. Also sets its value.
 			//! \param object Object
 			//! \param entity Entity
 			//! \param value Value to set for the object
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a object is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
@@ -1174,12 +1177,12 @@ namespace gaia {
 				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
 			}
 
-			//! Attaches a new component \tparam T to \param entity. Also sets its value.
+			//! Attaches a new component @a T to @a entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				EntityBuilder builder(*this, entity);
@@ -1195,10 +1198,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Removes any component or entity attached to \param entity.
+			//! Removes any component or entity attached to @a entity.
 			//! \param entity Entity we want to remove any attached component or entity from
-			//! \warning It is expected \param entity is not a pair. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is not a pair. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			void clear(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
@@ -1218,8 +1221,8 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one.
 			//! \param srcEntity Entity to clone
 			//! \return New entity
-			//! \warning It is expected \param srcEntity is valid. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
+			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
@@ -1250,13 +1253,13 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates \param count new entities by cloning an already existing one.
+			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
+			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -1410,10 +1413,10 @@ namespace gaia {
 				del_inter(entity);
 			}
 
-			//! Removes an \param object from \param entity if possible.
+			//! Removes an @a object from @a entity if possible.
 			//! \param entity Entity to delete from
 			//! \param object Entity to delete
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void del(Entity entity, Entity object) {
 				EntityBuilder(*this, entity).del(object);
 			}
@@ -1421,17 +1424,17 @@ namespace gaia {
 			//! Removes an existing entity relationship pair
 			//! \param entity Source entity
 			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void del(Entity entity, Pair pair) {
 				EntityBuilder(*this, entity).del(pair);
 			}
 
-			//! Removes a component \tparam T from \param entity.
+			//! Removes a component @a T from @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void del(Entity entity) {
 				using CT = component_type_t<T>;
@@ -1449,16 +1452,20 @@ namespace gaia {
 				add(entity, Pair(Is, entityBase));
 			}
 
-			//! Checks if \param entity inherits from \param entityBase.
-			//! True if entity inherits from entityBase. False otherwise.
+			//! Checks if @a entity inherits from @a entityBase.
+			//! \param entity Entity
+			//! \param entityBase Base entity
+			//! \return True if entity is located in entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
 				return is_inter<false>(entity, entityBase);
 			}
 
-			//! Checks if \param entity is located in \param entityBase.
+			//! Checks if @a entity is located in @a entityBase.
 			//! This is almost the same as "is" with the exception that false is returned
-			//! if \param entity matches \param entityBase
-			//! True if entity is located in entityBase. False otherwise.
+			//! if @a entity matches @a entityBase
+			//! \param entity Entity
+			//! \param entityBase Base entity
+			//! \return True if entity is located in entityBase. False otherwise.
 			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
 				return is_inter<true>(entity, entityBase);
 			}
@@ -1489,9 +1496,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
+			//! Marks the component @a T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
-			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			//! If @a TriggerHooks is true, also triggers the component's set hooks.
+			//! \tparam T Component type
+			//! \tparam TriggerHooks Triggers hooks if true
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -1514,11 +1523,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk set operation on \param entity.
+			//! Starts a bulk set operation on @a entity.
 			//! \param entity Entity
 			//! \return ComponentSetter
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
@@ -1526,24 +1535,24 @@ namespace gaia {
 				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component @a T on @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) set(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).mut<T>();
 			}
 
-			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! Sets the value of the component @a T on @a entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -1552,12 +1561,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! Sets the value of the component T on entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
+			//! \warning It is expected entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -1566,11 +1575,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk get operation on \param entity.
+			//! Starts a bulk get operation on an entity.
 			//! \param entity Entity
 			//! \return ComponentGetter
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			//! \warning It is expected that entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			ComponentGetter acc(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
@@ -1578,13 +1587,13 @@ namespace gaia {
 				return ComponentGetter{ec.pChunk, ec.row};
 			}
 
-			//! Returns the value stored in the component \tparam T on \param entity.
+			//! Returns the value stored in the component T on entity.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return Value stored in the component.
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
+			//! \warning It is expected entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
 				return acc(entity).get<T>();
@@ -1592,7 +1601,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Checks if \param entity is currently used by the world.
+			//! Checks if entity is currently used by the world.
+			//! \param entity Entity.
 			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				// Pair
@@ -1646,18 +1656,19 @@ namespace gaia {
 				}
 			}
 
-			//! Checks if \param pair is currently used by the world.
+			//! Checks if @a pair is currently used by the world.
+			//! \param pair Pair
 			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return has((Entity)pair);
 			}
 
-			//! Tells if \param entity contains the entity \param object.
+			//! Checks if @a entity contains the entity @a object.
 			//! \param entity Entity
 			//! \param object Tested entity
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
 				const auto& ec = fetch(entity);
 				if (is_req_del(ec))
@@ -1707,22 +1718,22 @@ namespace gaia {
 				return pArchetype->has(object);
 			}
 
-			//! Tells if \param entity contains \param pair.
+			//! Checks if @a entity contains @a pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
 				return has(entity, (Entity)pair);
 			}
 
-			//! Tells if \param entity contains the component \tparam T.
+			//! Checks if @a entity contains the component @a T.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return True if the component is present on entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
@@ -1736,12 +1747,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! Assigns a @a name to @a entity. Ignored if used with pair.
 			//! The string is copied and kept internally.
 			//! \param entity Entity
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -1749,12 +1760,12 @@ namespace gaia {
 				EntityBuilder(*this, entity).name(name, len);
 			}
 
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! Assigns a @a name to @a entity. Ignored if used with pair.
 			//! The string is NOT copied. Your are responsible for its lifetime.
 			//! \param entity Entity
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning The name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -1766,10 +1777,10 @@ namespace gaia {
 				EntityBuilder(*this, entity).name_raw(name, len);
 			}
 
-			//! Returns the name assigned to \param entity.
+			//! Returns the name assigned to @a entity.
 			//! \param entity Entity
 			//! \return Name assigned to entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(Entity entity) const {
 				if (entity.pair())
 					return nullptr;
@@ -1791,16 +1802,16 @@ namespace gaia {
 				return pDesc->name;
 			}
 
-			//! Returns the name assigned to \param entityId.
+			//! Returns the name assigned to @a entityId.
 			//! \param entityId EntityId
 			//! \return Name assigned to entity.
-			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(EntityId entityId) const {
 				auto entity = get(entityId);
 				return name(entity);
 			}
 
-			//! Returns the entity that is assigned a name \param name.
+			//! Returns the entity that is assigned a name @a name.
 			//! If the name contains the character '.' hierarchical lookup is use.
 			//! E.g. "parent.child.subchild" will return the entity for subchild is the entire
 			//! tree could be found by name.
@@ -1893,8 +1904,9 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns relations for \param target.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! Returns relations for @a target.
+			//! \param target Target entity
+			//! \warning It is expected @a target is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
 				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
 				if (it == m_targetsToRelations.end())
@@ -1903,9 +1915,11 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns the first relationship relation for the \param target entity on \param entity.
+			//! Returns the first relationship relation for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(target))
@@ -1933,9 +1947,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \param func void(Entity relation) functor executed for relationship relation found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -1962,10 +1978,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \param func bool(Entity relation) functor executed for relationship relation found.
 			//!             Stops if false is returned.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations_if(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -2033,8 +2051,9 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns targets for \param relation.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! Returns targets for @a relation.
+			//! \param relation Relation entity
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
 				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
 				if (it == m_relationsToTargets.end())
@@ -2043,9 +2062,11 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns the first relationship target for the \param relation entity on \param entity.
+			//! Returns the first relationship target for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
@@ -2073,9 +2094,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \param func void(Entity target) functor executed for relationship target found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -2102,10 +2125,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \param func bool(Entity target) functor executed for relationship target found.
 			//!             Stops if false is returned.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets_if(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -2202,7 +2227,7 @@ namespace gaia {
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
 				GAIA_ASSERT(valid(entity));
 
@@ -2217,7 +2242,7 @@ namespace gaia {
 			//! Checks if an entity is enabled.
 			//! \param entity Entity
 			//! \return True it the entity is enabled. False otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
@@ -2232,7 +2257,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns a chunk containing the \param entity.
+			//! Returns a chunk containing the @a entity.
+			//! \param entity Entity
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
@@ -2240,13 +2266,15 @@ namespace gaia {
 				return ec.pChunk;
 			}
 
-			//! Returns a chunk containing the \param entity.
-			//! Index of the entity is stored in \param indexInChunk
+			//! Returns a chunk containing the @a entity.
+			//! Index of the entity is stored in @a row
+			//! \param entity Entity
+			//! \param[out] row Row of @a entity within chunk
 			//! \return Chunk or nullptr if not found
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& row) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
 				const auto& ec = m_recs.entities[entity.id()];
-				indexInChunk = ec.row;
+				row = ec.row;
 				return ec.pChunk;
 			}
 
@@ -2262,7 +2290,8 @@ namespace gaia {
 				return m_worldVersion;
 			}
 
-			//! Sets maximal lifespan of an archetype \param entity belongs to.
+			//! Sets maximal lifespan of an archetype @a entity belongs to.
+			//! \param entity Entity
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {

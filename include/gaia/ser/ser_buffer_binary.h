@@ -45,7 +45,8 @@ namespace gaia {
 					return m_data.data();
 				}
 
-				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				//! Makes sure there is enough capacity in our data container to hold another @a size bytes of data.
+				//! \param size Minimum number of free bytes at the end of the buffer.
 				void reserve(uint32_t size) {
 					const auto nextSize = m_dataPos + size;
 					if (nextSize <= bytes())
@@ -57,16 +58,20 @@ namespace gaia {
 					m_data.reserve(newCapacity);
 				}
 
+				//! Resizes the internal buffer to @a size bytes.
+				//! \param size Position in the buffer to move to.
 				void resize(uint32_t size) {
 					m_data.resize(size);
 				}
 
-				//! Changes the current position in the buffer
+				//! Changes the current position in the buffer.
+				//! \param pos Position in the buffer to move to.
 				void seek(uint32_t pos) {
 					m_dataPos = pos;
 				}
 
-				//! Advances \param size bytes from the current buffer position
+				//! Advances @a size bytes from the current buffer position.
+				//! \param size Number of bytes to skip
 				void skip(uint32_t size) {
 					m_dataPos += size;
 				}
@@ -76,7 +81,8 @@ namespace gaia {
 					return m_dataPos;
 				}
 
-				//! Writes \param value to the buffer
+				//! Writes @a value to the buffer
+				//! \param value Value to store
 				template <typename T>
 				void save(T&& value) {
 					reserve((uint32_t)sizeof(T));
@@ -90,7 +96,10 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				//! Writes @a size bytes of data starting at the address @a pSrc to the buffer
+				//! \param pSrc Pointer to serialized data
+				//! \param size Size of serialized data in bytes
+				//! \param id Type of serialized data
 				void save_raw(const void* pSrc, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
 					if (size == 0)
 						return;
@@ -106,7 +115,8 @@ namespace gaia {
 					m_dataPos += size;
 				}
 
-				//! Loads \param value from the buffer
+				//! Loads @a value from the buffer
+				//! \param[out] value Value to load
 				template <typename T>
 				void load(T& value) {
 					GAIA_ASSERT(m_dataPos + (uint32_t)sizeof(T) <= bytes());
@@ -117,7 +127,10 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				//! Loads @a size bytes of data from the buffer and writes it to the address @a pDst
+				//! \param[out] pDst Pointer to where deserialized data is written
+				//! \param size Size of serialized data in bytes
+				//! \param id Type of serialized data
 				void load_raw(void* pDst, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
 					if (size == 0)
 						return;

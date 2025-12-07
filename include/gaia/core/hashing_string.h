@@ -39,12 +39,21 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash from the provided string \param pStr and \param length
+
+			//! Constructor calculating hash from the provided string @a pStr and @a len.
+			//! \param pStr Pointer to the string
+			//! \param len Number of characters
+			//! \param owned True if the string is owned
 			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owner):
-					m_pStr(pStr), m_len(len), m_owned(owner), m_hash(calc(pStr, len)) {}
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned):
+					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(calc(pStr, len)) {}
+
 			//! Constructor just for setting values
+			//! \param pStr Pointer to the string
+			//! \param len Number of characters
+			//! \param owned True if the string is owned
+			//! \param hash String hash
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 

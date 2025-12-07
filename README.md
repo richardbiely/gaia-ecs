@@ -1,6 +1,3 @@
-<!--
-@cond TURN_OFF_DOXYGEN
--->
 ![gaia-ecs](docs/img/logo.png)
 
 [![Version][badge.version]][version]
@@ -943,7 +940,7 @@ q.each([](ecs::IterAll& it) {
 }
 ```
 
->**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to ***each"***.
+>**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to ***each***.
 
 ### Constraints
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
@@ -2463,7 +2460,7 @@ Parameter | Description
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
 **GAIA_GENERATE_CC** | Generates ***compile_commands.json***
-**GAIA_MAKE_SINGLE_HEADER** | Generates a [single-header](#single-header-library) version of the framework
+**GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header-library) version of the framework
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
@@ -2486,7 +2483,7 @@ quom ./include/gaia.h ./single_include/gaia.h -I ./include
 
 You can also use the attached make_single_header.sh or create your script for your platform.
 
-Creation of the single header can be automated via -GAIA_MAKE_SINGLE_HEADER.
+Creation of the single header can be automated via -GAIA_GENERATE_SINGLE_HEADER.
 
 # Repository structure
 
@@ -2562,7 +2559,3 @@ Code and documentation Copyright (c) 2021-2025 Richard Biely.
 Code released under the [MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
 
 ![gaia-ecs-small](docs/img/logo_small.png)
-<!--
-@endcond TURN_OFF_DOXYGEN
--->
-

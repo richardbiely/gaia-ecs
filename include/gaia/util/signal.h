@@ -288,7 +288,7 @@ namespace gaia {
 		//! Signal is a container of listener which it can notify.
 		//! It works directly with references to classes and pointers to both free and member functions.
 		//! \tparam Ret Return type of a function type.
-		//! \tparam* Args Types of arguments of a function type.
+		//! \tparam Args Types of arguments of a function type.
 		template <typename Ret, typename... Args>
 		class signal<Ret(Args...)> {
 			friend class sink<Ret(Args...)>;
@@ -347,7 +347,6 @@ namespace gaia {
 			//! Moves signals from another sink to this one. Result is stored in this object.
 			//! The sink we merge from is cleared.
 			//! \param other Sink to move signals from
-			//! \param compact If true the detail container is reallocated so as little memory as possible is used by it.
 			void move_from(sink& other) {
 				m_s->m_listeners.reserve(m_s->m_listeners.size() + other.m_s->m_listeners.size());
 				for (auto&& listener: other.m_s->m_listeners)
@@ -384,7 +383,7 @@ namespace gaia {
 			//! \param func Function to bind to the signal.
 			//! \param data User defined arbitrary ctx.
 			void bind(func_type* func, const void* data = nullptr) {
-				if (!func && data == nullptr)
+				if (func == nullptr && data == nullptr)
 					return;
 
 				delegate<Ret(Args...)> call{};
@@ -405,8 +404,8 @@ namespace gaia {
 			}
 
 			//! Unbinds a free function with context or a bound member from a signal.
-			//! \tparam** FuncToUnbind Function or member to unbind from the signal.
-			//! \tparam Type Type of class or type of** context.
+			//! \tparam FuncToUnbind Function or member to unbind from the signal.
+			//! \tparam Type Type of class or type of context.
 			//! \param value_or_instance A valid object that fits the purpose.
 			template <auto FuncToUnbind, typename Type>
 			void unbind(Type& value_or_instance) {

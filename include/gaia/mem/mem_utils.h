@@ -171,7 +171,12 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_left_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -200,8 +205,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
 			//! Handles only the non-overlapping part.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_left_aos_fast(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -232,7 +242,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
+			//! \param size Number of elements
 			template <typename T>
 			void shift_elements_left_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -251,7 +267,12 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_right_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -283,8 +304,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
 			//! Handles only the non-overlapping part.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_right_aos_fast(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -315,7 +341,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by one
+			//! Shift elements at the address pointed to by @a dst to the right by one.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
+			//! \param size Number of one element in total
 			template <typename T>
 			void shift_elements_right_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -339,7 +371,15 @@ namespace gaia {
 		// Memory is aligned so we can silence this warning
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-		//! Copy \param size elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Copy @a size elements of type @a T from the address pointed to by @a src to @a dst
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of one element in total
+		//! \param sizeSrc Number of one element in total
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -353,8 +393,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy one element of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst.
+		//! Copy one element of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of elements in destination
+		//! \param sizeSrc Number of elements in source
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -368,8 +416,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Copy elements of type @a T from the address pointed to by @a src to @a dst.
+		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of elements in destination
+		//! \param sizeSrc Number of elements in source
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -384,7 +440,15 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \param cnt elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -401,8 +465,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst.
+		//! Move or copy one elements of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -419,8 +491,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Move or copy elements of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -438,7 +518,15 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \param cnt elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void swap_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -469,7 +557,13 @@ namespace gaia {
 			}
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the left by one element
+		//! Shift elements at the address pointed to by @a dst to the left by one element.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
@@ -482,7 +576,14 @@ namespace gaia {
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the left by one \param n elements
+		//! Shift elements at the address pointed to by @a dst to the left by one @a n elements.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param n Offset
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left_fast(
 				uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
@@ -496,7 +597,13 @@ namespace gaia {
 				detail::shift_elements_left_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the right by one element
+		//! Shift elements at the address pointed to by @a dst to the right by one element.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
@@ -509,7 +616,14 @@ namespace gaia {
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the right by \param n elements
+		//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param n Offset
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right_fast(
 				uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {

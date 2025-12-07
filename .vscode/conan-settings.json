@@ -1,0 +1,24 @@
+{
+    "profiles": [
+        {
+            "name": "test_package",
+            "conanFile": "${workspaceFolder}/pkg/conan/test_package/conanfile.py",
+            "profile": "default",
+            "installArg": "",
+            "buildArg": "",
+            "createUser": "disroop",
+            "createChannel": "development",
+            "createArg": ""
+        },
+        {
+            "name": "conan",
+            "conanFile": "${workspaceFolder}/pkg/conan/conanfile.py",
+            "profile": "default",
+            "installArg": "",
+            "buildArg": "",
+            "createUser": "disroop",
+            "createChannel": "development",
+            "createArg": ""
+        }
+    ]
+}

@@ -454,7 +454,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -473,7 +475,9 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));

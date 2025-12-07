@@ -1,0 +1,15 @@
+var sparse__storage_8h =
+[
+    [ "gaia::cnt::to_sparse_id&lt; T &gt;", "structgaia_1_1cnt_1_1to__sparse__id.html", "structgaia_1_1cnt_1_1to__sparse__id" ],
+    [ "gaia::cnt::sparse_iterator&lt; T, PageCapacity, Allocator, typename &gt;", "structgaia_1_1cnt_1_1sparse__iterator.html", "structgaia_1_1cnt_1_1sparse__iterator" ],
+    [ "gaia::cnt::const_sparse_iterator&lt; T, PageCapacity, Allocator, typename &gt;", "structgaia_1_1cnt_1_1const__sparse__iterator.html", "structgaia_1_1cnt_1_1const__sparse__iterator" ],
+    [ "gaia::cnt::sparse_iterator&lt; T, PageCapacity, Allocator, std::enable_if_t&lt; std::is_empty_v&lt; T &gt; &gt; &gt;", "structgaia_1_1cnt_1_1sparse__iterator_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_1_1ena5e3bce9f8119edbef6290edd960f30b8.html", "structgaia_1_1cnt_1_1sparse__iterator_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_1_1ena5e3bce9f8119edbef6290edd960f30b8" ],
+    [ "gaia::cnt::const_sparse_iterator&lt; T, PageCapacity, Allocator, std::enable_if_t&lt; std::is_empty_v&lt; T &gt; &gt; &gt;", "structgaia_1_1cnt_1_1const__sparse__iterator_3_01_t_00_01_page_capacity_00_01_allocator_00_01std1dac9b14724775ffdea924fc49b914dc.html", "structgaia_1_1cnt_1_1const__sparse__iterator_3_01_t_00_01_page_capacity_00_01_allocator_00_01std1dac9b14724775ffdea924fc49b914dc" ],
+    [ "gaia::cnt::detail::sparse_page&lt; T, PageCapacity, Allocator, typename &gt;", "classgaia_1_1cnt_1_1detail_1_1sparse__page.html", "classgaia_1_1cnt_1_1detail_1_1sparse__page" ],
+    [ "gaia::cnt::detail::sparse_page&lt; T, PageCapacity, Allocator, std::enable_if_t&lt; std::is_empty_v&lt; T &gt; &gt; &gt;", "classgaia_1_1cnt_1_1detail_1_1sparse__page_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_14098bfb3b71488a51abf6ce4ee40b0a4.html", "classgaia_1_1cnt_1_1detail_1_1sparse__page_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_14098bfb3b71488a51abf6ce4ee40b0a4" ],
+    [ "gaia::cnt::sparse_storage&lt; T, PageCapacity, Allocator, typename &gt;", "classgaia_1_1cnt_1_1sparse__storage.html", "classgaia_1_1cnt_1_1sparse__storage" ],
+    [ "gaia::cnt::sparse_storage&lt; T, PageCapacity, Allocator, std::enable_if_t&lt; std::is_empty_v&lt; T &gt; &gt; &gt;", "classgaia_1_1cnt_1_1sparse__storage_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_1_1enabl7d38cae692980d9cee308b438079f9bc.html", "classgaia_1_1cnt_1_1sparse__storage_3_01_t_00_01_page_capacity_00_01_allocator_00_01std_1_1enabl7d38cae692980d9cee308b438079f9bc" ],
+    [ "gaia::cnt::sparse_id", "namespacegaia_1_1cnt.html#ac386b06e21c8a1c891d622c614abf5ac", null ],
+    [ "gaia::cnt::detail::InvalidDenseId", "namespacegaia_1_1cnt_1_1detail.html#a3bca17e32e619a217992bdd8ea3c173f", null ],
+    [ "gaia::cnt::detail::InvalidSparseId", "namespacegaia_1_1cnt_1_1detail.html#a10a9dce49c27bc7bb4e3c87f8310111c", null ]
+];

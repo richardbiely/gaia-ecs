@@ -176,8 +176,9 @@ namespace gaia {
 				return handle;
 			}
 
-			//! Invalidates \param jobHandle by resetting its index in the job pool.
+			//! Invalidates @a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
+			//! \param jobHandle Job handle.
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				auto& jobData = m_jobData.free(jobHandle);
@@ -223,16 +224,20 @@ namespace gaia {
 				// jobData.edges.pDeps = nullptr;
 			}
 
-			//! Makes \param jobSecond depend on \param jobFirst.
-			//! This means \param jobSecond will run only after \param jobFirst finishes.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on @a jobFirst.
+			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! \param jobFirst The job that must complete first.
+			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
-			//! This means \param jobSecond will run only after all \param jobsFirst finish.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
 
@@ -258,11 +263,12 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
-			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
-			//! This means \param jobSecond will run only after all \param jobsFirst finish.
-			//! \note Rather than calling dep() this is the call that needs to be made when
-			//!       provided job handles are reused.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \note Unlike dep() this function needs to be called when job handles are reused.
+			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
 

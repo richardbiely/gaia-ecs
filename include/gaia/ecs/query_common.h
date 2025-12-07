@@ -525,8 +525,9 @@ namespace gaia {
 		}
 
 		//! Finds the index at which the provided component id is located in the component array
-		//! \param pComps Pointer to the start of the component array
+		//! \param pTerms Pointer to the start of the terms array
 		//! \param entity Entity we search for
+		//! \param src Source entity
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>

@@ -156,7 +156,8 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T, false>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T, false>(
+						m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -314,7 +315,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -333,7 +336,9 @@ namespace gaia {
 				return iterator(ptr);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Positing in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));

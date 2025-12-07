@@ -143,44 +143,58 @@ namespace gaia {
 			}
 		};
 
-		//! Allocate \param size bytes of memory using the default allocator.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! \param size Number of bytes to allocate
 		GAIA_NODISCARD inline void* mem_alloc(size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param size Number of bytes to allocate
 		GAIA_NODISCARD inline void* mem_alloc(const char* name, size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(name, size);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is aligned to \param alig boundary.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! The memory is aligned to @a alig boundary.
+		//! \param size Number of bytes to allocate
+		//! \param alig Allocated data alignment
 		GAIA_NODISCARD inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is aligned to \param alig boundary.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! The memory is aligned to @a alig boundary.
+		//! \param name Allocation name for debug purposes
+		//! \param size Number of bytes to allocate
+		//! \param alig Allocated data alignment
 		GAIA_NODISCARD inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
 
 		//! Release memory allocated by the default allocator.
+		//! \param ptr Allocated data
 		inline void mem_free(void* ptr) {
 			DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
 		//! Release memory allocated by the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param ptr Allocated data
 		inline void mem_free(const char* name, void* ptr) {
 			DefaultAllocatorAdaptor::get().free(name, ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
+		//! \param ptr Allocated data
 		inline void mem_free_alig(void* ptr) {
 			DefaultAllocatorAdaptor::get().free_alig(ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param ptr Allocated data
 		inline void mem_free_alig(const char* name, void* ptr) {
 			DefaultAllocatorAdaptor::get().free_alig(name, ptr);
 		}
@@ -196,8 +210,9 @@ namespace gaia {
 
 		//! Align a number to the requested byte alignment
 		//! \tparam alignment Requested alignment in bytes
+		//! \tparam T Data type
 		//! \param num Number to align
-		//! return Aligned number
+		//! \return Aligned number
 		template <size_t alignment, typename T>
 		GAIA_NODISCARD constexpr T align(T num) {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
@@ -215,13 +230,17 @@ namespace gaia {
 		//! Returns the padding
 		//! \tparam alignment Requested alignment in bytes
 		//! \param num Number to align
-		//! return Aligned number
+		//! \return Aligned number
 		template <size_t alignment, typename T>
 		GAIA_NODISCARD constexpr uint32_t padding(T num) {
 			return (uint32_t)(align<alignment>(num) - num);
 		}
 
-		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		//! Convert form type @a Src to type @a Dst without causing an undefined behavior
+		//! \tparam Dst Destination data type
+		//! \tparam Src Source data type
+		//! \param src Source
+		//! \return Converted destination type
 		template <typename Dst, typename Src>
 		GAIA_NODISCARD Dst bit_cast(const Src& src) {
 			static_assert(sizeof(Dst) == sizeof(Src));

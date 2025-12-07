@@ -516,6 +516,7 @@ namespace gaia {
 			//! \param pChunk Chunk the entity belongs to
 			//! \param row Row of the entity
 			//! \param enableEntity Enables the entity
+			//! \param recs Entity containers
 			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, EntityContainers& recs) {
 				pChunk->enable_entity(row, enableEntity, recs);
 				// m_disabledMask.set(pChunk->idx(), enableEntity ? true : pChunk->has_disabled_entities());
@@ -1104,6 +1105,7 @@ namespace gaia {
 			}
 
 			//! Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
+			//! \param world Parent world
 			//! \param archetype Archetype to run diagnostics on
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);

@@ -36,7 +36,7 @@ namespace gaia {
 				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row, type);
 			}
 
-			//! Sets the value of the component \param type.
+			//! Sets the value of the component @a type.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component

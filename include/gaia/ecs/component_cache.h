@@ -132,7 +132,8 @@ namespace gaia {
 				}
 			}
 
-			//! Searches for the component cache item given the \param compDescId.
+			//! Searches for the component cache item given the @a compDescId.
+			//! \param compDescId Component descriptor id
 			//! \return Component info or nullptr it not found.
 			GAIA_NODISCARD const ComponentCacheItem* find(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
@@ -148,7 +149,8 @@ namespace gaia {
 				return it != m_itemByDescId.end() ? it->second : nullptr;
 			}
 
-			//! Returns the component cache item given the \param compDescId.
+			//! Returns the component cache item given the @a compDescId.
+			//! \param compDescId Component descriptor id
 			//! \return Component info
 			//! \warning It is expected the component item with the given id exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(detail::ComponentDescId compDescId) const noexcept {
@@ -165,7 +167,6 @@ namespace gaia {
 
 			//! Searches for the component cache item.
 			//! \param entity Entity associated with the component item.
-			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
 				GAIA_ASSERT(!entity.pair());

@@ -118,17 +118,23 @@ namespace gaia {
 #endif
 		} // namespace detail
 
-		//! Write \param data using \tparam Writer at compile-time.
+		//! Write @a data using @a Writer at compile-time.
+		//! \tparam Writer Type of writer
+		//! \param writer Writer used for serialization
+		//! \param data Data to serialize
 		//! \warning Writer has to implement a save function as follows:
-		//! 					 template <typename T> void save(const T& arg);
+		//! 					 `template <typename T> void save(const T& arg);`
 		template <typename Writer, typename T>
 		void save(Writer& writer, const T& data) {
 			detail::save_one(writer, data);
 		}
 
-		//! Read \param data using \tparam Reader at compile-time.
+		//! Read @a data using @a Reader at compile-time.
+		//! \tparam Reader Type of reader
+		//! \param reader Reader used for deserialization
+		//! \param[out] data Data to deserialize
 		//! \warning Reader has to implement a save function as follows:
-		//! 					 template <typename T> void load(T& arg);
+		//! 					 `template <typename T> void load(T& arg);`
 		template <typename Reader, typename T>
 		void load(Reader& reader, T& data) {
 			detail::load_one(reader, data);

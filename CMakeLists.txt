@@ -57,8 +57,9 @@ option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." OFF)
-option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
-option(GAIA_MAKE_PACKAGES, "Generates packages" OFF)
+option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." OFF)
+option(GAIA_GENERATE_PACKAGES "Generate packages" OFF)
+option(GAIA_GENERATE_DOCS "Build documentation" OFF)
 
 # Profiling settings
 option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
@@ -106,6 +107,24 @@ if(NOT WIN32 AND GAIA_USE_LIBCPP)
 
     if(NOT GAIA_USE_LIBCPP)
         message(WARNING "GAIA_USE_LIBCPP is ON but libc++ is not available. The flag will be ignored.")
+    endif()
+endif()
+
+# Documentation
+if(GAIA_GENERATE_DOCS)
+    find_package(Doxygen REQUIRED)
+
+    if(DOXYGEN_FOUND)
+        add_custom_target(doc ALL)
+        add_custom_command(
+            COMMENT "Generating Doxygen documentation in ${CMAKE_CURRENT_SOURCE_DIR}/docs using ${DOXYGEN_EXECUTABLE}"
+            TARGET doc POST_BUILD
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND ${DOXYGEN_EXECUTABLE} docs/Doxyfile
+            VERBATIM
+        )
+    else()
+        message(WARNING "Doxygen not found. Documentation can't be generated")
     endif()
 endif()
 
@@ -167,7 +186,7 @@ else()
     add_definitions(-DGAIA_USE_SANITIZER=0)
 endif()
 
-if(GAIA_MAKE_PACKAGES)
+if(GAIA_GENERATE_PACKAGES)
     add_custom_target(
         conan_run
         COMMAND conan create ${CMAKE_SOURCE_DIR}/pkg/conan
@@ -182,11 +201,11 @@ if(GAIA_BUILD_SRC)
     add_subdirectory(src)
 endif()
 
-# Print project variables
-get_cmake_property(all_vars VARIABLES)
+# # Print project variables
+# get_cmake_property(all_vars VARIABLES)
 
-foreach(var ${all_vars})
-    if(var MATCHES "^GAIA_")
-        message(STATUS "${var} = ${${var}}")
-    endif()
-endforeach()
+# foreach(var ${all_vars})
+# if(var MATCHES "^GAIA_")
+# message(STATUS "${var} = ${${var}}")
+# endif()
+# endforeach()

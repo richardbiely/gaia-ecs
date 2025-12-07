@@ -1092,14 +1092,16 @@ namespace gaia {
 				return id != detail::InvalidDenseId;
 			}
 
-			//! Checks if an item \param arg exists within the storage
+			//! Checks if an item @a arg exists within the storage
+			//! \param arg Data
 			GAIA_NODISCARD bool has(const T& arg) const {
 				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 				return has(sid);
 			}
 
-			//! Inserts the item \param arg into the storage.
+			//! Inserts the item @a arg into the storage.
+			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
@@ -1122,7 +1124,8 @@ namespace gaia {
 				return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index \param sid.
+			//! Update the record at the index @a sid.
+			//! \param sid Sparse id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(sparse_id sid) {
 				GAIA_ASSERT(has(sid));
@@ -1134,7 +1137,8 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index \param sid from the storage.
+			//! Removes the item at the index @a sid from the storage.
+			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
@@ -1160,7 +1164,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Removes the item \param arg from the storage.
+			//! Removes the item @a arg from the storage.
+			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto sid = to_sparse_id<T>::get(arg);
 				return del(sid);
@@ -1395,8 +1400,8 @@ namespace gaia {
 			}
 
 		public:
-			//! Inserts the item \param arg into the storage.
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! Registers a new sparse id.
+			//! \param sid Sparse id
 			void add(sparse_id sid) {
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
@@ -1413,7 +1418,8 @@ namespace gaia {
 				page.set_id(did) = m_cnt++;
 			}
 
-			//! Removes the item at the index \param sid from the storage.
+			//! Removes a sparse id from storage.
+			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);

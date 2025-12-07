@@ -774,7 +774,8 @@ namespace gaia {
 		public:
 			const_page_iterator_soa(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
-			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast):
+					m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
@@ -940,7 +941,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given page id \param sid exists
+			//! Checks if an item with a given page @a id exists
+			//! \param id Page id
 			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
 				const auto pid = size_type(id >> ToPageIndex);
 				if (pid >= m_pages.size())
@@ -951,14 +953,16 @@ namespace gaia {
 				return did < val && m_pages[pid].has_data(did);
 			}
 
-			//! Checks if an item \param arg exists within the storage
+			//! Checks if an item @a arg exists within the storage
+			//! \param arg Data
 			GAIA_NODISCARD bool has(const T& arg) const noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
 				return has(id);
 			}
 
-			//! Inserts the item \param arg into the storage.
+			//! Inserts the item @a arg into the storage.
+			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
@@ -986,7 +990,8 @@ namespace gaia {
 					return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index \param id.
+			//! Update the record at the index @a id.
+			//! \param id Page id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
@@ -998,7 +1003,8 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index \param id from the storage.
+			//! Removes the item at the index @a id from the storage.
+			//! \param id Page id
 			void del(page_storage_id id) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
@@ -1014,7 +1020,8 @@ namespace gaia {
 				--m_itemCnt;
 			}
 
-			//! Removes the item \param arg from the storage.
+			//! Removes the item @a arg from the storage.
+			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				return del(id);

@@ -136,7 +136,7 @@ namespace gaia {
 				}
 
 				//! Returns a read-only entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
@@ -161,7 +161,7 @@ namespace gaia {
 				}
 
 				//! Returns a mutable entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
@@ -189,7 +189,7 @@ namespace gaia {
 
 				//! Returns a mutable component view.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
@@ -213,7 +213,7 @@ namespace gaia {
 					}
 				}
 
-				//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+				//! Marks the component @a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
@@ -223,7 +223,7 @@ namespace gaia {
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -234,7 +234,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
 				//! Doesn't update the world version when read-write access is acquired.
-				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -249,21 +249,21 @@ namespace gaia {
 					return m_pChunk->enabled(row);
 				}
 
-				//! Checks if entity \param entity is present in the chunk.
+				//! Checks if entity @a entity is present in the chunk.
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
 					return m_pChunk->has(entity);
 				}
 
-				//! Checks if relationship pair \param pair is present in the chunk.
+				//! Checks if relationship pair @a pair is present in the chunk.
 				//! \param pair Relationship pair
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Pair pair) const {
 					return m_pChunk->has((Entity)pair);
 				}
 
-				//! Checks if component \tparam T is present in the chunk.
+				//! Checks if component @a T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
@@ -431,7 +431,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
@@ -440,7 +440,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
@@ -450,7 +450,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
@@ -458,7 +458,7 @@ namespace gaia {
 				return m_pChunk->sview_mut<T>(from(), to());
 			}
 
-			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
@@ -468,7 +468,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -479,7 +479,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -494,21 +494,21 @@ namespace gaia {
 				return m_pChunk->enabled(row);
 			}
 
-			//! Checks if entity \param entity is present in the chunk.
+			//! Checks if entity @a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				return m_pChunk->has(entity);
 			}
 
-			//! Checks if relationship pair \param pair is present in the chunk.
+			//! Checks if relationship pair @a pair is present in the chunk.
 			//! \param pair Relationship pair
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return m_pChunk->has((Entity)pair);
 			}
 
-			//! Checks if component \tparam T is present in the chunk.
+			//! Checks if component @a T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>

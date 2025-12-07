@@ -235,8 +235,11 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
-			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
+			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			//! \param entityToArchetypeMap Map of all archetypes
+			//! \param allArchetypes List of all archetypes
+			//! \param archetypeLastId Last recorded archetype id
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			void match(
 					// entity -> archetypes mapping
@@ -748,7 +751,7 @@ namespace gaia {
 			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
 				return std::span{m_archetypeSortData.data(), m_archetypeSortData.size()};
 			}
-			
+
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
 				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
 			}

@@ -1616,14 +1616,19 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1633,15 +1638,19 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type \tparam T in the uninitialized storage at the memory address \param pData.
+		//! Value-constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs \param cnt objects of type \tparam T in the uninitialized storage at the memory address \param
-		//! pData.
+		//! Value-constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1651,7 +1660,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type \tparam T in at the memory address \param pData.
+		//! Constructs an object of type @a T at the given memory address.
+		//! \tparam T Type to construct
+		//! \param pData Pointer to the memory where the object should be constructed.
+		//! \warning pData must not be nullptr.
 		template <typename T>
 		void call_ctor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1660,7 +1672,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
+		//! Constructs @a cnt objects of type @a T at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1679,7 +1694,10 @@ namespace gaia {
 				(void)::new (pData) T{GAIA_FWD(args)...};
 		}
 
-		//! Constructs an object of type \tparam T at the memory address \param pData.
+		//! Destructs an object of type @a T at the given memory address.
+		//! \tparam T Type to destruct
+		//! \param pData Pointer to the memory where the object should be destructed.
+		//! \warning pData must not be nullptr.
 		template <typename T>
 		void call_dtor([[maybe_unused]] T* pData) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1688,7 +1706,10 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs \param cnt objects of type \tparam T starting at the memory address \param pData.
+		//! Destructs @a cnt objects of type @a T at the memory address @a pData.
+		//! \tparam T Type to construct.
+		//! \param pData Pointer to where the object will be destructed; must not be null.
+		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
 			GAIA_ASSERT(pData != nullptr);
@@ -2290,10 +2311,13 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
-		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
-		//! important and the size of the array changes after calling this function you need to sort the array.
-		//! \warning Does not do bound checks. Undefined behavior when \param idx is out of bounds.
+		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! removes its last item. Use when shifting of the entire array is not wanted.
+		//! \param arr Array
+		//! \param idx Array index
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//!          to sort the array.
+		//! \warning Does not do bound checks. Undefined behavior when @a idx is out of bounds.
 		template <typename C>
 		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
@@ -2304,9 +2328,12 @@ namespace gaia {
 			arr.pop_back();
 		}
 
-		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
-		//! removes its last item. Use when shifting of the entire array is not wanted. \warning If the item order is
-		//! important and the size of the array changes after calling this function you need to sort the array.
+		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! removes its last item. Use when shifting of the entire array is not wanted.
+		//! \param arr Array
+		//! \param idx Array index
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//           to sort the array.
 		template <typename C>
 		void swap_erase(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
@@ -2755,7 +2782,7 @@ namespace gaia {
 		//! \param cmpFunc Comparison function
 		//! \param swapFunc Swap function
 		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
 		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
 		//!					 you can not easily predict the depth of the stack used by the algorithm.
 		template <typename Container, typename TCmpFunc, typename TSwapFunc>
@@ -2843,7 +2870,7 @@ namespace gaia {
 		//! \param high High index of the array to sort
 		//! \param cmpFunc Comparison function
 		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than \param maxStackSize the function might end up accessing memory
+		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
 		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
 		//!					 you can not easily predict the depth of the stack used by the algorithm.
 		template <typename Container, typename TCmpFunc>
@@ -2856,11 +2883,14 @@ namespace gaia {
 					maxStackSize);
 		}
 
-		//! Sort the array \param arr given a comparison function \param cmpFunc.
-		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparision function
-		//! \param arr Container to sort
+		//! Sorts a range of elements.
+		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
+		//! For anything else, quicksort is used.
+		//! Use when it is necessary to sort multiple arrays at once.
+		//! \tparam T Element type
+		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
+		//! \param beg Pointer to first element
+		//! \param end Pointer to one-past-last element
 		//! \param cmpFunc Comparision function
 		template <typename T, typename TCmpFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc) {
@@ -2876,15 +2906,16 @@ namespace gaia {
 			sort(c.begin(), c.end(), cmpFunc);
 		}
 
-		//! Sort the array \param arr given a comparison function \param cmpFunc.
-		//! If cmpFunc returns true it performs \param swapFunc which can perform the sorting.
+		//! Sorts a range of elements given a comparison function @a cmpFunc.
+		//! If @a cmpFunc returns true it performs @a swapFunc which can perform the sorting.
+		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
+		//! For anything else, quicksort is used.
 		//! Use when it is necessary to sort multiple arrays at once.
-		//! Sorts using a sorting network up to 8 elements.
-		//! \warning Currently only up to 32 elements are supported.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparision function
-		//! \tparam TSwapFunc Sorting function
-		//! \param arr Container to sort
+		//! \tparam T Element type
+		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
+		//! \tparam TSwapFunc Functor type for swapping: void swapFunc(i, j)
+		//! \param beg Pointer to first element
+		//! \param end Pointer to one-past-last element
 		//! \param cmpFunc Comparision function
 		//! \param swapFunc Sorting function
 		template <typename T, typename TCmpFunc, typename TSwapFunc>
@@ -4071,44 +4102,58 @@ namespace gaia {
 			}
 		};
 
-		//! Allocate \param size bytes of memory using the default allocator.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! \param size Number of bytes to allocate
 		GAIA_NODISCARD inline void* mem_alloc(size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param size Number of bytes to allocate
 		GAIA_NODISCARD inline void* mem_alloc(const char* name, size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(name, size);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is aligned to \param alig boundary.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! The memory is aligned to @a alig boundary.
+		//! \param size Number of bytes to allocate
+		//! \param alig Allocated data alignment
 		GAIA_NODISCARD inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
-		//! Allocate \param size bytes of memory using the default allocator.
-		//! The memory is aligned to \param alig boundary.
+		//! Allocate @a size bytes of memory using the default allocator.
+		//! The memory is aligned to @a alig boundary.
+		//! \param name Allocation name for debug purposes
+		//! \param size Number of bytes to allocate
+		//! \param alig Allocated data alignment
 		GAIA_NODISCARD inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
 
 		//! Release memory allocated by the default allocator.
+		//! \param ptr Allocated data
 		inline void mem_free(void* ptr) {
 			DefaultAllocatorAdaptor::get().free(ptr);
 		}
 
 		//! Release memory allocated by the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param ptr Allocated data
 		inline void mem_free(const char* name, void* ptr) {
 			DefaultAllocatorAdaptor::get().free(name, ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
+		//! \param ptr Allocated data
 		inline void mem_free_alig(void* ptr) {
 			DefaultAllocatorAdaptor::get().free_alig(ptr);
 		}
 
 		//! Release aligned memory allocated by the default allocator.
+		//! \param name Allocation name for debug purposes
+		//! \param ptr Allocated data
 		inline void mem_free_alig(const char* name, void* ptr) {
 			DefaultAllocatorAdaptor::get().free_alig(name, ptr);
 		}
@@ -4124,8 +4169,9 @@ namespace gaia {
 
 		//! Align a number to the requested byte alignment
 		//! \tparam alignment Requested alignment in bytes
+		//! \tparam T Data type
 		//! \param num Number to align
-		//! return Aligned number
+		//! \return Aligned number
 		template <size_t alignment, typename T>
 		GAIA_NODISCARD constexpr T align(T num) {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
@@ -4143,13 +4189,17 @@ namespace gaia {
 		//! Returns the padding
 		//! \tparam alignment Requested alignment in bytes
 		//! \param num Number to align
-		//! return Aligned number
+		//! \return Aligned number
 		template <size_t alignment, typename T>
 		GAIA_NODISCARD constexpr uint32_t padding(T num) {
 			return (uint32_t)(align<alignment>(num) - num);
 		}
 
-		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		//! Convert form type @a Src to type @a Dst without causing an undefined behavior
+		//! \tparam Dst Destination data type
+		//! \tparam Src Source data type
+		//! \param src Source
+		//! \return Converted destination type
 		template <typename Dst, typename Src>
 		GAIA_NODISCARD Dst bit_cast(const Src& src) {
 			static_assert(sizeof(Dst) == sizeof(Src));
@@ -5027,7 +5077,12 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_left_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5056,8 +5111,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
 			//! Handles only the non-overlapping part.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_left_aos_fast(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5088,7 +5148,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the left by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
+			//! \param size Number of elements
 			template <typename T>
 			void shift_elements_left_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5107,7 +5173,12 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_right_aos(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5139,8 +5210,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by \param n elements.
+			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
 			//! Handles only the non-overlapping part.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
 			template <typename T>
 			void shift_elements_right_aos_fast(T* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5171,7 +5247,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by \param dst to the right by one
+			//! Shift elements at the address pointed to by @a dst to the right by one.
+			//! \tparam T Data type
+			//! \param[out] dst Destination pointer
+			//! \param idxDst Destination index
+			//! \param idxSrc Source index
+			//! \param n Offset
+			//! \param size Number of one element in total
 			template <typename T>
 			void shift_elements_right_soa(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, uint32_t size) {
 				GAIA_MSVC_WARNING_PUSH()
@@ -5195,7 +5277,15 @@ namespace gaia {
 		// Memory is aligned so we can silence this warning
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-		//! Copy \param size elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Copy @a size elements of type @a T from the address pointed to by @a src to @a dst
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of one element in total
+		//! \param sizeSrc Number of one element in total
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5209,8 +5299,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy one element of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst.
+		//! Copy one element of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of elements in destination
+		//! \param sizeSrc Number of elements in source
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_element(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5224,8 +5322,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Copy elements of type @a T from the address pointed to by @a src to @a dst.
+		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeDst Number of elements in destination
+		//! \param sizeSrc Number of elements in source
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5240,7 +5346,15 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \param cnt elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_ctor_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5257,8 +5371,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst.
+		//! Move or copy one elements of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_element(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5275,8 +5397,16 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type \tparam T from the address pointed to by \param src to \param dst
-		//! at relative offsets \param idxSrc and \param idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Move or copy elements of type @a T from the address pointed to by @a src to @a dst
+		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5294,7 +5424,15 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy \param cnt elements of type \tparam T from the address pointed to by \param src to \param dst
+		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param src Source pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param sizeSrc Number of elements in source
+		//! \param sizeDst Number of elements in destination
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void swap_elements(
 				uint8_t* GAIA_RESTRICT dst, uint8_t* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
@@ -5325,7 +5463,13 @@ namespace gaia {
 			}
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the left by one element
+		//! Shift elements at the address pointed to by @a dst to the left by one element.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
@@ -5338,7 +5482,14 @@ namespace gaia {
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the left by one \param n elements
+		//! Shift elements at the address pointed to by @a dst to the left by one @a n elements.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param n Offset
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_left_fast(
 				uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
@@ -5352,7 +5503,13 @@ namespace gaia {
 				detail::shift_elements_left_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the right by one element
+		//! Shift elements at the address pointed to by @a dst to the right by one element.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right(uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, [[maybe_unused]] uint32_t size) {
 			GAIA_ASSERT(idxSrc <= idxDst);
@@ -5365,7 +5522,14 @@ namespace gaia {
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by \param dst to the right by \param n elements
+		//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+		//! \tparam T Data type
+		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
+		//! \param[out] dst Destination pointer
+		//! \param idxDst Destination index
+		//! \param idxSrc Source index
+		//! \param n Offset
+		//! \param size Number of elements
 		template <typename T, bool SOA = mem::is_soa_layout_v<T>>
 		void shift_elements_right_fast(
 				uint8_t* dst, uint32_t idxDst, uint32_t idxSrc, uint32_t n, [[maybe_unused]] uint32_t size) {
@@ -5919,7 +6083,9 @@ namespace gaia {
 				}
 			}
 
-			//! Sets the bit at the postion \param pos to value \param value
+			//! Sets the bit at the given position.
+			//! \param pos Bit position to set (0-based, must be < NBits)
+			//! \param value Value to set the bit to. Defaults to true.
 			constexpr void set(uint32_t pos, bool value = true) {
 				GAIA_ASSERT(pos < NBits);
 				if (value)
@@ -6180,7 +6346,8 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T, false>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T, false>(
+						m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -6331,7 +6498,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -6350,7 +6519,9 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -6738,7 +6909,8 @@ namespace gaia {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				resize(other.size());
-				mem::copy_elements<T, false>(m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+				mem::copy_elements<T, false>(
+						m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
 
 				return *this;
 			}
@@ -6896,7 +7068,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -6915,7 +7089,9 @@ namespace gaia {
 				return iterator(ptr);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Positing in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -7664,7 +7840,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -7683,7 +7861,9 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -8399,7 +8579,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -8418,7 +8600,9 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
 				GAIA_ASSERT(pos >= data());
 				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
@@ -9489,8 +9673,9 @@ namespace gaia {
 				return {index, m_items[index].data.gen};
 			}
 
-			//! Invalidates \param handle.
+			//! Invalidates @a handle.
 			//! Every time an item is deallocated its generation is increased by one.
+			//! \param handle Handle
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 				m_items.del_item(item);
@@ -9924,17 +10109,23 @@ namespace gaia {
 #endif
 		} // namespace detail
 
-		//! Write \param data using \tparam Writer at compile-time.
+		//! Write @a data using @a Writer at compile-time.
+		//! \tparam Writer Type of writer
+		//! \param writer Writer used for serialization
+		//! \param data Data to serialize
 		//! \warning Writer has to implement a save function as follows:
-		//! 					 template <typename T> void save(const T& arg);
+		//! 					 `template <typename T> void save(const T& arg);`
 		template <typename Writer, typename T>
 		void save(Writer& writer, const T& data) {
 			detail::save_one(writer, data);
 		}
 
-		//! Read \param data using \tparam Reader at compile-time.
+		//! Read @a data using @a Reader at compile-time.
+		//! \tparam Reader Type of reader
+		//! \param reader Reader used for deserialization
+		//! \param[out] data Data to deserialize
 		//! \warning Reader has to implement a save function as follows:
-		//! 					 template <typename T> void load(T& arg);
+		//! 					 `template <typename T> void load(T& arg);`
 		template <typename Reader, typename T>
 		void load(Reader& reader, T& data) {
 			detail::load_one(reader, data);
@@ -14091,7 +14282,8 @@ namespace gaia {
 		public:
 			const_page_iterator_soa(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
-			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
+			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast):
+					m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
 					m_it = m_pPage->rbegin();
@@ -14257,7 +14449,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given page id \param sid exists
+			//! Checks if an item with a given page @a id exists
+			//! \param id Page id
 			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
 				const auto pid = size_type(id >> ToPageIndex);
 				if (pid >= m_pages.size())
@@ -14268,14 +14461,16 @@ namespace gaia {
 				return did < val && m_pages[pid].has_data(did);
 			}
 
-			//! Checks if an item \param arg exists within the storage
+			//! Checks if an item @a arg exists within the storage
+			//! \param arg Data
 			GAIA_NODISCARD bool has(const T& arg) const noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
 				return has(id);
 			}
 
-			//! Inserts the item \param arg into the storage.
+			//! Inserts the item @a arg into the storage.
+			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
@@ -14303,7 +14498,8 @@ namespace gaia {
 					return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index \param id.
+			//! Update the record at the index @a id.
+			//! \param id Page id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
@@ -14315,7 +14511,8 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index \param id from the storage.
+			//! Removes the item at the index @a id from the storage.
+			//! \param id Page id
 			void del(page_storage_id id) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
@@ -14331,7 +14528,8 @@ namespace gaia {
 				--m_itemCnt;
 			}
 
-			//! Removes the item \param arg from the storage.
+			//! Removes the item @a arg from the storage.
+			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				return del(id);
@@ -14630,7 +14828,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 				GAIA_ASSERT(pos >= data());
@@ -14649,7 +14849,9 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 				GAIA_ASSERT(pos >= data());
@@ -15280,7 +15482,9 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 				GAIA_ASSERT(pos >= data());
@@ -15298,7 +15502,9 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator \param pos
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 				GAIA_ASSERT(pos >= data());
@@ -17127,14 +17333,16 @@ namespace gaia {
 				return id != detail::InvalidDenseId;
 			}
 
-			//! Checks if an item \param arg exists within the storage
+			//! Checks if an item @a arg exists within the storage
+			//! \param arg Data
 			GAIA_NODISCARD bool has(const T& arg) const {
 				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 				return has(sid);
 			}
 
-			//! Inserts the item \param arg into the storage.
+			//! Inserts the item @a arg into the storage.
+			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
@@ -17157,7 +17365,8 @@ namespace gaia {
 				return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index \param sid.
+			//! Update the record at the index @a sid.
+			//! \param sid Sparse id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(sparse_id sid) {
 				GAIA_ASSERT(has(sid));
@@ -17169,7 +17378,8 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index \param sid from the storage.
+			//! Removes the item at the index @a sid from the storage.
+			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
@@ -17195,7 +17405,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Removes the item \param arg from the storage.
+			//! Removes the item @a arg from the storage.
+			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto sid = to_sparse_id<T>::get(arg);
 				return del(sid);
@@ -17430,8 +17641,8 @@ namespace gaia {
 			}
 
 		public:
-			//! Inserts the item \param arg into the storage.
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! Registers a new sparse id.
+			//! \param sid Sparse id
 			void add(sparse_id sid) {
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
@@ -17448,7 +17659,8 @@ namespace gaia {
 				page.set_id(did) = m_cnt++;
 			}
 
-			//! Removes the item at the index \param sid from the storage.
+			//! Removes a sparse id from storage.
+			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
@@ -18255,7 +18467,7 @@ namespace gaia {
 		//! Signal is a container of listener which it can notify.
 		//! It works directly with references to classes and pointers to both free and member functions.
 		//! \tparam Ret Return type of a function type.
-		//! \tparam* Args Types of arguments of a function type.
+		//! \tparam Args Types of arguments of a function type.
 		template <typename Ret, typename... Args>
 		class signal<Ret(Args...)> {
 			friend class sink<Ret(Args...)>;
@@ -18314,7 +18526,6 @@ namespace gaia {
 			//! Moves signals from another sink to this one. Result is stored in this object.
 			//! The sink we merge from is cleared.
 			//! \param other Sink to move signals from
-			//! \param compact If true the detail container is reallocated so as little memory as possible is used by it.
 			void move_from(sink& other) {
 				m_s->m_listeners.reserve(m_s->m_listeners.size() + other.m_s->m_listeners.size());
 				for (auto&& listener: other.m_s->m_listeners)
@@ -18351,7 +18562,7 @@ namespace gaia {
 			//! \param func Function to bind to the signal.
 			//! \param data User defined arbitrary ctx.
 			void bind(func_type* func, const void* data = nullptr) {
-				if (!func && data == nullptr)
+				if (func == nullptr && data == nullptr)
 					return;
 
 				delegate<Ret(Args...)> call{};
@@ -18372,8 +18583,8 @@ namespace gaia {
 			}
 
 			//! Unbinds a free function with context or a bound member from a signal.
-			//! \tparam** FuncToUnbind Function or member to unbind from the signal.
-			//! \tparam Type Type of class or type of** context.
+			//! \tparam FuncToUnbind Function or member to unbind from the signal.
+			//! \tparam Type Type of class or type of context.
 			//! \param value_or_instance A valid object that fits the purpose.
 			template <auto FuncToUnbind, typename Type>
 			void unbind(Type& value_or_instance) {
@@ -18853,9 +19064,10 @@ namespace gaia {
 				WakeUp
 			};
 
+			//! Suspends the caller on the futex while its value remains @a expected.
 			//! \param pFutexValue Target futex
 			//! \param expected Expected futex value
-			//! \param wakeMask Mask of waiters to wait for
+			//! \param waitMask Mask of waiters to wait for
 			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
 				GAIA_PROF_SCOPE(futex::wait);
 
@@ -18883,6 +19095,7 @@ namespace gaia {
 				return Result::WakeUp;
 			}
 
+			//! Wakes up to @a wakeCount waiters whose @a waitMask matches @a wakeMask.
 			//! \param pFutexValue Target futex
 			//! \param wakeCount How many waiters are supposed to make up
 			//! \param wakeMask Mask of callers to wake
@@ -19599,8 +19812,9 @@ namespace gaia {
 				return handle;
 			}
 
-			//! Invalidates \param jobHandle by resetting its index in the job pool.
+			//! Invalidates @a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
+			//! \param jobHandle Job handle.
 			//! \warning Must be used from the main thread.
 			void free_job(JobHandle jobHandle) {
 				auto& jobData = m_jobData.free(jobHandle);
@@ -19646,16 +19860,20 @@ namespace gaia {
 				// jobData.edges.pDeps = nullptr;
 			}
 
-			//! Makes \param jobSecond depend on \param jobFirst.
-			//! This means \param jobSecond will run only after \param jobFirst finishes.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on @a jobFirst.
+			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! \param jobFirst The job that must complete first.
+			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
-			//! This means \param jobSecond will run only after all \param jobsFirst finish.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
 
@@ -19681,11 +19899,12 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
-			//! Makes \param jobsFirst depend on the jobs listed in \param jobSecond.
-			//! This means \param jobSecond will run only after all \param jobsFirst finish.
-			//! \note Rather than calling dep() this is the call that needs to be made when
-			//!       provided job handles are reused.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \note Unlike dep() this function needs to be called when job handles are reused.
+			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
 
@@ -20172,7 +20391,7 @@ namespace gaia {
 			}
 
 			//! Set the maximum number of workers for this system.
-			//! \param count Requested number of worker threads to create
+			//! \param count Requested number of worker threads to create.
 			//! \param countHighPrio HighPrio Number of high-priority workers to create.
 			//!                      Calculated as Max(count, countHighPrio).
 			//! \warning All jobs are finished first before threads are recreated.
@@ -20210,8 +20429,9 @@ namespace gaia {
 				set_workers_high_prio_inter(workerIdx, countHighPrio);
 			}
 
-			//! Updates the number of worker threads participating at high priority workloads
-			//! \param count Number of high priority workers
+			//! Updates the number of worker threads participating at high priority workloads.
+			//! \param[out] workerIdx Number of high priority workers.
+			//! \param count Requested number of high priority workers.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_high_prio_inter(uint32_t& workerIdx, uint32_t count) {
 				count = gaia::core::get_min(count, m_workers.size());
@@ -20228,7 +20448,9 @@ namespace gaia {
 				create_worker_threads(workerIdx, JobPriority::Low, m_workersCnt[1]);
 			}
 
-			//! Updates the number of worker threads participating at low priority workloads
+			//! Updates the number of worker threads participating at low priority workloads.
+			//! \param[out] workerIdx Number of low priority workers.
+			//! \param count Requested number of low priority workers.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_low_prio_inter(uint32_t& workerIdx, uint32_t count) {
 				const uint32_t realCnt = gaia::core::get_max(count, m_workers.size());
@@ -20265,51 +20487,55 @@ namespace gaia {
 				set_workers_low_prio_inter(workerIdx, count);
 			}
 
-			//! Makes \param jobSecond depend on \param jobFirst.
-			//! This means \param jobSecond will run only after \param jobFirst finishes.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on @a jobFirst.
+			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! \param jobFirst The job that must complete first.
+			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
 
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
-			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
 
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
-			//! Makes \param jobSecond depend on \param jobFirst.
-			//! This means \param jobSecond will run only after \param jobFirst finishes.
-			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
-			//!       This is the function to call after job handles states were reset and their reused is wanted.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on @a jobFirst.
+			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! \param jobFirst The job that must complete first.
+			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \note Unlike dep() this function needs to be called when job handles are reused.
+			//! \warning This must be called before any of the listed jobs are scheduled.
+			//! \warning This must be called from the main thread.
 			void dep_refresh(JobHandle jobFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
 
 				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes \param jobSecond depend on the jobs listed in \param jobsFirst.
-			//! This means \param jobSecond will run only after all \param jobsFirst jobs finish.
-			//! \note Unlike dep() this doesn't recreate the paths, it only sets the dependency counter.
-			//!       This is the function to call after job handles states were reset and their reused is wanted.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
+			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! \param jobsFirst Jobs that must complete first.
+			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \note Unlike dep() this function needs to be called when job handles are reused.
+			//! \warning This must be called before any of the listed jobs are scheduled.
+			//! \warning This must be called from the main thread.
 			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
 
 				m_jobManager.dep_refresh(jobsFirst, jobSecond);
 			}
 
-			//! Creates a threadpool job from \param job.
+			//! Creates a threadpool job from @a job.
 			//! \warning Must be used from the main thread.
 			//! \warning Can't be called while there are any jobs being executed.
 			//! \return Job handle of the scheduled job.
@@ -20340,7 +20566,7 @@ namespace gaia {
 			}
 
 		public:
-			//! Deletes a job handle \param jobHandle from the threadpool.
+			//! Deletes a job handle @a jobHandle from the threadpool.
 			//! \warning Job handle must not be used by any worker thread and can not be used
 			//!          by any active job handles as a dependency.
 			void del([[maybe_unused]] JobHandle jobHandle) {
@@ -20360,7 +20586,7 @@ namespace gaia {
 				m_jobManager.free_job(jobHandle);
 			}
 
-			//! Pushes \param jobHandles into the internal queue so worker threads
+			//! Pushes @a jobHandles into the internal queue so worker threads
 			//! can pick them up and execute them.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
@@ -20391,7 +20617,7 @@ namespace gaia {
 				process(std::span(pHandles, cnt), ctx);
 			}
 
-			//! Pushes \param jobHandle into the internal queue so worker threads
+			//! Pushes @a jobHandle into the internal queue so worker threads
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
@@ -20545,8 +20771,8 @@ namespace gaia {
 			}
 
 			//! Wait until a job associated with the jobHandle finishes executing.
-			//! Cleans up any job allocations and dependencies associated with \param jobHandle
-			//! The calling thread participate in job processing until \param jobHandle is done.
+			//! Cleans up any job allocations and dependencies associated with @a jobHandle
+			//! The calling thread participate in job processing until @a jobHandle is done.
 			void wait(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(tp::wait);
 
@@ -22258,6 +22484,7 @@ namespace gaia {
 			//! Creates an "add" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
+			//! \param hash Archetype hash.
 			void add_edge_right(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
 				add_edge(m_edgesAdd, entity, archetypeId, hash);
 			}
@@ -22265,27 +22492,32 @@ namespace gaia {
 			//! Creates a "del" edge in the graph leading to the target archetype.
 			//! \param entity Edge entity.
 			//! \param archetypeId Target archetype.
+			//! \param hash Archetype hash.
 			void add_edge_left(Entity entity, ArchetypeId archetypeId, ArchetypeIdHash hash) {
 				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
-			//! Deletes the "add" edge formed by the entity \param entity.
+			//! Deletes the "add" edge formed by the entity @a entity.
+			//! \param entity Edge entity.
 			void del_edge_right(Entity entity) {
 				del_edge(m_edgesAdd, entity);
 			}
 
-			//! Deletes the "del" edge formed by the entity \param entity.
+			//! Deletes the "del" edge formed by the entity @a entity.
+			//! \param entity Edge entity.
 			void del_edge_left(Entity entity) {
 				del_edge(m_edgesDel, entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity \param entity exists.
+			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity \param entity exists.
+			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return find_edge(m_edgesDel, entity);
@@ -22966,12 +23198,21 @@ namespace gaia {
 			static constexpr bool IsDirectHashKey = true;
 
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
-			//! Constructor calculating hash from the provided string \param pStr and \param length
+
+			//! Constructor calculating hash from the provided string @a pStr and @a len.
+			//! \param pStr Pointer to the string
+			//! \param len Number of characters
+			//! \param owned True if the string is owned
 			//! \warning String has to be null-terminated and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owner):
-					m_pStr(pStr), m_len(len), m_owned(owner), m_hash(calc(pStr, len)) {}
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned):
+					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(calc(pStr, len)) {}
+
 			//! Constructor just for setting values
+			//! \param pStr Pointer to the string
+			//! \param len Number of characters
+			//! \param owned True if the string is owned
+			//! \param hash String hash
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 
@@ -23597,7 +23838,8 @@ namespace gaia {
 				}
 			}
 
-			//! Searches for the component cache item given the \param compDescId.
+			//! Searches for the component cache item given the @a compDescId.
+			//! \param compDescId Component descriptor id
 			//! \return Component info or nullptr it not found.
 			GAIA_NODISCARD const ComponentCacheItem* find(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
@@ -23613,7 +23855,8 @@ namespace gaia {
 				return it != m_itemByDescId.end() ? it->second : nullptr;
 			}
 
-			//! Returns the component cache item given the \param compDescId.
+			//! Returns the component cache item given the @a compDescId.
+			//! \param compDescId Component descriptor id
 			//! \return Component info
 			//! \warning It is expected the component item with the given id exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(detail::ComponentDescId compDescId) const noexcept {
@@ -23630,7 +23873,6 @@ namespace gaia {
 
 			//! Searches for the component cache item.
 			//! \param entity Entity associated with the component item.
-			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
 				GAIA_ASSERT(!entity.pair());
@@ -24220,7 +24462,8 @@ namespace gaia {
 					return m_data.data();
 				}
 
-				//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+				//! Makes sure there is enough capacity in our data container to hold another @a size bytes of data.
+				//! \param size Minimum number of free bytes at the end of the buffer.
 				void reserve(uint32_t size) {
 					const auto nextSize = m_dataPos + size;
 					if (nextSize <= bytes())
@@ -24232,16 +24475,20 @@ namespace gaia {
 					m_data.reserve(newCapacity);
 				}
 
+				//! Resizes the internal buffer to @a size bytes.
+				//! \param size Position in the buffer to move to.
 				void resize(uint32_t size) {
 					m_data.resize(size);
 				}
 
-				//! Changes the current position in the buffer
+				//! Changes the current position in the buffer.
+				//! \param pos Position in the buffer to move to.
 				void seek(uint32_t pos) {
 					m_dataPos = pos;
 				}
 
-				//! Advances \param size bytes from the current buffer position
+				//! Advances @a size bytes from the current buffer position.
+				//! \param size Number of bytes to skip
 				void skip(uint32_t size) {
 					m_dataPos += size;
 				}
@@ -24251,7 +24498,8 @@ namespace gaia {
 					return m_dataPos;
 				}
 
-				//! Writes \param value to the buffer
+				//! Writes @a value to the buffer
+				//! \param value Value to store
 				template <typename T>
 				void save(T&& value) {
 					reserve((uint32_t)sizeof(T));
@@ -24265,7 +24513,10 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
+				//! Writes @a size bytes of data starting at the address @a pSrc to the buffer
+				//! \param pSrc Pointer to serialized data
+				//! \param size Size of serialized data in bytes
+				//! \param id Type of serialized data
 				void save_raw(const void* pSrc, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
 					if (size == 0)
 						return;
@@ -24281,7 +24532,8 @@ namespace gaia {
 					m_dataPos += size;
 				}
 
-				//! Loads \param value from the buffer
+				//! Loads @a value from the buffer
+				//! \param[out] value Value to load
 				template <typename T>
 				void load(T& value) {
 					GAIA_ASSERT(m_dataPos + (uint32_t)sizeof(T) <= bytes());
@@ -24292,7 +24544,10 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
+				//! Loads @a size bytes of data from the buffer and writes it to the address @a pDst
+				//! \param[out] pDst Pointer to where deserialized data is written
+				//! \param size Size of serialized data in bytes
+				//! \param id Type of serialized data
 				void load_raw(void* pDst, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
 					if (size == 0)
 						return;
@@ -24497,7 +24752,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only span of the component data.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \return Span of read-only component data.
 			template <typename T>
@@ -24554,7 +24809,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 			//! \return Span of read-write component data.
@@ -24633,7 +24888,7 @@ namespace gaia {
 
 		public:
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component with \param compIdx is present. Undefined behavior otherwise.
+			//! \warning It is expected the component with @a compIdx is present. Undefined behavior otherwise.
 			//! \param compIdx Component index
 			//! \param row Row of entity in the chunk
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
@@ -24655,9 +24910,9 @@ namespace gaia {
 			}
 
 		private:
-			//! Returns the value stored in the component \tparam T on \param row in the chunk.
-			//! \warning It is expected the \param row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! Returns the value stored in the component @a T on @a row in the chunk.
+			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param row Row of entity in the chunk
 			//! \return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
@@ -24711,7 +24966,6 @@ namespace gaia {
 			}
 
 			//! Allocates memory for a new chunk.
-			//! \param chunkIndex Index of this chunk within the parent archetype
 			//! \return Newly allocated chunk
 			static Chunk* create(
 					const World& wld, const ComponentCache& cc, //
@@ -24742,7 +24996,7 @@ namespace gaia {
 				return pChunk;
 			}
 
-			//! Releases all memory allocated by \param pChunk.
+			//! Releases all memory allocated by @a pChunk.
 			//! \param pChunk Chunk which we want to destroy
 			static void free(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
@@ -24837,7 +25091,6 @@ namespace gaia {
 
 			//! Remove the last entity from a chunk.
 			//! If as a result the chunk becomes empty it is scheduled for deletion.
-			//! \param chunksToDelete Container of chunks ready for deletion
 			void remove_last_entity() {
 				// Should never be called over an empty chunk
 				GAIA_ASSERT(!empty());
@@ -24857,7 +25110,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -24885,7 +25138,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -24917,7 +25170,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -25008,7 +25261,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -25030,7 +25283,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -25068,7 +25321,7 @@ namespace gaia {
 
 			GAIA_NODISCARD uint8_t* comp_ptr_mut(uint32_t compIdx, uint32_t offset) {
 				const auto& rec = m_records.pRecords[compIdx];
-				return rec.pData + (uintptr_t)rec.comp.size() * offset;
+				return rec.pData + ((uintptr_t)rec.comp.size() * offset);
 			}
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx) const {
@@ -25078,7 +25331,7 @@ namespace gaia {
 
 			GAIA_NODISCARD const uint8_t* comp_ptr(uint32_t compIdx, uint32_t offset) const {
 				const auto& rec = m_records.pRecords[compIdx];
-				return rec.pData + (uintptr_t)rec.comp.size() * offset;
+				return rec.pData + ((uintptr_t)rec.comp.size() * offset);
 			}
 
 			//! Make \param entity a part of the chunk at the version of the world.
@@ -25095,7 +25348,10 @@ namespace gaia {
 				return row;
 			}
 
-			//! Copies all data associated with \param srcEntity into \param dstEntity.
+			//! Copies all data associated with @a srcEntity into @a dstEntity.
+			//! \param srcEntity Source entity
+			//! \param dstEntity Destination entity
+			//! \param recs Entity containers
 			static void copy_entity_data(Entity srcEntity, Entity dstEntity, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::copy_entity_data);
 
@@ -25123,7 +25379,10 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
+			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! \param entity Entity to move
+			//! \param row Entity's row within its chunk
+			//! \param recs Entity containers
 			void move_entity_data(Entity entity, uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::move_entity_data);
 
@@ -25144,7 +25403,11 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with \param entity into the chunk so that it is stored at the row \param row.
+			//! Copies all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! \param pSrcChunk Source chunk
+			//! \param srcRow Row in source chunk
+			//! \param pDstChunk Destination chunk
+			//! \param dstRow Row in destination chunk
 			static void copy_foreign_entity_data(Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow) {
 				GAIA_PROF_SCOPE(Chunk::copy_foreign_entity_data);
 
@@ -25203,7 +25466,11 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
+			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! \param pSrcChunk Source chunk
+			//! \param srcRow Row in source chunk
+			//! \param pDstChunk Destination chunk
+			//! \param dstRow Row in destination chunk
 			static void move_foreign_entity_data(Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow) {
 				GAIA_PROF_SCOPE(Chunk::move_foreign_entity_data);
 
@@ -25262,10 +25529,12 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at \param row.
+			//! Tries to remove the entity at @a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
+			//! \param row Row within a chunk
+			//! \param recs Entity containers
 			void remove_entity_inter(uint16_t row, EntityContainers& recs) {
 				GAIA_PROF_SCOPE(Chunk::remove_entity_inter);
 
@@ -25323,10 +25592,12 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at row \param row.
+			//! Tries to remove the entity at row @a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
+			//! \param row Row within a chunk
+			//! \param recs Entity containers
 			void remove_entity(uint16_t row, EntityContainers& recs) {
 				if GAIA_UNLIKELY (m_header.count == 0)
 					return;
@@ -25354,9 +25625,12 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.
+			//! Tries to swap the entity at row @a rowA with the one at the row @a rowB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If \param rowA equals \param rowB no swapping is performed.
+			//! If @a rowA equals @a rowB no swapping is performed.
+			//! \param rowA Row of the entityA within chunk
+			//! \param rowB Row of the entityB within chunk
+			//! \param[out] recs Entity container records
 			//! \warning "rowA" must he smaller or equal to "rowB"
 			void swap_chunk_entities(uint16_t rowA, uint16_t rowB, EntityContainers& recs) {
 				// If there are at least two different entities inside to swap
@@ -25394,10 +25668,12 @@ namespace gaia {
 				ecB.row = rowA;
 			}
 
-			//! Tries to swap the entity at row \param rowA with the one at the row \param rowB.
+			//! Tries to swap @a entityA with @a entityB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If \param rowA equals \param rowB no swapping is performed.
-			//! \warning "rowA" must he smaller or equal to "rowB"
+			//! If @a entityA and @a entityB are the same entity no swapping is performed.
+			//! \param world Parent world
+			//! \param entityA First entity
+			//! \param entityB Second entity
 			static void swap_chunk_entities(World& world, Entity entityA, Entity entityB) {
 				// Don't swap if the two entities are the same
 				if GAIA_UNLIKELY (entityA == entityB)
@@ -25445,8 +25721,8 @@ namespace gaia {
 
 			//! Enables or disables the entity on a given row in the chunk.
 			//! \param row Row of the entity within chunk
-			//! \param enableEntity Enables or disabled the entity
-			//! \param entities Span of entity container records
+			//! \param enableEntity Enables or disables the entity
+			//! \param recs Entity container records
 			void enable_entity(uint16_t row, bool enableEntity, EntityContainers& recs) {
 				GAIA_ASSERT(row < m_header.count && "Entity chunk row out of bounds!");
 
@@ -25561,7 +25837,7 @@ namespace gaia {
 			// Check component presence
 			//----------------------------------------------------------------------
 
-			//! Checks if a component/entity \param entity is present in the chunk.
+			//! Checks if a component/entity @a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if found. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
@@ -25569,7 +25845,7 @@ namespace gaia {
 				return core::has(ids, entity);
 			}
 
-			//! Checks if component \tparam T is present in the chunk.
+			//! Checks if component @a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -25588,11 +25864,10 @@ namespace gaia {
 			// Set component data
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the unique component \tparam T on \param row in the chunk.
+			//! Sets the value of the unique component @a T on @a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \param value Value to set for the component
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
@@ -25608,11 +25883,10 @@ namespace gaia {
 				return view_mut<T>()[row];
 			}
 
-			//! Sets the value of a generic entity \param type at the position \param row in the chunk.
+			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \param value New component value
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
 				verify_comp<T>();
@@ -25637,11 +25911,10 @@ namespace gaia {
 				return view_mut<T>()[row];
 			}
 
-			//! Sets the value of the unique component \tparam T on \param row in the chunk.
+			//! Sets the value of the unique component @a T on @a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \param value Value to set for the component
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row) {
@@ -25653,10 +25926,10 @@ namespace gaia {
 				return sview_mut<T>()[row];
 			}
 
-			//! Sets the value of a generic entity \param type at the position \param row in the chunk.
+			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
+			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \param value New component value
 			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
@@ -25683,11 +25956,11 @@ namespace gaia {
 			// Read component data
 			//----------------------------------------------------------------------
 
-			//! Returns the value stored in the generic component \tparam T on \param row in the chunk.
-			//! \warning It is expected the \param row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! Returns the value stored in the generic component @a T on @a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
+			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
@@ -25697,9 +25970,9 @@ namespace gaia {
 				return comp_inter<T>(row);
 			}
 
-			//! Returns the value stored in the unique component \tparam T.
-			//! \warning It is expected the unique component \tparam T is present. Undefined behavior otherwise.
+			//! Returns the value stored in the unique component @a T.
 			//! \tparam T Component or pair
+			//! \warning It is expected the unique component @a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
@@ -25710,15 +25983,16 @@ namespace gaia {
 				return comp_inter<T>(0);
 			}
 
-			//! Returns the internal index of a component based on the provided \param entity.
+			//! Returns the internal index of a component based on the provided @a entity.
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
-			//! Returns the internal index of a component based on the provided \param entity.
+			//! Returns the internal index of a component based on the provided @a entity.
 			//! \param entity Component
+			//! \param offset Component offset
 			//! \return Component index if the component was found. -1 otherwise.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity, uint32_t offset) const {
 				return ecs::comp_idx({m_records.pCompEntities + offset, m_header.count - offset}, entity);
@@ -26473,6 +26747,7 @@ namespace gaia {
 			//! \param pChunk Chunk the entity belongs to
 			//! \param row Row of the entity
 			//! \param enableEntity Enables the entity
+			//! \param recs Entity containers
 			void enable_entity(Chunk* pChunk, uint16_t row, bool enableEntity, EntityContainers& recs) {
 				pChunk->enable_entity(row, enableEntity, recs);
 				// m_disabledMask.set(pChunk->idx(), enableEntity ? true : pChunk->has_disabled_entities());
@@ -27061,6 +27336,7 @@ namespace gaia {
 			}
 
 			//! Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
+			//! \param world Parent world
 			//! \param archetype Archetype to run diagnostics on
 			static void diag(const World& world, const Archetype& archetype) {
 				diag_basic_info(world, archetype);
@@ -27638,8 +27914,9 @@ namespace gaia {
 		}
 
 		//! Finds the index at which the provided component id is located in the component array
-		//! \param pComps Pointer to the start of the component array
+		//! \param pTerms Pointer to the start of the terms array
 		//! \param entity Entity we search for
+		//! \param src Source entity
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
@@ -27779,7 +28056,7 @@ namespace gaia {
 				}
 
 				//! Returns a read-only entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
@@ -27804,7 +28081,7 @@ namespace gaia {
 				}
 
 				//! Returns a mutable entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
@@ -27832,7 +28109,7 @@ namespace gaia {
 
 				//! Returns a mutable component view.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
@@ -27856,7 +28133,7 @@ namespace gaia {
 					}
 				}
 
-				//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+				//! Marks the component @a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
@@ -27866,7 +28143,7 @@ namespace gaia {
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -27877,7 +28154,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
 				//! Value and const types are considered immutable. Anything else is mutable.
 				//! Doesn't update the world version when read-write access is acquired.
-				//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -27892,21 +28169,21 @@ namespace gaia {
 					return m_pChunk->enabled(row);
 				}
 
-				//! Checks if entity \param entity is present in the chunk.
+				//! Checks if entity @a entity is present in the chunk.
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
 					return m_pChunk->has(entity);
 				}
 
-				//! Checks if relationship pair \param pair is present in the chunk.
+				//! Checks if relationship pair @a pair is present in the chunk.
 				//! \param pair Relationship pair
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Pair pair) const {
 					return m_pChunk->has((Entity)pair);
 				}
 
-				//! Checks if component \tparam T is present in the chunk.
+				//! Checks if component @a T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
@@ -28074,7 +28351,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
@@ -28083,7 +28360,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
@@ -28093,7 +28370,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
@@ -28101,7 +28378,7 @@ namespace gaia {
 				return m_pChunk->sview_mut<T>(from(), to());
 			}
 
-			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
@@ -28111,7 +28388,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -28122,7 +28399,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -28137,21 +28414,21 @@ namespace gaia {
 				return m_pChunk->enabled(row);
 			}
 
-			//! Checks if entity \param entity is present in the chunk.
+			//! Checks if entity @a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				return m_pChunk->has(entity);
 			}
 
-			//! Checks if relationship pair \param pair is present in the chunk.
+			//! Checks if relationship pair @a pair is present in the chunk.
 			//! \param pair Relationship pair
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return m_pChunk->has((Entity)pair);
 			}
 
-			//! Checks if component \tparam T is present in the chunk.
+			//! Checks if component @a T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -28232,7 +28509,7 @@ namespace gaia {
 			const Chunk* m_pChunk;
 			uint16_t m_row;
 
-			//! Returns the value stored in the component \tparam T on \param entity.
+			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
@@ -28284,7 +28561,7 @@ namespace gaia {
 				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row, type);
 			}
 
-			//! Sets the value of the component \param type.
+			//! Sets the value of the component @a type.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
@@ -28551,8 +28828,13 @@ namespace gaia {
 					return true;
 				}
 
-				//! Tries to match ids in \param queryIds with ids in \param archetypeIds given
-				//! the comparison function \param func bool(Entity queryId, Entity archetypeId).
+				//! Tries to match ids in @a queryIds with ids in @a archetypeIds given
+				//! the comparison function @a func bool(Entity queryId, Entity archetypeId).
+				//! \tparam OpKind Operation kind
+				//! \tparam CmpFunc Comparison function
+				//! \param queryIds Entity ids inside archetype
+				//! \param archetypeIds Entity ids inside archetype
+				//! \param func Comparison function
 				//! \return True if there is a match, false otherwise.
 				template <typename OpKind, typename CmpFunc>
 				GAIA_NODISCARD inline bool match_inter(EntitySpan queryIds, EntitySpan archetypeIds, CmpFunc func) {
@@ -28769,8 +29051,11 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				//! Tries to match entity ids in \param queryIds with those in \param archetype given
-				//! the comparison function \param func. Does not consider Is relationships.
+				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Does not consider Is relationships.
+				//! \tparam OpKind Operation kind
+				//! \param archetype Archetype checked against
+				//! \param queryIds Entity ids to match
 				//! \return True on the first match, false otherwise.
 				template <typename OpKind>
 				GAIA_NODISCARD inline bool match_res(const Archetype& archetype, EntitySpan queryIds) {
@@ -28794,8 +29079,11 @@ namespace gaia {
 							});
 				}
 
-				//! Tries to match entity ids in \param queryIds with those in \param archetype given
-				//! the comparison function \param func. Considers Is relationships.
+				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! \tparam OpKind Kind of VM operation
+				//! \param w Parent world
+				//! \param archetype Archetype checked against
+				//! \param queryIds Entity ids to match
 				//! \return True on the first match, false otherwise.
 				template <typename OpKind>
 				GAIA_NODISCARD inline bool match_res_as(const World& w, const Archetype& archetype, EntitySpan queryIds) {
@@ -29665,8 +29953,11 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
-			//! Tries to match the query against archetypes in \param entityToArchetypeMap.
+			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			//! \param entityToArchetypeMap Map of all archetypes
+			//! \param allArchetypes List of all archetypes
+			//! \param archetypeLastId Last recorded archetype id
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			void match(
 					// entity -> archetypes mapping
@@ -30265,8 +30556,8 @@ namespace gaia {
 				m_entityToQuery.clear();
 			}
 
-			//! Returns a QueryInfo object stored at the index \param idx.
-			//! \param idx Index of the QueryInfo we try to retrieve
+			//! Returns a QueryInfo object associated with @a handle.
+			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo* try_get(QueryHandle handle) {
 				if (!valid(handle))
@@ -30276,10 +30567,10 @@ namespace gaia {
 				GAIA_ASSERT(info.idx == handle.id());
 				GAIA_ASSERT(info.data.gen == handle.gen());
 				return &info;
-			};
+			}
 
-			//! Returns a QueryInfo object stored at the index \param idx.
-			//! \param idx Index of the QueryInfo we try to retrieve
+			//! Returns a QueryInfo object associated with @a handle.
+			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo& get(QueryHandle handle) {
 				GAIA_ASSERT(valid(handle));
@@ -30288,10 +30579,13 @@ namespace gaia {
 				GAIA_ASSERT(info.idx == handle.id());
 				GAIA_ASSERT(info.data.gen == handle.gen());
 				return info;
-			};
+			}
 
-			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
-			//! \return Reference a newly created or an already existing QueryInfo object.
+			//! Registers the provided query lookup context @a ctx. If it already exists it is returned.
+			//! \param ctx Query context
+			//! \param entityToArchetypeMap Map of all archetypes
+			//! \param allArchetypes Array of all archetypes
+			//! \return Reference to the newly created or an already existing QueryInfo object.
 			QueryInfo&
 			add(QueryCtx&& ctx, //
 					const EntityToArchetypeMap& entityToArchetypeMap, //
@@ -30328,7 +30622,9 @@ namespace gaia {
 				return info;
 			}
 
-			//! Deletes an existing QueryInfo object given the provided query lookup context \param ctx.
+			//! Deletes an existing QueryInfo object given the provided query handle.
+			//! \param handle Query handle
+			//! \return True if handle was found. False otherwise.
 			bool del(QueryHandle handle) {
 				auto* pInfo = try_get(handle);
 				if (pInfo == nullptr)
@@ -30363,6 +30659,7 @@ namespace gaia {
 			//! 1) X
 			//! 2) (*, X)
 			//! 3) (X, *)
+			//! \param entityKey Entity lookup key
 			void invalidate_queries_for_entity(EntityLookupKey entityKey) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
@@ -32244,9 +32541,9 @@ namespace gaia {
 				}
 
 				//! Appends all components or entities matching the query to the output array
-				//! \tparam outArray Container storing entities or components
+				//! \tparam Container Container type
+				//! \param[out] outArray Container storing entities or components
 				//! \param constraints QueryImpl constraints
-				//! \return Array with entities or components
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
 					const auto entCnt = count();
@@ -32284,7 +32581,7 @@ namespace gaia {
 					}
 				}
 
-				//!
+				//! Run diagnostics
 				void diag() {
 					// Make sure matching happened
 					auto& info = fetch();
@@ -32598,12 +32895,10 @@ namespace gaia {
 					m_targetNameKey = {};
 				}
 
-				//! Assigns a \param name to \param entity. Ignored if used with pair.
+				//! Assigns a @a name to entity. Ignored if used with pair.
 				//! The string is copied and kept internally.
-				//! \param entity Entity
-				//! \param name A null-terminated string
-				//! \param len String length. If zero, the length is calculated
-				//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+				//! \param name A null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
 				//! \warning Name is expected to be unique. If it is not this function does nothing.
 				//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 				//!          such as "parent.child.subchild".
@@ -32611,12 +32906,10 @@ namespace gaia {
 					name_inter<true>(name, len);
 				}
 
-				//! Assigns a \param name to \param entity. Ignored if used with pair.
+				//! Assigns a @a name to entity. Ignored if used with pair.
 				//! The string is NOT copied. Your are responsible for its lifetime.
-				//! \param entity Entity
-				//! \param name Pointer to a stable null-terminated string
-				//! \param len String length. If zero, the length is calculated
-				//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+				//! \param name Pointer to a stable null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
 				//! \warning The name is expected to be unique. If it is not this function does nothing.
 				//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 				//!          such as "parent.child.subchild".
@@ -32629,7 +32922,6 @@ namespace gaia {
 				}
 
 				//! Removes any name associated with the entity
-				//! \param entity Entity the name of which we want to delete
 				void del_name() {
 					if (m_entity.pair())
 						return;
@@ -32677,12 +32969,15 @@ namespace gaia {
 				}
 
 				//! Shortcut for add(Pair(Is, entityBase)).
-				//! Effectively makes an entity inherit from \param entityBase
+				//! Effectively makes an entity inherit from @a entityBase
+				//! \param entityBase Entity to inherit from
 				EntityBuilder& as(Entity entityBase) {
 					return add(Pair(Is, entityBase));
 				}
 
-				//! Check if \param entity inherits from \param entityBase
+				//! Check if @a entity inherits from @a entityBase
+				//! \param entity Source entity
+				//! \param entityBase Base entity
 				//! \return True if entity inherits from entityBase
 				GAIA_NODISCARD bool as(Entity entity, Entity entityBase) const {
 					return static_cast<const World&>(m_world).is(entity, entityBase);
@@ -33295,7 +33590,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Checks if \param entity is valid.
+			//! Checks if @a entity is valid.
+			//! \param entity Checked entity.
 			//! \return True if the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
 				return entity.pair() //
@@ -33305,7 +33601,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns the entity located at the index \param id
+			//! Returns the entity located at the index @a id
+			//! \param id Entity id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
 				GAIA_ASSERT(valid_entity_id(id));
@@ -33328,10 +33625,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk add/remove operation on \param entity.
+			//! Starts a bulk add/remove operation on @a entity.
 			//! \param entity Entity
 			//! \return EntityBuilder
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			EntityBuilder build(Entity entity) {
 				return EntityBuilder(*this, entity);
 			}
@@ -33343,14 +33640,17 @@ namespace gaia {
 				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
-			//! Creates \param count new empty entities
+			//! Creates @a count new empty entities
+			//! \param count Number of enities to create
 			//! \param func Functor to execute every time an entity is added
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(uint32_t count, Func func = func_void_with_entity) {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
-			//! Creates \param count of entities of the same archetype as \param entity.
+			//! Creates @a count of entities of the same archetype as @a entity.
+			//! \param entity Source entity to copy
+			//! \param count Number of enities to create
 			//! \param func Functor to execute every time an entity is added
 			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
 			//!       if they provide a constructor
@@ -33365,7 +33665,7 @@ namespace gaia {
 			}
 
 			//! Creates a new component if not found already.
-			//! \param kind Component kind
+			//! \tparam T Component
 			//! \return Component cache item of the component
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& add() {
@@ -33391,10 +33691,10 @@ namespace gaia {
 				return item;
 			}
 
-			//! Attaches entity \param object to entity \param entity.
+			//! Attaches entity @a object to entity @a entity.
 			//! \param entity Source entity
 			//! \param object Added entity
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void add(Entity entity, Entity object) {
 				EntityBuilder(*this, entity).add(object);
 			}
@@ -33402,29 +33702,29 @@ namespace gaia {
 			//! Creates a new entity relationship pair
 			//! \param entity Source entity
 			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
 				EntityBuilder(*this, entity).add(pair);
 			}
 
-			//! Attaches a new component \tparam T to \param entity.
+			//! Attaches a new component @a T to @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
 				EntityBuilder(*this, entity).add<T>();
 			}
 
-			//! Attaches \param object to \param entity. Also sets its value.
+			//! Attaches @a object to @a entity. Also sets its value.
 			//! \param object Object
 			//! \param entity Entity
 			//! \param value Value to set for the object
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected \param object is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a object is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
@@ -33437,12 +33737,12 @@ namespace gaia {
 				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
 			}
 
-			//! Attaches a new component \tparam T to \param entity. Also sets its value.
+			//! Attaches a new component @a T to @a entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				EntityBuilder builder(*this, entity);
@@ -33458,10 +33758,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Removes any component or entity attached to \param entity.
+			//! Removes any component or entity attached to @a entity.
 			//! \param entity Entity we want to remove any attached component or entity from
-			//! \warning It is expected \param entity is not a pair. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is not a pair. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			void clear(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
@@ -33481,8 +33781,8 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one.
 			//! \param srcEntity Entity to clone
 			//! \return New entity
-			//! \warning It is expected \param srcEntity is valid. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
+			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
@@ -33513,13 +33813,13 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates \param count new entities by cloning an already existing one.
+			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected \param entity is valid generic entity. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on \param srcEntity, it is not copied because names are
+			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -33673,10 +33973,10 @@ namespace gaia {
 				del_inter(entity);
 			}
 
-			//! Removes an \param object from \param entity if possible.
+			//! Removes an @a object from @a entity if possible.
 			//! \param entity Entity to delete from
 			//! \param object Entity to delete
-			//! \warning It is expected both \param entity and \param object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void del(Entity entity, Entity object) {
 				EntityBuilder(*this, entity).del(object);
 			}
@@ -33684,17 +33984,17 @@ namespace gaia {
 			//! Removes an existing entity relationship pair
 			//! \param entity Source entity
 			//! \param pair Pair
-			//! \warning It is expected both \param entity and the entities forming the relationship are valid.
+			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void del(Entity entity, Pair pair) {
 				EntityBuilder(*this, entity).del(pair);
 			}
 
-			//! Removes a component \tparam T from \param entity.
+			//! Removes a component @a T from @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void del(Entity entity) {
 				using CT = component_type_t<T>;
@@ -33712,16 +34012,20 @@ namespace gaia {
 				add(entity, Pair(Is, entityBase));
 			}
 
-			//! Checks if \param entity inherits from \param entityBase.
-			//! True if entity inherits from entityBase. False otherwise.
+			//! Checks if @a entity inherits from @a entityBase.
+			//! \param entity Entity
+			//! \param entityBase Base entity
+			//! \return True if entity is located in entityBase. False otherwise.
 			GAIA_NODISCARD bool is(Entity entity, Entity entityBase) const {
 				return is_inter<false>(entity, entityBase);
 			}
 
-			//! Checks if \param entity is located in \param entityBase.
+			//! Checks if @a entity is located in @a entityBase.
 			//! This is almost the same as "is" with the exception that false is returned
-			//! if \param entity matches \param entityBase
-			//! True if entity is located in entityBase. False otherwise.
+			//! if @a entity matches @a entityBase
+			//! \param entity Entity
+			//! \param entityBase Base entity
+			//! \return True if entity is located in entityBase. False otherwise.
 			GAIA_NODISCARD bool in(Entity entity, Entity entityBase) const {
 				return is_inter<true>(entity, entityBase);
 			}
@@ -33752,9 +34056,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Marks the component \tparam T as modified. Best used with acc_mut().sset() or set()
+			//! Marks the component @a T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
-			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			//! If @a TriggerHooks is true, also triggers the component's set hooks.
+			//! \tparam T Component type
+			//! \tparam TriggerHooks Triggers hooks if true
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -33777,11 +34083,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk set operation on \param entity.
+			//! Starts a bulk set operation on @a entity.
 			//! \param entity Entity
 			//! \return ComponentSetter
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
@@ -33789,24 +34095,24 @@ namespace gaia {
 				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component @a T on @a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) set(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				return acc_mut(entity).mut<T>();
 			}
 
-			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! Sets the value of the component @a T on @a entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -33815,12 +34121,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
+			//! Sets the value of the component T on entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
+			//! \warning It is expected entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -33829,11 +34135,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk get operation on \param entity.
+			//! Starts a bulk get operation on an entity.
 			//! \param entity Entity
 			//! \return ComponentGetter
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			//! \warning It is expected that entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			ComponentGetter acc(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
@@ -33841,13 +34147,13 @@ namespace gaia {
 				return ComponentGetter{ec.pChunk, ec.row};
 			}
 
-			//! Returns the value stored in the component \tparam T on \param entity.
+			//! Returns the value stored in the component T on entity.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return Value stored in the component.
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentGetter is created.
+			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
+			//! \warning It is expected entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
 				return acc(entity).get<T>();
@@ -33855,7 +34161,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Checks if \param entity is currently used by the world.
+			//! Checks if entity is currently used by the world.
+			//! \param entity Entity.
 			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				// Pair
@@ -33909,18 +34216,19 @@ namespace gaia {
 				}
 			}
 
-			//! Checks if \param pair is currently used by the world.
+			//! Checks if @a pair is currently used by the world.
+			//! \param pair Pair
 			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return has((Entity)pair);
 			}
 
-			//! Tells if \param entity contains the entity \param object.
+			//! Checks if @a entity contains the entity @a object.
 			//! \param entity Entity
 			//! \param object Tested entity
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
 				const auto& ec = fetch(entity);
 				if (is_req_del(ec))
@@ -33970,22 +34278,22 @@ namespace gaia {
 				return pArchetype->has(object);
 			}
 
-			//! Tells if \param entity contains \param pair.
+			//! Checks if @a entity contains @a pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
 				return has(entity, (Entity)pair);
 			}
 
-			//! Tells if \param entity contains the component \tparam T.
+			//! Checks if @a entity contains the component @a T.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return True if the component is present on entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
@@ -33999,12 +34307,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! Assigns a @a name to @a entity. Ignored if used with pair.
 			//! The string is copied and kept internally.
 			//! \param entity Entity
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -34012,12 +34320,12 @@ namespace gaia {
 				EntityBuilder(*this, entity).name(name, len);
 			}
 
-			//! Assigns a \param name to \param entity. Ignored if used with pair.
+			//! Assigns a @a name to @a entity. Ignored if used with pair.
 			//! The string is NOT copied. Your are responsible for its lifetime.
 			//! \param entity Entity
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning The name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -34029,10 +34337,10 @@ namespace gaia {
 				EntityBuilder(*this, entity).name_raw(name, len);
 			}
 
-			//! Returns the name assigned to \param entity.
+			//! Returns the name assigned to @a entity.
 			//! \param entity Entity
 			//! \return Name assigned to entity.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(Entity entity) const {
 				if (entity.pair())
 					return nullptr;
@@ -34054,16 +34362,16 @@ namespace gaia {
 				return pDesc->name;
 			}
 
-			//! Returns the name assigned to \param entityId.
+			//! Returns the name assigned to @a entityId.
 			//! \param entityId EntityId
 			//! \return Name assigned to entity.
-			//! \warning It is expected \param entityId is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const char* name(EntityId entityId) const {
 				auto entity = get(entityId);
 				return name(entity);
 			}
 
-			//! Returns the entity that is assigned a name \param name.
+			//! Returns the entity that is assigned a name @a name.
 			//! If the name contains the character '.' hierarchical lookup is use.
 			//! E.g. "parent.child.subchild" will return the entity for subchild is the entire
 			//! tree could be found by name.
@@ -34156,8 +34464,9 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns relations for \param target.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! Returns relations for @a target.
+			//! \param target Target entity
+			//! \warning It is expected @a target is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
 				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
 				if (it == m_targetsToRelations.end())
@@ -34166,9 +34475,11 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns the first relationship relation for the \param target entity on \param entity.
+			//! Returns the first relationship relation for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(target))
@@ -34196,9 +34507,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \param func void(Entity relation) functor executed for relationship relation found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -34225,10 +34538,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship relations for the \param target entity on \param entity.
+			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! \param entity Source entity
+			//! \param target Target entity
 			//! \param func bool(Entity relation) functor executed for relationship relation found.
 			//!             Stops if false is returned.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations_if(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -34296,8 +34611,9 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns targets for \param relation.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! Returns targets for @a relation.
+			//! \param relation Relation entity
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
 				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
 				if (it == m_relationsToTargets.end())
@@ -34306,9 +34622,11 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns the first relationship target for the \param relation entity on \param entity.
+			//! Returns the first relationship target for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(relation))
@@ -34336,9 +34654,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \param func void(Entity target) functor executed for relationship target found.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -34365,10 +34685,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship targets for the \param relation entity on \param entity.
+			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! \param entity Source entity
+			//! \param relation Relation entity
 			//! \param func bool(Entity target) functor executed for relationship target found.
 			//!             Stops if false is returned.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets_if(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -34465,7 +34787,7 @@ namespace gaia {
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
 				GAIA_ASSERT(valid(entity));
 
@@ -34480,7 +34802,7 @@ namespace gaia {
 			//! Checks if an entity is enabled.
 			//! \param entity Entity
 			//! \return True it the entity is enabled. False otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
@@ -34495,7 +34817,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns a chunk containing the \param entity.
+			//! Returns a chunk containing the @a entity.
+			//! \param entity Entity
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
@@ -34503,13 +34826,15 @@ namespace gaia {
 				return ec.pChunk;
 			}
 
-			//! Returns a chunk containing the \param entity.
-			//! Index of the entity is stored in \param indexInChunk
+			//! Returns a chunk containing the @a entity.
+			//! Index of the entity is stored in @a row
+			//! \param entity Entity
+			//! \param[out] row Row of @a entity within chunk
 			//! \return Chunk or nullptr if not found
-			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
+			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& row) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
 				const auto& ec = m_recs.entities[entity.id()];
-				indexInChunk = ec.row;
+				row = ec.row;
 				return ec.pChunk;
 			}
 
@@ -34525,7 +34850,8 @@ namespace gaia {
 				return m_worldVersion;
 			}
 
-			//! Sets maximal lifespan of an archetype \param entity belongs to.
+			//! Sets maximal lifespan of an archetype @a entity belongs to.
+			//! \param entity Entity
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
 			void set_max_lifespan(Entity entity, uint32_t lifespan = Archetype::MAX_ARCHETYPE_LIFESPAN) {
@@ -37983,7 +38309,9 @@ namespace gaia {
 					return temp;
 				}
 
-				//! Requests a component \tparam T to be added to \param entity.
+				//! Requests a component @a T to be added to @a entity.
+				//! \tparam T Component type
+				//! \param entity Destination entity
 				template <typename T>
 				void add(Entity entity) {
 					verify_comp<T>();
@@ -37995,15 +38323,20 @@ namespace gaia {
 					push_op({OpType::ADD_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests an entity \param other to be added to entity \param entity.
+				//! Requests an entity @a other to be added to entity @a entity.
+				//! \param entity Destination entity
+				//! \param other Entity to add to @a entity
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
-				//! Requests a component \tparam T to be added to entity. Also sets its value.
-				//! \warning Component \tparam T should be registered in the world before calling this function.
+				//! Requests a component @a T to be added to entity. Also sets its value.
+				//! \tparam T Component type
+				//! \param entity Destination entity
+				//! \param value Component value
+				//! \warning Component @a T should be registered in the world before calling this function.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T>
 				void add(Entity entity, T&& value) {
@@ -38019,7 +38352,10 @@ namespace gaia {
 				}
 
 				//! Requests component data to be set to given values for a given entity.
-				//! \warning Component \tparam T must be registered in the world before calling this function.
+				//! \tparam T Component type
+				//! \param entity Destination entity
+				//! \param value Component value
+				//! \warning Component @a T must be registered in the world before calling this function.
 				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
 				void set(Entity entity, T&& value) {
@@ -38034,15 +38370,18 @@ namespace gaia {
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
-				//! Requests an existing \param entity to be removed.
+				//! Requests an existing @a entity to be removed.
+				//! \param entity Entity to remove
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::DEL_ENTITY, 0, entity, EntityBad});
 				}
 
-				//! Requests removal of component \tparam T from \param entity.
-				//! \warning Component \tparam T must be registered in the world before calling this function.
+				//! Requests removal of component @a T from @a entity.
+				//! \tparam T Component type
+				//! \param entity Source entity
+				//! \warning Component @a T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
 				template <typename T>
 				void del(Entity entity) {
@@ -38055,7 +38394,9 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests removal of entity \param object from entity \param entity.
+				//! Requests removal of entity @a object from entity @a entity.
+				//! \param entity Source entity
+				//! \param object Entity to remove
 				void del(Entity entity, Entity object) {
 					core::lock_scope lock(m_acc);
 
