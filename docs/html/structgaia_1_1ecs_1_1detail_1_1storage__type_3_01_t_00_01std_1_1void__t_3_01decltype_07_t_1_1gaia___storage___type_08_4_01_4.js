@@ -1,4 +1,0 @@
-var structgaia_1_1ecs_1_1detail_1_1storage__type_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1gaia___storage___type_08_4_01_4 =
-[
-    [ "value", "structgaia_1_1ecs_1_1detail_1_1storage__type_3_01_t_00_01std_1_1void__t_3_01decltype_07_t_1_1gaia___storage___type_08_4_01_4.html#a1c132a85474ecd68cc376913879d654b", null ]
-];

@@ -1,5 +1,0 @@
-var structgaia_1_1ecs_1_1detail_1_1actual__type_3_01_t_00_01std_1_1enable__if__t_3_01is__pair_3_01_t_01_4_1_1value_01_4_01_4 =
-[
-    [ "storage_type", "structgaia_1_1ecs_1_1detail_1_1actual__type_3_01_t_00_01std_1_1enable__if__t_3_01is__pair_3_01_t_01_4_1_1value_01_4_01_4.html#a6052466fa088f11fdcd6b87aaee8cef1", null ],
-    [ "type", "structgaia_1_1ecs_1_1detail_1_1actual__type_3_01_t_00_01std_1_1enable__if__t_3_01is__pair_3_01_t_01_4_1_1value_01_4_01_4.html#a7e98a59dfd1d505b17b01973f16a4d61", null ]
-];

@@ -1,6 +1,8 @@
 *build*
 !vm/**/build_*.sh
 !vm/**/build.sh
+*.bin
+*.db
 ninja
 out
 cachegrind.*

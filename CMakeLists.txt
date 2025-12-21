@@ -112,20 +112,7 @@ endif()
 
 # Documentation
 if(GAIA_GENERATE_DOCS)
-    find_package(Doxygen REQUIRED)
-
-    if(DOXYGEN_FOUND)
-        add_custom_target(doc ALL)
-        add_custom_command(
-            COMMENT "Generating Doxygen documentation in ${CMAKE_CURRENT_SOURCE_DIR}/docs using ${DOXYGEN_EXECUTABLE}"
-            TARGET doc POST_BUILD
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            COMMAND ${DOXYGEN_EXECUTABLE} docs/Doxyfile
-            VERBATIM
-        )
-    else()
-        message(WARNING "Doxygen not found. Documentation can't be generated")
-    endif()
+    add_subdirectory(docs)
 endif()
 
 # Gaia target

@@ -3,12 +3,31 @@ name: Publish existing docs folder to GitHub Pages
 on:
   push:
     branches: [ main ]
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - 'docs/**'
+      - 'README.md'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - 'docs/**'
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -17,12 +36,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload existing docs/html folder
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Generate documentation
+        run: doxygen docs/Doxyfile
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/html

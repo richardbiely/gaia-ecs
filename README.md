@@ -11,6 +11,7 @@
 [badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow?style=for-the-badge&color=blue
 [badge.discord]: https://img.shields.io/discord/1183706605108330516?style=for-the-badge&label=Discord
 [badge.codacy]: https://img.shields.io/codacy/grade/bb28fa362fce4054bbaf7a6ba9aed140?style=for-the-badge
+[![Documentation](https://img.shields.io/badge/docs-doxygen-blue?style=for-the-badge)](https://richardbiely.github.io/gaia-ecs/)
 
 [version]: https://github.com/richardbiely/gaia-ecs/releases
 [license]: https://en.wikipedia.org/wiki/MIT_License
@@ -34,7 +35,7 @@
 * comes with [multithreading](#multithreading) support with job-dependencies, supported on the [ECS level](#parallel-execution), too
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiles almost instantly
-* stability and correctness ensured by thousands of [unit tests](#unit-testing), in-code asserts, and sanitizers
+* stability and correctness ensured by thousands of [unit tests](#testing), in-code asserts, and sanitizers
 * thoroughly documented both public and internal code
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
@@ -89,7 +90,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
     * [Compile-time serialization](#compile-time-serialization)
-    * [Run-time serialization](#run-time-serialization)
+    * [Runtime serialization](#runtime-serialization)
     * [World serialization](#world-serialization)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
@@ -111,6 +112,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Benchmarks](#benchmarks)
   * [Profiling](#profiling)
   * [Testing](#testing)
+  * [Documentation](#documentation)
 * [Future](#future)
 * [Contributions](#contributions)
 * [License](#license)
@@ -1222,7 +1224,7 @@ Resorting is triggered automatically any time the query matches a new archetype,
 
 ### Parallel execution
 
-Queries can make use of (#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
+Queries can make use of [mulithreading](#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
 
 ```cpp
 // Ordinary single-thread query (default)
@@ -2456,11 +2458,11 @@ Following is a list of parameters you can use to customize your build
 
 Parameter | Description      
 -|-
-**GAIA_BUILD_UNITTEST** | Builds the [unit test project](#unit-testing)
+**GAIA_BUILD_UNITTEST** | Builds the [unit test project](#testing)
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
 **GAIA_GENERATE_CC** | Generates ***compile_commands.json***
-**GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header-library) version of the framework
+**GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
@@ -2534,10 +2536,18 @@ Custom profiler support can be added by overriding GAIA_PROF_* preprocessor defi
 #include <gaia.h>
 ```
 
-## Unit testing
-The project is thoroughly unit-tested and includes thousands of unit tests covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
+## Testing
+The project is thoroughly tested via thousands of unit tests covering essentially every feature of the framework. Benchmarking relies on [picobench](https://github.com/iboB/picobench).
 
 It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
+
+## Documentation
+
+The documentation is based on [doxygen](http://www.doxygen.nl). Building it manualy is controled via -DGAIA_GENERATE_DOCS=ON/OFF (OFF by default).
+
+The API reference is created in HTML format in ```your_build_directory/docs/html``` directory.
+
+The lastest version is always available [online](https://richardbiely.github.io/gaia-ecs/).
 
 # Future
 To see what the future holds for this project navigate [here](https://github.com/users/richardbiely/projects/1/views/1)
@@ -2548,7 +2558,7 @@ Requests for features, PRs, suggestions, and feedback are highly appreciated.
 
 Make sure to visit the project's [discord](https://discord.gg/wJjK72yze2) or the [discussions section](https://github.com/richardbiely/gaia-ecs/discussions) here on GitHub. If necessary, you can contact me directly either via the e-mail (you can find it on my [profile page](https://github.com/richardbiely)) or you can visit my [X](https://www.x.com/richardbiely).
 
-If you find the project helpful, do not forget to leave a star or [sponsor](https://www.github.com/sponsors/richardbiely) its development.
+If you find the project helpful, do not forget to leave a star. You can also support its development by becoming a [sponsor](https://www.github.com/sponsors/richardbiely), or making a donation via [PayPal](https://paypal.me/richardbiely).
 
 Thank you for using the project. You rock! :)
 
