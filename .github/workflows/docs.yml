@@ -9,6 +9,8 @@ on:
       - '**.hpp'
       - 'docs/**'
       - 'README.md'
+      - 'Doxyfile'
+      - 'docs.yml'
   pull_request:
     branches: [ main ]
     paths:
@@ -17,6 +19,8 @@ on:
       - '**.hpp'
       - 'docs/**'
       - 'README.md'
+      - 'Doxyfile'
+      - 'docs.yml'
   workflow_dispatch:
 
 permissions:
