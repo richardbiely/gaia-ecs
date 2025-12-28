@@ -244,7 +244,8 @@ if(NOT EMSCRIPTEN)
       find_package(tracy CONFIG QUIET 0.13.1)
 
       if(NOT tracy_FOUND)
-        FetchContent_Declare(tracy
+        FetchContent_Declare(
+          tracy
           GIT_REPOSITORY https://github.com/wolfpld/tracy.git
           GIT_TAG v0.13.1
           GIT_SHALLOW TRUE
@@ -371,13 +372,13 @@ if(NOT EMSCRIPTEN)
 
   if(GAIA_BUILD_BENCHMARK)
     if(IS_FETCH_AVAILABLE)
-      find_package(picobench CONFIG QUIET 2.08)
+      find_package(picobench CONFIG QUIET 2.8.0)
 
       if(NOT picobench_FOUND)
         FetchContent_Declare(
           picobench
           GIT_REPOSITORY https://github.com/iboB/picobench.git
-          GIT_TAG v2.08
+          GIT_TAG v2.8.0
         )
 
         FetchContent_MakeAvailable(picobench)
