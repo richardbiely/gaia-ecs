@@ -33556,7 +33556,7 @@ namespace gaia {
 					if constexpr (IsOwned) {
 						// Allocate enough storage for the name
 						char* entityStr = (char*)mem::mem_alloc(key.len() + 1);
-						memcpy((void*)entityStr, (const void*)name, key.len() + 1);
+						memcpy((void*)entityStr, (const void*)name, key.len());
 						entityStr[key.len()] = 0;
 
 						m_targetNameKey = EntityNameLookupKey(entityStr, key.len(), 1, {key.hash()});
