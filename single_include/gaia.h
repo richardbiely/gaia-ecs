@@ -752,7 +752,7 @@ namespace gaia {
 //! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
 //! an entity, they can be triggered. Set hooks for when component value is changed are possible, too.
 #ifndef GAIA_ENABLE_HOOKS
-	#define GAIA_ENABLE_HOOKS 0
+	#define GAIA_ENABLE_HOOKS 1
 #endif
 #ifndef GAIA_ENABLE_ADD_DEL_HOOKS
 	#define GAIA_ENABLE_ADD_DEL_HOOKS (GAIA_ENABLE_HOOKS && 1)
@@ -33520,6 +33520,8 @@ namespace gaia {
 					// Trigger observers second
 					// if (observerCnt > 0)
 					m_world.m_observers.on_add(m_world, newArchetype, std::span<Entity>{tl_new_comps}, {&m_entity, 1});
+	#else
+					(void)newArchetype;
 	#endif
 
 					tl_new_comps.clear();
@@ -33543,6 +33545,8 @@ namespace gaia {
 					// Trigger observers first
 					// if (observerCnt > 0)
 					m_world.m_observers.on_del(m_world, newArchetype, std::span<Entity>{tl_del_comps}, {&m_entity, 1});
+	#else
+					(void)newArchetype;
 	#endif
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
@@ -33845,7 +33849,7 @@ namespace gaia {
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
 
-#if GAIA_OBSERVERS_ENABLED || GAIA_OBSERVERS_ENABLED
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 						tl_new_comps.push_back(entity);
 #endif
 					}
@@ -33904,7 +33908,7 @@ namespace gaia {
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 
-#if GAIA_OBSERVERS_ENABLED || GAIA_OBSERVERS_ENABLED
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					tl_del_comps.push_back(entity);
 #endif
 				}
