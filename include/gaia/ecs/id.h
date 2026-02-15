@@ -470,8 +470,9 @@ namespace gaia {
 		struct GAIA_API ChildOf_ {};
 		struct GAIA_API Is_ {};
 		struct GAIA_API Traversable_ {};
-		// struct System_;
+		struct GAIA_API System_;
 		struct GAIA_API DependsOn_ {};
+		struct GAIA_API Observer_;
 
 		// Query variables
 		struct GAIA_API _Var0 {};
@@ -514,15 +515,17 @@ namespace gaia {
 		// Systems
 		inline Entity System = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		// Observers
+		inline Entity Observer = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(26, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;

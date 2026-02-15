@@ -1,26 +1,20 @@
 #include "gaia/config/config.h"
 
-#if !GAIA_SYSTEMS_ENABLED
-namespace gaia {
-	namespace ecs {
-		struct System_ {};
-	} // namespace ecs
-} // namespace gaia
-#else
-	#include <cinttypes>
-	// TODO: Currently necessary due to std::function. Replace them!
-	#include <functional>
+#include <cinttypes>
+// TODO: Currently necessary due to std::function. Replace them!
+#include <functional>
 
-	#include "gaia/ecs/chunk_iterator.h"
-	#include "gaia/ecs/id.h"
-	#include "gaia/ecs/query.h"
-	#include "gaia/mt/jobhandle.h"
+#include "gaia/ecs/chunk_iterator.h"
+#include "gaia/ecs/id.h"
+#include "gaia/ecs/query.h"
+#include "gaia/mt/jobhandle.h"
 
+#if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
 
 	#if GAIA_PROFILER_CPU
-		inline constexpr const char* sc_query_func_str = "System_exec";
+		inline constexpr const char* sc_system_query_func_str = "System_exec";
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
@@ -53,10 +47,11 @@ namespace gaia {
 
 			void exec() {
 				auto& queryInfo = query.fetch();
+				query.match_all(queryInfo);
 
 	#if GAIA_PROFILER_CPU
 				const char* pName = entity_name(*queryInfo.world(), entity);
-				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
+				const char* pScopeName = pName != nullptr ? pName : sc_system_query_func_str;
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
@@ -102,21 +97,6 @@ namespace gaia {
 			}
 		};
 
-		// Usage:
-		// auto s = w.system()
-		// 						 .all<Position&, Velocity>()
-		// 						 .any<Rotation>()
-		// 						 .OnCreated([](ecs::Query& q) {
-		// 						 })
-		// 						 .OnStopped([](ecs::Query& q) {
-		// 							 ...
-		// 						 })
-		// 						 .OnUpdate([](ecs::Query& q) {
-		// 							 q.each([](Position& p, const Velocity& v) {
-		// 								 ...
-		// 							 });
-		// 						 })
-		// 						 .commit();
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
@@ -309,6 +289,7 @@ namespace gaia {
 					// Constness is respected. Therefore, if a type is const when registered to query,
 					// it has to be const (or immutable) also in each().
 					auto& queryInfo = ctx.query.fetch();
+					ctx.query.match_all(queryInfo);
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
@@ -317,7 +298,7 @@ namespace gaia {
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
 						//       They are then used to get to the query stored inside System_.
-						auto ss = const_cast<World*>(it.world())->acc_mut(e);
+						auto ss = it.world()->acc_mut(e);
 						auto& sys = ss.smut<System_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};

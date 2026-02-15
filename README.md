@@ -372,7 +372,7 @@ q.each([&](ecs::Iter& it) {
 
 ### Component hooks
 
-It is possible to register add/del hooks for components. Whenever a given component is added to an entity, or deleted from it, the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component.
+It is possible to register add/del/set hooks for components. When a given component is added to an entity, deleted from it, or the value is set the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component.
 Component hooks are unique. Each component can have at most one add hook, and one delete hook.
 
 ```cpp
@@ -417,6 +417,69 @@ w.acc(e).sset<Position>({}); // Don't trigger the set hook
 Unlike *add* and *del* hooks, *set* hooks will not tell you what entity the hook triggered for. This is because any write access is done for the entire chunk, not just one of its entities. If one-entity behavior is required, the best thing you can do is moving your entity to a separate archetype (e.g. by adding some unique tag component to it).
 
 Hooks can be disabled by defining GAIA_ENABLE_HOOKS 0. Add and del hooks are controled by GAIA_ENABLE_ADD_DEL_HOOKS, set hooks by GAIA_ENABLE_SET_HOOKS. They are all enabled by default.
+
+### Observers
+
+Observers are a mechanism that allows you to register to certain events and listen to them triggering. Similar to hooks, you can listen to add, del or set events. However, unlike hooks there can be any number of these per given component or entity.
+
+Observers can be looked at as reactive alternative to systems. They allow different parts of the application to react to something happening immediately.
+
+Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.
+
+Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
+
+```cpp
+ecs::World w;
+w.observer()
+  .event(ObserverEvent::OnAdd)
+  .all<Position>()
+  .all<Velocity>()
+  .on_each([&](ecs::Iter& it) {
+    // Called for each entity that has Position and Velocity added
+    // ...
+});
+
+ecs::Entity e = w.add();
+// Observer will not trigger yet, only Position is added.
+w.add<Position>(e);
+// Observer will trigger for the entity "e" now, because both Position and Velocity were added to it
+w.add<Velocity>(e);
+
+// Does not the observer for e1 when creating a copy. To do so, use copy_ext,
+ecs::Entity e1 = w.copy(e);
+
+// Triggers the observer for e2 because a new entity was created that is a copy of "e", and has both Position and Velocity added.
+ecs::Entity e2 = w.copy_ext(e);
+
+// Prepare a new entity "e3".
+ecs::Entity e3 = w.add();
+// We want to add Position and Velocity to "e3". Our observer won't triggered yet because changes are not committed.
+ecs::EntityBuilder builder = w.build(e3);
+builder
+  .add<Velocity>()
+  .add<Position>();
+// Commit changes. The observer will triggers now.
+builder.commit();
+```
+
+Listening to removal of entities looks similar:
+```cpp
+w.observer() //
+  .event(ecs::ObserverEvent::OnDel)
+  .no<Position>()
+  .no<Acceleration>()
+  .on_each([&cnt, &isDel](ecs::Iter& it) {
+    // Called for each entity that has Position and Velocity removed from it
+    // ...
+  });
+
+// Observer will not trigger yet, on Position was removed.
+w.del<Position>(e);
+// Observer will trigger for the entity "e" now, because both Position and Velocity were removed from it
+w.del<Velocity>(e);
+```
+
+Observers can be enabled by defining GAIA_ENABLE_OBSERVERS 1. The feature is currently disabled by default.
 
 ### Bulk editing
 

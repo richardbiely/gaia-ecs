@@ -1386,6 +1386,7 @@ namespace gaia {
 			//! Returns the internal index of a component based on the provided @a entity.
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
+			//! \warning The component id must be present in the array.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
@@ -1394,6 +1395,7 @@ namespace gaia {
 			//! \param entity Component
 			//! \param offset Component offset
 			//! \return Component index if the component was found. -1 otherwise.
+			//! \warning The component id must be present in the array.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity, uint32_t offset) const {
 				return ecs::comp_idx({m_records.pCompEntities + offset, m_header.count - offset}, entity);
 			}

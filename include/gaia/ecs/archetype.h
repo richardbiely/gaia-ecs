@@ -7,6 +7,7 @@
 #include "gaia/cnt/darray.h"
 // #include "gaia/cnt/dbitset.h"
 #include "gaia/core/hashing_policy.h"
+#include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/archetype_common.h"
 #include "gaia/ecs/archetype_graph.h"
@@ -137,7 +138,12 @@ namespace gaia {
 			//! Index of the first chunk with enough space to add at least one entity
 			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
-			uint32_t m_listIdx;
+			uint32_t m_listIdx = BadIndex;
+
+			// //! Number of hooks
+			// uint32_t m_hookCnt = 0;
+			// //! Number of observers
+			// uint32_t m_observerCnt = 0;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
@@ -156,10 +162,11 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const World& world, const ComponentCache& cc, uint32_t& worldVersion):
-					m_world(world), m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
+					m_world(world), m_cc(cc), m_worldVersion(worldVersion), //
 					m_deleteReq(0), m_dead(0), //
 					m_lifespanCountdownMax(1), m_lifespanCountdown(0), //
-					m_pairCnt(0), m_pairCnt_is(0) {}
+					m_pairCnt(0), m_pairCnt_is(0) //
+			{}
 
 			~Archetype() {
 				// Delete all archetype chunks

@@ -119,7 +119,7 @@ namespace gaia {
 			QueryInfo&
 			add(QueryCtx&& ctx, //
 					const EntityToArchetypeMap& entityToArchetypeMap, //
-					const ArchetypeDArray& allArchetypes) {
+					std::span<const Archetype*> allArchetypes) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
@@ -136,7 +136,7 @@ namespace gaia {
 				QueryInfoCreationCtx creationCtx{};
 				creationCtx.pQueryCtx = &ctx;
 				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
-				creationCtx.pAllArchetypes = &allArchetypes;
+				creationCtx.allArchetypes = allArchetypes;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
 				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer

@@ -31,7 +31,7 @@ namespace gaia {
 		struct QueryInfoCreationCtx {
 			QueryCtx* pQueryCtx;
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
-			const ArchetypeDArray* pAllArchetypes;
+			std::span<const Archetype*> allArchetypes;
 		};
 
 		class QueryInfo: public cnt::ilist_item {
@@ -68,9 +68,9 @@ namespace gaia {
 
 			//! Used to make sure only unique archetypes are inserted into the cache
 			//! TODO: Get rid of the set by changing the way the caching works.
-			cnt::set<Archetype*> m_archetypeSet;
+			cnt::set<const Archetype*> m_archetypeSet;
 			//! Cached array of archetypes matching the query
-			ArchetypeDArray m_archetypeCache;
+			CArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
 
@@ -160,7 +160,7 @@ namespace gaia {
 
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
-					const ArchetypeDArray& allArchetypes) {
+					std::span<const Archetype*> allArchetypes) {
 				// Make sure query items are sorted
 				sort(ctx);
 
@@ -181,7 +181,6 @@ namespace gaia {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = *pCreationCtx->pQueryCtx;
 				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
-				auto& allArchetypes = (ArchetypeDArray&)*pCreationCtx->pAllArchetypes;
 
 				// Make sure query items are sorted
 				sort(queryCtx);
@@ -194,7 +193,7 @@ namespace gaia {
 				info.m_ctx.q.handle = {idx, gen};
 
 				// Compile the query
-				info.compile(entityToArchetypeMap, allArchetypes);
+				info.compile(entityToArchetypeMap, pCreationCtx->allArchetypes);
 
 				return info;
 			}
@@ -204,7 +203,7 @@ namespace gaia {
 			}
 
 			//! Compile the query terms into a form we can easily process
-			void compile(const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes) {
+			void compile(const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes) {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				// Compile the opcodes
@@ -235,6 +234,28 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
+			// Global temporary buffers for collecting archetypes that match a query.
+			// TODO: This means queries have to run from the main thread.
+			//       We could make these thread_local but that does not work on all platforms. Replace with per-world cachce.
+			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
+			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
+
+			struct CleanUpTmpArchetypeMatches {
+				CleanUpTmpArchetypeMatches() = default;
+				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
+				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
+				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
+				CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
+
+				~CleanUpTmpArchetypeMatches() {
+					// When the scope ends, we clear the arrays.
+					// Note, no memory is released. Allocated capacity remains unchanged
+					// because we do not want to kill time with allocating memory all the time.
+					s_tmpArchetypeMatchesSet.clear();
+					s_tmpArchetypeMatchesArr.clear();
+				}
+			};
+
 			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param entityToArchetypeMap Map of all archetypes
@@ -245,29 +266,10 @@ namespace gaia {
 					// entity -> archetypes mapping
 					const EntityToArchetypeMap& entityToArchetypeMap,
 					// all archetypes in the world
-					const ArchetypeDArray& allArchetypes,
+					std::span<const Archetype*> allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
-
-				// Global temporary buffers for collecting archetypes that match a query.
-				static cnt::set<Archetype*> s_tmpArchetypeMatchesSet;
-				static ArchetypeDArray s_tmpArchetypeMatchesArr;
-
-				struct CleanUpTmpArchetypeMatches {
-					CleanUpTmpArchetypeMatches() = default;
-					CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
-					CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
-					CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
-					CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
-
-					~CleanUpTmpArchetypeMatches() {
-						// When the scope ends, we clear the arrays.
-						// Note, no memory is released. Allocated capacity remains unchanged
-						// because we do not want to kill time with allocating memory all the time.
-						s_tmpArchetypeMatchesSet.clear();
-						s_tmpArchetypeMatchesArr.clear();
-					}
-				} autoCleanup;
+				CleanUpTmpArchetypeMatches autoCleanup;
 
 				auto& ctxData = m_ctx.data;
 
@@ -294,7 +296,8 @@ namespace gaia {
 				// Prepare the context
 				vm::MatchingCtx ctx{};
 				ctx.pWorld = world();
-				ctx.pAllArchetypes = &allArchetypes;
+				// ctx.targetEntities = {};
+				ctx.allArchetypes = allArchetypes;
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
@@ -310,13 +313,58 @@ namespace gaia {
 				m_vm.exec(ctx);
 
 				// Write found matches to cache
-				for (auto* pArchetype: *ctx.pMatchesArr)
+				for (const auto* pArchetype: *ctx.pMatchesArr)
 					add_archetype_to_cache(pArchetype);
 
 				// Sort entities if necessary
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+			}
+
+			//! Tries to match the query against the provided archetype.
+			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			//! \param archetype Archtype to match
+			//! \param targetEntities Entities related to the matched archetype
+			//! \warning Not thread safe. No two threads can call this at the same time.
+			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
+				CleanUpTmpArchetypeMatches autoCleanup;
+
+				auto& ctxData = m_ctx.data;
+
+				// Recompile if necessary
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
+				// Skip if nothing has been compiled.
+				if (!m_vm.is_compiled())
+					return;
+
+				GAIA_PROF_SCOPE(queryinfo::match1);
+
+				// Prepare the context
+				vm::MatchingCtx ctx{};
+				ctx.pWorld = world();
+				ctx.targetEntities = targetEntities;
+				const auto* pArchetype = &archetype;
+				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
+				ctx.pEntityToArchetypeMap = nullptr;
+				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
+				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
+				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
+
+				// Run the virtual machine
+				m_vm.exec(ctx);
+
+				// Write found matches to cache
+				for (const auto* pArch: *ctx.pMatchesArr)
+					add_archetype_to_cache(pArch);
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
@@ -456,8 +504,8 @@ namespace gaia {
 				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
-				for (auto* pArchetype: m_archetypeCache)
-					pArchetype->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
+				for (const auto* pArchetype: m_archetypeCache)
+					const_cast<Archetype*>(pArchetype)->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
 
 				// Now that entites are sorted, we can start creating slices
 				calculate_sort_data();
@@ -490,7 +538,7 @@ namespace gaia {
 				});
 			}
 
-			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
+			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
@@ -507,7 +555,7 @@ namespace gaia {
 				return cacheData;
 			}
 
-			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_archetypeSet.contains(pArchetype))
@@ -518,7 +566,7 @@ namespace gaia {
 				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
-			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_archetypeSet.contains(pArchetype))
@@ -595,7 +643,7 @@ namespace gaia {
 				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
-			void add_archetype_to_cache(Archetype* pArchetype) {
+			void add_archetype_to_cache(const Archetype* pArchetype) {
 				if (m_ctx.data.sortByFunc != nullptr)
 					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
@@ -605,7 +653,7 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype);
 			}
 
-			bool del_archetype_from_cache(Archetype* pArchetype) {
+			bool del_archetype_from_cache(const Archetype* pArchetype) {
 				const auto it = m_archetypeSet.find(pArchetype);
 				if (it == m_archetypeSet.end())
 					return false;
@@ -716,27 +764,27 @@ namespace gaia {
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator begin() {
+			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator begin() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator begin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator cbegin() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator cbegin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator end() {
+			GAIA_NODISCARD CArchetypeDArray::iterator end() {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator end() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator end() const {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator cend() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator cend() const {
 				return m_archetypeCache.end();
 			}
 

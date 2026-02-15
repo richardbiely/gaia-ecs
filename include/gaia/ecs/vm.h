@@ -30,14 +30,16 @@ namespace gaia {
 
 				//! World
 				const World* pWorld;
+				//! Entities for which we run the VM. If empty, we run against all of them.
+				EntitySpan targetEntities;
 				//! entity -> archetypes mapping
 				const EntityToArchetypeMap* pEntityToArchetypeMap;
 				//! Array of all archetypes in the world
-				const ArchetypeDArray* pAllArchetypes;
+				std::span<const Archetype*> allArchetypes;
 				//! Set of already matched archetypes. Reset before each exec().
-				cnt::set<Archetype*>* pMatchesSet;
+				cnt::set<const Archetype*>* pMatchesSet;
 				//! Array of already matches archetypes. Reset before each exec().
-				ArchetypeDArray* pMatchesArr;
+				cnt::darr<const Archetype*>* pMatchesArr;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the ANY opcode
@@ -66,22 +68,22 @@ namespace gaia {
 				uint32_t pc;
 			};
 
-			inline const ArchetypeDArray* fetch_archetypes_for_select(
-					const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, const EntityLookupKey& key) {
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
 				if (ent == Pair(All, All))
-					return &arr;
+					return arr;
 
 				const auto it = map.find(key);
 				if (it == map.end() || it->second.empty())
-					return nullptr;
+					return {};
 
-				return &it->second;
+				return std::span((const Archetype**)it->second.data(), it->second.size());
 			}
 
-			inline const ArchetypeDArray*
-			fetch_archetypes_for_select(const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, Entity src) {
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
 				GAIA_ASSERT(src != EntityBad);
 
 				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
@@ -124,14 +126,14 @@ namespace gaia {
 				};
 
 				inline uint32_t handle_last_archetype_match(
-						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
 					const auto cache_it = pCont->find(entityKey);
 					uint32_t lastMatchedIdx = 0;
 					if (cache_it == pCont->end())
-						pCont->emplace(entityKey, pSrcArchetype->size());
+						pCont->emplace(entityKey, srcArchetypeCnt);
 					else {
 						lastMatchedIdx = cache_it->second;
-						cache_it->second = pSrcArchetype->size();
+						cache_it->second = srcArchetypeCnt;
 					}
 					return lastMatchedIdx;
 				}
@@ -148,9 +150,8 @@ namespace gaia {
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						return expectedMatches == totalMatches;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, srcArchetypeCnt);
 					}
 				};
 				// Operator OR (used by query::any)
@@ -166,9 +167,8 @@ namespace gaia {
 						(void)expectedMatches;
 						return totalMatches > 0;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, srcArchetypeCnt);
 					}
 				};
 				// Operator NOT (used by query::no)
@@ -186,9 +186,8 @@ namespace gaia {
 						(void)expectedMatches;
 						return totalMatches == 0;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, srcArchetypeCnt);
 					}
 				};
 
@@ -485,20 +484,12 @@ namespace gaia {
 				}
 
 				template <typename OpKind, MatchingStyle Style>
-				inline void
-				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
-					const auto& archetypes = *pSrcArchetypes;
+				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const Archetype*> archetypes) {
 					auto& matchesArr = *ctx.pMatchesArr;
 					auto& matchesSet = *ctx.pMatchesSet;
 
-					uint32_t lastMatchedIdx = OpKind::handle_last_match(ctx, entityKey, pSrcArchetypes);
-					if (lastMatchedIdx >= archetypes.size())
-						return;
-
-					auto archetypeSpan = std::span(&archetypes[lastMatchedIdx], archetypes.size() - lastMatchedIdx);
-
 					if constexpr (Style == MatchingStyle::Complex) {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -511,7 +502,7 @@ namespace gaia {
 					}
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 					else if constexpr (Style == MatchingStyle::Simple) {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -528,7 +519,7 @@ namespace gaia {
 					}
 #endif
 					else {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -541,81 +532,83 @@ namespace gaia {
 					}
 				}
 
+				template <typename OpKind, MatchingStyle Style>
+				inline void
+				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, std::span<const Archetype*> archetypes) {
+					uint32_t lastMatchedIdx = OpKind::handle_last_match(ctx, entityKey, (uint32_t)archetypes.size());
+					if (lastMatchedIdx >= archetypes.size())
+						return;
+
+					auto archetypesNew = std::span(&archetypes[lastMatchedIdx], archetypes.size() - lastMatchedIdx);
+					match_archetype_inter<OpKind, Style>(ctx, archetypesNew);
+				}
+
 				template <MatchingStyle Style>
 				inline void match_archetype_all(MatchingCtx& ctx) {
 					if constexpr (Style == MatchingStyle::Complex) {
 						// For ALL we need all the archetypes to match. We start by checking
 						// if the first one is registered in the world at all.
-						const auto& allArchetypes = *ctx.pAllArchetypes;
-
 						if (ctx.ent.id() == Is.id()) {
 							ctx.ent = EntityBad;
-							const auto* pArchetypes = &allArchetypes;
-
-							match_archetype_inter<OpAll, Style>(ctx, EntityBadLookupKey, pArchetypes);
+							match_archetype_inter<OpAll, Style>(ctx, EntityBadLookupKey, ctx.allArchetypes);
 						} else {
 							auto entityKey = EntityLookupKey(ctx.ent);
 
-							const auto* pArchetypes =
-									fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-							if (pArchetypes == nullptr)
+							auto archetypes =
+									fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+							if (archetypes.empty())
 								return;
 
-							match_archetype_inter<OpAll, Style>(ctx, entityKey, pArchetypes);
+							match_archetype_inter<OpAll, Style>(ctx, entityKey, archetypes);
 						}
 					} else {
 						auto entityKey = EntityLookupKey(ctx.ent);
 
 						// For ALL we need all the archetypes to match. We start by checking
 						// if the first one is registered in the world at all.
-						const auto* pArchetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-						if (pArchetypes == nullptr)
+						auto archetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						if (archetypes.empty())
 							return;
 
-						match_archetype_inter<OpAll, Style>(ctx, entityKey, pArchetypes);
+						match_archetype_inter<OpAll, Style>(ctx, entityKey, archetypes);
 					}
 				}
 
-				inline void match_archetype_one(MatchingCtx& ctx) {
+				inline void match_archetype_any(MatchingCtx& ctx) {
 					EntityLookupKey entityKey(ctx.ent);
 
 					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-					const auto* pArchetypes =
-							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-					if (pArchetypes == nullptr)
+					auto archetypes =
+							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+					if (archetypes.empty())
 						return;
 
 					// TODO: Support MatchingStyle::Simple too
-					match_archetype_inter<OpAny, MatchingStyle::Wildcard>(ctx, entityKey, pArchetypes);
+					match_archetype_inter<OpAny, MatchingStyle::Wildcard>(ctx, entityKey, archetypes);
 				}
 
-				inline void match_archetype_one_as(MatchingCtx& ctx) {
-					const auto& allArchetypes = *ctx.pAllArchetypes;
+				inline void match_archetype_any_as(MatchingCtx& ctx) {
+					EntityLookupKey entityKey = EntityBadLookupKey;
 
 					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-
-					const ArchetypeDArray* pSrcArchetypes = nullptr;
-
-					EntityLookupKey entityKey = EntityBadLookupKey;
-
 					if (ctx.ent.id() == Is.id()) {
 						ctx.ent = EntityBad;
-						pSrcArchetypes = &allArchetypes;
+						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, ctx.allArchetypes);
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
-						pSrcArchetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-						if (pSrcArchetypes == nullptr)
+						auto archetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						if (archetypes.empty())
 							return;
-					}
 
-					match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, pSrcArchetypes);
+						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, archetypes);
+					}
 				}
 
 				template <MatchingStyle Style>
@@ -625,7 +618,7 @@ namespace gaia {
 
 					if constexpr (Style == MatchingStyle::Complex) {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							if (match_res_as<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -638,7 +631,7 @@ namespace gaia {
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 					else if constexpr (Style == MatchingStyle::Simple) {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							// Try early exit
 							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask))
@@ -655,7 +648,7 @@ namespace gaia {
 #endif
 					else {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -676,7 +669,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Simple>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Simple>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Simple>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -692,7 +688,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Wildcard>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Wildcard>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Wildcard>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -708,7 +707,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Complex>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Complex>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Complex>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -730,12 +732,12 @@ namespace gaia {
 
 							// First viable item is not related to an Is relationship
 							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
-								match_archetype_one(ctx);
+								match_archetype_any(ctx);
 							}
 							// First viable item is related to an Is relationship.
 							// In this case we need to gather all related archetypes.
 							else {
-								match_archetype_one_as(ctx);
+								match_archetype_any_as(ctx);
 							}
 						}
 
@@ -763,7 +765,7 @@ namespace gaia {
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 							if (isSimple) {
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									auto* pArchetype = (*ctx.pMatchesArr)[i];
+									const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 										// Try early exit
@@ -786,7 +788,7 @@ namespace gaia {
 #endif
 							{
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									auto* pArchetype = (*ctx.pMatchesArr)[i];
+									const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 										// First viable item is not related to an Is relationship
@@ -809,7 +811,7 @@ namespace gaia {
 							}
 						} else {
 							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-								auto* pArchetype = (*ctx.pMatchesArr)[i];
+								const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 									// First viable item is related to an Is relationship.
@@ -840,13 +842,21 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Simple>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Simple>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Simple>(ctx);
 						}
 
 						return true;
@@ -862,13 +872,22 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(
+										ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
 						}
 
 						return true;
@@ -884,13 +903,21 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Complex>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Complex>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Complex>(ctx);
 						}
 
 						return true;
@@ -961,7 +988,7 @@ namespace gaia {
 			public:
 				//! Transforms inputs into virtual machine opcodes.
 				void compile(
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 						QueryCtx& queryCtx) {
 					GAIA_PROF_SCOPE(vm::compile);
 
@@ -1014,9 +1041,9 @@ namespace gaia {
 
 							// Check if any archetype is associated with the entity id.
 							// All ids must be registered in the world.
-							const auto* pArchetypes =
+							auto archetypes =
 									fetch_archetypes_for_select(entityToArchetypeMap, allArchetypes, p.id, EntityLookupKey(p.id));
-							if (pArchetypes == nullptr)
+							if (archetypes.empty())
 								continue;
 
 							++archetypesWithId;

@@ -132,7 +132,7 @@ namespace gaia {
 					// Offset the chunk memory so we get the real block address
 					const auto* pMemoryBlock = (uint8_t*)pMemory - MemoryBlockUsableOffset;
 					// Page pointer is written to the start of the memory block
-					[[maybe_unused]] const auto* pPage = (Page**)pMemoryBlock;
+					[[maybe_unused]] const auto* pPage = (const Page**)pMemoryBlock;
 					GAIA_ASSERT(*pPage == this);
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					GAIA_ASSERT(blckAddr % 16 == 0);

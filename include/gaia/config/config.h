@@ -43,6 +43,11 @@
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, observers are enabled
+#ifndef GAIA_OBSERVERS_ENABLED
+	#define GAIA_OBSERVERS_ENABLED 0
+#endif
+
 //! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
 //! is always the same. Blocks of fixed size and stable memory address  are allocated for entity records.
 #ifndef GAIA_USE_PAGED_ENTITY_CONTAINER

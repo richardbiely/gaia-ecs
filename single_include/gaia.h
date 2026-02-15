@@ -738,6 +738,11 @@ namespace gaia {
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, observers are enabled
+#ifndef GAIA_OBSERVERS_ENABLED
+	#define GAIA_OBSERVERS_ENABLED 0
+#endif
+
 //! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
 //! is always the same. Blocks of fixed size and stable memory address  are allocated for entity records.
 #ifndef GAIA_USE_PAGED_ENTITY_CONTAINER
@@ -747,7 +752,7 @@ namespace gaia {
 //! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
 //! an entity, they can be triggered. Set hooks for when component value is changed are possible, too.
 #ifndef GAIA_ENABLE_HOOKS
-	#define GAIA_ENABLE_HOOKS 1
+	#define GAIA_ENABLE_HOOKS 0
 #endif
 #ifndef GAIA_ENABLE_ADD_DEL_HOOKS
 	#define GAIA_ENABLE_ADD_DEL_HOOKS (GAIA_ENABLE_HOOKS && 1)
@@ -13257,7 +13262,7 @@ namespace gaia {
 					// Offset the chunk memory so we get the real block address
 					const auto* pMemoryBlock = (uint8_t*)pMemory - MemoryBlockUsableOffset;
 					// Page pointer is written to the start of the memory block
-					[[maybe_unused]] const auto* pPage = (Page**)pMemoryBlock;
+					[[maybe_unused]] const auto* pPage = (const Page**)pMemoryBlock;
 					GAIA_ASSERT(*pPage == this);
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					GAIA_ASSERT(blckAddr % 16 == 0);
@@ -21642,6 +21647,7 @@ namespace gaia {
 
 		using ArchetypeId = uint32_t;
 		using ArchetypeDArray = cnt::darray<Archetype*>;
+		using CArchetypeDArray = cnt::darray<const Archetype*>;
 		using ArchetypeIdHash = core::direct_hash_key<uint32_t>;
 
 		struct ArchetypeIdHashPair {
@@ -22178,8 +22184,9 @@ namespace gaia {
 		struct GAIA_API ChildOf_ {};
 		struct GAIA_API Is_ {};
 		struct GAIA_API Traversable_ {};
-		// struct System_;
+		struct GAIA_API System_;
 		struct GAIA_API DependsOn_ {};
+		struct GAIA_API Observer_;
 
 		// Query variables
 		struct GAIA_API _Var0 {};
@@ -22222,15 +22229,17 @@ namespace gaia {
 		// Systems
 		inline Entity System = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		// Observers
+		inline Entity Observer = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(26, 0, false, false, EntityKind::EK_Gen);
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;
@@ -24083,7 +24092,8 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
-
+			// //! Number of observers associated with the entity.
+			// uint32_t observerCnt = 0;
 			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;
@@ -25986,6 +25996,7 @@ namespace gaia {
 			//! Returns the internal index of a component based on the provided @a entity.
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
+			//! \warning The component id must be present in the array.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity) const {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
@@ -25994,6 +26005,7 @@ namespace gaia {
 			//! \param entity Component
 			//! \param offset Component offset
 			//! \return Component index if the component was found. -1 otherwise.
+			//! \warning The component id must be present in the array.
 			GAIA_NODISCARD uint32_t comp_idx(Entity entity, uint32_t offset) const {
 				return ecs::comp_idx({m_records.pCompEntities + offset, m_header.count - offset}, entity);
 			}
@@ -26368,7 +26380,12 @@ namespace gaia {
 			//! Index of the first chunk with enough space to add at least one entity
 			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
-			uint32_t m_listIdx;
+			uint32_t m_listIdx = BadIndex;
+
+			// //! Number of hooks
+			// uint32_t m_hookCnt = 0;
+			// //! Number of observers
+			// uint32_t m_observerCnt = 0;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
@@ -26387,10 +26404,11 @@ namespace gaia {
 
 			//! Constructor is hidden. Create archetypes via Archetype::Create
 			Archetype(const World& world, const ComponentCache& cc, uint32_t& worldVersion):
-					m_world(world), m_cc(cc), m_worldVersion(worldVersion), m_listIdx(BadIndex), //
+					m_world(world), m_cc(cc), m_worldVersion(worldVersion), //
 					m_deleteReq(0), m_dead(0), //
 					m_lifespanCountdownMax(1), m_lifespanCountdown(0), //
-					m_pairCnt(0), m_pairCnt_is(0) {}
+					m_pairCnt(0), m_pairCnt_is(0) //
+			{}
 
 			~Archetype() {
 				// Delete all archetype chunks
@@ -28615,6 +28633,14 @@ namespace gaia {
 /*** End of inlined file: component_setter.h ***/
 
 
+/*** Start of inlined file: observer.h ***/
+#pragma once
+
+#include <cinttypes>
+// TODO: Currently necessary due to std::function. Replace them!
+#include <functional>
+
+
 /*** Start of inlined file: query.h ***/
 #pragma once
 
@@ -28651,14 +28677,16 @@ namespace gaia {
 
 				//! World
 				const World* pWorld;
+				//! Entities for which we run the VM. If empty, we run against all of them.
+				EntitySpan targetEntities;
 				//! entity -> archetypes mapping
 				const EntityToArchetypeMap* pEntityToArchetypeMap;
 				//! Array of all archetypes in the world
-				const ArchetypeDArray* pAllArchetypes;
+				std::span<const Archetype*> allArchetypes;
 				//! Set of already matched archetypes. Reset before each exec().
-				cnt::set<Archetype*>* pMatchesSet;
+				cnt::set<const Archetype*>* pMatchesSet;
 				//! Array of already matches archetypes. Reset before each exec().
-				ArchetypeDArray* pMatchesArr;
+				cnt::darr<const Archetype*>* pMatchesArr;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the ANY opcode
@@ -28687,22 +28715,22 @@ namespace gaia {
 				uint32_t pc;
 			};
 
-			inline const ArchetypeDArray* fetch_archetypes_for_select(
-					const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, const EntityLookupKey& key) {
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
 				if (ent == Pair(All, All))
-					return &arr;
+					return arr;
 
 				const auto it = map.find(key);
 				if (it == map.end() || it->second.empty())
-					return nullptr;
+					return {};
 
-				return &it->second;
+				return std::span((const Archetype**)it->second.data(), it->second.size());
 			}
 
-			inline const ArchetypeDArray*
-			fetch_archetypes_for_select(const EntityToArchetypeMap& map, const ArchetypeDArray& arr, Entity ent, Entity src) {
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
 				GAIA_ASSERT(src != EntityBad);
 
 				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
@@ -28745,14 +28773,14 @@ namespace gaia {
 				};
 
 				inline uint32_t handle_last_archetype_match(
-						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
+						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
 					const auto cache_it = pCont->find(entityKey);
 					uint32_t lastMatchedIdx = 0;
 					if (cache_it == pCont->end())
-						pCont->emplace(entityKey, pSrcArchetype->size());
+						pCont->emplace(entityKey, srcArchetypeCnt);
 					else {
 						lastMatchedIdx = cache_it->second;
-						cache_it->second = pSrcArchetype->size();
+						cache_it->second = srcArchetypeCnt;
 					}
 					return lastMatchedIdx;
 				}
@@ -28769,9 +28797,8 @@ namespace gaia {
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						return expectedMatches == totalMatches;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, srcArchetypeCnt);
 					}
 				};
 				// Operator OR (used by query::any)
@@ -28787,9 +28814,8 @@ namespace gaia {
 						(void)expectedMatches;
 						return totalMatches > 0;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, srcArchetypeCnt);
 					}
 				};
 				// Operator NOT (used by query::no)
@@ -28807,9 +28833,8 @@ namespace gaia {
 						(void)expectedMatches;
 						return totalMatches == 0;
 					}
-					static uint32_t
-					handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetype) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, pSrcArchetype);
+					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, srcArchetypeCnt);
 					}
 				};
 
@@ -29106,20 +29131,12 @@ namespace gaia {
 				}
 
 				template <typename OpKind, MatchingStyle Style>
-				inline void
-				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, const ArchetypeDArray* pSrcArchetypes) {
-					const auto& archetypes = *pSrcArchetypes;
+				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const Archetype*> archetypes) {
 					auto& matchesArr = *ctx.pMatchesArr;
 					auto& matchesSet = *ctx.pMatchesSet;
 
-					uint32_t lastMatchedIdx = OpKind::handle_last_match(ctx, entityKey, pSrcArchetypes);
-					if (lastMatchedIdx >= archetypes.size())
-						return;
-
-					auto archetypeSpan = std::span(&archetypes[lastMatchedIdx], archetypes.size() - lastMatchedIdx);
-
 					if constexpr (Style == MatchingStyle::Complex) {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -29132,7 +29149,7 @@ namespace gaia {
 					}
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 					else if constexpr (Style == MatchingStyle::Simple) {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -29149,7 +29166,7 @@ namespace gaia {
 					}
 #endif
 					else {
-						for (auto* pArchetype: archetypeSpan) {
+						for (const auto* pArchetype: archetypes) {
 							if (matchesSet.contains(pArchetype))
 								continue;
 
@@ -29162,81 +29179,83 @@ namespace gaia {
 					}
 				}
 
+				template <typename OpKind, MatchingStyle Style>
+				inline void
+				match_archetype_inter(MatchingCtx& ctx, EntityLookupKey entityKey, std::span<const Archetype*> archetypes) {
+					uint32_t lastMatchedIdx = OpKind::handle_last_match(ctx, entityKey, (uint32_t)archetypes.size());
+					if (lastMatchedIdx >= archetypes.size())
+						return;
+
+					auto archetypesNew = std::span(&archetypes[lastMatchedIdx], archetypes.size() - lastMatchedIdx);
+					match_archetype_inter<OpKind, Style>(ctx, archetypesNew);
+				}
+
 				template <MatchingStyle Style>
 				inline void match_archetype_all(MatchingCtx& ctx) {
 					if constexpr (Style == MatchingStyle::Complex) {
 						// For ALL we need all the archetypes to match. We start by checking
 						// if the first one is registered in the world at all.
-						const auto& allArchetypes = *ctx.pAllArchetypes;
-
 						if (ctx.ent.id() == Is.id()) {
 							ctx.ent = EntityBad;
-							const auto* pArchetypes = &allArchetypes;
-
-							match_archetype_inter<OpAll, Style>(ctx, EntityBadLookupKey, pArchetypes);
+							match_archetype_inter<OpAll, Style>(ctx, EntityBadLookupKey, ctx.allArchetypes);
 						} else {
 							auto entityKey = EntityLookupKey(ctx.ent);
 
-							const auto* pArchetypes =
-									fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-							if (pArchetypes == nullptr)
+							auto archetypes =
+									fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+							if (archetypes.empty())
 								return;
 
-							match_archetype_inter<OpAll, Style>(ctx, entityKey, pArchetypes);
+							match_archetype_inter<OpAll, Style>(ctx, entityKey, archetypes);
 						}
 					} else {
 						auto entityKey = EntityLookupKey(ctx.ent);
 
 						// For ALL we need all the archetypes to match. We start by checking
 						// if the first one is registered in the world at all.
-						const auto* pArchetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-						if (pArchetypes == nullptr)
+						auto archetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						if (archetypes.empty())
 							return;
 
-						match_archetype_inter<OpAll, Style>(ctx, entityKey, pArchetypes);
+						match_archetype_inter<OpAll, Style>(ctx, entityKey, archetypes);
 					}
 				}
 
-				inline void match_archetype_one(MatchingCtx& ctx) {
+				inline void match_archetype_any(MatchingCtx& ctx) {
 					EntityLookupKey entityKey(ctx.ent);
 
 					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-					const auto* pArchetypes =
-							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-					if (pArchetypes == nullptr)
+					auto archetypes =
+							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+					if (archetypes.empty())
 						return;
 
 					// TODO: Support MatchingStyle::Simple too
-					match_archetype_inter<OpAny, MatchingStyle::Wildcard>(ctx, entityKey, pArchetypes);
+					match_archetype_inter<OpAny, MatchingStyle::Wildcard>(ctx, entityKey, archetypes);
 				}
 
-				inline void match_archetype_one_as(MatchingCtx& ctx) {
-					const auto& allArchetypes = *ctx.pAllArchetypes;
+				inline void match_archetype_any_as(MatchingCtx& ctx) {
+					EntityLookupKey entityKey = EntityBadLookupKey;
 
 					// For ANY we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-
-					const ArchetypeDArray* pSrcArchetypes = nullptr;
-
-					EntityLookupKey entityKey = EntityBadLookupKey;
-
 					if (ctx.ent.id() == Is.id()) {
 						ctx.ent = EntityBad;
-						pSrcArchetypes = &allArchetypes;
+						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, ctx.allArchetypes);
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
-						pSrcArchetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, *ctx.pAllArchetypes, ctx.ent, entityKey);
-						if (pSrcArchetypes == nullptr)
+						auto archetypes =
+								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						if (archetypes.empty())
 							return;
-					}
 
-					match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, pSrcArchetypes);
+						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, archetypes);
+					}
 				}
 
 				template <MatchingStyle Style>
@@ -29246,7 +29265,7 @@ namespace gaia {
 
 					if constexpr (Style == MatchingStyle::Complex) {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							if (match_res_as<OpNo>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -29259,7 +29278,7 @@ namespace gaia {
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 					else if constexpr (Style == MatchingStyle::Simple) {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							// Try early exit
 							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask))
@@ -29276,7 +29295,7 @@ namespace gaia {
 #endif
 					else {
 						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-							auto* pArchetype = (*ctx.pMatchesArr)[i];
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -29297,7 +29316,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Simple>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Simple>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Simple>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -29313,7 +29335,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Wildcard>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Wildcard>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Wildcard>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -29329,7 +29354,10 @@ namespace gaia {
 						ctx.ent = comp.ids_all[0];
 						ctx.idsToMatch = std::span{comp.ids_all.data(), comp.ids_all.size()};
 
-						match_archetype_all<MatchingStyle::Complex>(ctx);
+						if (ctx.targetEntities.empty())
+							match_archetype_all<MatchingStyle::Complex>(ctx);
+						else
+							match_archetype_inter<OpAll, MatchingStyle::Complex>(ctx, ctx.allArchetypes);
 
 						// If no ALL matches were found, we can quit right away.
 						return !ctx.pMatchesArr->empty();
@@ -29351,12 +29379,12 @@ namespace gaia {
 
 							// First viable item is not related to an Is relationship
 							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
-								match_archetype_one(ctx);
+								match_archetype_any(ctx);
 							}
 							// First viable item is related to an Is relationship.
 							// In this case we need to gather all related archetypes.
 							else {
-								match_archetype_one_as(ctx);
+								match_archetype_any_as(ctx);
 							}
 						}
 
@@ -29384,7 +29412,7 @@ namespace gaia {
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 							if (isSimple) {
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									auto* pArchetype = (*ctx.pMatchesArr)[i];
+									const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 										// Try early exit
@@ -29407,7 +29435,7 @@ namespace gaia {
 #endif
 							{
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									auto* pArchetype = (*ctx.pMatchesArr)[i];
+									const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 										// First viable item is not related to an Is relationship
@@ -29430,7 +29458,7 @@ namespace gaia {
 							}
 						} else {
 							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-								auto* pArchetype = (*ctx.pMatchesArr)[i];
+								const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
 									// First viable item is related to an Is relationship.
@@ -29461,13 +29489,21 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Simple>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Simple>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Simple>(ctx);
 						}
 
 						return true;
@@ -29483,13 +29519,22 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(
+										ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
 						}
 
 						return true;
@@ -29505,13 +29550,21 @@ namespace gaia {
 						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
 						ctx.pMatchesSet->clear();
 
-						// We searched for nothing more than NOT matches
-						if (ctx.pMatchesArr->empty()) {
-							// If there are no previous matches (no ALL or ANY matches),
-							// we need to search among all archetypes.
-							match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.pAllArchetypes);
+						if (ctx.targetEntities.empty()) {
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty()) {
+								// If there are no previous matches (no ALL or ANY matches),
+								// we need to search among all archetypes.
+								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.allArchetypes);
+							} else {
+								match_archetype_no_2<MatchingStyle::Complex>(ctx);
+							}
 						} else {
-							match_archetype_no_2<MatchingStyle::Complex>(ctx);
+							// We searched for nothing more than NOT matches
+							if (ctx.pMatchesArr->empty())
+								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, ctx.allArchetypes);
+							else
+								match_archetype_no_2<MatchingStyle::Complex>(ctx);
 						}
 
 						return true;
@@ -29582,7 +29635,7 @@ namespace gaia {
 			public:
 				//! Transforms inputs into virtual machine opcodes.
 				void compile(
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes,
+						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 						QueryCtx& queryCtx) {
 					GAIA_PROF_SCOPE(vm::compile);
 
@@ -29635,9 +29688,9 @@ namespace gaia {
 
 							// Check if any archetype is associated with the entity id.
 							// All ids must be registered in the world.
-							const auto* pArchetypes =
+							auto archetypes =
 									fetch_archetypes_for_select(entityToArchetypeMap, allArchetypes, p.id, EntityLookupKey(p.id));
-							if (pArchetypes == nullptr)
+							if (archetypes.empty())
 								continue;
 
 							++archetypesWithId;
@@ -29749,7 +29802,7 @@ namespace gaia {
 		struct QueryInfoCreationCtx {
 			QueryCtx* pQueryCtx;
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
-			const ArchetypeDArray* pAllArchetypes;
+			std::span<const Archetype*> allArchetypes;
 		};
 
 		class QueryInfo: public cnt::ilist_item {
@@ -29786,9 +29839,9 @@ namespace gaia {
 
 			//! Used to make sure only unique archetypes are inserted into the cache
 			//! TODO: Get rid of the set by changing the way the caching works.
-			cnt::set<Archetype*> m_archetypeSet;
+			cnt::set<const Archetype*> m_archetypeSet;
 			//! Cached array of archetypes matching the query
-			ArchetypeDArray m_archetypeCache;
+			CArchetypeDArray m_archetypeCache;
 			//! Cached array of query-specific data
 			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
 
@@ -29878,7 +29931,7 @@ namespace gaia {
 
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
-					const ArchetypeDArray& allArchetypes) {
+					std::span<const Archetype*> allArchetypes) {
 				// Make sure query items are sorted
 				sort(ctx);
 
@@ -29899,7 +29952,6 @@ namespace gaia {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = *pCreationCtx->pQueryCtx;
 				auto& entityToArchetypeMap = (EntityToArchetypeMap&)*pCreationCtx->pEntityToArchetypeMap;
-				auto& allArchetypes = (ArchetypeDArray&)*pCreationCtx->pAllArchetypes;
 
 				// Make sure query items are sorted
 				sort(queryCtx);
@@ -29912,7 +29964,7 @@ namespace gaia {
 				info.m_ctx.q.handle = {idx, gen};
 
 				// Compile the query
-				info.compile(entityToArchetypeMap, allArchetypes);
+				info.compile(entityToArchetypeMap, pCreationCtx->allArchetypes);
 
 				return info;
 			}
@@ -29922,7 +29974,7 @@ namespace gaia {
 			}
 
 			//! Compile the query terms into a form we can easily process
-			void compile(const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes) {
+			void compile(const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes) {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				// Compile the opcodes
@@ -29953,6 +30005,28 @@ namespace gaia {
 				return m_ctx != other;
 			}
 
+			// Global temporary buffers for collecting archetypes that match a query.
+			// TODO: This means queries have to run from the main thread.
+			//       We could make these thread_local but that does not work on all platforms. Replace with per-world cachce.
+			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
+			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
+
+			struct CleanUpTmpArchetypeMatches {
+				CleanUpTmpArchetypeMatches() = default;
+				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
+				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
+				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
+				CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
+
+				~CleanUpTmpArchetypeMatches() {
+					// When the scope ends, we clear the arrays.
+					// Note, no memory is released. Allocated capacity remains unchanged
+					// because we do not want to kill time with allocating memory all the time.
+					s_tmpArchetypeMatchesSet.clear();
+					s_tmpArchetypeMatchesArr.clear();
+				}
+			};
+
 			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param entityToArchetypeMap Map of all archetypes
@@ -29963,29 +30037,10 @@ namespace gaia {
 					// entity -> archetypes mapping
 					const EntityToArchetypeMap& entityToArchetypeMap,
 					// all archetypes in the world
-					const ArchetypeDArray& allArchetypes,
+					std::span<const Archetype*> allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
-
-				// Global temporary buffers for collecting archetypes that match a query.
-				static cnt::set<Archetype*> s_tmpArchetypeMatchesSet;
-				static ArchetypeDArray s_tmpArchetypeMatchesArr;
-
-				struct CleanUpTmpArchetypeMatches {
-					CleanUpTmpArchetypeMatches() = default;
-					CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
-					CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
-					CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
-					CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
-
-					~CleanUpTmpArchetypeMatches() {
-						// When the scope ends, we clear the arrays.
-						// Note, no memory is released. Allocated capacity remains unchanged
-						// because we do not want to kill time with allocating memory all the time.
-						s_tmpArchetypeMatchesSet.clear();
-						s_tmpArchetypeMatchesArr.clear();
-					}
-				} autoCleanup;
+				CleanUpTmpArchetypeMatches autoCleanup;
 
 				auto& ctxData = m_ctx.data;
 
@@ -30012,7 +30067,8 @@ namespace gaia {
 				// Prepare the context
 				vm::MatchingCtx ctx{};
 				ctx.pWorld = world();
-				ctx.pAllArchetypes = &allArchetypes;
+				// ctx.targetEntities = {};
+				ctx.allArchetypes = allArchetypes;
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
@@ -30028,13 +30084,58 @@ namespace gaia {
 				m_vm.exec(ctx);
 
 				// Write found matches to cache
-				for (auto* pArchetype: *ctx.pMatchesArr)
+				for (const auto* pArchetype: *ctx.pMatchesArr)
 					add_archetype_to_cache(pArchetype);
 
 				// Sort entities if necessary
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+			}
+
+			//! Tries to match the query against the provided archetype.
+			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			//! \param archetype Archtype to match
+			//! \param targetEntities Entities related to the matched archetype
+			//! \warning Not thread safe. No two threads can call this at the same time.
+			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
+				CleanUpTmpArchetypeMatches autoCleanup;
+
+				auto& ctxData = m_ctx.data;
+
+				// Recompile if necessary
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
+				// Skip if nothing has been compiled.
+				if (!m_vm.is_compiled())
+					return;
+
+				GAIA_PROF_SCOPE(queryinfo::match1);
+
+				// Prepare the context
+				vm::MatchingCtx ctx{};
+				ctx.pWorld = world();
+				ctx.targetEntities = targetEntities;
+				const auto* pArchetype = &archetype;
+				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
+				ctx.pEntityToArchetypeMap = nullptr;
+				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
+				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
+				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
+
+				// Run the virtual machine
+				m_vm.exec(ctx);
+
+				// Write found matches to cache
+				for (const auto* pArch: *ctx.pMatchesArr)
+					add_archetype_to_cache(pArch);
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
@@ -30174,8 +30275,8 @@ namespace gaia {
 				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
-				for (auto* pArchetype: m_archetypeCache)
-					pArchetype->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
+				for (const auto* pArchetype: m_archetypeCache)
+					const_cast<Archetype*>(pArchetype)->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
 
 				// Now that entites are sorted, we can start creating slices
 				calculate_sort_data();
@@ -30208,7 +30309,7 @@ namespace gaia {
 				});
 			}
 
-			ArchetypeCacheData create_cache_data(Archetype* pArchetype) {
+			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
@@ -30225,7 +30326,7 @@ namespace gaia {
 				return cacheData;
 			}
 
-			void add_archetype_to_cache_no_grouping(Archetype* pArchetype) {
+			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_archetypeSet.contains(pArchetype))
@@ -30236,7 +30337,7 @@ namespace gaia {
 				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
-			void add_archetype_to_cache_w_grouping(Archetype* pArchetype) {
+			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_archetypeSet.contains(pArchetype))
@@ -30313,7 +30414,7 @@ namespace gaia {
 				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
-			void add_archetype_to_cache(Archetype* pArchetype) {
+			void add_archetype_to_cache(const Archetype* pArchetype) {
 				if (m_ctx.data.sortByFunc != nullptr)
 					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
@@ -30323,7 +30424,7 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype);
 			}
 
-			bool del_archetype_from_cache(Archetype* pArchetype) {
+			bool del_archetype_from_cache(const Archetype* pArchetype) {
 				const auto it = m_archetypeSet.find(pArchetype);
 				if (it == m_archetypeSet.end())
 					return false;
@@ -30434,27 +30535,27 @@ namespace gaia {
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator begin() {
+			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator begin() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator begin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator cbegin() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator cbegin() const {
 				return m_archetypeCache.begin();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::iterator end() {
+			GAIA_NODISCARD CArchetypeDArray::iterator end() {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator end() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator end() const {
 				return m_archetypeCache.end();
 			}
 
-			GAIA_NODISCARD ArchetypeDArray::const_iterator cend() const {
+			GAIA_NODISCARD CArchetypeDArray::const_iterator cend() const {
 				return m_archetypeCache.end();
 			}
 
@@ -30589,7 +30690,7 @@ namespace gaia {
 			QueryInfo&
 			add(QueryCtx&& ctx, //
 					const EntityToArchetypeMap& entityToArchetypeMap, //
-					const ArchetypeDArray& allArchetypes) {
+					std::span<const Archetype*> allArchetypes) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
@@ -30606,7 +30707,7 @@ namespace gaia {
 				QueryInfoCreationCtx creationCtx{};
 				creationCtx.pQueryCtx = &ctx;
 				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
-				creationCtx.pAllArchetypes = &allArchetypes;
+				creationCtx.allArchetypes = allArchetypes;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
 				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer
@@ -31117,7 +31218,7 @@ namespace gaia {
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
-				const ArchetypeDArray* m_allArchetypes{};
+				std::span<const Archetype*> m_allArchetypes;
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -31141,7 +31242,6 @@ namespace gaia {
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
 								recommit(pQueryInfo->ctx());
-								pQueryInfo->match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 								return *pQueryInfo;
 							}
 
@@ -31152,10 +31252,9 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
 						m_storage.allow_to_destroy_again();
-						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
 						GAIA_PROF_SCOPE(query::fetchu);
@@ -31165,11 +31264,18 @@ namespace gaia {
 							ctx.init(m_storage.world());
 							commit(ctx);
 							m_storage.m_queryInfo =
-									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
 						}
-						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
+				}
+
+				void match_all(QueryInfo& queryInfo) {
+					queryInfo.match(*m_entityToArchetypeMap, m_allArchetypes, last_archetype_id());
+				}
+
+				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+					queryInfo.match_one(archetype, targetEntities);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -31487,6 +31593,18 @@ namespace gaia {
 					func(it);
 				}
 
+				//! Execute the functor for a given chunk batch
+				template <typename Func, typename TIter>
+				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch) {
+					TIter it;
+					it.set_world(pWorld);
+					it.set_archetype(batch.pArchetype);
+					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
+					it.set_group_id(batch.groupId);
+					it.set_remapping_indices(batch.pIndicesMapping);
+					func(it);
+				}
+
 				//! Execute the functor in batches
 				template <typename Func, typename TIter>
 				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
@@ -31520,6 +31638,8 @@ namespace gaia {
 
 					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 				}
+
+				//------------------------------------------------
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_no_group_id(
@@ -31557,7 +31677,7 @@ namespace gaia {
 									continue;
 							}
 
-							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
 							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
@@ -31569,7 +31689,7 @@ namespace gaia {
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
-							auto* pArchetype = cacheView[i];
+							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
 							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 								continue;
 
@@ -31847,6 +31967,8 @@ namespace gaia {
 					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
+				//------------------------------------------------
+
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query);
@@ -31891,6 +32013,41 @@ namespace gaia {
 					}
 				}
 
+				//------------------------------------------------
+
+				template <QueryExecType ExecType, typename TIter, typename Func>
+				void run_query_on_archetypes(QueryInfo& queryInfo, Func func) {
+					// Update the world version
+					// We do read-only access. No need to update the version
+					//::gaia::ecs::update_version(*m_worldVersion);
+					lock(*m_storage.world());
+
+					{
+						GAIA_PROF_SCOPE(query::run_query_a);
+
+						// TODO: Have archetype cache as double-linked list with pointers only.
+						//       Have chunk cache as double-linked list with pointers only.
+						//       Make it so only valid pointers are linked together.
+						//       This means one less indirection + we won't need to call can_process_archetype().
+						auto cache_view = queryInfo.cache_archetype_view();
+						GAIA_EACH(cache_view) {
+							const auto* pArchetype = cache_view[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
+
+							auto indicesView = queryInfo.indices_mapping_view(i);
+							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), 0, 0, 0};
+							run_query_arch_func<Func, Iter>(m_storage.world(), func, batch);
+						}
+					}
+
+					unlock(*m_storage.world());
+					// Update the query version with the current world's version
+					// queryInfo.set_world_version(*m_worldVersion);
+				}
+
+				//------------------------------------------------
+
 				template <QueryExecType ExecType, typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
@@ -31931,6 +32088,8 @@ namespace gaia {
 						GAIA_FOR(cnt) func();
 					}
 				}
+
+				//------------------------------------------------
 
 				template <QueryExecType ExecType, typename Func>
 				void each_inter(QueryInfo& queryInfo, Func func) {
@@ -31975,6 +32134,7 @@ namespace gaia {
 				template <QueryExecType ExecType, typename Func>
 				void each_inter(Func func) {
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
 						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
@@ -31994,6 +32154,8 @@ namespace gaia {
 					} else
 						each_inter<ExecType>(queryInfo, func);
 				}
+
+				//------------------------------------------------
 
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
@@ -32111,18 +32273,18 @@ namespace gaia {
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeDArray& allArchetypes):
+						std::span<const Archetype*> allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
 					m_storage.init(&world, &queryCache);
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
 					m_storage.init(&world);
 				}
 
@@ -32468,6 +32630,31 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				template <typename Func>
+				void each_arch(Func func) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_archetypes<QueryExecType::Default, IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_archetypes<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_archetypes<QueryExecType::Default, IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					}
+				}
+
+				//------------------------------------------------
+
 				//!	Returns true or false depending on whether there are any entities matching the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
 				//!					 The result is not cached and repeated calls to the function might be slow.
@@ -32476,8 +32663,9 @@ namespace gaia {
 				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
-					const bool hasFilters = queryInfo.has_filters();
+					match_all(queryInfo);
 
+					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
@@ -32508,6 +32696,8 @@ namespace gaia {
 				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
+
 					uint32_t entCnt = 0;
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -32552,6 +32742,7 @@ namespace gaia {
 
 					outArray.reserve(entCnt);
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
@@ -32581,12 +32772,15 @@ namespace gaia {
 					}
 				}
 
+				//------------------------------------------------
+
 				//! Run diagnostics
 				void diag() {
 					// Make sure matching happened
-					auto& info = fetch();
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
 					GAIA_LOG_N("DIAG Query %u.%u [%c]", id(), gen(), UseCaching ? 'C' : 'U');
-					for (const auto* pArchetype: info)
+					for (const auto* pArchetype: queryInfo)
 						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
 					GAIA_LOG_N("END DIAG Query");
 				}
@@ -32600,9 +32794,92 @@ namespace gaia {
 
 /*** End of inlined file: query.h ***/
 
+#if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
+		class World;
+		class Archetype;
+
+	#if GAIA_PROFILER_CPU
+		inline constexpr const char* sc_observer_query_func_str = "Observer_exec";
+		const char* entity_name(const World& world, Entity entity);
+	#endif
+
+		//! Event types matching flecs
+		enum class ObserverEvent : uint8_t {
+			OnAdd, // Entity enters matching archetype
+			OnDel, // Entity leaves matching archetype
+			OnSet, // Component value changed
+		};
+
+		//! Observer context passed to callbacks
+		struct ObserverContext {
+			World* world;
+			Entity entity;
+			ObserverEvent event;
+			Archetype* archetype; // Current archetype
+			Archetype* archetype_prev; // Previous archetype (for OnAdd/OnDel)
+			uint32_t index_in_chunk;
+			Chunk* chunk;
+			const void* old_ptr; // Previous component value (OnSet only)
+		};
+
+		//! Storage for observer data
+		struct Observer_ {
+			using TObserverIterFunc = std::function<void(Iter&)>;
+
+			//! Entity identifying the observer
+			Entity entity = EntityBad;
+			//! Called every time the observer ticked
+			TObserverIterFunc on_each_func;
+			//! Event type
+			ObserverEvent event;
+			//! Query associated with the system
+			QueryUncached query;
+
+			void exec(Iter& iter, EntitySpan targets) {
+	#if GAIA_PROFILER_CPU
+				const auto& queryInfo = query.fetch();
+				const char* pName = entity_name(*queryInfo.world(), entity);
+				const char* pScopeName = pName != nullptr ? pName : sc_observer_query_func_str;
+				GAIA_PROF_SCOPE2(pScopeName);
+	#endif
+
+				for (auto e: targets)
+					on_each_func(iter);
+			}
+
+			//! Disable automatic Observer_ serialization
+			template <typename Serializer>
+			void save(Serializer& s) const {
+				(void)s;
+			}
+			//! Disable automatic Observer_ serialization
+			template <typename Serializer>
+			void load(Serializer& s) {
+				(void)s;
+			}
+		};
+
+	} // namespace ecs
+} // namespace gaia
+#else
+namespace gaia {
+	namespace ecs {
+		struct Observer_ {};
+	} // namespace ecs
+} // namespace gaia
+#endif
+/*** End of inlined file: observer.h ***/
+
+namespace gaia {
+	namespace ecs {
+#if GAIA_SYSTEMS_ENABLED
 		class SystemBuilder;
+#endif
+#if GAIA_OBSERVERS_ENABLED
+		class ObserverBuilder;
+#endif
 		class World;
 
 		class GAIA_API World final {
@@ -32621,6 +32898,146 @@ namespace gaia {
 
 			using EntityNameLookupKey = core::StringLookupKey<256>;
 			using PairMap = cnt::map<EntityLookupKey, cnt::set<EntityLookupKey>>;
+
+			//----------------------------------------------------------------------
+
+#if GAIA_OBSERVERS_ENABLED
+			class ObserverRegistry {
+				//! Temporary map of observers preliminary matching the event
+				cnt::map<EntityLookupKey, Observer_*> relevant_observers_tmp;
+				//! Component to observer mapping
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> component_to_observers;
+
+			public:
+				//! Registers a new term to the observer registry and links an observer with it.
+				//! \param world World the observer is triggered for
+				//! \param term Term to add to @a observer
+				//! \param observer Observer entity
+				void add(World& world, Entity term, Entity observer) {
+					GAIA_ASSERT(!observer.pair());
+					GAIA_ASSERT(world.valid(observer));
+					GAIA_ASSERT(world.valid(term));
+
+					EntityLookupKey entityKey(term);
+					const auto it = component_to_observers.find(entityKey);
+					if (it == component_to_observers.end()) {
+						component_to_observers.emplace(entityKey, cnt::darray<Entity>{observer});
+					} else {
+						it->second.push_back(observer);
+					}
+
+					// Update the number of observers used for this entity
+					// auto& ec = world.fetch(term);
+					//++ec.observerCnt;
+				}
+
+				//! Removes a term from the observer registry.
+				//! \param world World the observer is triggered for
+				//! \param tern Term to remove from @a observer
+				void del(World& w, Entity term) {
+					GAIA_ASSERT(w.valid(term));
+
+					component_to_observers.erase(EntityLookupKey(term));
+
+					// auto& ec = w.fetch(term);
+					// GAIA_ASSERT(ec.observerCnt > 0);
+					// --ec.observerCnt;
+				}
+
+				//! Called when components are added to an entity.
+				//! \param world World the observer is triggered for
+				//! \param archetype Archetype we try to match with the observer
+				//! \param ents_added Span of entities added to the @a archetype
+				//! \param targets Span on entities for which the observers triggers
+				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
+					for (auto comp: ents_added) {
+						const auto it = component_to_observers.find(EntityLookupKey(comp));
+						if (it == component_to_observers.end())
+							continue;
+
+						for (auto observer: it->second) {
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obs.event == ObserverEvent::OnAdd)
+								relevant_observers_tmp.emplace(observer, &obs);
+						}
+					}
+
+					// Fire OnAdd for observers that started matching
+					for (auto& pair: relevant_observers_tmp) {
+						auto& obs = *pair.second; // Observer_
+
+						// Entity still matches at this point, but won't after removal completes.
+						// Trigger the event for each matching observer.
+						auto& queryInfo = obs.query.fetch();
+						obs.query.match_one(queryInfo, archetype, targets);
+						if (queryInfo.begin() != queryInfo.end()) {
+							Iter it;
+							it.set_world(queryInfo.ctx().w);
+							it.set_archetype(&archetype);
+							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
+							it.set_group_id(0);
+							it.set_remapping_indices(0);
+							obs.exec(it, targets);
+						}
+					}
+
+					relevant_observers_tmp.clear();
+				}
+
+				//! Called when components are removed from an entity
+				//! \param world World the observer is triggered for
+				//! \param archetype Archetype we try to match with the observer
+				//! \param ents_added Span of entities added to the @a archetype
+				//! \param targets Span on entities for which the observers triggers
+				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
+					// Gather the list of components to match
+					for (auto comp: ents_removed) {
+						const auto it = component_to_observers.find(EntityLookupKey(comp));
+						if (it == component_to_observers.end())
+							continue;
+
+						for (auto observer: it->second) {
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obs.event == ObserverEvent::OnDel)
+								relevant_observers_tmp.emplace(observer, &obs);
+						}
+					}
+
+					// Fire OnDel for observers that no longer match
+					for (auto& pair: relevant_observers_tmp) {
+						auto& obs = *pair.second; // Observer_
+
+						// Entity still matches at this point, but won't after removal completes.
+						// Trigger the event for each matching observer.
+						auto& queryInfo = obs.query.fetch();
+						obs.query.match_one(queryInfo, archetype, targets);
+						if (queryInfo.begin() != queryInfo.end()) {
+							Iter it;
+							it.set_world(queryInfo.ctx().w);
+							it.set_archetype(&archetype);
+							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
+							it.set_group_id(0);
+							it.set_remapping_indices(0);
+							obs.exec(it, targets);
+						}
+					}
+
+					relevant_observers_tmp.clear();
+				}
+			};
+#endif
+
+			//----------------------------------------------------------------------
 
 			//! Cache of components
 			ComponentCache m_compCache;
@@ -32685,6 +33102,11 @@ namespace gaia {
 			//! Entities requested to be deleted
 			cnt::set<EntityLookupKey> m_reqEntitiesToDel;
 
+#if GAIA_OBSERVERS_ENABLED
+			//! Observers
+			ObserverRegistry m_observers;
+#endif
+
 			//! Command buffer for commands executed from a locked world. Not thread-safe
 			CommandBufferST* m_pCmdBufferST;
 			//! Command buffer for commands executed from a locked world. Thread-safe
@@ -32739,13 +33161,15 @@ namespace gaia {
 					Query q(
 							*const_cast<World*>(this), m_queryCache,
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap,
+							{(const Archetype**)m_archetypes.data(), m_archetypes.size()});
 					return q;
 				} else {
 					QueryUncached q(
 							*const_cast<World*>(this),
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap,
+							{(const Archetype**)m_archetypes.data(), m_archetypes.size()});
 					return q;
 				}
 			}
@@ -32812,8 +33236,13 @@ namespace gaia {
 				//! Source entity
 				Entity m_entity;
 
-				cnt::sarray_ext<Entity, 32> tl_new_comps;
-				cnt::sarray_ext<Entity, 32> tl_del_comps;
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				static constexpr uint32_t MAX_TERMS = 32;
+				static_assert(MAX_TERMS <= ChunkHeader::MAX_COMPONENTS);
+
+				cnt::sarray_ext<Entity, MAX_TERMS> tl_new_comps;
+				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_comps;
+#endif
 
 				EntityBuilder(World& world, Entity entity, EntityContainer& ec):
 						m_world(world), m_pArchetypeSrc(ec.pArchetype), m_pChunkSrc(ec.pChunk), m_rowSrc(ec.row),
@@ -32853,7 +33282,7 @@ namespace gaia {
 						GAIA_ASSERT(ec.pArchetype == m_pArchetypeSrc);
 
 						// Trigger remove hooks if there are any
-						trigger_del_hooks();
+						trigger_del_hooks(*m_pArchetype); //, 1, ec.observerCnt);
 
 						// Now that we have the final archetype move the entity to it
 						m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
@@ -32868,7 +33297,7 @@ namespace gaia {
 						}
 
 						// Trigger add hooks if there are any
-						trigger_add_hooks();
+						trigger_add_hooks(*m_pArchetype); //, 1, ec.observerCnt);
 
 						m_pArchetypeSrc = ec.pArchetype;
 						m_pChunkSrc = ec.pChunk;
@@ -32926,7 +33355,9 @@ namespace gaia {
 					if (m_entity.pair())
 						return;
 
-					const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
+					// The following block is essentially the same as this but without the archetype pointer access:
+					// const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
+					const auto compIdx = core::get_index(m_pChunkSrc->ids_view(), GAIA_ID(EntityDesc));
 					if (compIdx == BadIndex)
 						return;
 
@@ -32937,7 +33368,9 @@ namespace gaia {
 							return;
 					}
 
-					// No need to update version, commit() will do it
+					// TODO: Trigger the hooks/observers manually here? I do not like essentially calling comp_ptr twice here.
+					//       The second one could be replaced with const cast + emit.
+					//  No need to update version, commit() will do it
 					auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc));
 					del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
 
@@ -33056,36 +33489,78 @@ namespace gaia {
 #endif
 
 			private:
-				//! Triggers add hooks for the component if there are any
-				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_add_hooks() {
-#if GAIA_ENABLE_ADD_DEL_HOOKS
+				//! Triggers add hooks for the component if there are any.
+				//! \param newArchetype New archetype we belong to
+				// //! \param hookCnt Nunber of hooks
+				// //! \param observerCnt Nunber of observers
+				void trigger_add_hooks(const Archetype& newArchetype) { //, uint32_t hookCnt, uint32_t observerCnt) {
+					// if (hookCnt + observerCnt == 0)
+					// return;
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					m_world.lock();
 
-					for (auto entity: tl_new_comps) {
-						const auto& item = m_world.comp_cache().get(entity);
-						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_add != nullptr)
-							hooks.func_add(m_world, item, m_entity);
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+					// if (hookCnt > 0)
+					{
+						// Trigger component hooks first
+						for (auto entity: tl_new_comps) {
+							if (!entity.comp())
+								continue;
+
+							const auto& item = m_world.comp_cache().get(entity);
+							const auto& hooks = ComponentCache::hooks(item);
+							if (hooks.func_add != nullptr)
+								hooks.func_add(m_world, item, m_entity);
+						}
 					}
+	#endif
+
+	#if GAIA_OBSERVERS_ENABLED
+					// Trigger observers second
+					// if (observerCnt > 0)
+					m_world.m_observers.on_add(m_world, newArchetype, std::span<Entity>{tl_new_comps}, {&m_entity, 1});
+	#endif
+
 					tl_new_comps.clear();
 
 					m_world.unlock();
 #endif
 				}
 
-				//! Triggers del hooks for the component if there are any
-				//! \param pChunk Chunk use to initialize the iterator passed to the hook
-				void trigger_del_hooks() {
-#if GAIA_ENABLE_ADD_DEL_HOOKS
+				//! Triggers del hooks for the component if there are any.
+				//! \param newArchetype New archetype we belong to
+				// //! \param hookCnt Nunber of hooks
+				// //! \param observerCnt Nunber of observers
+				void trigger_del_hooks(const Archetype& newArchetype) { //, uint32_t hookCnt, uint32_t observerCnt) {
+					// if (hookCnt + observerCnt == 0)
+					// return;
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					m_world.lock();
 
-					for (auto entity: tl_del_comps) {
-						const auto& item = m_world.comp_cache().get(entity);
-						const auto& hooks = ComponentCache::hooks(item);
-						if (hooks.func_del != nullptr)
-							hooks.func_del(m_world, item, m_entity);
+	#if GAIA_OBSERVERS_ENABLED
+					// Trigger observers first
+					// if (observerCnt > 0)
+					m_world.m_observers.on_del(m_world, newArchetype, std::span<Entity>{tl_del_comps}, {&m_entity, 1});
+	#endif
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+					// if (hookCnt > 0)
+					{
+						// Trigger component hooks second
+						for (auto entity: tl_del_comps) {
+							if (!entity.comp())
+								continue;
+
+							const auto& item = m_world.comp_cache().get(entity);
+							const auto& hooks = ComponentCache::hooks(item);
+							if (hooks.func_del != nullptr)
+								hooks.func_del(m_world, item, m_entity);
+						}
 					}
+	#endif
+
 					tl_del_comps.clear();
 
 					m_world.unlock();
@@ -33369,8 +33844,10 @@ namespace gaia {
 
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
-						if (entity.comp())
-							tl_new_comps.push_back(entity);
+
+#if GAIA_OBSERVERS_ENABLED || GAIA_OBSERVERS_ENABLED
+						tl_new_comps.push_back(entity);
+#endif
 					}
 
 					return true;
@@ -33427,8 +33904,9 @@ namespace gaia {
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
 
-					if (entity.comp())
-						tl_del_comps.push_back(entity);
+#if GAIA_OBSERVERS_ENABLED || GAIA_OBSERVERS_ENABLED
+					tl_del_comps.push_back(entity);
+#endif
 				}
 
 				void add_inter(Entity entity) {
@@ -33778,7 +34256,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Creates a new entity by cloning an already existing one.
+			//! Creates a new entity by cloning an already existing one. Does not trigger observers.
 			//! \param srcEntity Entity to clone
 			//! \return New entity
 			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
@@ -33794,24 +34272,63 @@ namespace gaia {
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				auto* pDstArchetype = ec.pArchetype;
+				Entity dstEntity;
 
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
 				if (pDstArchetype->has<EntityDesc>()) {
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 
-					const auto dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
-
 					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
-					return dstEntity;
+				} else {
+					// No description associated with the entity, direct copy is possible
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				// No description associated with the entity, direct copy is possible
-				const auto dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
-				Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				return dstEntity;
 			}
+
+#if GAIA_OBSERVERS_ENABLED
+			//! Creates a new entity by cloning an already existing one. Trigger observers if necessary.
+			//! \param srcEntity Entity to clone
+			//! \return New entity
+			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
+			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
+				GAIA_ASSERT(!srcEntity.pair());
+				GAIA_ASSERT(valid(srcEntity));
+
+				auto& ec = m_recs.entities[srcEntity.id()];
+				GAIA_ASSERT(ec.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
+
+				auto* pDstArchetype = ec.pArchetype;
+				Entity dstEntity;
+
+				// Names have to be unique so if we see that EntityDesc is present during copy
+				// we navigate towards a version of the archetype without the EntityDesc.
+				if (pDstArchetype->has<EntityDesc>()) {
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					auto& ecDst = m_recs.entities[dstEntity.id()];
+					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
+				} else {
+					// No description associated with the entity, direct copy is possible
+					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
+					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
+				}
+
+				m_observers.on_add(*this, *pDstArchetype, pDstArchetype->ids_view(), EntitySpan{&dstEntity, 1});
+
+				return dstEntity;
+			}
+#endif
 
 			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
@@ -34782,6 +35299,22 @@ namespace gaia {
 
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+
+			//! Provides a observer set up to work with the parent world.
+			//! \return Entity holding the observer.
+			ObserverBuilder observer();
+
+			ObserverRegistry& observers() {
+				return m_observers;
+			}
+
+			const ObserverRegistry& observers() const {
+				return m_observers;
+			}
+
+#endif
+
 			//----------------------------------------------------------------------
 
 			//! Enables or disables an entire entity.
@@ -34800,6 +35333,18 @@ namespace gaia {
 			}
 
 			//! Checks if an entity is enabled.
+			//! \param ec Entity container of the entity
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool enabled(const EntityContainer& ec) const {
+				const bool entityStateInContainer = !ec.data.dis;
+#if GAIA_ASSERT_ENABLED
+				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
+				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
+#endif
+				return entityStateInContainer;
+			}
+
+			//! Checks if an entity is enabled.
 			//! \param entity Entity
 			//! \return True it the entity is enabled. False otherwise.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
@@ -34807,12 +35352,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				const bool entityStateInContainer = !ec.data.dis;
-#if GAIA_ASSERT_ENABLED
-				const bool entityStateInChunk = ec.pChunk->enabled(ec.row);
-				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
-#endif
-				return entityStateInContainer;
+				return enabled(ec);
 			}
 
 			//----------------------------------------------------------------------
@@ -35901,8 +36441,8 @@ namespace gaia {
 				m_archetypes.emplace_back(pArchetype);
 			}
 
-			//! Unregisters the archetype in the world.
-			//! \param pArchetype Archetype to register.
+			//! Unregisters the archetype from the world.
+			//! \param pArchetype Archetype to unregister.
 			void unreg_archetype(Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 
@@ -36099,7 +36639,7 @@ namespace gaia {
 			//! Returns an array of archetypes registered in the world
 			//! \return Array or archetypes.
 			GAIA_NODISCARD const auto& archetypes() const {
-				return m_archetypesById;
+				return m_archetypes;
 			}
 
 			//! Returns the archetype the entity belongs to.
@@ -36123,7 +36663,9 @@ namespace gaia {
 			}
 
 			//! Deletes an entity along with all data associated with it.
+			//! Ignored for invalid entities or pairs.
 			//! \param entity Entity to delete
+			//! \param invalidate If true all entity records are invalidated
 			void del_entity(Entity entity, bool invalidate) {
 				if (entity.pair() || entity == EntityBad)
 					return;
@@ -36133,7 +36675,10 @@ namespace gaia {
 			}
 
 			//! Deletes an entity along with all data associated with it.
+			//! Ignored for invalid entities or pairs.
+			//! \param ec Entity container records
 			//! \param entity Entity to delete
+			//! \param invalidate If true all entity records are invalidated
 			void del_entity(EntityContainer& ec, Entity entity, bool invalidate) {
 				if (entity.pair() || entity == EntityBad)
 					return;
@@ -36142,7 +36687,9 @@ namespace gaia {
 			}
 
 			//! Deletes an entity along with all data associated with it.
+			//! \param ec Entity container record
 			//! \param entity Entity to delete
+			//! \param invalidate If true, all entity records are deleted
 			void del_entity_inter(EntityContainer& ec, Entity entity, bool invalidate) {
 				GAIA_ASSERT(entity.id() > GAIA_ID(LastCoreComponent).id());
 
@@ -36211,6 +36758,7 @@ namespace gaia {
 			}
 
 			//! Deletes the entity
+			//! \param entity Entity to delete
 			void del_inter(Entity entity) {
 				auto on_delete = [this](Entity entityToDel) {
 					auto& ec = fetch(entityToDel);
@@ -36337,7 +36885,9 @@ namespace gaia {
 				return false;
 			}
 
-			//! Updates all chunks and entities of archetype \param srcArchetype so they are a part of \param dstArchetype
+			//! Updates all chunks and entities of archetype @a srcArchetype so they are a part of @a dstArchetype
+			//! \param srcArchetype Source archetype
+			//! \param dstArchetype Destination archeytpe
 			void move_to_archetype(Archetype& srcArchetype, Archetype& dstArchetype) {
 				GAIA_ASSERT(&srcArchetype != &dstArchetype);
 
@@ -36662,6 +37212,10 @@ namespace gaia {
 					if (is_req_del(ec))
 						return;
 
+#if GAIA_OBSERVERS_ENABLED
+					observers().del(*this, entity);
+#endif
+
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
 						// Delete all references to the entity
 						req_del_entities_with(entity);
@@ -36709,6 +37263,10 @@ namespace gaia {
 					// This entity is has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec))
 						return;
+
+#if GAIA_OBSERVERS_ENABLED
+					observers().del(*this, entity);
+#endif
 
 					if ((ec.flags & EntityContainerFlags::OnDelete_Delete) != 0) {
 						// Delete all references to the entity
@@ -37580,23 +38138,206 @@ namespace gaia {
 /*** End of inlined file: api.inl ***/
 
 
-/*** Start of inlined file: system.inl ***/
-#if !GAIA_SYSTEMS_ENABLED
+/*** Start of inlined file: observer.inl ***/
+#include <cinttypes>
+
+#if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		struct System_ {};
+		class ObserverBuilder {
+			World& m_world;
+			Entity m_entity;
+
+			void validate() {
+				GAIA_ASSERT(m_world.valid(m_entity));
+			}
+
+			Observer_& data() {
+				auto ss = m_world.acc_mut(m_entity);
+				auto& sys = ss.smut<Observer_>();
+				return sys;
+			}
+
+			const Observer_& data() const {
+				auto ss = m_world.acc(m_entity);
+				const auto& sys = ss.get<Observer_>();
+				return sys;
+			}
+
+		public:
+			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
+
+			//------------------------------------------------
+
+			ObserverBuilder& event(ObserverEvent event) {
+				validate();
+				data().event = event;
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			ObserverBuilder& add(QueryInput item) {
+				validate();
+				data().query.add(item);
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			ObserverBuilder& all(Entity entity) {
+				validate();
+				data().query.all(entity, false);
+				m_world.observers().add(m_world, entity, m_entity);
+				return *this;
+			}
+
+			ObserverBuilder& all(Entity entity, Entity src) {
+				validate();
+				data().query.all(entity, src, false);
+				m_world.observers().add(m_world, entity, m_entity);
+				return *this;
+			}
+
+			ObserverBuilder& any(Entity entity) {
+				validate();
+				data().query.any(entity, false);
+				m_world.observers().add(m_world, entity, m_entity);
+				return *this;
+			}
+
+			ObserverBuilder& no(Entity entity) {
+				validate();
+				data().query.no(entity);
+				m_world.observers().add(m_world, entity, m_entity);
+				return *this;
+			}
+
+			//------------------------------------------------
+
+	#if GAIA_USE_VARIADIC_API
+			template <typename... T>
+			ObserverBuilder& all() {
+				validate();
+				data().query.all<T...>();
+				(m_world.observers().add(m_world, m_world.add<T>().entity(), m_entity), ...);
+				return *this;
+			}
+			template <typename... T>
+			ObserverBuilder& any() {
+				validate();
+				data().query.any<T...>();
+				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				return *this;
+			}
+			template <typename... T>
+			ObserverBuilder& no() {
+				validate();
+				data().query.no<T...>();
+				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				return *this;
+			}
+	#else
+			template <typename T>
+			ObserverBuilder& all() {
+				validate();
+				data().query.all<T>();
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+			template <typename T>
+			ObserverBuilder& any() {
+				validate();
+				data().query.any<T>();
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+			template <typename T>
+			ObserverBuilder& no() {
+				validate();
+				data().query.no<T>();
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+	#endif
+
+			//------------------------------------------------
+
+			ObserverBuilder& name(const char* name, uint32_t len = 0) {
+				m_world.name(m_entity, name, len);
+				return *this;
+			}
+
+			ObserverBuilder& name_raw(const char* name, uint32_t len = 0) {
+				m_world.name_raw(m_entity, name, len);
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			template <typename Func>
+			ObserverBuilder& on_each(Func func) {
+				validate();
+
+				auto& ctx = data();
+				if constexpr (std::is_invocable_v<Func, Iter&>) {
+					ctx.on_each_func = [func](Iter& it) {
+						func(it);
+					};
+				} else {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+	#if GAIA_ASSERT_ENABLED
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					auto& queryInfo = ctx.query.fetch();
+					ctx.query.match_all(queryInfo);
+					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+	#endif
+
+					ctx.on_each_func = [e = m_entity, func](Iter& it) {
+						// NOTE: We can't directly use data().query here because the function relies
+						//       on ObserverBuilder to be present at all times. If it goes out of scope
+						//       the only option left is having a copy of the world pointer and entity.
+						//       They are then used to get to the query stored inside Observer_.
+						auto ss = it.world()->acc_mut(e);
+						auto& sys = ss.smut<Observer_>();
+						sys.query.run_query_on_chunk(it, func, InputArgs{});
+					};
+				}
+
+				return (ObserverBuilder&)*this;
+			}
+
+			GAIA_NODISCARD Entity entity() const {
+				return m_entity;
+			}
+
+			void exec(Iter& iter, EntitySpan targets) {
+				auto& ctx = data();
+				ctx.exec(iter, targets);
+			}
+		};
+
 	} // namespace ecs
 } // namespace gaia
-#else
-	#include <cinttypes>
-	// TODO: Currently necessary due to std::function. Replace them!
-	#include <functional>
 
+#endif
+/*** End of inlined file: observer.inl ***/
+
+
+/*** Start of inlined file: system.inl ***/
+#include <cinttypes>
+// TODO: Currently necessary due to std::function. Replace them!
+#include <functional>
+
+#if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
 
 	#if GAIA_PROFILER_CPU
-		inline constexpr const char* sc_query_func_str = "System_exec";
+		inline constexpr const char* sc_system_query_func_str = "System_exec";
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
@@ -37629,10 +38370,11 @@ namespace gaia {
 
 			void exec() {
 				auto& queryInfo = query.fetch();
+				query.match_all(queryInfo);
 
 	#if GAIA_PROFILER_CPU
 				const char* pName = entity_name(*queryInfo.world(), entity);
-				const char* pScopeName = pName != nullptr ? pName : sc_query_func_str;
+				const char* pScopeName = pName != nullptr ? pName : sc_system_query_func_str;
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
@@ -37678,21 +38420,6 @@ namespace gaia {
 			}
 		};
 
-		// Usage:
-		// auto s = w.system()
-		// 						 .all<Position&, Velocity>()
-		// 						 .any<Rotation>()
-		// 						 .OnCreated([](ecs::Query& q) {
-		// 						 })
-		// 						 .OnStopped([](ecs::Query& q) {
-		// 							 ...
-		// 						 })
-		// 						 .OnUpdate([](ecs::Query& q) {
-		// 							 q.each([](Position& p, const Velocity& v) {
-		// 								 ...
-		// 							 });
-		// 						 })
-		// 						 .commit();
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
@@ -37885,6 +38612,7 @@ namespace gaia {
 					// Constness is respected. Therefore, if a type is const when registered to query,
 					// it has to be const (or immutable) also in each().
 					auto& queryInfo = ctx.query.fetch();
+					ctx.query.match_all(queryInfo);
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
@@ -37893,7 +38621,7 @@ namespace gaia {
 						//       on SystemBuilder to be present at all times. If it goes out of scope
 						//       the only option left is having a copy of the world pointer and entity.
 						//       They are then used to get to the query stored inside System_.
-						auto ss = const_cast<World*>(it.world())->acc_mut(e);
+						auto ss = it.world()->acc_mut(e);
 						auto& sys = ss.smut<System_>();
 						sys.query.run_query_on_chunk(it, func, InputArgs{});
 					};
@@ -37982,6 +38710,7 @@ namespace gaia {
 				(void)reg_core_entity<Is_>(Is);
 				(void)reg_core_entity<System_>(System);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
+				(void)reg_core_entity<Observer_>(Observer);
 
 				(void)reg_core_entity<_Var0>(Var0);
 				(void)reg_core_entity<_Var1>(Var1);
@@ -38061,6 +38790,10 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, DependsOn) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Observer) //
 						.add(Core)
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
@@ -38187,17 +38920,38 @@ namespace gaia {
 
 		inline SystemBuilder World::system() {
 			// Create the system
-			auto sysEntity = add();
-			EntityBuilder(*this, sysEntity) //
+			auto e = add();
+			EntityBuilder(*this, e) //
 					.add<System_>();
 
-			auto ss = acc_mut(sysEntity);
+			auto ss = acc_mut(e);
 			auto& sys = ss.smut<System_>();
 			{
-				sys.entity = sysEntity;
-				sys.query = query();
+				sys.entity = e;
+				sys.query = query<true>();
 			}
-			return SystemBuilder(*this, sysEntity);
+			return SystemBuilder(*this, e);
+		}
+	} // namespace ecs
+} // namespace gaia
+#endif
+
+#if GAIA_OBSERVERS_ENABLED
+namespace gaia {
+	namespace ecs {
+		inline ObserverBuilder World::observer() {
+			// Create the observer
+			auto e = add();
+			EntityBuilder(*this, e) //
+					.add<Observer_>();
+
+			auto ss = acc_mut(e);
+			auto& obs = ss.smut<Observer_>();
+			{
+				obs.entity = e;
+				obs.query = query<false>();
+			}
+			return ObserverBuilder(*this, e);
 		}
 	} // namespace ecs
 } // namespace gaia

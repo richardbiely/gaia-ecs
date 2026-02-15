@@ -9076,6 +9076,165 @@ TEST_CASE("System - exec mode") {
 
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+
+TEST_CASE("Observer - simple") {
+	TestWorld twld;
+	uint32_t cnt = 0;
+	bool isDel = false;
+
+	const auto on_add = wld.observer() //
+													.event(ecs::ObserverEvent::OnAdd)
+													.all<Position>()
+													.all<Acceleration>()
+													.on_each([&cnt, &isDel](ecs::Iter& it) {
+														++cnt;
+														isDel = false;
+													})
+													.entity();
+	const auto on_del = wld.observer() //
+													.event(ecs::ObserverEvent::OnDel)
+													.no<Position>()
+													.no<Acceleration>()
+													.on_each([&cnt, &isDel](ecs::Iter& it) {
+														++cnt;
+														isDel = true;
+													})
+													.entity();
+
+	ecs::Entity e, e1, e2;
+
+	// OnAdd
+	{
+		cnt = 0;
+		e = wld.add();
+		{
+			// Observer will not trigger yet
+			wld.add<Position>(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Both components were added, trigger the observer now.
+			wld.add<Acceleration>(e);
+			CHECK(cnt == 1);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			e1 = wld.copy(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			e2 = wld.copy_ext(e);
+			CHECK(cnt == 1);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			ecs::Entity e3 = wld.add();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			ecs::EntityBuilder builder = wld.build(e3);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			builder.add<Acceleration>().add<Position>();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Commit changes. The observer will triggers now.
+			builder.commit();
+			CHECK(cnt == 1);
+			CHECK_FALSE(isDel);
+		}
+	}
+
+	// OnAdd disabled
+	{
+		wld.enable(on_add, false);
+
+		cnt = 0;
+		e = wld.add();
+		{
+			// Observer will not trigger yet
+			wld.add<Position>(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Both components were added, trigger the observer now.
+			wld.add<Acceleration>(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			e1 = wld.copy(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			e2 = wld.copy_ext(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+		}
+
+		{
+			cnt = 0;
+			ecs::Entity e3 = wld.add();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			ecs::EntityBuilder builder = wld.build(e3);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			builder.add<Acceleration>().add<Position>();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Commit changes. The observer will triggers now.
+			builder.commit();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+		}
+
+		wld.enable(on_add, true);
+	}
+
+	// OnDel
+	{
+		cnt = 0;
+		{
+			// Observer will not trigger yet
+			wld.del<Position>(e);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Both components were added, trigger the observer now.
+			wld.del<Acceleration>(e);
+			CHECK(cnt == 1);
+			CHECK(isDel);
+		}
+
+		{
+			cnt = 0;
+			isDel = false;
+			ecs::EntityBuilder builder = wld.build(e1);
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			builder.del<Acceleration>().del<Position>();
+			CHECK(cnt == 0);
+			CHECK_FALSE(isDel);
+			// Commit changes. The observer will triggers now.
+			builder.commit();
+			CHECK(cnt == 1);
+			CHECK(isDel);
+		}
+	}
+}
+
+#endif
+
 template <typename T>
 void TestDataLayoutSoA_ECS() {
 	const uint32_t N = 1'500;

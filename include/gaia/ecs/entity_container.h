@@ -109,7 +109,8 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
-
+			// //! Number of observers associated with the entity.
+			// uint32_t observerCnt = 0;
 			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;

@@ -240,7 +240,8 @@ void bench_build_query(picobench::state& state, ecs::World& w, ecs::EntitySpan t
 
 		// Measure the time to build the query
 		state.start_timer();
-		(void)query.fetch();
+		auto& queryInfo = query.fetch();
+		query.match_all(queryInfo);
 		state.stop_timer();
 	}
 }

@@ -417,7 +417,7 @@ namespace gaia {
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
-				const ArchetypeDArray* m_allArchetypes{};
+				std::span<const Archetype*> m_allArchetypes;
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -441,7 +441,6 @@ namespace gaia {
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
 								recommit(pQueryInfo->ctx());
-								pQueryInfo->match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 								return *pQueryInfo;
 							}
 
@@ -452,10 +451,9 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
 						m_storage.allow_to_destroy_again();
-						queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return queryInfo;
 					} else {
 						GAIA_PROF_SCOPE(query::fetchu);
@@ -465,11 +463,18 @@ namespace gaia {
 							ctx.init(m_storage.world());
 							commit(ctx);
 							m_storage.m_queryInfo =
-									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, *m_allArchetypes);
+									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
 						}
-						m_storage.m_queryInfo.match(*m_entityToArchetypeMap, *m_allArchetypes, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
+				}
+
+				void match_all(QueryInfo& queryInfo) {
+					queryInfo.match(*m_entityToArchetypeMap, m_allArchetypes, last_archetype_id());
+				}
+
+				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+					queryInfo.match_one(archetype, targetEntities);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -787,6 +792,18 @@ namespace gaia {
 					func(it);
 				}
 
+				//! Execute the functor for a given chunk batch
+				template <typename Func, typename TIter>
+				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch) {
+					TIter it;
+					it.set_world(pWorld);
+					it.set_archetype(batch.pArchetype);
+					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
+					it.set_group_id(batch.groupId);
+					it.set_remapping_indices(batch.pIndicesMapping);
+					func(it);
+				}
+
 				//! Execute the functor in batches
 				template <typename Func, typename TIter>
 				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
@@ -820,6 +837,8 @@ namespace gaia {
 
 					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
 				}
+
+				//------------------------------------------------
 
 				template <bool HasFilters, typename TIter, typename Func>
 				void run_query_batch_no_group_id(
@@ -857,7 +876,7 @@ namespace gaia {
 									continue;
 							}
 
-							auto* pArchetype = cacheView[view.archetypeIdx];
+							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
 							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
@@ -869,7 +888,7 @@ namespace gaia {
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
-							auto* pArchetype = cacheView[i];
+							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
 							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 								continue;
 
@@ -1147,6 +1166,8 @@ namespace gaia {
 					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
+				//------------------------------------------------
+
 				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query);
@@ -1191,6 +1212,41 @@ namespace gaia {
 					}
 				}
 
+				//------------------------------------------------
+
+				template <QueryExecType ExecType, typename TIter, typename Func>
+				void run_query_on_archetypes(QueryInfo& queryInfo, Func func) {
+					// Update the world version
+					// We do read-only access. No need to update the version
+					//::gaia::ecs::update_version(*m_worldVersion);
+					lock(*m_storage.world());
+
+					{
+						GAIA_PROF_SCOPE(query::run_query_a);
+
+						// TODO: Have archetype cache as double-linked list with pointers only.
+						//       Have chunk cache as double-linked list with pointers only.
+						//       Make it so only valid pointers are linked together.
+						//       This means one less indirection + we won't need to call can_process_archetype().
+						auto cache_view = queryInfo.cache_archetype_view();
+						GAIA_EACH(cache_view) {
+							const auto* pArchetype = cache_view[i];
+							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+								continue;
+
+							auto indicesView = queryInfo.indices_mapping_view(i);
+							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), 0, 0, 0};
+							run_query_arch_func<Func, Iter>(m_storage.world(), func, batch);
+						}
+					}
+
+					unlock(*m_storage.world());
+					// Update the query version with the current world's version
+					// queryInfo.set_world_version(*m_worldVersion);
+				}
+
+				//------------------------------------------------
+
 				template <QueryExecType ExecType, typename TIter, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
@@ -1231,6 +1287,8 @@ namespace gaia {
 						GAIA_FOR(cnt) func();
 					}
 				}
+
+				//------------------------------------------------
 
 				template <QueryExecType ExecType, typename Func>
 				void each_inter(QueryInfo& queryInfo, Func func) {
@@ -1275,6 +1333,7 @@ namespace gaia {
 				template <QueryExecType ExecType, typename Func>
 				void each_inter(Func func) {
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
 						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
@@ -1294,6 +1353,8 @@ namespace gaia {
 					} else
 						each_inter<ExecType>(queryInfo, func);
 				}
+
+				//------------------------------------------------
 
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
@@ -1411,18 +1472,18 @@ namespace gaia {
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeDArray& allArchetypes):
+						std::span<const Archetype*> allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
 					m_storage.init(&world, &queryCache);
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
 					m_storage.init(&world);
 				}
 
@@ -1768,6 +1829,31 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				template <typename Func>
+				void each_arch(Func func) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						run_query_on_archetypes<QueryExecType::Default, IterAll>(queryInfo, [&](IterAll& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						run_query_on_archetypes<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						run_query_on_archetypes<QueryExecType::Default, IterDisabled>(queryInfo, [&](IterDisabled& it) {
+							GAIA_PROF_SCOPE(query_func_a);
+							func(it);
+						});
+					}
+				}
+
+				//------------------------------------------------
+
 				//!	Returns true or false depending on whether there are any entities matching the query.
 				//!	\warning Only use if you only care if there are any entities matching the query.
 				//!					 The result is not cached and repeated calls to the function might be slow.
@@ -1776,8 +1862,9 @@ namespace gaia {
 				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
-					const bool hasFilters = queryInfo.has_filters();
+					match_all(queryInfo);
 
+					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
@@ -1808,6 +1895,8 @@ namespace gaia {
 				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
+
 					uint32_t entCnt = 0;
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -1852,6 +1941,7 @@ namespace gaia {
 
 					outArray.reserve(entCnt);
 					auto& queryInfo = fetch();
+					match_all(queryInfo);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
@@ -1881,12 +1971,15 @@ namespace gaia {
 					}
 				}
 
+				//------------------------------------------------
+
 				//! Run diagnostics
 				void diag() {
 					// Make sure matching happened
-					auto& info = fetch();
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
 					GAIA_LOG_N("DIAG Query %u.%u [%c]", id(), gen(), UseCaching ? 'C' : 'U');
-					for (const auto* pArchetype: info)
+					for (const auto* pArchetype: queryInfo)
 						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
 					GAIA_LOG_N("END DIAG Query");
 				}
