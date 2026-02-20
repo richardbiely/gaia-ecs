@@ -49,6 +49,8 @@ namespace gaia {
 			TObserverIterFunc on_each_func;
 			//! Event type
 			ObserverEvent event;
+			//! Stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
 			QueryUncached query;
 

@@ -139,11 +139,8 @@ namespace gaia {
 			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
 			uint32_t m_listIdx = BadIndex;
-
-			// //! Number of hooks
-			// uint32_t m_hookCnt = 0;
-			// //! Number of observers
-			// uint32_t m_observerCnt = 0;
+			//! Number of terms in this archetype that are currently observed.
+			uint8_t m_observedTermCnt = 0;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
@@ -682,6 +679,20 @@ namespace gaia {
 				return core::has_if(ids_view(), [&](Entity e) {
 					return e == entity;
 				});
+			}
+
+			void observed_terms_inc() {
+				GAIA_ASSERT(m_observedTermCnt < m_properties.cntEntities);
+				++m_observedTermCnt;
+			}
+
+			void observed_terms_dec() {
+				GAIA_ASSERT(m_observedTermCnt > 0);
+				--m_observedTermCnt;
+			}
+
+			GAIA_NODISCARD bool has_observed_terms() const {
+				return m_observedTermCnt != 0;
 			}
 
 			//! Checks if component \tparam T is present in the chunk.

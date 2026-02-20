@@ -24035,6 +24035,7 @@ namespace gaia {
 			DeleteRequested = 1 << 11,
 			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
 			Load = 1 << 13, // EntityContainer is being loaded from a file
+			IsObserved = 1 << 14, // At least one observer is registered for this term.
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -24092,8 +24093,6 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
-			// //! Number of observers associated with the entity.
-			// uint32_t observerCnt = 0;
 			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;
@@ -26381,11 +26380,8 @@ namespace gaia {
 			uint32_t m_firstFreeChunkIdx = 0;
 			//! Archetype list index
 			uint32_t m_listIdx = BadIndex;
-
-			// //! Number of hooks
-			// uint32_t m_hookCnt = 0;
-			// //! Number of observers
-			// uint32_t m_observerCnt = 0;
+			//! Number of terms in this archetype that are currently observed.
+			uint8_t m_observedTermCnt = 0;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
@@ -26924,6 +26920,20 @@ namespace gaia {
 				return core::has_if(ids_view(), [&](Entity e) {
 					return e == entity;
 				});
+			}
+
+			void observed_terms_inc() {
+				GAIA_ASSERT(m_observedTermCnt < m_properties.cntEntities);
+				++m_observedTermCnt;
+			}
+
+			void observed_terms_dec() {
+				GAIA_ASSERT(m_observedTermCnt > 0);
+				--m_observedTermCnt;
+			}
+
+			GAIA_NODISCARD bool has_observed_terms() const {
+				return m_observedTermCnt != 0;
 			}
 
 			//! Checks if component \tparam T is present in the chunk.
@@ -32834,6 +32844,8 @@ namespace gaia {
 			TObserverIterFunc on_each_func;
 			//! Event type
 			ObserverEvent event;
+			//! Stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
 			QueryUncached query;
 
@@ -32870,6 +32882,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #endif
+
 /*** End of inlined file: observer.h ***/
 
 namespace gaia {
@@ -32903,10 +32916,49 @@ namespace gaia {
 
 #if GAIA_OBSERVERS_ENABLED
 			class ObserverRegistry {
-				//! Temporary map of observers preliminary matching the event
-				cnt::map<EntityLookupKey, Observer_*> relevant_observers_tmp;
-				//! Component to observer mapping
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> component_to_observers;
+				//! Temporary list of observers preliminary matching the event.
+				cnt::darray<Observer_*> m_relevant_observers_tmp;
+				//! Component to OnAdd observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
+				//! Component to OnDel observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del;
+				//! Monotonically increasing stamp used for O(1) deduplication.
+				uint64_t m_current_match_stamp = 0;
+
+				GAIA_NODISCARD bool has_observers_for_term(Entity term) const {
+					const auto termKey = EntityLookupKey(term);
+					return m_observer_map_add.find(termKey) != m_observer_map_add.end() ||
+								 m_observer_map_del.find(termKey) != m_observer_map_del.end();
+				}
+
+				void mark_term_observed(World& world, Entity term, bool observed) {
+					auto& ec = world.fetch(term);
+					if (observed)
+						ec.flags |= EntityContainerFlags::IsObserved;
+					else
+						ec.flags &= ~EntityContainerFlags::IsObserved;
+
+					const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
+					if (it == world.m_entityToArchetypeMap.end())
+						return;
+
+					for (auto* pArchetype: it->second) {
+						if (observed)
+							pArchetype->observed_terms_inc();
+						else
+							pArchetype->observed_terms_dec();
+					}
+				}
+
+				template <typename TObserverMap>
+				static void add_observer_to_map(TObserverMap& map, Entity term, Entity observer) {
+					const auto entityKey = EntityLookupKey(term);
+					const auto it = map.find(entityKey);
+					if (it == map.end())
+						map.emplace(entityKey, cnt::darray<Entity>{observer});
+					else
+						it->second.push_back(observer);
+				}
 
 			public:
 				//! Registers a new term to the observer registry and links an observer with it.
@@ -32918,17 +32970,23 @@ namespace gaia {
 					GAIA_ASSERT(world.valid(observer));
 					GAIA_ASSERT(world.valid(term));
 
-					EntityLookupKey entityKey(term);
-					const auto it = component_to_observers.find(entityKey);
-					if (it == component_to_observers.end()) {
-						component_to_observers.emplace(entityKey, cnt::darray<Entity>{observer});
-					} else {
-						it->second.push_back(observer);
+					const auto wasObserved = has_observers_for_term(term);
+					const auto& ec = world.fetch(observer);
+					const auto compIdx = ec.pChunk->comp_idx(Observer);
+					const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+					switch (obs.event) {
+						case ObserverEvent::OnAdd:
+							add_observer_to_map(m_observer_map_add, term, observer);
+							break;
+						case ObserverEvent::OnDel:
+							add_observer_to_map(m_observer_map_del, term, observer);
+							break;
+						case ObserverEvent::OnSet:
+							// OnSet observers are not triggered via OnAdd/OnDel hooks.
+							break;
 					}
-
-					// Update the number of observers used for this entity
-					// auto& ec = world.fetch(term);
-					//++ec.observerCnt;
+					if (!wasObserved && has_observers_for_term(term))
+						mark_term_observed(world, term, true);
 				}
 
 				//! Removes a term from the observer registry.
@@ -32937,11 +32995,13 @@ namespace gaia {
 				void del(World& w, Entity term) {
 					GAIA_ASSERT(w.valid(term));
 
-					component_to_observers.erase(EntityLookupKey(term));
+					const auto termKey = EntityLookupKey(term);
+					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
+					const auto erasedOnDel = m_observer_map_del.erase(termKey);
+					if (erasedOnAdd == 0 && erasedOnDel == 0)
+						return;
 
-					// auto& ec = w.fetch(term);
-					// GAIA_ASSERT(ec.observerCnt > 0);
-					// --ec.observerCnt;
+					mark_term_observed(w, term, false);
 				}
 
 				//! Called when components are added to an entity.
@@ -32950,9 +33010,16 @@ namespace gaia {
 				//! \param ents_added Span of entities added to the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
+					if (!archetype.has_observed_terms())
+						return;
+
+					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_added) {
-						const auto it = component_to_observers.find(EntityLookupKey(comp));
-						if (it == component_to_observers.end())
+						if ((world.fetch(comp).flags & EntityContainerFlags::IsObserved) == 0)
+							continue;
+
+						const auto it = m_observer_map_add.find(EntityLookupKey(comp));
+						if (it == m_observer_map_add.end())
 							continue;
 
 						for (auto observer: it->second) {
@@ -32962,14 +33029,16 @@ namespace gaia {
 
 							const auto compIdx = ec.pChunk->comp_idx(Observer);
 							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.event == ObserverEvent::OnAdd)
-								relevant_observers_tmp.emplace(observer, &obs);
+							if (obs.lastMatchStamp == matchStamp)
+								continue;
+							obs.lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(&obs);
 						}
 					}
 
 					// Fire OnAdd for observers that started matching
-					for (auto& pair: relevant_observers_tmp) {
-						auto& obs = *pair.second; // Observer_
+					for (auto* pObs: m_relevant_observers_tmp) {
+						auto& obs = *pObs; // Observer_
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -32986,7 +33055,7 @@ namespace gaia {
 						}
 					}
 
-					relevant_observers_tmp.clear();
+					m_relevant_observers_tmp.clear();
 				}
 
 				//! Called when components are removed from an entity
@@ -32996,9 +33065,13 @@ namespace gaia {
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					// Gather the list of components to match
+					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_removed) {
-						const auto it = component_to_observers.find(EntityLookupKey(comp));
-						if (it == component_to_observers.end())
+						if ((world.fetch(comp).flags & EntityContainerFlags::IsObserved) == 0)
+							continue;
+
+						const auto it = m_observer_map_del.find(EntityLookupKey(comp));
+						if (it == m_observer_map_del.end())
 							continue;
 
 						for (auto observer: it->second) {
@@ -33008,14 +33081,16 @@ namespace gaia {
 
 							const auto compIdx = ec.pChunk->comp_idx(Observer);
 							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.event == ObserverEvent::OnDel)
-								relevant_observers_tmp.emplace(observer, &obs);
+							if (obs.lastMatchStamp == matchStamp)
+								continue;
+							obs.lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(&obs);
 						}
 					}
 
 					// Fire OnDel for observers that no longer match
-					for (auto& pair: relevant_observers_tmp) {
-						auto& obs = *pair.second; // Observer_
+					for (auto* pObs: m_relevant_observers_tmp) {
+						auto& obs = *pObs; // Observer_
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -33032,7 +33107,7 @@ namespace gaia {
 						}
 					}
 
-					relevant_observers_tmp.clear();
+					m_relevant_observers_tmp.clear();
 				}
 			};
 #endif
@@ -33282,7 +33357,7 @@ namespace gaia {
 						GAIA_ASSERT(ec.pArchetype == m_pArchetypeSrc);
 
 						// Trigger remove hooks if there are any
-						trigger_del_hooks(*m_pArchetype); //, 1, ec.observerCnt);
+						trigger_del_hooks(*m_pArchetype);
 
 						// Now that we have the final archetype move the entity to it
 						m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
@@ -33297,7 +33372,7 @@ namespace gaia {
 						}
 
 						// Trigger add hooks if there are any
-						trigger_add_hooks(*m_pArchetype); //, 1, ec.observerCnt);
+						trigger_add_hooks(*m_pArchetype);
 
 						m_pArchetypeSrc = ec.pArchetype;
 						m_pChunkSrc = ec.pChunk;
@@ -33491,12 +33566,7 @@ namespace gaia {
 			private:
 				//! Triggers add hooks for the component if there are any.
 				//! \param newArchetype New archetype we belong to
-				// //! \param hookCnt Nunber of hooks
-				// //! \param observerCnt Nunber of observers
-				void trigger_add_hooks(const Archetype& newArchetype) { //, uint32_t hookCnt, uint32_t observerCnt) {
-					// if (hookCnt + observerCnt == 0)
-					// return;
-
+				void trigger_add_hooks(const Archetype& newArchetype) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					m_world.lock();
 
@@ -33518,7 +33588,6 @@ namespace gaia {
 
 	#if GAIA_OBSERVERS_ENABLED
 					// Trigger observers second
-					// if (observerCnt > 0)
 					m_world.m_observers.on_add(m_world, newArchetype, std::span<Entity>{tl_new_comps}, {&m_entity, 1});
 	#else
 					(void)newArchetype;
@@ -33532,18 +33601,12 @@ namespace gaia {
 
 				//! Triggers del hooks for the component if there are any.
 				//! \param newArchetype New archetype we belong to
-				// //! \param hookCnt Nunber of hooks
-				// //! \param observerCnt Nunber of observers
-				void trigger_del_hooks(const Archetype& newArchetype) { //, uint32_t hookCnt, uint32_t observerCnt) {
-					// if (hookCnt + observerCnt == 0)
-					// return;
-
+				void trigger_del_hooks(const Archetype& newArchetype) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					m_world.lock();
 
 	#if GAIA_OBSERVERS_ENABLED
 					// Trigger observers first
-					// if (observerCnt > 0)
 					m_world.m_observers.on_del(m_world, newArchetype, std::span<Entity>{tl_del_comps}, {&m_entity, 1});
 	#else
 					(void)newArchetype;
@@ -36403,6 +36466,8 @@ namespace gaia {
 
 				for (auto entity: entities) {
 					add_entity_archetype_pair(entity, pArchetype);
+					if ((fetch(entity).flags & EntityContainerFlags::IsObserved) != 0)
+						pArchetype->observed_terms_inc();
 
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.

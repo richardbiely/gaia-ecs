@@ -52,6 +52,7 @@ namespace gaia {
 			DeleteRequested = 1 << 11,
 			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
 			Load = 1 << 13, // EntityContainer is being loaded from a file
+			IsObserved = 1 << 14, // At least one observer is registered for this term.
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {
@@ -109,8 +110,6 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in (stable address)
 			Chunk* pChunk;
-			// //! Number of observers associated with the entity.
-			// uint32_t observerCnt = 0;
 			// uint8_t depthDependsOn = 0;
 
 			EntityContainer() = default;
