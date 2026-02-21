@@ -1702,7 +1702,7 @@ q.each([&](Entity e, const Position& p) {
   }
 });
 // Make the queued command happen
-cb.commit(&w);
+cb.commit();
 ```
 
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
