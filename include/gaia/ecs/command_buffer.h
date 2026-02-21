@@ -405,161 +405,165 @@ namespace gaia {
 						lastKey = e;
 						return lastResolved = resolve(e);
 					};
-					for (uint32_t p = 0; p < m_ops.size();) {
-						GAIA_PROF_SCOPE(cmdbuf::merge);
 
-						const Entity tgtKey = m_ops[p].target;
+					{
+						GAIA_PROF_SCOPE(cmdbuf::merges);
+						for (uint32_t p = 0; p < m_ops.size();) {
+							GAIA_PROF_SCOPE(cmdbuf::merge);
 
-						const bool tgtIsTemp = is_tmp(tgtKey);
-						const uint32_t ti = tgtIsTemp ? tgtKey.id() : 0u;
-						const Entity tgtReal =
-								tgtIsTemp ? (ti < m_temp2real.size() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);
+							const Entity tgtKey = m_ops[p].target;
 
-						// Range for this target
-						uint32_t q = p;
-						bool hasDelEntity = false;
-						while (q < m_ops.size() && m_ops[q].target == tgtKey) {
-							if (m_ops[q].type == OpType::DEL_ENTITY)
-								hasDelEntity = true;
-							++q;
-						}
+							const bool tgtIsTemp = is_tmp(tgtKey);
+							const uint32_t ti = tgtIsTemp ? tgtKey.id() : 0u;
+							const Entity tgtReal =
+									tgtIsTemp ? (ti < m_temp2real.size() ? m_temp2real[ti] : EntityBad) : resolve_cached(tgtKey);
 
-						// Skip canceled or non-existent temporary entities
-						if (tgtReal == EntityBad) {
-							p = q;
-							continue;
-						}
-						if (tgtIsTemp && is_canceled_temp(ti)) {
-							p = q;
-							continue;
-						}
+							// Range for this target
+							uint32_t q = p;
+							bool hasDelEntity = false;
+							while (q < m_ops.size() && m_ops[q].target == tgtKey) {
+								if (m_ops[q].type == OpType::DEL_ENTITY)
+									hasDelEntity = true;
+								++q;
+							}
 
-						enum : uint8_t { F_ADD = 1 << 0, F_ADD_DATA = 1 << 1, F_SET = 1 << 2, F_DEL = 1 << 3 };
+							// Skip canceled or non-existent temporary entities
+							if (tgtReal == EntityBad) {
+								p = q;
+								continue;
+							}
+							if (tgtIsTemp && is_canceled_temp(ti)) {
+								p = q;
+								continue;
+							}
 
-						// Emit relation groups.
-						// Inside [p..q) range (same target), process groups by 'other'.
-						// We perform per-component reduction.
-						for (uint32_t i = p; i < q;) {
-							const Entity othKey = m_ops[i].other;
-							const Entity othReal = resolve_cached(othKey);
+							enum : uint8_t { F_ADD = 1 << 0, F_ADD_DATA = 1 << 1, F_SET = 1 << 2, F_DEL = 1 << 3 };
 
-							// Group ops with same (target, other)
-							uint32_t j = i + 1;
-							while (j < q && m_ops[j].other == othKey)
-								++j;
+							// Emit relation groups.
+							// Inside [p..q) range (same target), process groups by 'other'.
+							// We perform per-component reduction.
+							for (uint32_t i = p; i < q;) {
+								const Entity othKey = m_ops[i].other;
+								const Entity othReal = resolve_cached(othKey);
 
-							if (tgtReal != EntityBad) {
-								const uint32_t groupSize = j - i;
-								// Fast path - single op
-								if (groupSize == 1) {
-									const Op& op = m_ops[i];
-									switch (op.type) {
-										case OpType::DEL_COMPONENT:
+								// Group ops with same (target, other)
+								uint32_t j = i + 1;
+								while (j < q && m_ops[j].other == othKey)
+									++j;
+
+								if (tgtReal != EntityBad) {
+									const uint32_t groupSize = j - i;
+									// Fast path - single op
+									if (groupSize == 1) {
+										const Op& op = m_ops[i];
+										switch (op.type) {
+											case OpType::DEL_COMPONENT:
+												World::EntityBuilder(m_world, tgtReal).del(othReal);
+												break;
+											case OpType::ADD_COMPONENT:
+												World::EntityBuilder(m_world, tgtReal).add(othReal);
+												break;
+											case OpType::ADD_COMPONENT_DATA:
+												World::EntityBuilder(m_world, tgtReal).add(othReal);
+												GAIA_FALLTHROUGH;
+											case OpType::SET_COMPONENT: {
+												const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+												const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+												const auto compIdx = ec.pChunk->comp_idx(othReal);
+												auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
+
+												// Component data
+												m_data.seek(op.off);
+												const auto& item = m_world.comp_cache().get(othReal);
+												item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
+											} break;
+											default:
+												break;
+										}
+									}
+									// Slow path: merge multiple ops
+									else {
+										uint8_t mask = 0;
+										uint32_t dataPos = 0;
+
+										for (uint32_t k = i; k < j; ++k) {
+											const Op& op = m_ops[k];
+											switch (op.type) {
+												case OpType::ADD_COMPONENT:
+													mask |= F_ADD;
+													break;
+												case OpType::ADD_COMPONENT_DATA:
+													mask |= F_ADD_DATA;
+													dataPos = op.off;
+													break;
+												case OpType::SET_COMPONENT:
+													mask |= F_SET;
+													dataPos = op.off;
+													break;
+												case OpType::DEL_COMPONENT:
+													mask |= F_DEL;
+													break;
+												default:
+													break;
+											}
+										}
+
+										const bool hasAdd = mask & F_ADD;
+										const bool hasAddData = mask & F_ADD_DATA;
+										const bool hasSet = mask & F_SET;
+										const bool hasDel = mask & F_DEL;
+
+										// 1) ADD(+DATA) + DEL = no-op
+										if (hasDel && (hasAdd || hasAddData)) {
+										}
+										// 2) DEL only
+										else if (hasDel) {
 											World::EntityBuilder(m_world, tgtReal).del(othReal);
-											break;
-										case OpType::ADD_COMPONENT:
+										}
+										// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
+										else if (hasAddData || (hasAdd && hasSet)) {
 											World::EntityBuilder(m_world, tgtReal).add(othReal);
-											break;
-										case OpType::ADD_COMPONENT_DATA:
-											World::EntityBuilder(m_world, tgtReal).add(othReal);
-											GAIA_FALLTHROUGH;
-										case OpType::SET_COMPONENT: {
+
 											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 											const auto compIdx = ec.pChunk->comp_idx(othReal);
 											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 											// Component data
-											m_data.seek(op.off);
+											m_data.seek(dataPos);
 											const auto& item = m_world.comp_cache().get(othReal);
 											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
-										} break;
-										default:
-											break;
-									}
-								}
-								// Slow path: merge multiple ops
-								else {
-									uint8_t mask = 0;
-									uint32_t dataPos = 0;
+										}
+										// 4) ADD only
+										else if (hasAdd) {
+											World::EntityBuilder(m_world, tgtReal).add(othReal);
+										}
+										// 5) SET only
+										else if (hasSet) {
+											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
+											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
+											const auto compIdx = ec.pChunk->comp_idx(othReal);
+											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
-									for (uint32_t k = i; k < j; ++k) {
-										const Op& op = m_ops[k];
-										switch (op.type) {
-											case OpType::ADD_COMPONENT:
-												mask |= F_ADD;
-												break;
-											case OpType::ADD_COMPONENT_DATA:
-												mask |= F_ADD_DATA;
-												dataPos = op.off;
-												break;
-											case OpType::SET_COMPONENT:
-												mask |= F_SET;
-												dataPos = op.off;
-												break;
-											case OpType::DEL_COMPONENT:
-												mask |= F_DEL;
-												break;
-											default:
-												break;
+											// Component data
+											m_data.seek(dataPos);
+											const auto& item = m_world.comp_cache().get(othReal);
+											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
 										}
 									}
-
-									const bool hasAdd = mask & F_ADD;
-									const bool hasAddData = mask & F_ADD_DATA;
-									const bool hasSet = mask & F_SET;
-									const bool hasDel = mask & F_DEL;
-
-									// 1) ADD(+DATA) + DEL = no-op
-									if (hasDel && (hasAdd || hasAddData)) {
-									}
-									// 2) DEL only
-									else if (hasDel) {
-										World::EntityBuilder(m_world, tgtReal).del(othReal);
-									}
-									// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
-									else if (hasAddData || (hasAdd && hasSet)) {
-										World::EntityBuilder(m_world, tgtReal).add(othReal);
-
-										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-										// Component data
-										m_data.seek(dataPos);
-										const auto& item = m_world.comp_cache().get(othReal);
-										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
-									}
-									// 4) ADD only
-									else if (hasAdd) {
-										World::EntityBuilder(m_world, tgtReal).add(othReal);
-									}
-									// 5) SET only
-									else if (hasSet) {
-										const auto& ec = m_world.m_recs.entities[tgtReal.id()];
-										const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-										const auto compIdx = ec.pChunk->comp_idx(othReal);
-										auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
-
-										// Component data
-										m_data.seek(dataPos);
-										const auto& item = m_world.comp_cache().get(othReal);
-										item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
-									}
 								}
+
+								// Advance to next component group
+								i = j;
 							}
 
-							// Advance to next component group
-							i = j;
+							// Safely delete entity only if it was actually created
+							if (hasDelEntity)
+								m_world.del(tgtReal);
+
+							// Advance to next target group
+							p = q;
 						}
-
-						// Safely delete entity only if it was actually created
-						if (hasDelEntity)
-							m_world.del(tgtReal);
-
-						// Advance to next target group
-						p = q;
 					}
 
 					clear();
