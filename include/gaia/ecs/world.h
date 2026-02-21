@@ -3782,16 +3782,17 @@ namespace gaia {
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
 				// Check if the component is found when following the "add" edges
+				bool edgeNeedsRebuild = false;
 				{
 					const auto edge = pArchetypeLeft->find_edge_right(entity);
 					if (edge != ArchetypeIdHashPairBad) {
 						auto it = m_archetypesById.find(ArchetypeIdLookupKey(edge.id, edge.hash));
-						// The edge must exist at this point
-						GAIA_ASSERT(it != m_archetypesById.end());
+						if (it != m_archetypesById.end() && it->second != nullptr)
+							return it->second;
 
-						auto* pArchetypeRight = it->second;
-						GAIA_ASSERT(pArchetypeRight != nullptr);
-						return pArchetypeRight;
+						// Drop stale local cache edge and rebuild it below.
+						pArchetypeLeft->del_graph_edge_right_local(entity);
+						edgeNeedsRebuild = true;
 					}
 				}
 
@@ -3815,9 +3816,12 @@ namespace gaia {
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = create_archetype({entsNew.data(), entsNew.size()});
 					pArchetypeRight->set_hashes({hashLookup});
-					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetypeRight);
+					edgeNeedsRebuild = true;
 				}
+
+				if (edgeNeedsRebuild)
+					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
 
 				return pArchetypeRight;
 			}
@@ -3829,10 +3833,21 @@ namespace gaia {
 			//! \return Pointer to archetype.
 			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity) {
 				// Check if the component is found when following the "del" edges
+				bool edgeNeedsRebuild = false;
 				{
 					const auto edge = pArchetypeRight->find_edge_left(entity);
-					if (edge != ArchetypeIdHashPairBad)
-						return m_archetypesById[edge];
+					if (edge != ArchetypeIdHashPairBad) {
+						const auto it = m_archetypesById.find(ArchetypeIdLookupKey(edge.id, edge.hash));
+						if (it != m_archetypesById.end()) {
+							auto* pArchetypeLeft = it->second;
+							if (pArchetypeLeft != nullptr)
+								return pArchetypeLeft;
+						}
+
+						// Drop stale local cache edge and rebuild it below.
+						pArchetypeRight->del_graph_edge_left_local(entity);
+						edgeNeedsRebuild = true;
+					}
 				}
 
 				cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> entsNew;
@@ -3855,9 +3870,12 @@ namespace gaia {
 				if (pArchetype == nullptr) {
 					pArchetype = create_archetype({entsNew.data(), entsNew.size()});
 					pArchetype->set_hashes({hashLookup});
-					pArchetype->build_graph_edges(pArchetypeRight, entity);
 					reg_archetype(pArchetype);
+					edgeNeedsRebuild = true;
 				}
+
+				if (edgeNeedsRebuild)
+					pArchetype->build_graph_edges(pArchetypeRight, entity);
 
 				return pArchetype;
 			}

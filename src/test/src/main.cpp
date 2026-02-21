@@ -3967,6 +3967,41 @@ TEST_CASE("Add - many components, bulk 2") {
 	checkInt3();
 }
 
+TEST_CASE("Add-del") {
+	// This is a do-not-crash unit test.
+	// This is done to properly test cases of [] -> [A] -> [A,B] -> [A,B,C].
+	// If B disappears and an operation later needs that transition, the graph need to re-link correctly (
+	// where a direct transition is semantically valid for that entity operation).
+	// Create a one-direction cached path, delete a type/archetype in that path, then repeatedly run
+	// remove-component transitions(del) plus update() cleanup.
+	TestWorld twld;
+
+	// 1) Create three entities
+	auto A = wld.add();
+	auto B = wld.add();
+	auto C = wld.add();
+
+	// 2) Build archetype chain using one add-order only:
+	//    [] -> [A] -> [A,B] -> [A,B,C]
+	auto e = wld.add();
+	wld.add(e, A);
+	wld.add(e, B);
+	wld.add(e, C);
+
+	// 3) Delete A
+	wld.del(A);
+
+	// 4) Keep mutating entities through remove paths so del-edge lookup is used
+	for (int i = 0; i < 2000; ++i) {
+		auto x = wld.add();
+		wld.add(x, B);
+		wld.add(x, C);
+		wld.del(x, B); // hits foc_archetype_del path
+		wld.del(x);
+		wld.update(); // runs gc/archetype cleanup
+	}
+}
+
 TEST_CASE("Pair") {
 	{
 		TestWorld twld;
