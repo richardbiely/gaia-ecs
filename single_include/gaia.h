@@ -27467,7 +27467,7 @@ namespace gaia {
 		class Archetype;
 
 		//! Number of items that can be a part of Query
-		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 8U;
+		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;
 
 		GAIA_GCC_WARNING_PUSH()
 		// GCC is unnecessarily too strict about shadowing.
@@ -27699,7 +27699,7 @@ namespace gaia {
 				uint8_t firstAny;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
-				uint8_t readWriteMask;
+				uint16_t readWriteMask;
 				//! Query flags
 				uint8_t flags;
 
@@ -27719,7 +27719,7 @@ namespace gaia {
 				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
-			static_assert(MAX_ITEMS_IN_QUERY == 8);
+			static_assert(MAX_ITEMS_IN_QUERY < 16);
 
 			void init(World* pWorld) {
 				w = pWorld;
@@ -30912,7 +30912,7 @@ namespace gaia {
 
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
-					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
+					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.

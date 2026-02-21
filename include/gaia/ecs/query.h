@@ -74,7 +74,7 @@ namespace gaia {
 
 					// Build the read-write mask.
 					// This will be used to determine what kind of access the user wants for a given component.
-					const uint8_t isReadWrite = uint8_t(item.access == QueryAccess::Write);
+					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
 
 					// The query engine is going to reorder the query items as necessary.
