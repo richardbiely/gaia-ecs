@@ -242,6 +242,7 @@ namespace gaia {
 			void set_workers_high_prio(uint32_t count) {
 				// Stop all threads first
 				reset();
+				detail::tl_workerCtx = m_workersCtx.data();
 
 				uint32_t workerIdx = 1;
 				set_workers_high_prio_inter(workerIdx, count);
@@ -252,6 +253,7 @@ namespace gaia {
 			void set_workers_low_prio(uint32_t count) {
 				// Stop all threads first
 				reset();
+				detail::tl_workerCtx = m_workersCtx.data();
 
 				uint32_t workerIdx = 1;
 				set_workers_low_prio_inter(workerIdx, count);
@@ -737,6 +739,7 @@ namespace gaia {
 				ctx.tp = this;
 				ctx.workerIdx = workerIdx;
 				ctx.prio = prio;
+				ctx.threadCreated = false;
 
 #if GAIA_THREAD_PLATFORM == GAIA_THREAD_STD
 				m_workers[workerIdx - 1] = std::thread([&ctx]() {
@@ -824,6 +827,8 @@ namespace gaia {
 				ret = pthread_create(&m_workers[workerIdx - 1], &attr, thread_func, (void*)&ctx);
 				if (ret != 0) {
 					GAIA_LOG_W("pthread_create failed for worker thread %u. ErrCode = %d", workerIdx, ret);
+				} else {
+					ctx.threadCreated = true;
 				}
 
 				pthread_attr_destroy(&attr);
@@ -844,8 +849,13 @@ namespace gaia {
 				if (t.joinable())
 					t.join();
 #else
+				auto& ctx = m_workersCtx[workerIdx];
+				if (!ctx.threadCreated)
+					return;
+
 				auto& t = m_workers[workerIdx - 1];
 				pthread_join(t, nullptr);
+				ctx.threadCreated = false;
 #endif
 			}
 
@@ -1187,7 +1197,7 @@ namespace gaia {
 
 					// Lock the semaphore with the number of jobs me managed to push.
 					// Number of workers if the upper bound.
-					const auto cntWorkers = m_workersCnt[(uint32_t)ctx->prio];
+					const auto cntWorkers = ctx != nullptr ? m_workersCnt[(uint32_t)ctx->prio] : m_workers.size();
 					const auto cnt = (int32_t)core::get_min(pushed, cntWorkers);
 					m_sem.release(cnt);
 

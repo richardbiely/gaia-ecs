@@ -55,6 +55,8 @@ namespace gaia {
 			uint32_t workerIdx;
 			//! Job priority
 			JobPriority prio;
+			//! True when the worker thread has been successfully created.
+			bool threadCreated = false;
 			//! Event signaled when a job is executed
 			Event event;
 			//! Lock-free work stealing queue for the jobs
@@ -64,6 +66,7 @@ namespace gaia {
 			~ThreadCtx() = default;
 
 			void reset() {
+				threadCreated = false;
 				event.reset();
 				jobQueue.clear();
 			}
