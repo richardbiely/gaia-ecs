@@ -3,7 +3,6 @@
 #include "gaia/config/config.h"
 
 #include <atomic>
-#include <mutex>
 
 #include "gaia/cnt/sarray.h"
 #include "gaia/config/profiler.h"

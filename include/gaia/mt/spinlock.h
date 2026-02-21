@@ -10,6 +10,7 @@ namespace gaia {
 
 		public:
 			SpinLock() = default;
+			~SpinLock() = default;
 			SpinLock(const SpinLock&) = delete;
 			SpinLock& operator=(const SpinLock&) = delete;
 
