@@ -393,15 +393,13 @@ namespace gaia {
 					Query q(
 							*const_cast<World*>(this), m_queryCache,
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap,
-							{(const Archetype**)m_archetypes.data(), m_archetypes.size()});
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
 					return q;
 				} else {
 					QueryUncached q(
 							*const_cast<World*>(this),
 							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap,
-							{(const Archetype**)m_archetypes.data(), m_archetypes.size()});
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
 					return q;
 				}
 			}

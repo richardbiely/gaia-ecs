@@ -417,7 +417,7 @@ namespace gaia {
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
-				std::span<const Archetype*> m_allArchetypes;
+				const ArchetypeDArray* m_allArchetypes{};
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -451,7 +451,8 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo = m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
+						auto& queryInfo =
+								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
@@ -463,14 +464,14 @@ namespace gaia {
 							ctx.init(m_storage.world());
 							commit(ctx);
 							m_storage.m_queryInfo =
-									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, m_allArchetypes);
+									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						}
 						return m_storage.m_queryInfo;
 					}
 				}
 
 				void match_all(QueryInfo& queryInfo) {
-					queryInfo.match(*m_entityToArchetypeMap, m_allArchetypes, last_archetype_id());
+					queryInfo.match(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
 				}
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
@@ -481,6 +482,11 @@ namespace gaia {
 			private:
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
+				}
+
+				GAIA_NODISCARD std::span<const Archetype*> all_archetypes_view() const {
+					GAIA_ASSERT(m_allArchetypes != nullptr);
+					return {(const Archetype**)m_allArchetypes->data(), m_allArchetypes->size()};
 				}
 
 				template <typename T>
@@ -1472,18 +1478,18 @@ namespace gaia {
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						std::span<const Archetype*> allArchetypes):
+						const ArchetypeDArray& allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world, &queryCache);
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes):
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
 						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(allArchetypes) {
+						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world);
 				}
 
