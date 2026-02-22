@@ -376,7 +376,7 @@ namespace gaia {
 				if (m_pTracker->prev != nullptr)
 					m_pTracker->prev->next = m_pTracker->next;
 
-				if (m_w != nullptr && m_entity != EntityBad) {
+				if (m_w != nullptr && valid(*m_w, m_entity)) {
 					auto& ec = fetch_mut(*m_w, m_entity);
 					if (ec.pWeakTracker == m_pTracker)
 						ec.pWeakTracker = m_pTracker->next;

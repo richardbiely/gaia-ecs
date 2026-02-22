@@ -3821,6 +3821,21 @@ TEST_CASE("Entity weak") {
 		for (const auto& weak: weaks)
 			CHECK(weak == ecs::EntityBad);
 	}
+
+	SUBCASE("world teardown with live weak component") {
+		struct WeakComponent {
+			ecs::WeakEntity entity;
+		};
+
+		{
+			ecs::World world;
+			auto e = world.add();
+			auto holder = world.add();
+			world.add<WeakComponent>(holder, {ecs::WeakEntity(world, e)});
+		}
+
+		CHECK(true);
+	}
 }
 #endif
 
