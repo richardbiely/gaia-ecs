@@ -7646,6 +7646,44 @@ TEST_CASE("Query - all/any eval after new archetypes are created") {
 	CHECK(q.count() == 2);
 }
 
+TEST_CASE("Query - cached component query sees entities added after creation") {
+	TestWorld twld;
+
+	auto qCached = wld.query().all<Position&>().all<Acceleration&>();
+
+	// Compile/cache the query before any matching archetype exists.
+	CHECK(qCached.count() == 0);
+
+	{
+		// No matching archetype yet.
+		auto e = wld.add();
+		wld.add<Position>(e, {1, 2, 3});
+
+		CHECK(qCached.count() == 0);
+		CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 0);
+	}
+
+	{
+		// Matching archetype appears after cached query creation.
+		auto e = wld.add();
+		wld.add<Position>(e, {1, 2, 3});
+		wld.add<Acceleration>(e, {4, 5, 6});
+
+		CHECK(qCached.count() == 1);
+		CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 1);
+	}
+
+	{
+		// Additional matching entity should also be visible.
+		auto e = wld.add();
+		wld.add<Position>(e, {7, 8, 9});
+		wld.add<Acceleration>(e, {10, 11, 12});
+
+		CHECK(qCached.count() == 2);
+		CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 2);
+	}
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 
