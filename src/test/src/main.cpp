@@ -3705,6 +3705,122 @@ TEST_CASE("Entity weak") {
 		wld.del(e);
 		CHECK(second == ecs::EntityBad);
 	}
+
+	SUBCASE("stress random copy move delete sequences") {
+		TestWorld twld;
+
+		constexpr uint32_t Iterations = 20'000;
+		constexpr uint32_t WeakSlots = 128;
+		constexpr uint32_t MaxLiveEntities = 256;
+
+		cnt::darr<ecs::WeakEntity> weaks;
+		weaks.resize(WeakSlots);
+
+		cnt::darr<ecs::Entity> live;
+		live.reserve(MaxLiveEntities);
+
+		auto verify = [&] {
+			for (const auto& weak: weaks) {
+				const auto e = weak.entity();
+				if (e == ecs::EntityBad) {
+					CHECK_FALSE(wld.valid(e));
+					continue;
+				}
+
+				CHECK(wld.valid(e));
+				CHECK(wld.has(e));
+			}
+		};
+
+		rnd::pseudo_random rng(0xC0FFEEu);
+
+		for (uint32_t it = 0; it < Iterations; ++it) {
+			const auto op = rng.range(0, 8);
+			switch (op) {
+				case 0: {
+					if (live.size() < MaxLiveEntities)
+						live.push_back(wld.add());
+					break;
+				}
+				case 1: {
+					if (live.empty())
+						break;
+					const uint32_t idx = rng.range(0, (uint32_t)live.size() - 1);
+					wld.del(live[idx]);
+					live[idx] = live.back();
+					live.pop_back();
+					break;
+				}
+				case 2: {
+					if (live.empty())
+						break;
+					const uint32_t wi = rng.range(0, WeakSlots - 1);
+					const uint32_t ei = rng.range(0, (uint32_t)live.size() - 1);
+					weaks[wi] = ecs::WeakEntity(wld, live[ei]);
+					break;
+				}
+				case 3: {
+					const uint32_t wi = rng.range(0, WeakSlots - 1);
+					weaks[wi] = ecs::WeakEntity();
+					break;
+				}
+				case 4: {
+					const uint32_t a = rng.range(0, WeakSlots - 1);
+					const uint32_t b = rng.range(0, WeakSlots - 1);
+					weaks[a] = weaks[b];
+					break;
+				}
+				case 5: {
+					const uint32_t a = rng.range(0, WeakSlots - 1);
+					const uint32_t b = rng.range(0, WeakSlots - 1);
+					weaks[a] = GAIA_MOV(weaks[b]);
+					break;
+				}
+				case 6: {
+					const uint32_t a = rng.range(0, WeakSlots - 1);
+					const uint32_t b = rng.range(0, WeakSlots - 1);
+					auto tmp = weaks[b];
+					weaks[a] = GAIA_MOV(tmp);
+					break;
+				}
+				case 7: {
+					if (!live.empty()) {
+						const uint32_t idx = rng.range(0, (uint32_t)live.size() - 1);
+						wld.del(live[idx]);
+						live[idx] = live.back();
+						live.pop_back();
+					}
+					break;
+				}
+				case 8: {
+					if (!live.empty()) {
+						const uint32_t wi = rng.range(0, WeakSlots - 1);
+						const uint32_t ei = rng.range(0, (uint32_t)live.size() - 1);
+						const auto e = live[ei];
+						weaks[wi] = ecs::WeakEntity(wld, e);
+						wld.del(e);
+						live[ei] = live.back();
+						live.pop_back();
+					}
+					break;
+				}
+				default:
+					break;
+			}
+
+			if ((it % 127) == 0)
+				verify();
+		}
+
+		while (!live.empty()) {
+			wld.del(live.back());
+			live.pop_back();
+		}
+
+		verify();
+		for (const auto& weak: weaks)
+			CHECK(weak == ecs::EntityBad);
+	}
 }
 #endif
 
