@@ -3568,7 +3568,7 @@ namespace gaia {
 			//! Deletes an archetype from the <pairEntity, archetype> map
 			//! \param pair Pair entity used as a key in the map
 			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
-			void del_entity_archetype_pair(Pair pair, Entity entityToRemove) {
+			void del_entity_query_pair(Pair pair, Entity entityToRemove) {
 				GAIA_ASSERT(pair != Pair(All, All));
 
 				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
@@ -3606,9 +3606,9 @@ namespace gaia {
 					const auto second = get(entity.gen());
 
 					// (*, tgt)
-					del_entity_archetype_pair(Pair(All, second), entity);
+					del_entity_query_pair(Pair(All, second), entity);
 					// (src, *)
-					del_entity_archetype_pair(Pair(first, All), entity);
+					del_entity_query_pair(Pair(first, All), entity);
 				}
 			}
 
