@@ -7189,6 +7189,48 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		CHECK(cnt == 1);
 	}
 	{
+		auto q = wld.query().all<Position&>().all<Acceleration&>();
+
+		uint32_t cnt = 0;
+		q.each([&](ecs::Entity entity, Position& position, Acceleration& acceleration) {
+			++cnt;
+
+			const bool isExpectedEntity = entity == e1 || entity == e3;
+			CHECK(isExpectedEntity);
+			position.x += 1.0f;
+			acceleration.y += 2.0f;
+		});
+		CHECK(cnt == 2);
+	}
+	{
+		auto q = wld.query().all<Position&>().all<Acceleration&>();
+
+		uint32_t cnt = 0;
+		q.each([&](Position& position, ecs::Entity entity, Acceleration& acceleration) {
+			++cnt;
+
+			const bool isExpectedEntity = entity == e1 || entity == e3;
+			CHECK(isExpectedEntity);
+			position.x += 1.0f;
+			acceleration.y += 2.0f;
+		});
+		CHECK(cnt == 2);
+	}
+	{
+		auto q = wld.query().all<Position&>().all<Acceleration&>();
+
+		uint32_t cnt = 0;
+		q.each([&](Position& position, Acceleration& acceleration, ecs::Entity entity) {
+			++cnt;
+
+			const bool isExpectedEntity = entity == e1 || entity == e3;
+			CHECK(isExpectedEntity);
+			position.x += 1.0f;
+			acceleration.y += 2.0f;
+		});
+		CHECK(cnt == 2);
+	}
+	{
 		ecs::Query q = wld.query().any<Position>().any<Acceleration>();
 
 		uint32_t cnt = 0;
