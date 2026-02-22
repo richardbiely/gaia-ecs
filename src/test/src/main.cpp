@@ -3650,6 +3650,61 @@ TEST_CASE("Entity weak") {
 		CHECK_FALSE(wld.valid(wc.entity));
 		CHECK_FALSE(wld.has(wc.entity));
 	}
+
+	SUBCASE("copy assignment replaces previous tracking") {
+		TestWorld twld;
+
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto dst = ecs::WeakEntity(wld, e0);
+		auto src = ecs::WeakEntity(wld, e1);
+
+		dst = src;
+		CHECK(dst == e1);
+		CHECK(src == e1);
+
+		wld.del(e0);
+		CHECK(dst == e1);
+		CHECK(src == e1);
+
+		wld.del(e1);
+		CHECK(dst == ecs::EntityBad);
+		CHECK(src == ecs::EntityBad);
+	}
+
+	SUBCASE("move assignment transfers tracking and releases previous one") {
+		TestWorld twld;
+
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		auto dst = ecs::WeakEntity(wld, e0);
+		auto src = ecs::WeakEntity(wld, e1);
+
+		dst = GAIA_MOV(src);
+		CHECK(dst == e1);
+		CHECK(src == ecs::EntityBad);
+
+		wld.del(e0);
+		CHECK(dst == e1);
+
+		wld.del(e1);
+		CHECK(dst == ecs::EntityBad);
+	}
+
+	SUBCASE("remaining weak handles still invalidate after another handle is reset") {
+		TestWorld twld;
+
+		auto e = wld.add();
+		auto first = ecs::WeakEntity(wld, e);
+		auto second = ecs::WeakEntity(wld, e);
+
+		first = ecs::WeakEntity();
+		CHECK(first == ecs::EntityBad);
+		CHECK(second == e);
+
+		wld.del(e);
+		CHECK(second == ecs::EntityBad);
+	}
 }
 #endif
 

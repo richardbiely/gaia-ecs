@@ -306,35 +306,23 @@ namespace gaia {
 			}
 
 			WeakEntity(const WeakEntity& other): m_w(other.m_w), m_entity(other.m_entity) {
-				if (other.m_entity == EntityBad)
+				if (other.m_pTracker == nullptr)
 					return;
 
 				m_pTracker = new WeakEntityTracker();
-				m_pTracker->pWeakEntity = this;
-
-				auto& ec = fetch_mut(*other.m_w, other.m_entity);
-				if (ec.pWeakTracker != nullptr) {
-					ec.pWeakTracker->prev = m_pTracker;
-					m_pTracker->next = ec.pWeakTracker;
-				} else
-					ec.pWeakTracker = m_pTracker;
+				set_tracker();
 			}
 			WeakEntity& operator=(const WeakEntity& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
+				del_tracker();
+
 				m_w = other.m_w;
 				m_entity = other.m_entity;
 
-				if (other.m_entity != EntityBad) {
+				if (other.m_pTracker != nullptr) {
 					m_pTracker = new WeakEntityTracker();
-					m_pTracker->pWeakEntity = this;
-
-					auto& ec = fetch_mut(*other.m_w, other.m_entity);
-					if (ec.pWeakTracker != nullptr) {
-						ec.pWeakTracker->prev = m_pTracker;
-						m_pTracker->next = ec.pWeakTracker;
-					} else
-						ec.pWeakTracker = m_pTracker;
+					set_tracker();
 				}
 
 				return *this;
@@ -342,19 +330,23 @@ namespace gaia {
 
 			WeakEntity(WeakEntity&& other) noexcept: m_w(other.m_w), m_pTracker(other.m_pTracker), m_entity(other.m_entity) {
 				other.m_w = nullptr;
-				other.m_pTracker->pWeakEntity = this;
+				if (other.m_pTracker != nullptr)
+					other.m_pTracker->pWeakEntity = this;
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 			}
 			WeakEntity& operator=(WeakEntity&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
+				del_tracker();
+
 				m_w = other.m_w;
 				m_pTracker = other.m_pTracker;
 				m_entity = other.m_entity;
 
 				other.m_w = nullptr;
-				other.m_pTracker->pWeakEntity = this;
+				if (other.m_pTracker != nullptr)
+					other.m_pTracker->pWeakEntity = this;
 				other.m_pTracker = nullptr;
 				other.m_entity = EntityBad;
 				return *this;
@@ -362,14 +354,17 @@ namespace gaia {
 
 			void set_tracker() {
 				GAIA_ASSERT(m_pTracker != nullptr);
+				GAIA_ASSERT(m_w != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+
 				m_pTracker->pWeakEntity = this;
+				m_pTracker->prev = nullptr;
 
 				auto& ec = fetch_mut(*m_w, m_entity);
-				if (ec.pWeakTracker != nullptr) {
+				m_pTracker->next = ec.pWeakTracker;
+				if (ec.pWeakTracker != nullptr)
 					ec.pWeakTracker->prev = m_pTracker;
-					m_pTracker->next = ec.pWeakTracker;
-				} else
-					ec.pWeakTracker = m_pTracker;
+				ec.pWeakTracker = m_pTracker;
 			}
 
 			void del_tracker() {
@@ -381,9 +376,11 @@ namespace gaia {
 				if (m_pTracker->prev != nullptr)
 					m_pTracker->prev->next = m_pTracker->next;
 
-				auto& ec = fetch_mut(*m_w, m_entity);
-				if (ec.pWeakTracker == m_pTracker)
-					ec.pWeakTracker = nullptr;
+				if (m_w != nullptr && m_entity != EntityBad) {
+					auto& ec = fetch_mut(*m_w, m_entity);
+					if (ec.pWeakTracker == m_pTracker)
+						ec.pWeakTracker = m_pTracker->next;
+				}
 
 				delete m_pTracker;
 				m_pTracker = nullptr;
@@ -399,7 +396,10 @@ namespace gaia {
 				Identifier id{};
 				s.load(id);
 				m_entity = Entity(id);
-				set_tracker();
+				if (m_w != nullptr && m_entity != EntityBad) {
+					m_pTracker = new WeakEntityTracker();
+					set_tracker();
+				}
 			}
 
 			GAIA_NODISCARD Entity entity() const noexcept {

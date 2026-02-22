@@ -4525,26 +4525,19 @@ namespace gaia {
 				req_del(ec, entity);
 
 #if GAIA_USE_WEAK_ENTITY
-				auto invalidateWeakEntity = [](WeakEntityTracker* pTracker) {
-					GAIA_ASSERT(pTracker->pWeakEntity->m_pTracker == pTracker);
-					pTracker->pWeakEntity->m_pTracker = nullptr;
-					pTracker->pWeakEntity->m_entity = EntityBad;
-					delete pTracker;
-				};
-
 				// Invalidate WeakEntities
-				if (ec.pWeakTracker != nullptr) {
-					auto* pTracker = ec.pWeakTracker->next;
-					while (pTracker != nullptr) {
-						invalidateWeakEntity(pTracker);
-						pTracker = pTracker->next;
-					}
-					pTracker = ec.pWeakTracker->prev;
-					while (pTracker != nullptr) {
-						invalidateWeakEntity(pTracker);
-						pTracker = pTracker->prev;
-					}
-					invalidateWeakEntity(ec.pWeakTracker);
+				while (ec.pWeakTracker != nullptr) {
+					auto* pTracker = ec.pWeakTracker;
+					ec.pWeakTracker = pTracker->next;
+					if (ec.pWeakTracker != nullptr)
+						ec.pWeakTracker->prev = nullptr;
+
+					auto* pWeakEntity = pTracker->pWeakEntity;
+					GAIA_ASSERT(pWeakEntity != nullptr);
+					GAIA_ASSERT(pWeakEntity->m_pTracker == pTracker);
+					pWeakEntity->m_pTracker = nullptr;
+					pWeakEntity->m_entity = EntityBad;
+					delete pTracker;
 				}
 #endif
 			}
