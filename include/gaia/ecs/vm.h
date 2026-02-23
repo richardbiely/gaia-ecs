@@ -1028,33 +1028,13 @@ namespace gaia {
 					if (!terms_any.empty()) {
 						GAIA_PROF_SCOPE(vm::compile_any);
 
-						uint32_t archetypesWithId = 0;
-
 						const auto cnt = terms_any.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_any[i];
-							if (p.src != EntityBad) {
+							if (p.src != EntityBad)
 								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
-								if (p.srcArchetype == nullptr)
-									continue;
-							}
-
-							// Check if any archetype is associated with the entity id.
-							// All ids must be registered in the world.
-							auto archetypes =
-									fetch_archetypes_for_select(entityToArchetypeMap, allArchetypes, p.id, EntityLookupKey(p.id));
-							if (archetypes.empty())
-								continue;
-
-							++archetypesWithId;
-
+							
 							m_compCtx.ids_any.push_back(p.id);
-						}
-
-						// No archetypes with "any" entities exist. We can quit right away.
-						if (archetypesWithId == 0) {
-							m_compCtx.ops.clear();
-							return;
 						}
 					}
 

@@ -7684,6 +7684,24 @@ TEST_CASE("Query - cached component query sees entities added after creation") {
 	}
 }
 
+TEST_CASE("Query - cached ANY query sees matches added after creation") {
+	TestWorld twld;
+
+	auto tag = wld.add();
+	auto qCached = wld.query().any(tag);
+
+	// Compile/cache before any matching archetype exists.
+	CHECK(qCached.count() == 0);
+	CHECK(wld.query<false>().any(tag).count() == 0);
+
+	// Add matching archetype after query creation.
+	auto e = wld.add();
+	wld.add(e, tag);
+
+	CHECK(qCached.count() == 1);
+	CHECK(wld.query<false>().any(tag).count() == 1);
+}
+
 TEST_CASE("Query - remove decrements ALL/ANY/NOT cached cursors") {
 	TestWorld twld;
 
