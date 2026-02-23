@@ -756,6 +756,7 @@ namespace gaia {
 				};
 				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_All);
 				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Any);
+				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Not);
 			}
 
 			//! Returns a view of indices mapping for component entities in a given archetype

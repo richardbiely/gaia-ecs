@@ -7684,6 +7684,35 @@ TEST_CASE("Query - cached component query sees entities added after creation") {
 	}
 }
 
+TEST_CASE("Query - remove decrements ALL/ANY/NOT cached cursors") {
+	TestWorld twld;
+
+	// Build a cached query and force it to populate archetype cache.
+	auto q = wld.query().no<Rotation>();
+	(void)q.count();
+
+	auto& info = q.fetch();
+	CHECK(info.begin() != info.end());
+	if (info.begin() == info.end())
+		return;
+
+	// QueryInfo::remove early-outs if the archetype is not in cache.
+	auto* pArchetype = const_cast<ecs::Archetype*>(*info.begin());
+
+	// Seed all cursor maps with the same test key.
+	auto keyEntity = wld.add();
+	auto key = ecs::EntityLookupKey(keyEntity);
+	info.ctx().data.lastMatchedArchetypeIdx_All[key] = 5;
+	info.ctx().data.lastMatchedArchetypeIdx_Any[key] = 5;
+	info.ctx().data.lastMatchedArchetypeIdx_Not[key] = 5;
+
+	info.remove(pArchetype);
+
+	CHECK(info.ctx().data.lastMatchedArchetypeIdx_All[key] == 4);
+	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Any[key] == 4);
+	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Not[key] == 4);
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 
