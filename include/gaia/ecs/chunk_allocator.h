@@ -27,7 +27,7 @@ namespace gaia {
 
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
 			// Ceil division by smallest block size
-			const uint32_t blocks = (sizeBytes + MinMemoryBlockSize) / MinMemoryBlockSize;
+			const uint32_t blocks = (sizeBytes + MinMemoryBlockSize - 1) / MinMemoryBlockSize;
 			return blocks > 2 ? 2 : static_cast<uint8_t>(blocks - 1);
 		}
 
