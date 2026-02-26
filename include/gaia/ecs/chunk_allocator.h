@@ -147,6 +147,7 @@ namespace gaia {
 					}
 
 					void free_block(void* pBlock) {
+						GAIA_ASSERT(pBlock != nullptr);
 						GAIA_ASSERT(m_usedBlocks > 0);
 						GAIA_ASSERT(m_freeBlocks <= NBlocks);
 
@@ -155,7 +156,13 @@ namespace gaia {
 						const auto blckAddr = (uintptr_t)pMemoryBlock;
 						GAIA_ASSERT(blckAddr % sizeof(uintptr_t) == 0);
 						const auto dataAddr = (uintptr_t)m_data;
-						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / mem_block_size(m_sizeType));
+						const auto blockSize = (uintptr_t)mem_block_size(m_sizeType);
+						const auto pageSize = blockSize * NBlocks;
+						GAIA_ASSERT(blckAddr >= dataAddr);
+						GAIA_ASSERT(blckAddr < dataAddr + pageSize);
+						GAIA_ASSERT((blckAddr - dataAddr) % blockSize == 0);
+						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / blockSize);
+						GAIA_ASSERT(blockIdx < m_blockCnt);
 
 						// Update our implicit list
 						if (m_freeBlocks == 0U)
