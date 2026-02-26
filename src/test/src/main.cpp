@@ -8219,6 +8219,8 @@ TEST_CASE("ChunkAllocator") {
 		auto& alloc = ecs::ChunkAllocator::get();
 		alloc.flush();
 
+		constexpr auto NBlocks = ecs::detail::MemoryPage::NBlocks;
+
 		void* p8k = alloc.alloc(ecs::MinMemoryBlockSize);
 		void* p16k = alloc.alloc(ecs::MinMemoryBlockSize * 2);
 		void* p32k = alloc.alloc(ecs::MaxMemoryBlockSize);
@@ -8232,9 +8234,9 @@ TEST_CASE("ChunkAllocator") {
 			CHECK(stats.stats[1].num_pages_free == 1);
 			CHECK(stats.stats[2].num_pages_free == 1);
 
-			CHECK(stats.stats[0].mem_total == (uint64_t)ecs::mem_block_size(0) * 48);
-			CHECK(stats.stats[1].mem_total == (uint64_t)ecs::mem_block_size(1) * 48);
-			CHECK(stats.stats[2].mem_total == (uint64_t)ecs::mem_block_size(2) * 48);
+			CHECK(stats.stats[0].mem_total == (uint64_t)ecs::mem_block_size(0) * NBlocks);
+			CHECK(stats.stats[1].mem_total == (uint64_t)ecs::mem_block_size(1) * NBlocks);
+			CHECK(stats.stats[2].mem_total == (uint64_t)ecs::mem_block_size(2) * NBlocks);
 
 			CHECK(stats.stats[0].mem_used == ecs::mem_block_size(0));
 			CHECK(stats.stats[1].mem_used == ecs::mem_block_size(1));
@@ -8248,9 +8250,29 @@ TEST_CASE("ChunkAllocator") {
 
 		{
 			const auto stats = alloc.stats();
+			CHECK(stats.stats[0].num_pages == 1);
+			CHECK(stats.stats[1].num_pages == 1);
+			CHECK(stats.stats[2].num_pages == 1);
+			CHECK(stats.stats[0].num_pages_free == 1);
+			CHECK(stats.stats[1].num_pages_free == 1);
+			CHECK(stats.stats[2].num_pages_free == 1);
+			CHECK(stats.stats[0].mem_total == (uint64_t)ecs::mem_block_size(0) * NBlocks);
+			CHECK(stats.stats[1].mem_total == (uint64_t)ecs::mem_block_size(1) * NBlocks);
+			CHECK(stats.stats[2].mem_total == (uint64_t)ecs::mem_block_size(2) * NBlocks);
+			CHECK(stats.stats[0].mem_used == 0);
+			CHECK(stats.stats[1].mem_used == 0);
+			CHECK(stats.stats[2].mem_used == 0);
+		}
+
+		alloc.flush(true);
+		{
+			const auto stats = alloc.stats();
 			CHECK(stats.stats[0].num_pages == 0);
 			CHECK(stats.stats[1].num_pages == 0);
 			CHECK(stats.stats[2].num_pages == 0);
+			CHECK(stats.stats[0].num_pages_free == 0);
+			CHECK(stats.stats[1].num_pages_free == 0);
+			CHECK(stats.stats[2].num_pages_free == 0);
 			CHECK(stats.stats[0].mem_total == 0);
 			CHECK(stats.stats[1].mem_total == 0);
 			CHECK(stats.stats[2].mem_total == 0);
@@ -8264,7 +8286,8 @@ TEST_CASE("ChunkAllocator") {
 		auto& alloc = ecs::ChunkAllocator::get();
 		alloc.flush();
 
-		static constexpr uint32_t NBlocks = 48;
+		constexpr auto NBlocks = ecs::detail::MemoryPage::NBlocks;
+
 		void* blocks[NBlocks + 1]{};
 		GAIA_FOR(NBlocks) {
 			blocks[i] = alloc.alloc(ecs::MaxMemoryBlockSize);
@@ -8303,6 +8326,15 @@ TEST_CASE("ChunkAllocator") {
 		}
 		alloc.flush();
 
+		{
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[2].num_pages == 1);
+			CHECK(stats.stats[2].num_pages_free == 1);
+			CHECK(stats.stats[2].mem_total == (uint64_t)ecs::mem_block_size(2) * NBlocks);
+			CHECK(stats.stats[2].mem_used == 0);
+		}
+
+		alloc.flush(true);
 		{
 			const auto stats = alloc.stats();
 			CHECK(stats.stats[2].num_pages == 0);

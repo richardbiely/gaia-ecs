@@ -929,26 +929,30 @@ namespace gaia {
 				m_graph.del_edge_left(entity);
 			}
 
-			//! Deletes a cached local "add" edge formed by \param entity.
+			//! Deletes a cached local "add" edge formed by @a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
+			//! \param entity Entity to remove
 			void del_graph_edge_right_local(Entity entity) {
 				m_graph.del_edge_right(entity);
 			}
 
-			//! Deletes a cached local "del" edge formed by \param entity.
+			//! Deletes a cached local "del" edge formed by @a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
+			//! \param entity Entity to remove
 			void del_graph_edge_left_local(Entity entity) {
 				m_graph.del_edge_left(entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity \param entity exists.
+			//! Checks if an archetype graph "add" edge with entity @a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return m_graph.find_edge_right(entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity \param entity exists.
+			//! Checks if an archetype graph "del" edge with entity @a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
 				return m_graph.find_edge_left(entity);
 			}
