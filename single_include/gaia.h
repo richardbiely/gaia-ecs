@@ -23001,15 +23001,16 @@ namespace gaia {
 				ChunkAllocatorPageStats page_stats(uint32_t sizeType) const {
 					ChunkAllocatorPageStats stats{};
 					const auto& container = m_pages[sizeType];
+					const auto blockSize = (size_t)mem_block_size(sizeType);
 
 					stats.num_pages = (uint32_t)container.pagesFree.size() + (uint32_t)container.pagesFull.size();
 					stats.num_pages_free = (uint32_t)container.pagesFree.size();
-					stats.mem_total = stats.num_pages * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
-					stats.mem_used = container.pagesFull.size() * (size_t)mem_block_size(sizeType) * MemoryPage::NBlocks;
+					stats.mem_total = stats.num_pages * blockSize * MemoryPage::NBlocks;
+					stats.mem_used = container.pagesFull.size() * blockSize * MemoryPage::NBlocks;
 
 					const auto& pagesFree = container.pagesFree;
 					for (const auto& page: pagesFree)
-						stats.mem_used += page.used_blocks_cnt() * (size_t)MaxMemoryBlockSize;
+						stats.mem_used += page.used_blocks_cnt() * blockSize;
 					return stats;
 				}
 			};
