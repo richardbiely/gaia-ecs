@@ -237,18 +237,12 @@ namespace gaia {
 					GAIA_ASSERT(bytesWanted <= MaxMemoryBlockSize);
 
 					void* pBlock = nullptr;
-					MemoryPage* pPage = nullptr;
-
 					const auto sizeType = mem_block_size_type(bytesWanted);
 					auto& container = m_pages[sizeType];
 
-					// Find first page with available space
-					for (auto& page: container.pagesFree) {
-						if (page.full())
-							continue;
-						pPage = &page;
-						break;
-					}
+					// Free list contains only pages with available capacity.
+					auto* pPage = container.pagesFree.first;
+					GAIA_ASSERT(pPage == nullptr || !pPage->full());
 					if (pPage == nullptr) {
 						// Allocate a new page if no free page was found
 						pPage = alloc_page(sizeType);
