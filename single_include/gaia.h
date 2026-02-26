@@ -22951,8 +22951,8 @@ namespace gaia {
 					auto diagPage = [](const ChunkAllocatorPageStats& stats, uint32_t sizeType) {
 						GAIA_LOG_N("ChunkAllocator %uK stats", mem_block_size(sizeType) / 1024);
 						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
-						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_total - stats.mem_used);
-						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_total - stats.mem_used);
 						GAIA_LOG_N(
 								"  Utilization: %.1f%%",
 								stats.mem_total ? 100.0 * ((double)stats.mem_used / (double)stats.mem_total) : 0);
