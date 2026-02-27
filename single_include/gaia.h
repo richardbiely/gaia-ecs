@@ -21326,6 +21326,12 @@ namespace gaia {
 				m_sem.release((int32_t)m_workers.size());
 
 				auto* ctx = detail::tl_workerCtx;
+				if (ctx == nullptr) {
+					// reset() can be reached during static teardown from a thread that never
+					// entered the pool and therefore has no TLS worker context bound.
+					ctx = &m_workersCtx[0];
+					detail::tl_workerCtx = ctx;
+				}
 
 				// Finish remaining jobs
 				JobHandle jobHandle;

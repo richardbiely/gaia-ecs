@@ -11546,6 +11546,21 @@ TEST_CASE("Multithreading - Systems") {
 
 #endif
 
+TEST_CASE("Multithreading - Reset handles missing TLS worker context") {
+	auto& tp = mt::ThreadPool::get();
+
+	// Keep this deterministic regardless of previous tests.
+	tp.set_max_workers(2, 2);
+	CHECK(tp.workers() == 1);
+
+	// Simulate shutdown from a thread that has no TLS worker context bound.
+	mt::detail::tl_workerCtx = nullptr;
+
+	// set_max_workers() calls reset() internally, which used to dereference null TLS context.
+	tp.set_max_workers(2, 2);
+	CHECK(tp.workers() == 1);
+}
+
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
 	util::set_log_func(util::detail::log_cached);
