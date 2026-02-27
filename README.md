@@ -99,6 +99,10 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Threads](#threads)
   * [Customization](#customization)
     * [Logging](#logging)
+  * [Debugging](#debugging)
+    * [diag_archetypes()](#diag_archetypes)
+    * [diag_components()](#diag_components)
+    * [print_archetype_entities()](#print_archetype_entities)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
@@ -2460,6 +2464,52 @@ util::set_log_flush_func(util::detail::log_flush_cached);
 Once called, all logs below the level of warning are going to be cached. They will be flushed either when the cache is full, when a warning or an error is logged, or when the flush is requested manually via **util::log_flush**.
 
 The size of the cache can be controlled via preprocessor definitions **GAIA_LOG_BUFFER_SIZE** (how large logs can grow in bytes before flush is triggered) and **GAIA_LOG_BUFFER_ENTRIES** (how many log entries are possible before flush is triggered).
+
+## Debugging
+
+Gaia-ECS provides built-in diagnostic functions to help understand and debug your ECS world state.
+
+### diag_archetypes()
+
+Prints detailed information about all archetypes in the world and their chunks.
+
+```cpp
+ecs::World world;
+//as u use gaia archetypes automaticaly emerge
+auto ent1 = world.add();
+auto ent2 = world.add();
+struct Component {};
+world.add<Component>(ent2); //to make ent2 distinct archetype
+
+// Print archetype diagnostics
+world.diag_archetypes();
+```
+
+### diag_components()
+
+Prints information about all registered components and reports any detected issues.
+
+```cpp
+ecs::World world;
+
+// Explicitly register components in order (important for serialization)
+world.add<Position>();
+world.add<Health>();
+world.add<RenderingData>();
+
+// Verify registration order
+world.diag_components();
+// Should print all components in the order they were registered
+```
+
+### print_archetype_entities()
+
+Print entities in an archetype. Available only when `GAIA_ASSERT_ENABLED` is defined (enabled by default in Debug
+builds).
+
+```cpp
+static void print_archetype_entities(const World& world, const Archetype& archetype, Entity entity, bool adding);
+```
 
 # Requirements
 
