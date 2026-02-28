@@ -20086,6 +20086,7 @@ namespace gaia {
 		} // namespace detail
 	} // namespace mt
 } // namespace gaia
+
 /*** End of inlined file: jobmanager.h ***/
 
 
@@ -21248,8 +21249,7 @@ namespace gaia {
 					if (!try_fetch_job(ctx, jobHandle))
 						break;
 
-					if (run(jobHandle, &ctx))
-						del(jobHandle);
+					(void)run(jobHandle, &ctx);
 				}
 			}
 

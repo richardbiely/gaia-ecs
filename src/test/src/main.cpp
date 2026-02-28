@@ -11561,6 +11561,108 @@ TEST_CASE("Multithreading - Reset handles missing TLS worker context") {
 	CHECK(tp.workers() == 1);
 }
 
+TEST_CASE("Multithreading - Update auto-delete job") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(0, 0);
+	CHECK(tp.workers() == 0);
+
+	std::atomic_uint32_t executed = 0;
+
+	// update() drives main_thread_tick() and must not double-delete auto jobs.
+	constexpr uint32_t Iters = 1024;
+	GAIA_FOR(Iters) {
+		mt::Job job;
+		job.func = [&]() {
+			executed.fetch_add(1, std::memory_order_relaxed);
+		};
+
+		const auto handle = tp.add(job);
+		tp.submit(handle);
+		tp.update();
+	}
+
+	CHECK(executed.load(std::memory_order_relaxed) == Iters);
+}
+
+TEST_CASE("Multithreading - Update auto-delete with workers") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+	CHECK(tp.workers() == 1);
+
+	constexpr uint32_t Jobs = 2048;
+	std::atomic_uint32_t executed = 0;
+
+	cnt::darr<mt::JobHandle> handles;
+	handles.resize(Jobs);
+
+	GAIA_FOR(Jobs) {
+		mt::Job job;
+		job.func = [&]() {
+			executed.fetch_add(1, std::memory_order_relaxed);
+		};
+		handles[i] = tp.add(job);
+	}
+
+	mt::Job sync;
+	sync.flags = mt::JobCreationFlags::ManualDelete;
+	const auto syncHandle = tp.add(sync);
+	tp.dep(std::span(handles.data(), handles.size()), syncHandle);
+
+	tp.submit(syncHandle);
+	tp.submit(std::span(handles.data(), handles.size()));
+
+	// Keep ticking from the main thread while worker threads are active.
+	// This exercises the same path that previously double-deleted auto jobs.
+	while (executed.load(std::memory_order_relaxed) < Jobs) {
+		tp.update();
+	}
+
+	tp.wait(syncHandle);
+	tp.del(syncHandle);
+	CHECK(executed.load(std::memory_order_relaxed) == Jobs);
+}
+
+TEST_CASE("Multithreading - Handle reuse mixed delete modes") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+	CHECK(tp.workers() == 1);
+
+	std::atomic_uint32_t autoCnt = 0;
+	std::atomic_uint32_t manualCnt = 0;
+
+	constexpr uint32_t Iters = 4096;
+	GAIA_FOR(Iters) {
+		mt::Job autoJob;
+		autoJob.func = [&]() {
+			autoCnt.fetch_add(1, std::memory_order_relaxed);
+		};
+
+		mt::Job manualJob;
+		manualJob.flags = mt::JobCreationFlags::ManualDelete;
+		manualJob.func = [&]() {
+			manualCnt.fetch_add(1, std::memory_order_relaxed);
+		};
+
+		const auto autoHandle = tp.add(autoJob);
+		const auto manualHandle = tp.add(manualJob);
+
+		tp.submit(autoHandle);
+		tp.submit(manualHandle);
+		tp.wait(manualHandle);
+		tp.del(manualHandle);
+
+		if ((i & 7) == 0)
+			tp.update();
+	}
+
+	// Drain any remaining auto jobs.
+	while (autoCnt.load(std::memory_order_relaxed) < Iters)
+		tp.update();
+
+	CHECK(autoCnt.load(std::memory_order_relaxed) == Iters);
+	CHECK(manualCnt.load(std::memory_order_relaxed) == Iters);
+}
+
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
 	util::set_log_func(util::detail::log_cached);
