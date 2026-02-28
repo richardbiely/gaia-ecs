@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -34,6 +35,8 @@ namespace gaia {
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
+			//! Runtime component descriptor id generator.
+			detail::ComponentDescId m_nextRuntimeCompDescId = 0x80000000u;
 
 			//! Clears the contents of the component cache
 			//! \warning Should be used only after worlds are cleared because it invalidates all currently
@@ -132,6 +135,52 @@ namespace gaia {
 				}
 			}
 
+			//! Registers a runtime-defined component.
+			//! \param entity Entity associated with the component.
+			//! \param name Component name.
+			//! \param len Name length. If zero, the length is calculated.
+			//! \param size Component size in bytes.
+			//! \param alig Component alignment in bytes.
+			//! \param soa Number of SoA items (0 for AoS).
+			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
+			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \return Component info.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(Entity entity, const char* name, uint32_t len, uint32_t size, uint32_t alig = 1, uint32_t soa = 0,
+					const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l > 0 && l < ComponentCacheItem::MaxNameLength);
+
+				{
+					const auto* pExisting = find(name, l);
+					if (pExisting != nullptr)
+						return *pExisting;
+				}
+
+				detail::ComponentDescId compDescId = m_nextRuntimeCompDescId;
+				while (find(compDescId) != nullptr) {
+					++compDescId;
+				}
+				m_nextRuntimeCompDescId = compDescId + 1;
+
+				const auto* pItem =
+						ComponentCacheItem::create(entity, compDescId, name, l, size, alig, soa, pSoaSizes, hashLookup);
+				if (compDescId < FastComponentCacheSize) {
+					if (compDescId >= m_itemArr.size())
+						m_itemArr.resize(compDescId + 1U);
+					m_itemArr[compDescId] = pItem;
+				} else {
+					m_itemByDescId.emplace(compDescId, pItem);
+				}
+
+				m_compByString.emplace(pItem->name, pItem);
+				m_compByEntity.emplace(pItem->entity, pItem);
+				return *pItem;
+			}
+
 			//! Searches for the component cache item given the @a compDescId.
 			//! \param compDescId Component descriptor id
 			//! \return Component info or nullptr it not found.
@@ -177,13 +226,30 @@ namespace gaia {
 				return nullptr;
 			}
 
+			//! Searches for the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find(Entity entity) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find(entity));
+			}
+
 			//! Returns the component cache item.
 			//! \param entity Entity associated with the component item.
 			//! \return Component info.
-			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
+			//! \warning It is expected the component item exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(Entity entity) const noexcept {
 				GAIA_ASSERT(!entity.pair());
 				const auto* pItem = find(entity);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \return Component info.
+			//! \warning It is expected the component item exists! Undefined behavior otherwise.
+			GAIA_NODISCARD ComponentCacheItem& get(Entity entity) noexcept {
+				auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
@@ -205,6 +271,14 @@ namespace gaia {
 				return nullptr;
 			}
 
+			//! Searches for the component cache item. The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find(name, len));
+			}
+
 			//! Returns the component cache item. The provided string is NOT copied internally.
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
@@ -212,6 +286,17 @@ namespace gaia {
 			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(const char* name, uint32_t len = 0) const noexcept {
 				const auto* pItem = find(name, len);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item. The provided string is NOT copied internally.
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \return Component info.
+			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
+			GAIA_NODISCARD ComponentCacheItem& get(const char* name, uint32_t len = 0) noexcept {
+				auto* pItem = find(name, len);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}

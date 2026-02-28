@@ -108,6 +108,11 @@
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
+//! If enabled, every registered compile-time component will have its schema registered automatically.
+#ifndef GAIA_ECS_AUTO_COMPONENT_SCHEMA
+	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "gaia/config/config_core_end.h"

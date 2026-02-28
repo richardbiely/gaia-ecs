@@ -803,6 +803,11 @@ namespace gaia {
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
+//! If enabled, every registered compile-time component will have its schema registered automatically.
+#ifndef GAIA_ECS_AUTO_COMPONENT_SCHEMA
+	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
+#endif
+
 //------------------------------------------------------------------------------
 
 
@@ -9889,6 +9894,7 @@ namespace gaia {
 		template <typename T>
 		struct is_int_kind_id:
 				std::disjunction<
+						std::is_same<T, char>, std::is_same<T, unsigned char>, //
 						std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
 						std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
 						std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
@@ -9908,7 +9914,11 @@ namespace gaia {
 		GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
 			static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
 
-			if constexpr (std::is_same_v<int8_t, T>) {
+			if constexpr (std::is_same_v<char, T>) {
+				return serialization_type_id::s8;
+			} else if constexpr (std::is_same_v<unsigned char, T>) {
+				return serialization_type_id::u8;
+			} else if constexpr (std::is_same_v<int8_t, T>) {
 				return serialization_type_id::s8;
 			} else if constexpr (std::is_same_v<uint8_t, T>) {
 				return serialization_type_id::u8;
@@ -9957,10 +9967,14 @@ namespace gaia {
 				return int_kind_id<T>();
 			else if constexpr (std::is_floating_point_v<T>)
 				return flt_type_id<T>();
+			else if constexpr (std::is_pointer_v<T>)
+				return serialization_type_id::data_and_size;
 			else if constexpr (core::has_size_begin_end<T>::value)
 				return serialization_type_id::data_and_size;
 			else if constexpr (std::is_class_v<T>)
 				return serialization_type_id::trivial_wrapper;
+			else
+				return serialization_type_id::ignore;
 		}
 
 		// --------------------
@@ -23245,6 +23259,7 @@ namespace gaia {
 
 #include <cinttypes>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 
@@ -23354,6 +23369,7 @@ namespace gaia {
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 
@@ -23582,6 +23598,13 @@ namespace gaia {
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
+			struct SchemaField {
+				char name[MaxNameLength]{};
+				ser::serialization_type_id type = ser::serialization_type_id::u8;
+				uint32_t offset = 0;
+				uint32_t size = 0;
+			};
+
 			//! Component entity
 			Entity entity;
 			//! Unique component identifier
@@ -23629,6 +23652,7 @@ namespace gaia {
 			};
 			Hooks comp_hooks;
 #endif
+			cnt::darray<SchemaField> schema;
 
 		private:
 			ComponentCacheItem() = default;
@@ -23642,14 +23666,36 @@ namespace gaia {
 
 			void
 			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(func_move_ctor != nullptr && (pSrc != pDst || idxSrc != idxDst));
-				func_move_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				if (func_move_ctor != nullptr) {
+					func_move_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
+				auto* pS = (uint8_t*)pSrc + ((uintptr_t)comp.size() * idxSrc);
+				memmove((void*)pD, (const void*)pS, comp.size());
 			}
 
 			void ctor_copy(
 					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(func_copy_ctor != nullptr && (pSrc != pDst || idxSrc != idxDst));
-				func_copy_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				if (func_copy_ctor != nullptr) {
+					func_copy_ctor(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
+				auto* pS = (const uint8_t*)pSrc + ((uintptr_t)comp.size() * idxSrc);
+				memcpy((void*)pD, (const void*)pS, comp.size());
 			}
 
 			void dtor(void* pSrc) const {
@@ -23659,35 +23705,137 @@ namespace gaia {
 
 			void
 			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(func_copy != nullptr && (pSrc != pDst || idxSrc != idxDst));
-				func_copy(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				if (func_copy != nullptr) {
+					func_copy(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
+				auto* pS = (const uint8_t*)pSrc + ((uintptr_t)comp.size() * idxSrc);
+				memcpy((void*)pD, (const void*)pS, comp.size());
 			}
 
 			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(func_move != nullptr && (pSrc != pDst || idxSrc != idxDst));
-				func_move(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
+				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
+				if (func_move != nullptr) {
+					func_move(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
+				auto* pS = (uint8_t*)pSrc + ((uintptr_t)comp.size() * idxSrc);
+				memmove((void*)pD, (const void*)pS, comp.size());
 			}
 
 			void
 			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const {
-				GAIA_ASSERT(func_swap != nullptr);
-				func_swap(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
+				GAIA_ASSERT(pLeft != nullptr && pRight != nullptr);
+				if (func_swap != nullptr) {
+					func_swap(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* l = (uint8_t*)pLeft + ((uintptr_t)comp.size() * idxLeft);
+				auto* r = (uint8_t*)pRight + ((uintptr_t)comp.size() * idxRight);
+				GAIA_FOR(comp.size()) {
+					const auto tmp = l[i];
+					l[i] = r[i];
+					r[i] = tmp;
+				}
 			}
 
 			bool cmp(const void* pLeft, const void* pRight) const {
 				GAIA_ASSERT(pLeft != pRight);
-				GAIA_ASSERT(func_cmp != nullptr);
-				return func_cmp(pLeft, pRight);
+				if (func_cmp != nullptr)
+					return func_cmp(pLeft, pRight);
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return true;
+
+				return memcmp(pLeft, pRight, comp.size()) == 0;
 			}
 
 			void save(ser::ISerializer* pSerializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
-				GAIA_ASSERT(func_save != nullptr && pSrc != nullptr && from < to && to <= cap);
-				func_save(pSerializer, pSrc, from, to, cap);
+				GAIA_ASSERT(pSerializer != nullptr && pSrc != nullptr && from < to && to <= cap);
+				if (func_save != nullptr) {
+					func_save(pSerializer, pSrc, from, to, cap);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				const auto* pBase = (const uint8_t*)pSrc;
+				GAIA_FOR2(from, to) {
+					const auto* p = pBase + ((uintptr_t)comp.size() * i);
+					pSerializer->save_raw((const void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
+				}
 			}
 
 			void load(ser::ISerializer* pSerializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
-				GAIA_ASSERT(func_load != nullptr && pDst != nullptr && from < to && to <= cap);
-				func_load(pSerializer, pDst, from, to, cap);
+				GAIA_ASSERT(pSerializer != nullptr && pDst != nullptr && from < to && to <= cap);
+				if (func_load != nullptr) {
+					func_load(pSerializer, pDst, from, to, cap);
+					return;
+				}
+
+				if (comp.soa() != 0 || comp.size() == 0)
+					return;
+
+				auto* pBase = (uint8_t*)pDst;
+				GAIA_FOR2(from, to) {
+					auto* p = pBase + ((uintptr_t)comp.size() * i);
+					pSerializer->load_raw((void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
+				}
+			}
+
+			GAIA_NODISCARD bool set_field(
+					const char* fieldName, uint32_t len, ser::serialization_type_id type, uint32_t fieldOffset,
+					uint32_t fieldSize) {
+				if (fieldName == nullptr || fieldName[0] == 0)
+					return false;
+
+				const auto fieldLen = len == 0 ? (uint32_t)strnlen(fieldName, MaxNameLength) : len;
+				if (fieldLen == 0 || fieldLen >= MaxNameLength)
+					return false;
+
+				for (auto& f: schema) {
+					if (strncmp(f.name, fieldName, fieldLen) == 0 && f.name[fieldLen] == 0) {
+						f.type = type;
+						f.offset = fieldOffset;
+						f.size = fieldSize;
+						return true;
+					}
+				}
+
+				SchemaField f{};
+				memcpy((void*)f.name, (const void*)fieldName, fieldLen);
+				f.name[fieldLen] = 0;
+				f.type = type;
+				f.offset = fieldOffset;
+				f.size = fieldSize;
+				schema.push_back(f);
+				return true;
+			}
+
+			void schema_clear() {
+				schema.clear();
+			}
+
+			GAIA_NODISCARD bool schema_empty() const {
+				return schema.empty();
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -23791,6 +23939,47 @@ namespace gaia {
 				return cci;
 			}
 
+			GAIA_NODISCARD static ComponentCacheItem* create(
+					Entity entity, uint32_t compDescId, const char* nameStr, uint32_t nameLen, uint32_t size, uint32_t alig,
+					uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {}, FuncCtor* funcCtor = nullptr,
+					FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr, FuncDtor* funcDtor = nullptr,
+					FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr, FuncSwap* funcSwap = nullptr,
+					FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr, FuncLoad* funcLoad = nullptr) {
+				GAIA_ASSERT(nameStr != nullptr && nameLen > 0 && nameLen < MaxNameLength);
+				GAIA_ASSERT(size < Component::MaxComponentSizeInBytes);
+				GAIA_ASSERT(alig > 0 && alig < Component::MaxAlignment);
+				GAIA_ASSERT(soa <= meta::StructToTupleMaxTypes);
+
+				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
+				(void)new (cci) ComponentCacheItem();
+				cci->entity = entity;
+				cci->comp = Component(compDescId, soa, size, alig);
+				cci->hashLookup =
+						hashLookup.hash != 0 ? hashLookup : ComponentLookupHash{core::calculate_hash64(nameStr, nameLen)};
+
+				if (soa > 0 && pSoaSizes != nullptr) {
+					GAIA_FOR(soa) cci->soaSizes[i] = pSoaSizes[i];
+				}
+
+				char* name = mem::AllocHelper::alloc<char>(nameLen + 1);
+				memcpy((void*)name, (const void*)nameStr, nameLen);
+				name[nameLen] = 0;
+				cci->name = SymbolLookupKey(name, nameLen, 1);
+
+				cci->func_ctor = funcCtor;
+				cci->func_move_ctor = funcMoveCtor;
+				cci->func_copy_ctor = funcCopyCtor;
+				cci->func_dtor = funcDtor;
+				cci->func_copy = funcCopy;
+				cci->func_move = funcMove;
+				cci->func_swap = funcSwap;
+				cci->func_cmp = funcCmp;
+				cci->func_save = funcSave;
+				cci->func_load = funcLoad;
+
+				return cci;
+			}
+
 			static void destroy(ComponentCacheItem* pItem) {
 				if (pItem == nullptr)
 					return;
@@ -23828,6 +24017,8 @@ namespace gaia {
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
+			//! Runtime component descriptor id generator.
+			detail::ComponentDescId m_nextRuntimeCompDescId = 0x80000000u;
 
 			//! Clears the contents of the component cache
 			//! \warning Should be used only after worlds are cleared because it invalidates all currently
@@ -23926,6 +24117,52 @@ namespace gaia {
 				}
 			}
 
+			//! Registers a runtime-defined component.
+			//! \param entity Entity associated with the component.
+			//! \param name Component name.
+			//! \param len Name length. If zero, the length is calculated.
+			//! \param size Component size in bytes.
+			//! \param alig Component alignment in bytes.
+			//! \param soa Number of SoA items (0 for AoS).
+			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
+			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \return Component info.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(Entity entity, const char* name, uint32_t len, uint32_t size, uint32_t alig = 1, uint32_t soa = 0,
+					const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l > 0 && l < ComponentCacheItem::MaxNameLength);
+
+				{
+					const auto* pExisting = find(name, l);
+					if (pExisting != nullptr)
+						return *pExisting;
+				}
+
+				detail::ComponentDescId compDescId = m_nextRuntimeCompDescId;
+				while (find(compDescId) != nullptr) {
+					++compDescId;
+				}
+				m_nextRuntimeCompDescId = compDescId + 1;
+
+				const auto* pItem =
+						ComponentCacheItem::create(entity, compDescId, name, l, size, alig, soa, pSoaSizes, hashLookup);
+				if (compDescId < FastComponentCacheSize) {
+					if (compDescId >= m_itemArr.size())
+						m_itemArr.resize(compDescId + 1U);
+					m_itemArr[compDescId] = pItem;
+				} else {
+					m_itemByDescId.emplace(compDescId, pItem);
+				}
+
+				m_compByString.emplace(pItem->name, pItem);
+				m_compByEntity.emplace(pItem->entity, pItem);
+				return *pItem;
+			}
+
 			//! Searches for the component cache item given the @a compDescId.
 			//! \param compDescId Component descriptor id
 			//! \return Component info or nullptr it not found.
@@ -23971,13 +24208,30 @@ namespace gaia {
 				return nullptr;
 			}
 
+			//! Searches for the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find(Entity entity) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find(entity));
+			}
+
 			//! Returns the component cache item.
 			//! \param entity Entity associated with the component item.
 			//! \return Component info.
-			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
+			//! \warning It is expected the component item exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(Entity entity) const noexcept {
 				GAIA_ASSERT(!entity.pair());
 				const auto* pItem = find(entity);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \return Component info.
+			//! \warning It is expected the component item exists! Undefined behavior otherwise.
+			GAIA_NODISCARD ComponentCacheItem& get(Entity entity) noexcept {
+				auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
@@ -23999,6 +24253,14 @@ namespace gaia {
 				return nullptr;
 			}
 
+			//! Searches for the component cache item. The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find(name, len));
+			}
+
 			//! Returns the component cache item. The provided string is NOT copied internally.
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
@@ -24006,6 +24268,17 @@ namespace gaia {
 			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(const char* name, uint32_t len = 0) const noexcept {
 				const auto* pItem = find(name, len);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item. The provided string is NOT copied internally.
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \return Component info.
+			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
+			GAIA_NODISCARD ComponentCacheItem& get(const char* name, uint32_t len = 0) noexcept {
+				auto* pItem = find(name, len);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
@@ -28592,6 +28865,8 @@ namespace gaia {
 
 #include <cstdarg>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <type_traits>
 
 
@@ -34313,7 +34588,43 @@ namespace gaia {
 				// Make sure the default component entity name points to the cache item name.
 				// The name is deleted when the component cache item is deleted.
 				name_raw(item.entity, item.name.str(), item.name.len());
+#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+				auto_populate_component_schema<FT>(comp_cache_mut().get(item.entity));
+#endif
 
+				return item;
+			}
+
+			//! Creates a new runtime component if not found already.
+			//! \param name Component name.
+			//! \param size Component size in bytes.
+			//! \param alig Component alignment in bytes.
+			//! \param soa Number of SoA items (0 for AoS).
+			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
+			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \param kind Entity kind (Gen by default, Uni supported).
+			//! \return Component cache item of the component.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(const char* name, uint32_t size, uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr,
+					ComponentLookupHash hashLookup = {}, EntityKind kind = EntityKind::EK_Gen) {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto len = (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength);
+				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
+
+				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
+					return *pItem;
+
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto& item = comp_cache_mut().add(entity, name, len, size, alig, soa, pSoaSizes, hashLookup);
+				{
+					auto& ec = m_recs.entities[item.entity.id()];
+					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
+					GAIA_ASSERT(compIdx != BadIndex);
+					auto* pComp = reinterpret_cast<Component*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+					*pComp = item.comp;
+				}
+				name_raw(item.entity, item.name.str(), item.name.len());
 				return item;
 			}
 
@@ -35530,6 +35841,28 @@ namespace gaia {
 			//! \return Entity
 			GAIA_NODISCARD uint32_t size() const {
 				return m_recs.entities.item_count();
+			}
+
+			//! Returns high-level runtime counters useful for diagnostics/telemetry.
+			void runtime_counters(
+					uint32_t& outArchetypes, uint32_t& outChunks, uint32_t& outEntitiesTotal, uint32_t& outEntitiesActive) const {
+				outArchetypes = (uint32_t)m_archetypes.size();
+				outChunks = 0;
+				outEntitiesTotal = 0;
+				outEntitiesActive = 0;
+
+				for (const auto* pArchetype: m_archetypes) {
+					if (pArchetype == nullptr)
+						continue;
+					const auto& chunks = pArchetype->chunks();
+					outChunks += (uint32_t)chunks.size();
+					for (const auto* pChunk: chunks) {
+						if (pChunk == nullptr)
+							continue;
+						outEntitiesTotal += pChunk->size();
+						outEntitiesActive += pChunk->size_enabled();
+					}
+				}
 			}
 
 			//! Returns the current version of the world.
@@ -37864,6 +38197,44 @@ namespace gaia {
 			const ComponentCacheItem& reg_core_entity(Entity id) {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
+
+#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+			template <typename T>
+			static void auto_populate_component_schema(ComponentCacheItem& item) {
+				if (!item.schema_empty())
+					return;
+
+				using U = core::raw_t<T>;
+				if constexpr (std::is_empty_v<U>)
+					return;
+				if constexpr (mem::is_soa_layout_v<U>)
+					return;
+
+				if constexpr (!std::is_class_v<U>) {
+					(void)item.set_field("value", 5, ser::type_id<U>(), 0, (uint32_t)sizeof(U));
+					return;
+				} else if constexpr (!std::is_aggregate_v<U>) {
+					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
+					// Keep these components on serializer-based fallback rendering.
+					return;
+				} else {
+					U tmp{};
+					const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
+					uint32_t fieldIdx = 0;
+					meta::each_member(tmp, [&](auto&... fields) {
+						auto add_field = [&](auto& field) {
+							using F = core::raw_t<decltype(field)>;
+							char fieldName[24]{};
+							(void)std::snprintf(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
+							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
+							const auto offset = (uint32_t)(pField - pBase);
+							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
+						};
+						(add_field(fields), ...);
+					});
+				}
+			}
+#endif
 
 			void init();
 

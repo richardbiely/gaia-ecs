@@ -3,6 +3,8 @@
 
 #include <cstdarg>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -1387,7 +1389,43 @@ namespace gaia {
 				// Make sure the default component entity name points to the cache item name.
 				// The name is deleted when the component cache item is deleted.
 				name_raw(item.entity, item.name.str(), item.name.len());
+#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+				auto_populate_component_schema<FT>(comp_cache_mut().get(item.entity));
+#endif
 
+				return item;
+			}
+
+			//! Creates a new runtime component if not found already.
+			//! \param name Component name.
+			//! \param size Component size in bytes.
+			//! \param alig Component alignment in bytes.
+			//! \param soa Number of SoA items (0 for AoS).
+			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
+			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \param kind Entity kind (Gen by default, Uni supported).
+			//! \return Component cache item of the component.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(const char* name, uint32_t size, uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr,
+					ComponentLookupHash hashLookup = {}, EntityKind kind = EntityKind::EK_Gen) {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto len = (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength);
+				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
+
+				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
+					return *pItem;
+
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				const auto& item = comp_cache_mut().add(entity, name, len, size, alig, soa, pSoaSizes, hashLookup);
+				{
+					auto& ec = m_recs.entities[item.entity.id()];
+					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
+					GAIA_ASSERT(compIdx != BadIndex);
+					auto* pComp = reinterpret_cast<Component*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+					*pComp = item.comp;
+				}
+				name_raw(item.entity, item.name.str(), item.name.len());
 				return item;
 			}
 
@@ -2604,6 +2642,28 @@ namespace gaia {
 			//! \return Entity
 			GAIA_NODISCARD uint32_t size() const {
 				return m_recs.entities.item_count();
+			}
+
+			//! Returns high-level runtime counters useful for diagnostics/telemetry.
+			void runtime_counters(
+					uint32_t& outArchetypes, uint32_t& outChunks, uint32_t& outEntitiesTotal, uint32_t& outEntitiesActive) const {
+				outArchetypes = (uint32_t)m_archetypes.size();
+				outChunks = 0;
+				outEntitiesTotal = 0;
+				outEntitiesActive = 0;
+
+				for (const auto* pArchetype: m_archetypes) {
+					if (pArchetype == nullptr)
+						continue;
+					const auto& chunks = pArchetype->chunks();
+					outChunks += (uint32_t)chunks.size();
+					for (const auto* pChunk: chunks) {
+						if (pChunk == nullptr)
+							continue;
+						outEntitiesTotal += pChunk->size();
+						outEntitiesActive += pChunk->size_enabled();
+					}
+				}
 			}
 
 			//! Returns the current version of the world.
@@ -4938,6 +4998,44 @@ namespace gaia {
 			const ComponentCacheItem& reg_core_entity(Entity id) {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
+
+#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+			template <typename T>
+			static void auto_populate_component_schema(ComponentCacheItem& item) {
+				if (!item.schema_empty())
+					return;
+
+				using U = core::raw_t<T>;
+				if constexpr (std::is_empty_v<U>)
+					return;
+				if constexpr (mem::is_soa_layout_v<U>)
+					return;
+
+				if constexpr (!std::is_class_v<U>) {
+					(void)item.set_field("value", 5, ser::type_id<U>(), 0, (uint32_t)sizeof(U));
+					return;
+				} else if constexpr (!std::is_aggregate_v<U>) {
+					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
+					// Keep these components on serializer-based fallback rendering.
+					return;
+				} else {
+					U tmp{};
+					const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
+					uint32_t fieldIdx = 0;
+					meta::each_member(tmp, [&](auto&... fields) {
+						auto add_field = [&](auto& field) {
+							using F = core::raw_t<decltype(field)>;
+							char fieldName[24]{};
+							(void)std::snprintf(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
+							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
+							const auto offset = (uint32_t)(pField - pBase);
+							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
+						};
+						(add_field(fields), ...);
+					});
+				}
+			}
+#endif
 
 			void init();
 

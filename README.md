@@ -2491,7 +2491,7 @@ cmake -E make_directory "build"
 cmake -DCMAKE_BUILD_TYPE=Release -S . -B "build"
 # ... or if you use CMake older than 3.13 you can do:
 # cmake -E chdir "build" cmake -DCMAKE_BUILD_TYPE=Release ../
-# Build the library
+# Build the project
 cmake --build "build" --config Release
 ```
 
@@ -2515,6 +2515,16 @@ When using MacOS you might run into a few issues caused by the specifics of the 
 >
 > Linker issue:<br/>
 > When not building the project from Xcode and using ***ld*** as your linker, if XCode 15 or later is installed on your system you will most likely run into various issues: https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking. In the CMake project a workaround is implemented which adds "-Wl,-ld_classic" to linker settings but if you use a different build system or settings you might want to do same. This workaround can be enabled via "-DGAIA_MACOS_BUILD_HACK=ON".
+
+To build the project using **Emscripten** you can do the following:
+```bash
+# Generate cmake build files inside build-wasm directory
+emcmake cmake -S . -B build-wasm -DGAIA_BUILD_EXAMPLES=ON
+# Build the project
+cmake --build build-wasm/src/examples/example_wasm -j
+# Run the project inside the webbrowser.
+emrun --browser chrome --port 8080 --serve_root build-wasm/src/examples/example_wasm gaia_example_wasm.html
+```
 
 ### Project settings
 Following is a list of parameters you can use to customize your build
@@ -2563,7 +2573,14 @@ Project name | Description
 [DLL](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/app)|A dummy example showing how to use the framework as a dynamic library that is used by an executable.
 [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
 [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how it is used in practice. It is work-in-progress and changes and evolves with the project.
-[WASM](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm)|Barebone example showing that the library can run in the web browser natively (built with Emscripten into a WASM assembly).
+[WASM](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_wasm)|WebAssembly example that runs in the browser and now includes a lightweight Explorer-style UI for inspecting entities/components in real time.
+
+>**NOTE:** To build the WASM example with **Emscripten**:
+```bash
+emcmake cmake -S . -B build-wasm -DGAIA_BUILD_EXAMPLES=ON
+cmake --build build-wasm/src/examples/example_wasm -j
+emrun --browser chrome --port 8080 --serve_root build-wasm/src/examples/example_wasm gaia_example_wasm.html
+```
 
 ## Benchmarks
 To be able to reason about the project's performance and prevent regressions benchmarks were created.

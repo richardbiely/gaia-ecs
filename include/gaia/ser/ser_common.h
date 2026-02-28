@@ -102,6 +102,7 @@ namespace gaia {
 		template <typename T>
 		struct is_int_kind_id:
 				std::disjunction<
+						std::is_same<T, char>, std::is_same<T, unsigned char>, //
 						std::is_same<T, int8_t>, std::is_same<T, uint8_t>, //
 						std::is_same<T, int16_t>, std::is_same<T, uint16_t>, //
 						std::is_same<T, int32_t>, std::is_same<T, uint32_t>, //
@@ -121,7 +122,11 @@ namespace gaia {
 		GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
 			static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
 
-			if constexpr (std::is_same_v<int8_t, T>) {
+			if constexpr (std::is_same_v<char, T>) {
+				return serialization_type_id::s8;
+			} else if constexpr (std::is_same_v<unsigned char, T>) {
+				return serialization_type_id::u8;
+			} else if constexpr (std::is_same_v<int8_t, T>) {
 				return serialization_type_id::s8;
 			} else if constexpr (std::is_same_v<uint8_t, T>) {
 				return serialization_type_id::u8;
@@ -170,10 +175,14 @@ namespace gaia {
 				return int_kind_id<T>();
 			else if constexpr (std::is_floating_point_v<T>)
 				return flt_type_id<T>();
+			else if constexpr (std::is_pointer_v<T>)
+				return serialization_type_id::data_and_size;
 			else if constexpr (core::has_size_begin_end<T>::value)
 				return serialization_type_id::data_and_size;
 			else if constexpr (std::is_class_v<T>)
 				return serialization_type_id::trivial_wrapper;
+			else
+				return serialization_type_id::ignore;
 		}
 
 		// --------------------
