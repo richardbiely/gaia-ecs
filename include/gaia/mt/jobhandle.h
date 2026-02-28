@@ -41,7 +41,11 @@ namespace gaia {
 			};
 
 		public:
-			JobHandle() noexcept = default;
+			JobHandle() {
+				data.id = JobHandle::IdMask;
+				data.gen = JobHandle::GenMask;
+				data.prio = JobHandle::PrioMask;
+			}
 			JobHandle(JobId id, JobGenId gen, JobGenId prio) {
 				data.id = id;
 				data.gen = gen;

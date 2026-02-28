@@ -414,6 +414,41 @@ namespace gaia {
 				reset_state(std::span(&jobHandle, 1));
 			}
 
+			//! Waits for @a jobHandles to finish and resets them to a reusable state.
+			//! \warning Handles that were auto-deleted (non-manual jobs) are skipped.
+			void reset(std::span<JobHandle> jobHandles) {
+				if (jobHandles.empty())
+					return;
+
+				GAIA_ASSERT(main_thread());
+				GAIA_PROF_SCOPE(tp::reset_wait);
+
+				// Wait first to avoid resetting one handle while another one still depends on it.
+				for (auto handle: jobHandles) {
+					if (handle == (JobHandle)JobNull_t{})
+						continue;
+					wait(handle);
+				}
+
+				for (auto handle: jobHandles) {
+					if (handle == (JobHandle)JobNull_t{})
+						continue;
+
+					auto& jobData = m_jobManager.data(handle);
+					const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
+					// Auto-deleted jobs are released and cannot be reused through reset_state().
+					if (state == JobState::Released)
+						continue;
+
+					m_jobManager.reset_state(jobData);
+				}
+			}
+
+			//! Waits for @a jobHandle to finish and resets it to a reusable state.
+			void reset(JobHandle jobHandle) {
+				reset(std::span(&jobHandle, 1));
+			}
+
 			//! Schedules a job to run on a worker thread.
 			//! \param job Job descriptor
 			//! \warning Must be used from the main thread.

@@ -57,6 +57,11 @@ namespace gaia {
 			};
 			//! Number of dependencies
 			uint32_t depCnt;
+
+			JobEdges() {
+				dep = {};
+				depCnt = 0;
+			}
 		};
 
 		struct JobContainer: cnt::ilist_item {

@@ -11472,6 +11472,61 @@ TEST_CASE("Multithreading - CompleteMany") {
 	}
 }
 
+TEST_CASE("Multithreading - Reset reusable handles") {
+	auto& tp = mt::ThreadPool::get();
+
+	constexpr uint32_t Iters = 1024;
+
+	std::atomic_uint32_t stage = 0;
+	std::atomic_uint32_t firstCnt = 0;
+	std::atomic_uint32_t secondCnt = 0;
+	std::atomic_bool ordered = true;
+
+	mt::Job job1;
+	job1.flags = mt::JobCreationFlags::ManualDelete;
+	job1.func = [&]() {
+		firstCnt.fetch_add(1, std::memory_order_relaxed);
+		stage.store(1, std::memory_order_release);
+	};
+
+	mt::Job job2;
+	job2.flags = mt::JobCreationFlags::ManualDelete;
+	job2.func = [&]() {
+		if (stage.load(std::memory_order_acquire) != 1)
+			ordered.store(false, std::memory_order_relaxed);
+		secondCnt.fetch_add(1, std::memory_order_relaxed);
+	};
+
+	auto handle1 = tp.add(job1);
+	auto handle2 = tp.add(job2);
+	mt::JobHandle handles[] = {handle1, handle2};
+
+	tp.dep(handle1, handle2);
+	GAIA_FOR(Iters) {
+		stage.store(0, std::memory_order_relaxed);
+
+		tp.submit(handle2);
+		tp.submit(handle1);
+		tp.reset(std::span(handles, 2));
+
+		CHECK(ordered.load(std::memory_order_relaxed));
+		tp.dep_refresh(handle1, handle2);
+	}
+
+	// Final run leaves handles in Done state so they can be deleted.
+	stage.store(0, std::memory_order_relaxed);
+	tp.submit(handle2);
+	tp.submit(handle1);
+	tp.wait(handle2);
+
+	CHECK(ordered.load(std::memory_order_relaxed));
+	CHECK(firstCnt.load(std::memory_order_relaxed) == Iters + 1);
+	CHECK(secondCnt.load(std::memory_order_relaxed) == Iters + 1);
+
+	tp.del(handle1);
+	tp.del(handle2);
+}
+
 #if GAIA_SYSTEMS_ENABLED
 
 struct SomeData1 {
