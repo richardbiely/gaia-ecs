@@ -545,10 +545,15 @@ namespace gaia {
 			//! Wait until a job associated with the jobHandle finishes executing.
 			//! Cleans up any job allocations and dependencies associated with @a jobHandle
 			//! The calling thread participate in job processing until @a jobHandle is done.
+			//! \param jobHandle Job handle to wait for
 			void wait(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(tp::wait);
 
 				GAIA_ASSERT(main_thread());
+
+				// Skip waitinig for unset job handles.
+				if (jobHandle == (JobHandle)JobNull_t{})
+					return;
 
 				auto* ctx = detail::tl_workerCtx;
 				auto& jobData = m_jobManager.data(jobHandle);
