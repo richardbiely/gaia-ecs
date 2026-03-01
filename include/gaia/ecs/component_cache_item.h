@@ -276,11 +276,11 @@ namespace gaia {
 				return true;
 			}
 
-			void schema_clear() {
+			void clear_fields() {
 				schema.clear();
 			}
 
-			GAIA_NODISCARD bool schema_empty() const {
+			GAIA_NODISCARD bool has_fields() const {
 				return schema.empty();
 			}
 

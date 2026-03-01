@@ -5002,7 +5002,7 @@ namespace gaia {
 #if GAIA_ECS_AUTO_COMPONENT_SCHEMA
 			template <typename T>
 			static void auto_populate_component_schema(ComponentCacheItem& item) {
-				if (!item.schema_empty())
+				if (!item.has_fields())
 					return;
 
 				using U = core::raw_t<T>;

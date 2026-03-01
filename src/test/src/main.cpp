@@ -9917,6 +9917,160 @@ TEST_CASE("Component cache") {
 	}
 }
 
+TEST_CASE("Component cache - runtime registration") {
+	SUBCASE("basic registration populates runtime metadata and lookups") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		constexpr const char* RuntimeCompName = "Runtime_Component_Basic";
+		const auto entity = wld.add();
+		const auto& item = cc.add(entity, RuntimeCompName, 0, (uint32_t)sizeof(Position), (uint32_t)alignof(Position));
+
+		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
+		CHECK(item.entity == entity);
+		CHECK(item.comp.id() >= 0x80000000u);
+		CHECK(item.comp.size() == (uint32_t)sizeof(Position));
+		CHECK(item.comp.alig() == (uint32_t)alignof(Position));
+		CHECK(item.comp.soa() == 0);
+		CHECK(item.name.len() == nameLen);
+		CHECK(strcmp(item.name.str(), RuntimeCompName) == 0);
+		CHECK(item.hashLookup.hash == core::calculate_hash64(RuntimeCompName, nameLen));
+
+		CHECK(cc.find(item.comp.id()) == &item);
+		CHECK(cc.find(item.entity) == &item);
+		CHECK(cc.find(RuntimeCompName) == &item);
+		CHECK(cc.find(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.find(RuntimeCompName, nameLen - 1) == nullptr);
+	}
+
+	SUBCASE("duplicate runtime registration is idempotent") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+		constexpr const char* RuntimeCompName = "Runtime_Component_Duplicate";
+		const auto entityA = wld.add();
+		const auto& original = cc.add(entityA, RuntimeCompName, 0, 16, 4);
+		const auto originalHash = original.hashLookup.hash;
+
+		constexpr uint8_t SoaSizes[] = {1, 2, 4};
+		const ecs::ComponentLookupHash customHash{0x123456789abcdef0ull};
+		const auto entityB = wld.add(ecs::EntityKind::EK_Uni);
+		const auto& duplicate = cc.add(entityB, RuntimeCompName, 0, 64, 8, 3, SoaSizes, customHash);
+
+		CHECK(&duplicate == &original);
+		CHECK(duplicate.entity == original.entity);
+		CHECK(duplicate.entity == entityA);
+		CHECK(duplicate.entity != entityB);
+		CHECK(duplicate.comp.id() == original.comp.id());
+		CHECK(duplicate.comp.size() == 16);
+		CHECK(duplicate.comp.alig() == 4);
+		CHECK(duplicate.comp.soa() == 0);
+		CHECK(duplicate.hashLookup.hash == originalHash);
+		CHECK(duplicate.entity.kind() == ecs::EntityKind::EK_Gen);
+	}
+
+	SUBCASE("custom hash and soa metadata are preserved") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		constexpr const char* RuntimeCompName = "Runtime_Component_SoA";
+		constexpr uint8_t SoaSizes[] = {4, 1, 2};
+		const ecs::ComponentLookupHash customHash{0x00f00d00baadf00dull};
+		const auto entity = wld.add(ecs::EntityKind::EK_Uni);
+
+		const auto& item = cc.add(entity, RuntimeCompName, 0, 32, 8, 3, SoaSizes, customHash);
+
+		CHECK(item.entity == entity);
+		CHECK(item.entity.kind() == ecs::EntityKind::EK_Uni);
+		CHECK(item.comp.soa() == 3);
+		CHECK(item.comp.size() == 32);
+		CHECK(item.comp.alig() == 8);
+		CHECK(item.hashLookup.hash == customHash.hash);
+		CHECK(item.soaSizes[0] == SoaSizes[0]);
+		CHECK(item.soaSizes[1] == SoaSizes[1]);
+		CHECK(item.soaSizes[2] == SoaSizes[2]);
+
+		CHECK(item.func_ctor == nullptr);
+		CHECK(item.func_move_ctor == nullptr);
+		CHECK(item.func_copy_ctor == nullptr);
+		CHECK(item.func_dtor == nullptr);
+		CHECK(item.func_copy == nullptr);
+		CHECK(item.func_move == nullptr);
+		CHECK(item.func_swap == nullptr);
+		CHECK(item.func_cmp == nullptr);
+		CHECK(item.func_save == nullptr);
+		CHECK(item.func_load == nullptr);
+
+		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
+		CHECK(cc.find(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.get(item.comp.id()).entity == item.entity);
+	}
+
+	SUBCASE("schema field registration supports add update and clear") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		const auto entity = wld.add();
+		(void)cc.add(entity, "Runtime_Component_Schema", 0, 24, 8);
+		auto& item = cc.get(entity);
+
+		CHECK(item.has_fields());
+		CHECK(item.schema.size() == 0);
+
+		CHECK(item.set_field("x", 0, ser::serialization_type_id::f32, 0, 4));
+		CHECK_FALSE(item.has_fields());
+		CHECK(item.schema.size() == 1);
+		CHECK(strcmp(item.schema[0].name, "x") == 0);
+		CHECK(item.schema[0].type == ser::serialization_type_id::f32);
+		CHECK(item.schema[0].offset == 0);
+		CHECK(item.schema[0].size == 4);
+
+		// Re-registering an existing field updates metadata instead of adding a duplicate.
+		CHECK(item.set_field("x", 0, ser::serialization_type_id::u32, 4, 8));
+		CHECK(item.schema.size() == 1);
+		CHECK(strcmp(item.schema[0].name, "x") == 0);
+		CHECK(item.schema[0].type == ser::serialization_type_id::u32);
+		CHECK(item.schema[0].offset == 4);
+		CHECK(item.schema[0].size == 8);
+
+		// Explicit length should be honored and copied as the canonical field name.
+		CHECK(item.set_field("velocity_data", 8, ser::serialization_type_id::f64, 12, 8));
+		CHECK(item.schema.size() == 2);
+		CHECK(strcmp(item.schema[1].name, "velocity") == 0);
+		CHECK(item.schema[1].type == ser::serialization_type_id::f64);
+		CHECK(item.schema[1].offset == 12);
+		CHECK(item.schema[1].size == 8);
+
+		const auto schemaSizeBeforeInvalid = item.schema.size();
+		CHECK_FALSE(item.set_field(nullptr, 0, ser::serialization_type_id::u8, 0, 1));
+		CHECK_FALSE(item.set_field("", 0, ser::serialization_type_id::u8, 0, 1));
+
+		char oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength + 1] = {};
+		GAIA_FOR(ecs::ComponentCacheItem::MaxNameLength) oversizedFieldName[i] = 'a';
+		oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength] = 0;
+		CHECK_FALSE(item.set_field(
+				oversizedFieldName, ecs::ComponentCacheItem::MaxNameLength, ser::serialization_type_id::u8, 0, 1));
+
+		CHECK(item.schema.size() == schemaSizeBeforeInvalid);
+
+		item.clear_fields();
+		CHECK(item.has_fields());
+		CHECK(item.schema.size() == 0);
+	}
+
+	SUBCASE("runtime descriptor ids are monotonic") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		const auto& a = cc.add(wld.add(), "Runtime_Component_A", 0, 1, 1);
+		const auto& b = cc.add(wld.add(), "Runtime_Component_B", 0, 2, 1);
+		const auto& c = cc.add(wld.add(), "Runtime_Component_C", 0, 3, 1);
+
+		CHECK(a.comp.id() >= 0x80000000u);
+		CHECK(b.comp.id() == a.comp.id() + 1);
+		CHECK(c.comp.id() == b.comp.id() + 1);
+	}
+}
+
 //------------------------------------------------------------------------------
 // Hooks
 //------------------------------------------------------------------------------

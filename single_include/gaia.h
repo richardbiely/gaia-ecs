@@ -23830,11 +23830,11 @@ namespace gaia {
 				return true;
 			}
 
-			void schema_clear() {
+			void clear_fields() {
 				schema.clear();
 			}
 
-			GAIA_NODISCARD bool schema_empty() const {
+			GAIA_NODISCARD bool has_fields() const {
 				return schema.empty();
 			}
 
@@ -38201,7 +38201,7 @@ namespace gaia {
 #if GAIA_ECS_AUTO_COMPONENT_SCHEMA
 			template <typename T>
 			static void auto_populate_component_schema(ComponentCacheItem& item) {
-				if (!item.schema_empty())
+				if (!item.has_fields())
 					return;
 
 				using U = core::raw_t<T>;
