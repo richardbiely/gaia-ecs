@@ -13,12 +13,9 @@
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
 #include "gaia/ser/ser_common.h"
+#include "gaia/ser/ser_rt.h"
 
 namespace gaia {
-	namespace ser {
-		struct ISerializer;
-	} // namespace ser
-
 	namespace ecs {
 		class World;
 		class Chunk;
@@ -37,8 +34,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			using FuncCmp = bool(const void*, const void*);
 
-			using FuncSave = void(ser::ISerializer*, const void*, uint32_t, uint32_t, uint32_t);
-			using FuncLoad = void(ser::ISerializer*, void*, uint32_t, uint32_t, uint32_t);
+			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
+			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
 
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
@@ -213,10 +210,10 @@ namespace gaia {
 				return memcmp(pLeft, pRight, comp.size()) == 0;
 			}
 
-			void save(ser::ISerializer* pSerializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
-				GAIA_ASSERT(pSerializer != nullptr && pSrc != nullptr && from < to && to <= cap);
+			void save(ser::serializer& serializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(serializer.valid() && pSrc != nullptr && from < to && to <= cap);
 				if (func_save != nullptr) {
-					func_save(pSerializer, pSrc, from, to, cap);
+					func_save(serializer, pSrc, from, to, cap);
 					return;
 				}
 
@@ -226,14 +223,14 @@ namespace gaia {
 				const auto* pBase = (const uint8_t*)pSrc;
 				GAIA_FOR2(from, to) {
 					const auto* p = pBase + ((uintptr_t)comp.size() * i);
-					pSerializer->save_raw((const void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
+					serializer.save_raw((const void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
 				}
 			}
 
-			void load(ser::ISerializer* pSerializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
-				GAIA_ASSERT(pSerializer != nullptr && pDst != nullptr && from < to && to <= cap);
+			void load(ser::serializer& serializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
+				GAIA_ASSERT(serializer.valid() && pDst != nullptr && from < to && to <= cap);
 				if (func_load != nullptr) {
-					func_load(pSerializer, pDst, from, to, cap);
+					func_load(serializer, pDst, from, to, cap);
 					return;
 				}
 
@@ -243,7 +240,7 @@ namespace gaia {
 				auto* pBase = (uint8_t*)pDst;
 				GAIA_FOR2(from, to) {
 					auto* p = pBase + ((uintptr_t)comp.size() * i);
-					pSerializer->load_raw((void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
+					serializer.load_raw((void*)p, comp.size(), ser::serialization_type_id::trivial_wrapper);
 				}
 			}
 

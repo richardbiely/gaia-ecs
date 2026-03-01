@@ -1,10 +1,14 @@
 #pragma once
 #include "gaia/config/config.h"
 
+#include <cctype>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <string>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -39,8 +43,9 @@
 #include "gaia/ecs/query_cache.h"
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_info.h"
-#include "gaia/ecs/ser_binary.h"
 #include "gaia/mem/mem_alloc.h"
+#include "gaia/ser/ser_binary.h"
+#include "gaia/ser/ser_json.h"
 #include "gaia/ser/ser_rt.h"
 #include "gaia/util/logging.h"
 
@@ -62,8 +67,8 @@ namespace gaia {
 			friend void lock(World&);
 			friend void unlock(World&);
 
-			BinarySerializer m_binarySerializer;
-			ser::ISerializer* m_pSerializer{};
+			ser::bin_stream m_stream;
+			ser::serializer m_serializer{};
 
 			using TFunc_Void_With_Entity = void(Entity);
 			static void func_void_with_entity([[maybe_unused]] Entity entity) {}
@@ -435,18 +440,27 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			void set_serializer(ser::ISerializer* pSerializer) {
-				if (pSerializer == nullptr) {
-					// Always use the binary serializer as the default
-					m_pSerializer = &m_binarySerializer;
-					return;
-				}
-
-				m_pSerializer = pSerializer;
+			//! Resets runtime serializer binding to the default internal bin_stream backend.
+			void set_serializer(std::nullptr_t) {
+				// Always use the binary serializer as the default.
+				m_serializer = ser::make_serializer(m_stream);
 			}
 
-			ser::ISerializer* get_serializer() const {
-				return m_pSerializer;
+			//! Binds a pre-built runtime serializer handle.
+			void set_serializer(ser::serializer serializer) {
+				GAIA_ASSERT(serializer.valid());
+				m_serializer = serializer;
+			}
+
+			//! Binds a concrete serializer object through ser::make_serializer().
+			template <typename TSerializer>
+			void set_serializer(TSerializer& serializer) {
+				set_serializer(ser::make_serializer(serializer));
+			}
+
+			//! Returns the currently bound runtime serializer handle.
+			ser::serializer get_serializer() const {
+				return m_serializer;
 			}
 
 			//----------------------------------------------------------------------
@@ -2928,19 +2942,14 @@ namespace gaia {
 				return m_structuralChangesLocked != 0;
 			}
 
-			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
-			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
-			//!       of the following functions defined:
-			//!       1) member function: "void save(BinarySerializer& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, BinarySerializer& s,
-			//!       const YourType& data)"
-			void save() {
-				auto& s = *m_pSerializer;
+		private:
+			static constexpr uint32_t WorldSerializerVersion = 1;
 
-				s.reset();
+			void save_to(ser::serializer s) const {
+				GAIA_ASSERT(s.valid());
 
 				// Version number, currently unused
-				s.save((uint32_t)0);
+				s.save((uint32_t)WorldSerializerVersion);
 
 				// Store the index of the last core component.
 				// TODO: As this changes, we will have to modify entity ids accordingly.
@@ -3009,7 +3018,7 @@ namespace gaia {
 						for (auto e: pArchetype->ids_view())
 							s.save(e);
 
-						pArchetype->save(*m_pSerializer);
+						pArchetype->save(s);
 					}
 
 					s.save(m_worldVersion);
@@ -3044,14 +3053,50 @@ namespace gaia {
 				}
 			}
 
+		public:
+			//! Saves contents of the world to a buffer. The buffer is reset, not appended.
+			//! NOTE: In order for custom version of save to be used for a given component, it needs to have either
+			//!       of the following functions defined:
+			//!       1) member function: "void save(bin_stream& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, bin_stream& s,
+			//!       const YourType& data)"
+			void save() {
+				auto s = m_serializer;
+				GAIA_ASSERT(s.valid());
+
+				s.reset();
+				save_to(s);
+			}
+
+			//! Serializes world state into a JSON document.
+			//! Components with runtime schema are emitted as structured JSON objects.
+			//! Components with no schema fallback to raw serialized bytes.
+			//! Returns false when some schema field types are unsupported (those fields are emitted as null).
+			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+
+			//! Convenience overload returning JSON as a string.
+			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+
+			//! Loads world state from JSON previously emitted by save_json().
+			//! Returns true when JSON shape is valid and parsing succeeds.
+			//! Non-fatal semantic issues are reported through @a diagnostics.
+			bool load_json(const char* json, ser::JsonDiagnostics& diagnostics, uint32_t len);
+
+			bool load_json(const char* json, uint32_t len);
+
+			bool load_json(const std::string& json, ser::JsonDiagnostics& diagnostics);
+
+			bool load_json(const std::string& json);
+
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
 			//!       of the following functions defined:
-			//!       1) member function: "void save(BinarySerializer& s)"
-			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, BinarySerializer& s,
+			//!       1) member function: "void load(bin_stream& s)"
+			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream& s,
 			//!       YourType& data)"
-			bool load(ser::ISerializer* pOutputSerializer = nullptr) {
-				auto& s = (pOutputSerializer == nullptr) ? m_binarySerializer : *pOutputSerializer;
+			bool load(ser::serializer inputSerializer = {}) {
+				auto s = inputSerializer.valid() ? inputSerializer : m_serializer;
+				GAIA_ASSERT(s.valid());
 
 				// Move back to the beginning of the stream
 				s.seek(0);
@@ -3059,8 +3104,8 @@ namespace gaia {
 				// Version number, currently unused
 				uint32_t version = 0;
 				s.load(version);
-				if (version != 0) {
-					GAIA_LOG_E("Unsupported world version %u. Expected 0.", version);
+				if (version != WorldSerializerVersion) {
+					GAIA_LOG_E("Unsupported world version %u. Expected %u.", version, WorldSerializerVersion);
 					return false;
 				}
 
@@ -3241,7 +3286,12 @@ namespace gaia {
 					}
 				}
 
-				return false;
+				return true;
+			}
+
+			template <typename TSerializer>
+			bool load(TSerializer& inputSerializer) {
+				return load(ser::make_serializer(inputSerializer));
 			}
 
 		private:
@@ -5002,7 +5052,7 @@ namespace gaia {
 #if GAIA_ECS_AUTO_COMPONENT_SCHEMA
 			template <typename T>
 			static void auto_populate_component_schema(ComponentCacheItem& item) {
-				if (!item.has_fields())
+				if (!item.fields_empty())
 					return;
 
 				using U = core::raw_t<T>;
@@ -5031,7 +5081,7 @@ namespace gaia {
 							const auto offset = (uint32_t)(pField - pBase);
 							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
 						};
-						(add_field(fields), ...);
+						(add(fields), ...);
 					});
 				}
 			}
@@ -5572,6 +5622,8 @@ namespace gaia {
 		}
 	} // namespace ecs
 } // namespace gaia
+
+#include "gaia/ecs/impl/world_json.h"
 
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {

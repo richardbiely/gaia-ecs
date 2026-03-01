@@ -153,24 +153,24 @@ namespace gaia {
 				}
 
 				static constexpr auto func_save() {
-					return [](ser::ISerializer* pSer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) {
+					return [](ser::serializer& s, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) {
 						const auto* pComponent = (const U*)pSrc;
 
 #if GAIA_ASSERT_ENABLED
 						// Check if save and load match. Testing with one item is enough.
-						pSer->check(*pComponent);
+						s.check(*pComponent);
 #endif
 
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_get<U>{std::span{(const uint8_t*)pSrc, cap}};
 							GAIA_FOR2(from, to) {
 								auto val = view[i];
-								pSer->save(val);
+								s.save(val);
 							}
 						} else {
 							pComponent += from;
 							GAIA_FOR2(from, to) {
-								pSer->save(*pComponent);
+								s.save(*pComponent);
 								++pComponent;
 							}
 						}
@@ -178,18 +178,18 @@ namespace gaia {
 				}
 
 				static constexpr auto func_load() {
-					return [](ser::ISerializer* pSer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) {
+					return [](ser::serializer& s, void* pDst, uint32_t from, uint32_t to, uint32_t cap) {
 						if constexpr (mem::is_soa_layout_v<U>) {
 							auto view = mem::auto_view_policy_set<U>{std::span{(uint8_t*)pDst, cap}};
 							GAIA_FOR2(from, to) {
 								U val;
-								pSer->load(val);
+								s.load(val);
 								view[i] = val;
 							}
 						} else {
 							auto* pComponent = (U*)pDst + from;
 							GAIA_FOR2(from, to) {
-								pSer->load(*pComponent);
+								s.load(*pComponent);
 								++pComponent;
 							}
 						}

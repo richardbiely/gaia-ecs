@@ -40,6 +40,7 @@
 #include "gaia/util/signal.h"
 
 #include "gaia/ser/ser_ct.h"
+#include "gaia/ser/ser_json.h"
 #include "gaia/ser/ser_rt.h"
 
 #include "gaia/mt/threadpool.h"
@@ -56,3 +57,4 @@
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query.h"
 #include "gaia/ecs/world.h"
+#include "gaia/ser/ser_json.h"

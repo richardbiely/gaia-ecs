@@ -5,97 +5,30 @@
 #include <utility>
 
 #include "gaia/core/utility.h"
-#include "gaia/meta/reflection.h"
+#include "gaia/ser/impl/ser_dispatch.h"
 #include "gaia/ser/ser_common.h"
 
 namespace gaia {
 	namespace ser {
+		//! Compile-time serialization entry points.
+		//! Uses static dispatch and concrete writer/reader types (no virtual interface).
+		//! Best suited when the serializer type is known at compile time.
+		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
 		namespace detail {
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
-				using U = core::raw_t<T>;
-
-				// Custom save() has precedence
-				if constexpr (has_func_save<U, Writer&>::value) {
-					arg.save(s);
-				} else if constexpr (has_tag_save<Writer, U>::value) {
-					tag_invoke(save_v, s, static_cast<const U&>(arg));
-				}
-				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
-					s.save(arg);
-				}
-				// Types which have size(), begin() and end() member functions
-				else if constexpr (core::has_size_begin_end<U>::value) {
-					const auto size = arg.size();
-					s.save(size);
-
-					for (const auto& e: std::as_const(arg))
-						save_one(s, e);
-				}
-				// Classes
-				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copyable types
-						(save_one(s, items), ...);
-					});
-				} else
-					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+				auto saveTrivial = [](auto& writer, const auto& value) {
+					writer.save(value);
+				};
+				save_dispatch(s, arg, saveTrivial);
 			}
 
 			template <typename Reader, typename T>
 			void load_one(Reader& s, T& arg) {
-				using U = core::raw_t<T>;
-
-				// Custom load() has precedence
-				if constexpr (has_func_load<U, Reader&>::value) {
-					arg.load(s);
-				} else if constexpr (has_tag_load<Reader, U>::value) {
-					tag_invoke(load_v, s, static_cast<U&>(arg));
-				}
-				// Trivially serializable types
-				else if constexpr (is_trivially_serializable<U>::value) {
-					s.load(arg);
-				}
-				// Types which have size(), begin() and end() member functions
-				else if constexpr (core::has_size_begin_end<U>::value) {
-					auto size = arg.size();
-					s.load(size);
-
-					if constexpr (has_func_resize<U, size_t>::value) {
-						// If resize is present, use it
-						arg.resize(size);
-
-						// NOTE: We can't do it this way. If there are containers with the overloaded
-						//       operator=, the result might not be what one would expect.
-						//       E.g., in our case, SoA containers need specific handling.
-						// for (auto&& e: arg)
-						// 	load_one(s, e);
-
-						uint32_t i = 0;
-						for (auto e: arg) {
-							load_one(s, e);
-							arg[i] = std::move(e);
-							++i;
-						}
-					} else {
-						// With no resize present, write directly into memory
-						GAIA_FOR(size) {
-							using arg_type = typename std::remove_pointer<decltype(arg.data())>::type;
-							arg_type val;
-							load_one(s, val);
-							arg[i] = val;
-						}
-					}
-				}
-				// Classes
-				else if constexpr (std::is_class_v<U>) {
-					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copyable types
-						(load_one(s, items), ...);
-					});
-				} else
-					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
+				auto loadTrivial = [](auto& reader, auto& value) {
+					reader.load(value);
+				};
+				load_dispatch(s, arg, loadTrivial);
 			}
 
 #if GAIA_ASSERT_ENABLED
@@ -116,7 +49,39 @@ namespace gaia {
 				s.seek(pos0);
 			}
 #endif
+
+			//! Minimal writer used by ser::bytes to count produced bytes without storing data.
+			class size_counter {
+				uint32_t m_pos = 0;
+
+			public:
+				template <typename T>
+				void save(const T&) {
+					m_pos += (uint32_t)sizeof(T);
+				}
+
+				void save_raw(const void*, uint32_t size, [[maybe_unused]] ser::serialization_type_id id) {
+					m_pos += size;
+				}
+
+				void seek(uint32_t pos) {
+					m_pos = pos;
+				}
+
+				GAIA_NODISCARD uint32_t tell() const {
+					return m_pos;
+				}
+			};
 		} // namespace detail
+
+		//! Calculates how many bytes @a data would need when serialized via ser::save.
+		//! Useful when a destination storage wants to reserve memory in advance.
+		template <typename T>
+		GAIA_NODISCARD uint32_t bytes(const T& data) {
+			detail::size_counter counter;
+			detail::save_one(counter, data);
+			return counter.tell();
+		}
 
 		//! Write @a data using @a Writer at compile-time.
 		//! \tparam Writer Type of writer

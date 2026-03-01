@@ -14,6 +14,7 @@ namespace gaia {
 			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
 
 			template <typename DataContainer>
+			//! In-memory binary read/write stream used by compile-time and runtime serializers.
 			class ser_buffer_binary_impl {
 			protected:
 				// Increase the capacity by multiples of CapacityIncreaseSize
@@ -148,9 +149,11 @@ namespace gaia {
 		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
 		using ser_buffer_binary_storage_dyn = gaia::cnt::darray<uint8_t>;
 
-		//! Minimal binary serializer meant to runtime data.
-		//! It does not offer any versioning, or type information.
+		//! Minimal in-memory binary serializer.
+		//! It stores raw bytes only (no schema, versioning, or type metadata).
+		//! Uses a growth-policy-backed container with fixed capacity increment.
 		class ser_buffer_binary: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage> {};
+		//! Same API as ser_buffer_binary, but backed by fully dynamic storage.
 		class ser_buffer_binary_dyn: public detail::ser_buffer_binary_impl<ser_buffer_binary_storage_dyn> {};
 	} // namespace ser
 } // namespace gaia

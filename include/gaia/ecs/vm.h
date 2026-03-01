@@ -14,7 +14,7 @@
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_mask.h"
-#include "gaia/ecs/ser_binary.h"
+#include "gaia/ser/ser_binary.h"
 
 namespace gaia {
 	namespace ecs {
@@ -1033,7 +1033,7 @@ namespace gaia {
 							auto& p = terms_any[i];
 							if (p.src != EntityBad)
 								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
-							
+
 							m_compCtx.ids_any.push_back(p.id);
 						}
 					}

@@ -84,7 +84,7 @@ namespace gaia {
 				Entity m_lastTempTarget = EntityBad;
 
 				//! Buffer holding component data
-				BinarySerializer m_data;
+				ser::bin_stream m_data;
 				//! Accessor object
 				AccessContext m_acc;
 
@@ -158,7 +158,8 @@ namespace gaia {
 					const auto& item = comp_cache_add<T>(m_world);
 
 					const auto pos = m_data.tell();
-					item.save(&m_data, &value, 0, 1, 1);
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
 					push_op({OpType::ADD_COMPONENT_DATA, pos, entity, item.entity});
 				}
 
@@ -177,7 +178,8 @@ namespace gaia {
 					const auto& item = comp_cache(m_world).template get<T>();
 
 					const auto pos = m_data.tell();
-					item.save(&m_data, &value, 0, 1, 1);
+					auto serializer = ser::make_serializer(m_data);
+					item.save(serializer, &value, 0, 1, 1);
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
@@ -473,9 +475,10 @@ namespace gaia {
 												auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 												// Component data
-												m_data.seek(op.off);
+												auto serializer = ser::make_serializer(m_data);
+												serializer.seek(op.off);
 												const auto& item = m_world.comp_cache().get(othReal);
-												item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
+												item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
 											} break;
 											default:
 												break;
@@ -530,9 +533,10 @@ namespace gaia {
 											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 											// Component data
-											m_data.seek(dataPos);
+											auto serializer = ser::make_serializer(m_data);
+											serializer.seek(dataPos);
 											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
+											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
 										}
 										// 4) ADD only
 										else if (hasAdd) {
@@ -546,9 +550,10 @@ namespace gaia {
 											auto* pComponentData = (void*)ec.pChunk->comp_ptr_mut(compIdx, 0);
 
 											// Component data
-											m_data.seek(dataPos);
+											auto serializer = ser::make_serializer(m_data);
+											serializer.seek(dataPos);
 											const auto& item = m_world.comp_cache().get(othReal);
-											item.load(&m_data, pComponentData, row, row + 1, ec.pChunk->capacity());
+											item.load(serializer, pComponentData, row, row + 1, ec.pChunk->capacity());
 										}
 									}
 								}

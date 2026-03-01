@@ -157,19 +157,19 @@ The main benefits of archetype-based architecture are fast iteration and good me
 
 On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph and having the ability to add and remove components in batches.
 
-In this project, components are entities with the ***Component*** component attached to them. Treating components as entities allows for great design simplification and big features.
+In this project, components are entities with the `Component` component attached to them. Treating components as entities allows for great design simplification and big features.
 
 ## Project structure
-The entire project is implemented inside gaia ***namespace***. It is further split into multiple sub-projects each with a separate namespaces.
-- ***core*** - core functionality, use by all other parts of the code
-- ***mem*** - memory-related operations, memory allocators
-- ***cnt*** - data containers
-- ***meta*** - reflection framework
-- ***ser*** - serialization framework
-- ***mt*** - multithreading framework
-- ***ecs*** - the ECS part of the project
+The entire project is implemented inside gaia namespace. It is further split into multiple sub-projects each with a separate namespaces.
+- `core` - core functionality, use by all other parts of the code
+- `mem` - memory-related operations, memory allocators
+- `cnt` - data containers
+- `meta` - reflection framework
+- `ser` - serialization framework
+- `mt` - multithreading framework
+- `ecs` - the ECS part of the project
 
-The project has a dedicated ***external*** section that contains 3rd-party code. At present, it only includes a modified version of the [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map.
+The project has a dedicated `external` section that contains 3rd-party code. At present, it only includes a modified version of the [robin-hood](https://github.com/martinus/robin-hood-hashing) hash-map.
 
 # Usage
 ## Minimum requirements
@@ -185,7 +185,7 @@ In the code examples below we will assume we are inside gaia namespace.
 ## Basic operations
 ### Create or delete entity
 
-Entity a unique "thing" in ***World***. Creating an entity at runtime is as easy as calling ***World::add***. Deleting is done via ***World::del***. Once deleted, entity is no longer valid and if used with some APIs it is going to trigger a debug-mode assert. Verifying that an entity is valid can be done by calling ***World::valid***.
+Entity a unique "thing" in `ecs::World`. Creating an entity at runtime is as easy as calling `World::add`. Deleting is done via `World::del`. Once deleted, entity is no longer valid and if used with some APIs it is going to trigger a debug-mode assert. Verifying that an entity is valid can be done by calling `World::valid`.
 
 ```cpp
 ecs::World w;
@@ -240,7 +240,7 @@ ecs::Entity e_by_name = w.get("my_unique_name");
 w.name(e, nullptr);
 ```
 
-If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***World::name_raw*** to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
+If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use `World::name_raw` to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
 
 ```cpp
 const char* pUserManagedString = ...;
@@ -283,7 +283,7 @@ wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignor
 
 ### Add or remove component
 
-Components can be created using ***World::add<T>***. This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
+Components can be created using `World::add<T>` This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
 
 ```cpp
 struct Position {
@@ -337,7 +337,7 @@ When adding components following restrictions apply:
 * Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
 
 ### Component presence
-Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iter*** which can be acquired when running [queries](#query).
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
 
 ```cpp
 // Check if entity e has Velocity (via world).
@@ -507,7 +507,7 @@ w.build(e)
  .name("MyEntity);
 ```
 
-It is also possible to manually commit all changes by calling ***ecs::EntityBuilder::commit***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
+It is also possible to manually commit all changes by calling `ecs::EntityBuilder::commit`. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove components based on some complex logic.
 
 ```cpp
 ecs::EntityBuilder builder = w.build(e);
@@ -520,7 +520,7 @@ if (some_condition) {
 builder.commit();
 ```
 
->**NOTE:**<br/>Once ***ecs::EntityBuilder::commit*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
+>**NOTE:**<br/>Once `ecs::EntityBuilder::commit` is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
 
 ### Set or get component value
 
@@ -543,7 +543,7 @@ w.acc_mut(e)
   .set...;
 ```
 
-Similar to ***ecs::EntityBuilder::build*** you can also use the setter object in scenarios with complex logic.
+Similar to `ecs::EntityBuilder::build` you can also use the setter object in scenarios with complex logic.
 
 ```cpp
 ecs::ComponentSetter setter = w.acc_mut(e);
@@ -586,7 +586,7 @@ ecs::Entity e2 = w.copy(e);
 ```
 ### Entity cleanup
 
-Anything attached to an entity can be easily removed using ***World::clear***. This is useful when you need to quickly reset your entity and still want to keep your Entity's id (deleting the entity would mean that as some point it could be recycled and its id could be used by some newly created entity).
+Anything attached to an entity can be easily removed using `World::clear`. This is useful when you need to quickly reset your entity and still want to keep your Entity's id (deleting the entity would mean that as some point it could be recycled and its id could be used by some newly created entity).
 
 ```cpp
 ecs::Entity e = w.add();
@@ -646,10 +646,10 @@ w.copy_n(e, 1000, [](ecs::CopyIter& it) {
 ```
 ### Entity lifespan
 
-Every entity in the world is reference counted. When an entity is created, the value of this counter is 1. When ***ecs::World::del*** is called the value of this counter is decremented. When it reaches zero, the entity is deleted. However, the lifetime of entities can be extended. Calling ***ecs::World::del*** any number of times on the same entity is safe because the reference counter is decremented only on the first attempt. Any further attempts are ignored.
+Every entity in the world is reference counted. When an entity is created, the value of this counter is 1. When `ecs::World::del` is called the value of this counter is decremented. When it reaches zero, the entity is deleted. However, the lifetime of entities can be extended. Calling `ecs::World::del` any number of times on the same entity is safe because the reference counter is decremented only on the first attempt. Any further attempts are ignored.
 
 #### SafeEntity
-***ecs::SafeEntity*** is a wrapper above ***ecs::Entity*** that makes sure that an entity stays alive until the last ***ecs::SafeEntity*** referencing the entity goes out of scope. When the wrapper is instantiated it increments the entity's reference counter by 1. When it goes out of scope it decrements the counter by 1. In terms of functionality, this is reminiscent of a C++ smart pointer, std::shared_ptr.
+`ecs::SafeEntity` is a wrapper above `ecs::Entity` that makes sure that an entity stays alive until the last `ecs::SafeEntity` referencing the entity goes out of scope. When the wrapper is instantiated it increments the entity's reference counter by 1. When it goes out of scope it decrements the counter by 1. In terms of functionality, this is reminiscent of a C++ smart pointer, std::shared_ptr.
 
 ```cpp
 ecs::World w;
@@ -688,9 +688,9 @@ w.add<Position>(playerSafe);
 ```
 
 #### WeakEntity
-***ecs::WeakEntity*** is a wrapper above ***ecs::Entity*** that makes sure that when the entity it references is deleted, it automatically starts acting as ***ecs::EntityBad***. In terms of functionality, this is reminiscent of a C++ smart pointer, std::weak_ptr.
+`ecs::WeakEntity` is a wrapper above `ecs::Entity` that makes sure that when the entity it references is deleted, it automatically starts acting as `ecs::EntityBad`. In terms of functionality, this is reminiscent of a C++ smart pointer, std::weak_ptr.
 
-***ecs::WeakEntity*** is fully compatible with ***ecs::Entity*** and can be used just like it in all scenarios. As a result, you have to keep in mind that it can become invalid at any point.
+`ecs::WeakEntity` is fully compatible with `ecs::Entity` and can be used just like it in all scenarios. As a result, you have to keep in mind that it can become invalid at any point.
 
 ```cpp
 ecs::World w;
@@ -714,15 +714,15 @@ isValid = w.valid(player); // false
 isValid = w.valid(playerSafe); // false
 ```
 
-Technically, ***ecs::WeakEntity*** is almost the same thing as ***ecs::Entity*** with one nuance difference. Because entity ids are recycled, in theory, ***ecs::Entity*** left lying around somewhere could end up being multiple different things over time. This is not an issue with ***ecs::WeakEntity*** because the moment the entity linked with it gets deleted, it is reset to ***ecs::EntityBad***.
+Technically, `ecs::WeakEntity` is almost the same thing as `ecs::Entity` with one nuance difference. Because entity ids are recycled, in theory, `ecs::Entity` left lying around somewhere could end up being multiple different things over time. This is not an issue with `ecs::WeakEntity` because the moment the entity linked with it gets deleted, it is reset to `ecs::EntityBad`.
 
-This is an edge-case scenario, unlikely to happen even, but should you ever need it ***ecs::WeakEntity*** is there to help. If you decided to change the amount of bits allocated to ***Entity::gen*** to a lower number you will increase the likelihood of double-recycling happening and increase usefulness of ***ecs::WeakEntity***.
+This is an edge-case scenario, unlikely to happen even, but should you ever need it `ecs::WeakEntity` is there to help. If you decided to change the amount of bits allocated to `Entity::gen` to a lower number you will increase the likelihood of double-recycling happening and increase usefulness of `ecs::WeakEntity`.
 
-A more useful use case, however, would be if you need an entity identifier that gets automatically reset when the entity gets deleted without any setup necessary from your end. Certain situations can be complex and using ***ecs::WeakEntity*** just might be the one way for you to address them.
+A more useful use case, however, would be if you need an entity identifier that gets automatically reset when the entity gets deleted without any setup necessary from your end. Certain situations can be complex and using `ecs::WeakEntity` just might be the one way for you to address them.
 
 ### Archetype lifespan
 
-Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of ***ecs::World::update***. However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
+Once all entities of given archetype are deleted (and as a result all chunks in the archetypes are empty), the archetype stays alive for another 127 ticks of `ecs::World::update`. However, there might be cases where this behavior is insufficient. Maybe you want the archetype deleted faster, or you want to keep it around forever.
 
 For instance, you might often end up deleting all entities of a given archetype only to create new ones seconds later. In this case, keeping the archetype around can have several performance benefits:
 1) no need to recreate the archetype
@@ -883,12 +883,12 @@ Technically, any query could be reset by default initializing it, e.g. ```myQuer
 Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
 Supported modifiers:
-* ***;*** - separates expressions
-* ***?*** - query::any
-* ***!*** - query::none
-* ***&*** - read-write access
-* ***%e*** - entity value
-* ***(rel,tgt)*** - relationship pair, a wildcard character in either rel or tgt is translated into ***All***
+* `;` - separates expressions
+* `?` - query::any
+* `!` - query::none
+* `&` - read-write access
+* `%e` - entity value
+* `(rel,tgt)` - relationship pair, a wildcard character in either rel or tgt is translated into `All`
 
 ```cpp
 // Some context for the example
@@ -922,7 +922,7 @@ From the implementation standpoint, uncached queries are the same as ordinary qu
 
 On the other hand, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute for the query and matching is faster because no query cache lookups are involved.
 
-Uncached queries are created via ***World::query< false >***.
+Uncached queries are created via `World::query<false>`.
 
 ```cpp
 // This is a cached query
@@ -934,7 +934,7 @@ ecs::QueryUncached q3 = w.query<false>(). ...;
 ```
 
 ### Iteration
-To process data from queries one uses the ***Query::each*** function.
+To process data from queries one uses the `Query::each` function.
 It accepts either a list of components or an iterator as its argument.
 
 ```cpp
@@ -956,12 +956,12 @@ q.each([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
 Processing via an iterator gives you even more expressive power, and opens doors for new kinds of optimizations.
-***Iter*** is an abstraction over underlying data structures and gives you access to their public API.
+`Iter` is an abstraction over underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
-1) ***Iter*** - iterates over enabled entities
-2) ***IterDisabled*** - iterates over disabled entities
-3) ***IterAll*** - iterates over all entities
+1) `Iter` - iterates over enabled entities
+2) `IterDisabled` - iterates over disabled entities
+3) `IterAll` - iterates over all entities
 
 ```cpp
 ecs::Query q = w.query();
@@ -1005,7 +1005,7 @@ q.each([](ecs::IterAll& it) {
 }
 ```
 
->**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one ***Query::each***. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to ***each***.
+>**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one `Query::each`. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to `each`.
 
 ### Constraints
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
@@ -1116,7 +1116,7 @@ Changes are triggered as a result of:
 
 Grouping is a feature that allows you to assign an id to each archetype and group them together or filter them based on this id. Archetypes are sorted by their groupId in ascending order. If descending order is needed, you can change your groupIds (e.g. instead of 100 you use ecs::GroupIdMax - 100).
 
-Grouping is best used with [relationships](#relationships). It can be triggered by calling ***group_by*** before the first call to ***each*** or other functions that build the query (***count***, ***empty***, ***arr***).
+Grouping is best used with [relationships](#relationships). It can be triggered by calling `group_by` before the first call to `each` or other functions that build the query (`count`, `empty`, `arr`).
 
 ```cpp
 ecs::Entity eats = wld.add();
@@ -1160,7 +1160,7 @@ q.each([&](ecs::Iter& it) {
 });
 ```
 
-You can choose what group to iterate specifically by calling ***group_id*** prior to iteration.
+You can choose what group to iterate specifically by calling `group_id` prior to iteration.
 
 ```cpp
 // This query is going to iterate the following group of 2 archetypes:
@@ -1203,7 +1203,7 @@ q.group_by(eats, my_group_sort_func).each(...) { ... };
 
 ### Sorting
 
-Data stored in ECS can be sorted. We can sort either by entity index or by component of choice. To accomplish that the ***Query::sort_by*** function is used.
+Data stored in ECS can be sorted. We can sort either by entity index or by component of choice. To accomplish that the `Query::sort_by` function is used.
 
 Sorting by entity indices in an descending order (largest entity indices first) could be done as follows:
 
@@ -1287,7 +1287,7 @@ Resorting is triggered automatically any time the query matches a new archetype,
 
 ### Parallel execution
 
-Queries can make use of [mulithreading](#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right ***ecs::QueryExecType*** parameter.
+Queries can make use of [mulithreading](#multithreading). By default, all queries are handles by the thread that iterates the query. However, it is possible to execute them by multiple threads at once simply by providing the right `ecs::QueryExecType` parameter.
 
 ```cpp
 // Ordinary single-thread query (default)
@@ -1311,7 +1311,7 @@ Queries can't make use of job dependencies directly. To do that, you need to use
 Entity relationship is a feature that allows users to model simple relations, hierarchies or graphs in an ergonomic, easy and safe way.
 Each relationship is expressed as following: "source, (relation, target)". All three elements of a relationship are entities. We call the "(relation, target)" part a relationship pair.
 
-Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling ***ecs::Pair(relation, target***) with two valid entities as its arguments.
+Relationship pair is a special kind of entity where the id of the "relation" entity becomes the pair's id and the "target" entity's id becomes the pairs generation. The pair is created by calling `ecs::Pair(relation, target`) with two valid entities as its arguments.
 
 Adding a relationship to any entity is as simple as adding any other entity.
 
@@ -1338,11 +1338,11 @@ q.each([](ecs::Entity entity)) {
 This by itself would not be much different from adding entities/component to entities. A similar result can be achieved by creating a "eats_carrot" tag and assigning it to "hare" and "rabbit". What sets relationships apart is the ability to use wildcards in queries.
 
 There are three kinds of wildcard queries possible:
-- ***( X, * )*** - X that does anything
-- ***( * , X )*** - anything that does X
-- ***( * , * )*** - anything that does anything (aka any relationship)
+- `( X, * )` - X that does anything
+- `( * , X )` - anything that does X
+- `( * , * )` - anything that does anything (aka any relationship)
 
-The "*" wildcard is expressed via ***All*** entity.
+The "*" wildcard is expressed via `All` entity.
 
 ```cpp
 w.add(rabbit, ecs::Pair(eats, carrot));
@@ -1371,14 +1371,14 @@ q3.each([]()) {
 }
 ```
 
-Relationships can be ended by calling ***World::del*** (just like it is done for regular entities/components).
+Relationships can be ended by calling `World::del` (just like it is done for regular entities/components).
 
 ```cpp
 // Rabbit no longer eats carrot
 w.del(rabbit, ecs::Pair(eats, carrot));
 ```
 
-Whether a relationship exists can be check via ***World::has*** (just like it is done for regular entities/components).
+Whether a relationship exists can be check via `World::has` (just like it is done for regular entities/components).
 
 ```cpp
 // Checks if rabbit eats carrot
@@ -1422,7 +1422,7 @@ ecs::Query q1 = w.query().all< ecs::pair<Start, Position> >();
 ```
 
 ### Targets
-Targets of a relationship can be retrieved via ***World::target*** and ***World::targets***.
+Targets of a relationship can be retrieved via `World::target` and `World::targets`.
 
 ```cpp
 w.add(rabbit, ecs::Pair(eats, carrot));
@@ -1440,7 +1440,7 @@ w.targets(rabbit, eats, [&what_rabbit_eats](ecs::Entity entity) {
 ```
 
 ### Relations
-Relations of a relationship can be retrieved via ***World::relation*** and ***World::relations***.
+Relations of a relationship can be retrieved via `World::relation` and `World::relations`.
 
 ```cpp
 w.add(rabbit, ecs::Pair(eats, carrot));
@@ -1585,13 +1585,13 @@ When deleting an entity we might want to define how the deletion is going to hap
 Cleanup rules are defined as ecs::Pair(Condition, Reaction).
 
 Condition is one of the following:
-* ***OnDelete*** - deleting an entity/pair
-* ***OnDeleteTarget*** - deleting a pair's target
+* `OnDelete` - deleting an entity/pair
+* `OnDeleteTarget` - deleting a pair's target
 
 Reaction is one of the following:
-* ***Remove*** - removes the entity/pair from anything referencing it
-* ***Delete*** - delete everything referencing the entity
-* ***Error*** - error out when deleted
+* `Remove` - removes the entity/pair from anything referencing it
+* `Delete` - delete everything referencing the entity
+* `Error` - error out when deleted
 
 The default behavior of deleting an entity is to simply remove it from the parent entity. This is an equivalent of Pair(OnDelete, Remove) relationship pair attached to the entity getting deleted.
 
@@ -1626,7 +1626,7 @@ w.add(rabbit, bomb_exploding_on_del);
 w.del(bomb_exploding_on_del); 
 ```
 
-A core entity ***ChildOf*** can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
+A core entity `ChildOf` can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
 
 ```cpp
 ecs::Entity parent = w.add();
@@ -1664,7 +1664,7 @@ Typically you use them when there is a need to perform structural changes (addin
 
 Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a command buffer you can collect all requests first and commit them when it is safe later.
 
-You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - ***ecs::CommandBufferST*** that is not thread-safe and should only be used by one thread, and ***ecs::CommandBufferMT*** that is safe to access from multiple threads at once.
+You can use either a command buffer provided by the iterator or one you created. There are two kinds of the command buffer - `ecs::CommandBufferST` that is not thread-safe and should only be used by one thread, and `ecs::CommandBufferMT` that is safe to access from multiple threads at once.
 
 The command buffer provided by the iterator is committed in a safe manner when the world is not locked for structural changes, and is a recommended way for queuing commands.
 
@@ -1708,12 +1708,12 @@ cb.commit();
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 >**NOTE:<br/>** 
-There is one situation to be wary about with command buffers. Function ***add*** accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are a subject to race conditions. To avoid them, make sure that the component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, you need to call this anywhere before you run your system or a query:
+There is one situation to be wary about with command buffers. Function `add` accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are a subject to race conditions. To avoid them, make sure that the component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, you need to call this anywhere before you run your system or a query:
 ```cpp
 // Register the component YourComponent in the world
 world.add<YourComponent>();
 ```
->Technically, template versions of functions ***set*** and ***del*** experience a similar issue. However, calling neither ***set*** nor ***del*** makes sense without a previous call to ***add***. Such attempts are undefined behaviors (and reported by triggering an assertion).
+>Technically, template versions of functions `set` and `del` experience a similar issue. However, calling neither `set` nor `del` makes sense without a previous call to `add`. Such attempts are undefined behaviors (and reported by triggering an assertion).
 
 ### Command Merging rules
 Before applying any operations to the world, the command buffer performs operation merging and cancellation to remove redundant or meaningless actions.
@@ -1944,14 +1944,39 @@ Different layouts use different memory alignments. **GAIA_LAYOUT(SoA)** and **GA
 Any data structure can be serialized into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() functions are supported out of the box. If a resize() function is available, it will be used automatically.
 In some cases, you may still need to provide specializations, though. Either because the default behavior does not match your expectations, or because the program will not compile otherwise.
 
-Serialization of arbitrary data is available in two different formats. One for compile-time serialization, and the other for runtime serialization. Their interface is the same.
+Serialization is available in two modes:
+- compile-time mode (`gaia/ser/ser_ct.h`) for static dispatch with concrete serializer types
+- runtime mode (`gaia/ser/ser_rt.h`) for type-erased serializers selected at runtime
+
+Both modes share the same traversal behavior and customization points (`save/load` members or `tag_invoke`).
+These APIs are for binary serialization traversal, not for JSON document authoring/parsing.
+
+Quick overview of serializer types:
+- `ser::ser_buffer_binary` / `ser::ser_buffer_binary_dyn`: in-memory raw byte streams (no schema/version/type metadata)
+- `ser::serializer`: non-owning runtime serializer reference (type-erased)
+- `ser::bin_stream`: default owning in-memory binary backend for `ecs::World`
+
+Recommended JSON API surface:
+- `ser::ser_json` for low-level JSON token writing/parsing
+- `ecs::component_to_json` / `ecs::json_to_component` for runtime-schema component payloads
+- `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
+
+For structured semantic load feedback, use diagnostics overloads:
+- `ecs::json_to_component(..., ser::JsonDiagnostics&, componentPath)`
+- `ecs::World::load_json(..., ser::JsonDiagnostics&)`
+
+Each diagnostic includes:
+- severity (`Info` / `Warning` / `Error`)
+- reason enum (`JsonDiagReason`)
+- logical JSON/component path
+- human-readable message
 
 ### Compile-time serialization
 
-Compile-time serialization is available via following functions:
-- ***ser::bytes*** - calculates how many bytes the data needs to serialize
-- ***ser::save*** - writes data to serialization buffer
-- ***ser::load*** - loads data from serialization buffer
+Compile-time serialization is available via the following functions:
+- `ser::bytes` - calculates how many bytes the data needs to serialize
+- `ser::save` - writes data to serialization buffer
+- `ser::load` - loads data from serialization buffer
 
 It is not tied to ECS world and you can use it anywhere in your codebase.
 
@@ -2081,73 +2106,75 @@ struct CustomStruct {
 
 ### Runtime serialization
 
-For runtime serialization you need to use the provided ***ser::ISerializer*** base and override the exposed virtual functions.
+Runtime serialization uses `ser::serializer` (type erasure over serializer objects). It is primarily used by ECS world save/load, where the serializer implementation can be swapped at runtime.
+By default, `ecs::World` binds an internal `ser::bin_stream`.
+
+To create a custom runtime serializer, implement a type exposing:
+- `save_raw` / `load_raw`
+- `tell` / `seek`
+- `bytes`, optionally `data` and `reset`
 
 ```cpp
-class CustomBinarySerializer: public ser::ISerializer {
-  //! Buffer object used to write binary data
-  ser::ser_buffer_binary m_buffer;
-
-  //! Makes sure data is aligned
-  void align(uint32_t size, ser::serialization_type_id id) {
-    const auto pos = m_buffer.tell();
-    const auto posAligned = mem::align(pos, ser::serialization_type_size(id, size));
-    const auto offset = posAligned - pos;
-    m_buffer.reserve(offset + size);
-    m_buffer.skip(offset);
-  }
+class CustomBinarySerializer {
+  // Reuse the default backend and customize behavior around it.
+  ser::bin_stream m_stream;
+  uint64_t m_writtenBytes = 0;
 
 public:
-  void save_raw(const void* src, uint32_t size, ser::serialization_type_id id) override {
-    align(size, id);
-    m_buffer.save_raw((const char*)src, size, id);
+  void save_raw(const void* src, uint32_t size, ser::serialization_type_id id) {
+    m_writtenBytes += size;       // custom accounting/telemetry
+    m_stream.save_raw(src, size, id);
   }
 
-  void load_raw(void* src, uint32_t size, ser::serialization_type_id id) override {
-    align(size, id);
-    m_buffer.load_raw((char*)src, size, id);
+  void load_raw(void* dst, uint32_t size, ser::serialization_type_id id) {
+    m_stream.load_raw(dst, size, id);
   }
 
-  const char* data() const override {
-    return (const char*)m_buffer.data();
+  const char* data() const {
+    return m_stream.data();
   }
 
-  void reset() override {
-    m_buffer.reset();
+  void reset() {
+    m_writtenBytes = 0;
+    m_stream.reset();
   }
 
-  uint32_t tell() const override {
-    return m_buffer.tell();
+  uint32_t tell() const {
+    return m_stream.tell();
   }
 
-  uint32_t bytes() const override {
-    return m_buffer.bytes();
+  uint32_t bytes() const {
+    return m_stream.bytes();
   }
 
-  void seek(uint32_t pos) override {
-    m_buffer.seek(pos);
+  void seek(uint32_t pos) {
+    m_stream.seek(pos);
+  }
+
+  uint64_t bytes_written_total() const {
+    return m_writtenBytes;
   }
 };
 ```
 
-This way you can create any serializer you want. For example, you can serialize your data to json or any other custom format you can imagine. You can give it support for versioning and so on.
+This way you can create your own runtime format and behavior (alignment policy, versioning, metadata handling, etc.).
 
-Runtime serialization it tied to ECS world. You can hook it up via ***World::set_serializer***.
+Runtime serialization is tied to ECS world. You can hook it up via `World::set_serializer`.
 
 ```cpp
 ecs::World world;
 // Make the world use the custom serializer
 CustomBinarySerializer customSerializer;
-world.set_serializer(&customSerializer);
+world.set_serializer(customSerializer);
 // Make the world use the default serializer
 world.set_serializer(nullptr);
 ```
 
-Your serializer must remain valid for the entire time it is used by ***ecs::World***. The world only stores a plain pointer to it. Therefore, if the serializer disappered and you forgot to call set_serializer(nullptr), the world would end up with a dangling pointer.
+Your serializer must remain valid for the entire time it is used by `ecs::World`. The world stores a non-owning runtime reference to it. Therefore, if the serializer disappeared and you forgot to call `set_serializer(nullptr)`, the world would end up with a dangling reference.
 
 ### World serialization
 
-World serialization can be accessed via ***World::save*** and ***World::load*** functions. 
+World serialization can be accessed via `World::save` and `World::load` functions. 
 
 ```cpp
 // Save contents of our world into the current world serializer's buffer
@@ -2159,7 +2186,51 @@ world.cleanup();
 world.load();
 ```
 
-Note that for this feature to work correctly, components must be registered in a fixed order. If you called ***World::save*** and registered Position, Rotation, and Foo in that order, the same order must be used when calling ***World::load***.
+World state can also be exported as JSON:
+
+```cpp
+ecs::World world;
+...
+
+ser::ser_json writer;
+const bool ok = world.save_json(writer);
+const std::string json = writer.str();
+```
+
+Or via convenience overload:
+
+```cpp
+bool ok = false;
+const std::string json = world.save_json(ok);
+```
+
+`save_json` emits structured JSON for components with runtime schema fields.
+Components without schema fallback to a raw byte array payload (`"$raw"`).
+Behavior can be adjusted with flags:
+- `ecs::World::JsonSave_IncludeBinarySnapshot`
+- `ecs::World::JsonSave_AllowRawFallback`
+
+JSON produced by `save_json` can be loaded back via `load_json`:
+
+```cpp
+ecs::World worldOut;
+...
+worldOut.load_json(json);
+```
+
+If you need detailed semantic issues (unknown fields, unsupported payload shapes, lossy conversions), use:
+
+```cpp
+ser::JsonDiagnostics diagnostics;
+const bool parsed = worldOut.load_json(json, diagnostics);
+```
+
+`parsed` reports JSON shape/parse success. Semantic warnings/errors are carried in `diagnostics`.
+
+`load_json` first consumes the embedded `"binary"` snapshot payload when present. If `"binary"` is omitted, it falls back to semantic JSON loading from `"archetypes"` / `"entities"` / `"components"` data.  
+Semantic loading is best-effort: components must already be registered, unknown/unsupported fields are skipped, and the function returns `false` when unsupported content is encountered (for example tag-only components or SoA raw payloads).
+
+Note that for this feature to work correctly, components must be registered in a fixed order. If you called `World::save` and registered Position, Rotation, and Foo in that order, the same order must be used when calling `World::load`.
 This usually isn’t an issue when loading data within the same program on the same world, but it matters when loading data saved by a different world or program.
 
 ```cpp
@@ -2186,7 +2257,7 @@ world1.load();
 ### Jobs
 To fully utilize your system's potential **Gaia-ECS** allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
-Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***ThreadPool::sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
+Tasks that can not be split into multiple parts or it does not make sense for them to be split can use `ThreadPool::sched`. It registers a job in the job system and immediately submits it so worker threads can pick it up:
 ```cpp
 mt::Job job0 {[]() {
   InitializeScriptEngine();
@@ -2206,7 +2277,7 @@ tp.wait(jobHandle0);
 tp.wait(jobHandle1);
 ```
 
-When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ThreadPool::sched_par*** is for. 
+When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what `ThreadPool::sched_par` is for. 
 
 ```cpp
 static uint32_t SumNumbers(std::span<const uint32_t> arr) {
@@ -2322,7 +2393,7 @@ tp.del(handle);
 
 ### Threads
 
-The total number of threads created for the pool is set via ***ThreadPool::set_max_workers***. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter how many threads are requested, the final number if always capped to 31 (***ThreadPool::MaxWorkers***). The number of available threads on your hardware can be retrieved via ***ThreadPool::hw_thread_cnt***.
+The total number of threads created for the pool is set via `ThreadPool::set_max_workers`. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter how many threads are requested, the final number if always capped to 31 (`ThreadPool::MaxWorkers`). The number of available threads on your hardware can be retrieved via `ThreadPool::hw_thread_cnt`.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();
@@ -2343,7 +2414,7 @@ tp.set_max_workers(hwThreads, 1);
 tp.set_max_workers(0, 0);
 ```
 
-The number of worker threads for a given performance level can be adjusted via ***ThreadPool::set_workers_high_prio*** and ***ThreadPool::set_workers_low_prio***. By default, all workers created are high-priority ones.
+The number of worker threads for a given performance level can be adjusted via `ThreadPool::set_workers_high_prio` and `ThreadPool::set_workers_low_prio`. By default, all workers created are high-priority ones.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();
@@ -2368,7 +2439,7 @@ tp.set_workers_low_prio(workers - 1);
 tp.set_workers_low_prio(workers);
 ```
 
-The main thread normally does not participate as a worker thread. However, if needed, it can join workers by calling ***ThreadPool::update*** from the main thread.
+The main thread normally does not participate as a worker thread. However, if needed, it can join workers by calling `ThreadPool::update` from the main thread.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();
@@ -2387,7 +2458,7 @@ while (!stopProgram) {
 }
 ```
 
-If you need to designate a certain thread as the main thread, you can do it by calling ***ThreadPool::make_main_thread*** from that thread.
+If you need to designate a certain thread as the main thread, you can do it by calling `ThreadPool::make_main_thread` from that thread.
 
 Note, the operating system has the last word here. It might decide to schedule low-priority threads to high-performance cores or high-priority threads to efficiency cores depending on how the scheduler decides it should be.
 
@@ -2407,7 +2478,7 @@ float f = 10.123f;
 GAIA_LOG_E("This is an error log. %d,%.2f", x, f);
 ```
 
-Overriding how logging behaves is possible via ***util::set_log_func*** and ***util::set_log_line_func***. The first one overrides the entire gaia logging behavior. The second one keeps the internal logic intact, and only changes how logging a single line is handled.
+Overriding how logging behaves is possible via `util::set_log_func` and `util::set_log_line_func`. The first one overrides the entire gaia logging behavior. The second one keeps the internal logic intact, and only changes how logging a single line is handled.
 
 To override the entire logging logic you can do:
 ```cpp
@@ -2495,7 +2566,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -S . -B "build"
 cmake --build "build" --config Release
 ```
 
-To target a specific build system you can use the [***-G*** parameter](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#manual:cmake-generators(7)):
+To target a specific build system you can use the [`-G` parameter](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#manual:cmake-generators(7)):
 ```bash
 # Microsoft Visual Studio 2022, 64-bit, x86 architecture 
 cmake -G "Visual Studio 17 2022" -A x64 ...
@@ -2514,7 +2585,7 @@ When using MacOS you might run into a few issues caused by the specifics of the 
 > After you update to a new version of Xcode you might start getting "Ignoring CMAKE_OSX_SYSROOT value: ..." warnings when building the project. Residual cmake cache is to blame here. A solution is to delete files generated by cmake.
 >
 > Linker issue:<br/>
-> When not building the project from Xcode and using ***ld*** as your linker, if XCode 15 or later is installed on your system you will most likely run into various issues: https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking. In the CMake project a workaround is implemented which adds "-Wl,-ld_classic" to linker settings but if you use a different build system or settings you might want to do same. This workaround can be enabled via "-DGAIA_MACOS_BUILD_HACK=ON".
+> When not building the project from Xcode and using `ld` as your linker, if XCode 15 or later is installed on your system you will most likely run into various issues: https://developer.apple.com/documentation/xcode-release-notes/xcode-15-release-notes#Linking. In the CMake project a workaround is implemented which adds "-Wl,-ld_classic" to linker settings but if you use a different build system or settings you might want to do same. This workaround can be enabled via "-DGAIA_MACOS_BUILD_HACK=ON".
 
 To build the project using **Emscripten** you can do the following:
 ```bash
@@ -2534,7 +2605,7 @@ Parameter | Description
 **GAIA_BUILD_UNITTEST** | Builds the [unit test project](#testing)
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
-**GAIA_GENERATE_CC** | Generates ***compile_commands.json***
+**GAIA_GENERATE_CC** | Generates `compile_commands.json`
 **GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features

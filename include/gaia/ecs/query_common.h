@@ -15,7 +15,6 @@
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_fwd.h"
 #include "gaia/ecs/query_mask.h"
-#include "gaia/ecs/ser_binary.h"
 
 namespace gaia {
 	namespace ecs {

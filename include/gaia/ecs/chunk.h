@@ -19,9 +19,9 @@
 #include "gaia/ecs/component_desc.h"
 #include "gaia/ecs/entity_container.h"
 #include "gaia/ecs/id.h"
-#include "gaia/ecs/ser_binary.h"
 #include "gaia/mem/data_layout_policy.h"
 #include "gaia/mem/mem_alloc.h"
+#include "gaia/ser/ser_binary.h"
 #include "gaia/ser/ser_rt.h"
 
 namespace gaia {
@@ -416,7 +416,7 @@ namespace gaia {
 #endif
 			}
 
-			void save(ser::ISerializer& s) {
+			void save(ser::serializer& s) {
 				s.save(m_header.count);
 				if (m_header.count == 0)
 					return;
@@ -444,12 +444,12 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->save(&s, rec.pData, 0, cnt, cap);
+						rec.pItem->save(s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}
 
-			void load(ser::ISerializer& s) {
+			void load(ser::serializer& s) {
 				uint16_t prevCount = m_header.count;
 				s.load(m_header.count);
 				if (m_header.count == 0)
@@ -484,7 +484,7 @@ namespace gaia {
 						if (rec.comp.size() == 0)
 							continue;
 
-						rec.pItem->load(&s, rec.pData, 0, cnt, cap);
+						rec.pItem->load(s, rec.pData, 0, cnt, cap);
 					}
 				}
 			}

@@ -18,8 +18,8 @@
 #include "gaia/ecs/component_cache.h"
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_mask.h"
-#include "gaia/ecs/ser_binary.h"
 #include "gaia/mem/mem_alloc.h"
+#include "gaia/ser/ser_binary.h"
 
 namespace gaia {
 	namespace ecs {
@@ -273,7 +273,7 @@ namespace gaia {
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
 
-			void save(ser::ISerializer& s) {
+			void save(ser::serializer& s) {
 				s.save(m_firstFreeChunkIdx);
 				s.save(m_listIdx);
 
@@ -284,7 +284,7 @@ namespace gaia {
 				}
 			}
 
-			void load(ser::ISerializer& s) {
+			void load(ser::serializer& s) {
 				s.load(m_firstFreeChunkIdx);
 				s.load(m_listIdx);
 
