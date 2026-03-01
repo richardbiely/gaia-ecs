@@ -1,0 +1,15 @@
+var searchData=
+[
+  ['name_0',['name',['../classgaia_1_1ecs_1_1World.html#a74c8efb027f830d8738eb83f991b4c66',1,'gaia::ecs::World::name(EntityId entityId) const'],['../classgaia_1_1ecs_1_1World.html#ae90816c42da75782bc6c0c90801541bb',1,'gaia::ecs::World::name(Entity entity) const'],['../classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e',1,'gaia::ecs::World::name(Entity entity, const char *name, uint32_t len=0)'],['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#ada17cb22846089886d8c1900c4d525f8',1,'gaia::ecs::World::EntityBuilder::name()'],['../structgaia_1_1ecs_1_1ComponentCacheItem.html#ac04f9453e5af2d94541f1b4b8ebcde98',1,'gaia::ecs::ComponentCacheItem::name']]],
+  ['name_20entity_1',['Name entity',['../index.html#name-entity',1,'']]],
+  ['name_5fraw_2',['name_raw',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a53fba1dddbde23aff983000d437a5aed',1,'gaia::ecs::World::EntityBuilder::name_raw()'],['../classgaia_1_1ecs_1_1World.html#a55e2d0988b2dc15e2e3ae66b61c286b7',1,'gaia::ecs::World::name_raw()']]],
+  ['next_3',['next',['../structgaia_1_1cnt_1_1fwd__llist__link.html#a611aedd0b4a1b1be3c9418342b50c297',1,'gaia::cnt::fwd_llist_link']]],
+  ['nodeallocator_4',['NodeAllocator',['../structrobin__hood_1_1detail_1_1NodeAllocator.html',1,'robin_hood::detail']]],
+  ['nodeallocator_3c_20std_3a_3aconditional_3c_20std_3a_3ais_5fvoid_3c_20t_20_3e_3a_3avalue_2c_20key_2c_20robin_5fhood_3a_3apair_3c_20std_3a_3aconditional_3c_20isflat_2c_20key_2c_20key_20const_20_3e_3a_3atype_2c_20t_20_3e_20_3e_3a_3atype_2c_204_2c_2016384_2c_20isflat_20_3e_5',['NodeAllocator&lt; std::conditional&lt; std::is_void&lt; T &gt;::value, Key, robin_hood::pair&lt; std::conditional&lt; IsFlat, Key, Key const &gt;::type, T &gt; &gt;::type, 4, 16384, IsFlat &gt;',['../structrobin__hood_1_1detail_1_1NodeAllocator.html',1,'robin_hood::detail']]],
+  ['nodeallocator_3c_20t_2c_20minsize_2c_20maxsize_2c_20false_20_3e_6',['NodeAllocator&lt; T, MinSize, MaxSize, false &gt;',['../structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01false_01_4.html',1,'robin_hood::detail']]],
+  ['nodeallocator_3c_20t_2c_20minsize_2c_20maxsize_2c_20true_20_3e_7',['NodeAllocator&lt; T, MinSize, MaxSize, true &gt;',['../structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01true_01_4.html',1,'robin_hood::detail']]],
+  ['none_8',['none',['../classgaia_1_1cnt_1_1bitset.html#a4d657b25ed733c866e2a6e8e7190f10b',1,'gaia::cnt::bitset::none()'],['../classgaia_1_1cnt_1_1dbitset.html#a051afaca1bfc0d9326b30eb6f8c56e56',1,'gaia::cnt::dbitset::none()']]],
+  ['nothrow_9',['nothrow',['../structrobin__hood_1_1detail_1_1swappable_1_1nothrow.html',1,'robin_hood::detail::swappable']]],
+  ['num_5fpages_10',['num_pages',['../structgaia_1_1mem_1_1MemoryPageStats.html#ac933e959ab7372506d9c53210a0d0c85',1,'gaia::mem::MemoryPageStats']]],
+  ['num_5fpages_5ffree_11',['num_pages_free',['../structgaia_1_1mem_1_1MemoryPageStats.html#a3b2f57e91fe5f29dfcb9c32ad3b33e19',1,'gaia::mem::MemoryPageStats']]]
+];
