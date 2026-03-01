@@ -253,7 +253,7 @@ namespace gaia {
 				if (fieldName == nullptr || fieldName[0] == 0)
 					return false;
 
-				const auto fieldLen = len == 0 ? (uint32_t)strnlen(fieldName, MaxNameLength) : len;
+				const auto fieldLen = len == 0 ? (uint32_t)GAIA_STRLEN(fieldName, MaxNameLength) : len;
 				if (fieldLen == 0 || fieldLen >= MaxNameLength)
 					return false;
 

@@ -151,7 +151,7 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
-				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
 				GAIA_ASSERT(l > 0 && l < ComponentCacheItem::MaxNameLength);
 
 				{
@@ -261,7 +261,7 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
-				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
 				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
 
 				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));

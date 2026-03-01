@@ -654,7 +654,7 @@ namespace gaia {
 				int coreType;
 				size_t size = sizeof(coreType);
 				while (true) {
-					snprintf(oidName, sizeof(oidName), "dev.cpu.%d.coretype", cpuIndex);
+					GAIA_STRFMT(oidName, sizeof(oidName), "dev.cpu.%d.coretype", cpuIndex);
 					if (sysctlbyname(oidName, &coreType, &size, nullptr, 0) != 0)
 						break; // Stop on the last CPU index
 
@@ -977,7 +977,7 @@ namespace gaia {
 			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
 #if GAIA_PROF_USE_PROFILER_THREAD_NAME
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 #elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
@@ -999,7 +999,7 @@ namespace gaia {
 				} else {
 	#if defined _MSC_VER
 					char threadName[16]{};
-					snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 
 					THREADNAME_INFO info{};
 					info.dwType = 0x1000;
@@ -1014,7 +1014,7 @@ namespace gaia {
 				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				auto ret = pthread_setname_np(threadName);
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
@@ -1022,7 +1022,7 @@ namespace gaia {
 				auto nativeHandle = m_workers[workerIdx - 1];
 
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)

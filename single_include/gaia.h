@@ -20917,7 +20917,7 @@ namespace gaia {
 				int coreType;
 				size_t size = sizeof(coreType);
 				while (true) {
-					snprintf(oidName, sizeof(oidName), "dev.cpu.%d.coretype", cpuIndex);
+					GAIA_STRFMT(oidName, sizeof(oidName), "dev.cpu.%d.coretype", cpuIndex);
 					if (sysctlbyname(oidName, &coreType, &size, nullptr, 0) != 0)
 						break; // Stop on the last CPU index
 
@@ -21240,7 +21240,7 @@ namespace gaia {
 			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
 #if GAIA_PROF_USE_PROFILER_THREAD_NAME
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 #elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
@@ -21262,7 +21262,7 @@ namespace gaia {
 				} else {
 	#if defined _MSC_VER
 					char threadName[16]{};
-					snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 
 					THREADNAME_INFO info{};
 					info.dwType = 0x1000;
@@ -21277,7 +21277,7 @@ namespace gaia {
 				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				auto ret = pthread_setname_np(threadName);
 				if (ret != 0)
 					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
@@ -21285,7 +21285,7 @@ namespace gaia {
 				auto nativeHandle = m_workers[workerIdx - 1];
 
 				char threadName[16]{};
-				snprintf(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
@@ -23807,7 +23807,7 @@ namespace gaia {
 				if (fieldName == nullptr || fieldName[0] == 0)
 					return false;
 
-				const auto fieldLen = len == 0 ? (uint32_t)strnlen(fieldName, MaxNameLength) : len;
+				const auto fieldLen = len == 0 ? (uint32_t)GAIA_STRLEN(fieldName, MaxNameLength) : len;
 				if (fieldLen == 0 || fieldLen >= MaxNameLength)
 					return false;
 
@@ -24133,7 +24133,7 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
-				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
 				GAIA_ASSERT(l > 0 && l < ComponentCacheItem::MaxNameLength);
 
 				{
@@ -24243,7 +24243,7 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
-				const auto l = len == 0 ? (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
 				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
 
 				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
@@ -34609,7 +34609,7 @@ namespace gaia {
 					ComponentLookupHash hashLookup = {}, EntityKind kind = EntityKind::EK_Gen) {
 				GAIA_ASSERT(name != nullptr);
 
-				const auto len = (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength);
+				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
 				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
 
 				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
@@ -38225,7 +38225,7 @@ namespace gaia {
 						auto add_field = [&](auto& field) {
 							using F = core::raw_t<decltype(field)>;
 							char fieldName[24]{};
-							(void)std::snprintf(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
+							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
 							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
 							const auto offset = (uint32_t)(pField - pBase);
 							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));

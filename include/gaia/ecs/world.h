@@ -1410,7 +1410,7 @@ namespace gaia {
 					ComponentLookupHash hashLookup = {}, EntityKind kind = EntityKind::EK_Gen) {
 				GAIA_ASSERT(name != nullptr);
 
-				const auto len = (uint32_t)strnlen(name, ComponentCacheItem::MaxNameLength);
+				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
 				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
 
 				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
@@ -5026,7 +5026,7 @@ namespace gaia {
 						auto add_field = [&](auto& field) {
 							using F = core::raw_t<decltype(field)>;
 							char fieldName[24]{};
-							(void)std::snprintf(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
+							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
 							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
 							const auto offset = (uint32_t)(pField - pBase);
 							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
