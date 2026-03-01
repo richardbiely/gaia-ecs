@@ -2138,7 +2138,7 @@ Runtime serialization it tied to ECS world. You can hook it up via ***World::set
 ecs::World world;
 // Make the world use the custom serializer
 CustomBinarySerializer customSerializer;
-world.set_serializer(&buffer);
+world.set_serializer(&customSerializer);
 // Make the world use the default serializer
 world.set_serializer(nullptr);
 ```
