@@ -23835,7 +23835,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_fields() const {
-				return schema.empty();
+				return !schema.empty();
 			}
 
 #if GAIA_ENABLE_HOOKS
