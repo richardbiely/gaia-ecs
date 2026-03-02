@@ -10,6 +10,26 @@
 
 namespace gaia {
 	namespace ser {
+		using save_raw_fn = void (*)(void*, const void*, uint32_t, serialization_type_id);
+		using load_raw_fn = void (*)(void*, void*, uint32_t, serialization_type_id);
+		using data_fn = const char* (*)(const void*);
+		using reset_fn = void (*)(void*);
+		using tell_fn = uint32_t (*)(const void*);
+		using bytes_fn = uint32_t (*)(const void*);
+		using seek_fn = void (*)(void*, uint32_t);
+
+		//! Opaque runtime serializer context passed around as a single object.
+		struct serializer_ctx {
+			void* user = nullptr;
+			save_raw_fn save_raw = nullptr;
+			load_raw_fn load_raw = nullptr;
+			data_fn data = nullptr;
+			reset_fn reset = nullptr;
+			tell_fn tell = nullptr;
+			bytes_fn bytes = nullptr;
+			seek_fn seek = nullptr;
+		};
+
 		namespace detail {
 			template <typename T, typename = void>
 			struct has_save_raw_ptr: std::false_type {};
@@ -57,34 +77,15 @@ namespace gaia {
 		//! through function pointers bound to a concrete serializer instance.
 		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
 		struct serializer {
-			using SaveRawFn = void (*)(void*, const void*, uint32_t, serialization_type_id);
-			using LoadRawFn = void (*)(void*, void*, uint32_t, serialization_type_id);
-			using DataFn = const char* (*)(const void*);
-			using ResetFn = void (*)(void*);
-			using TellFn = uint32_t (*)(const void*);
-			using BytesFn = uint32_t (*)(const void*);
-			using SeekFn = void (*)(void*, uint32_t);
-
-			void* ctx = nullptr;
-			SaveRawFn func_save_raw = nullptr;
-			LoadRawFn func_load_raw = nullptr;
-			DataFn func_data = nullptr;
-			ResetFn func_reset = nullptr;
-			TellFn func_tell = nullptr;
-			BytesFn func_bytes = nullptr;
-			SeekFn func_seek = nullptr;
+			serializer_ctx m_ctx{};
 
 			serializer() = default;
 
-			serializer(
-					void* ctx, SaveRawFn saveRaw, LoadRawFn loadRaw, DataFn data, ResetFn reset, TellFn tell, BytesFn bytes,
-					SeekFn seek):
-					ctx(ctx), func_save_raw(saveRaw), func_load_raw(loadRaw), func_data(data), func_reset(reset), func_tell(tell),
-					func_bytes(bytes), func_seek(seek) {}
+			explicit serializer(const serializer_ctx& ctx): m_ctx(ctx) {}
 
 			GAIA_NODISCARD bool valid() const {
-				return ctx != nullptr && func_save_raw != nullptr && func_load_raw != nullptr && func_tell != nullptr &&
-							 func_seek != nullptr;
+				return m_ctx.user != nullptr && m_ctx.save_raw != nullptr && m_ctx.load_raw != nullptr &&
+							 m_ctx.tell != nullptr && m_ctx.seek != nullptr;
 			}
 
 			template <typename T>
@@ -134,98 +135,100 @@ namespace gaia {
 			}
 
 			void save_raw(const void* src, uint32_t size, serialization_type_id id) {
-				GAIA_ASSERT(valid());
-				func_save_raw(ctx, src, size, id);
+				GAIA_ASSERT(m_ctx.save_raw != nullptr);
+				m_ctx.save_raw(m_ctx.user, src, size, id);
 			}
 
 			void load_raw(void* src, uint32_t size, serialization_type_id id) {
-				GAIA_ASSERT(valid());
-				func_load_raw(ctx, src, size, id);
+				GAIA_ASSERT(m_ctx.load_raw != nullptr);
+				m_ctx.load_raw(m_ctx.user, src, size, id);
 			}
 
 			GAIA_NODISCARD const char* data() const {
-				if (func_data == nullptr)
+				if (m_ctx.data == nullptr)
 					return nullptr;
-				return func_data(ctx);
+				return m_ctx.data(m_ctx.user);
 			}
 
 			void reset() {
-				if (func_reset == nullptr)
+				if (m_ctx.reset == nullptr)
 					return;
-				func_reset(ctx);
+				m_ctx.reset(m_ctx.user);
 			}
 
 			GAIA_NODISCARD uint32_t tell() const {
-				GAIA_ASSERT(valid());
-				return func_tell(ctx);
+				GAIA_ASSERT(m_ctx.tell != nullptr);
+				return m_ctx.tell(m_ctx.user);
 			}
 
 			GAIA_NODISCARD uint32_t bytes() const {
-				if (func_bytes == nullptr)
+				if (m_ctx.bytes == nullptr)
 					return 0;
-				return func_bytes(ctx);
+				return m_ctx.bytes(m_ctx.user);
 			}
 
 			void seek(uint32_t pos) {
-				GAIA_ASSERT(valid());
-				func_seek(ctx, pos);
+				GAIA_ASSERT(m_ctx.seek != nullptr);
+				m_ctx.seek(m_ctx.user, pos);
 			}
 
 			template <typename TSerializer>
-			static serializer bind(TSerializer& obj) {
+			static serializer_ctx bind_ctx(TSerializer& obj) {
 				static_assert(detail::has_save_raw_ptr<TSerializer>::value, "Serializer must expose save_raw(ptr,size,id)");
 				static_assert(detail::has_load_raw_ptr<TSerializer>::value, "Serializer must expose load_raw(ptr,size,id)");
 				static_assert(detail::has_tell_fn<TSerializer>::value, "Serializer must expose tell()");
 				static_assert(detail::has_seek_fn<TSerializer>::value, "Serializer must expose seek(pos)");
 
-				serializer ref;
-				ref.ctx = &obj;
-				ref.func_save_raw = [](void* ctx, const void* src, uint32_t size, serialization_type_id id) {
+				serializer_ctx ctx;
+				ctx.user = &obj;
+				ctx.save_raw = [](void* ctx, const void* src, uint32_t size, serialization_type_id id) {
 					auto& s = *reinterpret_cast<TSerializer*>(ctx);
 					s.save_raw(src, size, id);
 				};
-				ref.func_load_raw = [](void* ctx, void* src, uint32_t size, serialization_type_id id) {
+				ctx.load_raw = [](void* ctx, void* src, uint32_t size, serialization_type_id id) {
 					auto& s = *reinterpret_cast<TSerializer*>(ctx);
 					s.load_raw(src, size, id);
 				};
 
 				if constexpr (detail::has_data_ptr<TSerializer>::value) {
-					ref.func_data = [](const void* ctx) {
+					ctx.data = [](const void* ctx) {
 						const auto& s = *reinterpret_cast<const TSerializer*>(ctx);
 						return (const char*)s.data();
 					};
 				}
 
 				if constexpr (detail::has_reset_fn<TSerializer>::value) {
-					ref.func_reset = [](void* ctx) {
+					ctx.reset = [](void* ctx) {
 						auto& s = *reinterpret_cast<TSerializer*>(ctx);
 						s.reset();
 					};
 				}
 
-				ref.func_tell = [](const void* ctx) {
+				ctx.tell = [](const void* ctx) {
 					const auto& s = *reinterpret_cast<const TSerializer*>(ctx);
 					return (uint32_t)s.tell();
 				};
 
 				if constexpr (detail::has_bytes_fn<TSerializer>::value) {
-					ref.func_bytes = [](const void* ctx) {
+					ctx.bytes = [](const void* ctx) {
 						const auto& s = *reinterpret_cast<const TSerializer*>(ctx);
 						return (uint32_t)s.bytes();
 					};
 				}
 
-				ref.func_seek = [](void* ctx, uint32_t pos) {
+				ctx.seek = [](void* ctx, uint32_t pos) {
 					auto& s = *reinterpret_cast<TSerializer*>(ctx);
 					s.seek(pos);
 				};
 
-				return ref;
+				return ctx;
+			}
+
+			template <typename TSerializer>
+			static serializer bind(TSerializer& obj) {
+				return serializer(bind_ctx(obj));
 			}
 		};
-
-		//! Backward-compatible alias for older API name.
-		using serializer_ref = serializer;
 
 		//! Returns a runtime serializer handle as-is.
 		inline serializer make_serializer(serializer s) {
@@ -236,16 +239,6 @@ namespace gaia {
 		template <typename TSerializer>
 		inline serializer make_serializer(TSerializer& s) {
 			return serializer::bind(s);
-		}
-
-		//! Backward-compatible helper aliases.
-		inline serializer make_serializer_ref(serializer s) {
-			return make_serializer(s);
-		}
-
-		template <typename TSerializer>
-		inline serializer make_serializer_ref(TSerializer& s) {
-			return make_serializer(s);
 		}
 	} // namespace ser
 } // namespace gaia

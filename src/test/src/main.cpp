@@ -11101,6 +11101,21 @@ TEST_CASE("Serialization - json runtime schema") {
 	}
 }
 
+TEST_CASE("Serialization - runtime context init") {
+	ser::bin_stream stream;
+
+	const auto ctx = ser::serializer::bind_ctx(stream);
+	ser::serializer serializer{ctx};
+	CHECK(serializer.valid());
+
+	uint32_t in = 0xDEADBEEF;
+	uint32_t out = 0;
+	serializer.save(in);
+	serializer.seek(0);
+	serializer.load(out);
+	CHECK(in == out);
+}
+
 TEST_CASE("Serialization - simple") {
 	{
 		Int3 in{1, 2, 3}, out{};

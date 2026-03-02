@@ -2170,6 +2170,14 @@ world.set_serializer(customSerializer);
 world.set_serializer(nullptr);
 ```
 
+When you need explicit initialization from one object, create a serializer context first:
+
+```cpp
+ser::bin_stream stream;
+ser::serializer_ctx ctx = ser::serializer::bind_ctx(stream);
+ser::serializer s{ctx};
+```
+
 Your serializer must remain valid for the entire time it is used by `ecs::World`. The world stores a non-owning runtime reference to it. Therefore, if the serializer disappeared and you forgot to call `set_serializer(nullptr)`, the world would end up with a dangling reference.
 
 ### World serialization
