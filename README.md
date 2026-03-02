@@ -2215,8 +2215,8 @@ const std::string json = world.save_json(ok);
 `save_json` emits structured JSON for components with runtime schema fields.
 Components without schema fallback to a raw byte array payload (`"$raw"`).
 Behavior can be adjusted with flags:
-- `ecs::World::JsonSave_IncludeBinarySnapshot`
-- `ecs::World::JsonSave_AllowRawFallback`
+- `ser::JsonSave_IncludeBinarySnapshot`
+- `ser::JsonSave_AllowRawFallback`
 
 JSON produced by `save_json` can be loaded back via `load_json`:
 
