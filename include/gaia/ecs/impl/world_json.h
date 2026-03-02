@@ -1,7 +1,9 @@
 #pragma once
 #include "gaia/config/config.h"
 
+#include <cstring>
 #include <string>
+#include <string_view>
 
 #include "gaia/ser/ser_json.h"
 
@@ -51,17 +53,23 @@ namespace gaia {
 		//! \return false only when JSON is malformed for the expected component payload shape.
 		inline bool json_to_component(
 				const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics,
-				const std::string& componentPath = {}) {
+				std::string_view componentPath = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
 
-			auto make_field_path = [&](const std::string& fieldName) {
+			auto make_field_path = [&](std::string_view fieldName) {
 				if (componentPath.empty())
-					return fieldName;
+					return std::string(fieldName);
 				if (fieldName.empty())
-					return componentPath;
-				return componentPath + "." + fieldName;
+					return std::string(componentPath);
+
+				std::string path;
+				path.reserve(componentPath.size() + 1 + fieldName.size());
+				path.append(componentPath.data(), componentPath.size());
+				path += '.';
+				path.append(fieldName.data(), fieldName.size());
+				return path;
 			};
 			auto warn = [&](ser::JsonDiagReason reason, const std::string& path, const char* message) {
 				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
@@ -89,9 +97,15 @@ namespace gaia {
 			}
 
 			while (true) {
-				std::string key;
-				if (!reader.parse_string(key))
+				std::string_view key;
+				bool keyFromScratch = false;
+				if (!reader.parse_string_view(key, &keyFromScratch))
 					return false;
+				std::string keyStorage;
+				if (keyFromScratch) {
+					keyStorage.assign(key.data(), key.size());
+					key = keyStorage;
+				}
 				if (!reader.expect(':'))
 					return false;
 
@@ -102,7 +116,8 @@ namespace gaia {
 				} else if (item.has_fields() && item.comp.soa() == 0) {
 					const ComponentCacheItem::SchemaField* pField = nullptr;
 					for (const auto& field: item.schema) {
-						if (key == field.name) {
+						const auto fieldNameLen = (size_t)GAIA_STRLEN(field.name, ComponentCacheItem::MaxNameLength);
+						if (key.size() == fieldNameLen && memcmp(key.data(), field.name, key.size()) == 0) {
 							pField = &field;
 							break;
 						}
@@ -341,11 +356,11 @@ namespace gaia {
 			const auto dataLen = len == 0 ? (uint32_t)strlen(json) : len;
 			const auto* p = json;
 			const auto* end = json + dataLen;
-			auto warn = [&](ser::JsonDiagReason reason, const std::string& path, const char* message) {
-				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
+			auto warn = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, std::string(path), message);
 			};
-			auto error = [&](ser::JsonDiagReason reason, const std::string& path, const char* message) {
-				diagnostics.add(ser::JsonDiagSeverity::Error, reason, path, message);
+			auto error = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Error, reason, std::string(path), message);
 			};
 
 			// Prefer fast-path: binary snapshot payload.
@@ -363,57 +378,15 @@ namespace gaia {
 					const char* arr = nullptr;
 					for (const char* it = keyPos + keyLen; it < end; ++it) {
 						if (*it == '[') {
-							arr = it + 1;
+							arr = it;
 							break;
 						}
 					}
 					if (arr != nullptr) {
 						ser::bin_stream serializer;
-						auto skip_ws = [&](const char*& it) {
-							while (it < end && std::isspace((unsigned char)*it))
-								++it;
-						};
-
-						const char* it = arr;
-						while (true) {
-							skip_ws(it);
-							if (it >= end)
-								return false;
-
-							if (*it == ']') {
-								++it;
-								break;
-							}
-
-							uint32_t value = 0;
-							bool hasDigits = false;
-							while (it < end && *it >= '0' && *it <= '9') {
-								hasDigits = true;
-								value = value * 10u + (uint32_t)(*it - '0');
-								if (value > 255u)
-									return false;
-								++it;
-							}
-							if (!hasDigits)
-								return false;
-
-							const uint8_t byte = (uint8_t)value;
-							serializer.save_raw(&byte, 1, ser::serialization_type_id::u8);
-
-							skip_ws(it);
-							if (it >= end)
-								return false;
-							if (*it == ',') {
-								++it;
-								continue;
-							}
-							if (*it == ']') {
-								++it;
-								break;
-							}
-
+						ser::ser_json binaryReader(arr, (uint32_t)(end - arr));
+						if (!ser::detail::parse_json_byte_array(binaryReader, serializer))
 							return false;
-						}
 
 						return load(serializer);
 					}
@@ -455,7 +428,7 @@ namespace gaia {
 			};
 
 			auto parse_and_apply_component_value = [&](Entity entity, const ComponentCacheItem& item,
-																								 const std::string& compPath) -> bool {
+																								 std::string_view compPath) -> bool {
 				jp.ws();
 				if (jp.eof())
 					return false;
@@ -505,8 +478,8 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string key;
-					if (!jp.parse_string(key))
+					std::string_view key;
+					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
 						return false;
@@ -543,9 +516,15 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string compName;
-					if (!jp.parse_string(compName))
+					std::string_view compName;
+					bool compNameFromScratch = false;
+					if (!jp.parse_string_view(compName, &compNameFromScratch))
 						return false;
+					std::string compNameStorage;
+					if (compNameFromScratch) {
+						compNameStorage.assign(compName.data(), compName.size());
+						compName = compNameStorage;
+					}
 					if (!jp.expect(':'))
 						return false;
 
@@ -554,17 +533,17 @@ namespace gaia {
 						if (!jp.skip_value())
 							return false;
 					} else {
-						const auto* pItem = comp_cache().find(compName.c_str(), (uint32_t)compName.size());
+						const auto* pItem = comp_cache().find(compName.data(), (uint32_t)compName.size());
 						if (pItem == nullptr) {
 							warn(
-									ser::JsonDiagReason::UnknownComponent, compName,
+									ser::JsonDiagReason::UnknownComponent, std::string(compName),
 									"Component is not registered in the component cache.");
 							if (!jp.skip_value())
 								return false;
 						} else if (pItem->comp.size() == 0) {
 							// Ignore tag-only components in semantic mode for now.
 							warn(
-									ser::JsonDiagReason::TagComponentUnsupported, compName,
+									ser::JsonDiagReason::TagComponentUnsupported, std::string(compName),
 									"Tag-only component semantic JSON loading is currently unsupported.");
 							if (!jp.skip_value())
 								return false;
@@ -615,8 +594,8 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string key;
-					if (!jp.parse_string(key))
+					std::string_view key;
+					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
 						return false;
@@ -658,8 +637,8 @@ namespace gaia {
 					jp.ws();
 					if (!jp.consume('}')) {
 						while (true) {
-							std::string key;
-							if (!jp.parse_string(key))
+							std::string_view key;
+							if (!jp.parse_string_view(key))
 								return false;
 							if (!jp.expect(':'))
 								return false;
@@ -714,8 +693,8 @@ namespace gaia {
 			jp.ws();
 			if (!jp.consume('}')) {
 				while (true) {
-					std::string key;
-					if (!jp.parse_string(key))
+					std::string_view key;
+					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
 						return false;

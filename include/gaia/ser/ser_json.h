@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -92,6 +93,7 @@ namespace gaia {
 			};
 
 			std::string m_out;
+			std::string m_parseScratch;
 			cnt::darray<Ctx> m_ctx;
 			const char* m_it = nullptr;
 			const char* m_end = nullptr;
@@ -159,6 +161,7 @@ namespace gaia {
 			//! Clears output JSON text and writer context.
 			void clear() {
 				m_out.clear();
+				m_parseScratch.clear();
 				m_ctx.clear();
 			}
 
@@ -307,19 +310,28 @@ namespace gaia {
 				return true;
 			}
 
-			bool parse_string(std::string& out) {
+			bool parse_string_view(std::string_view& out, bool* fromScratch = nullptr) {
 				ws();
 				if (m_it == nullptr || m_end == nullptr || m_it >= m_end || *m_it != '"')
 					return false;
 
 				++m_it;
-				out.clear();
+				const char* begin = m_it;
+				bool escaped = false;
+				m_parseScratch.clear();
 				while (m_it < m_end) {
 					const char ch = *m_it++;
 					if (ch == '"')
-						return true;
+						break;
 
 					if (ch == '\\') {
+						if (!escaped) {
+							escaped = true;
+							const auto prefixLen = (size_t)((m_it - 1) - begin);
+							if (prefixLen > 0)
+								m_parseScratch.append(begin, prefixLen);
+						}
+
 						if (m_it >= m_end)
 							return false;
 						const char esc = *m_it++;
@@ -327,22 +339,22 @@ namespace gaia {
 							case '"':
 							case '\\':
 							case '/':
-								out += esc;
+								m_parseScratch += esc;
 								break;
 							case 'b':
-								out += '\b';
+								m_parseScratch += '\b';
 								break;
 							case 'f':
-								out += '\f';
+								m_parseScratch += '\f';
 								break;
 							case 'n':
-								out += '\n';
+								m_parseScratch += '\n';
 								break;
 							case 'r':
-								out += '\r';
+								m_parseScratch += '\r';
 								break;
 							case 't':
-								out += '\t';
+								m_parseScratch += '\t';
 								break;
 							case 'u': {
 								if ((uint32_t)(m_end - m_it) < 4)
@@ -354,18 +366,46 @@ namespace gaia {
 										return false;
 								}
 								m_it += 4;
-								out += '?';
+								m_parseScratch += '?';
 								break;
 							}
 							default:
 								return false;
 						}
-					} else {
-						out += ch;
+					} else if (escaped) {
+						m_parseScratch += ch;
 					}
 				}
 
-				return false;
+				if (m_it <= begin || m_it > m_end || *(m_it - 1) != '"')
+					return false;
+
+				if (escaped) {
+					if (fromScratch != nullptr)
+						*fromScratch = true;
+					out = std::string_view(m_parseScratch.data(), m_parseScratch.size());
+				} else {
+					if (fromScratch != nullptr)
+						*fromScratch = false;
+					out = std::string_view(begin, (size_t)((m_it - 1) - begin));
+				}
+				return true;
+			}
+
+			bool parse_string(std::string& out) {
+				std::string_view view;
+				if (!parse_string_view(view))
+					return false;
+				out.assign(view.data(), view.size());
+				return true;
+			}
+
+			bool parse_string_eq(const char* literal) {
+				std::string_view view;
+				if (!parse_string_view(view))
+					return false;
+				const auto literalLen = (size_t)strlen(literal);
+				return view.size() == literalLen && memcmp(view.data(), literal, literalLen) == 0;
 			}
 
 			bool parse_number(double& value) {
@@ -409,8 +449,8 @@ namespace gaia {
 						return true;
 
 					while (true) {
-						std::string key;
-						if (!parse_string(key))
+						std::string_view key;
+						if (!parse_string_view(key))
 							return false;
 						if (!expect(':'))
 							return false;
@@ -445,8 +485,8 @@ namespace gaia {
 				}
 
 				if (*m_it == '"') {
-					std::string tmp;
-					return parse_string(tmp);
+					std::string_view tmp;
+					return parse_string_view(tmp);
 				}
 
 				if (*m_it == 't' || *m_it == 'f') {
@@ -644,8 +684,8 @@ namespace gaia {
 						return true;
 					}
 					case serialization_type_id::c8: {
-						std::string str;
-						if (!reader.parse_string(str))
+						std::string_view str;
+						if (!reader.parse_string_view(str))
 							return false;
 						if (size == 0) {
 							ok = false;
@@ -668,7 +708,8 @@ namespace gaia {
 				}
 			}
 
-			inline bool parse_json_byte_array(ser_json& reader, ser_buffer_binary& out) {
+			template <typename TByteSink>
+			inline bool parse_json_byte_array(ser_json& reader, TByteSink& out) {
 				if (!reader.expect('['))
 					return false;
 
