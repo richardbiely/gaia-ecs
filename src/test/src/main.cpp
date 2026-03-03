@@ -5016,7 +5016,9 @@ void Test_Query_QueryResult() {
 		uint32_t value;
 	};
 	wld.add<Level>(game, {2});
-	auto q4 = wld.query<UseCachedQuery>().template all<Position>().all(wld.add<Level>().entity, game);
+	auto q4 = wld.query<UseCachedQuery>()
+						.template all<Position>()
+						.template all<Level>(ecs::QueryTermOptions{}.src(game));
 
 	{
 		const auto cnt = q4.count();
@@ -5131,11 +5133,13 @@ void Test_Query_SourceLookup() {
 		wld.add<Position>(e, {(float)i, (float)i, (float)i});
 	}
 
-	const auto levelEntity = wld.add<Level>().entity;
+	wld.add<Level>();
 	const auto game = wld.add();
 
 	wld.add<Level>(game, {1});
-	auto qSrc = wld.query<UseCachedQuery>().template all<Position>().all(levelEntity, ecs::QueryTermOptions{}.src(game));
+	auto qSrc = wld.query<UseCachedQuery>()
+						.template all<Position>()
+						.template all<Level>(ecs::QueryTermOptions{}.src(game));
 	CHECK(qSrc.count() == N);
 
 	wld.del<Level>(game);
@@ -5148,8 +5152,9 @@ void Test_Query_SourceLookup() {
 	const auto scene = wld.add();
 	wld.child(scene, root);
 
-	auto qUp =
-			wld.query<UseCachedQuery>().template all<Position>().all(levelEntity, ecs::QueryTermOptions{}.src(scene).trav());
+	auto qUp = wld.query<UseCachedQuery>()
+						.template all<Position>()
+						.template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
 	CHECK(qUp.count() == 0);
 
 	wld.add<Level>(root, {3});

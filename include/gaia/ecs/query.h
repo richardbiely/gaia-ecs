@@ -550,6 +550,35 @@ namespace gaia {
 					add_inter({op, access, e});
 				}
 
+				template <typename T>
+				void add_inter(QueryOpKind op, const QueryTermOptions& options) {
+					Entity e;
+
+					if constexpr (is_pair<T>::value) {
+						// Make sure the components are always registered
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_storage.world());
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_storage.world());
+
+						e = Pair(desc_rel.entity, desc_tgt.entity);
+					} else {
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
+						e = desc.entity;
+					}
+
+					QueryAccess access = QueryAccess::None;
+					if (op != QueryOpKind::Not) {
+						if (options.access != QueryAccess::None)
+							access = options.access;
+						else {
+							constexpr auto isReadWrite = core::is_mut_v<T>;
+							access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+						}
+					}
+
+					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav});
+				}
+
 				template <typename Rel, typename Tgt>
 				void add_inter(QueryOpKind op) {
 					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
@@ -1585,16 +1614,18 @@ namespace gaia {
 							return true;
 
 						if (expr[0] == '+') {
-							uint32_t off = 1;
-							if (expr[1] == '&')
-								off = 2;
+							const bool isReadWrite = expr.size() > 1 && expr[1] == '&';
+							const uint32_t off = isReadWrite ? 2 : 1;
 
 							auto var = expr.subspan(off);
 							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
-							any(entity, off != 0);
+							auto options = QueryTermOptions{};
+							if (isReadWrite)
+								options.write();
+							any(entity, options);
 						} else if (expr[0] == '!') {
 							auto var = expr.subspan(1);
 							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
@@ -1632,30 +1663,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
-					all(entity, options);
-					return *this;
-				}
-
-				QueryImpl& all(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& all(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::All, entity, options);
 					return *this;
 				}
 
-				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).read();
-					if (isReadWrite)
-						options.write();
-					all(entity, options);
-					return *this;
-				}
-
-				QueryImpl& all_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).trav(relation).read();
-					if (isReadWrite)
-						options.write();
-					all(entity, options);
+				template <typename T>
+				QueryImpl& all(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::All, options);
 					return *this;
 				}
 
@@ -1677,30 +1692,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
-					any(entity, options);
-					return *this;
-				}
-
-				QueryImpl& any(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& any(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Any, entity, options);
 					return *this;
 				}
 
-				QueryImpl& any(Entity entity, Entity src, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).read();
-					if (isReadWrite)
-						options.write();
-					any(entity, options);
-					return *this;
-				}
-
-				QueryImpl& any_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).trav(relation).read();
-					if (isReadWrite)
-						options.write();
-					any(entity, options);
+				template <typename T>
+				QueryImpl& any(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::Any, options);
 					return *this;
 				}
 
@@ -1722,23 +1721,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& no(Entity entity) {
-					no(entity, QueryTermOptions{});
-					return *this;
-				}
-
-				QueryImpl& no(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& no(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Not, entity, options);
 					return *this;
 				}
 
-				QueryImpl& no(Entity entity, Entity src) {
-					no(entity, QueryTermOptions{}.src(src));
-					return *this;
-				}
-
-				QueryImpl& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
-					no(entity, QueryTermOptions{}.src(src).trav(relation));
+				template <typename T>
+				QueryImpl& no(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::Not, options);
 					return *this;
 				}
 

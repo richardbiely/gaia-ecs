@@ -822,7 +822,7 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-Source lookups are supported via `QueryTermOptions` (source + optional upward traversal by relation, `ChildOf` by default).
+More advacne lookup settings are supported via `QueryTermOptions`. This includes things such as source selection, traversal by relation (`ChildOf` by default), or component access type (read or write).
 
 ```cpp
 struct Position {};
@@ -842,14 +842,18 @@ for (int i = 0; i < 64; ++i) {
 }
 
 // Fixed source lookup. Requires Level on `game`.
-ecs::Query qSrc = w.query().all<Position>().all(level, ecs::QueryTermOptions{}.src(game));
+ecs::Query qSrc = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(game));
 w.add<Level>(game, {1});
 qSrc.count(); // expected: 64
 w.del<Level>(game);
 qSrc.count(); // expected: 0
 
 // Hierarchical source lookup. Checks `scene`, then its ChildOf parents.
-ecs::Query qUp = w.query().all<Position>().all(level, ecs::QueryTermOptions{}.src(scene).trav());
+ecs::Query qUp = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(scene).trav());
 qUp.count(); // expected: 0
 w.add<Level>(root, {2});
 qUp.count(); // expected: 64

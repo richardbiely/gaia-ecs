@@ -50,87 +50,48 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			ObserverBuilder& all(Entity entity) {
-				validate();
-				data().query.all(entity, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& all(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& all(Entity entity, Entity src) {
-				validate();
-				data().query.all(entity, src, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& all_up(Entity entity, Entity src, Entity relation = ChildOf) {
-				validate();
-				data().query.all_up(entity, src, relation, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any(Entity entity) {
-				validate();
-				data().query.any(entity, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.any(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& any(Entity entity, Entity src) {
-				validate();
-				data().query.any(entity, src, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any_up(Entity entity, Entity src, Entity relation = ChildOf) {
-				validate();
-				data().query.any_up(entity, src, relation, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& no(Entity entity) {
-				validate();
-				data().query.no(entity);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& no(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& no(Entity entity, Entity src) {
+			template <typename T>
+			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
-				data().query.no(entity, src);
-				m_world.observers().add(m_world, entity, m_entity);
+				data().query.template all<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
+			template <typename T>
+			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
-				data().query.no_up(entity, src, relation);
-				m_world.observers().add(m_world, entity, m_entity);
+				data().query.template any<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+
+			template <typename T>
+			ObserverBuilder& no(const QueryTermOptions& options) {
+				validate();
+				data().query.template no<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 

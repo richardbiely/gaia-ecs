@@ -168,7 +168,8 @@ namespace gaia {
 			//! Optional upward traversal relation used for source lookup.
 			Entity entTrav = EntityBad;
 			//! Access mode for the term.
-			QueryAccess access = QueryAccess::Read;
+			//! When None, typed query terms infer read/write access from template mutability.
+			QueryAccess access = QueryAccess::None;
 
 			QueryTermOptions& src(Entity source) {
 				entSrc = source;

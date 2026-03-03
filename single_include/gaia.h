@@ -29536,7 +29536,8 @@ namespace gaia {
 			//! Optional upward traversal relation used for source lookup.
 			Entity entTrav = EntityBad;
 			//! Access mode for the term.
-			QueryAccess access = QueryAccess::Read;
+			//! When None, typed query terms infer read/write access from template mutability.
+			QueryAccess access = QueryAccess::None;
 
 			QueryTermOptions& src(Entity source) {
 				entSrc = source;
@@ -33481,6 +33482,35 @@ namespace gaia {
 					add_inter({op, access, e});
 				}
 
+				template <typename T>
+				void add_inter(QueryOpKind op, const QueryTermOptions& options) {
+					Entity e;
+
+					if constexpr (is_pair<T>::value) {
+						// Make sure the components are always registered
+						const auto& desc_rel = comp_cache_add<typename T::rel_type>(*m_storage.world());
+						const auto& desc_tgt = comp_cache_add<typename T::tgt_type>(*m_storage.world());
+
+						e = Pair(desc_rel.entity, desc_tgt.entity);
+					} else {
+						// Make sure the component is always registered
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
+						e = desc.entity;
+					}
+
+					QueryAccess access = QueryAccess::None;
+					if (op != QueryOpKind::Not) {
+						if (options.access != QueryAccess::None)
+							access = options.access;
+						else {
+							constexpr auto isReadWrite = core::is_mut_v<T>;
+							access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+						}
+					}
+
+					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav});
+				}
+
 				template <typename Rel, typename Tgt>
 				void add_inter(QueryOpKind op) {
 					using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
@@ -34516,16 +34546,18 @@ namespace gaia {
 							return true;
 
 						if (expr[0] == '+') {
-							uint32_t off = 1;
-							if (expr[1] == '&')
-								off = 2;
+							const bool isReadWrite = expr.size() > 1 && expr[1] == '&';
+							const uint32_t off = isReadWrite ? 2 : 1;
 
 							auto var = expr.subspan(off);
 							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
 							if (entity == EntityBad)
 								return false;
 
-							any(entity, off != 0);
+							auto options = QueryTermOptions{};
+							if (isReadWrite)
+								options.write();
+							any(entity, options);
 						} else if (expr[0] == '!') {
 							auto var = expr.subspan(1);
 							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
@@ -34563,30 +34595,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
-					all(entity, options);
-					return *this;
-				}
-
-				QueryImpl& all(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& all(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::All, entity, options);
 					return *this;
 				}
 
-				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).read();
-					if (isReadWrite)
-						options.write();
-					all(entity, options);
-					return *this;
-				}
-
-				QueryImpl& all_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).trav(relation).read();
-					if (isReadWrite)
-						options.write();
-					all(entity, options);
+				template <typename T>
+				QueryImpl& all(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::All, options);
 					return *this;
 				}
 
@@ -34608,30 +34624,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
-					any(entity, options);
-					return *this;
-				}
-
-				QueryImpl& any(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& any(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Any, entity, options);
 					return *this;
 				}
 
-				QueryImpl& any(Entity entity, Entity src, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).read();
-					if (isReadWrite)
-						options.write();
-					any(entity, options);
-					return *this;
-				}
-
-				QueryImpl& any_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-					auto options = QueryTermOptions{}.src(src).trav(relation).read();
-					if (isReadWrite)
-						options.write();
-					any(entity, options);
+				template <typename T>
+				QueryImpl& any(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::Any, options);
 					return *this;
 				}
 
@@ -34653,23 +34653,14 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				QueryImpl& no(Entity entity) {
-					no(entity, QueryTermOptions{});
-					return *this;
-				}
-
-				QueryImpl& no(Entity entity, const QueryTermOptions& options) {
+				QueryImpl& no(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Not, entity, options);
 					return *this;
 				}
 
-				QueryImpl& no(Entity entity, Entity src) {
-					no(entity, QueryTermOptions{}.src(src));
-					return *this;
-				}
-
-				QueryImpl& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
-					no(entity, QueryTermOptions{}.src(src).trav(relation));
+				template <typename T>
+				QueryImpl& no(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::Not, options);
 					return *this;
 				}
 
@@ -40596,87 +40587,48 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			ObserverBuilder& all(Entity entity) {
-				validate();
-				data().query.all(entity, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& all(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& all(Entity entity, Entity src) {
-				validate();
-				data().query.all(entity, src, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& all_up(Entity entity, Entity src, Entity relation = ChildOf) {
-				validate();
-				data().query.all_up(entity, src, relation, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any(Entity entity) {
-				validate();
-				data().query.any(entity, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.any(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& any(Entity entity, Entity src) {
-				validate();
-				data().query.any(entity, src, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& any_up(Entity entity, Entity src, Entity relation = ChildOf) {
-				validate();
-				data().query.any_up(entity, src, relation, false);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& no(Entity entity) {
-				validate();
-				data().query.no(entity);
-				m_world.observers().add(m_world, entity, m_entity);
-				return *this;
-			}
-
-			ObserverBuilder& no(Entity entity, const QueryTermOptions& options) {
+			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& no(Entity entity, Entity src) {
+			template <typename T>
+			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
-				data().query.no(entity, src);
-				m_world.observers().add(m_world, entity, m_entity);
+				data().query.template all<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 
-			ObserverBuilder& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
+			template <typename T>
+			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
-				data().query.no_up(entity, src, relation);
-				m_world.observers().add(m_world, entity, m_entity);
+				data().query.template any<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+
+			template <typename T>
+			ObserverBuilder& no(const QueryTermOptions& options) {
+				validate();
+				data().query.template no<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 
@@ -40921,81 +40873,48 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			SystemBuilder& all(Entity entity, bool isReadWrite = false) {
-				validate();
-				data().query.all(entity, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& all(Entity entity, const QueryTermOptions& options) {
+			SystemBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
 				return *this;
 			}
 
-			SystemBuilder& all(Entity entity, Entity src, bool isReadWrite = false) {
-				validate();
-				data().query.all(entity, src, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& all_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-				validate();
-				data().query.all_up(entity, src, relation, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& any(Entity entity, bool isReadWrite = false) {
-				validate();
-				data().query.any(entity, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& any(Entity entity, const QueryTermOptions& options) {
+			SystemBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.any(entity, options);
 				return *this;
 			}
 
-			SystemBuilder& any(Entity entity, Entity src, bool isReadWrite = false) {
-				validate();
-				data().query.any(entity, src, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& any_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
-				validate();
-				data().query.any_up(entity, src, relation, isReadWrite);
-				return *this;
-			}
-
-			SystemBuilder& no(Entity entity) {
-				validate();
-				data().query.no(entity);
-				return *this;
-			}
-
-			SystemBuilder& no(Entity entity, const QueryTermOptions& options) {
+			SystemBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
-				return *this;
-			}
-
-			SystemBuilder& no(Entity entity, Entity src) {
-				validate();
-				data().query.no(entity, src);
-				return *this;
-			}
-
-			SystemBuilder& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
-				validate();
-				data().query.no_up(entity, src, relation);
 				return *this;
 			}
 
 			SystemBuilder& changed(Entity entity) {
 				validate();
 				data().query.changed(entity);
+				return *this;
+			}
+
+			template <typename T>
+			SystemBuilder& all(const QueryTermOptions& options) {
+				validate();
+				data().query.template all<T>(options);
+				return *this;
+			}
+
+			template <typename T>
+			SystemBuilder& any(const QueryTermOptions& options) {
+				validate();
+				data().query.template any<T>(options);
+				return *this;
+			}
+
+			template <typename T>
+			SystemBuilder& no(const QueryTermOptions& options) {
+				validate();
+				data().query.template no<T>(options);
 				return *this;
 			}
 
