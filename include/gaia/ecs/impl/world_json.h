@@ -2,8 +2,6 @@
 #include "gaia/config/config.h"
 
 #include <cstring>
-#include <string>
-#include <string_view>
 
 #include "gaia/ser/ser_json.h"
 
@@ -37,7 +35,7 @@ namespace gaia {
 		}
 
 		//! Convenience overload returning JSON as a string.
-		inline std::string component_to_json(const ComponentCacheItem& item, const void* pComponentData, bool& ok) {
+		inline ser::json_str component_to_json(const ComponentCacheItem& item, const void* pComponentData, bool& ok) {
 			ser::ser_json writer;
 			ok = component_to_json(item, pComponentData, writer);
 			return writer.str();
@@ -53,25 +51,25 @@ namespace gaia {
 		//! \return false only when JSON is malformed for the expected component payload shape.
 		inline bool json_to_component(
 				const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics,
-				std::string_view componentPath = {}) {
+				ser::json_str_view componentPath = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
 
-			auto make_field_path = [&](std::string_view fieldName) {
+			auto make_field_path = [&](ser::json_str_view fieldName) {
 				if (componentPath.empty())
-					return std::string(fieldName);
+					return ser::json_str(fieldName);
 				if (fieldName.empty())
-					return std::string(componentPath);
+					return ser::json_str(componentPath);
 
-				std::string path;
+				ser::json_str path;
 				path.reserve(componentPath.size() + 1 + fieldName.size());
 				path.append(componentPath.data(), componentPath.size());
-				path += '.';
+				path.append('.');
 				path.append(fieldName.data(), fieldName.size());
 				return path;
 			};
-			auto warn = [&](ser::JsonDiagReason reason, const std::string& path, const char* message) {
+			auto warn = [&](ser::JsonDiagReason reason, const ser::json_str& path, const char* message) {
 				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
 			};
 
@@ -97,11 +95,11 @@ namespace gaia {
 			}
 
 			while (true) {
-				std::string_view key;
+				ser::json_str_view key;
 				bool keyFromScratch = false;
 				if (!reader.parse_string_view(key, &keyFromScratch))
 					return false;
-				std::string keyStorage;
+				ser::json_str keyStorage;
 				if (keyFromScratch) {
 					keyStorage.assign(key.data(), key.size());
 					key = keyStorage;
@@ -341,14 +339,14 @@ namespace gaia {
 		}
 
 		//! Convenience overload returning JSON as a string.
-		inline std::string World::save_json(bool& ok, ser::JsonSaveFlags flags) const {
+		inline ser::json_str World::save_json(bool& ok, ser::JsonSaveFlags flags) const {
 			ser::ser_json writer;
 			ok = save_json(writer, flags);
 			return writer.str();
 		}
 
 		//! Loads world state from JSON previously emitted by save_json().
-		inline bool World::load_json(const char* json, ser::JsonDiagnostics& diagnostics, uint32_t len) {
+		inline bool World::load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics) {
 			diagnostics.clear();
 			if (json == nullptr)
 				return false;
@@ -362,11 +360,11 @@ namespace gaia {
 			const auto dataLen = len;
 			const auto* p = json;
 			const auto* end = json + dataLen;
-			auto warn = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
-				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, std::string(path), message);
+			auto warn = [&](ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
 			};
-			auto error = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
-				diagnostics.add(ser::JsonDiagSeverity::Error, reason, std::string(path), message);
+			auto error = [&](ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Error, reason, path, message);
 			};
 
 			// Validate top-level format version first.
@@ -383,7 +381,7 @@ namespace gaia {
 				header.ws();
 				if (!header.consume('}')) {
 					while (true) {
-						std::string_view key;
+						ser::json_str_view key;
 						if (!header.parse_string_view(key))
 							return false;
 						if (!header.expect(':'))
@@ -496,7 +494,7 @@ namespace gaia {
 			};
 
 			auto parse_and_apply_component_value = [&](Entity entity, const ComponentCacheItem& item,
-																								 std::string_view compPath) -> bool {
+																								 ser::json_str_view compPath) -> bool {
 				jp.ws();
 				if (jp.eof())
 					return false;
@@ -537,7 +535,7 @@ namespace gaia {
 				return true;
 			};
 
-			auto parse_entity_meta = [&](bool& isPair, std::string& nameOut) -> bool {
+			auto parse_entity_meta = [&](bool& isPair, ser::json_str& nameOut) -> bool {
 				if (!jp.expect('{'))
 					return false;
 
@@ -546,7 +544,7 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string_view key;
+					ser::json_str_view key;
 					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
@@ -575,7 +573,7 @@ namespace gaia {
 			};
 
 			auto parse_components_for_entity = [&](Entity& entity, bool& created, bool isPair,
-																						 const std::string& entityName) -> bool {
+																						 const ser::json_str& entityName) -> bool {
 				if (!jp.expect('{'))
 					return false;
 
@@ -584,11 +582,11 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string_view compName;
+					ser::json_str_view compName;
 					bool compNameFromScratch = false;
 					if (!jp.parse_string_view(compName, &compNameFromScratch))
 						return false;
-					std::string compNameStorage;
+					ser::json_str compNameStorage;
 					if (compNameFromScratch) {
 						compNameStorage.assign(compName.data(), compName.size());
 						compName = compNameStorage;
@@ -604,14 +602,14 @@ namespace gaia {
 						const auto* pItem = comp_cache().find(compName.data(), (uint32_t)compName.size());
 						if (pItem == nullptr) {
 							warn(
-									ser::JsonDiagReason::UnknownComponent, std::string(compName),
+									ser::JsonDiagReason::UnknownComponent, compName,
 									"Component is not registered in the component cache.");
 							if (!jp.skip_value())
 								return false;
 						} else if (pItem->comp.size() == 0) {
 							// Ignore tag-only components in semantic mode for now.
 							warn(
-									ser::JsonDiagReason::TagComponentUnsupported, std::string(compName),
+									ser::JsonDiagReason::TagComponentUnsupported, compName,
 									"Tag-only component semantic JSON loading is currently unsupported.");
 							if (!jp.skip_value())
 								return false;
@@ -620,9 +618,9 @@ namespace gaia {
 								entity = add();
 								created = true;
 								if (!entityName.empty()) {
-									const auto existing = get(entityName.c_str(), (uint32_t)entityName.size());
+									const auto existing = get(entityName.data(), (uint32_t)entityName.size());
 									if (existing == EntityBad)
-										name(entity, entityName.c_str(), (uint32_t)entityName.size());
+										name(entity, entityName.data(), (uint32_t)entityName.size());
 									else
 										warn(
 												ser::JsonDiagReason::DuplicateEntityName, "entity.name",
@@ -653,7 +651,7 @@ namespace gaia {
 				}
 
 				bool isPair = false;
-				std::string entityName;
+				ser::json_str entityName;
 				Entity entity = EntityBad;
 				bool created = false;
 
@@ -662,7 +660,7 @@ namespace gaia {
 					return true;
 
 				while (true) {
-					std::string_view key;
+					ser::json_str_view key;
 					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
@@ -705,7 +703,7 @@ namespace gaia {
 					jp.ws();
 					if (!jp.consume('}')) {
 						while (true) {
-							std::string_view key;
+							ser::json_str_view key;
 							if (!jp.parse_string_view(key))
 								return false;
 							if (!jp.expect(':'))
@@ -761,7 +759,7 @@ namespace gaia {
 			jp.ws();
 			if (!jp.consume('}')) {
 				while (true) {
-					std::string_view key;
+					ser::json_str_view key;
 					if (!jp.parse_string_view(key))
 						return false;
 					if (!jp.expect(':'))
@@ -798,17 +796,17 @@ namespace gaia {
 
 		inline bool World::load_json(const char* json, uint32_t len) {
 			ser::JsonDiagnostics diagnostics;
-			const bool parsed = load_json(json, diagnostics, len);
+			const bool parsed = load_json(json, len, diagnostics);
 			return parsed && !diagnostics.has_issues();
 		}
 
-		inline bool World::load_json(const std::string& json, ser::JsonDiagnostics& diagnostics) {
-			return load_json(json.c_str(), diagnostics, (uint32_t)json.size());
+		inline bool World::load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics) {
+			return load_json(json.data(), json.size(), diagnostics);
 		}
 
-		inline bool World::load_json(const std::string& json) {
+		inline bool World::load_json(ser::json_str_view json) {
 			ser::JsonDiagnostics diagnostics;
-			const bool parsed = load_json(json.c_str(), diagnostics, (uint32_t)json.size());
+			const bool parsed = load_json(json.data(), json.size(), diagnostics);
 			return parsed && !diagnostics.has_issues();
 		}
 	} // namespace ecs

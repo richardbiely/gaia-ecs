@@ -10,7 +10,6 @@
 #include "gaia/cnt/sarray_ext.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/hashing_policy.h"
-#include "gaia/core/string.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/archetype.h"
@@ -1565,7 +1564,7 @@ namespace gaia {
 						std::span<const char> exprRaw(&str[exp0], pos - exp0);
 						exp0 = ++pos;
 
-						auto expr = core::trim(exprRaw);
+						auto expr = util::trim(exprRaw);
 						if (expr.empty())
 							return true;
 

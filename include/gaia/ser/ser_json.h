@@ -7,16 +7,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <string>
-#include <string_view>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
 #include "gaia/core/utility.h"
 #include "gaia/ser/ser_buffer_binary.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ser {
+		using json_str_view = util::str_view;
+		using json_str = util::str;
+
 		enum JsonSaveFlags : uint32_t {
 			None = 0,
 			BinarySnapshot = 1u << 0, // Include binary snapshot
@@ -47,27 +49,37 @@ namespace gaia {
 		struct JsonDiagnostic {
 			JsonDiagSeverity severity = JsonDiagSeverity::Warning;
 			JsonDiagReason reason = JsonDiagReason::None;
-			std::string path;
-			std::string message;
+			json_str path;
+			json_str message;
 		};
 
 		struct JsonDiagnostics {
+			static constexpr uint32_t MaxDiagPathLength = 1024;
+			static constexpr uint32_t MaxDiagMessageLength = 2048;
+
 			cnt::darray<JsonDiagnostic> items;
 			bool hasWarnings = false;
 			bool hasErrors = false;
 
-			void add(JsonDiagSeverity severity, JsonDiagReason reason, const std::string& path, const std::string& message) {
+			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, json_str_view message) {
 				JsonDiagnostic diag;
 				diag.severity = severity;
 				diag.reason = reason;
-				diag.path = path;
-				diag.message = message;
+				diag.path.assign(path);
+				diag.message.assign(message);
 				items.push_back(diag);
 
 				if (severity == JsonDiagSeverity::Warning)
 					hasWarnings = true;
 				else if (severity == JsonDiagSeverity::Error)
 					hasErrors = true;
+			}
+			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, const char* message) {
+				add(severity, reason, path, json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
+			}
+			void add(JsonDiagSeverity severity, JsonDiagReason reason, const char* path, const char* message) {
+				add(severity, reason, json_str_view(path, (uint32_t)GAIA_STRLEN(path, MaxDiagPathLength)),
+						json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
 			}
 
 			GAIA_NODISCARD bool has_issues() const {
@@ -98,33 +110,33 @@ namespace gaia {
 				bool needsValue = false;
 			};
 
-			std::string m_out;
-			std::string m_parseScratch;
+			json_str m_out;
+			json_str m_parseScratch;
 			cnt::darray<Ctx> m_ctx;
 			const char* m_it = nullptr;
 			const char* m_end = nullptr;
 
-			static void append_escaped(std::string& out, const char* str, uint32_t len) {
+			static void append_escaped(json_str& out, const char* str, uint32_t len) {
 				GAIA_FOR(len) {
 					const char ch = str[i];
 					switch (ch) {
 						case '"':
-							out += "\\\"";
+							out.append("\\\"");
 							break;
 						case '\\':
-							out += "\\\\";
+							out.append("\\\\");
 							break;
 						case '\n':
-							out += "\\n";
+							out.append("\\n");
 							break;
 						case '\r':
-							out += "\\r";
+							out.append("\\r");
 							break;
 						case '\t':
-							out += "\\t";
+							out.append("\\t");
 							break;
 						default:
-							out += ch;
+							out.append(ch);
 							break;
 					}
 				}
@@ -137,7 +149,7 @@ namespace gaia {
 				auto& ctx = m_ctx.back();
 				if (ctx.type == CtxType::Array) {
 					if (!ctx.first)
-						m_out += ",";
+						m_out.append(",");
 					ctx.first = false;
 				} else {
 					GAIA_ASSERT(ctx.needsValue);
@@ -181,7 +193,7 @@ namespace gaia {
 			}
 
 			//! Returns currently emitted output text.
-			GAIA_NODISCARD const std::string& str() const {
+			GAIA_NODISCARD const json_str& str() const {
 				return m_out;
 			}
 
@@ -214,26 +226,26 @@ namespace gaia {
 
 			void begin_object() {
 				before_value();
-				m_out += "{";
+				m_out.append("{");
 				m_ctx.push_back({CtxType::Object, true, false});
 			}
 
 			void end_object() {
 				GAIA_ASSERT(!m_ctx.empty() && m_ctx.back().type == CtxType::Object);
 				m_ctx.pop_back();
-				m_out += "}";
+				m_out.append("}");
 			}
 
 			void begin_array() {
 				before_value();
-				m_out += "[";
+				m_out.append("[");
 				m_ctx.push_back({CtxType::Array, true, false});
 			}
 
 			void end_array() {
 				GAIA_ASSERT(!m_ctx.empty() && m_ctx.back().type == CtxType::Array);
 				m_ctx.pop_back();
-				m_out += "]";
+				m_out.append("]");
 			}
 
 			void key(const char* name, uint32_t len = 0) {
@@ -243,24 +255,27 @@ namespace gaia {
 				GAIA_ASSERT(!ctx.needsValue);
 
 				if (!ctx.first)
-					m_out += ",";
+					m_out.append(",");
 				ctx.first = false;
 				ctx.needsValue = true;
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, MaxImplicitKeyLength) : len;
-				m_out += "\"";
+				m_out.append("\"");
 				append_escaped(m_out, name, l);
-				m_out += "\":";
+				m_out.append("\":");
 			}
 
 			void value_null() {
 				before_value();
-				m_out += "null";
+				m_out.append("null");
 			}
 
 			void value_bool(bool v) {
 				before_value();
-				m_out += v ? "true" : "false";
+				if (v)
+					m_out.append("true");
+				else
+					m_out.append("false");
 			}
 
 			template <typename TInt, typename = std::enable_if_t<std::is_integral_v<TInt> && !std::is_same_v<TInt, bool>>>
@@ -273,30 +288,30 @@ namespace gaia {
 				} else {
 					(void)GAIA_STRFMT(buff, sizeof(buff), "%llu", (unsigned long long)v);
 				}
-				m_out += buff;
+				m_out.append(buff, (uint32_t)GAIA_STRLEN(buff, (size_t)sizeof(buff)));
 			}
 
 			void value_float(float v) {
 				before_value();
 				char buff[64];
 				(void)GAIA_STRFMT(buff, sizeof(buff), "%.9g", (double)v);
-				m_out += buff;
+				m_out.append(buff, (uint32_t)GAIA_STRLEN(buff, (size_t)sizeof(buff)));
 			}
 
 			void value_float(double v) {
 				before_value();
 				char buff[64];
 				(void)GAIA_STRFMT(buff, sizeof(buff), "%.17g", v);
-				m_out += buff;
+				m_out.append(buff, (uint32_t)GAIA_STRLEN(buff, (size_t)sizeof(buff)));
 			}
 
 			void value_string(const char* str, uint32_t len = 0) {
 				GAIA_ASSERT(str != nullptr);
 				before_value();
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(str, MaxImplicitStringLength) : len;
-				m_out += "\"";
+				m_out.append("\"");
 				append_escaped(m_out, str, l);
-				m_out += "\"";
+				m_out.append("\"");
 			}
 
 			bool consume(char ch) {
@@ -327,7 +342,7 @@ namespace gaia {
 				return true;
 			}
 
-			bool parse_string_view(std::string_view& out, bool* fromScratch = nullptr) {
+			bool parse_string_view(json_str_view& out, bool* fromScratch = nullptr) {
 				ws();
 				if (m_it == nullptr || m_end == nullptr || m_it >= m_end || *m_it != '"')
 					return false;
@@ -346,7 +361,7 @@ namespace gaia {
 							escaped = true;
 							const auto prefixLen = (size_t)((m_it - 1) - begin);
 							if (prefixLen > 0)
-								m_parseScratch.append(begin, prefixLen);
+								m_parseScratch.append(begin, (uint32_t)prefixLen);
 						}
 
 						if (m_it >= m_end)
@@ -356,22 +371,22 @@ namespace gaia {
 							case '"':
 							case '\\':
 							case '/':
-								m_parseScratch += esc;
+								m_parseScratch.append(esc);
 								break;
 							case 'b':
-								m_parseScratch += '\b';
+								m_parseScratch.append('\b');
 								break;
 							case 'f':
-								m_parseScratch += '\f';
+								m_parseScratch.append('\f');
 								break;
 							case 'n':
-								m_parseScratch += '\n';
+								m_parseScratch.append('\n');
 								break;
 							case 'r':
-								m_parseScratch += '\r';
+								m_parseScratch.append('\r');
 								break;
 							case 't':
-								m_parseScratch += '\t';
+								m_parseScratch.append('\t');
 								break;
 							case 'u': {
 								if ((uint32_t)(m_end - m_it) < 4)
@@ -383,15 +398,14 @@ namespace gaia {
 										return false;
 								}
 								m_it += 4;
-								m_parseScratch += '?';
+								m_parseScratch.append('?');
 								break;
 							}
 							default:
 								return false;
 						}
-					} else if (escaped) {
-						m_parseScratch += ch;
-					}
+					} else if (escaped)
+						m_parseScratch.append(ch);
 				}
 
 				if (m_it <= begin || m_it > m_end || *(m_it - 1) != '"')
@@ -400,25 +414,25 @@ namespace gaia {
 				if (escaped) {
 					if (fromScratch != nullptr)
 						*fromScratch = true;
-					out = std::string_view(m_parseScratch.data(), m_parseScratch.size());
+					out = m_parseScratch.view();
 				} else {
 					if (fromScratch != nullptr)
 						*fromScratch = false;
-					out = std::string_view(begin, (size_t)((m_it - 1) - begin));
+					out = json_str_view(begin, (uint32_t)((m_it - 1) - begin));
 				}
 				return true;
 			}
 
-			bool parse_string(std::string& out) {
-				std::string_view view;
+			bool parse_string(json_str& out) {
+				json_str_view view;
 				if (!parse_string_view(view))
 					return false;
-				out.assign(view.data(), view.size());
+				out.assign(view);
 				return true;
 			}
 
 			bool parse_string_eq(const char* literal) {
-				std::string_view view;
+				json_str_view view;
 				if (!parse_string_view(view))
 					return false;
 				const auto literalLen = (size_t)GAIA_STRLEN(literal, MaxLiteralLength);
@@ -468,7 +482,7 @@ namespace gaia {
 						return true;
 
 					while (true) {
-						std::string_view key;
+						json_str_view key;
 						if (!parse_string_view(key))
 							return false;
 						if (!expect(':'))
@@ -504,7 +518,7 @@ namespace gaia {
 				}
 
 				if (*m_it == '"') {
-					std::string_view tmp;
+					json_str_view tmp;
 					return parse_string_view(tmp);
 				}
 
@@ -703,7 +717,7 @@ namespace gaia {
 						return true;
 					}
 					case serialization_type_id::c8: {
-						std::string_view str;
+						json_str_view str;
 						if (!reader.parse_string_view(str))
 							return false;
 						if (size == 0) {

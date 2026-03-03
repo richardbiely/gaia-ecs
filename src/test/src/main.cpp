@@ -546,20 +546,138 @@ TEST_CASE("trim") {
 
 	{
 		std::string str = "  \t\n  Gaia-ECS  \t\n  ";
-		auto t = core::trim({str.c_str(), str.length()});
+		auto t = util::trim(std::span<const char>(str.c_str(), str.length()));
 		CHECK(std::string(t.data(), t.size()) == target);
 	}
 
 	{
 		std::string str = "Gaia-ECS";
-		auto t = core::trim({str.c_str(), str.length()});
+		auto t = util::trim(std::span<const char>(str.c_str(), str.length()));
 		CHECK(std::string(t.data(), t.size()) == target);
 	}
 
 	{
 		std::string str = "";
-		auto t = core::trim(str);
+		auto t = util::trim(str);
 		CHECK(std::string(t.data(), t.size()) == std::string(""));
+	}
+
+	{
+		util::str_view sv = " \t\n  Gaia-ECS  \r\n";
+		const auto t = util::trim(sv);
+		CHECK(t == "Gaia-ECS");
+	}
+
+	{
+		util::str_view sv = " \t\r\n ";
+		const auto t = util::trim(sv);
+		CHECK(t.empty());
+	}
+
+	{
+		util::str_view sv{};
+		const auto t = util::trim(sv);
+		CHECK(t.empty());
+	}
+}
+
+TEST_CASE("util::str") {
+	using util::str;
+	using util::str_view;
+
+	SUBCASE("basic ownership and empty semantics") {
+		str s;
+		CHECK(s.empty());
+		CHECK(s.size() == 0);
+		CHECK(s.find("x") == BadIndex);
+
+		s.append('a');
+		CHECK_FALSE(s.empty());
+		CHECK(s.size() == 1);
+		CHECK(s == "a");
+
+		s.clear();
+		CHECK(s.empty());
+		CHECK(s.size() == 0);
+
+		s.assign("abc", 3);
+		CHECK(s == "abc");
+		s.append("def", 3);
+		CHECK(s == "abcdef");
+		s.reserve(64);
+		CHECK(s == "abcdef");
+	}
+
+	SUBCASE("find supports positional substring and character search") {
+		const str s("ababa_xyz_aba");
+
+		CHECK(s.find("aba") == 0);
+		CHECK(s.find("aba", 1) == 2);
+		CHECK(s.find("aba", 3) == 10);
+		CHECK(s.find("aba", 11) == BadIndex);
+
+		CHECK(s.find('x') == 6);
+		CHECK(s.find('a', 1) == 2);
+		CHECK(s.find('q') == BadIndex);
+
+		CHECK(s.find("", 0) == 0);
+		CHECK(s.find("", 4) == 4);
+		CHECK(s.find("", (uint32_t)s.size()) == s.size());
+		CHECK(s.find("", (uint32_t)s.size() + 1) == BadIndex);
+	}
+
+	SUBCASE("find_first_of and find_last_of") {
+		const str s("0123abc3210");
+
+		CHECK(s.find_first_of("abc") == 4);
+		CHECK(s.find_first_of("c") == 6);
+		CHECK(s.find_first_of('2') == 2);
+		CHECK(s.find_first_of("xyz") == BadIndex);
+
+		CHECK(s.find_last_of("abc") == 6);
+		CHECK(s.find_last_of("abc", 5) == 5);
+		CHECK(s.find_last_of('3') == 7);
+		CHECK(s.find_last_of('3', 6) == 3);
+		CHECK(s.find_last_of("xyz") == BadIndex);
+		CHECK(s.find_last_of("") == BadIndex);
+	}
+
+	SUBCASE("find_first_not_of and find_last_not_of") {
+		const str s("000abc000");
+
+		CHECK(s.find_first_not_of('0') == 3);
+		CHECK(s.find_first_not_of("0") == 3);
+		CHECK(s.find_first_not_of("0abc") == BadIndex);
+		CHECK(s.find_first_not_of("") == 0);
+
+		CHECK(s.find_last_not_of('0') == 5);
+		CHECK(s.find_last_not_of("0") == 5);
+		CHECK(s.find_last_not_of("0abc") == BadIndex);
+		CHECK(s.find_last_not_of("") == 8);
+		CHECK(s.find_last_not_of("", 3) == 3);
+
+		const str empty;
+		CHECK(empty.find_first_not_of("") == BadIndex);
+		CHECK(empty.find_last_not_of("") == BadIndex);
+	}
+
+	SUBCASE("str_view search parity") {
+		const str_view v("cabba", 5);
+
+		CHECK(v.find("abb") == 1);
+		CHECK(v.find('a') == 1);
+		CHECK(v.find('a', 2) == 4);
+		CHECK(v.find("bb", 3) == BadIndex);
+
+		CHECK(v.find_first_of("bx") == 2);
+		CHECK(v.find_last_of("ab") == 4);
+		CHECK(v.find_last_of('b') == 3);
+
+		CHECK(v.find_first_not_of("ca") == 2);
+		CHECK(v.find_last_not_of("ab") == 0);
+
+		CHECK(v.find("", 5) == 5);
+		CHECK(v.find("", 6) == BadIndex);
 	}
 }
 
@@ -10538,8 +10656,8 @@ TEST_CASE("Serialization - ser_json") {
 	SUBCASE("parses values and skips nested payloads") {
 		ser::ser_json reader(
 				"{\"name\":\"gaia\",\"payload\":[1,{\"x\":true}],\"enabled\":false,\"count\":12.5,\"nothing\":null}");
-		std::string key;
-		std::string text;
+		ser::json_str key;
+		ser::json_str text;
 		double number = 0.0;
 		bool b = true;
 
@@ -10812,7 +10930,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		CHECK(okWrite);
 
 		JsonRuntimeComp out{};
-		ser::ser_json reader(json.c_str(), (uint32_t)json.size());
+		ser::ser_json reader(json.data(), (uint32_t)json.size());
 		bool okRead = true;
 		CHECK(ecs::json_to_component(item, &out, reader, okRead));
 		CHECK(okRead);
@@ -10859,7 +10977,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		writer.end_object();
 
 		JsonRawComp out{};
-		ser::ser_json reader(writer.str().c_str(), (uint32_t)writer.str().size());
+		ser::ser_json reader(writer.str().data(), (uint32_t)writer.str().size());
 		bool okRead = true;
 		CHECK(ecs::json_to_component(item, &out, reader, okRead));
 		CHECK(okRead);
@@ -11580,16 +11698,16 @@ TEST_CASE("Serialization - world json") {
 	CHECK(ok);
 
 	const auto& json = writer.str();
-	CHECK(json.find("\"format\":1") != std::string::npos);
-	CHECK(json.find("\"name\":\"Player\"") != std::string::npos);
-	CHECK(json.find("\"Position\":{\"x\":1,\"y\":2,\"z\":3}") != std::string::npos);
-	CHECK(json.find("\"PositionSoA\":{\"$raw\":[") != std::string::npos);
+	CHECK(json.find("\"format\":1") != BadIndex);
+	CHECK(json.find("\"name\":\"Player\"") != BadIndex);
+	CHECK(json.find("\"Position\":{\"x\":1,\"y\":2,\"z\":3}") != BadIndex);
+	CHECK(json.find("\"PositionSoA\":{\"$raw\":[") != BadIndex);
 
 	bool okStr = false;
 	const auto jsonStr = wld.save_json(okStr);
 	CHECK(okStr);
-	CHECK(jsonStr.find("\"format\":1") != std::string::npos);
-	CHECK(jsonStr.find("\"binary\":[") != std::string::npos);
+	CHECK(jsonStr.find("\"format\":1") != BadIndex);
+	CHECK(jsonStr.find("\"binary\":[") != BadIndex);
 
 	TestWorld twldOut;
 	(void)twldOut.m_w.add<Position>();
@@ -11614,7 +11732,7 @@ TEST_CASE("Serialization - world json") {
 	ser::ser_json noBinaryWriter;
 	const bool okNoBinary = wld.save_json(noBinaryWriter, ser::JsonSaveFlags::RawFallback);
 	CHECK(okNoBinary);
-	CHECK(noBinaryWriter.str().find("\"binary\":[") == std::string::npos);
+	CHECK(noBinaryWriter.str().find("\"binary\":[") == BadIndex);
 	TestWorld twldNoBinary;
 	(void)twldNoBinary.m_w.add<Position>();
 	(void)twldNoBinary.m_w.add<PositionSoA>();
@@ -11623,7 +11741,7 @@ TEST_CASE("Serialization - world json") {
 	ser::ser_json strictWriter;
 	const bool okStrict = wld.save_json(strictWriter, ser::JsonSaveFlags::BinarySnapshot /*no raw fallback on purpose*/);
 	CHECK_FALSE(okStrict);
-	CHECK(strictWriter.str().find("\"PositionSoA\":null") != std::string::npos);
+	CHECK(strictWriter.str().find("\"PositionSoA\":null") != BadIndex);
 	ser::ser_json strictNoBinaryWriter;
 	const bool okStrictNoBinary = wld.save_json(strictNoBinaryWriter, ser::JsonSaveFlags::None);
 	CHECK_FALSE(okStrictNoBinary);
@@ -11760,11 +11878,11 @@ TEST_CASE("Serialization - world json schema nested arrays") {
 	ser::ser_json writer;
 	CHECK(wld.save_json(writer));
 	const auto& json = writer.str();
-	CHECK(json.find("\"JsonComplexComp\":{\"transform[0].x\":1.25") != std::string::npos);
-	CHECK(json.find("\"transform[1].z\":6.5") != std::string::npos);
-	CHECK(json.find("\"itemCounts[2]\":33") != std::string::npos);
-	CHECK(json.find("\"active[0]\":true") != std::string::npos);
-	CHECK(json.find("\"label\":\"crate\"") != std::string::npos);
+	CHECK(json.find("\"JsonComplexComp\":{\"transform[0].x\":1.25") != BadIndex);
+	CHECK(json.find("\"transform[1].z\":6.5") != BadIndex);
+	CHECK(json.find("\"itemCounts[2]\":33") != BadIndex);
+	CHECK(json.find("\"active[0]\":true") != BadIndex);
+	CHECK(json.find("\"label\":\"crate\"") != BadIndex);
 
 	TestWorld twldOut;
 	register_schema(twldOut.m_w);
@@ -11788,7 +11906,7 @@ TEST_CASE("Serialization - world json schema nested arrays") {
 
 	ser::ser_json noBinaryWriter;
 	CHECK(wld.save_json(noBinaryWriter, ser::JsonSaveFlags::RawFallback));
-	CHECK(noBinaryWriter.str().find("\"binary\":[") == std::string::npos);
+	CHECK(noBinaryWriter.str().find("\"binary\":[") == BadIndex);
 
 	TestWorld twldOutNoBinary;
 	register_schema(twldOutNoBinary.m_w);

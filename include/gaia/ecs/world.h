@@ -8,7 +8,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <string>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -20,7 +19,6 @@
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/hashing_string.h"
 #include "gaia/core/span.h"
-#include "gaia/core/string.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/archetype.h"
@@ -48,6 +46,7 @@
 #include "gaia/ser/ser_json.h"
 #include "gaia/ser/ser_rt.h"
 #include "gaia/util/logging.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ecs {
@@ -3076,18 +3075,18 @@ namespace gaia {
 			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Convenience overload returning JSON as a string.
-			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
+			ser::json_str save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Loads world state from JSON previously emitted by save_json().
 			//! Returns true when JSON shape is valid and parsing succeeds.
 			//! Non-fatal semantic issues are reported through @a diagnostics.
-			bool load_json(const char* json, ser::JsonDiagnostics& diagnostics, uint32_t len);
+			bool load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics);
 
 			bool load_json(const char* json, uint32_t len);
 
-			bool load_json(const std::string& json, ser::JsonDiagnostics& diagnostics);
+			bool load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics);
 
-			bool load_json(const std::string& json);
+			bool load_json(ser::json_str_view json);
 
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
@@ -5295,7 +5294,7 @@ namespace gaia {
 			}
 
 			Entity name_to_entity(std::span<const char> exprRaw) const {
-				auto expr = core::trim(exprRaw);
+				auto expr = util::trim(exprRaw);
 
 				if (expr[0] == '(') {
 					if (expr.back() != ')') {
@@ -5317,7 +5316,7 @@ namespace gaia {
 				}
 
 				{
-					auto idStr = core::trim(expr);
+					auto idStr = util::trim(expr);
 
 					// Wildcard character
 					if (idStr.size() == 1 && idStr[0] == '*')
@@ -5328,7 +5327,7 @@ namespace gaia {
 			}
 
 			Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) const {
-				auto expr = core::trim(exprRaw);
+				auto expr = util::trim(exprRaw);
 
 				if (expr[0] == '%') {
 					if (expr[1] != 'e') {
@@ -5360,7 +5359,7 @@ namespace gaia {
 				}
 
 				{
-					auto idStr = core::trim(expr);
+					auto idStr = util::trim(expr);
 
 					// Wildcard character
 					if (idStr.size() == 1 && idStr[0] == '*')
