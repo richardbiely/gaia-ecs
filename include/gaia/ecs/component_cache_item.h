@@ -356,7 +356,8 @@ namespace gaia {
 
 					auto* pos = nameTmp;
 					while ((pos = strstr(pos, str)) != nullptr) {
-						memmove(pos, pos + len, strlen(pos + len) + 1);
+						const auto tailMaxLen = (size_t)(MaxNameLength - (uint32_t)(pos + len - nameTmp));
+						memmove(pos, pos + len, GAIA_STRLEN(pos + len, tailMaxLen) + 1);
 						nameTmpLen -= len;
 					}
 				}

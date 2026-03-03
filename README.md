@@ -2493,7 +2493,7 @@ To override the entire logging logic you can do:
 ```cpp
 void MyCustomLogger(util::LogLevel level, const char* fmt, va_list args) {
   char buf[2048];
-  vsnprintf(buf, sizeof(buf), fmt, args);
+  GAIA_STRFMT(buf, sizeof(buf), fmt, args);
 	// Do whatever you want — e.g., forward to engine logger.
   printf("[CUSTOM] %s\n", buf);
 }

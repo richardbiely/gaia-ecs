@@ -1,5 +1,6 @@
 #pragma once
 #include "gaia/config/config.h"
+#include "gaia/core/utility.h"
 
 #ifndef GAIA_PROFILER_CPU
 	#define GAIA_PROFILER_CPU 0
@@ -24,6 +25,9 @@ GAIA_MSVC_WARNING_POP()
 #if GAIA_PROFILER_CPU
 
 namespace tracy {
+	inline constexpr size_t TracyFileMaxLen = 4096;
+	inline constexpr size_t TracyFunctionMaxLen = 16384;
+	inline constexpr size_t TracyZoneNameMaxLen = 128;
 
 	template <class T>
 	class gaia_LockableExt: public Lockable<T> {
@@ -60,8 +64,9 @@ namespace tracy {
 		TracyCZoneCtx m_ctx;
 
 		ZoneRT(const char* name, const char* file, uint32_t line, const char* function) {
-			const auto srcloc =
-					___tracy_alloc_srcloc_name(line, file, strlen(file), function, strlen(function), name, strlen(name), 0);
+			const auto srcloc = ___tracy_alloc_srcloc_name(
+					line, file, GAIA_STRLEN(file, TracyFileMaxLen), function, GAIA_STRLEN(function, TracyFunctionMaxLen), name,
+					GAIA_STRLEN(name, TracyZoneNameMaxLen), 0);
 			m_ctx = ___tracy_emit_zone_begin_alloc(srcloc, 1);
 		}
 		~ZoneRT() {
@@ -107,7 +112,8 @@ namespace tracy {
 
 	#define TRACY_ZoneNamedRTBegin(name, function)                                                                       \
 		tracy::ZoneRTBegin(___tracy_alloc_srcloc_name(                                                                     \
-				__LINE__, __FILE__, strlen(__FILE__), function, strlen(function), name, strlen(name), 0));
+				__LINE__, __FILE__, GAIA_STRLEN(__FILE__, tracy::TracyFileMaxLen), function,                                   \
+				GAIA_STRLEN(function, tracy::TracyFunctionMaxLen), name, GAIA_STRLEN(name, tracy::TracyZoneNameMaxLen), 0));
 
 	#define TRACY_ZoneBegin(name, function)                                                                              \
 		static constexpr ___tracy_source_location_data TracyConcat(__tracy_source_location, __LINE__) {                    \

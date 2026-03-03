@@ -86,6 +86,10 @@ namespace gaia {
 		//! - read mode: parses JSON text from a provided input buffer
 		//! It intentionally stays low-level and allocation-light (no DOM tree).
 		class ser_json {
+			static constexpr uint32_t MaxImplicitKeyLength = 384;
+			static constexpr uint32_t MaxImplicitStringLength = 16u * 1024u * 1024u;
+			static constexpr uint32_t MaxLiteralLength = 256u;
+
 			enum class CtxType : uint8_t { Object, Array };
 
 			struct Ctx {
@@ -143,21 +147,30 @@ namespace gaia {
 
 		public:
 			ser_json() = default;
-			ser_json(const char* json, uint32_t len = 0) {
+			ser_json(const char* json, uint32_t len) {
 				reset_input(json, len);
+			}
+			template <size_t N>
+			explicit ser_json(const char (&json)[N]) {
+				static_assert(N > 0);
+				reset_input(json, (uint32_t)(N - 1));
 			}
 
 			//! Sets an input JSON buffer for parsing.
-			void reset_input(const char* json, uint32_t len = 0) {
+			void reset_input(const char* json, uint32_t len) {
 				if (json == nullptr) {
 					m_it = nullptr;
 					m_end = nullptr;
 					return;
 				}
 
-				const auto dataLen = len == 0 ? (uint32_t)strlen(json) : len;
 				m_it = json;
-				m_end = json + dataLen;
+				m_end = json + len;
+			}
+			template <size_t N>
+			void reset_input(const char (&json)[N]) {
+				static_assert(N > 0);
+				reset_input(json, (uint32_t)(N - 1));
 			}
 
 			//! Clears output JSON text and writer context.
@@ -234,7 +247,7 @@ namespace gaia {
 				ctx.first = false;
 				ctx.needsValue = true;
 
-				const auto l = len == 0 ? (uint32_t)strlen(name) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, MaxImplicitKeyLength) : len;
 				m_out += "\"";
 				append_escaped(m_out, name, l);
 				m_out += "\":";
@@ -256,9 +269,9 @@ namespace gaia {
 
 				char buff[64];
 				if constexpr (std::is_signed_v<TInt>) {
-					(void)snprintf(buff, sizeof(buff), "%lld", (long long)v);
+					(void)GAIA_STRFMT(buff, sizeof(buff), "%lld", (long long)v);
 				} else {
-					(void)snprintf(buff, sizeof(buff), "%llu", (unsigned long long)v);
+					(void)GAIA_STRFMT(buff, sizeof(buff), "%llu", (unsigned long long)v);
 				}
 				m_out += buff;
 			}
@@ -266,21 +279,21 @@ namespace gaia {
 			void value_float(float v) {
 				before_value();
 				char buff[64];
-				(void)snprintf(buff, sizeof(buff), "%.9g", (double)v);
+				(void)GAIA_STRFMT(buff, sizeof(buff), "%.9g", (double)v);
 				m_out += buff;
 			}
 
 			void value_float(double v) {
 				before_value();
 				char buff[64];
-				(void)snprintf(buff, sizeof(buff), "%.17g", v);
+				(void)GAIA_STRFMT(buff, sizeof(buff), "%.17g", v);
 				m_out += buff;
 			}
 
 			void value_string(const char* str, uint32_t len = 0) {
 				GAIA_ASSERT(str != nullptr);
 				before_value();
-				const auto l = len == 0 ? (uint32_t)strlen(str) : len;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(str, MaxImplicitStringLength) : len;
 				m_out += "\"";
 				append_escaped(m_out, str, l);
 				m_out += "\"";
@@ -303,7 +316,9 @@ namespace gaia {
 				if (m_it == nullptr || m_end == nullptr || lit == nullptr)
 					return false;
 
-				const auto litLen = (uint32_t)strlen(lit);
+				const auto litLen = (uint32_t)GAIA_STRLEN(lit, MaxLiteralLength);
+				if (litLen >= MaxLiteralLength)
+					return false;
 				if ((uint32_t)(m_end - m_it) < litLen)
 					return false;
 				if (memcmp(m_it, lit, litLen) != 0)
@@ -406,7 +421,9 @@ namespace gaia {
 				std::string_view view;
 				if (!parse_string_view(view))
 					return false;
-				const auto literalLen = (size_t)strlen(literal);
+				const auto literalLen = (size_t)GAIA_STRLEN(literal, MaxLiteralLength);
+				if (literalLen >= MaxLiteralLength)
+					return false;
 				return view.size() == literalLen && memcmp(view.data(), literal, literalLen) == 0;
 			}
 

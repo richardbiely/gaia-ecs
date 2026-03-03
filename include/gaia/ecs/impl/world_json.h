@@ -352,8 +352,14 @@ namespace gaia {
 			diagnostics.clear();
 			if (json == nullptr)
 				return false;
+			if (len == 0) {
+				diagnostics.add(
+						ser::JsonDiagSeverity::Error, ser::JsonDiagReason::InvalidJson, "$",
+						"Input JSON length must be provided and non-zero.");
+				return false;
+			}
 
-			const auto dataLen = len == 0 ? (uint32_t)strlen(json) : len;
+			const auto dataLen = len;
 			const auto* p = json;
 			const auto* end = json + dataLen;
 			auto warn = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
