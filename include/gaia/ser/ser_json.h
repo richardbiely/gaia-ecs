@@ -18,10 +18,10 @@
 namespace gaia {
 	namespace ser {
 		enum JsonSaveFlags : uint32_t {
-			JsonSave_None = 0,
-			JsonSave_IncludeBinarySnapshot = 1u << 0,
-			JsonSave_AllowRawFallback = 1u << 1,
-			JsonSave_Default = JsonSave_IncludeBinarySnapshot | JsonSave_AllowRawFallback
+			None = 0,
+			BinarySnapshot = 1u << 0, // Include binary snapshot
+			RawFallback = 1u << 1, // Allow raw data fallback
+			Default = BinarySnapshot | RawFallback
 		};
 
 		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
@@ -39,6 +39,8 @@ namespace gaia {
 			DuplicateEntityName,
 			MissingComponentStorage,
 			MissingArchetypesSection,
+			MissingFormatField,
+			UnsupportedFormatVersion,
 			InvalidJson
 		};
 

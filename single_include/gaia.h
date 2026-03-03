@@ -18911,10 +18911,10 @@ namespace gaia {
 namespace gaia {
 	namespace ser {
 		enum JsonSaveFlags : uint32_t {
-			JsonSave_None = 0,
-			JsonSave_IncludeBinarySnapshot = 1u << 0,
-			JsonSave_AllowRawFallback = 1u << 1,
-			JsonSave_Default = JsonSave_IncludeBinarySnapshot | JsonSave_AllowRawFallback
+			None = 0,
+			BinarySnapshot = 1u << 0, // Include binary snapshot
+			RawFallback = 1u << 1, // Allow raw data fallback
+			Default = BinarySnapshot | RawFallback
 		};
 
 		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
@@ -18932,6 +18932,8 @@ namespace gaia {
 			DuplicateEntityName,
 			MissingComponentStorage,
 			MissingArchetypesSection,
+			MissingFormatField,
+			UnsupportedFormatVersion,
 			InvalidJson
 		};
 
@@ -37050,6 +37052,7 @@ namespace gaia {
 
 		private:
 			static constexpr uint32_t WorldSerializerVersion = 1;
+			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 
 			void save_to(ser::serializer s) const {
 				GAIA_ASSERT(s.valid());
@@ -37178,10 +37181,10 @@ namespace gaia {
 			//! Components with runtime schema are emitted as structured JSON objects.
 			//! Components with no schema fallback to raw serialized bytes.
 			//! Returns false when some schema field types are unsupported (those fields are emitted as null).
-			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Convenience overload returning JSON as a string.
-			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Loads world state from JSON previously emitted by save_json().
 			//! Returns true when JSON shape is valid and parsing succeeds.
@@ -40590,8 +40593,8 @@ namespace gaia {
 			};
 
 			bool ok = true;
-			const bool includeBinarySnapshot = (flags & ser::JsonSave_IncludeBinarySnapshot) != 0;
-			const bool allowRawFallback = (flags & ser::JsonSave_AllowRawFallback) != 0;
+			const bool includeBinarySnapshot = (flags & ser::JsonSaveFlags::BinarySnapshot) != 0;
+			const bool allowRawFallback = (flags & ser::JsonSaveFlags::RawFallback) != 0;
 			ser::bin_stream binarySnapshot;
 			if (includeBinarySnapshot) {
 				auto s = ser::make_serializer(binarySnapshot);
@@ -40602,7 +40605,7 @@ namespace gaia {
 			writer.clear();
 			writer.begin_object();
 			writer.key("format");
-			writer.value_string("gaia.world.json.v1");
+			writer.value_int(WorldSerializerJSONVersion);
 			writer.key("worldVersion");
 			writer.value_int(m_worldVersion);
 			if (includeBinarySnapshot) {
@@ -40740,6 +40743,68 @@ namespace gaia {
 			auto error = [&](ser::JsonDiagReason reason, std::string_view path, const char* message) {
 				diagnostics.add(ser::JsonDiagSeverity::Error, reason, std::string(path), message);
 			};
+
+			// Validate top-level format version first.
+			{
+				ser::ser_json header(json, dataLen);
+				if (!header.expect('{')) {
+					error(ser::JsonDiagReason::InvalidJson, "$", "Root JSON value must be an object.");
+					return false;
+				}
+
+				bool hasFormat = false;
+				uint32_t formatValue = 0;
+
+				header.ws();
+				if (!header.consume('}')) {
+					while (true) {
+						std::string_view key;
+						if (!header.parse_string_view(key))
+							return false;
+						if (!header.expect(':'))
+							return false;
+
+						if (key == "format") {
+							double d = 0.0;
+							if (!header.parse_number(d))
+								return false;
+							if (d < 0.0 || d > 4294967295.0)
+								return false;
+							const auto v = (uint32_t)d;
+							if ((double)v != d)
+								return false;
+							formatValue = v;
+							hasFormat = true;
+						} else {
+							if (!header.skip_value())
+								return false;
+						}
+
+						header.ws();
+						if (header.consume(','))
+							continue;
+						if (header.consume('}'))
+							break;
+						return false;
+					}
+				}
+
+				header.ws();
+				if (!header.eof())
+					return false;
+
+				if (!hasFormat) {
+					error(ser::JsonDiagReason::MissingFormatField, "$.format", "Missing required 'format' field.");
+					return false;
+				}
+
+				if (formatValue != WorldSerializerJSONVersion) {
+					error(
+							ser::JsonDiagReason::UnsupportedFormatVersion, "$.format",
+							"Unsupported format version. Expected numeric value 1.");
+					return false;
+				}
+			}
 
 			// Prefer fast-path: binary snapshot payload.
 			{

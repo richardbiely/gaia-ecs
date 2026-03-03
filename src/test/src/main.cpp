@@ -11580,7 +11580,7 @@ TEST_CASE("Serialization - world json") {
 	CHECK(ok);
 
 	const auto& json = writer.str();
-	CHECK(json.find("\"format\":\"gaia.world.json.v1\"") != std::string::npos);
+	CHECK(json.find("\"format\":1") != std::string::npos);
 	CHECK(json.find("\"name\":\"Player\"") != std::string::npos);
 	CHECK(json.find("\"Position\":{\"x\":1,\"y\":2,\"z\":3}") != std::string::npos);
 	CHECK(json.find("\"PositionSoA\":{\"$raw\":[") != std::string::npos);
@@ -11588,7 +11588,7 @@ TEST_CASE("Serialization - world json") {
 	bool okStr = false;
 	const auto jsonStr = wld.save_json(okStr);
 	CHECK(okStr);
-	CHECK(jsonStr.find("\"format\":\"gaia.world.json.v1\"") != std::string::npos);
+	CHECK(jsonStr.find("\"format\":1") != std::string::npos);
 	CHECK(jsonStr.find("\"binary\":[") != std::string::npos);
 
 	TestWorld twldOut;
@@ -11609,10 +11609,10 @@ TEST_CASE("Serialization - world json") {
 	CHECK(posSoaLoaded.y == 20.0f);
 	CHECK(posSoaLoaded.z == 30.0f);
 
-	CHECK_FALSE(twldOut.m_w.load_json("{\"format\":\"gaia.world.json.v1\"}"));
+	CHECK_FALSE(twldOut.m_w.load_json("{\"format\":1}"));
 
 	ser::ser_json noBinaryWriter;
-	const bool okNoBinary = wld.save_json(noBinaryWriter, ser::JsonSaveFlags::JsonSave_AllowRawFallback);
+	const bool okNoBinary = wld.save_json(noBinaryWriter, ser::JsonSaveFlags::RawFallback);
 	CHECK(okNoBinary);
 	CHECK(noBinaryWriter.str().find("\"binary\":[") == std::string::npos);
 	TestWorld twldNoBinary;
@@ -11621,12 +11621,11 @@ TEST_CASE("Serialization - world json") {
 	CHECK_FALSE(twldNoBinary.m_w.load_json(noBinaryWriter.str()));
 
 	ser::ser_json strictWriter;
-	const bool okStrict =
-			wld.save_json(strictWriter, ser::JsonSaveFlags::JsonSave_IncludeBinarySnapshot /*no raw fallback on purpose*/);
+	const bool okStrict = wld.save_json(strictWriter, ser::JsonSaveFlags::BinarySnapshot /*no raw fallback on purpose*/);
 	CHECK_FALSE(okStrict);
 	CHECK(strictWriter.str().find("\"PositionSoA\":null") != std::string::npos);
 	ser::ser_json strictNoBinaryWriter;
-	const bool okStrictNoBinary = wld.save_json(strictNoBinaryWriter, ser::JsonSaveFlags::JsonSave_None);
+	const bool okStrictNoBinary = wld.save_json(strictNoBinaryWriter, ser::JsonSaveFlags::None);
 	CHECK_FALSE(okStrictNoBinary);
 	TestWorld twldStrictNoBinary;
 	(void)twldStrictNoBinary.m_w.add<Position>();
@@ -11649,7 +11648,7 @@ TEST_CASE("Serialization - world json") {
 	CHECK(hasSoaRawWarning);
 
 	ser::JsonDiagnostics missingArchetypesDiagnostics;
-	CHECK_FALSE(twldNoBinaryDiag.m_w.load_json("{\"format\":\"gaia.world.json.v1\"}", missingArchetypesDiagnostics));
+	CHECK_FALSE(twldNoBinaryDiag.m_w.load_json("{\"format\":1}", missingArchetypesDiagnostics));
 	CHECK(missingArchetypesDiagnostics.hasErrors);
 	bool hasMissingArchetypesError = false;
 	for (const auto& diag: missingArchetypesDiagnostics.items) {
@@ -11659,6 +11658,30 @@ TEST_CASE("Serialization - world json") {
 		}
 	}
 	CHECK(hasMissingArchetypesError);
+
+	ser::JsonDiagnostics missingFormatDiagnostics;
+	CHECK_FALSE(twldNoBinaryDiag.m_w.load_json("{\"archetypes\":[]}", missingFormatDiagnostics));
+	CHECK(missingFormatDiagnostics.hasErrors);
+	bool hasMissingFormatError = false;
+	for (const auto& diag: missingFormatDiagnostics.items) {
+		if (diag.reason == ser::JsonDiagReason::MissingFormatField) {
+			hasMissingFormatError = true;
+			break;
+		}
+	}
+	CHECK(hasMissingFormatError);
+
+	ser::JsonDiagnostics unsupportedFormatDiagnostics;
+	CHECK_FALSE(twldNoBinaryDiag.m_w.load_json("{\"format\":2,\"archetypes\":[]}", unsupportedFormatDiagnostics));
+	CHECK(unsupportedFormatDiagnostics.hasErrors);
+	bool hasUnsupportedFormatError = false;
+	for (const auto& diag: unsupportedFormatDiagnostics.items) {
+		if (diag.reason == ser::JsonDiagReason::UnsupportedFormatVersion) {
+			hasUnsupportedFormatError = true;
+			break;
+		}
+	}
+	CHECK(hasUnsupportedFormatError);
 }
 
 TEST_CASE("Serialization - world json schema nested arrays") {
@@ -11764,7 +11787,7 @@ TEST_CASE("Serialization - world json schema nested arrays") {
 	CHECK(std::string(loadedComp.label) == "crate");
 
 	ser::ser_json noBinaryWriter;
-	CHECK(wld.save_json(noBinaryWriter, ser::JsonSaveFlags::JsonSave_AllowRawFallback));
+	CHECK(wld.save_json(noBinaryWriter, ser::JsonSaveFlags::RawFallback));
 	CHECK(noBinaryWriter.str().find("\"binary\":[") == std::string::npos);
 
 	TestWorld twldOutNoBinary;

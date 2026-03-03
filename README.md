@@ -2215,8 +2215,8 @@ const std::string json = world.save_json(ok);
 `save_json` emits structured JSON for components with runtime schema fields.
 Components without schema fallback to a raw byte array payload (`"$raw"`).
 Behavior can be adjusted with flags:
-- `ser::JsonSave_IncludeBinarySnapshot`
-- `ser::JsonSave_AllowRawFallback`
+- `ser::BinarySnapshot`
+- `ser::RawFallback`
 
 JSON produced by `save_json` can be loaded back via `load_json`:
 
@@ -2235,7 +2235,8 @@ const bool parsed = worldOut.load_json(json, diagnostics);
 
 `parsed` reports JSON shape/parse success. Semantic warnings/errors are carried in `diagnostics`.
 
-`load_json` first consumes the embedded `"binary"` snapshot payload when present. If `"binary"` is omitted, it falls back to semantic JSON loading from `"archetypes"` / `"entities"` / `"components"` data.  
+`load_json` first consumes the embedded `"binary"` snapshot payload when present. If `"binary"` is omitted, it falls back to semantic JSON loading from `"archetypes"` / `"entities"` / `"components"` data.
+
 Semantic loading is best-effort: components must already be registered, unknown/unsupported fields are skipped, and the function returns `false` when unsupported content is encountered (for example tag-only components or SoA raw payloads).
 
 Note that for this feature to work correctly, components must be registered in a fixed order. If you called `World::save` and registered Position, Rotation, and Foo in that order, the same order must be used when calling `World::load`.

@@ -2944,6 +2944,7 @@ namespace gaia {
 
 		private:
 			static constexpr uint32_t WorldSerializerVersion = 1;
+			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 
 			void save_to(ser::serializer s) const {
 				GAIA_ASSERT(s.valid());
@@ -3072,10 +3073,10 @@ namespace gaia {
 			//! Components with runtime schema are emitted as structured JSON objects.
 			//! Components with no schema fallback to raw serialized bytes.
 			//! Returns false when some schema field types are unsupported (those fields are emitted as null).
-			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Convenience overload returning JSON as a string.
-			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::JsonSave_Default) const;
+			std::string save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Loads world state from JSON previously emitted by save_json().
 			//! Returns true when JSON shape is valid and parsing succeeds.
