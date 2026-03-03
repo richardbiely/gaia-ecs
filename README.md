@@ -822,22 +822,22 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-More advacne lookup settings are supported via `QueryTermOptions`. This includes things such as source selection, traversal by relation (`ChildOf` by default), or component access type (read or write).
+More advanced lookup settings are supported via `QueryTermOptions`. This includes things such as source selection, traversal by relation (`ChildOf` by default), or component access type (read or write).
 
 ```cpp
 struct Position {};
 struct Level { int value; };
 
 ecs::World w;
-const auto level = w.add<Level>().entity;
-const auto game = w.add();
-const auto root = w.add();
-const auto scene = w.add();
+const ecs::Entity level = w.add<Level>().entity;
+const ecs::Entity game = w.add();
+const autoecs::Entity root = w.add();
+const autoecs::Entity scene = w.add();
 w.child(scene, root);
 
 // Create 64 entities with Position.
 for (int i = 0; i < 64; ++i) {
-  auto e = w.add();
+  ecs::Entity e = w.add();
   w.add<Position>(e);
 }
 
@@ -847,6 +847,7 @@ ecs::Query qSrc = w.query()
   .all(level, ecs::QueryTermOptions{}.src(game));
 w.add<Level>(game, {1});
 qSrc.count(); // expected: 64
+// expected matches: all 64 entities created in the loop above (all entities with Position)
 w.del<Level>(game);
 qSrc.count(); // expected: 0
 
@@ -857,6 +858,49 @@ ecs::Query qUp = w.query()
 qUp.count(); // expected: 0
 w.add<Level>(root, {2});
 qUp.count(); // expected: 64
+// expected matches: all 64 entities created in the loop above (all entities with Position)
+```
+
+Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
+
+```cpp
+struct Cable {};
+struct Device {};
+struct ConnectedTo {};
+
+ecs::World w;
+const ecs::Entity connectedTo = w.add<ConnectedTo>().entity;
+const ecs::Entity deviceA = w.add();
+const ecs::Entity deviceB = w.add();
+w.add<Device>(deviceA);
+// w.add<Device>(deviceB); deviceB is not going to be a device
+
+const ecs::Entity cableA = w.add();
+w.add<Cable>(cableA);
+w.add(cableA, {connectedTo, deviceA});
+
+const ecs::Entity cableB = w.add();
+w.add<Cable>(cableB);
+w.add(cableB, {connectedTo, deviceB});
+
+ecs::Query q = w.query()
+  .all<Cable>()
+  .any(ecs::Pair(connectedTo, ecs::Var0))
+  .all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
+q.count(); // expected 1 match, cableA
+
+ecs::Query qExpr = w.query()
+  .add("Cable, ?(ConnectedTo, $device), Device($device)");
+qExpr.count(); // expected 1 match, cableA
+
+ecs::Query qNot = w.query()
+  .all<Cable>()
+  .all(ecs::Pair(connectedTo, ecs::Var0))
+  .no<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
+qNot.count(); // expected 1 match (only cables connected to non-devices), cableB
+
+ecs::Query qThis = w.query().add("Cable, Device($this)");
+qThis.count(); // expected 1 match, cableA (`$this` is the default source, so this is the same as querying Device on the cable itself)
 ```
 
 When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
@@ -920,12 +964,14 @@ Technically, any query could be reset by default initializing it, e.g. ```myQuer
 Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
 Supported modifiers:
-* `;` - separates expressions
+* `,` - separates expressions
 * `?` - query::any
 * `!` - query::none
 * `&` - read-write access
 * `%e` - entity value
 * `(rel,tgt)` - relationship pair, a wildcard character in either rel or tgt is translated into `All`
+* `$name` - query variable (mapped to `Var0..Var7` for a query expression, `$this` is reserved)
+* `Id(src)` - source lookup, where `src` can be a variable or `$this` for the default source
 
 ```cpp
 // Some context for the example
@@ -937,12 +983,13 @@ ecs::Entity player = w.add();
 
 // Create the query from a string expression.
 ecs::Query q = w.query()
-  .add("&Position; !Velocity; ?RigidBody; (Fuel,*); %e", player.value());
+  .add("&Position, !Velocity, ?RigidBody, (Fuel,*), %e", player.value());
+// expected matches: player (if player satisfies Position + no Velocity + any RigidBody + any Fuel pair)
 
 // It does not matter how we split the expressions. This query is the same as the above.
 ecs::Query q1 = w.query()
-  .add("&Position; !Velocity;")
-  .add("?RigidBody; (Fuel,*)")
+  .add("&Position, !Velocity")
+  .add("?RigidBody, (Fuel,*)")
   .add("%e", player.value());
 
 // The queries above can be rewritten as following:

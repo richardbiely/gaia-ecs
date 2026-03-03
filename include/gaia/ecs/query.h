@@ -1567,16 +1567,18 @@ namespace gaia {
 
 				//! Creates a query from a null-terminated expression string.
 				//!
-				//! Expresion is a string between two semicolons.
+				//! Expression is a string between separators.
 				//! Spaces are trimmed automatically.
 				//!
 				//! Supported modifiers:
-				//!   ";" - separates expressions
+				//!   "," - separates expressions
 				//!   "?" - query::any
 				//!   "!" - query::none
 				//!   "&" - read-write access
 				//!   "%e" - entity value
 				//!   "(rel,tgt)" - relationship pair, a wildcard character in either rel or tgt is translated into All
+				//!   "$name" - query variable (`$this` is reserved)
+				//!   "Id(src)" - source lookup (src can be a variable, e.g. Planet($planet), or $this for default source)
 				//!
 				//! Example:
 				//!   struct Position {...};
@@ -1584,7 +1586,7 @@ namespace gaia {
 				//!   struct RigidBody {...};
 				//!   struct Fuel {...};
 				//!   auto player = w.add();
-				//!   w.query().add("&Position; !Velocity; ?RigidBody; (Fuel,*); %e", player.value());
+				//!   w.query().add("&Position, !Velocity, ?RigidBody, (Fuel,*), %e", player.value());
 				//! Translates into:
 				//!   w.query()
 				//!      .all<Position&>()
@@ -1604,6 +1606,148 @@ namespace gaia {
 
 					uint32_t pos = 0;
 					uint32_t exp0 = 0;
+					uint32_t parentDepth = 0;
+
+					cnt::sarray<std::span<const char>, 8> varNames{};
+					uint32_t varNamesCnt = 0;
+					auto is_this_expr = [](std::span<const char> exprRaw) {
+						auto expr = util::trim(exprRaw);
+						return expr.size() == 5 && expr[0] == '$' && expr[1] == 't' && expr[2] == 'h' && expr[3] == 'i' &&
+									 expr[4] == 's';
+					};
+					auto is_this_var_name = [](std::span<const char> varExprRaw) {
+						auto varExpr = util::trim(varExprRaw);
+						return varExpr.size() == 4 && varExpr[0] == 't' && varExpr[1] == 'h' && varExpr[2] == 'i' &&
+									 varExpr[3] == 's';
+					};
+
+					auto span_equals = [](std::span<const char> left, std::span<const char> right) {
+						if (left.size() != right.size())
+							return false;
+
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i] != right[i])
+								return false;
+						}
+
+						return true;
+					};
+
+					auto find_or_alloc_var = [&](std::span<const char> varExpr) -> Entity {
+						auto varName = util::trim(varExpr);
+						if (varName.empty())
+							return EntityBad;
+						if (is_this_var_name(varName)) {
+							GAIA_ASSERT2(false, "$this is reserved and can only be used as a source expression: Id($this)");
+							return EntityBad;
+						}
+
+						GAIA_FOR(varNamesCnt) {
+							if (!span_equals(varNames[i], varName))
+								continue;
+							return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + i));
+						}
+
+						if (varNamesCnt >= varNames.size()) {
+							GAIA_ASSERT2(false, "Too many query variables in expression");
+							return EntityBad;
+						}
+
+						varNames[varNamesCnt] = varName;
+						return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + varNamesCnt++));
+					};
+
+					auto parse_entity_expr = [&](auto&& self, std::span<const char> exprRaw) -> Entity {
+						auto expr = util::trim(exprRaw);
+						if (expr.empty())
+							return EntityBad;
+
+						if (expr[0] == '$')
+							return find_or_alloc_var(expr.subspan(1));
+
+						if (expr[0] == '(') {
+							if (expr.back() != ')') {
+								GAIA_ASSERT2(false, "Expression '(' not terminated");
+								return EntityBad;
+							}
+
+							const auto idStr = expr.subspan(1, expr.size() - 2);
+							const auto commaIdx = core::get_index(idStr, ',');
+							if (commaIdx == BadIndex) {
+								GAIA_ASSERT2(false, "Pair expression does not contain ','");
+								return EntityBad;
+							}
+
+							const auto first = self(self, idStr.subspan(0, commaIdx));
+							if (first == EntityBad)
+								return EntityBad;
+							const auto second = self(self, idStr.subspan(commaIdx + 1));
+							if (second == EntityBad)
+								return EntityBad;
+
+							return ecs::Pair(first, second);
+						}
+
+						return expr_to_entity((const World&)*m_storage.world(), args, expr);
+					};
+
+					auto parse_source_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
+						auto srcExpr = util::trim(srcExprRaw);
+						if (srcExpr.empty())
+							return false;
+
+						// `$this` explicitly means the default source for the term.
+						if (is_this_expr(srcExpr)) {
+							srcOut = EntityBad;
+							return true;
+						}
+
+						srcOut = parse_entity_expr(parse_entity_expr, srcExpr);
+						return srcOut != EntityBad;
+					};
+
+					auto parse_term_expr = [&](std::span<const char> exprRaw, Entity& id, QueryTermOptions& options) -> bool {
+						auto expr = util::trim(exprRaw);
+						if (expr.empty())
+							return false;
+
+						if (expr.back() == ')') {
+							int32_t depth = 0;
+							int32_t openIdx = -1;
+							for (int32_t i = (int32_t)expr.size() - 1; i >= 0; --i) {
+								if (expr[(uint32_t)i] == ')')
+									++depth;
+								else if (expr[(uint32_t)i] == '(') {
+									--depth;
+									if (depth == 0) {
+										openIdx = i;
+										break;
+									}
+								}
+							}
+
+							// `Id(src)` form. Keep `(Rel,Tgt)` intact by requiring a non-empty prefix.
+							if (openIdx > 0) {
+								auto idExpr = util::trim(expr.subspan(0, (uint32_t)openIdx));
+								auto srcExpr = util::trim(expr.subspan((uint32_t)openIdx + 1, expr.size() - (uint32_t)openIdx - 2));
+								if (!idExpr.empty() && !srcExpr.empty()) {
+									id = parse_entity_expr(parse_entity_expr, idExpr);
+									if (id == EntityBad)
+										return false;
+
+									Entity src = EntityBad;
+									if (!parse_source_expr(srcExpr, src))
+										return false;
+
+									options.src(src);
+									return true;
+								}
+							}
+						}
+
+						id = parse_entity_expr(parse_entity_expr, expr);
+						return id != EntityBad;
+					};
 
 					auto process = [&]() {
 						std::span<const char> exprRaw(&str[exp0], pos - exp0);
@@ -1613,40 +1757,57 @@ namespace gaia {
 						if (expr.empty())
 							return true;
 
-						if (expr[0] == '+') {
-							const bool isReadWrite = expr.size() > 1 && expr[1] == '&';
-							const uint32_t off = isReadWrite ? 2 : 1;
-
-							auto var = expr.subspan(off);
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
-							if (entity == EntityBad)
-								return false;
-
-							auto options = QueryTermOptions{};
-							if (isReadWrite)
-								options.write();
-							any(entity, options);
+						QueryOpKind op = QueryOpKind::All;
+						if (expr[0] == '?') {
+							op = QueryOpKind::Any;
+							expr = util::trim(expr.subspan(1));
 						} else if (expr[0] == '!') {
-							auto var = expr.subspan(1);
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
-							if (entity == EntityBad)
-								return false;
+							op = QueryOpKind::Not;
+							expr = util::trim(expr.subspan(1));
+						}
 
-							no(entity);
-						} else {
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, expr);
-							if (entity == EntityBad)
-								return false;
+						bool isReadWrite = false;
+						if (!expr.empty() && expr[0] == '&') {
+							isReadWrite = true;
+							expr = util::trim(expr.subspan(1));
+						}
 
-							all(entity);
+						QueryTermOptions options{};
+						if (isReadWrite)
+							options.write();
+
+						Entity entity = EntityBad;
+						if (!parse_term_expr(expr, entity, options))
+							return false;
+
+						switch (op) {
+							case QueryOpKind::All:
+								all(entity, options);
+								break;
+							case QueryOpKind::Any:
+								any(entity, options);
+								break;
+							case QueryOpKind::Not:
+								no(entity, options);
+								break;
+							default:
+								GAIA_ASSERT(false);
+								return false;
 						}
 
 						return true;
 					};
 
 					for (; str[pos] != 0; ++pos) {
-						if (str[pos] == ';' && !process())
-							goto add_end;
+						if (str[pos] == '(')
+							++parentDepth;
+						else if (str[pos] == ')') {
+							GAIA_ASSERT(parentDepth > 0);
+							--parentDepth;
+						} else if (str[pos] == ',' && parentDepth == 0) {
+							if (!process())
+								goto add_end;
+						}
 					}
 					process();
 

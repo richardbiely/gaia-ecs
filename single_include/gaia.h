@@ -29581,6 +29581,16 @@ namespace gaia {
 			}
 		};
 
+		GAIA_NODISCARD inline bool term_has_variables(const QueryTerm& term) {
+			if (is_variable(term.src))
+				return true;
+
+			if (term.id.pair())
+				return is_variable(EntityId(term.id.id())) || is_variable(EntityId(term.id.gen()));
+
+			return is_variable(EntityId(term.id.id()));
+		}
+
 		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
@@ -29621,6 +29631,8 @@ namespace gaia {
 				Recompile = 0x08,
 				// Query contains source-based lookup terms
 				HasSourceTerms = 0x10,
+				// Query contains variable-based lookup terms
+				HasVariableTerms = 0x20,
 			};
 
 			struct Data {
@@ -29694,6 +29706,7 @@ namespace gaia {
 				const auto mask1_old = data.as_mask_1;
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
+				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 
 				// Update masks
 				{
@@ -29701,6 +29714,7 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 					bool isComplex = false;
 					bool hasSourceTerms = false;
+					bool hasVariableTerms = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 
@@ -29709,6 +29723,12 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+
+						if (term_has_variables(term)) {
+							hasVariableTerms = true;
+							isComplex = true;
+							continue;
+						}
 
 						// Source terms are evaluated separately by the VM.
 						// They should not affect archetype-level query masks.
@@ -29755,6 +29775,11 @@ namespace gaia {
 					else
 						data.flags &= ~QueryCtx::QueryFlags::HasSourceTerms;
 
+					if (hasVariableTerms)
+						data.flags |= QueryCtx::QueryFlags::HasVariableTerms;
+					else
+						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -29769,7 +29794,8 @@ namespace gaia {
 				// Request recompilation of the query if the mask has changed
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
-						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms))
+						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
+						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms))
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -30783,9 +30809,19 @@ namespace gaia {
 					QueryTermArray terms_any_src;
 					//! Source lookup terms for NOT
 					QueryTermArray terms_not_src;
+					//! Variable terms for ALL
+					QueryTermArray terms_all_var;
+					//! Variable terms for ANY
+					QueryTermArray terms_any_var;
+					//! Variable terms for NOT
+					QueryTermArray terms_not_var;
 
 					GAIA_NODISCARD bool has_source_terms() const {
 						return !terms_all_src.empty() || !terms_any_src.empty() || !terms_not_src.empty();
+					}
+
+					GAIA_NODISCARD bool has_variable_terms() const {
+						return !terms_all_var.empty() || !terms_any_var.empty() || !terms_not_var.empty();
 					}
 				};
 
@@ -31195,6 +31231,145 @@ namespace gaia {
 					}
 
 					return false;
+				}
+
+				struct VarBindings {
+					static constexpr uint32_t VarCnt = 8;
+					cnt::sarray<Entity, VarCnt> values{};
+					uint8_t mask = 0;
+				};
+
+				GAIA_NODISCARD inline bool is_var_entity(Entity entity) {
+					return is_variable(EntityId(entity.id()));
+				}
+
+				GAIA_NODISCARD inline uint32_t var_index(Entity varEntity) {
+					GAIA_ASSERT(is_var_entity(varEntity));
+					return (uint32_t)(varEntity.id() - Var0.id());
+				}
+
+				GAIA_NODISCARD inline bool var_is_bound(const VarBindings& vars, Entity varEntity) {
+					const auto idx = var_index(varEntity);
+					return (vars.mask & (uint8_t(1) << idx)) != 0;
+				}
+
+				GAIA_NODISCARD inline bool bind_var(VarBindings& vars, Entity varEntity, Entity value) {
+					const auto idx = var_index(varEntity);
+					const auto bit = (uint8_t(1) << idx);
+					if ((vars.mask & bit) != 0)
+						return vars.values[idx].id() == value.id();
+
+					vars.values[idx] = value;
+					vars.mask |= bit;
+					return true;
+				}
+
+				GAIA_NODISCARD inline bool match_token(VarBindings& vars, Entity token, Entity value, bool pairSide) {
+					if (pairSide && token.id() == All.id())
+						return true;
+
+					if (!is_var_entity(token))
+						return token.id() == value.id();
+
+					return bind_var(vars, token, value);
+				}
+
+				inline void collect_id_matches(
+						const World& w, const Archetype& archetype, Entity queryId, const VarBindings& varsIn,
+						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
+					auto archetypeIds = archetype.ids_view();
+					const auto cnt = (uint32_t)archetypeIds.size();
+
+					if (!queryId.pair()) {
+						GAIA_FOR(cnt) {
+							const auto idInArchetype = archetypeIds[i];
+							if (idInArchetype.pair())
+								continue;
+
+							const auto value = entity_from_id(w, idInArchetype.id());
+							if (value == EntityBad)
+								continue;
+
+							auto vars = varsIn;
+							if (!match_token(vars, queryId, value, false))
+								continue;
+
+							outStates.emplace_back(vars);
+						}
+						return;
+					}
+
+					GAIA_FOR(cnt) {
+						const auto idInArchetype = archetypeIds[i];
+						if (!idInArchetype.pair())
+							continue;
+
+						const auto rel = entity_from_id(w, idInArchetype.id());
+						const auto tgt = entity_from_id(w, idInArchetype.gen());
+						const auto queryRel = entity_from_id(w, queryId.id());
+						const auto queryTgt = entity_from_id(w, queryId.gen());
+						if (rel == EntityBad || tgt == EntityBad)
+							continue;
+						if (queryRel == EntityBad || queryTgt == EntityBad)
+							continue;
+
+						auto vars = varsIn;
+						if (!match_token(vars, queryRel, rel, true))
+							continue;
+						if (!match_token(vars, queryTgt, tgt, true))
+							continue;
+
+						outStates.emplace_back(vars);
+					}
+				}
+
+				inline void collect_term_matches(
+						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& varsIn,
+						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
+					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
+						if (!valid(w, sourceEntity))
+							return;
+
+						constexpr uint32_t MaxTraversalDepth = 2048;
+						Entity source = sourceEntity;
+						GAIA_FOR(MaxTraversalDepth) {
+							auto* pSrcArchetype = archetype_from_entity(w, source);
+							if (pSrcArchetype != nullptr)
+								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
+
+							if (term.entTrav == EntityBad)
+								break;
+
+							const auto next = target(w, source, term.entTrav);
+							if (next == EntityBad || next == source)
+								break;
+
+							source = next;
+						}
+					};
+
+					if (term.src == EntityBad) {
+						collect_id_matches(w, candidateArchetype, term.id, varsIn, outStates);
+						return;
+					}
+
+					if (is_var_entity(term.src)) {
+						if (!var_is_bound(varsIn, term.src))
+							return;
+
+						const auto source = varsIn.values[var_index(term.src)];
+						collect_on_source(source, varsIn);
+						return;
+					}
+
+					collect_on_source(term.src, varsIn);
+				}
+
+				GAIA_NODISCARD inline bool
+				term_has_match(const World& w, const Archetype& archetype, const QueryTerm& term, const VarBindings& varsIn) {
+					cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+					collect_term_matches(w, archetype, term, varsIn, states);
+					return !states.empty();
 				}
 
 				template <typename OpKind, MatchingStyle Style>
@@ -31722,7 +31897,10 @@ namespace gaia {
 						break;
 					}
 
-					if (!m_compCtx.terms_any_src.empty() && !anySourceMatched && m_compCtx.ids_any.empty())
+					if (!m_compCtx.terms_any_src.empty() && //
+							!anySourceMatched && //
+							m_compCtx.ids_any.empty() && //
+							m_compCtx.terms_any_var.empty())
 						return false;
 
 					if (anySourceMatched) {
@@ -31732,6 +31910,127 @@ namespace gaia {
 					}
 
 					return true;
+				}
+
+				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
+						const MatchingCtx& ctx, const Archetype& archetype, bool anyAlreadySatisfied) const {
+					using namespace detail;
+
+					auto finalize = [&](const VarBindings& vars, bool anyMatched) -> bool {
+						// NOT variable terms must not match.
+						for (const auto& term: m_compCtx.terms_not_var) {
+							if (term_has_match(*ctx.pWorld, archetype, term, vars))
+								return false;
+						}
+
+						bool anySatisfied = anyAlreadySatisfied || anyMatched;
+						if (!anySatisfied && !m_compCtx.terms_any_var.empty()) {
+							for (const auto& term: m_compCtx.terms_any_var) {
+								if (!term_has_match(*ctx.pWorld, archetype, term, vars))
+									continue;
+								anySatisfied = true;
+								break;
+							}
+						}
+
+						if (!anySatisfied && !m_compCtx.terms_any_var.empty())
+							return false;
+
+						return true;
+					};
+
+					auto solve = [&](auto&& self, uint16_t pendingAllMask, uint16_t pendingAnyMask, const VarBindings& vars,
+													 bool anyMatched) -> bool {
+						if (pendingAllMask == 0)
+							return finalize(vars, anyMatched);
+
+						// Try to resolve one ready ALL term.
+						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						GAIA_FOR(allCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingAllMask & bit) == 0)
+								continue;
+
+							const auto& term = m_compCtx.terms_all_var[i];
+							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+								continue;
+
+							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							if (states.empty())
+								return false;
+
+							const auto nextAllMask = (uint16_t)(pendingAllMask & ~bit);
+							for (const auto& state: states) {
+								if (self(self, nextAllMask, pendingAnyMask, state, anyMatched))
+									return true;
+							}
+
+							return false;
+						}
+
+						// No ALL term was ready. Use ANY terms to discover missing bindings.
+						const auto anyCnt = (uint32_t)m_compCtx.terms_any_var.size();
+						GAIA_FOR(anyCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingAnyMask & bit) == 0)
+								continue;
+
+							const auto& term = m_compCtx.terms_any_var[i];
+							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+								continue;
+
+							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							if (states.empty())
+								continue;
+
+							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
+							for (const auto& state: states) {
+								if (self(self, pendingAllMask, nextAnyMask, state, true))
+									return true;
+							}
+						}
+
+						return false;
+					};
+
+					const auto pendingAllMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_all_var.size()) - 1u);
+					const auto pendingAnyMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_any_var.size()) - 1u);
+					VarBindings vars{};
+					return solve(solve, pendingAllMask, pendingAnyMask, vars, false);
+				}
+
+				void filter_variable_terms(MatchingCtx& ctx, bool fallbackToAllArchetypes) const {
+					if (!m_compCtx.has_variable_terms())
+						return;
+
+					const bool anyAlreadySatisfied = !m_compCtx.ids_any.empty() || !m_compCtx.terms_any_src.empty();
+
+					cnt::darr<const Archetype*> filtered;
+
+					if (!ctx.pMatchesArr->empty()) {
+						filtered.reserve(ctx.pMatchesArr->size());
+						for (const auto* pArchetype: *ctx.pMatchesArr) {
+							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, anyAlreadySatisfied))
+								continue;
+							filtered.push_back(pArchetype);
+						}
+					} else if (fallbackToAllArchetypes) {
+						filtered.reserve((uint32_t)ctx.allArchetypes.size());
+						for (const auto* pArchetype: ctx.allArchetypes) {
+							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, anyAlreadySatisfied))
+								continue;
+							filtered.push_back(pArchetype);
+						}
+					}
+
+					ctx.pMatchesArr->clear();
+					ctx.pMatchesSet->clear();
+					for (const auto* pArchetype: filtered) {
+						ctx.pMatchesArr->push_back(pArchetype);
+						ctx.pMatchesSet->emplace(pArchetype);
+					}
 				}
 
 				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
@@ -31757,6 +32056,9 @@ namespace gaia {
 					m_compCtx.terms_all_src.clear();
 					m_compCtx.terms_any_src.clear();
 					m_compCtx.terms_not_src.clear();
+					m_compCtx.terms_all_var.clear();
+					m_compCtx.terms_any_var.clear();
+					m_compCtx.terms_not_var.clear();
 					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
@@ -31773,6 +32075,11 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
+							if (term_has_variables(p)) {
+								m_compCtx.terms_all_var.push_back(p);
+								continue;
+							}
+
 							if (p.src == EntityBad) {
 								m_compCtx.ids_all.push_back(p.id);
 								continue;
@@ -31788,6 +32095,11 @@ namespace gaia {
 						const auto cnt = terms_any.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_any[i];
+							if (term_has_variables(p)) {
+								m_compCtx.terms_any_var.push_back(p);
+								continue;
+							}
+
 							if (p.src == EntityBad)
 								m_compCtx.ids_any.push_back(p.id);
 							else
@@ -31802,6 +32114,11 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
+							if (term_has_variables(p)) {
+								m_compCtx.terms_not_var.push_back(p);
+								continue;
+							}
+
 							if (p.src == EntityBad)
 								m_compCtx.ids_not.push_back(p.id);
 							else
@@ -31855,7 +32172,7 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool is_compiled() const {
-					return !m_compCtx.ops.empty() || m_compCtx.has_source_terms();
+					return !m_compCtx.ops.empty() || m_compCtx.has_source_terms() || m_compCtx.has_variable_terms();
 				}
 
 				//! Executes compiled opcodes
@@ -31869,6 +32186,8 @@ namespace gaia {
 					if (m_compCtx.ops.empty()) {
 						if (ctx.pMatchesArr->empty())
 							detail::add_all_archetypes(ctx);
+
+						filter_variable_terms(ctx, true);
 						return;
 					}
 
@@ -31880,6 +32199,8 @@ namespace gaia {
 						const bool ret = OpcodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx);
 						ctx.pc = ret ? stackItem.pc_ok : stackItem.pc_fail;
 					} while (ctx.pc < m_compCtx.ops.size()); // (uint32_t)-1 falls in this category as well
+
+					filter_variable_terms(ctx, false);
 				}
 			};
 
@@ -32154,9 +32475,10 @@ namespace gaia {
 					return;
 
 				const bool hasSourceTerms = (ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U;
-				if (hasSourceTerms) {
+				const bool hasVariableTerms = (ctxData.flags & QueryCtx::QueryFlags::HasVariableTerms) != 0U;
+				if (hasSourceTerms || hasVariableTerms) {
 					// Source lookups can change query results without creating new archetypes.
-					// Rebuild the cache from scratch on each match call.
+					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
 					m_archetypeSet.clear();
 					m_archetypeCache.clear();
 					m_archetypeCacheData.clear();
@@ -32170,7 +32492,7 @@ namespace gaia {
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (!hasSourceTerms && m_lastArchetypeId == archetypeLastId) {
+				if (!hasSourceTerms && !hasVariableTerms && m_lastArchetypeId == archetypeLastId) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -32227,8 +32549,9 @@ namespace gaia {
 				if (!m_vm.is_compiled())
 					return;
 
-				if ((ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U) {
+				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U) {
 					// Source lookups can invalidate previously cached archetype matches.
+					// Variable terms can invalidate them as well.
 					m_archetypeSet.clear();
 					m_archetypeCache.clear();
 					m_archetypeCacheData.clear();
@@ -34499,16 +34822,18 @@ namespace gaia {
 
 				//! Creates a query from a null-terminated expression string.
 				//!
-				//! Expresion is a string between two semicolons.
+				//! Expression is a string between separators.
 				//! Spaces are trimmed automatically.
 				//!
 				//! Supported modifiers:
-				//!   ";" - separates expressions
+				//!   "," - separates expressions
 				//!   "?" - query::any
 				//!   "!" - query::none
 				//!   "&" - read-write access
 				//!   "%e" - entity value
 				//!   "(rel,tgt)" - relationship pair, a wildcard character in either rel or tgt is translated into All
+				//!   "$name" - query variable (`$this` is reserved)
+				//!   "Id(src)" - source lookup (src can be a variable, e.g. Planet($planet), or $this for default source)
 				//!
 				//! Example:
 				//!   struct Position {...};
@@ -34516,7 +34841,7 @@ namespace gaia {
 				//!   struct RigidBody {...};
 				//!   struct Fuel {...};
 				//!   auto player = w.add();
-				//!   w.query().add("&Position; !Velocity; ?RigidBody; (Fuel,*); %e", player.value());
+				//!   w.query().add("&Position, !Velocity, ?RigidBody, (Fuel,*), %e", player.value());
 				//! Translates into:
 				//!   w.query()
 				//!      .all<Position&>()
@@ -34536,6 +34861,148 @@ namespace gaia {
 
 					uint32_t pos = 0;
 					uint32_t exp0 = 0;
+					uint32_t parentDepth = 0;
+
+					cnt::sarray<std::span<const char>, 8> varNames{};
+					uint32_t varNamesCnt = 0;
+					auto is_this_expr = [](std::span<const char> exprRaw) {
+						auto expr = util::trim(exprRaw);
+						return expr.size() == 5 && expr[0] == '$' && expr[1] == 't' && expr[2] == 'h' && expr[3] == 'i' &&
+									 expr[4] == 's';
+					};
+					auto is_this_var_name = [](std::span<const char> varExprRaw) {
+						auto varExpr = util::trim(varExprRaw);
+						return varExpr.size() == 4 && varExpr[0] == 't' && varExpr[1] == 'h' && varExpr[2] == 'i' &&
+									 varExpr[3] == 's';
+					};
+
+					auto span_equals = [](std::span<const char> left, std::span<const char> right) {
+						if (left.size() != right.size())
+							return false;
+
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i] != right[i])
+								return false;
+						}
+
+						return true;
+					};
+
+					auto find_or_alloc_var = [&](std::span<const char> varExpr) -> Entity {
+						auto varName = util::trim(varExpr);
+						if (varName.empty())
+							return EntityBad;
+						if (is_this_var_name(varName)) {
+							GAIA_ASSERT2(false, "$this is reserved and can only be used as a source expression: Id($this)");
+							return EntityBad;
+						}
+
+						GAIA_FOR(varNamesCnt) {
+							if (!span_equals(varNames[i], varName))
+								continue;
+							return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + i));
+						}
+
+						if (varNamesCnt >= varNames.size()) {
+							GAIA_ASSERT2(false, "Too many query variables in expression");
+							return EntityBad;
+						}
+
+						varNames[varNamesCnt] = varName;
+						return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + varNamesCnt++));
+					};
+
+					auto parse_entity_expr = [&](auto&& self, std::span<const char> exprRaw) -> Entity {
+						auto expr = util::trim(exprRaw);
+						if (expr.empty())
+							return EntityBad;
+
+						if (expr[0] == '$')
+							return find_or_alloc_var(expr.subspan(1));
+
+						if (expr[0] == '(') {
+							if (expr.back() != ')') {
+								GAIA_ASSERT2(false, "Expression '(' not terminated");
+								return EntityBad;
+							}
+
+							const auto idStr = expr.subspan(1, expr.size() - 2);
+							const auto commaIdx = core::get_index(idStr, ',');
+							if (commaIdx == BadIndex) {
+								GAIA_ASSERT2(false, "Pair expression does not contain ','");
+								return EntityBad;
+							}
+
+							const auto first = self(self, idStr.subspan(0, commaIdx));
+							if (first == EntityBad)
+								return EntityBad;
+							const auto second = self(self, idStr.subspan(commaIdx + 1));
+							if (second == EntityBad)
+								return EntityBad;
+
+							return ecs::Pair(first, second);
+						}
+
+						return expr_to_entity((const World&)*m_storage.world(), args, expr);
+					};
+
+					auto parse_source_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
+						auto srcExpr = util::trim(srcExprRaw);
+						if (srcExpr.empty())
+							return false;
+
+						// `$this` explicitly means the default source for the term.
+						if (is_this_expr(srcExpr)) {
+							srcOut = EntityBad;
+							return true;
+						}
+
+						srcOut = parse_entity_expr(parse_entity_expr, srcExpr);
+						return srcOut != EntityBad;
+					};
+
+					auto parse_term_expr = [&](std::span<const char> exprRaw, Entity& id, QueryTermOptions& options) -> bool {
+						auto expr = util::trim(exprRaw);
+						if (expr.empty())
+							return false;
+
+						if (expr.back() == ')') {
+							int32_t depth = 0;
+							int32_t openIdx = -1;
+							for (int32_t i = (int32_t)expr.size() - 1; i >= 0; --i) {
+								if (expr[(uint32_t)i] == ')')
+									++depth;
+								else if (expr[(uint32_t)i] == '(') {
+									--depth;
+									if (depth == 0) {
+										openIdx = i;
+										break;
+									}
+								}
+							}
+
+							// `Id(src)` form. Keep `(Rel,Tgt)` intact by requiring a non-empty prefix.
+							if (openIdx > 0) {
+								auto idExpr = util::trim(expr.subspan(0, (uint32_t)openIdx));
+								auto srcExpr = util::trim(expr.subspan((uint32_t)openIdx + 1, expr.size() - (uint32_t)openIdx - 2));
+								if (!idExpr.empty() && !srcExpr.empty()) {
+									id = parse_entity_expr(parse_entity_expr, idExpr);
+									if (id == EntityBad)
+										return false;
+
+									Entity src = EntityBad;
+									if (!parse_source_expr(srcExpr, src))
+										return false;
+
+									options.src(src);
+									return true;
+								}
+							}
+						}
+
+						id = parse_entity_expr(parse_entity_expr, expr);
+						return id != EntityBad;
+					};
 
 					auto process = [&]() {
 						std::span<const char> exprRaw(&str[exp0], pos - exp0);
@@ -34545,40 +35012,57 @@ namespace gaia {
 						if (expr.empty())
 							return true;
 
-						if (expr[0] == '+') {
-							const bool isReadWrite = expr.size() > 1 && expr[1] == '&';
-							const uint32_t off = isReadWrite ? 2 : 1;
-
-							auto var = expr.subspan(off);
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
-							if (entity == EntityBad)
-								return false;
-
-							auto options = QueryTermOptions{};
-							if (isReadWrite)
-								options.write();
-							any(entity, options);
+						QueryOpKind op = QueryOpKind::All;
+						if (expr[0] == '?') {
+							op = QueryOpKind::Any;
+							expr = util::trim(expr.subspan(1));
 						} else if (expr[0] == '!') {
-							auto var = expr.subspan(1);
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, var);
-							if (entity == EntityBad)
-								return false;
+							op = QueryOpKind::Not;
+							expr = util::trim(expr.subspan(1));
+						}
 
-							no(entity);
-						} else {
-							auto entity = expr_to_entity((const World&)*m_storage.world(), args, expr);
-							if (entity == EntityBad)
-								return false;
+						bool isReadWrite = false;
+						if (!expr.empty() && expr[0] == '&') {
+							isReadWrite = true;
+							expr = util::trim(expr.subspan(1));
+						}
 
-							all(entity);
+						QueryTermOptions options{};
+						if (isReadWrite)
+							options.write();
+
+						Entity entity = EntityBad;
+						if (!parse_term_expr(expr, entity, options))
+							return false;
+
+						switch (op) {
+							case QueryOpKind::All:
+								all(entity, options);
+								break;
+							case QueryOpKind::Any:
+								any(entity, options);
+								break;
+							case QueryOpKind::Not:
+								no(entity, options);
+								break;
+							default:
+								GAIA_ASSERT(false);
+								return false;
 						}
 
 						return true;
 					};
 
 					for (; str[pos] != 0; ++pos) {
-						if (str[pos] == ';' && !process())
-							goto add_end;
+						if (str[pos] == '(')
+							++parentDepth;
+						else if (str[pos] == ')') {
+							GAIA_ASSERT(parentDepth > 0);
+							--parentDepth;
+						} else if (str[pos] == ',' && parentDepth == 0) {
+							if (!process())
+								goto add_end;
+						}
 					}
 					process();
 

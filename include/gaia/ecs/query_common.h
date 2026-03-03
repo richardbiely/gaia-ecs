@@ -213,6 +213,16 @@ namespace gaia {
 			}
 		};
 
+		GAIA_NODISCARD inline bool term_has_variables(const QueryTerm& term) {
+			if (is_variable(term.src))
+				return true;
+
+			if (term.id.pair())
+				return is_variable(EntityId(term.id.id())) || is_variable(EntityId(term.id.gen()));
+
+			return is_variable(EntityId(term.id.id()));
+		}
+
 		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
@@ -253,6 +263,8 @@ namespace gaia {
 				Recompile = 0x08,
 				// Query contains source-based lookup terms
 				HasSourceTerms = 0x10,
+				// Query contains variable-based lookup terms
+				HasVariableTerms = 0x20,
 			};
 
 			struct Data {
@@ -326,6 +338,7 @@ namespace gaia {
 				const auto mask1_old = data.as_mask_1;
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
+				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 
 				// Update masks
 				{
@@ -333,6 +346,7 @@ namespace gaia {
 					uint32_t as_mask_1 = 0;
 					bool isComplex = false;
 					bool hasSourceTerms = false;
+					bool hasVariableTerms = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 
@@ -341,6 +355,12 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+
+						if (term_has_variables(term)) {
+							hasVariableTerms = true;
+							isComplex = true;
+							continue;
+						}
 
 						// Source terms are evaluated separately by the VM.
 						// They should not affect archetype-level query masks.
@@ -387,6 +407,11 @@ namespace gaia {
 					else
 						data.flags &= ~QueryCtx::QueryFlags::HasSourceTerms;
 
+					if (hasVariableTerms)
+						data.flags |= QueryCtx::QueryFlags::HasVariableTerms;
+					else
+						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -401,7 +426,8 @@ namespace gaia {
 				// Request recompilation of the query if the mask has changed
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
-						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms))
+						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
+						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms))
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 

@@ -282,9 +282,10 @@ namespace gaia {
 					return;
 
 				const bool hasSourceTerms = (ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U;
-				if (hasSourceTerms) {
+				const bool hasVariableTerms = (ctxData.flags & QueryCtx::QueryFlags::HasVariableTerms) != 0U;
+				if (hasSourceTerms || hasVariableTerms) {
 					// Source lookups can change query results without creating new archetypes.
-					// Rebuild the cache from scratch on each match call.
+					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
 					m_archetypeSet.clear();
 					m_archetypeCache.clear();
 					m_archetypeCacheData.clear();
@@ -298,7 +299,7 @@ namespace gaia {
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (!hasSourceTerms && m_lastArchetypeId == archetypeLastId) {
+				if (!hasSourceTerms && !hasVariableTerms && m_lastArchetypeId == archetypeLastId) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -355,8 +356,9 @@ namespace gaia {
 				if (!m_vm.is_compiled())
 					return;
 
-				if ((ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U) {
+				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U) {
 					// Source lookups can invalidate previously cached archetype matches.
+					// Variable terms can invalidate them as well.
 					m_archetypeSet.clear();
 					m_archetypeCache.clear();
 					m_archetypeCacheData.clear();

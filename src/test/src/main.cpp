@@ -5016,9 +5016,9 @@ void Test_Query_QueryResult() {
 		uint32_t value;
 	};
 	wld.add<Level>(game, {2});
-	auto q4 = wld.query<UseCachedQuery>()
-						.template all<Position>()
-						.template all<Level>(ecs::QueryTermOptions{}.src(game));
+	auto q4 = wld.query<UseCachedQuery>() //
+								.template all<Position>()
+								.template all<Level>(ecs::QueryTermOptions{}.src(game));
 
 	{
 		const auto cnt = q4.count();
@@ -5137,9 +5137,9 @@ void Test_Query_SourceLookup() {
 	const auto game = wld.add();
 
 	wld.add<Level>(game, {1});
-	auto qSrc = wld.query<UseCachedQuery>()
-						.template all<Position>()
-						.template all<Level>(ecs::QueryTermOptions{}.src(game));
+	auto qSrc = wld.query<UseCachedQuery>() //
+									.template all<Position>()
+									.template all<Level>(ecs::QueryTermOptions{}.src(game));
 	CHECK(qSrc.count() == N);
 
 	wld.del<Level>(game);
@@ -5152,9 +5152,9 @@ void Test_Query_SourceLookup() {
 	const auto scene = wld.add();
 	wld.child(scene, root);
 
-	auto qUp = wld.query<UseCachedQuery>()
-						.template all<Position>()
-						.template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
+	auto qUp = wld.query<UseCachedQuery>() //
+								 .template all<Position>()
+								 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
 	CHECK(qUp.count() == 0);
 
 	wld.add<Level>(root, {3});
@@ -5173,6 +5173,287 @@ TEST_CASE("Query - source lookup") {
 	}
 	SUBCASE("Non-cached query") {
 		Test_Query_SourceLookup<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void expect_exact_entities(TQuery& query, std::initializer_list<ecs::Entity> expected) {
+	cnt::darr<ecs::Entity> actual;
+	query.each([&](ecs::Entity entity) {
+		actual.push_back(entity);
+	});
+
+	CHECK(actual.size() == expected.size());
+	for (const auto exp: expected) {
+		bool found = false;
+		for (const auto got: actual) {
+			if (got != exp)
+				continue;
+			found = true;
+			break;
+		}
+		CHECK(found);
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Variables() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+
+	struct Cable {};
+	struct Device {};
+	struct ConnectedTo {};
+
+	const auto connectedTo = wld.add<ConnectedTo>().entity;
+	const auto deviceA = wld.add();
+	const auto deviceB = wld.add();
+	wld.add<Device>(deviceA);
+
+	const auto cableA = wld.add();
+	wld.add<Cable>(cableA);
+	wld.add(cableA, {connectedTo, deviceA});
+
+	const auto cableB = wld.add();
+	wld.add<Cable>(cableB);
+	wld.add(cableB, {connectedTo, deviceB});
+
+	const auto cableC = wld.add();
+	wld.add<Cable>(cableC);
+
+	auto qApi = wld.query<UseCachedQuery>() //
+									.template all<Cable>()
+									.any(ecs::Pair(connectedTo, ecs::Var0))
+									.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
+	CHECK(qApi.count() == 1);
+	expect_exact_entities(qApi, {cableA});
+
+	auto qExpr = wld.query<UseCachedQuery>().add("Cable, ?(ConnectedTo, $device), Device($device)");
+	CHECK(qExpr.count() == 1);
+	expect_exact_entities(qExpr, {cableA});
+}
+
+TEST_CASE("Query - variables") {
+	SUBCASE("Cached query") {
+		Test_Query_Variables<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variables<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Variables_Advanced() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	// Variable target reused by multiple terms + source lookup.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct ActiveDevice {};
+		struct ConnectedTo {};
+		struct PoweredBy {};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+		const auto deviceA = wld.add();
+		const auto deviceB = wld.add();
+		wld.add<ActiveDevice>(deviceA);
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, deviceA});
+		wld.add(cableA, {poweredBy, deviceA});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {connectedTo, deviceA});
+		wld.add(cableB, {poweredBy, deviceB});
+
+		auto qApi = wld.query<UseCachedQuery>() //
+										.template all<Cable>()
+										.all(ecs::Pair(connectedTo, ecs::Var0))
+										.all(ecs::Pair(poweredBy, ecs::Var0))
+										.template all<ActiveDevice>(ecs::QueryTermOptions{}.src(ecs::Var0));
+		CHECK(qApi.count() == 1);
+		expect_exact_entities(qApi, {cableA});
+
+		auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $d), (PoweredBy, $d), ActiveDevice($d)");
+		CHECK(qExpr.count() == 1);
+		expect_exact_entities(qExpr, {cableA});
+	}
+
+	// NOT term with variable source.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct ConnectedTo {};
+		struct Blocked {};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto deviceA = wld.add();
+		const auto deviceB = wld.add();
+		wld.add<Blocked>(deviceA);
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, deviceA});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {connectedTo, deviceB});
+
+		auto qApi = wld.query<UseCachedQuery>() //
+										.template all<Cable>()
+										.all(ecs::Pair(connectedTo, ecs::Var0))
+										.template no<Blocked>(ecs::QueryTermOptions{}.src(ecs::Var0));
+		CHECK(qApi.count() == 1);
+		expect_exact_entities(qApi, {cableB});
+
+		auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $d), !Blocked($d)");
+		CHECK(qExpr.count() == 1);
+		expect_exact_entities(qExpr, {cableB});
+	}
+
+	// Variable in the relation side of a pair.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct ConnectedTo {};
+		struct LinkedTo {};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto nodeA = wld.add();
+		const auto nodeB = wld.add();
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, nodeA});
+		wld.add(cableA, {connectedTo, nodeB});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {connectedTo, nodeA});
+		wld.add(cableB, {linkedTo, nodeB});
+
+		auto qApi = wld.query<UseCachedQuery>()
+										.template all<Cable>()
+										.any(ecs::Pair(ecs::Var0, nodeA))
+										.all(ecs::Pair(ecs::Var0, nodeB));
+		CHECK(qApi.count() == 1);
+		expect_exact_entities(qApi, {cableA});
+
+		auto qExpr = wld.query<UseCachedQuery>().add("Cable, ?($rel, %e), ($rel, %e)", nodeA.value(), nodeB.value());
+		CHECK(qExpr.count() == 1);
+		expect_exact_entities(qExpr, {cableA});
+	}
+
+	// Multiple independent variables in the same query.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct Device {};
+		struct PowerNode {};
+		struct ConnectedTo {};
+		struct PoweredBy {};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+		const auto deviceA = wld.add();
+		const auto deviceB = wld.add();
+		wld.add<Device>(deviceA);
+		wld.add<PowerNode>(deviceB);
+
+		const auto cableAB = wld.add();
+		wld.add<Cable>(cableAB);
+		wld.add(cableAB, {connectedTo, deviceA});
+		wld.add(cableAB, {poweredBy, deviceB});
+
+		const auto cableAA = wld.add();
+		wld.add<Cable>(cableAA);
+		wld.add(cableAA, {connectedTo, deviceA});
+		wld.add(cableAA, {poweredBy, deviceA});
+
+		auto qApi = wld.query<UseCachedQuery>() //
+										.template all<Cable>()
+										.all(ecs::Pair(connectedTo, ecs::Var0))
+										.all(ecs::Pair(poweredBy, ecs::Var1))
+										.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+										.template all<PowerNode>(ecs::QueryTermOptions{}.src(ecs::Var1));
+		CHECK(qApi.count() == 1);
+		expect_exact_entities(qApi, {cableAB});
+
+		auto qExpr =
+				wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $src), (PoweredBy, $dst), Device($src), PowerNode($dst)");
+		CHECK(qExpr.count() == 1);
+		expect_exact_entities(qExpr, {cableAB});
+	}
+
+	// Variable source lookup with upward traversal updates.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct ConnectedTo {};
+		struct Level {
+			uint32_t value;
+		};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto root = wld.add();
+		const auto room = wld.add();
+		wld.child(room, root);
+
+		const auto cable = wld.add();
+		wld.add<Cable>(cable);
+		wld.add(cable, {connectedTo, room});
+
+		auto qTrav = wld.query<UseCachedQuery>()
+										 .template all<Cable>()
+										 .any(ecs::Pair(connectedTo, ecs::Var0))
+										 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+		CHECK(qTrav.count() == 0);
+		expect_exact_entities(qTrav, {});
+
+		wld.add<Level>(root, {1});
+		CHECK(qTrav.count() == 1);
+		expect_exact_entities(qTrav, {cable});
+
+		wld.del<Level>(root);
+		CHECK(qTrav.count() == 0);
+		expect_exact_entities(qTrav, {});
+	}
+
+	// `$this` explicitly targets the default source.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct Device {};
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add<Device>(cableA);
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+
+		auto qImplicit = wld.query<UseCachedQuery>().add("Cable, Device");
+		auto qExplicit = wld.query<UseCachedQuery>().add("Cable, Device($this)");
+
+		CHECK(qImplicit.count() == 1);
+		CHECK(qExplicit.count() == 1);
+		expect_exact_entities(qImplicit, {cableA});
+		expect_exact_entities(qExplicit, {cableA});
+	}
+}
+
+TEST_CASE("Query - variables advanced") {
+	SUBCASE("Cached query") {
+		Test_Query_Variables_Advanced<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variables_Advanced<ecs::QueryUncached>();
 	}
 }
 
@@ -5721,8 +6002,8 @@ void Test_Query_Equality() {
 		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = wld.query<UseCachedQuery>().add("Position; Rotation");
-		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation; Position");
+		auto qq1_ = wld.query<UseCachedQuery>().add("Position, Rotation");
+		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation, Position");
 		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation");
 		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position");
 		verify(qq1_, qq2_, qq3_, qq4_);
@@ -5756,8 +6037,8 @@ void Test_Query_Equality() {
 		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = wld.query<UseCachedQuery>().add("Position; Rotation; Acceleration; Something");
-		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation; Something; Position; Acceleration");
+		auto qq1_ = wld.query<UseCachedQuery>().add("Position, Rotation, Acceleration, Something");
+		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation, Something, Position, Acceleration");
 		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation").add("Acceleration").add("Something");
 		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position").add("Something").add("Acceleration");
 		verify(qq1_, qq2_, qq3_, qq4_);
