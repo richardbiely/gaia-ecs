@@ -56,6 +56,8 @@ namespace gaia {
 				uint32_t as_mask_1;
 				//! Flags copied over from QueryCtx::Data
 				uint8_t flags;
+				//! ANY group was already satisfied by source terms.
+				bool skipAny = false;
 
 				// For the opcode compiler to modify
 				//////////////////////////////////////
@@ -123,6 +125,16 @@ namespace gaia {
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
 					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
+					//! Source lookup terms for ALL
+					QueryTermArray terms_all_src;
+					//! Source lookup terms for ANY
+					QueryTermArray terms_any_src;
+					//! Source lookup terms for NOT
+					QueryTermArray terms_not_src;
+
+					GAIA_NODISCARD bool has_source_terms() const {
+						return !terms_all_src.empty() || !terms_any_src.empty() || !terms_not_src.empty();
+					}
 				};
 
 				inline uint32_t handle_last_archetype_match(
@@ -190,6 +202,16 @@ namespace gaia {
 						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Not, entityKey, srcArchetypeCnt);
 					}
 				};
+
+				inline void add_all_archetypes(MatchingCtx& ctx) {
+					for (const auto* pArchetype: ctx.allArchetypes) {
+						if (ctx.pMatchesSet->contains(pArchetype))
+							continue;
+
+						ctx.pMatchesSet->emplace(pArchetype);
+						ctx.pMatchesArr->emplace_back(pArchetype);
+					}
+				}
 
 				template <typename OpKind>
 				inline bool match_inter_eval_matches(uint32_t queryIdMarches, uint32_t& outMatches) {
@@ -483,6 +505,46 @@ namespace gaia {
 							});
 				}
 
+				GAIA_NODISCARD inline bool match_single_id_on_archetype(const World& w, const Archetype& archetype, Entity id) {
+					const Entity ids[1] = {id};
+					return match_res_as<OpAny>(w, archetype, EntitySpan{ids, 1});
+				}
+
+				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
+					auto match_source_entity = [&](Entity source) {
+						if (!valid(w, source))
+							return false;
+
+						auto* pArchetype = archetype_from_entity(w, source);
+						if (pArchetype == nullptr)
+							return false;
+
+						return match_single_id_on_archetype(w, *pArchetype, term.id);
+					};
+
+					auto source = term.src;
+					if (match_source_entity(source))
+						return true;
+
+					if (term.entTrav == EntityBad)
+						return false;
+					if (!valid(w, source))
+						return false;
+
+					constexpr uint32_t MaxTraversalDepth = 2048;
+					GAIA_FOR(MaxTraversalDepth) {
+						const auto next = target(w, source, term.entTrav);
+						if (next == EntityBad || next == source)
+							return false;
+
+						source = next;
+						if (match_source_entity(source))
+							return true;
+					}
+
+					return false;
+				}
+
 				template <typename OpKind, MatchingStyle Style>
 				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const Archetype*> archetypes) {
 					auto& matchesArr = *ctx.pMatchesArr;
@@ -723,6 +785,9 @@ namespace gaia {
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
 
+						if (ctx.skipAny)
+							return true;
+
 						const auto cnt = comp.ids_any.size();
 						ctx.idsToMatch = std::span{comp.ids_any.data(), cnt};
 
@@ -750,6 +815,9 @@ namespace gaia {
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_any);
+
+						if (ctx.skipAny)
+							return true;
 
 						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
 
@@ -977,6 +1045,43 @@ namespace gaia {
 				detail::QueryCompileCtx m_compCtx;
 
 			private:
+				GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
+					ctx.skipAny = false;
+
+					// ALL source terms must all match.
+					for (const auto& term: m_compCtx.terms_all_src) {
+						if (!detail::match_source_term(*ctx.pWorld, term))
+							return false;
+					}
+
+					// NOT source terms must all be absent.
+					for (const auto& term: m_compCtx.terms_not_src) {
+						if (detail::match_source_term(*ctx.pWorld, term))
+							return false;
+					}
+
+					// ANY source terms short-circuit the ANY group if one matches.
+					bool anySourceMatched = false;
+					for (const auto& term: m_compCtx.terms_any_src) {
+						if (!detail::match_source_term(*ctx.pWorld, term))
+							continue;
+
+						anySourceMatched = true;
+						break;
+					}
+
+					if (!m_compCtx.terms_any_src.empty() && !anySourceMatched && m_compCtx.ids_any.empty())
+						return false;
+
+					if (anySourceMatched) {
+						ctx.skipAny = true;
+						if (m_compCtx.ids_all.empty())
+							detail::add_all_archetypes(ctx);
+					}
+
+					return true;
+				}
+
 				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
 					const auto cnt = (detail::VmLabel)m_compCtx.ops.size();
 					op.pc_ok = cnt + 1;
@@ -991,6 +1096,16 @@ namespace gaia {
 						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 						QueryCtx& queryCtx) {
 					GAIA_PROF_SCOPE(vm::compile);
+					(void)entityToArchetypeMap;
+					(void)allArchetypes;
+
+					m_compCtx.ids_all.clear();
+					m_compCtx.ids_any.clear();
+					m_compCtx.ids_not.clear();
+					m_compCtx.terms_all_src.clear();
+					m_compCtx.terms_any_src.clear();
+					m_compCtx.terms_not_src.clear();
+					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
 
@@ -1010,17 +1125,7 @@ namespace gaia {
 								m_compCtx.ids_all.push_back(p.id);
 								continue;
 							}
-
-							// Fixed source
-							{
-								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
-
-								// Archetype needs to exist. If it does not we have nothing to do here.
-								if (p.srcArchetype == nullptr) {
-									m_compCtx.ops.clear();
-									return;
-								}
-							}
+							m_compCtx.terms_all_src.push_back(p);
 						}
 					}
 
@@ -1031,10 +1136,10 @@ namespace gaia {
 						const auto cnt = terms_any.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_any[i];
-							if (p.src != EntityBad)
-								p.srcArchetype = archetype_from_entity(*queryCtx.w, p.src);
-
-							m_compCtx.ids_any.push_back(p.id);
+							if (p.src == EntityBad)
+								m_compCtx.ids_any.push_back(p.id);
+							else
+								m_compCtx.terms_any_src.push_back(p);
 						}
 					}
 
@@ -1045,10 +1150,10 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
-							if (p.src != EntityBad)
-								continue;
-
-							m_compCtx.ids_not.push_back(p.id);
+							if (p.src == EntityBad)
+								m_compCtx.ids_not.push_back(p.id);
+							else
+								m_compCtx.terms_not_src.push_back(p);
 						}
 					}
 
@@ -1098,12 +1203,22 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool is_compiled() const {
-					return !m_compCtx.ops.empty();
+					return !m_compCtx.ops.empty() || m_compCtx.has_source_terms();
 				}
 
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
+
+					if (!eval_source_terms(ctx))
+						return;
+
+					// Query contains only source terms.
+					if (m_compCtx.ops.empty()) {
+						if (ctx.pMatchesArr->empty())
+							detail::add_all_archetypes(ctx);
+						return;
+					}
 
 					ctx.pc = 0;
 

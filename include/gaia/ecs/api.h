@@ -42,6 +42,7 @@ namespace gaia {
 
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
+		Entity target(const World& world, Entity entity, Entity relation);
 
 		// Traversal API
 

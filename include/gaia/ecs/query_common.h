@@ -153,7 +153,42 @@ namespace gaia {
 			//! Source entity to query the id on.
 			//! If id==EntityBad the source is fixed.
 			//! If id!=src the source is variable.
-			Entity src = EntityBad;
+			Entity entSrc = EntityBad;
+			//! Optional upward traversal relation for source lookups.
+			//! When set, the lookup starts at src and then walks relation targets upwards.
+			Entity entTrav = EntityBad;
+		};
+
+		//! Additional options for query terms.
+		//! This can be used to configure source lookup, upward traversal and access mode
+		//! without relying on many positional overloads.
+		struct QueryTermOptions {
+			//! Source entity to query from.
+			Entity entSrc = EntityBad;
+			//! Optional upward traversal relation used for source lookup.
+			Entity entTrav = EntityBad;
+			//! Access mode for the term.
+			QueryAccess access = QueryAccess::Read;
+
+			QueryTermOptions& src(Entity source) {
+				entSrc = source;
+				return *this;
+			}
+
+			QueryTermOptions& trav(Entity relation = ChildOf) {
+				entTrav = relation;
+				return *this;
+			}
+
+			QueryTermOptions& read() {
+				access = QueryAccess::Read;
+				return *this;
+			}
+
+			QueryTermOptions& write() {
+				access = QueryAccess::Write;
+				return *this;
+			}
 		};
 
 		//! Internal representation of QueryInput
@@ -162,13 +197,15 @@ namespace gaia {
 			Entity id;
 			//! Source of where the queried id is looked up at
 			Entity src;
+			//! Optional upward traversal relation for source lookups
+			Entity entTrav;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
 			QueryOpKind op;
 
 			bool operator==(const QueryTerm& other) const {
-				return id == other.id && src == other.src && op == other.op;
+				return id == other.id && src == other.src && entTrav == other.entTrav && op == other.op;
 			}
 			bool operator!=(const QueryTerm& other) const {
 				return !operator==(other);
@@ -213,6 +250,8 @@ namespace gaia {
 				Complex = 0x04,
 				// Recompilation requested
 				Recompile = 0x08,
+				// Query contains source-based lookup terms
+				HasSourceTerms = 0x10,
 			};
 
 			struct Data {
@@ -285,17 +324,31 @@ namespace gaia {
 				const auto mask0_old = data.as_mask_0;
 				const auto mask1_old = data.as_mask_1;
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
+				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 
 				// Update masks
 				{
 					uint32_t as_mask_0 = 0;
 					uint32_t as_mask_1 = 0;
 					bool isComplex = false;
+					bool hasSourceTerms = false;
+					QueryEntityArray idsNoSrc;
+					uint32_t idsNoSrcCnt = 0;
 
-					auto ids = data.ids_view();
-					const auto cnt = (uint32_t)ids.size();
+					auto terms = data.terms_view();
+					const auto cnt = (uint32_t)terms.size();
 					GAIA_FOR(cnt) {
-						const auto id = ids[i];
+						const auto& term = terms[i];
+						const auto id = term.id;
+
+						// Source terms are evaluated separately by the VM.
+						// They should not affect archetype-level query masks.
+						if (term.src != EntityBad) {
+							hasSourceTerms = true;
+							continue;
+						}
+
+						idsNoSrc[idsNoSrcCnt++] = id;
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
@@ -328,20 +381,26 @@ namespace gaia {
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
 
+					if (hasSourceTerms)
+						data.flags |= QueryCtx::QueryFlags::HasSourceTerms;
+					else
+						data.flags &= ~QueryCtx::QueryFlags::HasSourceTerms;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
 						data.queryMask = {};
 						data.flags |= QueryCtx::QueryFlags::Complex;
 					} else {
-						data.queryMask = build_entity_mask(ids);
+						data.queryMask = build_entity_mask(EntitySpan{idsNoSrc.data(), idsNoSrcCnt});
 						data.flags &= ~QueryCtx::QueryFlags::Complex;
 					}
 				}
 
 				// Request recompilation of the query if the mask has changed
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
-						isComplex_old != (data.flags & QueryFlags::Complex))
+						isComplex_old != (data.flags & QueryFlags::Complex) ||
+						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms))
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -424,7 +483,10 @@ namespace gaia {
 				//       E.g. depending on the number of archetypes we'd have to traverse
 				//       it might be beneficial to do a different ordering which is impossible
 				//       to do at this point.
-				return SortComponentCond()(lhs.src, rhs.src);
+				if (lhs.src != rhs.src)
+					return SortComponentCond()(lhs.src, rhs.src);
+
+				return SortComponentCond()(lhs.entTrav, rhs.entTrav);
 			}
 		};
 
@@ -491,6 +553,8 @@ namespace gaia {
 				for (const auto& pair: terms) {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);

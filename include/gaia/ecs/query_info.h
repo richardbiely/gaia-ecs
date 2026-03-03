@@ -281,9 +281,24 @@ namespace gaia {
 				if (!m_vm.is_compiled())
 					return;
 
+				const bool hasSourceTerms = (ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U;
+				if (hasSourceTerms) {
+					// Source lookups can change query results without creating new archetypes.
+					// Rebuild the cache from scratch on each match call.
+					m_archetypeSet.clear();
+					m_archetypeCache.clear();
+					m_archetypeCacheData.clear();
+					m_archetypeSortData.clear();
+					m_archetypeGroupData.clear();
+
+					ctxData.lastMatchedArchetypeIdx_All.clear();
+					ctxData.lastMatchedArchetypeIdx_Any.clear();
+					ctxData.lastMatchedArchetypeIdx_Not.clear();
+				}
+
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (m_lastArchetypeId == archetypeLastId) {
+				if (!hasSourceTerms && m_lastArchetypeId == archetypeLastId) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -339,6 +354,19 @@ namespace gaia {
 				// Skip if nothing has been compiled.
 				if (!m_vm.is_compiled())
 					return;
+
+				if ((ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U) {
+					// Source lookups can invalidate previously cached archetype matches.
+					m_archetypeSet.clear();
+					m_archetypeCache.clear();
+					m_archetypeCacheData.clear();
+					m_archetypeSortData.clear();
+					m_archetypeGroupData.clear();
+
+					ctxData.lastMatchedArchetypeIdx_All.clear();
+					ctxData.lastMatchedArchetypeIdx_Any.clear();
+					ctxData.lastMatchedArchetypeIdx_Not.clear();
+				}
 
 				GAIA_PROF_SCOPE(queryinfo::match1);
 

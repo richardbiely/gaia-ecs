@@ -82,7 +82,7 @@ namespace gaia {
 					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
 					ctxData._ids[ctxData.idsCnt] = item.id;
-					ctxData._terms[ctxData.idsCnt] = {item.id, item.src, nullptr, item.op};
+					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, nullptr, item.op};
 					++ctxData.idsCnt;
 				}
 			};
@@ -506,6 +506,22 @@ namespace gaia {
 
 					QueryCmd_AddItem cmd{item};
 					add_cmd(cmd);
+				}
+
+				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, Entity entity, QueryAccess access) {
+					if (op == QueryOpKind::Not || entity.pair())
+						return QueryAccess::None;
+
+					// Non-pair ALL/ANY terms default to Read access when unspecified.
+					if (access == QueryAccess::None)
+						return QueryAccess::Read;
+
+					return access;
+				}
+
+				void add_entity_term(QueryOpKind op, Entity entity, const QueryTermOptions& options) {
+					const auto access = normalize_access(op, entity, options.access);
+					add({op, access, entity, options.entSrc, options.entTrav});
 				}
 
 				template <typename T>
@@ -1617,18 +1633,29 @@ namespace gaia {
 				//------------------------------------------------
 
 				QueryImpl& all(Entity entity, bool isReadWrite = false) {
-					if (entity.pair())
-						add({QueryOpKind::All, QueryAccess::None, entity});
-					else
-						add({QueryOpKind::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
+					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
+					all(entity, options);
+					return *this;
+				}
+
+				QueryImpl& all(Entity entity, const QueryTermOptions& options) {
+					add_entity_term(QueryOpKind::All, entity, options);
 					return *this;
 				}
 
 				QueryImpl& all(Entity entity, Entity src, bool isReadWrite = false) {
-					if (entity.pair())
-						add({QueryOpKind::All, QueryAccess::None, entity, src});
-					else
-						add({QueryOpKind::All, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity, src});
+					auto options = QueryTermOptions{}.src(src).read();
+					if (isReadWrite)
+						options.write();
+					all(entity, options);
+					return *this;
+				}
+
+				QueryImpl& all_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
+					auto options = QueryTermOptions{}.src(src).trav(relation).read();
+					if (isReadWrite)
+						options.write();
+					all(entity, options);
 					return *this;
 				}
 
@@ -1651,10 +1678,29 @@ namespace gaia {
 				//------------------------------------------------
 
 				QueryImpl& any(Entity entity, bool isReadWrite = false) {
-					if (entity.pair())
-						add({QueryOpKind::Any, QueryAccess::None, entity});
-					else
-						add({QueryOpKind::Any, isReadWrite ? QueryAccess::Write : QueryAccess::Read, entity});
+					const auto options = isReadWrite ? QueryTermOptions{}.write() : QueryTermOptions{}.read();
+					any(entity, options);
+					return *this;
+				}
+
+				QueryImpl& any(Entity entity, const QueryTermOptions& options) {
+					add_entity_term(QueryOpKind::Any, entity, options);
+					return *this;
+				}
+
+				QueryImpl& any(Entity entity, Entity src, bool isReadWrite = false) {
+					auto options = QueryTermOptions{}.src(src).read();
+					if (isReadWrite)
+						options.write();
+					any(entity, options);
+					return *this;
+				}
+
+				QueryImpl& any_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
+					auto options = QueryTermOptions{}.src(src).trav(relation).read();
+					if (isReadWrite)
+						options.write();
+					any(entity, options);
 					return *this;
 				}
 
@@ -1677,7 +1723,22 @@ namespace gaia {
 				//------------------------------------------------
 
 				QueryImpl& no(Entity entity) {
-					add({QueryOpKind::Not, QueryAccess::None, entity});
+					no(entity, QueryTermOptions{});
+					return *this;
+				}
+
+				QueryImpl& no(Entity entity, const QueryTermOptions& options) {
+					add_entity_term(QueryOpKind::Not, entity, options);
+					return *this;
+				}
+
+				QueryImpl& no(Entity entity, Entity src) {
+					no(entity, QueryTermOptions{}.src(src));
+					return *this;
+				}
+
+				QueryImpl& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
+					no(entity, QueryTermOptions{}.src(src).trav(relation));
 					return *this;
 				}
 

@@ -5116,6 +5116,62 @@ TEST_CASE("Query - QueryResult") {
 }
 
 template <typename TQuery>
+void Test_Query_SourceLookup() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+
+	struct Level {
+		uint32_t value;
+	};
+
+	constexpr uint32_t N = 64;
+	GAIA_FOR(N) {
+		auto e = wld.add();
+		wld.add<Position>(e, {(float)i, (float)i, (float)i});
+	}
+
+	const auto levelEntity = wld.add<Level>().entity;
+	const auto game = wld.add();
+
+	wld.add<Level>(game, {1});
+	auto qSrc = wld.query<UseCachedQuery>().template all<Position>().all(levelEntity, ecs::QueryTermOptions{}.src(game));
+	CHECK(qSrc.count() == N);
+
+	wld.del<Level>(game);
+	CHECK(qSrc.count() == 0);
+
+	wld.add<Level>(game, {2});
+	CHECK(qSrc.count() == N);
+
+	const auto root = wld.add();
+	const auto scene = wld.add();
+	wld.child(scene, root);
+
+	auto qUp =
+			wld.query<UseCachedQuery>().template all<Position>().all(levelEntity, ecs::QueryTermOptions{}.src(scene).trav());
+	CHECK(qUp.count() == 0);
+
+	wld.add<Level>(root, {3});
+	CHECK(qUp.count() == N);
+
+	wld.del<Level>(root);
+	CHECK(qUp.count() == 0);
+
+	wld.add<Level>(scene, {4});
+	CHECK(qUp.count() == N);
+}
+
+TEST_CASE("Query - source lookup") {
+	SUBCASE("Cached query") {
+		Test_Query_SourceLookup<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_SourceLookup<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_QueryResult_Complex() {
 	const uint32_t N = 1'500;
 

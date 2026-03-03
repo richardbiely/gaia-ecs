@@ -822,6 +822,39 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
+Source lookups are supported via `QueryTermOptions` (source + optional upward traversal by relation, `ChildOf` by default).
+
+```cpp
+struct Position {};
+struct Level { int value; };
+
+ecs::World w;
+const auto level = w.add<Level>().entity;
+const auto game = w.add();
+const auto root = w.add();
+const auto scene = w.add();
+w.child(scene, root);
+
+// Create 64 entities with Position.
+for (int i = 0; i < 64; ++i) {
+  auto e = w.add();
+  w.add<Position>(e);
+}
+
+// Fixed source lookup. Requires Level on `game`.
+ecs::Query qSrc = w.query().all<Position>().all(level, ecs::QueryTermOptions{}.src(game));
+w.add<Level>(game, {1});
+qSrc.count(); // expected: 64
+w.del<Level>(game);
+qSrc.count(); // expected: 0
+
+// Hierarchical source lookup. Checks `scene`, then its ChildOf parents.
+ecs::Query qUp = w.query().all<Position>().all(level, ecs::QueryTermOptions{}.src(scene).trav());
+qUp.count(); // expected: 0
+w.add<Level>(root, {2});
+qUp.count(); // expected: 64
+```
+
 When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
 
 ```cpp

@@ -63,6 +63,10 @@ namespace gaia {
 			return world.name(entityId);
 		}
 
+		GAIA_NODISCARD inline Entity target(const World& world, Entity entity, Entity relation) {
+			return world.target(entity, relation);
+		}
+
 		// Traversal API
 
 		template <typename Func>

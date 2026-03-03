@@ -136,9 +136,21 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& all(Entity entity, const QueryTermOptions& options) {
+				validate();
+				data().query.all(entity, options);
+				return *this;
+			}
+
 			SystemBuilder& all(Entity entity, Entity src, bool isReadWrite = false) {
 				validate();
 				data().query.all(entity, src, isReadWrite);
+				return *this;
+			}
+
+			SystemBuilder& all_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
+				validate();
+				data().query.all_up(entity, src, relation, isReadWrite);
 				return *this;
 			}
 
@@ -148,9 +160,45 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& any(Entity entity, const QueryTermOptions& options) {
+				validate();
+				data().query.any(entity, options);
+				return *this;
+			}
+
+			SystemBuilder& any(Entity entity, Entity src, bool isReadWrite = false) {
+				validate();
+				data().query.any(entity, src, isReadWrite);
+				return *this;
+			}
+
+			SystemBuilder& any_up(Entity entity, Entity src, Entity relation = ChildOf, bool isReadWrite = false) {
+				validate();
+				data().query.any_up(entity, src, relation, isReadWrite);
+				return *this;
+			}
+
 			SystemBuilder& no(Entity entity) {
 				validate();
 				data().query.no(entity);
+				return *this;
+			}
+
+			SystemBuilder& no(Entity entity, const QueryTermOptions& options) {
+				validate();
+				data().query.no(entity, options);
+				return *this;
+			}
+
+			SystemBuilder& no(Entity entity, Entity src) {
+				validate();
+				data().query.no(entity, src);
+				return *this;
+			}
+
+			SystemBuilder& no_up(Entity entity, Entity src, Entity relation = ChildOf) {
+				validate();
+				data().query.no_up(entity, src, relation);
 				return *this;
 			}
 
