@@ -5,7 +5,10 @@
 *.db
 ninja
 out
-cachegrind.*
+cachegrind*
+valgrind*
+tmp
+*pycache*
 .vs
 .cache
 CMakeCache.txt
