@@ -822,7 +822,7 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-More advanced lookup settings are supported via `QueryTermOptions`. This includes things such as source selection, traversal by relation (`ChildOf` by default), or component access type (read or write).
+More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_depth`), and access type (read or write).
 
 ```cpp
 struct Position {};
@@ -831,9 +831,11 @@ struct Level { int value; };
 ecs::World w;
 const ecs::Entity level = w.add<Level>().entity;
 const ecs::Entity game = w.add();
-const autoecs::Entity root = w.add();
-const autoecs::Entity scene = w.add();
-w.child(scene, root);
+const ecs::Entity root = w.add();
+const ecs::Entity parent = w.add();
+const ecs::Entity scene = w.add();
+w.child(parent, root);
+w.child(scene, parent);
 
 // Create 64 entities with Position.
 for (int i = 0; i < 64; ++i) {
@@ -847,18 +849,31 @@ ecs::Query qSrc = w.query()
   .all(level, ecs::QueryTermOptions{}.src(game));
 w.add<Level>(game, {1});
 qSrc.count(); // expected: 64
-// expected matches: all 64 entities created in the loop above (all entities with Position)
+// expected matches: all 64 Position entities from the loop
 w.del<Level>(game);
 qSrc.count(); // expected: 0
+// expected matches: none
 
-// Hierarchical source lookup. Checks `scene`, then its ChildOf parents.
-ecs::Query qUp = w.query()
+// Hierarchical source lookup with default traversal filter (self + all parents).
+ecs::Query qSelfUp = w.query()
   .all<Position>()
   .all(level, ecs::QueryTermOptions{}.src(scene).trav());
-qUp.count(); // expected: 0
+qSelfUp.count(); // expected: 0
 w.add<Level>(root, {2});
-qUp.count(); // expected: 64
-// expected matches: all 64 entities created in the loop above (all entities with Position)
+qSelfUp.count(); // expected: 64
+// expected matches: all 64 Position entities
+
+// Immediate parent only (no self, no grandparent).
+ecs::Query qParent = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(scene).trav_parent());
+qParent.count(); // expected: 0 (Level is on root, not on parent)
+
+// Self + immediate parent (no grandparent).
+ecs::Query qSelfParent = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(scene).trav().trav_depth(1));
+qSelfParent.count(); // expected: 0 (no Level on scene/parent)
 ```
 
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.

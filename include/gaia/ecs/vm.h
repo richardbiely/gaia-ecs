@@ -521,6 +521,39 @@ namespace gaia {
 					return match_res_as<OpAny>(w, archetype, EntitySpan{ids, 1});
 				}
 
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					if (!valid(w, sourceEntity))
+						return false;
+
+					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad &&
+																 term.travDepth != 0;
+
+					if (includeSelf && func(sourceEntity))
+						return true;
+
+					if (!includeUp)
+						return false;
+
+					constexpr uint32_t MaxTraversalDepth = 2048;
+					const uint32_t maxDepth =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+
+					Entity source = sourceEntity;
+					for (uint32_t depth = 0; depth < maxDepth; ++depth) {
+						const auto next = target(w, source, term.entTrav);
+						if (next == EntityBad || next == source)
+							break;
+
+						source = next;
+						if (func(source))
+							return true;
+					}
+
+					return false;
+				}
+
 				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
 					auto match_source_entity = [&](Entity source) {
 						if (!valid(w, source))
@@ -533,27 +566,7 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					auto source = term.src;
-					if (match_source_entity(source))
-						return true;
-
-					if (term.entTrav == EntityBad)
-						return false;
-					if (!valid(w, source))
-						return false;
-
-					constexpr uint32_t MaxTraversalDepth = 2048;
-					GAIA_FOR(MaxTraversalDepth) {
-						const auto next = target(w, source, term.entTrav);
-						if (next == EntityBad || next == source)
-							return false;
-
-						source = next;
-						if (match_source_entity(source))
-							return true;
-					}
-
-					return false;
+					return each_lookup_source(w, term, term.src, match_source_entity);
 				}
 
 				struct VarBindings {
@@ -650,25 +663,13 @@ namespace gaia {
 						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& varsIn,
 						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
 					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						if (!valid(w, sourceEntity))
-							return;
-
-						constexpr uint32_t MaxTraversalDepth = 2048;
-						Entity source = sourceEntity;
-						GAIA_FOR(MaxTraversalDepth) {
+						each_lookup_source(w, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype != nullptr)
 								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
 
-							if (term.entTrav == EntityBad)
-								break;
-
-							const auto next = target(w, source, term.entTrav);
-							if (next == EntityBad || next == source)
-								break;
-
-							source = next;
-						}
+							return false;
+						});
 					};
 
 					if (term.src == EntityBad) {

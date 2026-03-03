@@ -82,7 +82,7 @@ namespace gaia {
 					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
 					ctxData._ids[ctxData.idsCnt] = item.id;
-					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, nullptr, item.op};
+					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, item.travKind, item.travDepth, nullptr, item.op};
 					++ctxData.idsCnt;
 				}
 			};
@@ -521,7 +521,7 @@ namespace gaia {
 
 				void add_entity_term(QueryOpKind op, Entity entity, const QueryTermOptions& options) {
 					const auto access = normalize_access(op, entity, options.access);
-					add({op, access, entity, options.entSrc, options.entTrav});
+					add({op, access, entity, options.entSrc, options.entTrav, options.travKind, options.travDepth});
 				}
 
 				template <typename T>
@@ -576,7 +576,7 @@ namespace gaia {
 						}
 					}
 
-					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav});
+					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav, options.travKind, options.travDepth});
 				}
 
 				template <typename Rel, typename Tgt>

@@ -29403,8 +29403,22 @@ namespace gaia {
 		enum class QueryAccess : uint8_t { None, Read, Write };
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
+		//! Source traversal filter used for source lookups.
+		enum class QueryTravKind : uint8_t {
+			None = 0x00,
+			Self = 0x01,
+			Up = 0x02
+		};
 
 		GAIA_GCC_WARNING_POP()
+
+		GAIA_NODISCARD constexpr QueryTravKind operator|(QueryTravKind lhs, QueryTravKind rhs) {
+			return (QueryTravKind)((uint8_t)lhs | (uint8_t)rhs);
+		}
+
+		GAIA_NODISCARD constexpr bool query_trav_has(QueryTravKind value, QueryTravKind bit) {
+			return (((uint8_t)value) & ((uint8_t)bit)) != 0;
+		}
 
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryEntityArray = cnt::sarray<Entity, MAX_ITEMS_IN_QUERY>;
@@ -29512,6 +29526,8 @@ namespace gaia {
 
 		//! User-provided query input
 		struct QueryInput {
+			static constexpr uint8_t TravDepthUnlimited = 0xff;
+
 			//! Operation to perform with the input
 			QueryOpKind op = QueryOpKind::All;
 			//! Access type
@@ -29525,16 +29541,28 @@ namespace gaia {
 			//! Optional upward traversal relation for source lookups.
 			//! When set, the lookup starts at src and then walks relation targets upwards.
 			Entity entTrav = EntityBad;
+			//! Source traversal filter.
+			//! `Self` means checking the source itself, `Up` means checking traversed ancestors.
+			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
+			//! Maximum number of upward traversal steps.
+			//! 0 means no upward traversal. `TravDepthUnlimited` means unlimited (bounded internally).
+			uint8_t travDepth = TravDepthUnlimited;
 		};
 
 		//! Additional options for query terms.
 		//! This can be used to configure source lookup, upward traversal and access mode
 		//! without relying on many positional overloads.
 		struct QueryTermOptions {
+			static constexpr uint8_t TravDepthUnlimited = QueryInput::TravDepthUnlimited;
+
 			//! Source entity to query from.
 			Entity entSrc = EntityBad;
 			//! Optional upward traversal relation used for source lookup.
 			Entity entTrav = EntityBad;
+			//! Source traversal filter.
+			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
+			//! Maximum number of upward traversal steps.
+			uint8_t travDepth = TravDepthUnlimited;
 			//! Access mode for the term.
 			//! When None, typed query terms infer read/write access from template mutability.
 			QueryAccess access = QueryAccess::None;
@@ -29546,6 +29574,39 @@ namespace gaia {
 
 			QueryTermOptions& trav(Entity relation = ChildOf) {
 				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Up;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_up(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Up;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_parent(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Up;
+				travDepth = 1;
+				return *this;
+			}
+
+			QueryTermOptions& trav_self_parent(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Up;
+				travDepth = 1;
+				return *this;
+			}
+
+			QueryTermOptions& trav_kind(QueryTravKind kind) {
+				travKind = kind;
+				return *this;
+			}
+
+			QueryTermOptions& trav_depth(uint8_t maxDepth) {
+				travDepth = maxDepth;
 				return *this;
 			}
 
@@ -29568,13 +29629,18 @@ namespace gaia {
 			Entity src;
 			//! Optional upward traversal relation for source lookups
 			Entity entTrav;
+			//! Source traversal filter.
+			QueryTravKind travKind;
+			//! Maximum number of upward traversal steps.
+			uint8_t travDepth;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
 			QueryOpKind op;
 
 			bool operator==(const QueryTerm& other) const {
-				return id == other.id && src == other.src && entTrav == other.entTrav && op == other.op;
+				return id == other.id && src == other.src && entTrav == other.entTrav && travKind == other.travKind &&
+							 travDepth == other.travDepth && op == other.op;
 			}
 			bool operator!=(const QueryTerm& other) const {
 				return !operator==(other);
@@ -29881,7 +29947,13 @@ namespace gaia {
 				if (lhs.src != rhs.src)
 					return SortComponentCond()(lhs.src, rhs.src);
 
-				return SortComponentCond()(lhs.entTrav, rhs.entTrav);
+				if (lhs.entTrav != rhs.entTrav)
+					return SortComponentCond()(lhs.entTrav, rhs.entTrav);
+
+				if (lhs.travKind != rhs.travKind)
+					return (uint8_t)lhs.travKind < (uint8_t)rhs.travKind;
+
+				return lhs.travDepth < rhs.travDepth;
 			}
 		};
 
@@ -29950,6 +30022,8 @@ namespace gaia {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.travKind);
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.travDepth);
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
@@ -31198,6 +31272,39 @@ namespace gaia {
 					return match_res_as<OpAny>(w, archetype, EntitySpan{ids, 1});
 				}
 
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					if (!valid(w, sourceEntity))
+						return false;
+
+					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad &&
+																 term.travDepth != 0;
+
+					if (includeSelf && func(sourceEntity))
+						return true;
+
+					if (!includeUp)
+						return false;
+
+					constexpr uint32_t MaxTraversalDepth = 2048;
+					const uint32_t maxDepth =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+
+					Entity source = sourceEntity;
+					for (uint32_t depth = 0; depth < maxDepth; ++depth) {
+						const auto next = target(w, source, term.entTrav);
+						if (next == EntityBad || next == source)
+							break;
+
+						source = next;
+						if (func(source))
+							return true;
+					}
+
+					return false;
+				}
+
 				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
 					auto match_source_entity = [&](Entity source) {
 						if (!valid(w, source))
@@ -31210,27 +31317,7 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					auto source = term.src;
-					if (match_source_entity(source))
-						return true;
-
-					if (term.entTrav == EntityBad)
-						return false;
-					if (!valid(w, source))
-						return false;
-
-					constexpr uint32_t MaxTraversalDepth = 2048;
-					GAIA_FOR(MaxTraversalDepth) {
-						const auto next = target(w, source, term.entTrav);
-						if (next == EntityBad || next == source)
-							return false;
-
-						source = next;
-						if (match_source_entity(source))
-							return true;
-					}
-
-					return false;
+					return each_lookup_source(w, term, term.src, match_source_entity);
 				}
 
 				struct VarBindings {
@@ -31327,25 +31414,13 @@ namespace gaia {
 						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& varsIn,
 						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
 					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						if (!valid(w, sourceEntity))
-							return;
-
-						constexpr uint32_t MaxTraversalDepth = 2048;
-						Entity source = sourceEntity;
-						GAIA_FOR(MaxTraversalDepth) {
+						each_lookup_source(w, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype != nullptr)
 								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
 
-							if (term.entTrav == EntityBad)
-								break;
-
-							const auto next = target(w, source, term.entTrav);
-							if (next == EntityBad || next == source)
-								break;
-
-							source = next;
-						}
+							return false;
+						});
 					};
 
 					if (term.src == EntityBad) {
@@ -33337,7 +33412,7 @@ namespace gaia {
 					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
 					ctxData._ids[ctxData.idsCnt] = item.id;
-					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, nullptr, item.op};
+					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, item.travKind, item.travDepth, nullptr, item.op};
 					++ctxData.idsCnt;
 				}
 			};
@@ -33776,7 +33851,7 @@ namespace gaia {
 
 				void add_entity_term(QueryOpKind op, Entity entity, const QueryTermOptions& options) {
 					const auto access = normalize_access(op, entity, options.access);
-					add({op, access, entity, options.entSrc, options.entTrav});
+					add({op, access, entity, options.entSrc, options.entTrav, options.travKind, options.travDepth});
 				}
 
 				template <typename T>
@@ -33831,7 +33906,7 @@ namespace gaia {
 						}
 					}
 
-					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav});
+					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav, options.travKind, options.travDepth});
 				}
 
 				template <typename Rel, typename Tgt>

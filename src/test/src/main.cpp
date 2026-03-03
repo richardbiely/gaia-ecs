@@ -5128,10 +5128,36 @@ void Test_Query_SourceLookup() {
 	};
 
 	constexpr uint32_t N = 64;
+	cnt::darr<ecs::Entity> positionEntities;
+	positionEntities.reserve(N);
 	GAIA_FOR(N) {
 		auto e = wld.add();
 		wld.add<Position>(e, {(float)i, (float)i, (float)i});
+		positionEntities.push_back(e);
 	}
+	auto expect_positions = [&](auto& query, bool expectMatch) {
+		cnt::darr<ecs::Entity> actual;
+		query.each([&](ecs::Entity entity) {
+			actual.push_back(entity);
+		});
+
+		if (!expectMatch) {
+			CHECK(actual.empty());
+			return;
+		}
+
+		CHECK(actual.size() == positionEntities.size());
+		for (const auto exp: positionEntities) {
+			bool found = false;
+			for (const auto got: actual) {
+				if (got != exp)
+					continue;
+				found = true;
+				break;
+			}
+			CHECK(found);
+		}
+	};
 
 	wld.add<Level>();
 	const auto game = wld.add();
@@ -5141,30 +5167,86 @@ void Test_Query_SourceLookup() {
 									.template all<Position>()
 									.template all<Level>(ecs::QueryTermOptions{}.src(game));
 	CHECK(qSrc.count() == N);
+	expect_positions(qSrc, true);
 
 	wld.del<Level>(game);
 	CHECK(qSrc.count() == 0);
+	expect_positions(qSrc, false);
 
 	wld.add<Level>(game, {2});
 	CHECK(qSrc.count() == N);
+	expect_positions(qSrc, true);
 
 	const auto root = wld.add();
+	const auto parent = wld.add();
 	const auto scene = wld.add();
-	wld.child(scene, root);
+	wld.child(scene, parent);
+	wld.child(parent, root);
 
-	auto qUp = wld.query<UseCachedQuery>() //
-								 .template all<Position>()
-								 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
-	CHECK(qUp.count() == 0);
+	auto qSelfUp = wld.query<UseCachedQuery>() //
+										 .template all<Position>()
+										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
+	auto qUpOnly = wld.query<UseCachedQuery>() //
+										 .template all<Position>()
+										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up());
+	auto qParentOnly = wld.query<UseCachedQuery>() //
+												 .template all<Position>()
+												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_parent());
+	auto qSelfParent = wld.query<UseCachedQuery>() //
+												 .template all<Position>()
+												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_self_parent());
+	auto qSelfDepth1 = wld.query<UseCachedQuery>() //
+												 .template all<Position>()
+												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav().trav_depth(1));
 
-	wld.add<Level>(root, {3});
-	CHECK(qUp.count() == N);
+	CHECK(qSelfUp.count() == 0);
+	expect_positions(qSelfUp, false);
+	CHECK(qUpOnly.count() == 0);
+	expect_positions(qUpOnly, false);
+	CHECK(qParentOnly.count() == 0);
+	expect_positions(qParentOnly, false);
+	CHECK(qSelfParent.count() == 0);
+	expect_positions(qSelfParent, false);
+	CHECK(qSelfDepth1.count() == 0);
+	expect_positions(qSelfDepth1, false);
 
-	wld.del<Level>(root);
-	CHECK(qUp.count() == 0);
+	wld.add<Level>(scene, {3});
+	CHECK(qSelfUp.count() == N);
+	expect_positions(qSelfUp, true);
+	CHECK(qUpOnly.count() == 0);
+	expect_positions(qUpOnly, false);
+	CHECK(qParentOnly.count() == 0);
+	expect_positions(qParentOnly, false);
+	CHECK(qSelfParent.count() == N);
+	expect_positions(qSelfParent, true);
+	CHECK(qSelfDepth1.count() == N);
+	expect_positions(qSelfDepth1, true);
 
-	wld.add<Level>(scene, {4});
-	CHECK(qUp.count() == N);
+	wld.del<Level>(scene);
+	wld.add<Level>(parent, {4});
+	CHECK(qSelfUp.count() == N);
+	expect_positions(qSelfUp, true);
+	CHECK(qUpOnly.count() == N);
+	expect_positions(qUpOnly, true);
+	CHECK(qParentOnly.count() == N);
+	expect_positions(qParentOnly, true);
+	CHECK(qSelfParent.count() == N);
+	expect_positions(qSelfParent, true);
+	CHECK(qSelfDepth1.count() == N);
+	expect_positions(qSelfDepth1, true);
+
+	wld.del<Level>(parent);
+	wld.add<Level>(root, {5});
+	CHECK(qSelfUp.count() == N);
+	expect_positions(qSelfUp, true);
+	CHECK(qUpOnly.count() == N);
+	expect_positions(qUpOnly, true);
+	CHECK(qParentOnly.count() == 0);
+	expect_positions(qParentOnly, false);
+	CHECK(qSelfParent.count() == 0);
+	expect_positions(qSelfParent, false);
+	CHECK(qSelfDepth1.count() == 0);
+	expect_positions(qSelfDepth1, false);
 }
 
 TEST_CASE("Query - source lookup") {
@@ -5391,7 +5473,7 @@ void Test_Query_Variables_Advanced() {
 		expect_exact_entities(qExpr, {cableAB});
 	}
 
-	// Variable source lookup with upward traversal updates.
+	// Variable source lookup with traversal filters and depth limits.
 	{
 		TestWorld twld;
 		struct Cable {};
@@ -5402,27 +5484,80 @@ void Test_Query_Variables_Advanced() {
 
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
 		const auto root = wld.add();
-		const auto room = wld.add();
-		wld.child(room, root);
+		const auto planet = wld.add();
+		const auto dock = wld.add();
+		wld.child(planet, root);
+		wld.child(dock, planet);
 
-		const auto cable = wld.add();
-		wld.add<Cable>(cable);
-		wld.add(cable, {connectedTo, room});
+		const auto cableDock = wld.add();
+		wld.add<Cable>(cableDock);
+		wld.add(cableDock, {connectedTo, dock});
 
-		auto qTrav = wld.query<UseCachedQuery>()
-										 .template all<Cable>()
-										 .any(ecs::Pair(connectedTo, ecs::Var0))
-										 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
-		CHECK(qTrav.count() == 0);
-		expect_exact_entities(qTrav, {});
+		const auto cablePlanet = wld.add();
+		wld.add<Cable>(cablePlanet);
+		wld.add(cablePlanet, {connectedTo, planet});
 
-		wld.add<Level>(root, {1});
-		CHECK(qTrav.count() == 1);
-		expect_exact_entities(qTrav, {cable});
+		const auto cableRoot = wld.add();
+		wld.add<Cable>(cableRoot);
+		wld.add(cableRoot, {connectedTo, root});
 
-		wld.del<Level>(root);
-		CHECK(qTrav.count() == 0);
-		expect_exact_entities(qTrav, {});
+		auto qSelfUp = wld.query<UseCachedQuery>()
+										.template all<Cable>()
+										.any(ecs::Pair(connectedTo, ecs::Var0))
+										.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+		auto qUpOnly = wld.query<UseCachedQuery>()
+										.template all<Cable>()
+										.any(ecs::Pair(connectedTo, ecs::Var0))
+										.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_up());
+		auto qParentOnly = wld.query<UseCachedQuery>()
+											.template all<Cable>()
+											.any(ecs::Pair(connectedTo, ecs::Var0))
+											.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
+		auto qSelfDepth1 = wld.query<UseCachedQuery>()
+											.template all<Cable>()
+											.any(ecs::Pair(connectedTo, ecs::Var0))
+											.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav().trav_depth(1));
+
+		CHECK(qSelfUp.count() == 0);
+		CHECK(qUpOnly.count() == 0);
+		CHECK(qParentOnly.count() == 0);
+		CHECK(qSelfDepth1.count() == 0);
+		expect_exact_entities(qSelfUp, {});
+		expect_exact_entities(qUpOnly, {});
+		expect_exact_entities(qParentOnly, {});
+		expect_exact_entities(qSelfDepth1, {});
+
+		wld.add<Level>(dock, {1});
+		CHECK(qSelfUp.count() == 1);
+		CHECK(qUpOnly.count() == 0);
+		CHECK(qParentOnly.count() == 0);
+		CHECK(qSelfDepth1.count() == 1);
+		expect_exact_entities(qSelfUp, {cableDock});
+		expect_exact_entities(qUpOnly, {});
+		expect_exact_entities(qParentOnly, {});
+		expect_exact_entities(qSelfDepth1, {cableDock});
+
+		wld.del<Level>(dock);
+		wld.add<Level>(planet, {2});
+		CHECK(qSelfUp.count() == 2);
+		CHECK(qUpOnly.count() == 1);
+		CHECK(qParentOnly.count() == 1);
+		CHECK(qSelfDepth1.count() == 2);
+		expect_exact_entities(qSelfUp, {cableDock, cablePlanet});
+		expect_exact_entities(qUpOnly, {cableDock});
+		expect_exact_entities(qParentOnly, {cableDock});
+		expect_exact_entities(qSelfDepth1, {cableDock, cablePlanet});
+
+		wld.del<Level>(planet);
+		wld.add<Level>(root, {3});
+		CHECK(qSelfUp.count() == 3);
+		CHECK(qUpOnly.count() == 2);
+		CHECK(qParentOnly.count() == 1);
+		CHECK(qSelfDepth1.count() == 2);
+		expect_exact_entities(qSelfUp, {cableDock, cablePlanet, cableRoot});
+		expect_exact_entities(qUpOnly, {cableDock, cablePlanet});
+		expect_exact_entities(qParentOnly, {cablePlanet});
+		expect_exact_entities(qSelfDepth1, {cablePlanet, cableRoot});
 	}
 
 	// `$this` explicitly targets the default source.
