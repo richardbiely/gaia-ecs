@@ -4638,7 +4638,7 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == wolf || entity == carnivore;
 			CHECK(isOK);
@@ -4649,7 +4649,7 @@ TEST_CASE("Inheritance (Is)") {
 	}
 	{
 		uint32_t i = 0;
-		ecs::Query q = wld.query().any(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, carnivore));
+		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, carnivore));
 		q.each([&](ecs::Entity entity) {
 			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == herbivore;
 			CHECK(isOK);
@@ -5279,6 +5279,82 @@ void expect_exact_entities(TQuery& query, std::initializer_list<ecs::Entity> exp
 }
 
 template <typename TQuery>
+void Test_Query_All_Any_Or_Semantics() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Cable {};
+	struct Device {};
+	struct Powered {};
+	struct ConnectedTo {};
+
+	const auto connectedTo = wld.add<ConnectedTo>().entity;
+
+	const auto devA = wld.add();
+	const auto devB = wld.add();
+	wld.add<Device>(devA);
+
+	const auto cablePlain = wld.add();
+	wld.add<Cable>(cablePlain);
+
+	const auto cableDevice = wld.add();
+	wld.add<Cable>(cableDevice);
+	wld.add<Device>(cableDevice);
+
+	const auto cablePowered = wld.add();
+	wld.add<Cable>(cablePowered);
+	wld.add<Powered>(cablePowered);
+	wld.add(cablePowered, {connectedTo, devB});
+
+	const auto cableBoth = wld.add();
+	wld.add<Cable>(cableBoth);
+	wld.add<Device>(cableBoth);
+	wld.add<Powered>(cableBoth);
+	wld.add(cableBoth, {connectedTo, devA});
+
+	// Not a cable - should never match queries that require Cable.
+	const auto deviceOnly = wld.add();
+	wld.add<Device>(deviceOnly);
+	(void)deviceOnly;
+
+	auto qAll = wld.query<UseCachedQuery>().template all<Cable>().template all<Device>();
+	CHECK(qAll.count() == 2);
+	expect_exact_entities(qAll, {cableDevice, cableBoth});
+
+	// `any<Device>()` is optional: it does not filter out cables without Device.
+	auto qAny = wld.query<UseCachedQuery>().template all<Cable>().template any<Device>();
+	CHECK(qAny.count() == 4);
+	expect_exact_entities(qAny, {cablePlain, cableDevice, cablePowered, cableBoth});
+
+	// OR-chain: cable must satisfy at least one OR term.
+	auto qOr = wld.query<UseCachedQuery>().template all<Cable>().template or_<Device>().template or_<Powered>();
+	CHECK(qOr.count() == 3);
+	expect_exact_entities(qOr, {cableDevice, cablePowered, cableBoth});
+
+	auto qAnyExpr = wld.query<UseCachedQuery>().add("Cable, ?Device");
+	CHECK(qAnyExpr.count() == 4);
+	expect_exact_entities(qAnyExpr, {cablePlain, cableDevice, cablePowered, cableBoth});
+
+	auto qOrExpr = wld.query<UseCachedQuery>().add("Cable, Device || Powered");
+	CHECK(qOrExpr.count() == 3);
+	expect_exact_entities(qOrExpr, {cableDevice, cablePowered, cableBoth});
+
+	// Optional dependent term: if ConnectedTo exists, the target must be a Device.
+	auto qOptionalDependent = wld.query<UseCachedQuery>().add("Cable, ?(ConnectedTo, $device), Device($device)");
+	CHECK(qOptionalDependent.count() == 3);
+	expect_exact_entities(qOptionalDependent, {cablePlain, cableDevice, cableBoth});
+}
+
+TEST_CASE("Query - all/any/or semantics") {
+	SUBCASE("Cached query") {
+		Test_Query_All_Any_Or_Semantics<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_All_Any_Or_Semantics<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_Variables() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
@@ -5306,12 +5382,12 @@ void Test_Query_Variables() {
 
 	auto qApi = wld.query<UseCachedQuery>() //
 									.template all<Cable>()
-									.any(ecs::Pair(connectedTo, ecs::Var0))
+									.all(ecs::Pair(connectedTo, ecs::Var0))
 									.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
 	CHECK(qApi.count() == 1);
 	expect_exact_entities(qApi, {cableA});
 
-	auto qExpr = wld.query<UseCachedQuery>().add("Cable, ?(ConnectedTo, $device), Device($device)");
+	auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $device), Device($device)");
 	CHECK(qExpr.count() == 1);
 	expect_exact_entities(qExpr, {cableA});
 }
@@ -5422,12 +5498,12 @@ void Test_Query_Variables_Advanced() {
 
 		auto qApi = wld.query<UseCachedQuery>()
 										.template all<Cable>()
-										.any(ecs::Pair(ecs::Var0, nodeA))
+										.all(ecs::Pair(ecs::Var0, nodeA))
 										.all(ecs::Pair(ecs::Var0, nodeB));
 		CHECK(qApi.count() == 1);
 		expect_exact_entities(qApi, {cableA});
 
-		auto qExpr = wld.query<UseCachedQuery>().add("Cable, ?($rel, %e), ($rel, %e)", nodeA.value(), nodeB.value());
+		auto qExpr = wld.query<UseCachedQuery>().add("Cable, ($rel, %e), ($rel, %e)", nodeA.value(), nodeB.value());
 		CHECK(qExpr.count() == 1);
 		expect_exact_entities(qExpr, {cableA});
 	}
@@ -5503,19 +5579,19 @@ void Test_Query_Variables_Advanced() {
 
 		auto qSelfUp = wld.query<UseCachedQuery>()
 											 .template all<Cable>()
-											 .any(ecs::Pair(connectedTo, ecs::Var0))
+											 .all(ecs::Pair(connectedTo, ecs::Var0))
 											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
 		auto qUpOnly = wld.query<UseCachedQuery>()
 											 .template all<Cable>()
-											 .any(ecs::Pair(connectedTo, ecs::Var0))
+											 .all(ecs::Pair(connectedTo, ecs::Var0))
 											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_up());
 		auto qParentOnly = wld.query<UseCachedQuery>()
 													 .template all<Cable>()
-													 .any(ecs::Pair(connectedTo, ecs::Var0))
+													 .all(ecs::Pair(connectedTo, ecs::Var0))
 													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
 		auto qSelfDepth1 = wld.query<UseCachedQuery>()
 													 .template all<Cable>()
-													 .any(ecs::Pair(connectedTo, ecs::Var0))
+													 .all(ecs::Pair(connectedTo, ecs::Var0))
 													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav().trav_depth(1));
 
 		CHECK(qSelfUp.count() == 0);
@@ -5745,6 +5821,111 @@ TEST_CASE("Query - variables multivar") {
 }
 
 template <typename TQuery>
+void Test_Query_RuntimeParams() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct SpaceShip {};
+	struct Planet {};
+	struct DockedTo {};
+	struct Military {};
+	struct Civilian {};
+
+	const auto dockedTo = wld.add<DockedTo>().entity;
+
+	const auto earth = wld.add();
+	const auto mars = wld.add();
+	const auto moon = wld.add();
+	wld.add<Planet>(earth);
+	wld.add<Planet>(mars);
+
+	const auto shipEarth = wld.add();
+	wld.add<SpaceShip>(shipEarth);
+	wld.add<Military>(shipEarth);
+	wld.add(shipEarth, {dockedTo, earth});
+
+	const auto shipMars = wld.add();
+	wld.add<SpaceShip>(shipMars);
+	wld.add(shipMars, {dockedTo, mars});
+
+	const auto shipMoon = wld.add();
+	wld.add<SpaceShip>(shipMoon);
+	wld.add(shipMoon, {dockedTo, moon});
+
+	const auto shipFree = wld.add();
+	wld.add<SpaceShip>(shipFree);
+	wld.add<Civilian>(shipFree);
+
+	// Baseline expression parsing sanity checks.
+	auto qSpaceShip = wld.query<UseCachedQuery>().add("SpaceShip");
+	CHECK(qSpaceShip.count() == 4);
+	expect_exact_entities(qSpaceShip, {shipEarth, shipMars, shipMoon, shipFree});
+
+	auto qOrBaseline = wld.query<UseCachedQuery>().add("Military || Civilian");
+	CHECK(qOrBaseline.count() == 2);
+	expect_exact_entities(qOrBaseline, {shipEarth, shipFree});
+
+	// Optional term + dependent term:
+	// match all spaceships, and when DockedTo exists require that target to be a Planet.
+	auto qOptional = wld.query<UseCachedQuery>().add("SpaceShip, ?(DockedTo, $planet), Planet($planet)");
+	CHECK(qOptional.count() == 3);
+	expect_exact_entities(qOptional, {shipEarth, shipMars, shipFree});
+
+	// OR-chain syntax maps to query::or_.
+	auto qOr = wld.query<UseCachedQuery>().add("SpaceShip, Military || Civilian");
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {shipEarth, shipFree});
+
+	// Non-string OR API alias.
+	auto qOrApi = wld.query<UseCachedQuery>().template all<SpaceShip>().template or_<Military>().template or_<Civilian>();
+	CHECK(qOrApi.count() == 2);
+	expect_exact_entities(qOrApi, {shipEarth, shipFree});
+
+	auto qApi = wld.query<UseCachedQuery>() //
+									.template all<SpaceShip>()
+									.all(ecs::Pair(dockedTo, ecs::Var0))
+									.template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var0))
+									.var_name(ecs::Var0, "planet");
+
+	CHECK(qApi.count() == 2);
+	expect_exact_entities(qApi, {shipEarth, shipMars});
+
+	qApi.set_var("planet", earth);
+	CHECK(qApi.count() == 1);
+	expect_exact_entities(qApi, {shipEarth});
+
+	qApi.set_var(ecs::Var0, mars);
+	CHECK(qApi.count() == 1);
+	expect_exact_entities(qApi, {shipMars});
+
+	qApi.clear_vars();
+	CHECK(qApi.count() == 2);
+	expect_exact_entities(qApi, {shipEarth, shipMars});
+
+	// Named var provided explicitly before parsing the expression.
+	auto qExprNamed =
+			wld.query<UseCachedQuery>().var_name(ecs::Var0, "planet").add("SpaceShip, (DockedTo, $planet), Planet($planet)");
+	qExprNamed.set_var("planet", mars);
+	CHECK(qExprNamed.count() == 1);
+	expect_exact_entities(qExprNamed, {shipMars});
+
+	// Expression-created variable names can be bound at runtime too.
+	auto qExprAuto = wld.query<UseCachedQuery>().add("SpaceShip, (DockedTo, $p), Planet($p)");
+	qExprAuto.set_var("p", earth);
+	CHECK(qExprAuto.count() == 1);
+	expect_exact_entities(qExprAuto, {shipEarth});
+}
+
+TEST_CASE("Query - runtime params") {
+	SUBCASE("Cached query") {
+		Test_Query_RuntimeParams<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_RuntimeParams<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_Bytecode_Dump() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
@@ -5771,7 +5952,7 @@ void Test_Query_Bytecode_Dump() {
 	auto q = wld.query<UseCachedQuery>() //
 							 .template all<Position>()
 							 .all(level, ecs::QueryTermOptions{}.src(scene).trav())
-							 .any(ecs::Pair(connectedTo, ecs::Var0))
+							 .all(ecs::Pair(connectedTo, ecs::Var0))
 							 .template all<PlanetTag>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
 
 	const auto bytecode = q.bytecode();
@@ -5779,7 +5960,7 @@ void Test_Query_Bytecode_Dump() {
 	CHECK(bytecode.find("main_ops:") != BadIndex);
 	CHECK(bytecode.find("ids_all: 1") != BadIndex);
 	CHECK(bytecode.find("src_all: 1") != BadIndex);
-	CHECK(bytecode.find("var_all: 1") != BadIndex);
+	CHECK(bytecode.find("var_all: 2") != BadIndex);
 	CHECK(bytecode.find("selfupn") != BadIndex);
 	CHECK(bytecode.find("depth=1") != BadIndex);
 
@@ -5801,7 +5982,59 @@ TEST_CASE("Query - bytecode dump") {
 }
 
 template <typename TQuery>
-void Test_Query_Any_Dedup() {
+void Test_Query_String_Optional_Regression() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Fuel {};
+	struct Velocity {};
+	struct RigidBody {};
+
+	const auto fuel = wld.add<Fuel>().entity;
+	const auto player = wld.add();
+	const auto other = wld.add();
+	const auto noBody = wld.add();
+
+	wld.add<Position>(player, {1.0f, 2.0f, 3.0f});
+	wld.add<RigidBody>(player);
+	wld.add(player, {fuel, player});
+
+	wld.add<Position>(other, {4.0f, 5.0f, 6.0f});
+	wld.add<RigidBody>(other);
+	wld.add<Velocity>(other);
+	wld.add(other, {fuel, player});
+
+	wld.add<Position>(noBody, {7.0f, 8.0f, 9.0f});
+	wld.add(noBody, {fuel, player});
+
+	auto qExpr = wld.query<UseCachedQuery>().add("&Position, !Velocity, ?RigidBody, (Fuel,*)");
+	auto qApi =
+			wld.query<UseCachedQuery>().template all<Position&>().template no<Velocity>().template any<RigidBody>().all(
+					ecs::Pair(fuel, ecs::All));
+
+	CHECK(qExpr.count() == 2);
+	CHECK(qApi.count() == 2);
+	expect_exact_entities(qExpr, {player, noBody});
+	expect_exact_entities(qApi, {player, noBody});
+
+	// "?RigidBody" in string syntax must remain optional.
+	const auto bytecode = qExpr.bytecode();
+	CHECK(bytecode.find("ids_or:") == BadIndex);
+	CHECK(bytecode.find("ids_all: 2") != BadIndex);
+	CHECK(bytecode.find("ids_not: 1") != BadIndex);
+}
+
+TEST_CASE("Query - string optional regression") {
+	SUBCASE("Cached query") {
+		Test_Query_String_Optional_Regression<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_String_Optional_Regression<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Or_Dedup() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
 	TestWorld twld;
@@ -5814,26 +6047,21 @@ void Test_Query_Any_Dedup() {
 	wld.add<A>(eBoth);
 	wld.add<B>(eBoth);
 
-	auto qAnyOnly = wld.query<UseCachedQuery>() //
-											.template any<A>()
-											.template any<B>();
-	CHECK(qAnyOnly.count() == 1);
-	expect_exact_entities(qAnyOnly, {eBoth});
+	auto qOrOnly = wld.query<UseCachedQuery>().template or_<A>().template or_<B>(); //
+	CHECK(qOrOnly.count() == 1);
+	expect_exact_entities(qOrOnly, {eBoth});
 
-	auto qAllAny = wld.query<UseCachedQuery>() //
-										 .template all<Marker>()
-										 .template any<A>()
-										 .template any<B>();
-	CHECK(qAllAny.count() == 1);
-	expect_exact_entities(qAllAny, {eBoth});
+	auto qAllOr = wld.query<UseCachedQuery>().template all<Marker>().template or_<A>().template or_<B>();
+	CHECK(qAllOr.count() == 1);
+	expect_exact_entities(qAllOr, {eBoth});
 }
 
-TEST_CASE("Query - any dedup") {
+TEST_CASE("Query - or dedup") {
 	SUBCASE("Cached query") {
-		Test_Query_Any_Dedup<ecs::Query>();
+		Test_Query_Or_Dedup<ecs::Query>();
 	}
 	SUBCASE("Non-cached query") {
-		Test_Query_Any_Dedup<ecs::QueryUncached>();
+		Test_Query_Or_Dedup<ecs::QueryUncached>();
 	}
 }
 
@@ -8257,7 +8485,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		CHECK(cnt == 2);
 	}
 	{
-		ecs::Query q = wld.query().any<Position>().any<Acceleration>();
+		ecs::Query q = wld.query().or_<Position>().or_<Acceleration>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8271,7 +8499,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		CHECK(cnt == 2);
 	}
 	{
-		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<Scale>();
+		ecs::Query q = wld.query().or_<Position>().or_<Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8287,7 +8515,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		CHECK(cnt == 1);
 	}
 	{
-		ecs::Query q = wld.query().any<Position>().any<Acceleration>().all<PositionSoA>();
+		ecs::Query q = wld.query().or_<Position>().or_<Acceleration>().all<PositionSoA>();
 
 		uint32_t cnt = 0;
 		q.each([&]() {
@@ -8296,7 +8524,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		CHECK(cnt == 0);
 	}
 	{
-		ecs::Query q = wld.query().any<Position>().any<Acceleration>().no<Scale>();
+		ecs::Query q = wld.query().or_<Position>().or_<Acceleration>().no<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8365,7 +8593,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		CHECK(cnt == 2);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>();
+		auto q = wld.query().or_<ecs::uni<Position>>().or_<ecs::uni<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8379,7 +8607,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		CHECK(cnt == 2);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
+		auto q = wld.query().or_<ecs::uni<Position>>().or_<ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8395,7 +8623,7 @@ TEST_CASE("Usage 2 - simple query, many unique components") {
 		CHECK(cnt == 1);
 	}
 	{
-		auto q = wld.query().any<ecs::uni<Position>>().any<ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
+		auto q = wld.query().or_<ecs::uni<Position>>().or_<ecs::uni<Acceleration>>().no<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iter& it) {
@@ -8466,24 +8694,40 @@ TEST_CASE("Query - all/any eval after new archetypes are created") {
 	wld.add(e1, e1);
 	wld.add(e2, e2);
 
-	auto q_ = wld.query().any(e1).any(e2);
-	CHECK(q_.count() == 0);
-	auto q = wld.query().all(e1).all(e2);
-	CHECK(q.count() == 0);
+	auto qAll = wld.query().all(e1).all(e2);
+	CHECK(qAll.count() == 0);
+	expect_exact_entities(qAll, {});
+
+	// any(e2) is optional and should not filter entities that already satisfy all(e1).
+	auto qAny = wld.query().all(e1).any(e2);
+	CHECK(qAny.count() == 1);
+	expect_exact_entities(qAny, {e1});
+
+	auto qOr = wld.query().or_(e1).or_(e2);
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {e1, e2});
 
 	auto e3 = wld.add();
 	wld.add(e3, e3);
 	wld.add(e3, e1);
 	wld.add(e3, e2);
-	CHECK(q.count() == 1);
-	CHECK(q_.count() == 1);
+	CHECK(qAll.count() == 1);
+	expect_exact_entities(qAll, {e3});
+	CHECK(qAny.count() == 2);
+	expect_exact_entities(qAny, {e1, e3});
+	CHECK(qOr.count() == 3);
+	expect_exact_entities(qOr, {e1, e2, e3});
 
 	auto e4 = wld.add();
 	wld.add(e4, e4);
 	wld.add(e4, e1);
 	wld.add(e4, e2);
-	CHECK(q_.count() == 2);
-	CHECK(q.count() == 2);
+	CHECK(qAll.count() == 2);
+	expect_exact_entities(qAll, {e3, e4});
+	CHECK(qAny.count() == 3);
+	expect_exact_entities(qAny, {e1, e3, e4});
+	CHECK(qOr.count() == 4);
+	expect_exact_entities(qOr, {e1, e2, e3, e4});
 }
 
 TEST_CASE("Query - cached component query sees entities added after creation") {
@@ -8524,25 +8768,26 @@ TEST_CASE("Query - cached component query sees entities added after creation") {
 	}
 }
 
-TEST_CASE("Query - cached ANY query sees matches added after creation") {
+TEST_CASE("Query - cached OR query sees matches added after creation") {
 	TestWorld twld;
 
-	auto tag = wld.add();
-	auto qCached = wld.query().any(tag);
+	auto tagA = wld.add();
+	auto tagB = wld.add();
+	auto qCached = wld.query().or_(tagA).or_(tagB);
 
 	// Compile/cache before any matching archetype exists.
 	CHECK(qCached.count() == 0);
-	CHECK(wld.query<false>().any(tag).count() == 0);
+	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 0);
 
 	// Add matching archetype after query creation.
 	auto e = wld.add();
-	wld.add(e, tag);
+	wld.add(e, tagA);
 
 	CHECK(qCached.count() == 1);
-	CHECK(wld.query<false>().any(tag).count() == 1);
+	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 1);
 }
 
-TEST_CASE("Query - remove decrements ALL/ANY/NOT cached cursors") {
+TEST_CASE("Query - remove decrements ALL/OR/NOT cached cursors") {
 	TestWorld twld;
 
 	// Build a cached query and force it to populate archetype cache.
@@ -8561,13 +8806,13 @@ TEST_CASE("Query - remove decrements ALL/ANY/NOT cached cursors") {
 	auto keyEntity = wld.add();
 	auto key = ecs::EntityLookupKey(keyEntity);
 	info.ctx().data.lastMatchedArchetypeIdx_All[key] = 5;
-	info.ctx().data.lastMatchedArchetypeIdx_Any[key] = 5;
+	info.ctx().data.lastMatchedArchetypeIdx_Or[key] = 5;
 	info.ctx().data.lastMatchedArchetypeIdx_Not[key] = 5;
 
 	info.remove(pArchetype);
 
 	CHECK(info.ctx().data.lastMatchedArchetypeIdx_All[key] == 4);
-	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Any[key] == 4);
+	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Or[key] == 4);
 	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Not[key] == 4);
 }
 

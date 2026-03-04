@@ -20,7 +20,7 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 	#endif
 
-		//! Event types matching flecs
+		//! Observer event types
 		enum class ObserverEvent : uint8_t {
 			OnAdd, // Entity enters matching archetype
 			OnDel, // Entity leaves matching archetype

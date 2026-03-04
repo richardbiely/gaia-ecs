@@ -67,8 +67,8 @@ namespace gaia {
 				uint32_t matchesEpoch;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
-				//! Idx of the last matched archetype against the ANY opcode
-				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Any;
+				//! Idx of the last matched archetype against the OR opcode
+				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Or;
 				//! Idx of the last matched archetype against the NOT opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_Not;
 				//! Mask for speeding up simple query matching
@@ -81,8 +81,12 @@ namespace gaia {
 				uint32_t as_mask_1;
 				//! Flags copied over from QueryCtx::Data
 				uint8_t flags;
-				//! ANY group was already satisfied by source terms.
-				bool skipAny = false;
+				//! Runtime variable bindings (Var0..Var7) provided by the query.
+				cnt::sarray<Entity, 8> varBindings;
+				//! Bitmask of bindings set in varBindings.
+				uint8_t varBindingMask = 0;
+				//! OR group was already satisfied by source terms.
+				bool skipOr = false;
 
 				// For the opcode compiler to modify
 				//////////////////////////////////////
@@ -123,8 +127,8 @@ namespace gaia {
 					All_Wildcard,
 					All_Complex,
 					//! ?X
-					Any_NoAll,
-					Any_WithAll,
+					Or_NoAll,
+					Or_WithAll,
 					//! !X
 					Not_Simple,
 					Not_Wildcard,
@@ -160,29 +164,31 @@ namespace gaia {
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
-					//! Array of ops that can be evaluated with a ANY opcode
-					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_any;
+					//! Array of ops that can be evaluated with a OR opcode
+					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_or;
 					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 					//! Source lookup terms for ALL
 					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_all_src;
-					//! Source lookup terms for ANY
-					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_any_src;
+					//! Source lookup terms for OR
+					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_or_src;
 					//! Source lookup terms for NOT
 					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_not_src;
 					//! Variable terms for ALL
 					QueryTermArray terms_all_var;
-					//! Variable terms for ANY
-					QueryTermArray terms_any_var;
+					//! Variable terms for OR
+					QueryTermArray terms_or_var;
 					//! Variable terms for NOT
 					QueryTermArray terms_not_var;
+					//! Variable terms for ANY
+					QueryTermArray terms_any_var;
 
 					GAIA_NODISCARD bool has_source_terms() const {
-						return !terms_all_src.empty() || !terms_any_src.empty() || !terms_not_src.empty();
+						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
 					}
 
 					GAIA_NODISCARD bool has_variable_terms() const {
-						return !terms_all_var.empty() || !terms_any_var.empty() || !terms_not_var.empty();
+						return !terms_all_var.empty() || !terms_or_var.empty() || !terms_not_var.empty() || !terms_any_var.empty();
 					}
 				};
 
@@ -215,21 +221,24 @@ namespace gaia {
 						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_All, entityKey, srcArchetypeCnt);
 					}
 				};
-				// Operator OR (used by query::any)
-				struct OpAny {
+				// Operator OR (used by query::or_)
+				struct OpOr {
 					static bool check_mask(const QueryMask& maskArchetype, const QueryMask& maskQuery) {
 						return match_entity_mask(maskArchetype, maskQuery);
 					}
-					static void restart([[maybe_unused]] uint32_t& idx) {}
-					static bool can_continue(bool hasMatch) {
-						return hasMatch;
+					static void restart(uint32_t& idx) {
+						// OR terms are evaluated independently.
+						idx = 0;
+					}
+					static bool can_continue([[maybe_unused]] bool hasMatch) {
+						return true;
 					}
 					static bool eval(uint32_t expectedMatches, uint32_t totalMatches) {
 						(void)expectedMatches;
 						return totalMatches > 0;
 					}
 					static uint32_t handle_last_match(MatchingCtx& ctx, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
-						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Any, entityKey, srcArchetypeCnt);
+						return handle_last_archetype_match(ctx.pLastMatchedArchetypeIdx_Or, entityKey, srcArchetypeCnt);
 					}
 				};
 				// Operator NOT (used by query::no)
@@ -388,7 +397,7 @@ namespace gaia {
 
 						++indices[0];
 						// Make sure to continue from the right index on the archetype array.
-						// Some operators can keep moving forward (AND, ANY), but NOT needs to start
+						// Some operators can keep moving forward (AND, OR), but NOT needs to start
 						// matching from the beginning again if the previous query operator didn't find a match.
 						OpKind::restart(indices[1]);
 
@@ -589,7 +598,7 @@ namespace gaia {
 
 				GAIA_NODISCARD inline bool match_single_id_on_archetype(const World& w, const Archetype& archetype, Entity id) {
 					const Entity ids[1] = {id};
-					return match_res_as<OpAny>(w, archetype, EntitySpan{ids, 1});
+					return match_res_as<OpOr>(w, archetype, EntitySpan{ids, 1});
 				}
 
 				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
@@ -892,10 +901,10 @@ namespace gaia {
 					}
 				}
 
-				inline void match_archetype_any(MatchingCtx& ctx) {
+				inline void match_archetype_or(MatchingCtx& ctx) {
 					EntityLookupKey entityKey(ctx.ent);
 
-					// For ANY we need at least one archetype to match.
+					// For OR we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
 					auto archetypes =
@@ -904,18 +913,18 @@ namespace gaia {
 						return;
 
 					// TODO: Support MatchingStyle::Simple too
-					match_archetype_inter<OpAny, MatchingStyle::Wildcard>(ctx, entityKey, archetypes);
+					match_archetype_inter<OpOr, MatchingStyle::Wildcard>(ctx, entityKey, archetypes);
 				}
 
-				inline void match_archetype_any_as(MatchingCtx& ctx) {
+				inline void match_archetype_or_as(MatchingCtx& ctx) {
 					EntityLookupKey entityKey = EntityBadLookupKey;
 
-					// For ANY we need at least one archetype to match.
+					// For OR we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
 					if (ctx.ent.id() == Is.id()) {
 						ctx.ent = EntityBad;
-						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, ctx.allArchetypes);
+						match_archetype_inter<OpOr, MatchingStyle::Complex>(ctx, entityKey, ctx.allArchetypes);
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
@@ -924,13 +933,13 @@ namespace gaia {
 						if (archetypes.empty())
 							return;
 
-						match_archetype_inter<OpAny, MatchingStyle::Complex>(ctx, entityKey, archetypes);
+						match_archetype_inter<OpOr, MatchingStyle::Complex>(ctx, entityKey, archetypes);
 					}
 				}
 
 				template <MatchingStyle Style>
 				inline void match_archetype_no_2(MatchingCtx& ctx) {
-					// We had some matches already (with ALL or ANY). We need to remove those
+					// We had some matches already (with ALL or OR). We need to remove those
 					// that match with the NO list.
 
 					if constexpr (Style == MatchingStyle::Complex) {
@@ -1034,30 +1043,30 @@ namespace gaia {
 					}
 				};
 
-				struct OpcodeAny_NoAll {
-					static constexpr EOpcode Id = EOpcode::Any_NoAll;
+				struct OpcodeOr_NoAll {
+					static constexpr EOpcode Id = EOpcode::Or_NoAll;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
-						GAIA_PROF_SCOPE(vm::op_any);
+						GAIA_PROF_SCOPE(vm::op_or);
 
-						if (ctx.skipAny)
+						if (ctx.skipOr)
 							return true;
 
-						const auto cnt = comp.ids_any.size();
-						ctx.idsToMatch = std::span{comp.ids_any.data(), cnt};
+						const auto cnt = comp.ids_or.size();
+						ctx.idsToMatch = std::span{comp.ids_or.data(), cnt};
 
-						// Try find matches with optional components.
+						// Try find matches with ANY components.
 						GAIA_FOR(cnt) {
-							ctx.ent = comp.ids_any[i];
+							ctx.ent = comp.ids_or[i];
 
 							// First viable item is not related to an Is relationship
 							if (ctx.as_mask_0 + ctx.as_mask_1 == 0U) {
-								match_archetype_any(ctx);
+								match_archetype_or(ctx);
 							}
 							// First viable item is related to an Is relationship.
 							// In this case we need to gather all related archetypes.
 							else {
-								match_archetype_any_as(ctx);
+								match_archetype_or_as(ctx);
 							}
 						}
 
@@ -1065,16 +1074,16 @@ namespace gaia {
 					}
 				};
 
-				struct OpcodeAny_WithAll {
-					static constexpr EOpcode Id = EOpcode::Any_WithAll;
+				struct OpcodeOr_WithAll {
+					static constexpr EOpcode Id = EOpcode::Or_WithAll;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
-						GAIA_PROF_SCOPE(vm::op_any);
+						GAIA_PROF_SCOPE(vm::op_or);
 
-						if (ctx.skipAny)
+						if (ctx.skipOr)
 							return true;
 
-						ctx.idsToMatch = std::span{comp.ids_any.data(), comp.ids_any.size()};
+						ctx.idsToMatch = std::span{comp.ids_or.data(), comp.ids_or.size()};
 
 						const bool hasNoAsRelationships = ctx.as_mask_0 + ctx.as_mask_1 == 0U;
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
@@ -1089,13 +1098,13 @@ namespace gaia {
 							if (isSimple) {
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-									if (OpAny::check_mask(pArchetype->queryMask(), ctx.queryMask) &&
-											match_res<OpAny>(*pArchetype, ctx.idsToMatch)) {
+									if (OpOr::check_mask(pArchetype->queryMask(), ctx.queryMask) &&
+											match_res<OpOr>(*pArchetype, ctx.idsToMatch)) {
 										++i;
 										continue;
 									}
 
-									// No match found among ANY. Remove the archetype from the matching ones.
+									// No match found among OR. Remove the archetype from the matching ones.
 									core::swap_erase(*ctx.pMatchesArr, i);
 								}
 							} else
@@ -1103,25 +1112,25 @@ namespace gaia {
 							{
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-									if (match_res<OpAny>(*pArchetype, ctx.idsToMatch) ||
-											match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
+									if (match_res<OpOr>(*pArchetype, ctx.idsToMatch) ||
+											match_res_as<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
 										++i;
 										continue;
 									}
 
-									// No match found among ANY. Remove the archetype from the matching ones.
+									// No match found among OR. Remove the archetype from the matching ones.
 									core::swap_erase(*ctx.pMatchesArr, i);
 								}
 							}
 						} else {
 							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 								const auto* pArchetype = (*ctx.pMatchesArr)[i];
-								if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
+								if (match_res_as<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
 									++i;
 									continue;
 								}
 
-								// No match found among ANY. Remove the archetype from the matching ones.
+								// No match found among OR. Remove the archetype from the matching ones.
 								core::swap_erase(*ctx.pMatchesArr, i);
 							}
 						}
@@ -1142,7 +1151,7 @@ namespace gaia {
 						if (ctx.targetEntities.empty()) {
 							// We searched for nothing more than NOT matches
 							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or ANY matches),
+								// If there are no previous matches (no ALL or OR matches),
 								// we need to search among all archetypes.
 								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.allArchetypes);
 							} else {
@@ -1172,7 +1181,7 @@ namespace gaia {
 						if (ctx.targetEntities.empty()) {
 							// We searched for nothing more than NOT matches
 							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or ANY matches),
+								// If there are no previous matches (no ALL or OR matches),
 								// we need to search among all archetypes.
 								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(
 										ctx, EntityBadLookupKey, ctx.allArchetypes);
@@ -1203,7 +1212,7 @@ namespace gaia {
 						if (ctx.targetEntities.empty()) {
 							// We searched for nothing more than NOT matches
 							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or ANY matches),
+								// If there are no previous matches (no ALL or OR matches),
 								// we need to search among all archetypes.
 								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.allArchetypes);
 							} else {
@@ -1244,14 +1253,14 @@ namespace gaia {
 							detail::OpcodeAll_Complex op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeAny_NoAll
+						// OpcodeOr_NoAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeAny_NoAll op;
+							detail::OpcodeOr_NoAll op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeAny_WithAll
+						// OpcodeOr_WithAll
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeAny_WithAll op;
+							detail::OpcodeOr_WithAll op;
 							return op.exec(comp, ctx);
 						},
 						// OpcodeNot_Simple
@@ -1275,7 +1284,7 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all", "allw", "allc", "any", "anya", "not", "notw", "notc"};
+					static const char* s_names[] = {"all", "allw", "allc", "or", "ora", "not", "notw", "notc"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -1440,7 +1449,7 @@ namespace gaia {
 
 			private:
 				GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
-					ctx.skipAny = false;
+					ctx.skipOr = false;
 
 					// ALL source terms must all match.
 					for (const auto& termOp: m_compCtx.terms_all_src) {
@@ -1454,24 +1463,24 @@ namespace gaia {
 							return false;
 					}
 
-					// ANY source terms short-circuit the ANY group if one matches.
-					bool anySourceMatched = false;
-					for (const auto& termOp: m_compCtx.terms_any_src) {
+					// OR source terms short-circuit the OR group if one matches.
+					bool orSourceMatched = false;
+					for (const auto& termOp: m_compCtx.terms_or_src) {
 						if (!detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
 							continue;
 
-						anySourceMatched = true;
+						orSourceMatched = true;
 						break;
 					}
 
-					if (!m_compCtx.terms_any_src.empty() && //
-							!anySourceMatched && //
-							m_compCtx.ids_any.empty() && //
-							m_compCtx.terms_any_var.empty())
+					if (!m_compCtx.terms_or_src.empty() && //
+							!orSourceMatched && //
+							m_compCtx.ids_or.empty() && //
+							m_compCtx.terms_or_var.empty())
 						return false;
 
-					if (anySourceMatched) {
-						ctx.skipAny = true;
+					if (orSourceMatched) {
+						ctx.skipOr = true;
 						if (m_compCtx.ids_all.empty())
 							detail::add_all_archetypes(ctx);
 					}
@@ -1480,36 +1489,80 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
-						const MatchingCtx& ctx, const Archetype& archetype, bool anyAlreadySatisfied) const {
+						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
 					using namespace detail;
 
-					auto finalize = [&](const VarBindings& vars, bool anyMatched) -> bool {
+					auto term_unbound_var_mask = [&](const QueryTerm& term, const VarBindings& vars) -> uint8_t {
+						uint8_t mask = 0;
+
+						if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+							mask |= (uint8_t(1) << var_index(term.src));
+
+						if (!term.id.pair()) {
+							const auto idEnt = entity_from_id(*ctx.pWorld, term.id.id());
+							if (is_var_entity(idEnt) && !var_is_bound(vars, idEnt))
+								mask |= (uint8_t(1) << var_index(idEnt));
+							return mask;
+						}
+
+						const auto relEnt = entity_from_id(*ctx.pWorld, term.id.id());
+						if (is_var_entity(relEnt) && !var_is_bound(vars, relEnt))
+							mask |= (uint8_t(1) << var_index(relEnt));
+						const auto tgtEnt = entity_from_id(*ctx.pWorld, term.id.gen());
+						if (is_var_entity(tgtEnt) && !var_is_bound(vars, tgtEnt))
+							mask |= (uint8_t(1) << var_index(tgtEnt));
+						return mask;
+					};
+
+					uint8_t anyVarMask = 0;
+					for (const auto& term: m_compCtx.terms_any_var)
+						anyVarMask |= term_unbound_var_mask(term, VarBindings{});
+
+					auto can_skip_pending_all = [&](uint16_t pendingAllMask, const VarBindings& vars) -> bool {
+						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						GAIA_FOR(allCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingAllMask & bit) == 0)
+								continue;
+
+							const auto& term = m_compCtx.terms_all_var[i];
+							const auto missingMask = term_unbound_var_mask(term, vars);
+							if (missingMask == 0)
+								return false;
+							if ((missingMask & ~anyVarMask) != 0)
+								return false;
+						}
+
+						return true;
+					};
+
+					auto finalize = [&](const VarBindings& vars, bool orMatched) -> bool {
 						// NOT variable terms must not match.
 						for (const auto& term: m_compCtx.terms_not_var) {
 							if (term_has_match(*ctx.pWorld, archetype, term, vars))
 								return false;
 						}
 
-						bool anySatisfied = anyAlreadySatisfied || anyMatched;
-						if (!anySatisfied && !m_compCtx.terms_any_var.empty()) {
-							for (const auto& term: m_compCtx.terms_any_var) {
+						bool orSatisfied = orAlreadySatisfied || orMatched;
+						if (!orSatisfied && !m_compCtx.terms_or_var.empty()) {
+							for (const auto& term: m_compCtx.terms_or_var) {
 								if (!term_has_match(*ctx.pWorld, archetype, term, vars))
 									continue;
-								anySatisfied = true;
+								orSatisfied = true;
 								break;
 							}
 						}
 
-						if (!anySatisfied && !m_compCtx.terms_any_var.empty())
+						if (!orSatisfied && !m_compCtx.terms_or_var.empty())
 							return false;
 
 						return true;
 					};
 
-					auto solve = [&](auto&& self, uint16_t pendingAllMask, uint16_t pendingAnyMask, const VarBindings& vars,
-													 bool anyMatched) -> bool {
+					auto solve = [&](auto&& self, uint16_t pendingAllMask, uint16_t pendingOrMask, uint16_t pendingAnyMask,
+													 const VarBindings& vars, bool orMatched) -> bool {
 						if (pendingAllMask == 0)
-							return finalize(vars, anyMatched);
+							return finalize(vars, orMatched);
 
 						// Resolve the ready ALL term with the smallest match domain first (fail-fast).
 						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
@@ -1543,14 +1596,38 @@ namespace gaia {
 							const auto bit = (uint16_t(1) << bestIdx);
 							const auto nextAllMask = (uint16_t)(pendingAllMask & ~bit);
 							for (const auto& state: bestStates) {
-								if (self(self, nextAllMask, pendingAnyMask, state, anyMatched))
+								if (self(self, nextAllMask, pendingOrMask, pendingAnyMask, state, orMatched))
 									return true;
 							}
 
 							return false;
 						}
 
-						// No ALL term was ready. Use ANY terms to discover missing bindings.
+						// No ALL term was ready. Use OR terms to discover missing bindings.
+						const auto orCnt = (uint32_t)m_compCtx.terms_or_var.size();
+						GAIA_FOR(orCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingOrMask & bit) == 0)
+								continue;
+
+							const auto& term = m_compCtx.terms_or_var[i];
+							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+								continue;
+
+							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							if (states.empty())
+								continue;
+
+							const auto nextOrMask = (uint16_t)(pendingOrMask & ~bit);
+							for (const auto& state: states) {
+								if (self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true))
+									return true;
+							}
+						}
+
+						// ANY terms can bind variables when matched; if unmatched they are ignored.
+						bool anyMatched = false;
 						const auto anyCnt = (uint32_t)m_compCtx.terms_any_var.size();
 						GAIA_FOR(anyCnt) {
 							const auto bit = (uint16_t(1) << i);
@@ -1561,46 +1638,63 @@ namespace gaia {
 							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
 								continue;
 
+							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
 							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
-							if (states.empty())
+							if (states.empty()) {
+								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, vars, orMatched))
+									return true;
 								continue;
+							}
 
-							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
+							anyMatched = true;
 							for (const auto& state: states) {
-								if (self(self, pendingAllMask, nextAnyMask, state, true))
+								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, state, orMatched))
 									return true;
 							}
 						}
+
+						// Remaining ALL terms depend only on variables produced by ANY terms.
+						// If those variables are still unresolved, we can skip those terms.
+						if (!anyMatched && can_skip_pending_all(pendingAllMask, vars))
+							return finalize(vars, orMatched);
 
 						return false;
 					};
 
 					const auto pendingAllMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_all_var.size()) - 1u);
+					const auto pendingOrMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_or_var.size()) - 1u);
 					const auto pendingAnyMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_any_var.size()) - 1u);
 					VarBindings vars{};
-					return solve(solve, pendingAllMask, pendingAnyMask, vars, false);
+					vars.mask = ctx.varBindingMask;
+					GAIA_FOR(VarBindings::VarCnt) {
+						const auto bit = (uint8_t(1) << i);
+						if ((vars.mask & bit) == 0)
+							continue;
+						vars.values[i] = ctx.varBindings[i];
+					}
+					return solve(solve, pendingAllMask, pendingOrMask, pendingAnyMask, vars, false);
 				}
 
 				void filter_variable_terms(MatchingCtx& ctx, bool fallbackToAllArchetypes) const {
 					if (!m_compCtx.has_variable_terms())
 						return;
 
-					const bool anyAlreadySatisfied = !m_compCtx.ids_any.empty() || !m_compCtx.terms_any_src.empty();
+					const bool orAlreadySatisfied = !m_compCtx.ids_or.empty() || !m_compCtx.terms_or_src.empty();
 
 					cnt::darr<const Archetype*> filtered;
 
 					if (!ctx.pMatchesArr->empty()) {
 						filtered.reserve(ctx.pMatchesArr->size());
 						for (const auto* pArchetype: *ctx.pMatchesArr) {
-							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, anyAlreadySatisfied))
+							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, orAlreadySatisfied))
 								continue;
 							filtered.push_back(pArchetype);
 						}
 					} else if (fallbackToAllArchetypes) {
 						filtered.reserve((uint32_t)ctx.allArchetypes.size());
 						for (const auto* pArchetype: ctx.allArchetypes) {
-							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, anyAlreadySatisfied))
+							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, orAlreadySatisfied))
 								continue;
 							filtered.push_back(pArchetype);
 						}
@@ -1648,17 +1742,18 @@ namespace gaia {
 					append_ids_section(
 							out, "ids_all", std::span<const Entity>{m_compCtx.ids_all.data(), m_compCtx.ids_all.size()}, world);
 					append_ids_section(
-							out, "ids_any", std::span<const Entity>{m_compCtx.ids_any.data(), m_compCtx.ids_any.size()}, world);
+							out, "ids_or", std::span<const Entity>{m_compCtx.ids_or.data(), m_compCtx.ids_or.size()}, world);
 					append_ids_section(
 							out, "ids_not", std::span<const Entity>{m_compCtx.ids_not.data(), m_compCtx.ids_not.size()}, world);
 
 					append_source_terms_section(out, "src_all", m_compCtx.terms_all_src, world);
-					append_source_terms_section(out, "src_any", m_compCtx.terms_any_src, world);
+					append_source_terms_section(out, "src_or", m_compCtx.terms_or_src, world);
 					append_source_terms_section(out, "src_not", m_compCtx.terms_not_src, world);
 
 					append_var_terms_section(out, "var_all", m_compCtx.terms_all_var, world);
-					append_var_terms_section(out, "var_any", m_compCtx.terms_any_var, world);
+					append_var_terms_section(out, "var_or", m_compCtx.terms_or_var, world);
 					append_var_terms_section(out, "var_not", m_compCtx.terms_not_var, world);
+					append_var_terms_section(out, "var_any", m_compCtx.terms_any_var, world);
 
 					return out;
 				}
@@ -1672,22 +1767,24 @@ namespace gaia {
 					(void)allArchetypes;
 
 					m_compCtx.ids_all.clear();
-					m_compCtx.ids_any.clear();
+					m_compCtx.ids_or.clear();
 					m_compCtx.ids_not.clear();
 					m_compCtx.terms_all_src.clear();
-					m_compCtx.terms_any_src.clear();
+					m_compCtx.terms_or_src.clear();
 					m_compCtx.terms_not_src.clear();
 					m_compCtx.terms_all_var.clear();
-					m_compCtx.terms_any_var.clear();
+					m_compCtx.terms_or_var.clear();
 					m_compCtx.terms_not_var.clear();
+					m_compCtx.terms_any_var.clear();
 					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
 
 					QueryTermSpan terms = data.terms_view_mut();
-					QueryTermSpan terms_all = terms.subspan(0, data.firstAny);
-					QueryTermSpan terms_any = terms.subspan(data.firstAny, data.firstNot - data.firstAny);
-					QueryTermSpan terms_not = terms.subspan(data.firstNot);
+					QueryTermSpan terms_all = terms.subspan(0, data.firstOr);
+					QueryTermSpan terms_or = terms.subspan(data.firstOr, data.firstNot - data.firstOr);
+					QueryTermSpan terms_not = terms.subspan(data.firstNot, data.firstAny - data.firstNot);
+					QueryTermSpan terms_any = terms.subspan(data.firstAny);
 
 					// ALL
 					if (!terms_all.empty()) {
@@ -1709,22 +1806,22 @@ namespace gaia {
 						}
 					}
 
-					// ANY
-					if (!terms_any.empty()) {
-						GAIA_PROF_SCOPE(vm::compile_any);
+					// OR
+					if (!terms_or.empty()) {
+						GAIA_PROF_SCOPE(vm::compile_or);
 
-						const auto cnt = terms_any.size();
+						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
-							auto& p = terms_any[i];
+							auto& p = terms_or[i];
 							if (term_has_variables(p)) {
-								m_compCtx.terms_any_var.push_back(p);
+								m_compCtx.terms_or_var.push_back(p);
 								continue;
 							}
 
 							if (p.src == EntityBad)
-								m_compCtx.ids_any.push_back(p.id);
+								m_compCtx.ids_or.push_back(p.id);
 							else
-								m_compCtx.terms_any_src.push_back({detail::source_opcode_from_term(p), p});
+								m_compCtx.terms_or_src.push_back({detail::source_opcode_from_term(p), p});
 						}
 					}
 
@@ -1744,6 +1841,19 @@ namespace gaia {
 								m_compCtx.ids_not.push_back(p.id);
 							else
 								m_compCtx.terms_not_src.push_back({detail::source_opcode_from_term(p), p});
+						}
+					}
+
+					// ANY
+					if (!terms_any.empty()) {
+						GAIA_PROF_SCOPE(vm::compile_any);
+
+						const auto cnt = terms_any.size();
+						GAIA_FOR(cnt) {
+							auto& p = terms_any[i];
+							if (!term_has_variables(p))
+								continue;
+							m_compCtx.terms_any_var.push_back(p);
 						}
 					}
 
@@ -1769,10 +1879,10 @@ namespace gaia {
 						(void)add_op(GAIA_MOV(op));
 					}
 
-					// ANY
-					if (!m_compCtx.ids_any.empty()) {
+					// OR
+					if (!m_compCtx.ids_or.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Any_NoAll : detail::EOpcode::Any_WithAll;
+						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Or_NoAll : detail::EOpcode::Or_WithAll;
 						(void)add_op(GAIA_MOV(op));
 					}
 

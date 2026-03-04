@@ -30,17 +30,13 @@ namespace gaia {
 		GAIA_GCC_WARNING_DISABLE("-Wshadow")
 
 		//! Operation type
-		enum class QueryOpKind : uint8_t { All, Any, Not, Count };
+		enum class QueryOpKind : uint8_t { All, Or, Not, Any, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
 		//! Source traversal filter used for source lookups.
-		enum class QueryTravKind : uint8_t {
-			None = 0x00,
-			Self = 0x01,
-			Up = 0x02
-		};
+		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02 };
 
 		GAIA_GCC_WARNING_POP()
 
@@ -342,7 +338,7 @@ namespace gaia {
 				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> _remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
-				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Any;
+				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Or;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				uint8_t idsCnt = 0;
 				uint8_t changedCnt = 0;
@@ -370,11 +366,17 @@ namespace gaia {
 				uint8_t firstNot;
 				//! First ANY record in pairs/ids/ops
 				uint8_t firstAny;
+				//! First OR record in pairs/ids/ops
+				uint8_t firstOr;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint16_t readWriteMask;
 				//! Query flags
 				uint8_t flags;
+				//! Runtime bindings for Var0..Var7.
+				cnt::sarray<Entity, 8> varBindings;
+				//! Bitmask of runtime variable bindings.
+				uint8_t varBindingMask = 0;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -435,7 +437,9 @@ namespace gaia {
 							continue;
 						}
 
-						idsNoSrc[idsNoSrcCnt++] = id;
+						// ANY terms are not hard requirements and must not affect archetype prefilter masks.
+						if (term.op != QueryOpKind::Any)
+							idsNoSrc[idsNoSrcCnt++] = id;
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
@@ -628,11 +632,18 @@ namespace gaia {
 				uint32_t i = 0;
 				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::All)
 					++i;
-				ctxData.firstAny = (uint8_t)i;
-				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Any)
+				ctxData.firstOr = (uint8_t)i;
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Or)
 					++i;
 				ctxData.firstNot = (uint8_t)i;
-			}
+				GAIA_ASSERT2(
+						(ctxData.firstNot - ctxData.firstOr) != 1,
+						"Single OR term is ambiguous. Use all() for required terms or any() for optional terms.");
+				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Not)
+					++i;
+				ctxData.firstAny = (uint8_t)i;
+			} else
+				ctxData.firstOr = ctxData.firstNot = ctxData.firstAny = 0;
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {

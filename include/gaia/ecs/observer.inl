@@ -64,6 +64,13 @@ namespace gaia {
 				return *this;
 			}
 
+			ObserverBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
+				validate();
+				data().query.or_(entity, options);
+				m_world.observers().add(m_world, entity, m_entity);
+				return *this;
+			}
+
 			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
@@ -83,6 +90,14 @@ namespace gaia {
 			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
 				data().query.template any<T>(options);
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+
+			template <typename T>
+			ObserverBuilder& or_(const QueryTermOptions& options) {
+				validate();
+				data().query.template or_<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -113,6 +128,13 @@ namespace gaia {
 				return *this;
 			}
 			template <typename... T>
+			ObserverBuilder& or_() {
+				validate();
+				data().query.or_<T...>();
+				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				return *this;
+			}
+			template <typename... T>
 			ObserverBuilder& no() {
 				validate();
 				data().query.no<T...>();
@@ -131,6 +153,13 @@ namespace gaia {
 			ObserverBuilder& any() {
 				validate();
 				data().query.any<T>();
+				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				return *this;
+			}
+			template <typename T>
+			ObserverBuilder& or_() {
+				validate();
+				data().query.or_<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}

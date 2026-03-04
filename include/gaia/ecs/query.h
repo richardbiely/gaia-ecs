@@ -26,6 +26,7 @@
 #include "gaia/mt/threadpool.h"
 #include "gaia/ser/ser_buffer_binary.h"
 #include "gaia/ser/ser_ct.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ecs {
@@ -120,10 +121,12 @@ namespace gaia {
 					//       calculations. This is used often so go with the custom code.
 					// const auto compIdx = core::get_index_unsafe(ids, comp);
 
-					// Component has to be present in anyList or allList.
-					// NoneList makes no sense because we skip those in query processing anyway.
-					GAIA_ASSERT2(ctxData._terms[compIdx].op != QueryOpKind::Not, "Filtering by NOT doesn't make sense!");
-					if (ctxData._terms[compIdx].op != QueryOpKind::Not) {
+					// Component has to be present in all/or lists.
+					// Filtering by NOT/ANY doesn't make sense because those are not hard requirements.
+					GAIA_ASSERT2(
+							ctxData._terms[compIdx].op != QueryOpKind::Not && ctxData._terms[compIdx].op != QueryOpKind::Any,
+							"Filtering by NOT/ANY doesn't make sense!");
+					if (ctxData._terms[compIdx].op != QueryOpKind::Not && ctxData._terms[compIdx].op != QueryOpKind::Any) {
 						ctxData._changed[ctxData.changedCnt++] = comp;
 						return;
 					}
@@ -418,6 +421,14 @@ namespace gaia {
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
+				//! Optional user-defined names for Var0..Var7.
+				cnt::sarray<util::str, 8> m_varNames;
+				//! Bitmask of variable names set in m_varNames.
+				uint8_t m_varNamesMask = 0;
+				//! Runtime variable bindings for Var0..Var7.
+				cnt::sarray<Entity, 8> m_varBindings;
+				//! Bitmask of variable bindings set in m_varBindings.
+				uint8_t m_varBindingsMask = 0;
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -441,6 +452,7 @@ namespace gaia {
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
 								recommit(pQueryInfo->ctx());
+								apply_runtime_var_state(pQueryInfo->ctx());
 								return *pQueryInfo;
 							}
 
@@ -451,6 +463,7 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
+						apply_runtime_var_state(ctx);
 						auto& queryInfo =
 								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
@@ -463,8 +476,12 @@ namespace gaia {
 							QueryCtx ctx;
 							ctx.init(m_storage.world());
 							commit(ctx);
+							apply_runtime_var_state(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
+						} else {
+							recommit(m_storage.m_queryInfo.ctx());
+							apply_runtime_var_state(m_storage.m_queryInfo.ctx());
 						}
 						return m_storage.m_queryInfo;
 					}
@@ -489,6 +506,95 @@ namespace gaia {
 					return {(const Archetype**)m_allArchetypes->data(), m_allArchetypes->size()};
 				}
 
+				GAIA_NODISCARD static bool is_query_var_entity(Entity entity) {
+					return is_variable((EntityId)entity.id());
+				}
+
+				GAIA_NODISCARD static uint32_t query_var_idx(Entity entity) {
+					GAIA_ASSERT(is_query_var_entity(entity));
+					return (uint32_t)(entity.id() - Var0.id());
+				}
+
+				GAIA_NODISCARD Entity query_var_entity(uint32_t idx) {
+					GAIA_ASSERT(idx < 8);
+					return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + idx));
+				}
+
+				GAIA_NODISCARD static util::str_view normalize_var_name(util::str_view name) {
+					auto trimmed = util::trim(name);
+					if (trimmed.empty())
+						return {};
+
+					if (trimmed.data()[0] == '$') {
+						if (trimmed.size() == 1)
+							return {};
+						trimmed = util::str_view(trimmed.data() + 1, trimmed.size() - 1);
+					}
+
+					return util::trim(trimmed);
+				}
+
+				GAIA_NODISCARD static bool is_reserved_var_name(util::str_view varName) {
+					return varName == "this";
+				}
+
+				GAIA_NODISCARD Entity find_var_by_name(util::str_view rawName) {
+					const auto varName = normalize_var_name(rawName);
+					if (varName.empty() || is_reserved_var_name(varName))
+						return EntityBad;
+
+					GAIA_FOR(8) {
+						const auto bit = (uint8_t(1) << i);
+						if ((m_varNamesMask & bit) == 0)
+							continue;
+						if (m_varNames[i] == varName)
+							return query_var_entity(i);
+					}
+
+					return EntityBad;
+				}
+
+				bool set_var_name_internal(Entity varEntity, util::str_view rawName) {
+					if (!is_query_var_entity(varEntity))
+						return false;
+
+					const auto varName = normalize_var_name(rawName);
+					if (varName.empty() || is_reserved_var_name(varName))
+						return false;
+
+					const auto idx = query_var_idx(varEntity);
+					const auto bit = (uint8_t(1) << idx);
+
+					GAIA_FOR(8) {
+						if (i == idx)
+							continue;
+
+						const auto otherBit = (uint8_t(1) << i);
+						if ((m_varNamesMask & otherBit) == 0)
+							continue;
+						if (!(m_varNames[i] == varName))
+							continue;
+
+						GAIA_ASSERT2(false, "Variable name is already assigned to a different query variable");
+						return false;
+					}
+
+					m_varNames[idx].assign(varName);
+					m_varNamesMask |= bit;
+					return true;
+				}
+
+				void apply_runtime_var_state(QueryCtx& ctx) {
+					auto& data = ctx.data;
+					data.varBindingMask = m_varBindingsMask;
+					GAIA_FOR(8) {
+						const auto bit = (uint8_t(1) << i);
+						if ((m_varBindingsMask & bit) == 0)
+							continue;
+						data.varBindings[i] = m_varBindings[i];
+					}
+				}
+
 				template <typename T>
 				void add_cmd(T& cmd) {
 					// Make sure to invalidate if necessary.
@@ -502,18 +608,18 @@ namespace gaia {
 				}
 
 				void add_inter(QueryInput item) {
-					// When excluding make sure the access type is None.
-					GAIA_ASSERT(item.op != QueryOpKind::Not || item.access == QueryAccess::None);
+					// When excluding or using ANY terms make sure the access type is None.
+					GAIA_ASSERT((item.op != QueryOpKind::Not && item.op != QueryOpKind::Any) || item.access == QueryAccess::None);
 
 					QueryCmd_AddItem cmd{item};
 					add_cmd(cmd);
 				}
 
 				GAIA_NODISCARD static QueryAccess normalize_access(QueryOpKind op, Entity entity, QueryAccess access) {
-					if (op == QueryOpKind::Not || entity.pair())
+					if (op == QueryOpKind::Not || op == QueryOpKind::Any || entity.pair())
 						return QueryAccess::None;
 
-					// Non-pair ALL/ANY terms default to Read access when unspecified.
+					// Non-pair ALL/OR terms default to Read access when unspecified.
 					if (access == QueryAccess::None)
 						return QueryAccess::Read;
 
@@ -543,7 +649,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not) {
+					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
 						constexpr auto isReadWrite = core::is_mut_v<T>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -568,7 +674,7 @@ namespace gaia {
 					}
 
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not) {
+					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
 						if (options.access != QueryAccess::None)
 							access = options.access;
 						else {
@@ -595,7 +701,7 @@ namespace gaia {
 
 					// Determine the access type
 					QueryAccess access = QueryAccess::None;
-					if (op != QueryOpKind::Not) {
+					if (op != QueryOpKind::Not && op != QueryOpKind::Any) {
 						constexpr auto isReadWrite = core::is_mut_v<UO_Rel> || core::is_mut_v<UO_Tgt>;
 						access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
 					}
@@ -1575,7 +1681,8 @@ namespace gaia {
 				//!
 				//! Supported modifiers:
 				//!   "," - separates expressions
-				//!   "?" - query::any
+				//!   "||" - query::or_(OR chain; at least two OR terms)
+				//!   "?" - query::any (optional)
 				//!   "!" - query::none
 				//!   "&" - read-write access
 				//!   "%e" - entity value
@@ -1611,44 +1718,35 @@ namespace gaia {
 					uint32_t exp0 = 0;
 					uint32_t parentDepth = 0;
 
-					cnt::sarray<std::span<const char>, 8> varNames{};
+					cnt::sarray<util::str_view, 8> varNames{};
 					uint32_t varNamesCnt = 0;
 					auto is_this_expr = [](std::span<const char> exprRaw) {
 						auto expr = util::trim(exprRaw);
 						return expr.size() == 5 && expr[0] == '$' && expr[1] == 't' && expr[2] == 'h' && expr[3] == 'i' &&
 									 expr[4] == 's';
 					};
-					auto is_this_var_name = [](std::span<const char> varExprRaw) {
-						auto varExpr = util::trim(varExprRaw);
-						return varExpr.size() == 4 && varExpr[0] == 't' && varExpr[1] == 'h' && varExpr[2] == 'i' &&
-									 varExpr[3] == 's';
-					};
-
-					auto span_equals = [](std::span<const char> left, std::span<const char> right) {
-						if (left.size() != right.size())
-							return false;
-
-						GAIA_FOR((uint32_t)left.size()) {
-							if (left[i] != right[i])
-								return false;
-						}
-
-						return true;
-					};
 
 					auto find_or_alloc_var = [&](std::span<const char> varExpr) -> Entity {
-						auto varName = util::trim(varExpr);
-						if (varName.empty())
+						auto varNameSpan = util::trim(varExpr);
+						if (varNameSpan.empty())
 							return EntityBad;
-						if (is_this_var_name(varName)) {
+
+						const util::str_view varName{varNameSpan.data(), (uint32_t)varNameSpan.size()};
+						if (is_reserved_var_name(varName)) {
 							GAIA_ASSERT2(false, "$this is reserved and can only be used as a source expression: Id($this)");
 							return EntityBad;
 						}
 
+						const auto namedVar = find_var_by_name(varName);
+						if (namedVar != EntityBad)
+							return namedVar;
+
 						GAIA_FOR(varNamesCnt) {
-							if (!span_equals(varNames[i], varName))
+							if (varNames[i].size() != varName.size())
 								continue;
-							return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + i));
+							if (varNames[i].size() > 0 && memcmp(varNames[i].data(), varName.data(), varName.size()) != 0)
+								continue;
+							return query_var_entity(i);
 						}
 
 						if (varNamesCnt >= varNames.size()) {
@@ -1656,8 +1754,12 @@ namespace gaia {
 							return EntityBad;
 						}
 
-						varNames[varNamesCnt] = varName;
-						return entity_from_id((const World&)*m_storage.world(), (EntityId)(Var0.id() + varNamesCnt++));
+						const auto idx = varNamesCnt++;
+						varNames[idx] = varName;
+
+						const auto varEntity = query_var_entity(idx);
+						(void)set_var_name_internal(varEntity, varName);
+						return varEntity;
 					};
 
 					auto parse_entity_expr = [&](auto&& self, std::span<const char> exprRaw) -> Entity {
@@ -1752,22 +1854,10 @@ namespace gaia {
 						return id != EntityBad;
 					};
 
-					auto process = [&]() {
-						std::span<const char> exprRaw(&str[exp0], pos - exp0);
-						exp0 = ++pos;
-
+					auto add_term = [&](QueryOpKind op, std::span<const char> exprRaw) {
 						auto expr = util::trim(exprRaw);
 						if (expr.empty())
-							return true;
-
-						QueryOpKind op = QueryOpKind::All;
-						if (expr[0] == '?') {
-							op = QueryOpKind::Any;
-							expr = util::trim(expr.subspan(1));
-						} else if (expr[0] == '!') {
-							op = QueryOpKind::Not;
-							expr = util::trim(expr.subspan(1));
-						}
+							return false;
 
 						bool isReadWrite = false;
 						if (!expr.empty() && expr[0] == '&') {
@@ -1787,11 +1877,14 @@ namespace gaia {
 							case QueryOpKind::All:
 								all(entity, options);
 								break;
-							case QueryOpKind::Any:
-								any(entity, options);
+							case QueryOpKind::Or:
+								or_(entity, options);
 								break;
 							case QueryOpKind::Not:
 								no(entity, options);
+								break;
+							case QueryOpKind::Any:
+								any(entity, options);
 								break;
 							default:
 								GAIA_ASSERT(false);
@@ -1799,6 +1892,77 @@ namespace gaia {
 						}
 
 						return true;
+					};
+
+					auto process = [&]() {
+						std::span<const char> exprRaw(&str[exp0], pos - exp0);
+						exp0 = ++pos;
+
+						auto expr = util::trim(exprRaw);
+						if (expr.empty())
+							return true;
+
+						// OR-chain at top level maps to query::or_ terms.
+						bool hasOrChain = false;
+						{
+							uint32_t depth = 0;
+							const auto cnt = (uint32_t)expr.size();
+							for (uint32_t i = 0; i + 1 < cnt; ++i) {
+								const auto ch = expr[i];
+								if (ch == '(')
+									++depth;
+								else if (ch == ')') {
+									GAIA_ASSERT(depth > 0);
+									--depth;
+								} else if (depth == 0 && ch == '|' && expr[i + 1] == '|') {
+									hasOrChain = true;
+									break;
+								}
+							}
+						}
+
+						if (hasOrChain) {
+							uint32_t depth = 0;
+							uint32_t partBeg = 0;
+							const auto cnt = (uint32_t)expr.size();
+							for (uint32_t i = 0; i < cnt; ++i) {
+								const auto ch = expr[i];
+								if (ch == '(')
+									++depth;
+								else if (ch == ')') {
+									GAIA_ASSERT(depth > 0);
+									--depth;
+								}
+
+								const bool isOr = i + 1 < cnt && depth == 0 && ch == '|' && expr[i + 1] == '|';
+								const bool isEnd = i + 1 == cnt;
+								if (!isOr && !isEnd)
+									continue;
+
+								const auto partEnd = isOr ? i : (i + 1);
+								auto partExpr = expr.subspan(partBeg, partEnd - partBeg);
+								if (!add_term(QueryOpKind::Or, partExpr))
+									return false;
+
+								if (isOr) {
+									partBeg = i + 2;
+									++i;
+								}
+							}
+
+							return true;
+						}
+
+						QueryOpKind op = QueryOpKind::All;
+						if (expr[0] == '?') {
+							op = QueryOpKind::Any;
+							expr = util::trim(expr.subspan(1));
+						} else if (expr[0] == '!') {
+							op = QueryOpKind::Not;
+							expr = util::trim(expr.subspan(1));
+						}
+
+						return add_term(op, expr);
 					};
 
 					for (; str[pos] != 0; ++pos) {
@@ -1885,6 +2049,37 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! OR terms (at least one has to match).
+				//! Debug builds assert if the query contains exactly one OR term
+				//! (for example: q.or_<A>()), because this is ambiguous.
+				//! Use all<A>() for required matching or any<A>() for optional matching.
+				QueryImpl& or_(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
+					add_entity_term(QueryOpKind::Or, entity, options);
+					return *this;
+				}
+
+				template <typename T>
+				QueryImpl& or_(const QueryTermOptions& options) {
+					add_inter<T>(QueryOpKind::Or, options);
+					return *this;
+				}
+
+#if GAIA_USE_VARIADIC_API
+				template <typename... T>
+				QueryImpl& or_() {
+					(add_inter<T>(QueryOpKind::Or), ...);
+					return *this;
+				}
+#else
+				template <typename T>
+				QueryImpl& or_() {
+					add_inter<T>(QueryOpKind::Or);
+					return *this;
+				}
+#endif
+
+				//------------------------------------------------
+
 				QueryImpl& no(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Not, entity, options);
 					return *this;
@@ -1911,6 +2106,75 @@ namespace gaia {
 					return *this;
 				}
 #endif
+
+				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
+				//! The name can be used later by set_var(name, value).
+				//! \param varEntity Query variable entity (`Var0..Var7`)
+				//! \param name Variable name (without '$')
+				//! \note Empty names and reserved name "this" are rejected.
+				QueryImpl& var_name(Entity varEntity, util::str_view name) {
+					[[maybe_unused]] const bool ok = set_var_name_internal(varEntity, name);
+					GAIA_ASSERT(ok);
+					return *this;
+				}
+				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
+				QueryImpl& var_name(Entity varEntity, const char* name) {
+					GAIA_ASSERT(name != nullptr);
+					if (name == nullptr)
+						return *this;
+					return var_name(varEntity, util::str_view{name, (uint32_t)GAIA_STRLEN(name, 256)});
+				}
+
+				//! Binds a query variable (`Var0..Var7`) to a concrete entity value.
+				//! Bound values are applied at runtime before query evaluation.
+				//! \param varEntity Query variable entity (`Var0..Var7`)
+				//! \param value Entity value to bind
+				QueryImpl& set_var(Entity varEntity, Entity value) {
+					const bool ok = is_query_var_entity(varEntity);
+					GAIA_ASSERT(ok);
+					if (!ok)
+						return *this;
+
+					const auto idx = query_var_idx(varEntity);
+					m_varBindings[idx] = value;
+					m_varBindingsMask |= (uint8_t(1) << idx);
+					return *this;
+				}
+				//! Binds a named query variable to a concrete entity value.
+				//! \param name Variable name previously assigned by var_name(...)
+				//! \param value Entity value to bind
+				QueryImpl& set_var(util::str_view name, Entity value) {
+					const auto varEntity = find_var_by_name(name);
+					GAIA_ASSERT(varEntity != EntityBad);
+					if (varEntity == EntityBad)
+						return *this;
+					return set_var(varEntity, value);
+				}
+				//! Binds a named query variable to a concrete entity value.
+				QueryImpl& set_var(const char* name, Entity value) {
+					GAIA_ASSERT(name != nullptr);
+					if (name == nullptr)
+						return *this;
+					return set_var(util::str_view{name, (uint32_t)GAIA_STRLEN(name, 256)}, value);
+				}
+
+				//! Clears binding for a single query variable (`Var0..Var7`).
+				//! The variable becomes unbound for the next query evaluation.
+				QueryImpl& clear_var(Entity varEntity) {
+					const bool ok = is_query_var_entity(varEntity);
+					GAIA_ASSERT(ok);
+					if (!ok)
+						return *this;
+
+					const auto idx = query_var_idx(varEntity);
+					m_varBindingsMask &= (uint8_t)~(uint8_t(1) << idx);
+					return *this;
+				}
+				//! Clears all runtime variable bindings.
+				QueryImpl& clear_vars() {
+					m_varBindingsMask = 0;
+					return *this;
+				}
 
 				//------------------------------------------------
 

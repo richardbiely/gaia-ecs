@@ -347,8 +347,8 @@ const bool hasVelocity = w.has<Velocity>(e);
 const bool hasWheel = w.has(car, wheel);
 ...
 
-// Check if entities hidden behind the iterator have Velocity (via iterator).
-ecs::Query q = w.query().any<Position, Velocity>(); 
+// Check if entities optionally have Position, or Velocity.
+ecs::Query q = w.query().any<Position>().any<Velocity>(); 
 q.each([&](ecs::Iter& it) {
   const bool hasPosition = it.has<Position>();
   const bool hasVelocity = it.has<Velocity>();
@@ -362,7 +362,7 @@ Providing entities is supported as well.
 auto p = w.add<Position>().entity;
 auto v = w.add<Velocity>().entity;
 
-// Check if entities hidden behind the iterator have Velocity (via iterator).
+// Check if entities optionally have Position, or Velocity.
 ecs::Query q = w.query().any(p).any(v); 
 q.each([&](ecs::Iter& it) {
   const bool hasPosition = it.has(p);
@@ -795,17 +795,26 @@ const auto numberOfMatches = q.count();
 const bool hasMatches = !q.empty();
 ```
 
-More complex queries can be created by combining All, Any, and None in any way you can imagine:
+More complex queries can be created by combining All, Or, Any (optional), and None:
 
 ```cpp
 ecs::Query q = w.query();
 // Take into account everything with Position and Velocity (mutable access for both)...
 q.all<Position&>();
 q.all<Velocity&>();
-// ... at least Something or SomethingElse (immutable access for both)...
+// ... may have Something, or may have SomethingElse (immutable access for both, it does not matter if none is present)...
 q.any<Something>().any<SomethingElse>();
 // ... and no Player component... (no access done for no())
 q.not<Player>();
+
+ecs::Query q2 = w.query();
+// Take into account everything with Position and Velocity (mutable access for both)...
+q2.all<Position&>();
+q2.all<Velocity&>();
+// ... at least Something or SomethingElse (immutable access for both, one of them has to be present)...
+q2.or_<Something>().or_<SomethingElse>();
+// ... and no Player component... (no access done for no())
+q2.not<Player>();
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
@@ -817,8 +826,8 @@ ecs::Query q = w.query();
   // ... and at the same time everything with Velocity (mutable access)...
   .all<Velocity&>()
   // ... at least Something or SomethingElse (immutable access)...
-  .any<Something>()
-  .any<SomethingElse>()
+  .or_<Something>()
+  .or_<SomethingElse>()
   // ... and no Player component (no access)...
   .no<Player>(); 
 ```
@@ -885,7 +894,9 @@ w.add<Level>(scene, {3});
 qFast.count(); // expected: 0, because trav_up() checks ancestors only (it does not check scene itself)
 ```
 
-ANY terms never duplicate matches. If an entity/archetype satisfies more than one ANY term, it is still returned once.
+OR terms never duplicate matches. If an entity/archetype satisfies more than one OR term, it is still returned once.
+When no `all(...)` terms are present, chaining multiple `or_(...)` terms still means logical OR.
+Debug builds assert on a single `or_(...)` term because it is ambiguous.
 
 ```cpp
 struct Marker {};
@@ -903,6 +914,85 @@ ecs::Query q = w.query()
   .any<A>()
   .any<B>();
 q.count(); // expected: 1 (entity `e` is matched once)
+
+ecs::Query qOr = w.query()
+  .all<Marker>()
+  .or_<A>()
+  .or_<B>();
+qOr.count(); // expected: 1
+
+ecs::Entity e1 = w.add();
+ecs::Entity e2 = w.add();
+w.add(e1, e1);
+w.add(e2, e2);
+
+ecs::Query qAny = w.query()
+  .or_(e1)
+  .or_(e2);
+qAny.count(); // expected: 2 (matches entities with e1 OR e2)
+
+ecs::Query qBad = w.query().or_<A>();
+qBad.count(); // expected (Debug): assertion failure, use all<A>() or any<A>()
+```
+
+`all(...)` requires the term, `any(...)` keeps the term optional, `or_(...)` creates an OR-chain that requires at least one OR term.
+
+```cpp
+struct Cable {};
+struct Device {};
+struct Powered {};
+
+ecs::World w;
+const ecs::Entity cablePlain = w.add();
+w.add<Cable>(cablePlain);
+
+const ecs::Entity cableDevice = w.add();
+w.add<Cable>(cableDevice);
+w.add<Device>(cableDevice);
+
+const ecs::Entity cablePowered = w.add();
+w.add<Cable>(cablePowered);
+w.add<Powered>(cablePowered);
+
+const ecs::Entity cableBoth = w.add();
+w.add<Cable>(cableBoth);
+w.add<Device>(cableBoth);
+w.add<Powered>(cableBoth);
+
+ecs::Query qAll = w.query().all<Cable>().all<Device>();
+qAll.count(); // expected: 2 (cableDevice, cableBoth)
+
+ecs::Query qAny = w.query().all<Cable>().any<Device>();
+qAny.count(); // expected: 4 (cablePlain, cableDevice, cablePowered, cableBoth)
+
+ecs::Query qOr = w.query().all<Cable>().or_<Device>().or_<Powered>();
+qOr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
+
+ecs::Query qExpr = w.query().add("Cable, Device || Powered");
+qExpr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
+```
+
+Cached queries keep reflecting new matching archetypes/entities:
+
+```cpp
+ecs::Entity e1 = w.add();
+ecs::Entity e2 = w.add();
+w.add(e1, e1);
+w.add(e2, e2);
+
+ecs::Query qAll = w.query().all(e1).all(e2);
+ecs::Query qAny = w.query().all(e1).any(e2);
+
+qAll.count(); // expected: 0
+qAny.count(); // expected: 1 (e1, because any(e2) is optional)
+
+ecs::Entity e3 = w.add();
+w.add(e3, e3);
+w.add(e3, e1);
+w.add(e3, e2);
+
+qAll.count(); // expected: 1 (e3)
+qAny.count(); // expected: 2 (e1, e3)
 ```
 
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
@@ -929,12 +1019,12 @@ w.add(cableB, {connectedTo, deviceB});
 
 ecs::Query q = w.query()
   .all<Cable>()
-  .any(ecs::Pair(connectedTo, ecs::Var0))
+  .all(ecs::Pair(connectedTo, ecs::Var0))
   .all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
 q.count(); // expected 1 match, cableA
 
 ecs::Query qExpr = w.query()
-  .add("Cable, ?(ConnectedTo, $device), Device($device)");
+  .add("Cable, (ConnectedTo, $device), Device($device)");
 qExpr.count(); // expected 1 match, cableA
 
 ecs::Query qNot = w.query()
@@ -945,6 +1035,43 @@ qNot.count(); // expected 1 match (only cables connected to non-devices), cableB
 
 ecs::Query qThis = w.query().add("Cable, Device($this)");
 qThis.count(); // expected 1 match, cableA (`$this` is the default source, so this is the same as querying Device on the cable itself)
+```
+
+You can also assign variable names explicitly (`var_name`), bind them (`set_var`), and remove bindings (`clear_var`, `clear_vars`).
+
+```cpp
+const ecs::Entity cableC = w.add();
+w.add<Cable>(cableC); // not connected to anything
+
+// Match all cables. If ConnectedTo exists, require Device on the connected target.
+ecs::Query qOptional = w.query().add("Cable, ?(ConnectedTo, $device), Device($device)");
+// expected matches: cableA + cableC (cableB is connected to non-device)
+
+// Runtime variable API:
+ecs::Query qBound = w.query()
+  .all<Cable>()
+  .all(ecs::Pair(connectedTo, ecs::Var0))
+  .all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+  .var_name(ecs::Var0, "device");
+
+qBound.count(); // expected: 1 (cableA)
+
+// Bind by variable name:
+qBound.set_var("device", deviceA);
+qBound.count(); // expected: only cables connected to `deviceA` (cableA)
+
+// Bind by variable entity:
+qBound.set_var(ecs::Var0, deviceB);
+qBound.count(); // expected: 0 (`deviceB` is not a Device)
+
+// Clear just one variable binding:
+qBound.clear_var(ecs::Var0);
+qBound.count(); // expected: 1 (cableA)
+
+// Clear all variable bindings:
+qBound.set_var("device", deviceB);
+qBound.clear_vars();
+qBound.count(); // expected: 1 (cableA)
 ```
 
 Multi-variable queries are supported as well.
@@ -1005,7 +1132,7 @@ ecs::Query q = w.query();
   // and at the same time everything with Velocity (mutable access)...
   .all<Position&, Velocity&>()
   // ... at least Something or SomethingElse (immutable access)...
-  .any<Something, SomethingElse>()
+  .or_<Something, SomethingElse>()
   // ... and no Player component (no access)...
   .no<Player>(); 
 ```
@@ -1025,10 +1152,27 @@ ecs::Query q = w.query();
   // ... and at the same time everything with Velocity (mutable access)...
   .add({v, QueryOpKind::All, QueryAccess::Write})
   // ... at least Something or SomethingElse (immutable access)..
-  .add({s, QueryOpKind::Any, QueryAccess::Read})
-  .add({se, QueryOpKind::Any, QueryAccess::Read})
+  .add({s, QueryOpKind::Or, QueryAccess::Read})
+  .add({se, QueryOpKind::Or, QueryAccess::Read})
   // ... and no Player component (no access)...
-  .add({pl, QueryOpKind::None, QueryAccess::None}); 
+  .add({pl, QueryOpKind::Not, QueryAccess::None}); 
+```
+
+`QueryOpKind::Any` is the optional term in the low-level API (`?` in string queries).
+
+```cpp
+ecs::Entity cable = w.add<Cable>().entity;
+ecs::Entity device = w.add<Device>().entity;
+ecs::Entity eCable = w.add();
+ecs::Entity eBoth = w.add();
+w.add(eCable, cable);
+w.add(eBoth, cable);
+w.add(eBoth, device);
+
+ecs::Query qAny = w.query()
+  .add({cable, QueryOpKind::All, QueryAccess::Read})
+  .add({device, QueryOpKind::Any, QueryAccess::None});
+qAny.count(); // expected: 2 (eCable, eBoth)
 ```
 
 Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
@@ -1059,7 +1203,8 @@ Another way to define queries is using the string notation. This allows you to d
 
 Supported modifiers:
 * `,` - separates expressions
-* `?` - query::any
+* `||` - query::or_(OR-chain, at least two OR terms)
+* `?` - query::any (optional)
 * `!` - query::none
 * `&` - read-write access
 * `%e` - entity value
@@ -1078,7 +1223,7 @@ ecs::Entity player = w.add();
 // Create the query from a string expression.
 ecs::Query q = w.query()
   .add("&Position, !Velocity, ?RigidBody, (Fuel,*), %e", player.value());
-// expected matches: player (if player satisfies Position + no Velocity + any RigidBody + any Fuel pair)
+// expected matches: player (RigidBody is optional)
 
 // It does not matter how we split the expressions. This query is the same as the above.
 ecs::Query q1 = w.query()
@@ -1093,6 +1238,10 @@ ecs::Query q2 = w.query()
   .any<RigidBody>()
   .all(ecs::Pair(w.add<Fuel>().entity, All)>()
   .all(player);
+
+// OR-chain:
+ecs::Query q3 = w.query().add("Position, Velocity || Acceleration");
+// expected matches: entities with Position and at least one of Velocity/Acceleration
 ```
 
 ### Uncached query

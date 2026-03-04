@@ -84,7 +84,7 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion{};
 
-			enum QueryCmdType : uint8_t { ALL, ANY, NOT };
+			enum QueryCmdType : uint8_t { ALL, OR, NOT };
 
 			template <typename TType>
 			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOpKind op, bool isReadWrite) const {
@@ -154,7 +154,7 @@ namespace gaia {
 				m_lastArchetypeId = 0;
 
 				m_ctx.data.lastMatchedArchetypeIdx_All = {};
-				m_ctx.data.lastMatchedArchetypeIdx_Any = {};
+				m_ctx.data.lastMatchedArchetypeIdx_Or = {};
 				m_ctx.data.lastMatchedArchetypeIdx_Not = {};
 			}
 
@@ -306,7 +306,7 @@ namespace gaia {
 					m_archetypeGroupData.clear();
 
 					ctxData.lastMatchedArchetypeIdx_All.clear();
-					ctxData.lastMatchedArchetypeIdx_Any.clear();
+					ctxData.lastMatchedArchetypeIdx_Or.clear();
 					ctxData.lastMatchedArchetypeIdx_Not.clear();
 				}
 
@@ -333,12 +333,14 @@ namespace gaia {
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
 				ctx.matchesEpoch = next_archetype_match_epoch();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
-				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
 				ctx.queryMask = ctxData.queryMask;
 				ctx.as_mask_0 = ctxData.as_mask_0;
 				ctx.as_mask_1 = ctxData.as_mask_1;
 				ctx.flags = ctxData.flags;
+				ctx.varBindings = ctxData.varBindings;
+				ctx.varBindingMask = ctxData.varBindingMask;
 
 				// Run the virtual machine
 				m_vm.exec(ctx);
@@ -381,7 +383,7 @@ namespace gaia {
 					m_archetypeGroupData.clear();
 
 					ctxData.lastMatchedArchetypeIdx_All.clear();
-					ctxData.lastMatchedArchetypeIdx_Any.clear();
+					ctxData.lastMatchedArchetypeIdx_Or.clear();
 					ctxData.lastMatchedArchetypeIdx_Not.clear();
 				}
 
@@ -399,12 +401,14 @@ namespace gaia {
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
 				ctx.matchesEpoch = next_archetype_match_epoch();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
-				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
+				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
 				ctx.queryMask = ctxData.queryMask;
 				ctx.as_mask_0 = ctxData.as_mask_0;
 				ctx.as_mask_1 = ctxData.as_mask_1;
 				ctx.flags = ctxData.flags;
+				ctx.varBindings = ctxData.varBindings;
+				ctx.varBindingMask = ctxData.varBindingMask;
 
 				// Run the virtual machine
 				m_vm.exec(ctx);
@@ -779,6 +783,11 @@ namespace gaia {
 			}
 
 			template <typename... T>
+			bool has_or() const {
+				return (has_inter<T>(QueryOpKind::Or) || ...);
+			}
+
+			template <typename... T>
 			bool has_all() const {
 				return (has_inter<T>(QueryOpKind::All) && ...);
 			}
@@ -806,7 +815,7 @@ namespace gaia {
 					}
 				};
 				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_All);
-				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Any);
+				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Or);
 				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Not);
 			}
 

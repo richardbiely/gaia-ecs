@@ -142,6 +142,12 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
+				validate();
+				data().query.or_(entity, options);
+				return *this;
+			}
+
 			SystemBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
@@ -169,6 +175,13 @@ namespace gaia {
 			}
 
 			template <typename T>
+			SystemBuilder& or_(const QueryTermOptions& options) {
+				validate();
+				data().query.template or_<T>(options);
+				return *this;
+			}
+
+			template <typename T>
 			SystemBuilder& no(const QueryTermOptions& options) {
 				validate();
 				data().query.template no<T>(options);
@@ -188,6 +201,12 @@ namespace gaia {
 			SystemBuilder& any() {
 				validate();
 				data().query.any<T...>();
+				return *this;
+			}
+			template <typename... T>
+			SystemBuilder& or_() {
+				validate();
+				data().query.or_<T...>();
 				return *this;
 			}
 			template <typename... T>
@@ -213,6 +232,12 @@ namespace gaia {
 			SystemBuilder& any() {
 				validate();
 				data().query.any<T>();
+				return *this;
+			}
+			template <typename T>
+			SystemBuilder& or_() {
+				validate();
+				data().query.or_<T>();
 				return *this;
 			}
 			template <typename T>
