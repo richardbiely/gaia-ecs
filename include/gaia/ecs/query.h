@@ -1042,15 +1042,10 @@ namespace gaia {
 						return false;
 
 					// See if any component has changed
-					uint32_t lastIdx = 0;
 					for (const auto comp: filtered) {
-						// Components are sorted. Therefore, we don't need to search from 0  all the time.
-						// We can search from the last found index.
-						const auto compIdx = chunk.comp_idx(comp, lastIdx);
+						const auto compIdx = chunk.comp_idx(comp);
 						if (chunk.changed(queryVersion, compIdx))
 							return true;
-
-						lastIdx = compIdx;
 					}
 
 					// If the component hasn't been modified, the entity itself still might have been moved.
