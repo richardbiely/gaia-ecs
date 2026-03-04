@@ -39,16 +39,14 @@ namespace gaia {
 			const void* old_ptr; // Previous component value (OnSet only)
 		};
 
-		//! Storage for observer data
-		struct Observer_ {
+		//! Runtime payload for observers kept out-of-line from ECS component storage.
+		struct ObserverRuntimeData {
 			using TObserverIterFunc = std::function<void(Iter&)>;
 
 			//! Entity identifying the observer
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Event type
-			ObserverEvent event;
 			//! Stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
@@ -65,6 +63,14 @@ namespace gaia {
 				for (auto e: targets)
 					on_each_func(iter);
 			}
+		};
+
+		//! Compact ECS-stored observer header.
+		struct Observer_ {
+			//! Entity identifying the observer
+			Entity entity = EntityBad;
+			//! Event type
+			ObserverEvent event = ObserverEvent::OnAdd;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>

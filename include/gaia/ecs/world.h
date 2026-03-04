@@ -80,7 +80,9 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 			class ObserverRegistry {
 				//! Temporary list of observers preliminary matching the event.
-				cnt::darray<Observer_*> m_relevant_observers_tmp;
+				cnt::darray<ObserverRuntimeData*> m_relevant_observers_tmp;
+				//! Runtime observer payload storage.
+				cnt::map<EntityLookupKey, ObserverRuntimeData> m_observer_data;
 				//! Component to OnAdd observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
 				//! Component to OnDel observer mapping.
@@ -124,6 +126,36 @@ namespace gaia {
 				}
 
 			public:
+				ObserverRuntimeData& data_add(Entity observer) {
+					return m_observer_data[EntityLookupKey(observer)];
+				}
+
+				GAIA_NODISCARD ObserverRuntimeData* data_try(Entity observer) {
+					const auto it = m_observer_data.find(EntityLookupKey(observer));
+					if (it == m_observer_data.end())
+						return nullptr;
+					return &it->second;
+				}
+
+				GAIA_NODISCARD const ObserverRuntimeData* data_try(Entity observer) const {
+					const auto it = m_observer_data.find(EntityLookupKey(observer));
+					if (it == m_observer_data.end())
+						return nullptr;
+					return &it->second;
+				}
+
+				GAIA_NODISCARD ObserverRuntimeData& data(Entity observer) {
+					auto* pData = data_try(observer);
+					GAIA_ASSERT(pData != nullptr);
+					return *pData;
+				}
+
+				GAIA_NODISCARD const ObserverRuntimeData& data(Entity observer) const {
+					const auto* pData = data_try(observer);
+					GAIA_ASSERT(pData != nullptr);
+					return *pData;
+				}
+
 				//! Registers a new term to the observer registry and links an observer with it.
 				//! \param world World the observer is triggered for
 				//! \param term Term to add to @a observer
@@ -159,12 +191,40 @@ namespace gaia {
 					GAIA_ASSERT(w.valid(term));
 
 					const auto termKey = EntityLookupKey(term);
+					const auto erasedData = m_observer_data.erase(termKey);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
-					if (erasedOnAdd == 0 && erasedOnDel == 0)
+					if (erasedOnAdd != 0 || erasedOnDel != 0)
+						mark_term_observed(w, term, false);
+
+					// A regular term deletion has nothing else to clean up.
+					// If an observer gets deleted, remove it from all term mappings.
+					if (erasedData == 0)
 						return;
 
-					mark_term_observed(w, term, false);
+					auto remove_observer_from_map = [&](auto& map) {
+						for (auto it = map.begin(); it != map.end();) {
+							auto& observers = it->second;
+							for (uint32_t i = 0; i < observers.size();) {
+								if (observers[i] == term)
+									core::swap_erase_unsafe(observers, i);
+								else
+									++i;
+							}
+
+							if (observers.empty()) {
+								const auto mappedTerm = it->first.entity();
+								auto itToErase = it++;
+								map.erase(itToErase);
+
+								if (w.valid(mappedTerm) && !has_observers_for_term(mappedTerm))
+									mark_term_observed(w, mappedTerm, false);
+							} else
+								++it;
+						}
+					};
+					remove_observer_from_map(m_observer_map_add);
+					remove_observer_from_map(m_observer_map_del);
 				}
 
 				//! Called when components are added to an entity.
@@ -186,22 +246,25 @@ namespace gaia {
 							continue;
 
 						for (auto observer: it->second) {
+							if (!world.valid(observer))
+								continue;
 							const auto& ec = world.fetch(observer);
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.lastMatchStamp == matchStamp)
+							auto* pObs = data_try(observer);
+							if (pObs == nullptr)
 								continue;
-							obs.lastMatchStamp = matchStamp;
-							m_relevant_observers_tmp.push_back(&obs);
+							if (pObs->lastMatchStamp == matchStamp)
+								continue;
+							pObs->lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
 
 					// Fire OnAdd for observers that started matching
 					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // Observer_
+						auto& obs = *pObs; // ObserverRuntimeData
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -238,22 +301,25 @@ namespace gaia {
 							continue;
 
 						for (auto observer: it->second) {
+							if (!world.valid(observer))
+								continue;
 							const auto& ec = world.fetch(observer);
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.lastMatchStamp == matchStamp)
+							auto* pObs = data_try(observer);
+							if (pObs == nullptr)
 								continue;
-							obs.lastMatchStamp = matchStamp;
-							m_relevant_observers_tmp.push_back(&obs);
+							if (pObs->lastMatchStamp == matchStamp)
+								continue;
+							pObs->lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
 
 					// Fire OnDel for observers that no longer match
 					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // Observer_
+						auto& obs = *pObs; // ObserverRuntimeData
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -5884,8 +5950,10 @@ namespace gaia {
 					.add<Observer_>();
 
 			auto ss = acc_mut(e);
-			auto& obs = ss.smut<Observer_>();
+			auto& hdr = ss.smut<Observer_>();
+			auto& obs = observers().data_add(e);
 			{
+				hdr.entity = e;
 				obs.entity = e;
 				obs.query = query<false>();
 			}

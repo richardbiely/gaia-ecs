@@ -29,6 +29,14 @@ namespace gaia {
 				return sys;
 			}
 
+			ObserverRuntimeData& runtime_data() {
+				return m_world.observers().data(m_entity);
+			}
+
+			const ObserverRuntimeData& runtime_data() const {
+				return m_world.observers().data(m_entity);
+			}
+
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
@@ -44,7 +52,7 @@ namespace gaia {
 
 			ObserverBuilder& add(QueryInput item) {
 				validate();
-				data().query.add(item);
+				runtime_data().query.add(item);
 				return *this;
 			}
 
@@ -52,28 +60,28 @@ namespace gaia {
 
 			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.all(entity, options);
+				runtime_data().query.all(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.any(entity, options);
+				runtime_data().query.any(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.or_(entity, options);
+				runtime_data().query.or_(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.no(entity, options);
+				runtime_data().query.no(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
@@ -81,7 +89,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
-				data().query.template all<T>(options);
+				runtime_data().query.template all<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -89,7 +97,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
-				data().query.template any<T>(options);
+				runtime_data().query.template any<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -97,7 +105,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& or_(const QueryTermOptions& options) {
 				validate();
-				data().query.template or_<T>(options);
+				runtime_data().query.template or_<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -105,7 +113,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& no(const QueryTermOptions& options) {
 				validate();
-				data().query.template no<T>(options);
+				runtime_data().query.template no<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -116,28 +124,28 @@ namespace gaia {
 			template <typename... T>
 			ObserverBuilder& all() {
 				validate();
-				data().query.all<T...>();
+				runtime_data().query.all<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity(), m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& any() {
 				validate();
-				data().query.any<T...>();
+				runtime_data().query.any<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& or_() {
 				validate();
-				data().query.or_<T...>();
+				runtime_data().query.or_<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& no() {
 				validate();
-				data().query.no<T...>();
+				runtime_data().query.no<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
@@ -145,28 +153,28 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& all() {
 				validate();
-				data().query.all<T>();
+				runtime_data().query.all<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& any() {
 				validate();
-				data().query.any<T>();
+				runtime_data().query.any<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& or_() {
 				validate();
-				data().query.or_<T>();
+				runtime_data().query.or_<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& no() {
 				validate();
-				data().query.no<T>();
+				runtime_data().query.no<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -190,7 +198,7 @@ namespace gaia {
 			ObserverBuilder& on_each(Func func) {
 				validate();
 
-				auto& ctx = data();
+				auto& ctx = runtime_data();
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
 						func(it);
@@ -208,13 +216,8 @@ namespace gaia {
 	#endif
 
 					ctx.on_each_func = [e = m_entity, func](Iter& it) {
-						// NOTE: We can't directly use data().query here because the function relies
-						//       on ObserverBuilder to be present at all times. If it goes out of scope
-						//       the only option left is having a copy of the world pointer and entity.
-						//       They are then used to get to the query stored inside Observer_.
-						auto ss = it.world()->acc_mut(e);
-						auto& sys = ss.smut<Observer_>();
-						sys.query.run_query_on_chunk(it, func, InputArgs{});
+						auto& obs = it.world()->observers().data(e);
+						obs.query.run_query_on_chunk(it, func, InputArgs{});
 					};
 				}
 
@@ -226,7 +229,7 @@ namespace gaia {
 			}
 
 			void exec(Iter& iter, EntitySpan targets) {
-				auto& ctx = data();
+				auto& ctx = runtime_data();
 				ctx.exec(iter, targets);
 			}
 		};

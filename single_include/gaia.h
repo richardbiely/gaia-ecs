@@ -36851,16 +36851,14 @@ namespace gaia {
 			const void* old_ptr; // Previous component value (OnSet only)
 		};
 
-		//! Storage for observer data
-		struct Observer_ {
+		//! Runtime payload for observers kept out-of-line from ECS component storage.
+		struct ObserverRuntimeData {
 			using TObserverIterFunc = std::function<void(Iter&)>;
 
 			//! Entity identifying the observer
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Event type
-			ObserverEvent event;
 			//! Stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
@@ -36877,6 +36875,14 @@ namespace gaia {
 				for (auto e: targets)
 					on_each_func(iter);
 			}
+		};
+
+		//! Compact ECS-stored observer header.
+		struct Observer_ {
+			//! Entity identifying the observer
+			Entity entity = EntityBad;
+			//! Event type
+			ObserverEvent event = ObserverEvent::OnAdd;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>
@@ -36934,7 +36940,9 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 			class ObserverRegistry {
 				//! Temporary list of observers preliminary matching the event.
-				cnt::darray<Observer_*> m_relevant_observers_tmp;
+				cnt::darray<ObserverRuntimeData*> m_relevant_observers_tmp;
+				//! Runtime observer payload storage.
+				cnt::map<EntityLookupKey, ObserverRuntimeData> m_observer_data;
 				//! Component to OnAdd observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
 				//! Component to OnDel observer mapping.
@@ -36978,6 +36986,36 @@ namespace gaia {
 				}
 
 			public:
+				ObserverRuntimeData& data_add(Entity observer) {
+					return m_observer_data[EntityLookupKey(observer)];
+				}
+
+				GAIA_NODISCARD ObserverRuntimeData* data_try(Entity observer) {
+					const auto it = m_observer_data.find(EntityLookupKey(observer));
+					if (it == m_observer_data.end())
+						return nullptr;
+					return &it->second;
+				}
+
+				GAIA_NODISCARD const ObserverRuntimeData* data_try(Entity observer) const {
+					const auto it = m_observer_data.find(EntityLookupKey(observer));
+					if (it == m_observer_data.end())
+						return nullptr;
+					return &it->second;
+				}
+
+				GAIA_NODISCARD ObserverRuntimeData& data(Entity observer) {
+					auto* pData = data_try(observer);
+					GAIA_ASSERT(pData != nullptr);
+					return *pData;
+				}
+
+				GAIA_NODISCARD const ObserverRuntimeData& data(Entity observer) const {
+					const auto* pData = data_try(observer);
+					GAIA_ASSERT(pData != nullptr);
+					return *pData;
+				}
+
 				//! Registers a new term to the observer registry and links an observer with it.
 				//! \param world World the observer is triggered for
 				//! \param term Term to add to @a observer
@@ -37015,6 +37053,7 @@ namespace gaia {
 					const auto termKey = EntityLookupKey(term);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
+					(void)m_observer_data.erase(termKey);
 					if (erasedOnAdd == 0 && erasedOnDel == 0)
 						return;
 
@@ -37044,18 +37083,19 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.lastMatchStamp == matchStamp)
+							auto* pObs = data_try(observer);
+							if (pObs == nullptr)
 								continue;
-							obs.lastMatchStamp = matchStamp;
-							m_relevant_observers_tmp.push_back(&obs);
+							if (pObs->lastMatchStamp == matchStamp)
+								continue;
+							pObs->lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
 
 					// Fire OnAdd for observers that started matching
 					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // Observer_
+						auto& obs = *pObs; // ObserverRuntimeData
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -37096,18 +37136,19 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obs = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obs.lastMatchStamp == matchStamp)
+							auto* pObs = data_try(observer);
+							if (pObs == nullptr)
 								continue;
-							obs.lastMatchStamp = matchStamp;
-							m_relevant_observers_tmp.push_back(&obs);
+							if (pObs->lastMatchStamp == matchStamp)
+								continue;
+							pObs->lastMatchStamp = matchStamp;
+							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
 
 					// Fire OnDel for observers that no longer match
 					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // Observer_
+						auto& obs = *pObs; // ObserverRuntimeData
 
 						// Entity still matches at this point, but won't after removal completes.
 						// Trigger the event for each matching observer.
@@ -42659,6 +42700,14 @@ namespace gaia {
 				return sys;
 			}
 
+			ObserverRuntimeData& runtime_data() {
+				return m_world.observers().data(m_entity);
+			}
+
+			const ObserverRuntimeData& runtime_data() const {
+				return m_world.observers().data(m_entity);
+			}
+
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
@@ -42674,7 +42723,7 @@ namespace gaia {
 
 			ObserverBuilder& add(QueryInput item) {
 				validate();
-				data().query.add(item);
+				runtime_data().query.add(item);
 				return *this;
 			}
 
@@ -42682,28 +42731,28 @@ namespace gaia {
 
 			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.all(entity, options);
+				runtime_data().query.all(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.any(entity, options);
+				runtime_data().query.any(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.or_(entity, options);
+				runtime_data().query.or_(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				data().query.no(entity, options);
+				runtime_data().query.no(entity, options);
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
@@ -42711,7 +42760,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
-				data().query.template all<T>(options);
+				runtime_data().query.template all<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -42719,7 +42768,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
-				data().query.template any<T>(options);
+				runtime_data().query.template any<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -42727,7 +42776,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& or_(const QueryTermOptions& options) {
 				validate();
-				data().query.template or_<T>(options);
+				runtime_data().query.template or_<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -42735,7 +42784,7 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& no(const QueryTermOptions& options) {
 				validate();
-				data().query.template no<T>(options);
+				runtime_data().query.template no<T>(options);
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -42746,28 +42795,28 @@ namespace gaia {
 			template <typename... T>
 			ObserverBuilder& all() {
 				validate();
-				data().query.all<T...>();
+				runtime_data().query.all<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity(), m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& any() {
 				validate();
-				data().query.any<T...>();
+				runtime_data().query.any<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& or_() {
 				validate();
-				data().query.or_<T...>();
+				runtime_data().query.or_<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& no() {
 				validate();
-				data().query.no<T...>();
+				runtime_data().query.no<T...>();
 				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
 				return *this;
 			}
@@ -42775,28 +42824,28 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& all() {
 				validate();
-				data().query.all<T>();
+				runtime_data().query.all<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& any() {
 				validate();
-				data().query.any<T>();
+				runtime_data().query.any<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& or_() {
 				validate();
-				data().query.or_<T>();
+				runtime_data().query.or_<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& no() {
 				validate();
-				data().query.no<T>();
+				runtime_data().query.no<T>();
 				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
 				return *this;
 			}
@@ -42820,7 +42869,7 @@ namespace gaia {
 			ObserverBuilder& on_each(Func func) {
 				validate();
 
-				auto& ctx = data();
+				auto& ctx = runtime_data();
 				if constexpr (std::is_invocable_v<Func, Iter&>) {
 					ctx.on_each_func = [func](Iter& it) {
 						func(it);
@@ -42838,13 +42887,8 @@ namespace gaia {
 	#endif
 
 					ctx.on_each_func = [e = m_entity, func](Iter& it) {
-						// NOTE: We can't directly use data().query here because the function relies
-						//       on ObserverBuilder to be present at all times. If it goes out of scope
-						//       the only option left is having a copy of the world pointer and entity.
-						//       They are then used to get to the query stored inside Observer_.
-						auto ss = it.world()->acc_mut(e);
-						auto& sys = ss.smut<Observer_>();
-						sys.query.run_query_on_chunk(it, func, InputArgs{});
+						auto& obs = it.world()->observers().data(e);
+						obs.query.run_query_on_chunk(it, func, InputArgs{});
 					};
 				}
 
@@ -42856,7 +42900,7 @@ namespace gaia {
 			}
 
 			void exec(Iter& iter, EntitySpan targets) {
-				auto& ctx = data();
+				auto& ctx = runtime_data();
 				ctx.exec(iter, targets);
 			}
 		};
@@ -44332,8 +44376,10 @@ namespace gaia {
 					.add<Observer_>();
 
 			auto ss = acc_mut(e);
-			auto& obs = ss.smut<Observer_>();
+			auto& hdr = ss.smut<Observer_>();
+			auto& obs = observers().data_add(e);
 			{
+				hdr.entity = e;
 				obs.entity = e;
 				obs.query = query<false>();
 			}
