@@ -32260,8 +32260,10 @@ namespace gaia {
 						if (pendingAllMask == 0)
 							return finalize(vars, anyMatched);
 
-						// Try to resolve one ready ALL term.
+						// Resolve the ready ALL term with the smallest match domain first (fail-fast).
 						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						uint32_t bestIdx = (uint32_t)-1;
+						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestStates;
 						GAIA_FOR(allCnt) {
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingAllMask & bit) == 0)
@@ -32276,8 +32278,20 @@ namespace gaia {
 							if (states.empty())
 								return false;
 
+							if (bestIdx == (uint32_t)-1 || states.size() < bestStates.size()) {
+								bestIdx = i;
+								bestStates = GAIA_MOV(states);
+
+								// Can't do better than one branch.
+								if (bestStates.size() == 1)
+									break;
+							}
+						}
+
+						if (bestIdx != (uint32_t)-1) {
+							const auto bit = (uint16_t(1) << bestIdx);
 							const auto nextAllMask = (uint16_t)(pendingAllMask & ~bit);
-							for (const auto& state: states) {
+							for (const auto& state: bestStates) {
 								if (self(self, nextAllMask, pendingAnyMask, state, anyMatched))
 									return true;
 							}

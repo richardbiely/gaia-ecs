@@ -64,6 +64,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Archetype lifespan](#archetype-lifespan)
   * [Data processing](#data-processing)
     * [Query](#query)
+    * [Query string](#query-string)
     * [Uncached query](#uncached-query)
     * [Iteration](#iteration)
     * [Constraints](#constraints)
@@ -944,6 +945,56 @@ qNot.count(); // expected 1 match (only cables connected to non-devices), cableB
 
 ecs::Query qThis = w.query().add("Cable, Device($this)");
 qThis.count(); // expected 1 match, cableA (`$this` is the default source, so this is the same as querying Device on the cable itself)
+```
+
+Multi-variable queries are supported as well.
+In plain language: you can "remember" multiple entities while matching one cable (for example its device, power source, and backup device), and then apply additional checks on each remembered entity.
+
+```cpp
+struct PowerNode {};
+struct Device {};
+struct PoweredBy {};
+struct ConnectedTo {};
+struct BackupTo {};
+
+const ecs::Entity poweredBy = w.add<PoweredBy>().entity;
+const ecs::Entity connectedTo = w.add<ConnectedTo>().entity;
+const ecs::Entity backupTo = w.add<BackupTo>().entity;
+const ecs::Entity powerA = w.add();
+const ecs::Entity deviceA = w.add();
+const ecs::Entity backupA = w.add();
+w.add<PowerNode>(powerA);
+w.add<Device>(deviceA);
+w.add<Device>(backupA);
+w.add(cableA, {poweredBy, powerA});
+w.add(cableA, {connectedTo, deviceA});
+w.add(cableA, {backupTo, backupA});
+
+// 1) Start with all cables.
+// 2) For each cable, bind:
+//    - $dev = entity from (ConnectedTo, $dev)
+//    - $pwr = entity from (PoweredBy, $pwr)
+//    - $backup = entity from (BackupTo, $backup)
+// 3) Keep the cable only if:
+//    - $dev has Device
+//    - $pwr has PowerNode
+//    - $backup has Device
+ecs::Query qMulti = w.query()
+  .all<Cable>()
+  .all(ecs::Pair(connectedTo, ecs::Var0)) // $dev
+  .all(ecs::Pair(poweredBy, ecs::Var1))   // $pwr
+  .all(ecs::Pair(backupTo, ecs::Var2))    // $backup
+  .all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+  .all<PowerNode>(ecs::QueryTermOptions{}.src(ecs::Var1))
+  .all<Device>(ecs::QueryTermOptions{}.src(ecs::Var2));
+qMulti.count(); // expected 1 match, cableA
+```
+
+The same query can be expressed in [string representation](#query-string):
+
+```
+ecs::Query qMultiExpr = w.query().add(
+  "Cable, (ConnectedTo, $dev), (PoweredBy, $pwr), (BackupTo, $backup), Device($dev), PowerNode($pwr), Device($backup)");
 ```
 
 When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.

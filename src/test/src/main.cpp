@@ -5593,6 +5593,158 @@ TEST_CASE("Query - variables advanced") {
 }
 
 template <typename TQuery>
+void Test_Query_Variables_MultiVar() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	// 3 independent vars with type checks on all variable sources.
+	{
+		TestWorld twld;
+		struct Cable {};
+		struct Device {};
+		struct PowerNode {};
+		struct Planet {};
+		struct ConnectedTo {};
+		struct PoweredBy {};
+		struct DockedTo {};
+
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+		const auto dockedTo = wld.add<DockedTo>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		const auto powerA = wld.add();
+		const auto powerB = wld.add();
+		const auto planetA = wld.add();
+		const auto asteroid = wld.add();
+
+		wld.add<Device>(devA);
+		wld.add<PowerNode>(powerA);
+		wld.add<Planet>(planetA);
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devA});
+		wld.add(cableGood, {poweredBy, powerA});
+		wld.add(cableGood, {dockedTo, planetA});
+
+		const auto cableWrongPower = wld.add();
+		wld.add<Cable>(cableWrongPower);
+		wld.add(cableWrongPower, {connectedTo, devA});
+		wld.add(cableWrongPower, {poweredBy, powerB});
+		wld.add(cableWrongPower, {dockedTo, planetA});
+
+		const auto cableWrongDevice = wld.add();
+		wld.add<Cable>(cableWrongDevice);
+		wld.add(cableWrongDevice, {connectedTo, devB});
+		wld.add(cableWrongDevice, {poweredBy, powerA});
+		wld.add(cableWrongDevice, {dockedTo, planetA});
+
+		const auto cableWrongDock = wld.add();
+		wld.add<Cable>(cableWrongDock);
+		wld.add(cableWrongDock, {connectedTo, devA});
+		wld.add(cableWrongDock, {poweredBy, powerA});
+		wld.add(cableWrongDock, {dockedTo, asteroid});
+
+		const auto cableMulti = wld.add();
+		wld.add<Cable>(cableMulti);
+		wld.add(cableMulti, {connectedTo, devA});
+		wld.add(cableMulti, {connectedTo, devB});
+		wld.add(cableMulti, {poweredBy, powerA});
+		wld.add(cableMulti, {poweredBy, powerB});
+		wld.add(cableMulti, {dockedTo, planetA});
+
+		auto qApi = wld.query<UseCachedQuery>() //
+										.template all<Cable>()
+										.all(ecs::Pair(connectedTo, ecs::Var0))
+										.all(ecs::Pair(poweredBy, ecs::Var1))
+										.all(ecs::Pair(dockedTo, ecs::Var2))
+										.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+										.template all<PowerNode>(ecs::QueryTermOptions{}.src(ecs::Var1))
+										.template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var2));
+		CHECK(qApi.count() == 2);
+		expect_exact_entities(qApi, {cableGood, cableMulti});
+
+		auto qExpr = wld.query<UseCachedQuery>().add(
+				"Cable, (ConnectedTo, $dev), (PoweredBy, $pwr), (DockedTo, $pl), Device($dev), PowerNode($pwr), Planet($pl)");
+		CHECK(qExpr.count() == 2);
+		expect_exact_entities(qExpr, {cableGood, cableMulti});
+
+		// Same query semantics with shuffled term order.
+		auto qExprShuffled = wld.query<UseCachedQuery>().add(
+				"Cable, Device($dev), Planet($pl), PowerNode($pwr), (DockedTo, $pl), (PoweredBy, $pwr), (ConnectedTo, $dev)");
+		CHECK(qExprShuffled.count() == 2);
+		expect_exact_entities(qExprShuffled, {cableGood, cableMulti});
+	}
+
+	// Source-dependent variable binding: bind Var2 from a term sourced by Var0.
+	{
+		TestWorld twld;
+		struct Relay {};
+		struct PrimaryOnline {};
+		struct SecondaryOnline {};
+		struct RegionTag {};
+		struct Primary {};
+		struct Secondary {};
+		struct LocatedIn {};
+
+		const auto primary = wld.add<Primary>().entity;
+		const auto secondary = wld.add<Secondary>().entity;
+		const auto locatedIn = wld.add<LocatedIn>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		const auto backupA = wld.add();
+		const auto backupB = wld.add();
+		const auto regionA = wld.add();
+		const auto regionB = wld.add();
+
+		wld.add<PrimaryOnline>(devA);
+		wld.add<PrimaryOnline>(devB);
+		wld.add<SecondaryOnline>(backupA);
+		wld.add<RegionTag>(regionA);
+
+		wld.add(devA, {locatedIn, regionA});
+		wld.add(devB, {locatedIn, regionB});
+
+		const auto relayGood = wld.add();
+		wld.add<Relay>(relayGood);
+		wld.add(relayGood, {primary, devA});
+		wld.add(relayGood, {secondary, backupA});
+
+		const auto relayBadRegion = wld.add();
+		wld.add<Relay>(relayBadRegion);
+		wld.add(relayBadRegion, {primary, devB});
+		wld.add(relayBadRegion, {secondary, backupA});
+
+		const auto relayBadSecondary = wld.add();
+		wld.add<Relay>(relayBadSecondary);
+		wld.add(relayBadSecondary, {primary, devA});
+		wld.add(relayBadSecondary, {secondary, backupB});
+
+		auto qApi = wld.query<UseCachedQuery>() //
+										.template all<Relay>()
+										.all(ecs::Pair(primary, ecs::Var0))
+										.all(ecs::Pair(secondary, ecs::Var1))
+										.all(ecs::Pair(locatedIn, ecs::Var2), ecs::QueryTermOptions{}.src(ecs::Var0))
+										.template all<PrimaryOnline>(ecs::QueryTermOptions{}.src(ecs::Var0))
+										.template all<SecondaryOnline>(ecs::QueryTermOptions{}.src(ecs::Var1))
+										.template all<RegionTag>(ecs::QueryTermOptions{}.src(ecs::Var2));
+		CHECK(qApi.count() == 1);
+		expect_exact_entities(qApi, {relayGood});
+	}
+}
+
+TEST_CASE("Query - variables multivar") {
+	SUBCASE("Cached query") {
+		Test_Query_Variables_MultiVar<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variables_MultiVar<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_Bytecode_Dump() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
