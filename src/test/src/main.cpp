@@ -10368,6 +10368,135 @@ TEST_CASE("Query Filter - no systems") {
 	}
 }
 
+template <typename TQuery>
+void Test_Query_Filter_Changed_Order_NoSystems() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+	struct B {
+		int value;
+	};
+
+	const auto e = wld.add();
+	wld.add<Marker>(e);
+	wld.add<A>(e, {1});
+	wld.add<B>(e, {2});
+
+	// Intentionally reversed relative to canonical component order.
+	auto q = wld.query<UseCachedQuery>().template all<Marker>().template all<A>().template all<B>().template changed<B>().template changed<A>();
+
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	// No writes between runs.
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+
+	wld.set<A>(e) = {3};
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+
+	wld.set<B>(e) = {4};
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {e});
+}
+
+TEST_CASE("Query Filter - changed order no systems") {
+	SUBCASE("Cached query") {
+		Test_Query_Filter_Changed_Order_NoSystems<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Filter_Changed_Order_NoSystems<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Filter_Changed_Or_Missing_Component() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+	struct B {
+		int value;
+	};
+
+	const auto eA = wld.add();
+	wld.add<Marker>(eA);
+	wld.add<A>(eA, {1});
+
+	const auto eB = wld.add();
+	wld.add<Marker>(eB);
+	wld.add<B>(eB, {2});
+
+	// Archetypes can match with only one of OR terms present.
+	// Both changed filters must remain safe.
+	auto q = wld.query<UseCachedQuery>()
+						 .template all<Marker>()
+						 .template or_<A>()
+						 .template or_<B>()
+						 .template changed<B>()
+						 .template changed<A>();
+
+	CHECK(q.count() == 2);
+	expect_exact_entities(q, {eA, eB});
+
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+
+	wld.set<A>(eA) = {3};
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {eA});
+
+	wld.set<B>(eB) = {4};
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {eB});
+}
+
+TEST_CASE("Query Filter - changed OR terms") {
+	SUBCASE("Cached query") {
+		Test_Query_Filter_Changed_Or_Missing_Component<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Filter_Changed_Or_Missing_Component<ecs::QueryUncached>();
+	}
+}
+
+TEST_CASE("Query Filter - changed order cache key canonicalization") {
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+	struct B {
+		int value;
+	};
+
+	const auto e = wld.add();
+	wld.add<Marker>(e);
+	wld.add<A>(e, {1});
+	wld.add<B>(e, {2});
+
+	ecs::Query qAB =
+			wld.query().template all<Marker>().template all<A>().template all<B>().template changed<A>().template changed<B>();
+	ecs::Query qBA =
+			wld.query().template all<Marker>().template all<A>().template all<B>().template changed<B>().template changed<A>();
+
+	CHECK(qAB.count() == 1);
+	CHECK(qBA.count() == 1);
+	CHECK(qAB.id() == qBA.id());
+	CHECK(qAB.gen() == qBA.gen());
+}
+
 TEST_CASE("Query Filter - systems") {
 	uint32_t expectedCnt = 0;
 	uint32_t actualCnt = 0;

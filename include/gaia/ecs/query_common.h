@@ -626,6 +626,7 @@ namespace gaia {
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			const uint32_t idsCnt = ctx.data.idsCnt;
+			const uint32_t changedCnt = ctx.data.changedCnt;
 
 			auto& ctxData = ctx.data;
 			auto remappingCopy = ctxData._remapping;
@@ -674,7 +675,13 @@ namespace gaia {
 				ctxData.firstAny = (uint8_t)i;
 			} else
 				ctxData.firstOr = ctxData.firstNot = ctxData.firstAny = 0;
-		}
+
+				// Canonicalize filter order. This enables monotonic component lookup in filter matching
+				// and keeps cache keys stable regardless of changed() call order.
+				if (changedCnt > 1) {
+					core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
+				}
+			}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
 			GAIA_ASSERT(ctx.cc != nullptr);

@@ -30011,6 +30011,7 @@ namespace gaia {
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
 			const uint32_t idsCnt = ctx.data.idsCnt;
+			const uint32_t changedCnt = ctx.data.changedCnt;
 
 			auto& ctxData = ctx.data;
 			auto remappingCopy = ctxData._remapping;
@@ -30059,7 +30060,13 @@ namespace gaia {
 				ctxData.firstAny = (uint8_t)i;
 			} else
 				ctxData.firstOr = ctxData.firstNot = ctxData.firstAny = 0;
-		}
+
+				// Canonicalize filter order. This enables monotonic component lookup in filter matching
+				// and keeps cache keys stable regardless of changed() call order.
+				if (changedCnt > 1) {
+					core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
+				}
+			}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
 			GAIA_ASSERT(ctx.cc != nullptr);
@@ -34875,6 +34882,11 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
+						auto& ctxData = ctx.data;
+						if (ctxData.changedCnt > 1) {
+							core::sort(
+									ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
+						}
 						calc_lookup_hash(ctx);
 					}
 
@@ -34934,11 +34946,40 @@ namespace gaia {
 					if (filtered.empty())
 						return false;
 
+					const auto filteredCnt = (uint32_t)filtered.size();
+					auto ids = chunk.ids_view();
+
+					// This is the hot path for most change-filter queries.
+					if (filteredCnt == 1) {
+						const auto compIdx = core::get_index(ids, filtered[0]);
+						if (compIdx != BadIndex && chunk.changed(queryVersion, compIdx))
+							return true;
+
+						return chunk.changed(queryInfo.world_version());
+					}
+
 					// See if any component has changed
+					uint32_t lastIdx = 0;
 					for (const auto comp: filtered) {
-						const auto compIdx = chunk.comp_idx(comp);
+						uint32_t compIdx = BadIndex;
+						if (lastIdx < (uint32_t)ids.size()) {
+							const auto suffixIdx = core::get_index(
+									std::span<const Entity>(ids.data() + lastIdx, ids.size() - lastIdx), comp);
+							if (suffixIdx != BadIndex)
+								compIdx = lastIdx + suffixIdx;
+						}
+
+						// Fallback for queries where change-filters are not monotonic in chunk column order
+						// (e.g. OR-driven layouts).
+						if (compIdx == BadIndex)
+							compIdx = core::get_index(ids, comp);
+						if (compIdx == BadIndex)
+							continue;
+
 						if (chunk.changed(queryVersion, compIdx))
 							return true;
+
+						lastIdx = compIdx;
 					}
 
 					// If the component hasn't been modified, the entity itself still might have been moved.
