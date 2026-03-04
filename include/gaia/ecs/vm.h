@@ -8,6 +8,7 @@
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/sarray.h"
 #include "gaia/cnt/set.h"
+#include "gaia/cnt/sparse_storage.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
@@ -23,6 +24,22 @@ namespace gaia {
 	namespace ecs {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 
+		struct ArchetypeMatchStamp {
+			cnt::sparse_id id = 0;
+			uint32_t epoch = 0;
+		};
+	} // namespace ecs
+
+	namespace cnt {
+		template <>
+		struct to_sparse_id<ecs::ArchetypeMatchStamp> {
+			static sparse_id get(const ecs::ArchetypeMatchStamp& item) noexcept {
+				return item.id;
+			}
+		};
+	} // namespace cnt
+
+	namespace ecs {
 		namespace vm {
 
 			enum class MatchingStyle { Simple, Wildcard, Complex };
@@ -43,6 +60,11 @@ namespace gaia {
 				cnt::set<const Archetype*>* pMatchesSet;
 				//! Array of already matches archetypes. Reset before each exec().
 				cnt::darr<const Archetype*>* pMatchesArr;
+				//! Optional per-archetype stamp table for O(1) dedup in hot loops.
+				//! If null, matching falls back to pMatchesSet-based dedup.
+				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
+				//! Current dedup epoch used with pMatchesStampByArchetypeId.
+				uint32_t matchesEpoch;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the ANY opcode
@@ -230,13 +252,46 @@ namespace gaia {
 					}
 				};
 
-				inline void add_all_archetypes(MatchingCtx& ctx) {
-					for (const auto* pArchetype: ctx.allArchetypes) {
-						if (ctx.pMatchesSet->contains(pArchetype))
-							continue;
+				GAIA_NODISCARD inline bool is_archetype_marked(const MatchingCtx& ctx, const Archetype* pArchetype) {
+					if (ctx.pMatchesStampByArchetypeId == nullptr)
+						return ctx.pMatchesSet->contains(pArchetype);
 
+					const auto& stamps = *ctx.pMatchesStampByArchetypeId;
+					const auto sid = (cnt::sparse_id)pArchetype->id();
+					if (!stamps.has(sid))
+						return false;
+
+					return stamps[sid].epoch == ctx.matchesEpoch;
+				}
+
+				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
+					if (ctx.pMatchesStampByArchetypeId == nullptr) {
 						ctx.pMatchesSet->emplace(pArchetype);
 						ctx.pMatchesArr->emplace_back(pArchetype);
+						return;
+					}
+
+					auto& stamps = *ctx.pMatchesStampByArchetypeId;
+					const auto sid = (cnt::sparse_id)pArchetype->id();
+					if (stamps.has(sid))
+						stamps.set(sid).epoch = ctx.matchesEpoch;
+					else {
+						ecs::ArchetypeMatchStamp stamp{};
+						stamp.id = sid;
+						stamp.epoch = ctx.matchesEpoch;
+						stamps.add(stamp);
+					}
+
+					ctx.pMatchesSet->emplace(pArchetype);
+					ctx.pMatchesArr->emplace_back(pArchetype);
+				}
+
+				inline void add_all_archetypes(MatchingCtx& ctx) {
+					for (const auto* pArchetype: ctx.allArchetypes) {
+						if (is_archetype_marked(ctx, pArchetype))
+							continue;
+
+						mark_archetype_match(ctx, pArchetype);
 					}
 				}
 
@@ -753,25 +808,21 @@ namespace gaia {
 
 				template <typename OpKind, MatchingStyle Style>
 				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const Archetype*> archetypes) {
-					auto& matchesArr = *ctx.pMatchesArr;
-					auto& matchesSet = *ctx.pMatchesSet;
-
 					if constexpr (Style == MatchingStyle::Complex) {
 						for (const auto* pArchetype: archetypes) {
-							if (matchesSet.contains(pArchetype))
+							if (is_archetype_marked(ctx, pArchetype))
 								continue;
 
 							if (!match_res_as<OpKind>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
 								continue;
 
-							matchesSet.emplace(pArchetype);
-							matchesArr.emplace_back(pArchetype);
+							mark_archetype_match(ctx, pArchetype);
 						}
 					}
 #if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
 					else if constexpr (Style == MatchingStyle::Simple) {
 						for (const auto* pArchetype: archetypes) {
-							if (matchesSet.contains(pArchetype))
+							if (is_archetype_marked(ctx, pArchetype))
 								continue;
 
 							// Try early exit
@@ -781,21 +832,19 @@ namespace gaia {
 							if (!match_res<OpKind>(*pArchetype, ctx.idsToMatch))
 								continue;
 
-							matchesSet.emplace(pArchetype);
-							matchesArr.emplace_back(pArchetype);
+							mark_archetype_match(ctx, pArchetype);
 						}
 					}
 #endif
 					else {
 						for (const auto* pArchetype: archetypes) {
-							if (matchesSet.contains(pArchetype))
+							if (is_archetype_marked(ctx, pArchetype))
 								continue;
 
 							if (!match_res<OpKind>(*pArchetype, ctx.idsToMatch))
 								continue;
 
-							matchesSet.emplace(pArchetype);
-							matchesArr.emplace_back(pArchetype);
+							mark_archetype_match(ctx, pArchetype);
 						}
 					}
 				}
@@ -1040,66 +1089,40 @@ namespace gaia {
 							if (isSimple) {
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-
-									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
-										// Try early exit
-										if (!OpAny::check_mask(pArchetype->queryMask(), ctx.queryMask))
-											goto checkNextArchetype3;
-
-										// First viable item is not related to an Is relationship
-										if (match_res<OpAny>(*pArchetype, ctx.idsToMatch))
-											goto checkNextArchetype3;
+									if (OpAny::check_mask(pArchetype->queryMask(), ctx.queryMask) &&
+											match_res<OpAny>(*pArchetype, ctx.idsToMatch)) {
+										++i;
+										continue;
 									}
 
-									// No match found among ANY. Remove the archetype from the matching ones
+									// No match found among ANY. Remove the archetype from the matching ones.
 									core::swap_erase(*ctx.pMatchesArr, i);
-									continue;
-
-								checkNextArchetype3:
-									++i;
 								}
 							} else
 #endif
 							{
 								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-
-									GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
-										// First viable item is not related to an Is relationship
-										if (match_res<OpAny>(*pArchetype, ctx.idsToMatch))
-											goto checkNextArchetype1;
-
-										// First viable item is related to an Is relationship.
-										// In this case we need to gather all related archetypes.
-										if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
-											goto checkNextArchetype1;
+									if (match_res<OpAny>(*pArchetype, ctx.idsToMatch) ||
+											match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
+										++i;
+										continue;
 									}
 
-									// No match found among ANY. Remove the archetype from the matching ones
+									// No match found among ANY. Remove the archetype from the matching ones.
 									core::swap_erase(*ctx.pMatchesArr, i);
-									continue;
-
-								checkNextArchetype1:
-									++i;
 								}
 							}
 						} else {
 							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
 								const auto* pArchetype = (*ctx.pMatchesArr)[i];
-
-								GAIA_FOR_((uint32_t)comp.ids_any.size(), j) {
-									// First viable item is related to an Is relationship.
-									// In this case we need to gather all related archetypes.
-									if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch))
-										goto checkNextArchetype2;
+								if (match_res_as<OpAny>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
+									++i;
+									continue;
 								}
 
-								// No match found among ANY. Remove the archetype from the matching ones
+								// No match found among ANY. Remove the archetype from the matching ones.
 								core::swap_erase(*ctx.pMatchesArr, i);
-								continue;
-
-							checkNextArchetype2:
-								++i;
 							}
 						}
 
@@ -1790,4 +1813,5 @@ namespace gaia {
 
 		} // namespace vm
 	} // namespace ecs
+
 } // namespace gaia

@@ -884,6 +884,26 @@ w.add<Level>(scene, {3});
 qFast.count(); // expected: 0, because trav_up() checks ancestors only (it does not check scene itself)
 ```
 
+ANY terms never duplicate matches. If an entity/archetype satisfies more than one ANY term, it is still returned once.
+
+```cpp
+struct Marker {};
+struct A {};
+struct B {};
+
+ecs::World w;
+const ecs::Entity e = w.add();
+w.add<Marker>(e);
+w.add<A>(e);
+w.add<B>(e);
+
+ecs::Query q = w.query()
+  .all<Marker>()
+  .any<A>()
+  .any<B>();
+q.count(); // expected: 1 (entity `e` is matched once)
+```
+
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
 
 ```cpp

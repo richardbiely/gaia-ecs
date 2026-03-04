@@ -5616,7 +5616,7 @@ void Test_Query_Bytecode_Dump() {
 	wld.add(entity, {connectedTo, root});
 	wld.add<PlanetTag>(root);
 
-	auto q = wld.query<UseCachedQuery>()
+	auto q = wld.query<UseCachedQuery>() //
 							 .template all<Position>()
 							 .all(level, ecs::QueryTermOptions{}.src(scene).trav())
 							 .any(ecs::Pair(connectedTo, ecs::Var0))
@@ -5645,6 +5645,43 @@ TEST_CASE("Query - bytecode dump") {
 	}
 	SUBCASE("Non-cached query") {
 		Test_Query_Bytecode_Dump<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Any_Dedup() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Marker {};
+	struct A {};
+	struct B {};
+
+	const auto eBoth = wld.add();
+	wld.add<Marker>(eBoth);
+	wld.add<A>(eBoth);
+	wld.add<B>(eBoth);
+
+	auto qAnyOnly = wld.query<UseCachedQuery>() //
+											.template any<A>()
+											.template any<B>();
+	CHECK(qAnyOnly.count() == 1);
+	expect_exact_entities(qAnyOnly, {eBoth});
+
+	auto qAllAny = wld.query<UseCachedQuery>() //
+										 .template all<Marker>()
+										 .template any<A>()
+										 .template any<B>();
+	CHECK(qAllAny.count() == 1);
+	expect_exact_entities(qAllAny, {eBoth});
+}
+
+TEST_CASE("Query - any dedup") {
+	SUBCASE("Cached query") {
+		Test_Query_Any_Dedup<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Any_Dedup<ecs::QueryUncached>();
 	}
 }
 

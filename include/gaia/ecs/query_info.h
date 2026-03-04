@@ -239,6 +239,19 @@ namespace gaia {
 			//       We could make these thread_local but that does not work on all platforms. Replace with per-world cachce.
 			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
 			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
+			static inline cnt::sparse_storage<ArchetypeMatchStamp> s_tmpArchetypeMatchStamps;
+			static inline uint32_t s_tmpArchetypeMatchEpoch = 0;
+
+			static uint32_t next_archetype_match_epoch() {
+				++s_tmpArchetypeMatchEpoch;
+				if (s_tmpArchetypeMatchEpoch != 0)
+					return s_tmpArchetypeMatchEpoch;
+
+				// Overflow: drop stamps so epoch value can be reused safely.
+				s_tmpArchetypeMatchStamps.clear();
+				s_tmpArchetypeMatchEpoch = 1;
+				return s_tmpArchetypeMatchEpoch;
+			}
 
 			struct CleanUpTmpArchetypeMatches {
 				CleanUpTmpArchetypeMatches() = default;
@@ -317,6 +330,8 @@ namespace gaia {
 				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
+				ctx.matchesEpoch = next_archetype_match_epoch();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
@@ -381,6 +396,8 @@ namespace gaia {
 				ctx.pEntityToArchetypeMap = nullptr;
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
+				ctx.matchesEpoch = next_archetype_match_epoch();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Any = &ctxData.lastMatchedArchetypeIdx_Any;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
