@@ -107,6 +107,15 @@ namespace gaia {
 					Not_Complex
 				};
 
+				enum class ESourceOpcode : uint8_t {
+					Never,
+					Self,
+					Up_1,
+					Up_N,
+					SelfUp_1,
+					SelfUp_N
+				};
+
 				using VmLabel = uint16_t;
 
 				struct CompiledOp {
@@ -119,6 +128,11 @@ namespace gaia {
 				};
 
 				struct QueryCompileCtx {
+					struct SourceTermOp {
+						ESourceOpcode opcode = ESourceOpcode::Never;
+						QueryTerm term{};
+					};
+
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_all;
@@ -127,11 +141,11 @@ namespace gaia {
 					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
 					//! Source lookup terms for ALL
-					QueryTermArray terms_all_src;
+					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_all_src;
 					//! Source lookup terms for ANY
-					QueryTermArray terms_any_src;
+					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_any_src;
 					//! Source lookup terms for NOT
-					QueryTermArray terms_not_src;
+					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_not_src;
 					//! Variable terms for ALL
 					QueryTermArray terms_all_var;
 					//! Variable terms for ANY
@@ -521,40 +535,74 @@ namespace gaia {
 					return match_res_as<OpAny>(w, archetype, EntitySpan{ids, 1});
 				}
 
-				template <typename Func>
-				GAIA_NODISCARD inline bool each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
-					if (!valid(w, sourceEntity))
-						return false;
-
+				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
 					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad &&
 																 term.travDepth != 0;
-
-					if (includeSelf && func(sourceEntity))
-						return true;
-
-					if (!includeUp)
-						return false;
-
-					constexpr uint32_t MaxTraversalDepth = 2048;
-					const uint32_t maxDepth =
-							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
-
-					Entity source = sourceEntity;
-					for (uint32_t depth = 0; depth < maxDepth; ++depth) {
-						const auto next = target(w, source, term.entTrav);
-						if (next == EntityBad || next == source)
-							break;
-
-						source = next;
-						if (func(source))
-							return true;
-					}
-
-					return false;
+					if (!includeSelf && !includeUp)
+						return ESourceOpcode::Never;
+					if (includeSelf && !includeUp)
+						return ESourceOpcode::Self;
+					if (!includeSelf && includeUp)
+						return term.travDepth == 1 ? ESourceOpcode::Up_1 : ESourceOpcode::Up_N;
+					return term.travDepth == 1 ? ESourceOpcode::SelfUp_1 : ESourceOpcode::SelfUp_N;
 				}
 
-				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
+				template <typename Func>
+				GAIA_NODISCARD inline bool
+				each_lookup_source(const World& w, ESourceOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					if (!valid(w, sourceEntity))
+						return false;
+
+					switch (opcode) {
+						case ESourceOpcode::Never:
+							return false;
+						case ESourceOpcode::Self:
+							return func(sourceEntity);
+						case ESourceOpcode::Up_1: {
+							const auto next = target(w, sourceEntity, term.entTrav);
+							return next != EntityBad && next != sourceEntity && func(next);
+						}
+						case ESourceOpcode::SelfUp_1: {
+							if (func(sourceEntity))
+								return true;
+							const auto next = target(w, sourceEntity, term.entTrav);
+							return next != EntityBad && next != sourceEntity && func(next);
+						}
+						case ESourceOpcode::Up_N:
+						case ESourceOpcode::SelfUp_N: {
+							if (opcode == ESourceOpcode::SelfUp_N && func(sourceEntity))
+								return true;
+
+							constexpr uint32_t MaxTraversalDepth = 2048;
+							const uint32_t maxDepth = term.travDepth == QueryTermOptions::TravDepthUnlimited
+																					? MaxTraversalDepth
+																					: (uint32_t)term.travDepth;
+
+							Entity source = sourceEntity;
+							for (uint32_t depth = 0; depth < maxDepth; ++depth) {
+								const auto next = target(w, source, term.entTrav);
+								if (next == EntityBad || next == source)
+									break;
+
+								source = next;
+								if (func(source))
+									return true;
+							}
+							return false;
+						}
+						default:
+							GAIA_ASSERT(false);
+							return true;
+					}
+				}
+
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					return each_lookup_source(w, source_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
+				}
+
+				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term, ESourceOpcode opcode) {
 					auto match_source_entity = [&](Entity source) {
 						if (!valid(w, source))
 							return false;
@@ -566,7 +614,11 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					return each_lookup_source(w, term, term.src, match_source_entity);
+					return each_lookup_source(w, opcode, term, term.src, match_source_entity);
+				}
+
+				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
+					return match_source_term(w, term, source_opcode_from_term(term));
 				}
 
 				struct VarBindings {
@@ -662,8 +714,9 @@ namespace gaia {
 				inline void collect_term_matches(
 						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& varsIn,
 						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
+					const auto sourceOpcode = source_opcode_from_term(term);
 					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						each_lookup_source(w, term, sourceEntity, [&](Entity source) {
+						each_lookup_source(w, sourceOpcode, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype != nullptr)
 								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
@@ -1200,21 +1253,21 @@ namespace gaia {
 					ctx.skipAny = false;
 
 					// ALL source terms must all match.
-					for (const auto& term: m_compCtx.terms_all_src) {
-						if (!detail::match_source_term(*ctx.pWorld, term))
+					for (const auto& termOp: m_compCtx.terms_all_src) {
+						if (!detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
 							return false;
 					}
 
 					// NOT source terms must all be absent.
-					for (const auto& term: m_compCtx.terms_not_src) {
-						if (detail::match_source_term(*ctx.pWorld, term))
+					for (const auto& termOp: m_compCtx.terms_not_src) {
+						if (detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
 							return false;
 					}
 
 					// ANY source terms short-circuit the ANY group if one matches.
 					bool anySourceMatched = false;
-					for (const auto& term: m_compCtx.terms_any_src) {
-						if (!detail::match_source_term(*ctx.pWorld, term))
+					for (const auto& termOp: m_compCtx.terms_any_src) {
+						if (!detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
 							continue;
 
 						anySourceMatched = true;
@@ -1408,7 +1461,7 @@ namespace gaia {
 								m_compCtx.ids_all.push_back(p.id);
 								continue;
 							}
-							m_compCtx.terms_all_src.push_back(p);
+							m_compCtx.terms_all_src.push_back({detail::source_opcode_from_term(p), p});
 						}
 					}
 
@@ -1427,7 +1480,7 @@ namespace gaia {
 							if (p.src == EntityBad)
 								m_compCtx.ids_any.push_back(p.id);
 							else
-								m_compCtx.terms_any_src.push_back(p);
+								m_compCtx.terms_any_src.push_back({detail::source_opcode_from_term(p), p});
 						}
 					}
 
@@ -1446,7 +1499,7 @@ namespace gaia {
 							if (p.src == EntityBad)
 								m_compCtx.ids_not.push_back(p.id);
 							else
-								m_compCtx.terms_not_src.push_back(p);
+								m_compCtx.terms_not_src.push_back({detail::source_opcode_from_term(p), p});
 						}
 					}
 

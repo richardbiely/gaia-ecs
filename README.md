@@ -849,10 +849,8 @@ ecs::Query qSrc = w.query()
   .all(level, ecs::QueryTermOptions{}.src(game));
 w.add<Level>(game, {1});
 qSrc.count(); // expected: 64
-// expected matches: all 64 Position entities from the loop
 w.del<Level>(game);
 qSrc.count(); // expected: 0
-// expected matches: none
 
 // Hierarchical source lookup with default traversal filter (self + all parents).
 ecs::Query qSelfUp = w.query()
@@ -861,7 +859,6 @@ ecs::Query qSelfUp = w.query()
 qSelfUp.count(); // expected: 0
 w.add<Level>(root, {2});
 qSelfUp.count(); // expected: 64
-// expected matches: all 64 Position entities
 
 // Immediate parent only (no self, no grandparent).
 ecs::Query qParent = w.query()
@@ -874,6 +871,17 @@ ecs::Query qSelfParent = w.query()
   .all<Position>()
   .all(level, ecs::QueryTermOptions{}.src(scene).trav().trav_depth(1));
 qSelfParent.count(); // expected: 0 (no Level on scene/parent)
+```
+
+```cpp
+ecs::Query qFast = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(scene).trav_up());
+qFast.count(); // expected: 64, because root has Level and root is an ancestor of scene
+
+w.del<Level>(root);
+w.add<Level>(scene, {3});
+qFast.count(); // expected: 0, because trav_up() checks ancestors only (it does not check scene itself)
 ```
 
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
