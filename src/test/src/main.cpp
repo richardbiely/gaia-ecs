@@ -5190,8 +5190,8 @@ void Test_Query_SourceLookup() {
 										 .template all<Position>()
 										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up());
 	auto qUpDepth0 = wld.query<UseCachedQuery>() //
-										 .template all<Position>()
-										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up().trav_depth(0));
+											 .template all<Position>()
+											 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up().trav_depth(0));
 	auto qParentOnly = wld.query<UseCachedQuery>() //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_parent());
@@ -5205,8 +5205,8 @@ void Test_Query_SourceLookup() {
 											 .template all<Position>()
 											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down());
 	auto qDownDepth0 = wld.query<UseCachedQuery>() //
-											 .template all<Position>()
-											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
+												 .template all<Position>()
+												 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
 	auto qSelfDown = wld.query<UseCachedQuery>() //
 											 .template all<Position>()
 											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down());
@@ -5217,8 +5217,8 @@ void Test_Query_SourceLookup() {
 												.template all<Position>()
 												.template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_child());
 	auto qSelfDownDepth1 = wld.query<UseCachedQuery>() //
-													 .template all<Position>()
-													 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
+														 .template all<Position>()
+														 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
 
 	CHECK(qSelfUp.count() == 0);
 	expect_positions(qSelfUp, false);
@@ -6034,8 +6034,8 @@ void Test_Query_Bytecode_Dump() {
 	CHECK(bytecode.find("depth=1") != BadIndex);
 
 	auto qDown = wld.query<UseCachedQuery>() //
-								 .template all<Position>()
-								 .all(level, ecs::QueryTermOptions{}.src(root).trav_self_down());
+									 .template all<Position>()
+									 .all(level, ecs::QueryTermOptions{}.src(root).trav_self_down());
 	const auto bytecodeDown = qDown.bytecode();
 	CHECK(bytecodeDown.find("] down id=") != BadIndex);
 
@@ -6725,6 +6725,66 @@ TEST_CASE("Child hierarchy traversal") {
 		CHECK(bfs[2] == c00);
 		CHECK(bfs[3] == c10);
 	}
+}
+
+TEST_CASE("Query entity each bfs") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {0, 0, 0});
+	wld.add<Position>(b, {0, 0, 0});
+	wld.add<Position>(c, {0, 0, 0});
+
+	// Dependency graph:
+	//   root -> a -> c
+	//   root -> b
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+
+	auto q = wld.query().all<Position>();
+	cnt::darray<ecs::Entity> ents;
+	q.bfs(rel).each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+
+	// Re-run without changes (cache hit expected).
+	ents.clear();
+	q.bfs(rel).each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+
+	// Change dependency topology but keep the same entity set.
+	wld.del(b, {rel, root});
+	wld.add(b, {rel, c});
+
+	ents.clear();
+	q.bfs(rel).each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 }
 
 template <typename TQuery>
@@ -10755,6 +10815,43 @@ TEST_CASE("System - simple") {
 
 	CHECK(sys3_run_before_sys1);
 	CHECK(sys3_run_before_sys2);
+}
+
+TEST_CASE("System - dependency BFS order") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto make_sys = [&](char id) {
+		return wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	auto sysRoot = make_sys('R');
+	auto sysA = make_sys('A');
+	auto sysC = make_sys('C');
+	auto sysB = make_sys('B');
+
+	// Dependency graph:
+	//   R -> A -> C
+	//   R -> B
+	// BFS levels should execute: R, A+B, C.
+	wld.add(sysA.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysB.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysA.entity()});
+
+	wld.update();
+
+	CHECK(order.size() == 4);
+	if (order.size() == 4) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'B');
+		CHECK(order[3] == 'C');
+	}
 }
 
 TEST_CASE("System - exec mode") {

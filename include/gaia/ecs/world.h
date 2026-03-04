@@ -312,6 +312,8 @@ namespace gaia {
 			PairMap m_relationsToTargets;
 			//! Map of target -> relations
 			PairMap m_targetsToRelations;
+			//! Relation-local structural version used for dependency ordering caches.
+			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
@@ -1053,6 +1055,9 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return false;
 
+					if (entity.pair())
+						m_world.touch_relation_version(m_world.get(entity.id()));
+
 					try_set_flags(entity, true);
 
 					// Update the Is relationship base counter if necessary
@@ -1098,6 +1103,9 @@ namespace gaia {
 					// Don't delete what has not beed added
 					if (!m_pArchetype->has(entity))
 						return;
+
+					if (entity.pair())
+						m_world.touch_relation_version(m_world.get(entity.id()));
 
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
@@ -2777,10 +2785,17 @@ namespace gaia {
 
 				auto& ec = m_recs.entities[entity.id()];
 				auto& archetype = *ec.pArchetype;
+				auto* pChunk = ec.pChunk;
+				const bool wasEnabled = !ec.data.dis;
 #if GAIA_ASSERT_ENABLED
 				verify_enable(*this, archetype, entity);
 #endif
 				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
+
+				if (wasEnabled != enable) {
+					pChunk->update_world_version();
+					update_version(m_worldVersion);
+				}
 			}
 
 			//! Checks if an entity is enabled.
@@ -2861,6 +2876,13 @@ namespace gaia {
 			//! \return World version number.
 			GAIA_NODISCARD uint32_t& world_version() {
 				return m_worldVersion;
+			}
+
+			//! Returns structural version for a given relation.
+			//! Increments whenever any Pair(relation, *) is added or removed on any entity.
+			GAIA_NODISCARD uint32_t relation_version(Entity relation) const {
+				const auto it = m_relationVersions.find(EntityLookupKey(relation));
+				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
@@ -2981,10 +3003,11 @@ namespace gaia {
 					for (auto* pArchetype: m_archetypes)
 						Archetype::destroy(pArchetype);
 
-					m_entityToAsRelations = {};
-					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
+						m_entityToAsRelations = {};
+						m_entityToAsTargets = {};
+						m_targetsToRelations = {};
+						m_relationsToTargets = {};
+						m_relationVersions = {};
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -4896,6 +4919,18 @@ namespace gaia {
 				remove_edges_from_pairs(entity);
 			}
 
+			void touch_relation_version(Entity relation) {
+				const EntityLookupKey key(relation);
+				auto it = m_relationVersions.find(key);
+				if (it == m_relationVersions.end())
+					m_relationVersions.emplace(key, 1);
+				else {
+					++it->second;
+					if (it->second == 0)
+						it->second = 1;
+				}
+			}
+
 			void del_reltgt_tgtrel_pairs(Entity entity) {
 				auto delPair = [](PairMap& map, Entity source, Entity remove) {
 					auto itTargets = map.find(EntityLookupKey(source));
@@ -5807,29 +5842,17 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
-			m_systemsQuery = query()
-													 .all(System)
-													 // sort systems by their dependencies
-													 .sort_by(EntityBad, [](const World& world, const void* pData0, const void* pData1) {
-														 const auto& entity0 = *(Entity*)pData0;
-														 const auto& entity1 = *(Entity*)pData1;
-														 if (world.has(entity0, ecs::Pair(DependsOn, entity1)))
-															 return 1;
-														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
-															 return -1;
-
-														 return (int)entity0.id() - (int)entity1.id();
-													 });
+			m_systemsQuery = query().all(System);
 		}
 
 		inline void World::systems_run() {
-			m_systemsQuery.each([](ecs::Iter& it) {
-				auto se_view = it.sview_mut<ecs::System_>(0);
-				const auto cnt = se_view.size();
-				GAIA_FOR(cnt) {
-					auto& sys = se_view[i];
-					sys.exec();
-				}
+			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
+				if (!valid(systemEntity) || !has(systemEntity, System))
+					return;
+
+				auto ss = acc_mut(systemEntity);
+				auto& sys = ss.smut<ecs::System_>();
+				sys.exec();
 			});
 		}
 

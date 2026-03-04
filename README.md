@@ -783,6 +783,13 @@ q.all<Position>(); // Consider only entities with Position
 cnt::darray<ecs::Entity> entities;
 q.arr(entities);
 
+// Configure query.each() to iterate in dependency BFS levels for the given relation.
+// Pair(MyDependsOn, X) on entity E means E depends on X.
+q.bfs(MyDependsOn).each([&](ecs::Entity e) {
+  entities.push_back(e);
+});
+// Repeated calls are cached and only recomputed when query/world data changes.
+
 // Fill the positions array with position data.
 cnt::darray<Position> positions;
 q.arr(positions);
@@ -2114,10 +2121,10 @@ mySystem.exec();
 // Call each system when the time is right.
 w.update();
 ```
-Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve any dependencies and execute the systems in the right order.
+Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve dependencies and execute systems level-by-level (BFS) so parent dependencies run before their dependents.
 
 ### System dependencies
-By default, the order in which the systems are run depends on their entity id. The lower the id the earlier the system is executed. If a different order is needed, there are multiple ways to influence it.
+By default, systems on the same dependency level are executed by their entity id. The lower the id the earlier the system is executed. If a different order is needed, there are multiple ways to influence it.
 
 One of them is adding the DependsOn relationship to a system's entity.
 

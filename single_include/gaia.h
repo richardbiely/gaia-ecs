@@ -34324,6 +34324,112 @@ namespace gaia {
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
+				//! BFS-specific cache and scratch storage, allocated on-demand.
+				struct EachBfsData {
+					//! Cached raw entity list for each_bfs.
+					cnt::darray<Entity> cachedInput;
+					//! Cached ordered entity list for each_bfs.
+					cnt::darray<Entity> cachedOutput;
+					//! Cached relation used by each_bfs.
+					Entity cachedRelation = EntityBad;
+					//! Cached constraints used by each_bfs.
+					Constraints cachedConstraints = Constraints::EnabledOnly;
+					//! Relation version when each_bfs cache was produced.
+					uint32_t cachedRelationVersion = 0;
+					//! World version snapshot used for chunk-structural change checks.
+					uint32_t cachedEntityVersion = 0;
+					//! Cached matched chunk pointers used by each_bfs fast-path.
+					cnt::darray<const Chunk*> cachedChunks;
+					//! True if each_bfs cache is valid.
+					bool cacheValid = false;
+					//! Scratch entities for each_bfs computation.
+					cnt::darray<Entity> scratchEntities;
+					//! Scratch matched chunk pointers for each_bfs fast-path.
+					cnt::darray<const Chunk*> scratchChunks;
+					//! Scratch indegree array for each_bfs computation.
+					cnt::darray<uint32_t> scratchIndegree;
+					//! Scratch outdegree array for each_bfs computation.
+					cnt::darray<uint32_t> scratchOutdegree;
+					//! Scratch adjacency offsets (CSR) for each_bfs computation.
+					cnt::darray<uint32_t> scratchOffsets;
+					//! Scratch adjacency write cursor (CSR fill stage).
+					cnt::darray<uint32_t> scratchWriteCursor;
+					//! Scratch adjacency edges (CSR) for each_bfs computation.
+					cnt::darray<uint32_t> scratchEdges;
+					//! Scratch level queue for current BFS layer.
+					cnt::darray<uint32_t> scratchCurrLevel;
+					//! Scratch level queue for next BFS layer.
+					cnt::darray<uint32_t> scratchNextLevel;
+				};
+
+				//! Optional on-demand storage for BFS iteration data.
+				struct EachBfsDataHolder {
+					EachBfsData* pData = nullptr;
+
+					EachBfsDataHolder() = default;
+
+					~EachBfsDataHolder() {
+						delete pData;
+					}
+
+					EachBfsDataHolder(const EachBfsDataHolder& other) {
+						if (other.pData != nullptr)
+							pData = new EachBfsData(*other.pData);
+					}
+
+					EachBfsDataHolder& operator=(const EachBfsDataHolder& other) {
+						if (core::addressof(other) == this)
+							return *this;
+
+						if (other.pData == nullptr) {
+							delete pData;
+							pData = nullptr;
+							return *this;
+						}
+
+						if (pData == nullptr)
+							pData = new EachBfsData(*other.pData);
+						else
+							*pData = *other.pData;
+
+						return *this;
+					}
+
+					EachBfsDataHolder(EachBfsDataHolder&& other) noexcept: pData(other.pData) {
+						other.pData = nullptr;
+					}
+
+					EachBfsDataHolder& operator=(EachBfsDataHolder&& other) noexcept {
+						if (core::addressof(other) == this)
+							return *this;
+
+						delete pData;
+						pData = other.pData;
+						other.pData = nullptr;
+						return *this;
+					}
+
+					GAIA_NODISCARD EachBfsData* get() {
+						return pData;
+					}
+
+					GAIA_NODISCARD const EachBfsData* get() const {
+						return pData;
+					}
+
+					GAIA_NODISCARD EachBfsData& ensure() {
+						if (pData == nullptr)
+							pData = new EachBfsData();
+						return *pData;
+					}
+
+					void reset() {
+						delete pData;
+						pData = nullptr;
+					}
+				};
+
+				EachBfsDataHolder m_eachBfsData;
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -34389,6 +34495,24 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			private:
+				GAIA_NODISCARD EachBfsData* each_bfs_data() {
+					return m_eachBfsData.get();
+				}
+
+				GAIA_NODISCARD const EachBfsData* each_bfs_data() const {
+					return m_eachBfsData.get();
+				}
+
+				GAIA_NODISCARD EachBfsData& ensure_each_bfs_data() {
+					return m_eachBfsData.ensure();
+				}
+
+				void invalidate_each_bfs_cache() {
+					auto* pBfsData = each_bfs_data();
+					if (pBfsData != nullptr)
+						pBfsData->cacheValid = false;
+				}
+
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
@@ -34489,6 +34613,8 @@ namespace gaia {
 
 				template <typename T>
 				void add_cmd(T& cmd) {
+					invalidate_each_bfs_cache();
+
 					// Make sure to invalidate if necessary.
 					if constexpr (T::InvalidatesHash)
 						m_storage.invalidate();
@@ -35553,10 +35679,14 @@ namespace gaia {
 				//! Release any data allocated by the query
 				void reset() {
 					m_storage.reset();
+					m_eachBfsData.reset();
+					invalidate_each_bfs_cache();
 				}
 
 				void destroy() {
 					(void)m_storage.try_del_from_cache();
+					m_eachBfsData.reset();
+					invalidate_each_bfs_cache();
 				}
 
 				//! Returns true if the query is stored in the query cache
@@ -36126,6 +36256,29 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				class OrderByBfsView final {
+					QueryImpl* m_query = nullptr;
+					Entity m_relation = EntityBad;
+
+				public:
+					OrderByBfsView(QueryImpl& query, Entity relation): m_query(&query), m_relation(relation) {}
+
+					template <typename Func>
+					void each(Func func) {
+						m_query->each_bfs(func, m_relation);
+					}
+				};
+
+				//------------------------------------------------
+
+				//! Orders query iteration in dependency BFS levels for the given relation.
+				//! Pair(relation, X) on entity E means E depends on X.
+				GAIA_NODISCARD OrderByBfsView bfs(Entity relation) {
+					return OrderByBfsView(*this, relation);
+				}
+
+				//------------------------------------------------
+
 				//! Organizes matching archetypes into groups according to the grouping function and entity.
 				//! \param entity The entity to group by.
 				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
@@ -36345,6 +36498,248 @@ namespace gaia {
 								break;
 						}
 					}
+				}
+
+				//! Iterates entities matching the query ordered in dependency BFS levels.
+				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
+				//! Systems depending on no other matched system are first, then their dependents level-by-level.
+				//! Nodes on the same level are ordered by entity id.
+				//! \param func Callable invoked for each ordered entity.
+				//! \param relation Dependency relation
+				//! \param constraints QueryImpl constraints
+				template <typename Func>
+				void each_bfs(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+					static_assert(
+							std::is_invocable_v<Func, const Entity&>,
+							"each_bfs requires a callable with signature void(const Entity&)");
+
+					auto& bfsData = ensure_each_bfs_data();
+					auto& world = *m_storage.world();
+					const uint32_t relationVersion = world.relation_version(relation);
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+
+					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
+							bfsData.cachedRelationVersion == relationVersion && !queryInfo.has_filters()) {
+						auto& chunks = bfsData.scratchChunks;
+						chunks.clear();
+
+						bool chunkChanged = false;
+						for (auto* pArchetype: queryInfo) {
+							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+								continue;
+
+							for (const auto* pChunk: pArchetype->chunks()) {
+								if (pChunk == nullptr)
+									continue;
+
+								chunks.push_back(pChunk);
+								if (!chunkChanged && pChunk->changed(bfsData.cachedEntityVersion))
+									chunkChanged = true;
+							}
+						}
+
+						bool sameChunks = chunks.size() == bfsData.cachedChunks.size();
+						if (sameChunks) {
+							for (uint32_t i = 0; i < (uint32_t)chunks.size(); ++i) {
+								if (chunks[i] != bfsData.cachedChunks[i]) {
+									sameChunks = false;
+									break;
+								}
+							}
+						}
+
+						if (sameChunks && !chunkChanged) {
+							for (auto entity: bfsData.cachedOutput)
+								func(entity);
+							return;
+						}
+					}
+
+					auto& entities = bfsData.scratchEntities;
+					entities.clear();
+					arr(entities, constraints);
+					if (entities.empty())
+						return;
+
+					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
+							bfsData.cachedRelationVersion == relationVersion && entities.size() == bfsData.cachedInput.size()) {
+						bool sameInput = true;
+						for (uint32_t i = 0; i < (uint32_t)entities.size(); ++i) {
+							if (entities[i] != bfsData.cachedInput[i]) {
+								sameInput = false;
+								break;
+							}
+						}
+
+						if (sameInput) {
+							for (auto entity: bfsData.cachedOutput)
+								func(entity);
+							return;
+						}
+					}
+
+					auto& ordered = bfsData.cachedOutput;
+					bfsData.cachedInput = entities;
+					ordered.clear();
+					if (!world.valid(relation)) {
+						core::sort(entities, [](Entity left, Entity right) {
+							return left.id() < right.id();
+						});
+						ordered = entities;
+					} else {
+						// Keep execution deterministic regardless of archetype iteration order.
+						core::sort(entities, [](Entity left, Entity right) {
+							return left.id() < right.id();
+						});
+
+						const auto cnt = (uint32_t)entities.size();
+
+						auto& indegree = bfsData.scratchIndegree;
+						indegree.resize(cnt);
+						auto& outdegree = bfsData.scratchOutdegree;
+						outdegree.resize(cnt);
+						for (uint32_t i = 0; i < cnt; ++i) {
+							indegree[i] = 0;
+							outdegree[i] = 0;
+						}
+
+						auto find_entity_idx = [&](Entity entity) {
+							const auto targetId = entity.id();
+							uint32_t low = 0;
+							uint32_t high = cnt;
+							while (low < high) {
+								const uint32_t mid = low + ((high - low) >> 1);
+								if (entities[mid].id() < targetId)
+									low = mid + 1;
+								else
+									high = mid;
+							}
+							if (low < cnt && entities[low].id() == targetId)
+								return low;
+							return cnt;
+						};
+
+						uint32_t edgeCnt = 0;
+						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
+							const auto dependent = entities[dependentIdx];
+							world.targets(dependent, relation, [&](Entity dependency) {
+								const auto dependencyIdx = find_entity_idx(dependency);
+								if (dependencyIdx == cnt || dependencyIdx == dependentIdx)
+									return;
+
+								++outdegree[dependencyIdx];
+								++indegree[dependentIdx];
+								++edgeCnt;
+							});
+						}
+
+						auto& offsets = bfsData.scratchOffsets;
+						offsets.resize(cnt + 1);
+						offsets[0] = 0;
+						for (uint32_t i = 0; i < cnt; ++i)
+							offsets[i + 1] = offsets[i] + outdegree[i];
+
+						auto& writeCursor = bfsData.scratchWriteCursor;
+						writeCursor.resize(cnt);
+						for (uint32_t i = 0; i < cnt; ++i)
+							writeCursor[i] = offsets[i];
+
+						auto& edges = bfsData.scratchEdges;
+						edges.resize(edgeCnt);
+						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
+							const auto dependent = entities[dependentIdx];
+							world.targets(dependent, relation, [&](Entity dependency) {
+								const auto dependencyIdx = find_entity_idx(dependency);
+								if (dependencyIdx == cnt || dependencyIdx == dependentIdx)
+									return;
+
+								edges[writeCursor[dependencyIdx]++] = dependentIdx;
+							});
+						}
+
+						ordered.reserve(cnt);
+
+						auto& currLevel = bfsData.scratchCurrLevel;
+						currLevel.clear();
+						auto& nextLevel = bfsData.scratchNextLevel;
+						nextLevel.clear();
+						for (uint32_t i = 0; i < cnt; ++i) {
+							if (indegree[i] == 0)
+								currLevel.push_back(i);
+						}
+
+						auto sort_level = [&](cnt::darray<uint32_t>& level) {
+							core::sort(level, [&](uint32_t left, uint32_t right) {
+								return entities[left].id() < entities[right].id();
+							});
+						};
+
+						sort_level(currLevel);
+
+						uint32_t executedCnt = 0;
+						while (!currLevel.empty()) {
+							for (auto idx: currLevel) {
+								ordered.push_back(entities[idx]);
+								++executedCnt;
+							}
+
+							nextLevel.clear();
+							for (auto idx: currLevel) {
+								for (uint32_t edgePos = offsets[idx]; edgePos < offsets[idx + 1]; ++edgePos) {
+									const auto dependentIdx = edges[edgePos];
+									if (indegree[dependentIdx] == 0)
+										continue;
+
+									--indegree[dependentIdx];
+									if (indegree[dependentIdx] == 0)
+										nextLevel.push_back(dependentIdx);
+								}
+							}
+
+							if (nextLevel.empty())
+								break;
+
+							sort_level(nextLevel);
+							currLevel.clear();
+							currLevel.reserve(nextLevel.size());
+							for (auto idx: nextLevel)
+								currLevel.push_back(idx);
+						}
+
+						// A cycle can still appear in user data. Keep behavior deterministic and output the rest by id.
+						if (executedCnt != cnt) {
+							for (uint32_t i = 0; i < cnt; ++i) {
+								if (indegree[i] > 0)
+									ordered.push_back(entities[i]);
+							}
+						}
+					}
+
+					bfsData.cachedRelation = relation;
+					bfsData.cachedConstraints = constraints;
+					bfsData.cachedRelationVersion = relationVersion;
+					bfsData.cachedEntityVersion = world.world_version();
+					if (!queryInfo.has_filters()) {
+						auto& chunks = bfsData.scratchChunks;
+						chunks.clear();
+						for (auto* pArchetype: queryInfo) {
+							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+								continue;
+
+							for (const auto* pChunk: pArchetype->chunks()) {
+								if (pChunk == nullptr)
+									continue;
+								chunks.push_back(pChunk);
+							}
+						}
+						bfsData.cachedChunks = chunks;
+					} else
+						bfsData.cachedChunks.clear();
+					bfsData.cacheValid = true;
+
+					for (auto entity: bfsData.cachedOutput)
+						func(entity);
 				}
 
 				//------------------------------------------------
@@ -36734,6 +37129,8 @@ namespace gaia {
 			PairMap m_relationsToTargets;
 			//! Map of target -> relations
 			PairMap m_targetsToRelations;
+			//! Relation-local structural version used for dependency ordering caches.
+			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
@@ -37475,6 +37872,9 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return false;
 
+					if (entity.pair())
+						m_world.touch_relation_version(m_world.get(entity.id()));
+
 					try_set_flags(entity, true);
 
 					// Update the Is relationship base counter if necessary
@@ -37520,6 +37920,9 @@ namespace gaia {
 					// Don't delete what has not beed added
 					if (!m_pArchetype->has(entity))
 						return;
+
+					if (entity.pair())
+						m_world.touch_relation_version(m_world.get(entity.id()));
 
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
@@ -39199,10 +39602,17 @@ namespace gaia {
 
 				auto& ec = m_recs.entities[entity.id()];
 				auto& archetype = *ec.pArchetype;
+				auto* pChunk = ec.pChunk;
+				const bool wasEnabled = !ec.data.dis;
 #if GAIA_ASSERT_ENABLED
 				verify_enable(*this, archetype, entity);
 #endif
 				archetype.enable_entity(ec.pChunk, ec.row, enable, m_recs);
+
+				if (wasEnabled != enable) {
+					pChunk->update_world_version();
+					update_version(m_worldVersion);
+				}
 			}
 
 			//! Checks if an entity is enabled.
@@ -39283,6 +39693,13 @@ namespace gaia {
 			//! \return World version number.
 			GAIA_NODISCARD uint32_t& world_version() {
 				return m_worldVersion;
+			}
+
+			//! Returns structural version for a given relation.
+			//! Increments whenever any Pair(relation, *) is added or removed on any entity.
+			GAIA_NODISCARD uint32_t relation_version(Entity relation) const {
+				const auto it = m_relationVersions.find(EntityLookupKey(relation));
+				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
@@ -39403,10 +39820,11 @@ namespace gaia {
 					for (auto* pArchetype: m_archetypes)
 						Archetype::destroy(pArchetype);
 
-					m_entityToAsRelations = {};
-					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
+						m_entityToAsRelations = {};
+						m_entityToAsTargets = {};
+						m_targetsToRelations = {};
+						m_relationsToTargets = {};
+						m_relationVersions = {};
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -41316,6 +41734,18 @@ namespace gaia {
 			void del_graph_edges(Entity entity) {
 				remove_edges(entity);
 				remove_edges_from_pairs(entity);
+			}
+
+			void touch_relation_version(Entity relation) {
+				const EntityLookupKey key(relation);
+				auto it = m_relationVersions.find(key);
+				if (it == m_relationVersions.end())
+					m_relationVersions.emplace(key, 1);
+				else {
+					++it->second;
+					if (it->second == 0)
+						it->second = 1;
+				}
 			}
 
 			void del_reltgt_tgtrel_pairs(Entity entity) {
@@ -43823,29 +44253,17 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
-			m_systemsQuery = query()
-													 .all(System)
-													 // sort systems by their dependencies
-													 .sort_by(EntityBad, [](const World& world, const void* pData0, const void* pData1) {
-														 const auto& entity0 = *(Entity*)pData0;
-														 const auto& entity1 = *(Entity*)pData1;
-														 if (world.has(entity0, ecs::Pair(DependsOn, entity1)))
-															 return 1;
-														 if (world.has(entity1, ecs::Pair(DependsOn, entity0)))
-															 return -1;
-
-														 return (int)entity0.id() - (int)entity1.id();
-													 });
+			m_systemsQuery = query().all(System);
 		}
 
 		inline void World::systems_run() {
-			m_systemsQuery.each([](ecs::Iter& it) {
-				auto se_view = it.sview_mut<ecs::System_>(0);
-				const auto cnt = se_view.size();
-				GAIA_FOR(cnt) {
-					auto& sys = se_view[i];
-					sys.exec();
-				}
+			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
+				if (!valid(systemEntity) || !has(systemEntity, System))
+					return;
+
+				auto ss = acc_mut(systemEntity);
+				auto& sys = ss.smut<ecs::System_>();
+				sys.exec();
 			});
 		}
 
