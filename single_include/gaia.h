@@ -23411,6 +23411,22 @@ namespace gaia {
 		void as_targets_trav(const World& world, Entity relation, Func func);
 		template <typename Func>
 		bool as_targets_trav_if(const World& world, Entity relation, Func func);
+		template <typename Func>
+		void sources(const World& world, Entity relation, Entity target, Func func);
+		template <typename Func>
+		void sources_if(const World& world, Entity relation, Entity target, Func func);
+		template <typename Func>
+		void sources_bfs(const World& world, Entity relation, Entity rootTarget, Func func);
+		template <typename Func>
+		bool sources_bfs_if(const World& world, Entity relation, Entity rootTarget, Func func);
+		template <typename Func>
+		void children(const World& world, Entity parent, Func func);
+		template <typename Func>
+		void children_if(const World& world, Entity parent, Func func);
+		template <typename Func>
+		void children_bfs(const World& world, Entity root, Func func);
+		template <typename Func>
+		bool children_bfs_if(const World& world, Entity root, Func func);
 
 		// Query API
 
@@ -29404,7 +29420,7 @@ namespace gaia {
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
 		//! Source traversal filter used for source lookups.
-		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02 };
+		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02, Down = 0x04 };
 
 		GAIA_GCC_WARNING_POP()
 
@@ -29522,7 +29538,7 @@ namespace gaia {
 
 		//! User-provided query input
 		struct QueryInput {
-			static constexpr uint8_t TravDepthUnlimited = 0xff;
+			static constexpr uint8_t TravDepthUnlimited = 0;
 
 			//! Operation to perform with the input
 			QueryOpKind op = QueryOpKind::All;
@@ -29534,30 +29550,32 @@ namespace gaia {
 			//! If id==EntityBad the source is fixed.
 			//! If id!=src the source is variable.
 			Entity entSrc = EntityBad;
-			//! Optional upward traversal relation for source lookups.
-			//! When set, the lookup starts at src and then walks relation targets upwards.
+			//! Optional traversal relation for source lookups.
+			//! When set, the lookup starts at src and then walks relation targets upwards and/or downwards.
 			Entity entTrav = EntityBad;
 			//! Source traversal filter.
-			//! `Self` means checking the source itself, `Up` means checking traversed ancestors.
+			//! `Self` means checking the source itself, `Up` means checking traversed ancestors,
+			//! `Down` means checking traversed descendants.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
-			//! Maximum number of upward traversal steps.
-			//! 0 means no upward traversal. `TravDepthUnlimited` means unlimited (bounded internally).
+			//! Maximum number of traversal steps.
+			//! 0 means unlimited traversal depth (bounded internally).
 			uint8_t travDepth = TravDepthUnlimited;
 		};
 
 		//! Additional options for query terms.
-		//! This can be used to configure source lookup, upward traversal and access mode
+		//! This can be used to configure source lookup, traversal and access mode
 		//! without relying on many positional overloads.
 		struct QueryTermOptions {
 			static constexpr uint8_t TravDepthUnlimited = QueryInput::TravDepthUnlimited;
 
 			//! Source entity to query from.
 			Entity entSrc = EntityBad;
-			//! Optional upward traversal relation used for source lookup.
+			//! Optional traversal relation used for source lookup.
 			Entity entTrav = EntityBad;
 			//! Source traversal filter.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
-			//! Maximum number of upward traversal steps.
+			//! Maximum number of traversal steps.
+			//! 0 means unlimited traversal depth (bounded internally).
 			uint8_t travDepth = TravDepthUnlimited;
 			//! Access mode for the term.
 			//! When None, typed query terms infer read/write access from template mutability.
@@ -29596,6 +29614,34 @@ namespace gaia {
 				return *this;
 			}
 
+			QueryTermOptions& trav_down(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Down;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_self_down(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Down;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_child(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Down;
+				travDepth = 1;
+				return *this;
+			}
+
+			QueryTermOptions& trav_self_child(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Down;
+				travDepth = 1;
+				return *this;
+			}
+
 			QueryTermOptions& trav_kind(QueryTravKind kind) {
 				travKind = kind;
 				return *this;
@@ -29623,11 +29669,11 @@ namespace gaia {
 			Entity id;
 			//! Source of where the queried id is looked up at
 			Entity src;
-			//! Optional upward traversal relation for source lookups
+			//! Optional traversal relation for source lookups
 			Entity entTrav;
 			//! Source traversal filter.
 			QueryTravKind travKind;
-			//! Maximum number of upward traversal steps.
+			//! Maximum number of traversal steps.
 			uint8_t travDepth;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
@@ -30899,9 +30945,8 @@ namespace gaia {
 					Never,
 					Self,
 					Up,
-					UpN,
-					SelfUp,
-					SelfUpN
+					Down,
+					UpDown
 				};
 
 				using VmLabel = uint16_t;
@@ -31363,15 +31408,17 @@ namespace gaia {
 
 				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
-					const bool includeUp =
-							query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad && term.travDepth != 0;
-					if (!includeSelf && !includeUp)
+					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad;
+					const bool includeDown = query_trav_has(term.travKind, QueryTravKind::Down) && term.entTrav != EntityBad;
+					if (!includeSelf && !includeUp && !includeDown)
 						return ESourceOpcode::Never;
-					if (includeSelf && !includeUp)
+					if (includeSelf && !includeUp && !includeDown)
 						return ESourceOpcode::Self;
-					if (!includeSelf && includeUp)
-						return term.travDepth == 1 ? ESourceOpcode::Up : ESourceOpcode::UpN;
-					return term.travDepth == 1 ? ESourceOpcode::SelfUp : ESourceOpcode::SelfUpN;
+					if (includeUp && includeDown)
+						return ESourceOpcode::UpDown;
+					if (includeUp)
+						return ESourceOpcode::Up;
+					return ESourceOpcode::Down;
 				}
 
 				template <typename Func>
@@ -31380,42 +31427,111 @@ namespace gaia {
 					if (!valid(w, sourceEntity))
 						return false;
 
+					constexpr uint32_t MaxTraversalDepth = 2048;
+					const uint32_t maxDepth =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+
+					auto trav_up_1 = [&]() {
+						const auto next = target(w, sourceEntity, term.entTrav);
+						return next != EntityBad && next != sourceEntity && func(next);
+					};
+
+					auto trav_up_n = [&](bool includeSelf) {
+						if (includeSelf && func(sourceEntity))
+							return true;
+
+						Entity source = sourceEntity;
+						for (uint32_t depth = 0; depth < maxDepth; ++depth) {
+							const auto next = target(w, source, term.entTrav);
+							if (next == EntityBad || next == source)
+								break;
+
+							source = next;
+							if (func(source))
+								return true;
+						}
+
+						return false;
+					};
+
+					auto trav_down_1 = [&]() {
+						bool matched = false;
+						sources_if(w, term.entTrav, sourceEntity, [&](Entity next) {
+							if (func(next)) {
+								matched = true;
+								return false;
+							}
+
+							return true;
+						});
+						return matched;
+					};
+
+					auto trav_down_n = [&](bool includeSelf) {
+						if (includeSelf && func(sourceEntity))
+							return true;
+
+						cnt::darray<Entity> queue;
+						queue.push_back(sourceEntity);
+
+						cnt::darray<uint32_t> levels;
+						levels.push_back(0);
+
+						cnt::set<EntityLookupKey> visited;
+						visited.insert(EntityLookupKey(sourceEntity));
+
+						for (uint32_t i = 0; i < queue.size(); ++i) {
+							const auto source = queue[i];
+							const auto level = levels[i];
+							if (level >= maxDepth)
+								continue;
+
+							cnt::darray<Entity> children;
+							sources(w, term.entTrav, source, [&](Entity next) {
+								const auto key = EntityLookupKey(next);
+								const auto ins = visited.insert(key);
+								if (!ins.second)
+									return;
+
+								children.push_back(next);
+							});
+
+							core::sort(children, [](Entity left, Entity right) {
+								return left.id() < right.id();
+							});
+
+							for (auto child: children) {
+								if (func(child))
+									return true;
+
+								queue.push_back(child);
+								levels.push_back(level + 1);
+							}
+						}
+
+						return false;
+					};
+
 					switch (opcode) {
 						case ESourceOpcode::Never:
 							return false;
 						case ESourceOpcode::Self:
 							return func(sourceEntity);
-						case ESourceOpcode::Up: {
-							const auto next = target(w, sourceEntity, term.entTrav);
-							return next != EntityBad && next != sourceEntity && func(next);
-						}
-						case ESourceOpcode::SelfUp: {
-							if (func(sourceEntity))
+						case ESourceOpcode::Down:
+							if (maxDepth == 1)
+								return (includeSelf && func(sourceEntity)) || trav_down_1();
+							return trav_down_n(includeSelf);
+						case ESourceOpcode::Up:
+							if (maxDepth == 1)
+								return (includeSelf && func(sourceEntity)) || trav_up_1();
+							return trav_up_n(includeSelf);
+						case ESourceOpcode::UpDown:
+							if (includeSelf && func(sourceEntity))
 								return true;
-							const auto next = target(w, sourceEntity, term.entTrav);
-							return next != EntityBad && next != sourceEntity && func(next);
-						}
-						case ESourceOpcode::UpN:
-						case ESourceOpcode::SelfUpN: {
-							if (opcode == ESourceOpcode::SelfUpN && func(sourceEntity))
-								return true;
-
-							constexpr uint32_t MaxTraversalDepth = 2048;
-							const uint32_t maxDepth =
-									term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
-
-							Entity source = sourceEntity;
-							for (uint32_t depth = 0; depth < maxDepth; ++depth) {
-								const auto next = target(w, source, term.entTrav);
-								if (next == EntityBad || next == source)
-									break;
-
-								source = next;
-								if (func(source))
-									return true;
-							}
-							return false;
-						}
+							if (maxDepth == 1)
+								return trav_up_1() || trav_down_1();
+							return trav_up_n(false) || trav_down_n(false);
 						default:
 							GAIA_ASSERT(false);
 							return true;
@@ -32049,7 +32165,7 @@ namespace gaia {
 				}
 
 				static const char* source_opcode_name(detail::ESourceOpcode opcode) {
-					static const char* s_names[] = {"nev", "self", "up", "upn", "selfup", "selfupn"};
+					static const char* s_names[] = {"nev", "self", "up", "down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -38814,6 +38930,184 @@ namespace gaia {
 				}
 			}
 
+			//! Returns relationship sources for the @a relation and @a target.
+			//! \param relation Relation entity
+			//! \param target Target entity
+			//! \param func void(Entity source) functor executed for each source entity found.
+			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			template <typename Func>
+			void sources(Entity relation, Entity target, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(target))
+					return;
+
+				const auto pair = Pair(relation, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (const auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							func(entities[i]);
+						}
+					}
+				}
+			}
+
+			//! Returns relationship sources for the @a relation and @a target.
+			//! \param relation Relation entity
+			//! \param target Target entity
+			//! \param func bool(Entity source) functor executed for each source entity found.
+			//!             Stops if false is returned.
+			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			template <typename Func>
+			void sources_if(Entity relation, Entity target, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(target))
+					return;
+
+				const auto pair = Pair(relation, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (const auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							if (!func(entities[i]))
+								return;
+						}
+					}
+				}
+			}
+
+			//! Traverses relationship sources in breadth-first order.
+			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! \param relation Relation entity
+			//! \param rootTarget Root target entity
+			//! \param func void(Entity source) functor executed for each traversed source.
+			template <typename Func>
+			void sources_bfs(Entity relation, Entity rootTarget, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(rootTarget))
+					return;
+
+				cnt::darray<Entity> queue;
+				queue.push_back(rootTarget);
+
+				cnt::set<EntityLookupKey> visited;
+				visited.insert(EntityLookupKey(rootTarget));
+
+				for (uint32_t i = 0; i < queue.size(); ++i) {
+					const auto currTarget = queue[i];
+
+					cnt::darray<Entity> children;
+					sources(relation, currTarget, [&](Entity source) {
+						const auto key = EntityLookupKey(source);
+						const auto ins = visited.insert(key);
+						if (!ins.second)
+							return;
+
+						children.push_back(source);
+					});
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (auto child: children) {
+						func(child);
+						queue.push_back(child);
+					}
+				}
+			}
+
+			//! Traverses relationship sources in breadth-first order.
+			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! \param relation Relation entity
+			//! \param rootTarget Root target entity
+			//! \param func bool(Entity source) functor executed for each traversed source.
+			//!             Stops if true is returned.
+			//! \return True if traversal was stopped by @a func, false otherwise.
+			template <typename Func>
+			GAIA_NODISCARD bool sources_bfs_if(Entity relation, Entity rootTarget, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(rootTarget))
+					return false;
+
+				cnt::darray<Entity> queue;
+				queue.push_back(rootTarget);
+
+				cnt::set<EntityLookupKey> visited;
+				visited.insert(EntityLookupKey(rootTarget));
+
+				for (uint32_t i = 0; i < queue.size(); ++i) {
+					const auto currTarget = queue[i];
+
+					cnt::darray<Entity> children;
+					sources(relation, currTarget, [&](Entity source) {
+						const auto key = EntityLookupKey(source);
+						const auto ins = visited.insert(key);
+						if (!ins.second)
+							return;
+
+						children.push_back(source);
+					});
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (auto child: children) {
+						if (func(child))
+							return true;
+
+						queue.push_back(child);
+					}
+				}
+
+				return false;
+			}
+
+			//! Returns direct children in the ChildOf hierarchy.
+			template <typename Func>
+			void children(Entity parent, Func func) const {
+				sources(ChildOf, parent, func);
+			}
+
+			//! Returns direct children in the ChildOf hierarchy.
+			//! \param func bool(Entity child) functor executed for each child found.
+			//!             Stops if false is returned.
+			template <typename Func>
+			void children_if(Entity parent, Func func) const {
+				sources_if(ChildOf, parent, func);
+			}
+
+			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			template <typename Func>
+			void children_bfs(Entity root, Func func) const {
+				sources_bfs(ChildOf, root, func);
+			}
+
+			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! \param func bool(Entity child) functor executed for each child found.
+			//!             Stops if true is returned.
+			template <typename Func>
+			GAIA_NODISCARD bool children_bfs_if(Entity root, Func func) const {
+				return sources_bfs_if(ChildOf, root, func);
+			}
+
 			template <typename Func>
 			void as_targets_trav(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
@@ -41777,6 +42071,46 @@ namespace gaia {
 		template <typename Func>
 		inline bool as_targets_trav_if(const World& world, Entity relation, Func func) {
 			return world.as_targets_trav_if(relation, func);
+		}
+
+		template <typename Func>
+		inline void sources(const World& world, Entity relation, Entity target, Func func) {
+			world.sources(relation, target, func);
+		}
+
+		template <typename Func>
+		inline void sources_if(const World& world, Entity relation, Entity target, Func func) {
+			world.sources_if(relation, target, func);
+		}
+
+		template <typename Func>
+		inline void sources_bfs(const World& world, Entity relation, Entity rootTarget, Func func) {
+			world.sources_bfs(relation, rootTarget, func);
+		}
+
+		template <typename Func>
+		inline bool sources_bfs_if(const World& world, Entity relation, Entity rootTarget, Func func) {
+			return world.sources_bfs_if(relation, rootTarget, func);
+		}
+
+		template <typename Func>
+		inline void children(const World& world, Entity parent, Func func) {
+			world.children(parent, func);
+		}
+
+		template <typename Func>
+		inline void children_if(const World& world, Entity parent, Func func) {
+			world.children_if(parent, func);
+		}
+
+		template <typename Func>
+		inline void children_bfs(const World& world, Entity root, Func func) {
+			world.children_bfs(root, func);
+		}
+
+		template <typename Func>
+		inline bool children_bfs_if(const World& world, Entity root, Func func) {
+			return world.children_bfs_if(root, func);
 		}
 
 		// Query API

@@ -5189,6 +5189,9 @@ void Test_Query_SourceLookup() {
 	auto qUpOnly = wld.query<UseCachedQuery>() //
 										 .template all<Position>()
 										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up());
+	auto qUpDepth0 = wld.query<UseCachedQuery>() //
+										 .template all<Position>()
+										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up().trav_depth(0));
 	auto qParentOnly = wld.query<UseCachedQuery>() //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_parent());
@@ -5198,29 +5201,71 @@ void Test_Query_SourceLookup() {
 	auto qSelfDepth1 = wld.query<UseCachedQuery>() //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav().trav_depth(1));
+	auto qDownOnly = wld.query<UseCachedQuery>() //
+											 .template all<Position>()
+											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down());
+	auto qDownDepth0 = wld.query<UseCachedQuery>() //
+											 .template all<Position>()
+											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
+	auto qSelfDown = wld.query<UseCachedQuery>() //
+											 .template all<Position>()
+											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down());
+	auto qChildOnly = wld.query<UseCachedQuery>() //
+												.template all<Position>()
+												.template all<Level>(ecs::QueryTermOptions{}.src(root).trav_child());
+	auto qSelfChild = wld.query<UseCachedQuery>() //
+												.template all<Position>()
+												.template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_child());
+	auto qSelfDownDepth1 = wld.query<UseCachedQuery>() //
+													 .template all<Position>()
+													 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
 
 	CHECK(qSelfUp.count() == 0);
 	expect_positions(qSelfUp, false);
 	CHECK(qUpOnly.count() == 0);
 	expect_positions(qUpOnly, false);
+	CHECK(qUpDepth0.count() == qUpOnly.count());
 	CHECK(qParentOnly.count() == 0);
 	expect_positions(qParentOnly, false);
 	CHECK(qSelfParent.count() == 0);
 	expect_positions(qSelfParent, false);
 	CHECK(qSelfDepth1.count() == 0);
 	expect_positions(qSelfDepth1, false);
+	CHECK(qDownOnly.count() == 0);
+	expect_positions(qDownOnly, false);
+	CHECK(qDownDepth0.count() == qDownOnly.count());
+	CHECK(qSelfDown.count() == 0);
+	expect_positions(qSelfDown, false);
+	CHECK(qChildOnly.count() == 0);
+	expect_positions(qChildOnly, false);
+	CHECK(qSelfChild.count() == 0);
+	expect_positions(qSelfChild, false);
+	CHECK(qSelfDownDepth1.count() == 0);
+	expect_positions(qSelfDownDepth1, false);
 
 	wld.add<Level>(scene, {3});
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == 0);
 	expect_positions(qUpOnly, false);
+	CHECK(qUpDepth0.count() == qUpOnly.count());
 	CHECK(qParentOnly.count() == 0);
 	expect_positions(qParentOnly, false);
 	CHECK(qSelfParent.count() == N);
 	expect_positions(qSelfParent, true);
 	CHECK(qSelfDepth1.count() == N);
 	expect_positions(qSelfDepth1, true);
+	CHECK(qDownOnly.count() == N);
+	expect_positions(qDownOnly, true);
+	CHECK(qDownDepth0.count() == qDownOnly.count());
+	CHECK(qSelfDown.count() == N);
+	expect_positions(qSelfDown, true);
+	CHECK(qChildOnly.count() == 0);
+	expect_positions(qChildOnly, false);
+	CHECK(qSelfChild.count() == 0);
+	expect_positions(qSelfChild, false);
+	CHECK(qSelfDownDepth1.count() == 0);
+	expect_positions(qSelfDownDepth1, false);
 
 	wld.del<Level>(scene);
 	wld.add<Level>(parent, {4});
@@ -5228,12 +5273,24 @@ void Test_Query_SourceLookup() {
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
 	expect_positions(qUpOnly, true);
+	CHECK(qUpDepth0.count() == qUpOnly.count());
 	CHECK(qParentOnly.count() == N);
 	expect_positions(qParentOnly, true);
 	CHECK(qSelfParent.count() == N);
 	expect_positions(qSelfParent, true);
 	CHECK(qSelfDepth1.count() == N);
 	expect_positions(qSelfDepth1, true);
+	CHECK(qDownOnly.count() == N);
+	expect_positions(qDownOnly, true);
+	CHECK(qDownDepth0.count() == qDownOnly.count());
+	CHECK(qSelfDown.count() == N);
+	expect_positions(qSelfDown, true);
+	CHECK(qChildOnly.count() == N);
+	expect_positions(qChildOnly, true);
+	CHECK(qSelfChild.count() == N);
+	expect_positions(qSelfChild, true);
+	CHECK(qSelfDownDepth1.count() == N);
+	expect_positions(qSelfDownDepth1, true);
 
 	wld.del<Level>(parent);
 	wld.add<Level>(root, {5});
@@ -5241,12 +5298,24 @@ void Test_Query_SourceLookup() {
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
 	expect_positions(qUpOnly, true);
+	CHECK(qUpDepth0.count() == qUpOnly.count());
 	CHECK(qParentOnly.count() == 0);
 	expect_positions(qParentOnly, false);
 	CHECK(qSelfParent.count() == 0);
 	expect_positions(qSelfParent, false);
 	CHECK(qSelfDepth1.count() == 0);
 	expect_positions(qSelfDepth1, false);
+	CHECK(qDownOnly.count() == 0);
+	expect_positions(qDownOnly, false);
+	CHECK(qDownDepth0.count() == qDownOnly.count());
+	CHECK(qSelfDown.count() == N);
+	expect_positions(qSelfDown, true);
+	CHECK(qChildOnly.count() == 0);
+	expect_positions(qChildOnly, false);
+	CHECK(qSelfChild.count() == N);
+	expect_positions(qSelfChild, true);
+	CHECK(qSelfDownDepth1.count() == N);
+	expect_positions(qSelfDownDepth1, true);
 }
 
 TEST_CASE("Query - source lookup") {
@@ -5961,8 +6030,14 @@ void Test_Query_Bytecode_Dump() {
 	CHECK(bytecode.find("ids_all: 1") != BadIndex);
 	CHECK(bytecode.find("src_all: 1") != BadIndex);
 	CHECK(bytecode.find("var_all: 2") != BadIndex);
-	CHECK(bytecode.find("selfupn") != BadIndex);
+	CHECK(bytecode.find("] up id=") != BadIndex);
 	CHECK(bytecode.find("depth=1") != BadIndex);
+
+	auto qDown = wld.query<UseCachedQuery>() //
+								 .template all<Position>()
+								 .all(level, ecs::QueryTermOptions{}.src(root).trav_self_down());
+	const auto bytecodeDown = qDown.bytecode();
+	CHECK(bytecodeDown.find("] down id=") != BadIndex);
 
 	// We do this just for code coverage.
 	// Hide logging so it does not spam the results of unit testing.
@@ -6555,6 +6630,101 @@ TEST_CASE("Relationship target/relation") {
 	CHECK(out.size() == 1);
 	CHECK(core::has(out, eats));
 	CHECK(wld.relation(rabbit, salad) == eats);
+}
+
+TEST_CASE("Relationship source traversal") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+	auto d = wld.add();
+	auto e = wld.add();
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+	wld.add(d, {rel, b});
+	wld.add(e, {rel, b});
+	wld.add(e, {rel, c});
+
+	{
+		cnt::darr<ecs::Entity> direct;
+		wld.sources(rel, root, [&direct](ecs::Entity source) {
+			direct.push_back(source);
+		});
+
+		CHECK(direct.size() == 2);
+		CHECK(core::has(direct, a));
+		CHECK(core::has(direct, b));
+	}
+
+	{
+		cnt::darr<ecs::Entity> bfs;
+		wld.sources_bfs(rel, root, [&bfs](ecs::Entity source) {
+			bfs.push_back(source);
+		});
+
+		CHECK(bfs.size() == 5);
+		CHECK(bfs[0] == a);
+		CHECK(bfs[1] == b);
+		CHECK(bfs[2] == c);
+		CHECK(bfs[3] == d);
+		CHECK(bfs[4] == e);
+	}
+
+	{
+		uint32_t visited = 0;
+		const bool stopped = wld.sources_bfs_if(rel, root, [&](ecs::Entity source) {
+			++visited;
+			return source == d;
+		});
+
+		CHECK(stopped);
+		CHECK(visited == 4);
+	}
+}
+
+TEST_CASE("Child hierarchy traversal") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto c0 = wld.add();
+	auto c1 = wld.add();
+	auto c00 = wld.add();
+	auto c10 = wld.add();
+
+	wld.child(c0, root);
+	wld.child(c1, root);
+	wld.child(c00, c0);
+	wld.child(c10, c1);
+
+	{
+		cnt::darr<ecs::Entity> direct;
+		wld.children(root, [&direct](ecs::Entity child) {
+			direct.push_back(child);
+		});
+
+		CHECK(direct.size() == 2);
+		CHECK(core::has(direct, c0));
+		CHECK(core::has(direct, c1));
+	}
+
+	{
+		cnt::darr<ecs::Entity> bfs;
+		wld.children_bfs(root, [&bfs](ecs::Entity child) {
+			bfs.push_back(child);
+		});
+
+		CHECK(bfs.size() == 4);
+		CHECK(bfs[0] == c0);
+		CHECK(bfs[1] == c1);
+		CHECK(bfs[2] == c00);
+		CHECK(bfs[3] == c10);
+	}
 }
 
 template <typename TQuery>

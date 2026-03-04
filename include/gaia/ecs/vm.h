@@ -139,9 +139,8 @@ namespace gaia {
 					Never,
 					Self,
 					Up,
-					UpN,
-					SelfUp,
-					SelfUpN
+					Down,
+					UpDown
 				};
 
 				using VmLabel = uint16_t;
@@ -603,15 +602,17 @@ namespace gaia {
 
 				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
-					const bool includeUp =
-							query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad && term.travDepth != 0;
-					if (!includeSelf && !includeUp)
+					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad;
+					const bool includeDown = query_trav_has(term.travKind, QueryTravKind::Down) && term.entTrav != EntityBad;
+					if (!includeSelf && !includeUp && !includeDown)
 						return ESourceOpcode::Never;
-					if (includeSelf && !includeUp)
+					if (includeSelf && !includeUp && !includeDown)
 						return ESourceOpcode::Self;
-					if (!includeSelf && includeUp)
-						return term.travDepth == 1 ? ESourceOpcode::Up : ESourceOpcode::UpN;
-					return term.travDepth == 1 ? ESourceOpcode::SelfUp : ESourceOpcode::SelfUpN;
+					if (includeUp && includeDown)
+						return ESourceOpcode::UpDown;
+					if (includeUp)
+						return ESourceOpcode::Up;
+					return ESourceOpcode::Down;
 				}
 
 				template <typename Func>
@@ -620,42 +621,111 @@ namespace gaia {
 					if (!valid(w, sourceEntity))
 						return false;
 
+					constexpr uint32_t MaxTraversalDepth = 2048;
+					const uint32_t maxDepth =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+
+					auto trav_up_1 = [&]() {
+						const auto next = target(w, sourceEntity, term.entTrav);
+						return next != EntityBad && next != sourceEntity && func(next);
+					};
+
+					auto trav_up_n = [&](bool includeSelf) {
+						if (includeSelf && func(sourceEntity))
+							return true;
+
+						Entity source = sourceEntity;
+						for (uint32_t depth = 0; depth < maxDepth; ++depth) {
+							const auto next = target(w, source, term.entTrav);
+							if (next == EntityBad || next == source)
+								break;
+
+							source = next;
+							if (func(source))
+								return true;
+						}
+
+						return false;
+					};
+
+					auto trav_down_1 = [&]() {
+						bool matched = false;
+						sources_if(w, term.entTrav, sourceEntity, [&](Entity next) {
+							if (func(next)) {
+								matched = true;
+								return false;
+							}
+
+							return true;
+						});
+						return matched;
+					};
+
+					auto trav_down_n = [&](bool includeSelf) {
+						if (includeSelf && func(sourceEntity))
+							return true;
+
+						cnt::darray<Entity> queue;
+						queue.push_back(sourceEntity);
+
+						cnt::darray<uint32_t> levels;
+						levels.push_back(0);
+
+						cnt::set<EntityLookupKey> visited;
+						visited.insert(EntityLookupKey(sourceEntity));
+
+						for (uint32_t i = 0; i < queue.size(); ++i) {
+							const auto source = queue[i];
+							const auto level = levels[i];
+							if (level >= maxDepth)
+								continue;
+
+							cnt::darray<Entity> children;
+							sources(w, term.entTrav, source, [&](Entity next) {
+								const auto key = EntityLookupKey(next);
+								const auto ins = visited.insert(key);
+								if (!ins.second)
+									return;
+
+								children.push_back(next);
+							});
+
+							core::sort(children, [](Entity left, Entity right) {
+								return left.id() < right.id();
+							});
+
+							for (auto child: children) {
+								if (func(child))
+									return true;
+
+								queue.push_back(child);
+								levels.push_back(level + 1);
+							}
+						}
+
+						return false;
+					};
+
 					switch (opcode) {
 						case ESourceOpcode::Never:
 							return false;
 						case ESourceOpcode::Self:
 							return func(sourceEntity);
-						case ESourceOpcode::Up: {
-							const auto next = target(w, sourceEntity, term.entTrav);
-							return next != EntityBad && next != sourceEntity && func(next);
-						}
-						case ESourceOpcode::SelfUp: {
-							if (func(sourceEntity))
+						case ESourceOpcode::Down:
+							if (maxDepth == 1)
+								return (includeSelf && func(sourceEntity)) || trav_down_1();
+							return trav_down_n(includeSelf);
+						case ESourceOpcode::Up:
+							if (maxDepth == 1)
+								return (includeSelf && func(sourceEntity)) || trav_up_1();
+							return trav_up_n(includeSelf);
+						case ESourceOpcode::UpDown:
+							if (includeSelf && func(sourceEntity))
 								return true;
-							const auto next = target(w, sourceEntity, term.entTrav);
-							return next != EntityBad && next != sourceEntity && func(next);
-						}
-						case ESourceOpcode::UpN:
-						case ESourceOpcode::SelfUpN: {
-							if (opcode == ESourceOpcode::SelfUpN && func(sourceEntity))
-								return true;
-
-							constexpr uint32_t MaxTraversalDepth = 2048;
-							const uint32_t maxDepth =
-									term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
-
-							Entity source = sourceEntity;
-							for (uint32_t depth = 0; depth < maxDepth; ++depth) {
-								const auto next = target(w, source, term.entTrav);
-								if (next == EntityBad || next == source)
-									break;
-
-								source = next;
-								if (func(source))
-									return true;
-							}
-							return false;
-						}
+							if (maxDepth == 1)
+								return trav_up_1() || trav_down_1();
+							return trav_up_n(false) || trav_down_n(false);
 						default:
 							GAIA_ASSERT(false);
 							return true;
@@ -1289,7 +1359,7 @@ namespace gaia {
 				}
 
 				static const char* source_opcode_name(detail::ESourceOpcode opcode) {
-					static const char* s_names[] = {"nev", "self", "up", "upn", "selfup", "selfupn"};
+					static const char* s_names[] = {"nev", "self", "up", "down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 

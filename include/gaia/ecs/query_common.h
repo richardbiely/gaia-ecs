@@ -36,7 +36,7 @@ namespace gaia {
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
 		//! Source traversal filter used for source lookups.
-		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02 };
+		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02, Down = 0x04 };
 
 		GAIA_GCC_WARNING_POP()
 
@@ -154,7 +154,7 @@ namespace gaia {
 
 		//! User-provided query input
 		struct QueryInput {
-			static constexpr uint8_t TravDepthUnlimited = 0xff;
+			static constexpr uint8_t TravDepthUnlimited = 0;
 
 			//! Operation to perform with the input
 			QueryOpKind op = QueryOpKind::All;
@@ -166,30 +166,32 @@ namespace gaia {
 			//! If id==EntityBad the source is fixed.
 			//! If id!=src the source is variable.
 			Entity entSrc = EntityBad;
-			//! Optional upward traversal relation for source lookups.
-			//! When set, the lookup starts at src and then walks relation targets upwards.
+			//! Optional traversal relation for source lookups.
+			//! When set, the lookup starts at src and then walks relation targets upwards and/or downwards.
 			Entity entTrav = EntityBad;
 			//! Source traversal filter.
-			//! `Self` means checking the source itself, `Up` means checking traversed ancestors.
+			//! `Self` means checking the source itself, `Up` means checking traversed ancestors,
+			//! `Down` means checking traversed descendants.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
-			//! Maximum number of upward traversal steps.
-			//! 0 means no upward traversal. `TravDepthUnlimited` means unlimited (bounded internally).
+			//! Maximum number of traversal steps.
+			//! 0 means unlimited traversal depth (bounded internally).
 			uint8_t travDepth = TravDepthUnlimited;
 		};
 
 		//! Additional options for query terms.
-		//! This can be used to configure source lookup, upward traversal and access mode
+		//! This can be used to configure source lookup, traversal and access mode
 		//! without relying on many positional overloads.
 		struct QueryTermOptions {
 			static constexpr uint8_t TravDepthUnlimited = QueryInput::TravDepthUnlimited;
 
 			//! Source entity to query from.
 			Entity entSrc = EntityBad;
-			//! Optional upward traversal relation used for source lookup.
+			//! Optional traversal relation used for source lookup.
 			Entity entTrav = EntityBad;
 			//! Source traversal filter.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
-			//! Maximum number of upward traversal steps.
+			//! Maximum number of traversal steps.
+			//! 0 means unlimited traversal depth (bounded internally).
 			uint8_t travDepth = TravDepthUnlimited;
 			//! Access mode for the term.
 			//! When None, typed query terms infer read/write access from template mutability.
@@ -228,6 +230,34 @@ namespace gaia {
 				return *this;
 			}
 
+			QueryTermOptions& trav_down(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Down;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_self_down(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Down;
+				travDepth = TravDepthUnlimited;
+				return *this;
+			}
+
+			QueryTermOptions& trav_child(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Down;
+				travDepth = 1;
+				return *this;
+			}
+
+			QueryTermOptions& trav_self_child(Entity relation = ChildOf) {
+				entTrav = relation;
+				travKind = QueryTravKind::Self | QueryTravKind::Down;
+				travDepth = 1;
+				return *this;
+			}
+
 			QueryTermOptions& trav_kind(QueryTravKind kind) {
 				travKind = kind;
 				return *this;
@@ -255,11 +285,11 @@ namespace gaia {
 			Entity id;
 			//! Source of where the queried id is looked up at
 			Entity src;
-			//! Optional upward traversal relation for source lookups
+			//! Optional traversal relation for source lookups
 			Entity entTrav;
 			//! Source traversal filter.
 			QueryTravKind travKind;
-			//! Maximum number of upward traversal steps.
+			//! Maximum number of traversal steps.
 			uint8_t travDepth;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;

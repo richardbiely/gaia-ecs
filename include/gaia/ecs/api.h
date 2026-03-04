@@ -54,6 +54,22 @@ namespace gaia {
 		void as_targets_trav(const World& world, Entity relation, Func func);
 		template <typename Func>
 		bool as_targets_trav_if(const World& world, Entity relation, Func func);
+		template <typename Func>
+		void sources(const World& world, Entity relation, Entity target, Func func);
+		template <typename Func>
+		void sources_if(const World& world, Entity relation, Entity target, Func func);
+		template <typename Func>
+		void sources_bfs(const World& world, Entity relation, Entity rootTarget, Func func);
+		template <typename Func>
+		bool sources_bfs_if(const World& world, Entity relation, Entity rootTarget, Func func);
+		template <typename Func>
+		void children(const World& world, Entity parent, Func func);
+		template <typename Func>
+		void children_if(const World& world, Entity parent, Func func);
+		template <typename Func>
+		void children_bfs(const World& world, Entity root, Func func);
+		template <typename Func>
+		bool children_bfs_if(const World& world, Entity root, Func func);
 
 		// Query API
 

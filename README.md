@@ -832,7 +832,7 @@ ecs::Query q = w.query();
   .no<Player>(); 
 ```
 
-More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_depth`), and access type (read or write).
+More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_down`, `trav_child`, `trav_self_down`, `trav_self_child`, `trav_depth`), and access type (read or write).
 
 ```cpp
 struct Position {};
@@ -892,6 +892,16 @@ qFast.count(); // expected: 64, because root has Level and root is an ancestor o
 w.del<Level>(root);
 w.add<Level>(scene, {3});
 qFast.count(); // expected: 0, because trav_up() checks ancestors only (it does not check scene itself)
+
+ecs::Query qDown = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(root).trav_down());
+qDown.count(); // expected: 64 if any descendant of root has Level
+
+// Depth control: 0 means unlimited traversal.
+ecs::Query qDownUnlimited = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
 ```
 
 OR terms never duplicate matches. If an entity/archetype satisfies more than one OR term, it is still returned once.

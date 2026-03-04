@@ -2508,6 +2508,184 @@ namespace gaia {
 				}
 			}
 
+			//! Returns relationship sources for the @a relation and @a target.
+			//! \param relation Relation entity
+			//! \param target Target entity
+			//! \param func void(Entity source) functor executed for each source entity found.
+			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			template <typename Func>
+			void sources(Entity relation, Entity target, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(target))
+					return;
+
+				const auto pair = Pair(relation, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (const auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							func(entities[i]);
+						}
+					}
+				}
+			}
+
+			//! Returns relationship sources for the @a relation and @a target.
+			//! \param relation Relation entity
+			//! \param target Target entity
+			//! \param func bool(Entity source) functor executed for each source entity found.
+			//!             Stops if false is returned.
+			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			template <typename Func>
+			void sources_if(Entity relation, Entity target, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(target))
+					return;
+
+				const auto pair = Pair(relation, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				const auto& archetypes = it->second;
+				for (const auto* pArchetype: archetypes) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							if (!func(entities[i]))
+								return;
+						}
+					}
+				}
+			}
+
+			//! Traverses relationship sources in breadth-first order.
+			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! \param relation Relation entity
+			//! \param rootTarget Root target entity
+			//! \param func void(Entity source) functor executed for each traversed source.
+			template <typename Func>
+			void sources_bfs(Entity relation, Entity rootTarget, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(rootTarget))
+					return;
+
+				cnt::darray<Entity> queue;
+				queue.push_back(rootTarget);
+
+				cnt::set<EntityLookupKey> visited;
+				visited.insert(EntityLookupKey(rootTarget));
+
+				for (uint32_t i = 0; i < queue.size(); ++i) {
+					const auto currTarget = queue[i];
+
+					cnt::darray<Entity> children;
+					sources(relation, currTarget, [&](Entity source) {
+						const auto key = EntityLookupKey(source);
+						const auto ins = visited.insert(key);
+						if (!ins.second)
+							return;
+
+						children.push_back(source);
+					});
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (auto child: children) {
+						func(child);
+						queue.push_back(child);
+					}
+				}
+			}
+
+			//! Traverses relationship sources in breadth-first order.
+			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! \param relation Relation entity
+			//! \param rootTarget Root target entity
+			//! \param func bool(Entity source) functor executed for each traversed source.
+			//!             Stops if true is returned.
+			//! \return True if traversal was stopped by @a func, false otherwise.
+			template <typename Func>
+			GAIA_NODISCARD bool sources_bfs_if(Entity relation, Entity rootTarget, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(rootTarget))
+					return false;
+
+				cnt::darray<Entity> queue;
+				queue.push_back(rootTarget);
+
+				cnt::set<EntityLookupKey> visited;
+				visited.insert(EntityLookupKey(rootTarget));
+
+				for (uint32_t i = 0; i < queue.size(); ++i) {
+					const auto currTarget = queue[i];
+
+					cnt::darray<Entity> children;
+					sources(relation, currTarget, [&](Entity source) {
+						const auto key = EntityLookupKey(source);
+						const auto ins = visited.insert(key);
+						if (!ins.second)
+							return;
+
+						children.push_back(source);
+					});
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (auto child: children) {
+						if (func(child))
+							return true;
+
+						queue.push_back(child);
+					}
+				}
+
+				return false;
+			}
+
+			//! Returns direct children in the ChildOf hierarchy.
+			template <typename Func>
+			void children(Entity parent, Func func) const {
+				sources(ChildOf, parent, func);
+			}
+
+			//! Returns direct children in the ChildOf hierarchy.
+			//! \param func bool(Entity child) functor executed for each child found.
+			//!             Stops if false is returned.
+			template <typename Func>
+			void children_if(Entity parent, Func func) const {
+				sources_if(ChildOf, parent, func);
+			}
+
+			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			template <typename Func>
+			void children_bfs(Entity root, Func func) const {
+				sources_bfs(ChildOf, root, func);
+			}
+
+			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! \param func bool(Entity child) functor executed for each child found.
+			//!             Stops if true is returned.
+			template <typename Func>
+			GAIA_NODISCARD bool children_bfs_if(Entity root, Func func) const {
+				return sources_bfs_if(ChildOf, root, func);
+			}
+
 			template <typename Func>
 			void as_targets_trav(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
