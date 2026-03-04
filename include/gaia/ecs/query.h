@@ -82,7 +82,8 @@ namespace gaia {
 					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
 					ctxData._ids[ctxData.idsCnt] = item.id;
-					ctxData._terms[ctxData.idsCnt] = {item.id, item.entSrc, item.entTrav, item.travKind, item.travDepth, nullptr, item.op};
+					ctxData._terms[ctxData.idsCnt] = {item.id,				item.entSrc, item.entTrav, item.travKind,
+																						item.travDepth, nullptr,		 item.op};
 					++ctxData.idsCnt;
 				}
 			};
@@ -576,7 +577,9 @@ namespace gaia {
 						}
 					}
 
-					add_inter({op, normalize_access(op, e, access), e, options.entSrc, options.entTrav, options.travKind, options.travDepth});
+					add_inter(
+							{op, normalize_access(op, e, access), e, options.entSrc, options.entTrav, options.travKind,
+							 options.travDepth});
 				}
 
 				template <typename Rel, typename Tgt>
@@ -2195,9 +2198,29 @@ namespace gaia {
 					// Make sure matching happened
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
-					GAIA_LOG_N("DIAG Query %u.%u [%c]", id(), gen(), UseCaching ? 'C' : 'U');
+					if constexpr (UseCaching)
+						GAIA_LOG_N("BEG DIAG Query %u.%u [C]", id(), gen());
+					else
+						GAIA_LOG_N("BEG DIAG Query [U]");
 					for (const auto* pArchetype: queryInfo)
 						Archetype::diag_basic_info(*m_storage.world(), *pArchetype);
+					GAIA_LOG_N("END DIAG Query");
+				}
+
+				//! Returns a textual dump of the generated query VM bytecode.
+				GAIA_NODISCARD util::str bytecode() {
+					auto& queryInfo = fetch();
+					return queryInfo.bytecode();
+				}
+
+				//! Prints a textual dump of the generated query VM bytecode.
+				void diag_bytecode() {
+					const auto dump = bytecode();
+					if constexpr (UseCaching)
+						GAIA_LOG_N("BEG DIAG Query Bytecode %u.%u [C]", id(), gen());
+					else
+						GAIA_LOG_N("BEG DIAG Query Bytecode [U]");
+					GAIA_LOG_N("%.*s", (int)dump.size(), dump.data());
 					GAIA_LOG_N("END DIAG Query");
 				}
 			};

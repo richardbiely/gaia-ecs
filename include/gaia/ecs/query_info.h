@@ -748,6 +748,10 @@ namespace gaia {
 				return m_ctx;
 			}
 
+			GAIA_NODISCARD util::str bytecode() const {
+				return m_vm.bytecode(*world());
+			}
+
 			GAIA_NODISCARD bool has_filters() const {
 				return m_ctx.data.changedCnt > 0;
 			}

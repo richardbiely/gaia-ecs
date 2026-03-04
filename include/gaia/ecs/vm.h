@@ -2,6 +2,7 @@
 #include "gaia/config/config.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
@@ -16,6 +17,7 @@
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_mask.h"
 #include "gaia/ser/ser_binary.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ecs {
@@ -93,7 +95,7 @@ namespace gaia {
 			}
 
 			namespace detail {
-				enum class EOpcode : uint8_t {
+				enum class EOpcode : uint8_t { //
 					//! X
 					All_Simple,
 					All_Wildcard,
@@ -107,13 +109,13 @@ namespace gaia {
 					Not_Complex
 				};
 
-				enum class ESourceOpcode : uint8_t {
+				enum class ESourceOpcode : uint8_t { //
 					Never,
 					Self,
-					Up_1,
-					Up_N,
-					SelfUp_1,
-					SelfUp_N
+					Up,
+					UpN,
+					SelfUp,
+					SelfUpN
 				};
 
 				using VmLabel = uint16_t;
@@ -537,20 +539,20 @@ namespace gaia {
 
 				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
-					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad &&
-																 term.travDepth != 0;
+					const bool includeUp =
+							query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad && term.travDepth != 0;
 					if (!includeSelf && !includeUp)
 						return ESourceOpcode::Never;
 					if (includeSelf && !includeUp)
 						return ESourceOpcode::Self;
 					if (!includeSelf && includeUp)
-						return term.travDepth == 1 ? ESourceOpcode::Up_1 : ESourceOpcode::Up_N;
-					return term.travDepth == 1 ? ESourceOpcode::SelfUp_1 : ESourceOpcode::SelfUp_N;
+						return term.travDepth == 1 ? ESourceOpcode::Up : ESourceOpcode::UpN;
+					return term.travDepth == 1 ? ESourceOpcode::SelfUp : ESourceOpcode::SelfUpN;
 				}
 
 				template <typename Func>
-				GAIA_NODISCARD inline bool
-				each_lookup_source(const World& w, ESourceOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+				GAIA_NODISCARD inline bool each_lookup_source(
+						const World& w, ESourceOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					if (!valid(w, sourceEntity))
 						return false;
 
@@ -559,25 +561,24 @@ namespace gaia {
 							return false;
 						case ESourceOpcode::Self:
 							return func(sourceEntity);
-						case ESourceOpcode::Up_1: {
+						case ESourceOpcode::Up: {
 							const auto next = target(w, sourceEntity, term.entTrav);
 							return next != EntityBad && next != sourceEntity && func(next);
 						}
-						case ESourceOpcode::SelfUp_1: {
+						case ESourceOpcode::SelfUp: {
 							if (func(sourceEntity))
 								return true;
 							const auto next = target(w, sourceEntity, term.entTrav);
 							return next != EntityBad && next != sourceEntity && func(next);
 						}
-						case ESourceOpcode::Up_N:
-						case ESourceOpcode::SelfUp_N: {
-							if (opcode == ESourceOpcode::SelfUp_N && func(sourceEntity))
+						case ESourceOpcode::UpN:
+						case ESourceOpcode::SelfUpN: {
+							if (opcode == ESourceOpcode::SelfUpN && func(sourceEntity))
 								return true;
 
 							constexpr uint32_t MaxTraversalDepth = 2048;
-							const uint32_t maxDepth = term.travDepth == QueryTermOptions::TravDepthUnlimited
-																					? MaxTraversalDepth
-																					: (uint32_t)term.travDepth;
+							const uint32_t maxDepth =
+									term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
 
 							Entity source = sourceEntity;
 							for (uint32_t depth = 0; depth < maxDepth; ++depth) {
@@ -598,7 +599,8 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				GAIA_NODISCARD inline bool each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+				GAIA_NODISCARD inline bool
+				each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					return each_lookup_source(w, source_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
 				}
 
@@ -1249,6 +1251,171 @@ namespace gaia {
 				detail::QueryCompileCtx m_compCtx;
 
 			private:
+				static const char* opcode_name(detail::EOpcode opcode) {
+					static const char* s_names[] = {"all", "allw", "allc", "any", "anya", "not", "notw", "notc"};
+					return s_names[(uint32_t)opcode];
+				}
+
+				static const char* source_opcode_name(detail::ESourceOpcode opcode) {
+					static const char* s_names[] = {"nev", "self", "up", "upn", "selfup", "selfupn"};
+					return s_names[(uint32_t)opcode];
+				}
+
+				static void append_uint(util::str& out, uint32_t value) {
+					char buffer[32];
+					const auto len = GAIA_STRFMT(buffer, sizeof(buffer), "%u", value);
+					GAIA_ASSERT(len >= 0);
+					out.append(buffer, (uint32_t)len);
+				}
+
+				static void append_cstr(util::str& out, const char* value) {
+					GAIA_ASSERT(value != nullptr);
+					out.append(value, (uint32_t)GAIA_STRLEN(value, 16));
+				}
+
+				static void append_id_expr(util::str& out, const World& world, EntityId id) {
+					if (is_variable(id)) {
+						out.append('$');
+						append_uint(out, (uint32_t)(id - Var0.id()));
+						return;
+					}
+
+					if (id == All.id()) {
+						out.append('*');
+						return;
+					}
+
+					const auto entity = entity_from_id(world, id);
+					if (entity != EntityBad)
+						append_entity_expr(out, world, entity);
+					else {
+						out.append('#');
+						append_uint(out, (uint32_t)id);
+					}
+				}
+
+				static void append_entity_expr(util::str& out, const World& world, Entity entity) {
+					if (entity == EntityBad) {
+						out.append("EntityBad");
+						return;
+					}
+
+					if (entity.pair()) {
+						out.append('(');
+						append_id_expr(out, world, (EntityId)entity.id());
+						out.append(',');
+						append_id_expr(out, world, (EntityId)entity.gen());
+						out.append(')');
+						return;
+					}
+
+					if (is_variable(EntityId(entity.id()))) {
+						out.append('$');
+						append_uint(out, (uint32_t)(entity.id() - Var0.id()));
+						return;
+					}
+
+					if (entity.id() == All.id()) {
+						out.append('*');
+						return;
+					}
+
+					const auto* name = entity_name(world, entity);
+					if (name != nullptr) {
+						out.append(name, (uint32_t)GAIA_STRLEN(name, 256));
+						return;
+					}
+
+					append_uint(out, entity.id());
+					out.append('.');
+					append_uint(out, entity.gen());
+				}
+
+				static void append_term_expr(util::str& out, const World& world, const QueryTerm& term) {
+					append_entity_expr(out, world, term.id);
+					out.append('(');
+					if (term.src == EntityBad)
+						out.append("$this");
+					else
+						append_entity_expr(out, world, term.src);
+					out.append(')');
+
+					if (term.entTrav != EntityBad) {
+						out.append(" trav=");
+						append_entity_expr(out, world, term.entTrav);
+						out.append(" depth=");
+						if (term.travDepth == QueryTermOptions::TravDepthUnlimited)
+							out.append('*');
+						else
+							append_uint(out, (uint32_t)term.travDepth);
+					}
+				}
+
+				static void
+				append_ids_section(util::str& out, const char* title, std::span<const Entity> ids, const World& world) {
+					if (ids.empty())
+						return;
+
+					append_cstr(out, title);
+					out.append(": ");
+					append_uint(out, (uint32_t)ids.size());
+					out.append('\n');
+
+					const auto cnt = (uint32_t)ids.size();
+					GAIA_FOR(cnt) {
+						out.append("  [");
+						append_uint(out, i);
+						out.append("] ");
+						append_entity_expr(out, world, ids[i]);
+						out.append('\n');
+					}
+				}
+
+				static void append_source_terms_section(
+						util::str& out, const char* title,
+						const cnt::sarray_ext<detail::QueryCompileCtx::SourceTermOp, MAX_ITEMS_IN_QUERY>& terms,
+						const World& world) {
+					if (terms.empty())
+						return;
+
+					append_cstr(out, title);
+					out.append(": ");
+					append_uint(out, (uint32_t)terms.size());
+					out.append('\n');
+
+					const auto cnt = (uint32_t)terms.size();
+					GAIA_FOR(cnt) {
+						out.append("  [");
+						append_uint(out, i);
+						out.append("] ");
+						append_cstr(out, source_opcode_name(terms[i].opcode));
+						out.append(" id=");
+						append_term_expr(out, world, terms[i].term);
+						out.append('\n');
+					}
+				}
+
+				static void
+				append_var_terms_section(util::str& out, const char* title, const QueryTermArray& terms, const World& world) {
+					if (terms.empty())
+						return;
+
+					append_cstr(out, title);
+					out.append(": ");
+					append_uint(out, (uint32_t)terms.size());
+					out.append('\n');
+
+					const auto cnt = (uint32_t)terms.size();
+					GAIA_FOR(cnt) {
+						out.append("  [");
+						append_uint(out, i);
+						out.append("] ");
+						append_term_expr(out, world, terms[i]);
+						out.append('\n');
+					}
+				}
+
+			private:
 				GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
 					ctx.skipAny = false;
 
@@ -1419,6 +1586,46 @@ namespace gaia {
 				}
 
 			public:
+				GAIA_NODISCARD util::str bytecode(const World& world) const {
+					util::str out;
+					out.reserve(2048);
+
+					out.append("main_ops: ");
+					append_uint(out, (uint32_t)m_compCtx.ops.size());
+					out.append('\n');
+
+					const auto opsCnt = (uint32_t)m_compCtx.ops.size();
+					GAIA_FOR(opsCnt) {
+						const auto& op = m_compCtx.ops[i];
+						out.append("  [");
+						append_uint(out, i);
+						out.append("] ");
+						append_cstr(out, opcode_name(op.opcode));
+						out.append(" ok=");
+						append_uint(out, op.pc_ok);
+						out.append(" fail=");
+						append_uint(out, op.pc_fail);
+						out.append('\n');
+					}
+
+					append_ids_section(
+							out, "ids_all", std::span<const Entity>{m_compCtx.ids_all.data(), m_compCtx.ids_all.size()}, world);
+					append_ids_section(
+							out, "ids_any", std::span<const Entity>{m_compCtx.ids_any.data(), m_compCtx.ids_any.size()}, world);
+					append_ids_section(
+							out, "ids_not", std::span<const Entity>{m_compCtx.ids_not.data(), m_compCtx.ids_not.size()}, world);
+
+					append_source_terms_section(out, "src_all", m_compCtx.terms_all_src, world);
+					append_source_terms_section(out, "src_any", m_compCtx.terms_any_src, world);
+					append_source_terms_section(out, "src_not", m_compCtx.terms_not_src, world);
+
+					append_var_terms_section(out, "var_all", m_compCtx.terms_all_var, world);
+					append_var_terms_section(out, "var_any", m_compCtx.terms_any_var, world);
+					append_var_terms_section(out, "var_not", m_compCtx.terms_not_var, world);
+
+					return out;
+				}
+
 				//! Transforms inputs into virtual machine opcodes.
 				void compile(
 						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,

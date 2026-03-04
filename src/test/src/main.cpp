@@ -5502,21 +5502,21 @@ void Test_Query_Variables_Advanced() {
 		wld.add(cableRoot, {connectedTo, root});
 
 		auto qSelfUp = wld.query<UseCachedQuery>()
-										.template all<Cable>()
-										.any(ecs::Pair(connectedTo, ecs::Var0))
-										.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+											 .template all<Cable>()
+											 .any(ecs::Pair(connectedTo, ecs::Var0))
+											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
 		auto qUpOnly = wld.query<UseCachedQuery>()
-										.template all<Cable>()
-										.any(ecs::Pair(connectedTo, ecs::Var0))
-										.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_up());
+											 .template all<Cable>()
+											 .any(ecs::Pair(connectedTo, ecs::Var0))
+											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_up());
 		auto qParentOnly = wld.query<UseCachedQuery>()
-											.template all<Cable>()
-											.any(ecs::Pair(connectedTo, ecs::Var0))
-											.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
+													 .template all<Cable>()
+													 .any(ecs::Pair(connectedTo, ecs::Var0))
+													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
 		auto qSelfDepth1 = wld.query<UseCachedQuery>()
-											.template all<Cable>()
-											.any(ecs::Pair(connectedTo, ecs::Var0))
-											.template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav().trav_depth(1));
+													 .template all<Cable>()
+													 .any(ecs::Pair(connectedTo, ecs::Var0))
+													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav().trav_depth(1));
 
 		CHECK(qSelfUp.count() == 0);
 		CHECK(qUpOnly.count() == 0);
@@ -5589,6 +5589,62 @@ TEST_CASE("Query - variables advanced") {
 	}
 	SUBCASE("Non-cached query") {
 		Test_Query_Variables_Advanced<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Bytecode_Dump() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+
+	struct Level {
+		uint32_t value;
+	};
+	struct ConnectedTo {};
+	struct PlanetTag {};
+
+	const auto level = wld.add<Level>().entity;
+	const auto connectedTo = wld.add<ConnectedTo>().entity;
+
+	const auto root = wld.add();
+	const auto scene = wld.add();
+	wld.child(scene, root);
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+	wld.add(entity, {connectedTo, root});
+	wld.add<PlanetTag>(root);
+
+	auto q = wld.query<UseCachedQuery>()
+							 .template all<Position>()
+							 .all(level, ecs::QueryTermOptions{}.src(scene).trav())
+							 .any(ecs::Pair(connectedTo, ecs::Var0))
+							 .template all<PlanetTag>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
+
+	const auto bytecode = q.bytecode();
+	CHECK(!bytecode.empty());
+	CHECK(bytecode.find("main_ops:") != BadIndex);
+	CHECK(bytecode.find("ids_all: 1") != BadIndex);
+	CHECK(bytecode.find("src_all: 1") != BadIndex);
+	CHECK(bytecode.find("var_all: 1") != BadIndex);
+	CHECK(bytecode.find("selfupn") != BadIndex);
+	CHECK(bytecode.find("depth=1") != BadIndex);
+
+	// We do this just for code coverage.
+	// Hide logging so it does not spam the results of unit testing.
+	const auto logLevelBackup = util::g_logLevelMask;
+	util::g_logLevelMask = 0;
+	q.diag_bytecode();
+	util::g_logLevelMask = logLevelBackup;
+}
+
+TEST_CASE("Query - bytecode dump") {
+	SUBCASE("Cached query") {
+		Test_Query_Bytecode_Dump<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Bytecode_Dump<ecs::QueryUncached>();
 	}
 }
 
