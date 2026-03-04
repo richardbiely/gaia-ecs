@@ -103,6 +103,14 @@
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/app/gaia_perf_app",
       "args": [],
       "cwd": "${workspaceFolder}",
+    },
+    {
+      "name": "(lldb) perf - matrix",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/matrix/gaia_perf_matrix",
+      "args": [],
+      "cwd": "${workspaceFolder}",
     }
   ]
 }
