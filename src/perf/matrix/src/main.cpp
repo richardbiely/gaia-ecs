@@ -1721,11 +1721,11 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryMatch_Variable_1VarMixed_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
-				.label("match 1var mixed-fallback (bound)");
+				.label("match 1var pair-mixed (bound)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1VarMixed_Unbound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
-				.label("match 1var mixed-fallback (unbound)");
+				.label("match 1var pair-mixed (unbound)");
 
 #if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");

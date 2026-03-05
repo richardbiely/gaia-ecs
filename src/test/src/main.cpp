@@ -6525,8 +6525,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableA, cableB});
 	}
 
-	// Single-variable mixed ALL/OR/NOT query without a source-gated ALL anchor should stay on the generic 1-variable
-	// opcode.
+	// Single-variable pair mixed ALL/OR/NOT query should use the dedicated mixed pair opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6569,7 +6568,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varf1pm ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varf1os ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
