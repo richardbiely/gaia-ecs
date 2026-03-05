@@ -32066,6 +32066,11 @@ namespace gaia {
 			} // namespace detail
 
 			class VirtualMachine {
+				static constexpr uint32_t OpcodeArgLimit = 256u;
+				static_assert(
+						MAX_ITEMS_IN_QUERY <= OpcodeArgLimit,
+						"CompiledOp::arg is uint8_t. Increase arg width if query term capacity grows above 256.");
+
 				detail::QueryCompileCtx m_compCtx;
 
 			private:
@@ -32514,6 +32519,45 @@ namespace gaia {
 					return cnt;
 				}
 
+				GAIA_NODISCARD static uint8_t opcode_arg(uint32_t idx) {
+					GAIA_ASSERT(idx < OpcodeArgLimit);
+					return (uint8_t)idx;
+				}
+
+				template <typename SourceTermsArray>
+				void emit_source_gate_terms(const SourceTermsArray& terms, detail::EOpcode opcode) {
+					const auto cnt = (uint32_t)terms.size();
+					GAIA_FOR(cnt) {
+						detail::CompiledOp op{};
+						op.opcode = opcode;
+						op.arg = opcode_arg(i);
+						(void)add_gate_op(GAIA_MOV(op));
+					}
+				}
+
+				void emit_source_or_terms(bool hasOrFallback) {
+					cnt::sarray_ext<detail::VmLabel, MAX_ITEMS_IN_QUERY> orSrcOpLabels;
+
+					const auto srcOrCnt = (uint32_t)m_compCtx.terms_or_src.size();
+					GAIA_FOR(srcOrCnt) {
+						detail::CompiledOp op{};
+						op.opcode = detail::EOpcode::Src_OrTerm;
+						op.arg = opcode_arg(i);
+						orSrcOpLabels.push_back(add_op(GAIA_MOV(op)));
+					}
+
+					const auto orExitPc = (detail::VmLabel)m_compCtx.ops.size();
+					for (const auto opLabel: orSrcOpLabels)
+						m_compCtx.ops[opLabel].pc_ok = orExitPc;
+
+					const auto lastIdx = (uint32_t)orSrcOpLabels.size() - 1u;
+					GAIA_FOR(lastIdx) {
+						m_compCtx.ops[orSrcOpLabels[i]].pc_fail = orSrcOpLabels[i + 1];
+					}
+
+					m_compCtx.ops[orSrcOpLabels[lastIdx]].pc_fail = hasOrFallback ? orExitPc : (detail::VmLabel)-1;
+				}
+
 				GAIA_NODISCARD static detail::EOpcode pick_all_opcode(bool isSimple, bool isAs) {
 					if (isSimple)
 						return detail::EOpcode::All_Simple;
@@ -32834,50 +32878,17 @@ namespace gaia {
 					m_compCtx.ops.clear();
 
 					// Source ALL terms: all must match, each is a dedicated gate opcode.
-					if (!m_compCtx.terms_all_src.empty()) {
-						const auto srcAllCnt = (uint32_t)m_compCtx.terms_all_src.size();
-						GAIA_FOR(srcAllCnt) {
-							detail::CompiledOp op{};
-							op.opcode = detail::EOpcode::Src_AllTerm;
-							op.arg = (uint8_t)i;
-							(void)add_gate_op(GAIA_MOV(op));
-						}
-					}
+					if (!m_compCtx.terms_all_src.empty())
+						emit_source_gate_terms(m_compCtx.terms_all_src, detail::EOpcode::Src_AllTerm);
 
 					// Source NOT terms: none can match, each is a dedicated gate opcode.
-					if (!m_compCtx.terms_not_src.empty()) {
-						const auto srcNotCnt = (uint32_t)m_compCtx.terms_not_src.size();
-						GAIA_FOR(srcNotCnt) {
-							detail::CompiledOp op{};
-							op.opcode = detail::EOpcode::Src_NotTerm;
-							op.arg = (uint8_t)i;
-							(void)add_gate_op(GAIA_MOV(op));
-						}
-					}
+					if (!m_compCtx.terms_not_src.empty())
+						emit_source_gate_terms(m_compCtx.terms_not_src, detail::EOpcode::Src_NotTerm);
 
 					// Source OR terms: emit a fallback chain that backtracks across alternatives.
 					if (!m_compCtx.terms_or_src.empty()) {
 						const bool hasOrFallback = !m_compCtx.ids_or.empty() || !m_compCtx.terms_or_var.empty();
-
-						cnt::sarray_ext<detail::VmLabel, MAX_ITEMS_IN_QUERY> orSrcOpLabels;
-						const auto srcOrCnt = (uint32_t)m_compCtx.terms_or_src.size();
-						GAIA_FOR(srcOrCnt) {
-							detail::CompiledOp op{};
-							op.opcode = detail::EOpcode::Src_OrTerm;
-							op.arg = (uint8_t)i;
-							orSrcOpLabels.push_back(add_op(GAIA_MOV(op)));
-						}
-
-						const auto orExitPc = (detail::VmLabel)m_compCtx.ops.size();
-						for (const auto opLabel: orSrcOpLabels)
-							m_compCtx.ops[opLabel].pc_ok = orExitPc;
-
-						const auto lastIdx = (uint32_t)orSrcOpLabels.size() - 1u;
-						GAIA_FOR(lastIdx) {
-							m_compCtx.ops[orSrcOpLabels[i]].pc_fail = orSrcOpLabels[i + 1];
-						}
-
-						m_compCtx.ops[orSrcOpLabels[lastIdx]].pc_fail = hasOrFallback ? orExitPc : (detail::VmLabel)-1;
+						emit_source_or_terms(hasOrFallback);
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
