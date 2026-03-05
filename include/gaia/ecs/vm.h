@@ -132,15 +132,13 @@ namespace gaia {
 					//! !X
 					Not_Simple,
 					Not_Wildcard,
-					Not_Complex
-				};
-
-				enum class ESourceOpcode : uint8_t { //
-					Never,
-					Self,
-					Up,
-					Down,
-					UpDown
+					Not_Complex,
+					//! Source traversal sub-opcodes (used by source terms)
+					Src_Never,
+					Src_Self,
+					Src_Up,
+					Src_Down,
+					Src_UpDown
 				};
 
 				using VmLabel = uint16_t;
@@ -156,7 +154,7 @@ namespace gaia {
 
 				struct QueryCompileCtx {
 					struct SourceTermOp {
-						ESourceOpcode opcode = ESourceOpcode::Never;
+						EOpcode opcode = EOpcode::Src_Never;
 						QueryTerm term{};
 					};
 
@@ -600,24 +598,24 @@ namespace gaia {
 					return match_res_as<OpOr>(w, archetype, EntitySpan{ids, 1});
 				}
 
-				GAIA_NODISCARD inline ESourceOpcode source_opcode_from_term(const QueryTerm& term) {
+				GAIA_NODISCARD inline EOpcode source_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
 					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad;
 					const bool includeDown = query_trav_has(term.travKind, QueryTravKind::Down) && term.entTrav != EntityBad;
 					if (!includeSelf && !includeUp && !includeDown)
-						return ESourceOpcode::Never;
+						return EOpcode::Src_Never;
 					if (includeSelf && !includeUp && !includeDown)
-						return ESourceOpcode::Self;
+						return EOpcode::Src_Self;
 					if (includeUp && includeDown)
-						return ESourceOpcode::UpDown;
+						return EOpcode::Src_UpDown;
 					if (includeUp)
-						return ESourceOpcode::Up;
-					return ESourceOpcode::Down;
+						return EOpcode::Src_Up;
+					return EOpcode::Src_Down;
 				}
 
 				template <typename Func>
-				GAIA_NODISCARD inline bool each_lookup_source(
-						const World& w, ESourceOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+				GAIA_NODISCARD inline bool
+				each_lookup_source(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					if (!valid(w, sourceEntity))
 						return false;
 
@@ -708,19 +706,19 @@ namespace gaia {
 					};
 
 					switch (opcode) {
-						case ESourceOpcode::Never:
+						case EOpcode::Src_Never:
 							return false;
-						case ESourceOpcode::Self:
+						case EOpcode::Src_Self:
 							return func(sourceEntity);
-						case ESourceOpcode::Down:
+						case EOpcode::Src_Down:
 							if (maxDepth == 1)
 								return (includeSelf && func(sourceEntity)) || trav_down_1();
 							return trav_down_n(includeSelf);
-						case ESourceOpcode::Up:
+						case EOpcode::Src_Up:
 							if (maxDepth == 1)
 								return (includeSelf && func(sourceEntity)) || trav_up_1();
 							return trav_up_n(includeSelf);
-						case ESourceOpcode::UpDown:
+						case EOpcode::Src_UpDown:
 							if (includeSelf && func(sourceEntity))
 								return true;
 							if (maxDepth == 1)
@@ -738,7 +736,7 @@ namespace gaia {
 					return each_lookup_source(w, source_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
 				}
 
-				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term, ESourceOpcode opcode) {
+				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term, EOpcode opcode) {
 					auto match_source_entity = [&](Entity source) {
 						if (!valid(w, source))
 							return false;
@@ -1354,12 +1352,8 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all", "allw", "allc", "or", "ora", "not", "notw", "notc"};
-					return s_names[(uint32_t)opcode];
-				}
-
-				static const char* source_opcode_name(detail::ESourceOpcode opcode) {
-					static const char* s_names[] = {"nev", "self", "up", "down", "updown"};
+					static const char* s_names[] = {"all",	"allw", "allc", "or", "ora",	"not",	 "notw",
+																					"notc", "nev",	"self", "up", "down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -1490,7 +1484,7 @@ namespace gaia {
 						out.append("  [");
 						append_uint(out, i);
 						out.append("] ");
-						append_cstr(out, source_opcode_name(terms[i].opcode));
+						append_cstr(out, opcode_name(terms[i].opcode));
 						out.append(" id=");
 						append_term_expr(out, world, terms[i].term);
 						out.append('\n');
@@ -1997,6 +1991,7 @@ namespace gaia {
 					// Extract data from the buffer
 					do {
 						auto& stackItem = m_compCtx.ops[ctx.pc];
+						GAIA_ASSERT((uint32_t)stackItem.opcode < (uint32_t)detail::EOpcode::Src_Never);
 						const bool ret = OpcodeFuncs[(uint32_t)stackItem.opcode](m_compCtx, ctx);
 						ctx.pc = ret ? stackItem.pc_ok : stackItem.pc_fail;
 					} while (ctx.pc < m_compCtx.ops.size()); // (uint32_t)-1 falls in this category as well
