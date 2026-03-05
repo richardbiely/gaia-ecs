@@ -6375,7 +6375,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Variable OR query should use the generic variable solver opcode.
+	// Single-variable OR query should use the single-variable variable opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6408,8 +6408,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varf ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
@@ -11668,21 +11668,21 @@ TEST_CASE("Observer - copy_ext payload") {
 	Acceleration acc{};
 
 	const auto obs = wld.observer()
-											.event(ecs::ObserverEvent::OnAdd)
-											.all<Position>()
-											.all<Acceleration>()
-											.on_each([&](ecs::Iter& it) {
-												++hits;
-												iterSize = it.size();
-												auto entityView = it.view<ecs::Entity>();
-												entityViewSize = entityView.size();
-												observedEntity = entityView[0];
-												auto posView = it.view<Position>();
-												auto accView = it.view<Acceleration>();
-												pos = posView[0];
-												acc = accView[0];
-											})
-											.entity();
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<Position>()
+											 .all<Acceleration>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 iterSize = it.size();
+												 auto entityView = it.view<ecs::Entity>();
+												 entityViewSize = entityView.size();
+												 observedEntity = entityView[0];
+												 auto posView = it.view<Position>();
+												 auto accView = it.view<Acceleration>();
+												 pos = posView[0];
+												 acc = accView[0];
+											 })
+											 .entity();
 	(void)obs;
 
 	const auto src = wld.add();

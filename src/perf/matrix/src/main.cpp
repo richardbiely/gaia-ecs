@@ -1074,7 +1074,7 @@ void BM_QueryMatch_Variable_AllOnly_Unbound(picobench::state& state) {
 }
 
 template <bool BoundVar0>
-void BM_QueryMatch_Variable_GenericOr(picobench::state& state) {
+void BM_QueryMatch_Variable_1VarOr(picobench::state& state) {
 	const uint32_t archetypeCnt = (uint32_t)state.user_data();
 	constexpr uint32_t SourceCnt = 16;
 
@@ -1088,7 +1088,7 @@ void BM_QueryMatch_Variable_GenericOr(picobench::state& state) {
 	GAIA_FOR(SourceCnt) {
 		sources[i] = w.add();
 	}
-	// Single valid source target forces unbound OR backtracking in the generic solver.
+	// Single valid source target forces the one-variable OR path to bind through the source gate.
 	w.add<SourceTypeOr>(sources[15]);
 
 	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
@@ -1129,12 +1129,12 @@ void BM_QueryMatch_Variable_GenericOr(picobench::state& state) {
 	}
 }
 
-void BM_QueryMatch_Variable_GenericOr_Bound(picobench::state& state) {
-	BM_QueryMatch_Variable_GenericOr<true>(state);
+void BM_QueryMatch_Variable_1VarOr_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarOr<true>(state);
 }
 
-void BM_QueryMatch_Variable_GenericOr_Unbound(picobench::state& state) {
-	BM_QueryMatch_Variable_GenericOr<false>(state);
+void BM_QueryMatch_Variable_1VarOr_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarOr<false>(state);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1582,14 +1582,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match all-only 2var src-gated (unbound)");
-		PICOBENCH_REG(BM_QueryMatch_Variable_GenericOr_Bound)
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarOr_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
-				.label("match generic or (bound)");
-		PICOBENCH_REG(BM_QueryMatch_Variable_GenericOr_Unbound)
+				.label("match 1var or-source-gated (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarOr_Unbound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
-				.label("match generic or (unbound)");
+				.label("match 1var or-source-gated (unbound)");
 
 #if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");
