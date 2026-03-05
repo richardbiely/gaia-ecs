@@ -54,6 +54,18 @@ struct Dirty {
 	bool value;
 };
 
+struct LinkedTo {};
+struct VarTag0 {};
+struct VarTag1 {};
+struct VarTag2 {};
+struct VarTag3 {};
+struct VarTag4 {};
+struct VarTag5 {};
+struct VarTag6 {};
+struct VarTag7 {};
+struct VarTag8 {};
+struct VarTag9 {};
+
 #if GAIA_OBSERVERS_ENABLED
 struct ObsA {};
 struct ObsB {};
@@ -713,6 +725,151 @@ void BM_Query_Filter_NoFrozen(picobench::state& state) {
 	}
 }
 
+template <bool BoundVar0>
+void BM_Query_Variable_Source(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 8;
+	constexpr uint32_t LinksPerEntity = 4;
+
+	cnt::darray<ecs::Entity> sources;
+	sources.reserve(SourceCnt);
+
+	ecs::World w;
+	const auto linkedTo = w.add<LinkedTo>().entity;
+
+	GAIA_FOR(SourceCnt) {
+		auto source = w.add();
+		sources.push_back(source);
+		w.add<Health>(source, {100, 100});
+	}
+
+	GAIA_FOR(n) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		if ((i & 1U) != 0U)
+			w.add<Velocity>(e, {1.0f, 0.5f, 0.25f});
+		if ((i & 2U) != 0U)
+			w.add<Mass>(e, {1.0f});
+
+		GAIA_FOR_(LinksPerEntity, j) {
+			w.add(e, ecs::Pair(linkedTo, sources[j]));
+		}
+	}
+
+	auto q = w.query()
+							 .all<Position>()
+							 .all(ecs::Pair(linkedTo, ecs::Var0))
+							 .template all<Health>(ecs::QueryTermOptions{}.src(ecs::Var0));
+	if constexpr (BoundVar0)
+		q.set_var(ecs::Var0, sources[0]);
+	else
+		q.clear_vars();
+
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0ULL;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y);
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_Variable_Source_Bound(picobench::state& state) {
+	BM_Query_Variable_Source<true>(state);
+}
+
+void BM_Query_Variable_Source_Unbound(picobench::state& state) {
+	BM_Query_Variable_Source<false>(state);
+}
+
+template <bool BoundVar0>
+void BM_QueryMatch_Variable(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 16;
+
+	ecs::World w;
+
+	const auto relA = w.add();
+	const auto relB = w.add();
+	const auto relC = w.add();
+	const auto relD = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> sources{};
+	GAIA_FOR(SourceCnt) {
+		sources[i] = w.add();
+	}
+
+	// Candidate sets with a single shared target (sources[15]) to force backtracking in unbound mode.
+	// Keep set sizes small to stay under archetype id capacity limits.
+	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+	static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+	static constexpr uint8_t candC[] = {0, 2, 4, 6, 15};
+	static constexpr uint8_t candD[] = {1, 3, 5, 7, 15};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+
+		if ((i & (1u << 0)) != 0u)
+			w.add<VarTag0>(e);
+		if ((i & (1u << 1)) != 0u)
+			w.add<VarTag1>(e);
+		if ((i & (1u << 2)) != 0u)
+			w.add<VarTag2>(e);
+		if ((i & (1u << 3)) != 0u)
+			w.add<VarTag3>(e);
+		if ((i & (1u << 4)) != 0u)
+			w.add<VarTag4>(e);
+		if ((i & (1u << 5)) != 0u)
+			w.add<VarTag5>(e);
+		if ((i & (1u << 6)) != 0u)
+			w.add<VarTag6>(e);
+		if ((i & (1u << 7)) != 0u)
+			w.add<VarTag7>(e);
+		if ((i & (1u << 8)) != 0u)
+			w.add<VarTag8>(e);
+		for (const auto idx: candA)
+			w.add(e, ecs::Pair(relA, sources[idx]));
+		for (const auto idx: candB)
+			w.add(e, ecs::Pair(relB, sources[idx]));
+		for (const auto idx: candC)
+			w.add(e, ecs::Pair(relC, sources[idx]));
+		for (const auto idx: candD)
+			w.add(e, ecs::Pair(relD, sources[idx]));
+	}
+
+	auto q = w.query()
+							 .all(ecs::Pair(relA, ecs::Var0))
+							 .all(ecs::Pair(relB, ecs::Var0))
+							 .all(ecs::Pair(relC, ecs::Var0))
+							 .all(ecs::Pair(relD, ecs::Var0));
+	if constexpr (BoundVar0)
+		q.set_var(ecs::Var0, sources[15]);
+	else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable<true>(state);
+}
+
+void BM_QueryMatch_Variable_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable<false>(state);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Fragmented archetypes
 ////////////////////////////////////////////////////////////////////////////////
@@ -1106,6 +1263,14 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_Query_ReadWrite_2Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 2 comp");
 		PICOBENCH_REG(BM_Query_ReadWrite_4Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 4 comp");
 		PICOBENCH_REG(BM_Query_Filter_NoFrozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw + no<Frozen>");
+		PICOBENCH_REG(BM_Query_Variable_Source_Bound)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("var source (bound)");
+		PICOBENCH_REG(BM_Query_Variable_Source_Unbound)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("var source (unbound)");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");
@@ -1116,6 +1281,10 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryBuild_Uncached_2).PICO_SETTINGS_HEAVY().label("uncached, 2 comp");
 		PICOBENCH_REG(BM_QueryBuild_Cached_4).PICO_SETTINGS_HEAVY().label("cached, 4 comp");
 		PICOBENCH_REG(BM_QueryBuild_Uncached_4).PICO_SETTINGS_HEAVY().label("uncached, 4 comp");
+
+		PICOBENCH_SUITE_REG("Query variable match");
+		PICOBENCH_REG(BM_QueryMatch_Variable_Bound).PICO_SETTINGS_HEAVY().user_data(128).label("match only (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_Unbound).PICO_SETTINGS_HEAVY().user_data(128).label("match only (unbound)");
 
 #if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");

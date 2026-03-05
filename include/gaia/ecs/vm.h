@@ -139,8 +139,12 @@ namespace gaia {
 					Not_Complex,
 					//! Seed current result set with all archetypes
 					Seed_All,
+					//! Checks if all variable terms are fully bound by runtime bindings
+					Var_CheckBound,
 					//! Filter current result set using variable terms
 					Var_Filter,
+					//! Filter current result set using variable terms (all variables pre-bound)
+					Var_Filter_Bound,
 					//! Source term gates
 					Src_AllTerm,
 					Src_NotTerm,
@@ -193,6 +197,11 @@ namespace gaia {
 					QueryTermArray terms_not_var;
 					//! Variable terms for ANY
 					QueryTermArray terms_any_var;
+					//! Variable masks (Var0..Var7) used by variable terms.
+					uint8_t varMaskAll = 0;
+					uint8_t varMaskOr = 0;
+					uint8_t varMaskNot = 0;
+					uint8_t varMaskAny = 0;
 
 					GAIA_NODISCARD bool has_source_terms() const {
 						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
@@ -1246,9 +1255,13 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all",			"allw", "allc", "or",		"orw",	"orc",	 "ora",				"oraw",
-																					"orac",			"not",	"notw", "notc", "seed", "varf",	 "src_all_t", "src_not_t",
-																					"src_or_t", "nev",	"self", "up",		"down", "updown"};
+					static const char* s_names[] = {"all",			"allw",	 "allc", "or",		"orw",			 "orc",
+																					"ora",			"oraw",	 "orac", "not",		"notw",			 "notc",
+																					"seed",			"varcb", "varf", "varfb", "src_all_t", "src_not_t",
+																					"src_or_t", "nev",	 "self", "up",		"down",			 "updown"};
+					static_assert(
+							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Src_UpDown + 1u,
+							"Opcode name table out of sync with EOpcode.");
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -1413,35 +1426,87 @@ namespace gaia {
 				}
 
 			private:
+				GAIA_NODISCARD static detail::VarBindings make_initial_var_bindings(const MatchingCtx& ctx) {
+					detail::VarBindings vars{};
+					vars.mask = ctx.varBindingMask;
+					GAIA_FOR(detail::VarBindings::VarCnt) {
+						const auto bit = (uint8_t(1) << i);
+						if ((vars.mask & bit) == 0)
+							continue;
+						vars.values[i] = ctx.varBindings[i];
+					}
+					return vars;
+				}
+
+				GAIA_NODISCARD static uint8_t
+				term_unbound_var_mask(const World& world, const QueryTerm& term, const detail::VarBindings& vars) {
+					uint8_t mask = 0;
+
+					if (detail::is_var_entity(term.src) && !detail::var_is_bound(vars, term.src))
+						mask |= (uint8_t(1) << detail::var_index(term.src));
+
+					if (!term.id.pair()) {
+						const auto idEnt = entity_from_id(world, term.id.id());
+						if (detail::is_var_entity(idEnt) && !detail::var_is_bound(vars, idEnt))
+							mask |= (uint8_t(1) << detail::var_index(idEnt));
+						return mask;
+					}
+
+					const auto relEnt = entity_from_id(world, term.id.id());
+					if (detail::is_var_entity(relEnt) && !detail::var_is_bound(vars, relEnt))
+						mask |= (uint8_t(1) << detail::var_index(relEnt));
+
+					const auto tgtEnt = entity_from_id(world, term.id.gen());
+					if (detail::is_var_entity(tgtEnt) && !detail::var_is_bound(vars, tgtEnt))
+						mask |= (uint8_t(1) << detail::var_index(tgtEnt));
+
+					return mask;
+				}
+
+				GAIA_NODISCARD bool all_variable_terms_bound(const MatchingCtx& ctx) const {
+					uint8_t requiredMask = (uint8_t)(m_compCtx.varMaskAll | m_compCtx.varMaskNot);
+					const bool orAlreadySatisfied = !m_compCtx.ids_or.empty() || ctx.skipOr;
+					if (!orAlreadySatisfied)
+						requiredMask = (uint8_t)(requiredMask | m_compCtx.varMaskOr);
+					return (ctx.varBindingMask & requiredMask) == requiredMask;
+				}
+
+				GAIA_NODISCARD bool eval_variable_terms_bound_on_archetype(
+						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
+					using namespace detail;
+
+					const auto vars = make_initial_var_bindings(ctx);
+
+					for (const auto& term: m_compCtx.terms_all_var) {
+						if (!term_has_match(*ctx.pWorld, archetype, term, vars))
+							return false;
+					}
+
+					if (!orAlreadySatisfied && !m_compCtx.terms_or_var.empty()) {
+						bool orMatched = false;
+						for (const auto& term: m_compCtx.terms_or_var) {
+							if (!term_has_match(*ctx.pWorld, archetype, term, vars))
+								continue;
+							orMatched = true;
+							break;
+						}
+						if (!orMatched)
+							return false;
+					}
+
+					for (const auto& term: m_compCtx.terms_not_var) {
+						if (term_has_match(*ctx.pWorld, archetype, term, vars))
+							return false;
+					}
+
+					return true;
+				}
+
 				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
 					using namespace detail;
 
-					auto term_unbound_var_mask = [&](const QueryTerm& term, const VarBindings& vars) -> uint8_t {
-						uint8_t mask = 0;
-
-						if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
-							mask |= (uint8_t(1) << var_index(term.src));
-
-						if (!term.id.pair()) {
-							const auto idEnt = entity_from_id(*ctx.pWorld, term.id.id());
-							if (is_var_entity(idEnt) && !var_is_bound(vars, idEnt))
-								mask |= (uint8_t(1) << var_index(idEnt));
-							return mask;
-						}
-
-						const auto relEnt = entity_from_id(*ctx.pWorld, term.id.id());
-						if (is_var_entity(relEnt) && !var_is_bound(vars, relEnt))
-							mask |= (uint8_t(1) << var_index(relEnt));
-						const auto tgtEnt = entity_from_id(*ctx.pWorld, term.id.gen());
-						if (is_var_entity(tgtEnt) && !var_is_bound(vars, tgtEnt))
-							mask |= (uint8_t(1) << var_index(tgtEnt));
-						return mask;
-					};
-
-					uint8_t anyVarMask = 0;
-					for (const auto& term: m_compCtx.terms_any_var)
-						anyVarMask |= term_unbound_var_mask(term, VarBindings{});
+					const auto anyVarMask = m_compCtx.varMaskAny;
 
 					auto can_skip_pending_all = [&](uint16_t pendingAllMask, const VarBindings& vars) -> bool {
 						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
@@ -1451,7 +1516,7 @@ namespace gaia {
 								continue;
 
 							const auto& term = m_compCtx.terms_all_var[i];
-							const auto missingMask = term_unbound_var_mask(term, vars);
+							const auto missingMask = term_unbound_var_mask(*ctx.pWorld, term, vars);
 							if (missingMask == 0)
 								return false;
 							if ((missingMask & ~anyVarMask) != 0)
@@ -1628,18 +1693,13 @@ namespace gaia {
 					const auto pendingAllMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_all_var.size()) - 1u);
 					const auto pendingOrMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_or_var.size()) - 1u);
 					const auto pendingAnyMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_any_var.size()) - 1u);
-					VarBindings vars{};
-					vars.mask = ctx.varBindingMask;
-					GAIA_FOR(VarBindings::VarCnt) {
-						const auto bit = (uint8_t(1) << i);
-						if ((vars.mask & bit) == 0)
-							continue;
-						vars.values[i] = ctx.varBindings[i];
-					}
+					VarBindings vars = make_initial_var_bindings(ctx);
 					return solve(solve, pendingAllMask, pendingOrMask, pendingAnyMask, vars, false);
 				}
 
-				void filter_variable_terms(MatchingCtx& ctx) const {
+				using VarEvalFunc = bool (VirtualMachine::*)(const MatchingCtx&, const Archetype&, bool) const;
+
+				void filter_variable_terms(MatchingCtx& ctx, VarEvalFunc evalFunc) const {
 					if (!m_compCtx.has_variable_terms())
 						return;
 
@@ -1660,7 +1720,8 @@ namespace gaia {
 
 					GAIA_FOR(sourceCnt) {
 						const auto* pArchetype = (*ctx.pMatchesArr)[i];
-						if (!eval_variable_terms_on_archetype(ctx, *pArchetype, orAlreadySatisfied))
+						const bool matched = (this->*evalFunc)(ctx, *pArchetype, orAlreadySatisfied);
+						if (!matched)
 							continue;
 
 						filtered.push_back(pArchetype);
@@ -1674,6 +1735,14 @@ namespace gaia {
 						flush_filtered();
 
 					ctx.pMatchesArr->resize(writeIdx);
+				}
+
+				void filter_variable_terms(MatchingCtx& ctx) const {
+					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_on_archetype);
+				}
+
+				void filter_variable_terms_bound(MatchingCtx& ctx) const {
+					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_bound_on_archetype);
 				}
 
 				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
@@ -1829,9 +1898,20 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool op_var_check_bound(MatchingCtx& ctx) const {
+					GAIA_PROF_SCOPE(vm::op_var_check_bound);
+					return all_variable_terms_bound(ctx);
+				}
+
 				GAIA_NODISCARD bool op_var_filter(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_var_filter);
 					filter_variable_terms(ctx);
+					return true;
+				}
+
+				GAIA_NODISCARD bool op_var_filter_bound(MatchingCtx& ctx) const {
+					GAIA_PROF_SCOPE(vm::op_var_filter_bound);
+					filter_variable_terms_bound(ctx);
 					return true;
 				}
 
@@ -1874,7 +1954,9 @@ namespace gaia {
 						&VirtualMachine::op_not_wildcard, //
 						&VirtualMachine::op_not_complex, //
 						&VirtualMachine::op_seed_all, //
+						&VirtualMachine::op_var_check_bound, //
 						&VirtualMachine::op_var_filter, //
+						&VirtualMachine::op_var_filter_bound, //
 						&VirtualMachine::op_src_all_term, //
 						&VirtualMachine::op_src_not_term, //
 						&VirtualMachine::op_src_or_term //
@@ -1953,9 +2035,15 @@ namespace gaia {
 					m_compCtx.terms_or_var.clear();
 					m_compCtx.terms_not_var.clear();
 					m_compCtx.terms_any_var.clear();
+					m_compCtx.varMaskAll = 0;
+					m_compCtx.varMaskOr = 0;
+					m_compCtx.varMaskNot = 0;
+					m_compCtx.varMaskAny = 0;
 					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
+					GAIA_ASSERT(queryCtx.w != nullptr);
+					const auto& world = *queryCtx.w;
 
 					QueryTermSpan terms = data.terms_view_mut();
 					QueryTermSpan terms_all = terms.subspan(0, data.firstOr);
@@ -1972,6 +2060,7 @@ namespace gaia {
 							auto& p = terms_all[i];
 							if (term_has_variables(p)) {
 								m_compCtx.terms_all_var.push_back(p);
+								m_compCtx.varMaskAll |= term_unbound_var_mask(world, p, detail::VarBindings{});
 								continue;
 							}
 
@@ -1992,6 +2081,7 @@ namespace gaia {
 							auto& p = terms_or[i];
 							if (term_has_variables(p)) {
 								m_compCtx.terms_or_var.push_back(p);
+								m_compCtx.varMaskOr |= term_unbound_var_mask(world, p, detail::VarBindings{});
 								continue;
 							}
 
@@ -2011,6 +2101,7 @@ namespace gaia {
 							auto& p = terms_not[i];
 							if (term_has_variables(p)) {
 								m_compCtx.terms_not_var.push_back(p);
+								m_compCtx.varMaskNot |= term_unbound_var_mask(world, p, detail::VarBindings{});
 								continue;
 							}
 
@@ -2031,6 +2122,7 @@ namespace gaia {
 							if (!term_has_variables(p))
 								continue;
 							m_compCtx.terms_any_var.push_back(p);
+							m_compCtx.varMaskAny |= term_unbound_var_mask(world, p, detail::VarBindings{});
 						}
 					}
 
@@ -2092,9 +2184,24 @@ namespace gaia {
 
 					// Variable term evaluation is part of the VM stream.
 					if (m_compCtx.has_variable_terms()) {
-						detail::CompiledOp op{};
-						op.opcode = detail::EOpcode::Var_Filter;
-						(void)add_gate_op(GAIA_MOV(op));
+						detail::CompiledOp opCheck{};
+						opCheck.opcode = detail::EOpcode::Var_CheckBound;
+						const auto opCheckLabel = add_op(GAIA_MOV(opCheck));
+
+						detail::CompiledOp opBound{};
+						opBound.opcode = detail::EOpcode::Var_Filter_Bound;
+						const auto opBoundLabel = add_gate_op(GAIA_MOV(opBound));
+
+						detail::CompiledOp opUnbound{};
+						opUnbound.opcode = detail::EOpcode::Var_Filter;
+						const auto opUnboundLabel = add_gate_op(GAIA_MOV(opUnbound));
+
+						m_compCtx.ops[opCheckLabel].pc_ok = opBoundLabel;
+						m_compCtx.ops[opCheckLabel].pc_fail = opUnboundLabel;
+
+						const auto opNext = (detail::VmLabel)m_compCtx.ops.size();
+						m_compCtx.ops[opBoundLabel].pc_ok = opNext;
+						m_compCtx.ops[opUnboundLabel].pc_ok = opNext;
 					}
 
 					// Mark as compiled
