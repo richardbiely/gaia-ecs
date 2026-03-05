@@ -1,7 +1,6 @@
 // Broader ECS benchmark matrix inspired by https://github.com/SanderMertens/ecs_benchmark.
 
 #define PICOBENCH_IMPLEMENT
-#define GAIA_OBSERVERS_ENABLED 1
 #include <gaia.h>
 #include <picobench/picobench.hpp>
 #include <string_view>

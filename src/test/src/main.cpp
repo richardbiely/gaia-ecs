@@ -7,6 +7,12 @@
 	#include <mutex>
 #endif
 
+#define GAIA_ENABLE_HOOKS 1
+#define GAIA_ENABLE_SET_HOOKS 1
+#define GAIA_ENABLE_ADD_DEL_HOOKS 1
+#define GAIA_SYSTEMS_ENABLED 1
+#define GAIA_OBSERVERS_ENABLED 1
+#define GAIA_USE_SAFE_ENTITY 1
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
