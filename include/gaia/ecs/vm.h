@@ -127,8 +127,12 @@ namespace gaia {
 					All_Wildcard,
 					All_Complex,
 					//! ?X
-					Or_NoAll,
-					Or_WithAll,
+					Or_NoAll_Simple,
+					Or_NoAll_Wildcard,
+					Or_NoAll_Complex,
+					Or_WithAll_Simple,
+					Or_WithAll_Wildcard,
+					Or_WithAll_Complex,
 					//! !X
 					Not_Simple,
 					Not_Wildcard,
@@ -1091,6 +1095,72 @@ namespace gaia {
 					}
 				}
 
+				template <typename OpKind, MatchingStyle Style, bool WildcardWithAsFallback = false>
+				inline void filter_current_matches(MatchingCtx& ctx, EntitySpan idsToMatch) {
+					if constexpr (Style == MatchingStyle::Complex) {
+						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
+							if (match_res_as<OpKind>(*ctx.pWorld, *pArchetype, idsToMatch)) {
+								++i;
+								continue;
+							}
+
+							core::swap_erase(*ctx.pMatchesArr, i);
+						}
+					}
+#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
+					else if constexpr (Style == MatchingStyle::Simple) {
+						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
+							if (OpKind::check_mask(pArchetype->queryMask(), ctx.queryMask) &&
+									match_res<OpKind>(*pArchetype, idsToMatch)) {
+								++i;
+								continue;
+							}
+
+							core::swap_erase(*ctx.pMatchesArr, i);
+						}
+					}
+#endif
+					else {
+						for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
+							const auto* pArchetype = (*ctx.pMatchesArr)[i];
+							if (match_res<OpKind>(*pArchetype, idsToMatch) ||
+									(WildcardWithAsFallback && match_res_as<OpKind>(*ctx.pWorld, *pArchetype, idsToMatch))) {
+								++i;
+								continue;
+							}
+
+							core::swap_erase(*ctx.pMatchesArr, i);
+						}
+					}
+				}
+
+				template <MatchingStyle Style>
+				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
+					ctx.pMatchesSet->clear();
+
+					if (ctx.targetEntities.empty()) {
+						// We searched for nothing more than NOT matches
+						if (ctx.pMatchesArr->empty()) {
+							// If there are no previous matches (no ALL or OR matches),
+							// we need to search among all archetypes.
+							match_archetype_inter<detail::OpNo, Style>(ctx, EntityBadLookupKey, ctx.allArchetypes);
+						} else {
+							match_archetype_no_2<Style>(ctx);
+						}
+					} else {
+						// We searched for nothing more than NOT matches
+						if (ctx.pMatchesArr->empty())
+							match_archetype_inter<detail::OpNo, Style>(ctx, ctx.allArchetypes);
+						else
+							match_archetype_no_2<Style>(ctx);
+					}
+
+					return true;
+				}
+
 				struct OpcodeAll_Simple {
 					static constexpr EOpcode Id = EOpcode::All_Simple;
 
@@ -1148,109 +1218,95 @@ namespace gaia {
 					}
 				};
 
-				struct OpcodeOr_NoAll {
-					static constexpr EOpcode Id = EOpcode::Or_NoAll;
+				template <MatchingStyle Style>
+				GAIA_NODISCARD inline bool exec_or_noall_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+					if (ctx.skipOr)
+						return true;
+
+					const auto cnt = comp.ids_or.size();
+					// Try find matches with OR components.
+					GAIA_FOR(cnt) {
+						ctx.ent = comp.ids_or[i];
+						const Entity idsToMatchData[1] = {ctx.ent};
+						ctx.idsToMatch = EntitySpan{idsToMatchData, 1};
+
+						if constexpr (Style == MatchingStyle::Complex)
+							match_archetype_or_as(ctx);
+						else
+							match_archetype_or<Style>(ctx);
+					}
+
+					return true;
+				}
+
+				template <MatchingStyle Style>
+				GAIA_NODISCARD inline bool exec_or_withall_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+					if (ctx.skipOr)
+						return true;
+
+					ctx.idsToMatch = std::span{comp.ids_or.data(), comp.ids_or.size()};
+
+					if constexpr (Style == MatchingStyle::Complex)
+						filter_current_matches<OpOr, MatchingStyle::Complex>(ctx, ctx.idsToMatch);
+					else if constexpr (Style == MatchingStyle::Simple)
+						filter_current_matches<OpOr, MatchingStyle::Simple>(ctx, ctx.idsToMatch);
+					else
+						filter_current_matches<OpOr, MatchingStyle::Wildcard, true>(ctx, ctx.idsToMatch);
+
+					return true;
+				}
+
+				struct OpcodeOr_NoAll_Simple {
+					static constexpr EOpcode Id = EOpcode::Or_NoAll_Simple;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_or);
-
-						if (ctx.skipOr)
-							return true;
-
-						const auto cnt = comp.ids_or.size();
-						const bool hasNoAsRelationships = ctx.as_mask_0 + ctx.as_mask_1 == 0U;
-#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
-						const bool isSimple = (ctx.flags & QueryCtx::QueryFlags::Complex) == 0U;
-#endif
-
-						// Try find matches with OR components.
-						GAIA_FOR(cnt) {
-							ctx.ent = comp.ids_or[i];
-							const Entity idsToMatchData[1] = {ctx.ent};
-							ctx.idsToMatch = EntitySpan{idsToMatchData, 1};
-
-							// First viable item is not related to an Is relationship
-							if (hasNoAsRelationships) {
-#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
-								if (isSimple)
-									match_archetype_or<MatchingStyle::Simple>(ctx);
-								else
-#endif
-									match_archetype_or<MatchingStyle::Wildcard>(ctx);
-							}
-							// First viable item is related to an Is relationship.
-							// In this case we need to gather all related archetypes.
-							else {
-								match_archetype_or_as(ctx);
-							}
-						}
-
-						return true;
+						return exec_or_noall_impl<MatchingStyle::Simple>(comp, ctx);
 					}
 				};
 
-				struct OpcodeOr_WithAll {
-					static constexpr EOpcode Id = EOpcode::Or_WithAll;
+				struct OpcodeOr_NoAll_Wildcard {
+					static constexpr EOpcode Id = EOpcode::Or_NoAll_Wildcard;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_or);
+						return exec_or_noall_impl<MatchingStyle::Wildcard>(comp, ctx);
+					}
+				};
 
-						if (ctx.skipOr)
-							return true;
+				struct OpcodeOr_NoAll_Complex {
+					static constexpr EOpcode Id = EOpcode::Or_NoAll_Complex;
 
-						ctx.idsToMatch = std::span{comp.ids_or.data(), comp.ids_or.size()};
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_or);
+						return exec_or_noall_impl<MatchingStyle::Complex>(comp, ctx);
+					}
+				};
 
-						const bool hasNoAsRelationships = ctx.as_mask_0 + ctx.as_mask_1 == 0U;
-#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
-						const bool isSimple = (ctx.flags & QueryCtx::QueryFlags::Complex) == 0U;
-#endif
+				struct OpcodeOr_WithAll_Simple {
+					static constexpr EOpcode Id = EOpcode::Or_WithAll_Simple;
 
-						// We tried to match ALL items. Only search among archetypes we already found.
-						// No last matched idx update is necessary because all ids were already checked
-						// during the ALL pass.
-						if (hasNoAsRelationships) {
-#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
-							if (isSimple) {
-								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-									if (OpOr::check_mask(pArchetype->queryMask(), ctx.queryMask) &&
-											match_res<OpOr>(*pArchetype, ctx.idsToMatch)) {
-										++i;
-										continue;
-									}
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_or);
+						return exec_or_withall_impl<MatchingStyle::Simple>(comp, ctx);
+					}
+				};
 
-									// No match found among OR. Remove the archetype from the matching ones.
-									core::swap_erase(*ctx.pMatchesArr, i);
-								}
-							} else
-#endif
-							{
-								for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-									const auto* pArchetype = (*ctx.pMatchesArr)[i];
-									if (match_res<OpOr>(*pArchetype, ctx.idsToMatch) ||
-											match_res_as<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
-										++i;
-										continue;
-									}
+				struct OpcodeOr_WithAll_Wildcard {
+					static constexpr EOpcode Id = EOpcode::Or_WithAll_Wildcard;
 
-									// No match found among OR. Remove the archetype from the matching ones.
-									core::swap_erase(*ctx.pMatchesArr, i);
-								}
-							}
-						} else {
-							for (uint32_t i = 0; i < ctx.pMatchesArr->size();) {
-								const auto* pArchetype = (*ctx.pMatchesArr)[i];
-								if (match_res_as<OpOr>(*ctx.pWorld, *pArchetype, ctx.idsToMatch)) {
-									++i;
-									continue;
-								}
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_or);
+						return exec_or_withall_impl<MatchingStyle::Wildcard>(comp, ctx);
+					}
+				};
 
-								// No match found among OR. Remove the archetype from the matching ones.
-								core::swap_erase(*ctx.pMatchesArr, i);
-							}
-						}
+				struct OpcodeOr_WithAll_Complex {
+					static constexpr EOpcode Id = EOpcode::Or_WithAll_Complex;
 
-						return true;
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_or);
+						return exec_or_withall_impl<MatchingStyle::Complex>(comp, ctx);
 					}
 				};
 
@@ -1259,28 +1315,7 @@ namespace gaia {
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
-
-						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-						ctx.pMatchesSet->clear();
-
-						if (ctx.targetEntities.empty()) {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or OR matches),
-								// we need to search among all archetypes.
-								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, EntityBadLookupKey, ctx.allArchetypes);
-							} else {
-								match_archetype_no_2<MatchingStyle::Simple>(ctx);
-							}
-						} else {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty())
-								match_archetype_inter<detail::OpNo, MatchingStyle::Simple>(ctx, ctx.allArchetypes);
-							else
-								match_archetype_no_2<MatchingStyle::Simple>(ctx);
-						}
-
-						return true;
+						return exec_not_impl<MatchingStyle::Simple>(comp, ctx);
 					}
 				};
 
@@ -1289,29 +1324,7 @@ namespace gaia {
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
-
-						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-						ctx.pMatchesSet->clear();
-
-						if (ctx.targetEntities.empty()) {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or OR matches),
-								// we need to search among all archetypes.
-								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(
-										ctx, EntityBadLookupKey, ctx.allArchetypes);
-							} else {
-								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
-							}
-						} else {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty())
-								match_archetype_inter<detail::OpNo, MatchingStyle::Wildcard>(ctx, ctx.allArchetypes);
-							else
-								match_archetype_no_2<MatchingStyle::Wildcard>(ctx);
-						}
-
-						return true;
+						return exec_not_impl<MatchingStyle::Wildcard>(comp, ctx);
 					}
 				};
 
@@ -1320,28 +1333,7 @@ namespace gaia {
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_not);
-
-						ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-						ctx.pMatchesSet->clear();
-
-						if (ctx.targetEntities.empty()) {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty()) {
-								// If there are no previous matches (no ALL or OR matches),
-								// we need to search among all archetypes.
-								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, EntityBadLookupKey, ctx.allArchetypes);
-							} else {
-								match_archetype_no_2<MatchingStyle::Complex>(ctx);
-							}
-						} else {
-							// We searched for nothing more than NOT matches
-							if (ctx.pMatchesArr->empty())
-								match_archetype_inter<detail::OpNo, MatchingStyle::Complex>(ctx, ctx.allArchetypes);
-							else
-								match_archetype_no_2<MatchingStyle::Complex>(ctx);
-						}
-
-						return true;
+						return exec_not_impl<MatchingStyle::Complex>(comp, ctx);
 					}
 				};
 			} // namespace detail
@@ -1368,14 +1360,34 @@ namespace gaia {
 							detail::OpcodeAll_Complex op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeOr_NoAll
+						// OpcodeOr_NoAll_Simple
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeOr_NoAll op;
+							detail::OpcodeOr_NoAll_Simple op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeOr_WithAll
+						// OpcodeOr_NoAll_Wildcard
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeOr_WithAll op;
+							detail::OpcodeOr_NoAll_Wildcard op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeOr_NoAll_Complex
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeOr_NoAll_Complex op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeOr_WithAll_Simple
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeOr_WithAll_Simple op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeOr_WithAll_Wildcard
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeOr_WithAll_Wildcard op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeOr_WithAll_Complex
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeOr_WithAll_Complex op;
 							return op.exec(comp, ctx);
 						},
 						// OpcodeNot_Simple
@@ -1399,8 +1411,8 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all",	"allw", "allc", "or", "ora",	"not",	 "notw",
-																					"notc", "nev",	"self", "up", "down", "updown"};
+					static const char* s_names[] = {"all", "allw", "allc", "or",	"orw",	"orc", "ora",	 "oraw",	"orac",
+																					"not", "notw", "notc", "nev", "self", "up",	 "down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -2043,7 +2055,21 @@ namespace gaia {
 					// OR
 					if (!m_compCtx.ids_or.empty()) {
 						detail::CompiledOp op{};
-						op.opcode = m_compCtx.ids_all.empty() ? detail::EOpcode::Or_NoAll : detail::EOpcode::Or_WithAll;
+						if (m_compCtx.ids_all.empty()) {
+							if (isSimple)
+								op.opcode = detail::EOpcode::Or_NoAll_Simple;
+							else if (isAs)
+								op.opcode = detail::EOpcode::Or_NoAll_Complex;
+							else
+								op.opcode = detail::EOpcode::Or_NoAll_Wildcard;
+						} else {
+							if (isSimple)
+								op.opcode = detail::EOpcode::Or_WithAll_Simple;
+							else if (isAs)
+								op.opcode = detail::EOpcode::Or_WithAll_Complex;
+							else
+								op.opcode = detail::EOpcode::Or_WithAll_Wildcard;
+						}
 						(void)add_op(GAIA_MOV(op));
 					}
 
