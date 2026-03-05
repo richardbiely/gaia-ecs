@@ -75,7 +75,7 @@ namespace gaia {
 						uint32_t i = 0;
 						for (auto e: arg) {
 							load_dispatch(s, e, loadTrivial);
-							arg[i] = std::move(e);
+							arg[i] = GAIA_MOV(e);
 							++i;
 						}
 					} else {
