@@ -6311,7 +6311,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Multi-variable ALL-only query should use the ALL-only variable opcode.
+	// Two-variable ALL pair-intersection query should use the dedicated 2-variable opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6355,7 +6355,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varfa ") != BadIndex);
+		CHECK(bytecode.find("] varf2p ") != BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
