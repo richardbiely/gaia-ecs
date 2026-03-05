@@ -45,7 +45,7 @@
 
 //! If enabled, observers are enabled
 #ifndef GAIA_OBSERVERS_ENABLED
-	#define GAIA_OBSERVERS_ENABLED 0
+	#define GAIA_OBSERVERS_ENABLED 1
 #endif
 
 //! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
