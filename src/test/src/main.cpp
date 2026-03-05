@@ -6204,6 +6204,7 @@ void Test_Query_Variable_Opcode_Paths() {
 	struct PoweredBy {};
 	struct LinkedTo {};
 	struct RoutedVia {};
+	struct BlockedBy {};
 	struct Marker {};
 
 	// Single-variable ALL-only source-gated query should use the grouped ALL-only opcode.
@@ -6522,6 +6523,70 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
+	}
+
+	// Single-variable mixed ALL/OR/NOT query without a source-gated ALL anchor should stay on the generic 1-variable
+	// opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+		const auto blockedBy = wld.add<BlockedBy>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+
+		const auto cableGoodA = wld.add();
+		wld.add<Cable>(cableGoodA);
+		wld.add(cableGoodA, {connectedTo, devA});
+		wld.add(cableGoodA, {linkedTo, devA});
+
+		const auto cableGoodB = wld.add();
+		wld.add<Cable>(cableGoodB);
+		wld.add(cableGoodB, {connectedTo, devA});
+		wld.add(cableGoodB, {routedVia, devA});
+
+		const auto cableBadOr = wld.add();
+		wld.add<Cable>(cableBadOr);
+		wld.add(cableBadOr, {connectedTo, devA});
+		wld.add(cableBadOr, {linkedTo, devB});
+		wld.add(cableBadOr, {routedVia, devB});
+
+		const auto cableBadNot = wld.add();
+		wld.add<Cable>(cableBadNot);
+		wld.add(cableBadNot, {connectedTo, devA});
+		wld.add(cableBadNot, {linkedTo, devA});
+		wld.add(cableBadNot, {blockedBy, devA});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .or_(ecs::Pair(linkedTo, ecs::Var0))
+								 .or_(ecs::Pair(routedVia, ecs::Var0))
+								 .no(ecs::Pair(blockedBy, ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varf1os ") == BadIndex);
+		CHECK(bytecode.find("] varf ") == BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableGoodA, cableGoodB});
+
+		q.set_var(ecs::Var0, devA);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableGoodA, cableGoodB});
+
+		q.set_var(ecs::Var0, devB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableGoodA, cableGoodB});
 	}
 }
 

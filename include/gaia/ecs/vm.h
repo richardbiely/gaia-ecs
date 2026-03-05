@@ -202,6 +202,17 @@ namespace gaia {
 						QueryTerm term{};
 						uint8_t varMask = 0;
 					};
+					struct SingleVarPlan {
+						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> allAnchorTerms;
+						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> allTermsNoAnchor;
+						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> orAnchorTerms;
+
+						void clear() {
+							allAnchorTerms.clear();
+							allTermsNoAnchor.clear();
+							orAnchorTerms.clear();
+						}
+					};
 
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
@@ -234,7 +245,8 @@ namespace gaia {
 					//! Variables used by specialized strategies.
 					uint8_t varIdx0 = 0;
 					uint8_t varIdx1 = 0;
-					uint8_t varAnchorTermIdx = 0;
+					uint8_t varAnchorTermIdx = (uint8_t)-1;
+					SingleVarPlan var1Plan{};
 					uint8_t varGroupMask = 0;
 					uint8_t varGroupSourceMask = 0;
 					uint8_t varGroupAnchorTermIdx[8] = {};
@@ -1862,14 +1874,23 @@ namespace gaia {
 					if (!var_is_bound(vars, varEntity))
 						return false;
 
-					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
-					GAIA_FOR(allCnt) {
-						if (i == skipAllTermIdx)
-							continue;
+					if (skipAllTermIdx != (uint32_t)-1 && m_compCtx.varAnchorTermIdx != (uint8_t)-1 &&
+							skipAllTermIdx == (uint32_t)m_compCtx.varAnchorTermIdx) {
+						for (const auto termIdx8: m_compCtx.var1Plan.allTermsNoAnchor) {
+							const auto& term = m_compCtx.terms_all_var[(uint32_t)termIdx8];
+							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+								return false;
+						}
+					} else {
+						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						GAIA_FOR(allCnt) {
+							if (i == skipAllTermIdx)
+								continue;
 
-						const auto& term = m_compCtx.terms_all_var[i];
-						if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
-							return false;
+							const auto& term = m_compCtx.terms_all_var[i];
+							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+								return false;
+						}
 					}
 
 					bool orSatisfied = orAlreadySatisfied || orMatched;
@@ -2008,40 +2029,52 @@ namespace gaia {
 					GAIA_ASSERT(varEntity != EntityBad);
 					const auto varsBase = make_initial_var_bindings(ctx);
 
-					constexpr uint32_t MatchProbeLimit = 64;
-					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
-					uint32_t bestAllIdx = (uint32_t)-1;
-					uint32_t bestAllMatchCnt = MatchProbeLimit + 1;
-					GAIA_FOR(allCnt) {
-						const auto& termOp = m_compCtx.terms_all_var[i];
-						if (is_var_entity(termOp.term.src) && !var_is_bound(varsBase, termOp.term.src))
-							continue;
+					enum class EVar1AnchorKind : uint8_t { None, All, Or };
 
-						const auto matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, varsBase, bestAllMatchCnt);
+					constexpr uint32_t MatchProbeLimit = 64;
+					EVar1AnchorKind bestKind = EVar1AnchorKind::None;
+					uint32_t bestTermIdx = (uint32_t)-1;
+					uint32_t bestMatchCnt = MatchProbeLimit + 1;
+					for (const auto termIdx8: m_compCtx.var1Plan.allAnchorTerms) {
+						const auto i = (uint32_t)termIdx8;
+						const auto& termOp = m_compCtx.terms_all_var[i];
+						const auto matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, varsBase, bestMatchCnt);
 						if (matchCnt == 0)
 							return false;
 
-						if (bestAllIdx == (uint32_t)-1 || matchCnt < bestAllMatchCnt) {
-							bestAllIdx = i;
-							bestAllMatchCnt = matchCnt;
-							if (bestAllMatchCnt == 1)
+						if (bestKind == EVar1AnchorKind::None || matchCnt < bestMatchCnt) {
+							bestKind = EVar1AnchorKind::All;
+							bestTermIdx = i;
+							bestMatchCnt = matchCnt;
+						}
+					}
+
+					for (const auto termIdx8: m_compCtx.var1Plan.orAnchorTerms) {
+						const auto i = (uint32_t)termIdx8;
+						const auto& termOp = m_compCtx.terms_or_var[i];
+						const auto matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, varsBase, bestMatchCnt);
+						if (matchCnt == 0)
+							continue;
+
+						if (bestKind == EVar1AnchorKind::None || matchCnt < bestMatchCnt) {
+							bestKind = EVar1AnchorKind::Or;
+							bestTermIdx = i;
+							bestMatchCnt = matchCnt;
+							if (bestMatchCnt == 1)
 								break;
 						}
 					}
 
-					if (bestAllIdx != (uint32_t)-1) {
-						const auto& anchorTerm = m_compCtx.terms_all_var[bestAllIdx];
+					if (bestKind == EVar1AnchorKind::All) {
+						const auto& anchorTerm = m_compCtx.terms_all_var[bestTermIdx];
 						return each_term_match(*ctx.pWorld, archetype, anchorTerm, varsBase, [&](const VarBindings& vars) {
-							return match_variable_terms_1var_bound_state(ctx, archetype, varEntity, vars, orAlreadySatisfied, false);
+							return match_variable_terms_1var_bound_state(
+									ctx, archetype, varEntity, vars, orAlreadySatisfied, false, bestTermIdx);
 						});
 					}
 
-					const auto orCnt = (uint32_t)m_compCtx.terms_or_var.size();
-					GAIA_FOR(orCnt) {
-						const auto& termOp = m_compCtx.terms_or_var[i];
-						if (is_var_entity(termOp.term.src) && !var_is_bound(varsBase, termOp.term.src))
-							continue;
-
+					if (bestKind == EVar1AnchorKind::Or) {
+						const auto& termOp = m_compCtx.terms_or_var[bestTermIdx];
 						if (each_term_match(*ctx.pWorld, archetype, termOp, varsBase, [&](const VarBindings& vars) {
 									return match_variable_terms_1var_bound_state(
 											ctx, archetype, varEntity, vars, orAlreadySatisfied, true);
@@ -2802,7 +2835,8 @@ namespace gaia {
 					m_compCtx.varUnboundStrategy = detail::EVarUnboundStrategy::Generic;
 					m_compCtx.varIdx0 = 0;
 					m_compCtx.varIdx1 = 0;
-					m_compCtx.varAnchorTermIdx = 0;
+					m_compCtx.varAnchorTermIdx = (uint8_t)-1;
+					m_compCtx.var1Plan.clear();
 					m_compCtx.varGroupMask = 0;
 					m_compCtx.varGroupSourceMask = 0;
 					GAIA_FOR(8) {
@@ -3009,6 +3043,34 @@ namespace gaia {
 						return false;
 					};
 
+					auto init_1var_plan = [&](uint8_t varIdx) {
+						m_compCtx.var1Plan.clear();
+
+						const auto varEntity = entity_from_id(world, (EntityId)(Var0.id() + varIdx));
+						GAIA_ASSERT(varEntity != EntityBad);
+
+						const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						GAIA_FOR(allVarCnt) {
+							const auto& termOp = m_compCtx.terms_all_var[i];
+							GAIA_ASSERT(termOp.varMask == 0 || termOp.varMask == (uint8_t(1) << varIdx));
+
+							if (termOp.term.src != varEntity)
+								m_compCtx.var1Plan.allAnchorTerms.push_back((uint8_t)i);
+
+							if (m_compCtx.varAnchorTermIdx == (uint8_t)-1 || i != m_compCtx.varAnchorTermIdx)
+								m_compCtx.var1Plan.allTermsNoAnchor.push_back((uint8_t)i);
+						}
+
+						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
+						GAIA_FOR(orVarCnt) {
+							const auto& termOp = m_compCtx.terms_or_var[i];
+							GAIA_ASSERT(termOp.varMask == 0 || termOp.varMask == (uint8_t(1) << varIdx));
+
+							if (termOp.term.src != varEntity)
+								m_compCtx.var1Plan.orAnchorTerms.push_back((uint8_t)i);
+						}
+					};
+
 					auto try_init_allonly_grouped = [&]() -> bool {
 						// Group 0
 						// .all(Pair(relConnected, Var0))
@@ -3081,6 +3143,7 @@ namespace gaia {
 						m_compCtx.varUnboundStrategy = detail::EVarUnboundStrategy::OneVar;
 						if (try_init_1var_or_source(m_compCtx.varIdx0))
 							m_compCtx.varUnboundStrategy = detail::EVarUnboundStrategy::OneVarOrSource;
+						init_1var_plan(m_compCtx.varIdx0);
 					}
 
 					if (allOnlyVars && varMask != 0) {
