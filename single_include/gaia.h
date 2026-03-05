@@ -31069,6 +31069,8 @@ namespace gaia {
 					uint8_t varGroupMask = 0;
 					uint8_t varGroupSourceMask = 0;
 					uint8_t varGroupAnchorTermIdx[8] = {};
+					cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> varGroupTerms[8];
+					cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> varGroupPairTerms[8];
 
 					GAIA_NODISCARD bool has_source_terms() const {
 						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
@@ -32562,23 +32564,16 @@ namespace gaia {
 						const Archetype& archetype, Entity varEntity, uint32_t& anchorTermIdx, uint32_t& anchorMatchCnt) const {
 					using namespace detail;
 
-					const auto groupBit = (uint8_t)(uint8_t(1) << var_index(varEntity));
+					const auto varIdx = (uint8_t)var_index(varEntity);
 					const auto archetypeIds = archetype.ids_view();
 					const auto idsCnt = (uint32_t)archetypeIds.size();
+					const auto& groupPairTerms = m_compCtx.varGroupPairTerms[varIdx];
 
 					anchorTermIdx = (uint32_t)-1;
 					anchorMatchCnt = (uint32_t)-1;
-					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
-					GAIA_FOR(allCnt) {
-						const auto& termOp = m_compCtx.terms_all_var[i];
-						if (termOp.varMask != groupBit)
-							continue;
-						if (termOp.term.src != EntityBad)
-							continue;
-						if (!termOp.term.id.pair())
-							continue;
-						if (termOp.term.id.gen() != varEntity.id())
-							continue;
+					for (const auto termIdx8: groupPairTerms) {
+						const auto termIdx = (uint32_t)termIdx8;
+						const auto& termOp = m_compCtx.terms_all_var[termIdx];
 
 						uint32_t cnt = 0;
 						const auto relId = termOp.term.id.id();
@@ -32595,7 +32590,7 @@ namespace gaia {
 							return false;
 
 						if (anchorTermIdx == (uint32_t)-1 || cnt < anchorMatchCnt) {
-							anchorTermIdx = i;
+							anchorTermIdx = termIdx;
 							anchorMatchCnt = cnt;
 							if (anchorMatchCnt == 1)
 								break;
@@ -32632,12 +32627,12 @@ namespace gaia {
 
 					const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + varIdx));
 					GAIA_ASSERT(varEntity != EntityBad);
+					const auto& groupTerms = m_compCtx.varGroupTerms[varIdx];
 
 					if (var_is_bound(varsBase, varEntity)) {
 						bool hasTerms = false;
-						for (const auto& termOp: m_compCtx.terms_all_var) {
-							if (termOp.term.id.gen() != varEntity.id())
-								continue;
+						for (const auto termIdx8: groupTerms) {
+							const auto& termOp = m_compCtx.terms_all_var[(uint32_t)termIdx8];
 							hasTerms = true;
 							if (!term_has_match_bound(*ctx.pWorld, archetype, termOp, varsBase))
 								return false;
@@ -32655,7 +32650,6 @@ namespace gaia {
 
 					const auto archetypeIds = archetype.ids_view();
 					const auto idsCnt = (uint32_t)archetypeIds.size();
-					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
 					const auto anchorRelId = m_compCtx.terms_all_var[anchorTermIdx].term.id.id();
 					for (uint32_t idIdx = 0; idIdx < idsCnt; ++idIdx) {
 						const auto idInArchetype = archetypeIds[idIdx];
@@ -32673,11 +32667,10 @@ namespace gaia {
 							continue;
 
 						bool matched = true;
-						GAIA_FOR(allCnt) {
-							const auto& termOp = m_compCtx.terms_all_var[i];
-							if (termOp.term.id.gen() != varEntity.id())
-								continue;
-							if (i == anchorTermIdx)
+						for (const auto termIdx8: groupTerms) {
+							const auto termIdx = (uint32_t)termIdx8;
+							const auto& termOp = m_compCtx.terms_all_var[termIdx];
+							if (termIdx == anchorTermIdx)
 								continue;
 							if (term_has_match_bound(*ctx.pWorld, archetype, termOp, vars))
 								continue;
@@ -32739,17 +32732,14 @@ namespace gaia {
 					if (!var_is_bound(vars, varEntity))
 						return false;
 
-					const auto groupBit = (uint8_t)(uint8_t(1) << var_index(varEntity));
 					bool hasTerms = false;
-					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
-					GAIA_FOR(allCnt) {
-						if (i == skipAllTermIdx)
+					const auto& groupTerms = m_compCtx.varGroupTerms[var_index(varEntity)];
+					for (const auto termIdx8: groupTerms) {
+						const auto termIdx = (uint32_t)termIdx8;
+						if (termIdx == skipAllTermIdx)
 							continue;
 
-						const auto& term = m_compCtx.terms_all_var[i];
-						if (term.varMask != groupBit)
-							continue;
-
+						const auto& term = m_compCtx.terms_all_var[termIdx];
 						hasTerms = true;
 						if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 							return false;
@@ -33646,7 +33636,11 @@ namespace gaia {
 					m_compCtx.varAnchorTermIdx = 0;
 					m_compCtx.varGroupMask = 0;
 					m_compCtx.varGroupSourceMask = 0;
-					GAIA_FOR(8) m_compCtx.varGroupAnchorTermIdx[i] = (uint8_t)-1;
+					GAIA_FOR(8) {
+						m_compCtx.varGroupAnchorTermIdx[i] = (uint8_t)-1;
+						m_compCtx.varGroupTerms[i].clear();
+						m_compCtx.varGroupPairTerms[i].clear();
+					}
 					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
@@ -33741,6 +33735,27 @@ namespace gaia {
 					detail::sort_source_terms_by_cost(m_compCtx.terms_all_src);
 					detail::sort_source_terms_by_cost(m_compCtx.terms_or_src);
 					detail::sort_source_terms_by_cost(m_compCtx.terms_not_src);
+
+					const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
+					GAIA_FOR(allVarCnt) {
+						const auto& termOp = m_compCtx.terms_all_var[i];
+						if (termOp.varMask == 0 || GAIA_POPCNT(termOp.varMask) != 1)
+							continue;
+
+						const auto varIdx = (uint8_t)(GAIA_FFS(termOp.varMask) - 1u);
+						const auto varEntity = entity_from_id(world, (EntityId)(Var0.id() + varIdx));
+						GAIA_ASSERT(varEntity != EntityBad);
+						m_compCtx.varGroupTerms[varIdx].push_back((uint8_t)i);
+
+						if (detail::is_var_entity(termOp.term.src) && termOp.term.src == varEntity &&
+								termOp.sourceOpcode == detail::EOpcode::Src_Self && detail::has_concrete_match_id(termOp.term.id) &&
+								m_compCtx.varGroupAnchorTermIdx[varIdx] == (uint8_t)-1)
+							m_compCtx.varGroupAnchorTermIdx[varIdx] = (uint8_t)i;
+
+						if (termOp.term.src == EntityBad && termOp.term.id.pair() && termOp.term.id.gen() == varEntity.id() &&
+								!is_variable(termOp.term.id.id()) && termOp.term.id.id() != All.id())
+							m_compCtx.varGroupPairTerms[varIdx].push_back((uint8_t)i);
+					}
 
 					const auto varMask =
 							(uint8_t)(m_compCtx.varMaskAll | m_compCtx.varMaskOr | m_compCtx.varMaskNot | m_compCtx.varMaskAny);
@@ -33842,9 +33857,7 @@ namespace gaia {
 
 						uint8_t groupMask = 0;
 						uint8_t sourceMask = 0;
-						GAIA_FOR(8) m_compCtx.varGroupAnchorTermIdx[i] = (uint8_t)-1;
 
-						const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						GAIA_FOR(allVarCnt) {
 							const auto& termOp = m_compCtx.terms_all_var[i];
 							if (termOp.varMask == 0 || GAIA_POPCNT(termOp.varMask) != 1)
@@ -33863,8 +33876,7 @@ namespace gaia {
 								if (!detail::has_concrete_match_id(termOp.term.id))
 									return false;
 
-								if ((sourceMask & bit) == 0)
-									m_compCtx.varGroupAnchorTermIdx[varIdx] = (uint8_t)i;
+								GAIA_ASSERT(m_compCtx.varGroupAnchorTermIdx[varIdx] != (uint8_t)-1);
 								sourceMask |= bit;
 								groupMask |= bit;
 								continue;
