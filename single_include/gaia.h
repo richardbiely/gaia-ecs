@@ -30968,10 +30968,10 @@ namespace gaia {
 					Not_Complex,
 					//! Seed current result set with all archetypes
 					Seed_All,
-					//! Source term groups
-					Src_All,
-					Src_Not,
-					Src_Or,
+					//! Source term gates
+					Src_AllTerm,
+					Src_NotTerm,
+					Src_OrTerm,
 					//! Source traversal sub-opcodes (used by source terms)
 					Src_Never,
 					Src_Self,
@@ -30989,6 +30989,8 @@ namespace gaia {
 					VmLabel pc_ok;
 					//! Stack position to go to if the opcode returns false
 					VmLabel pc_fail;
+					//! Optional opcode argument (e.g. index to a source term array).
+					uint8_t arg = 0;
 				};
 
 				struct QueryCompileCtx {
@@ -32170,70 +32172,49 @@ namespace gaia {
 					}
 				};
 
-				template <typename SourceTermsArray, bool MustMatch>
-				GAIA_NODISCARD inline bool exec_src_all_not_impl(const MatchingCtx& ctx, const SourceTermsArray& terms) {
-					for (const auto& termOp: terms) {
-						const bool matched = match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
-						if constexpr (MustMatch) {
-							if (!matched)
-								return false;
-						} else {
-							if (matched)
-								return false;
-						}
-					}
-
-					return true;
+				template <typename SourceTermsArray>
+				GAIA_NODISCARD inline const QueryCompileCtx::SourceTermOp&
+				get_source_term_op(const QueryCompileCtx& comp, const MatchingCtx& ctx, const SourceTermsArray& terms) {
+					const auto& stackItem = comp.ops[ctx.pc];
+					GAIA_ASSERT(stackItem.arg < terms.size());
+					return terms[stackItem.arg];
 				}
 
-				GAIA_NODISCARD inline bool exec_src_or_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
-					bool matched = false;
-					for (const auto& termOp: comp.terms_or_src) {
-						if (!match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
-							continue;
-
-						matched = true;
-						break;
-					}
-
-					// Source OR terms were present but nothing matched and there is no OR fallback.
-					if (!matched && comp.ids_or.empty() && comp.terms_or_var.empty())
-						return false;
-
-					// OR was already satisfied by source matching.
-					if (matched) {
-						ctx.skipOr = true;
-						if (comp.ids_all.empty())
-							add_all_archetypes(ctx);
-					}
-
-					return true;
-				}
-
-				struct OpcodeSrc_All {
-					static constexpr EOpcode Id = EOpcode::Src_All;
+				struct OpcodeSrc_AllTerm {
+					static constexpr EOpcode Id = EOpcode::Src_AllTerm;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_src_all);
-						return exec_src_all_not_impl<decltype(comp.terms_all_src), true>(ctx, comp.terms_all_src);
+						const auto& termOp = get_source_term_op(comp, ctx, comp.terms_all_src);
+						return match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
 					}
 				};
 
-				struct OpcodeSrc_Not {
-					static constexpr EOpcode Id = EOpcode::Src_Not;
+				struct OpcodeSrc_NotTerm {
+					static constexpr EOpcode Id = EOpcode::Src_NotTerm;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_src_not);
-						return exec_src_all_not_impl<decltype(comp.terms_not_src), false>(ctx, comp.terms_not_src);
+						const auto& termOp = get_source_term_op(comp, ctx, comp.terms_not_src);
+						return !match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
 					}
 				};
 
-				struct OpcodeSrc_Or {
-					static constexpr EOpcode Id = EOpcode::Src_Or;
+				struct OpcodeSrc_OrTerm {
+					static constexpr EOpcode Id = EOpcode::Src_OrTerm;
 
 					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 						GAIA_PROF_SCOPE(vm::op_src_or);
-						return exec_src_or_impl(comp, ctx);
+						const auto& termOp = get_source_term_op(comp, ctx, comp.terms_or_src);
+						const bool matched = match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+						if (!matched)
+							return false;
+
+						// OR was already satisfied by source matching.
+						ctx.skipOr = true;
+						if (comp.ids_all.empty())
+							add_all_archetypes(ctx);
+						return true;
 					}
 				};
 			} // namespace detail
@@ -32310,19 +32291,19 @@ namespace gaia {
 							detail::OpcodeSeed_All op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeSrc_All
+						// OpcodeSrc_AllTerm
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeSrc_All op;
+							detail::OpcodeSrc_AllTerm op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeSrc_Not
+						// OpcodeSrc_NotTerm
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeSrc_Not op;
+							detail::OpcodeSrc_NotTerm op;
 							return op.exec(comp, ctx);
 						},
-						// OpcodeSrc_Or
+						// OpcodeSrc_OrTerm
 						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
-							detail::OpcodeSrc_Or op;
+							detail::OpcodeSrc_OrTerm op;
 							return op.exec(comp, ctx);
 						},
 				};
@@ -32334,10 +32315,16 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all",		 "allw",	 "allc", "or",	 "orw",	 "orc",	 "ora",
-																					"oraw",		 "orac",	 "not",	 "notw", "notc", "seed", "src_all",
-																					"src_not", "src_or", "nev",	 "self", "up",	 "down", "updown"};
+					static const char* s_names[] = {"all",			 "allw",		 "allc", "or",	 "orw",	 "orc",	 "ora",
+																					"oraw",			 "orac",		 "not",	 "notw", "notc", "seed", "src_all_t",
+																					"src_not_t", "src_or_t", "nev",	 "self", "up",	 "down", "updown"};
 					return s_names[(uint32_t)opcode];
+				}
+
+				GAIA_NODISCARD static bool opcode_has_arg(detail::EOpcode opcode) {
+					return opcode == detail::EOpcode::Src_AllTerm || //
+								 opcode == detail::EOpcode::Src_NotTerm || //
+								 opcode == detail::EOpcode::Src_OrTerm;
 				}
 
 				static void append_uint(util::str& out, uint32_t value) {
@@ -32788,6 +32775,10 @@ namespace gaia {
 						append_uint(out, i);
 						out.append("] ");
 						append_cstr(out, opcode_name(op.opcode));
+						if (opcode_has_arg(op.opcode)) {
+							out.append(" arg=");
+							append_uint(out, op.arg);
+						}
 						out.append(" ok=");
 						append_uint(out, op.pc_ok);
 						out.append(" fail=");
@@ -32927,23 +32918,50 @@ namespace gaia {
 					// Reset the list of opcodes
 					m_compCtx.ops.clear();
 
-					// Source terms are emitted as explicit VM gate ops.
+					// Source ALL terms: all must match, each is a dedicated gate opcode.
 					if (!m_compCtx.terms_all_src.empty()) {
-						detail::CompiledOp op{};
-						op.opcode = detail::EOpcode::Src_All;
-						(void)add_gate_op(GAIA_MOV(op));
+						const auto srcAllCnt = (uint32_t)m_compCtx.terms_all_src.size();
+						GAIA_FOR(srcAllCnt) {
+							detail::CompiledOp op{};
+							op.opcode = detail::EOpcode::Src_AllTerm;
+							op.arg = (uint8_t)i;
+							(void)add_gate_op(GAIA_MOV(op));
+						}
 					}
 
+					// Source NOT terms: none can match, each is a dedicated gate opcode.
 					if (!m_compCtx.terms_not_src.empty()) {
-						detail::CompiledOp op{};
-						op.opcode = detail::EOpcode::Src_Not;
-						(void)add_gate_op(GAIA_MOV(op));
+						const auto srcNotCnt = (uint32_t)m_compCtx.terms_not_src.size();
+						GAIA_FOR(srcNotCnt) {
+							detail::CompiledOp op{};
+							op.opcode = detail::EOpcode::Src_NotTerm;
+							op.arg = (uint8_t)i;
+							(void)add_gate_op(GAIA_MOV(op));
+						}
 					}
 
+					// Source OR terms: emit a fallback chain that backtracks across alternatives.
 					if (!m_compCtx.terms_or_src.empty()) {
-						detail::CompiledOp op{};
-						op.opcode = detail::EOpcode::Src_Or;
-						(void)add_gate_op(GAIA_MOV(op));
+						const bool hasOrFallback = !m_compCtx.ids_or.empty() || !m_compCtx.terms_or_var.empty();
+
+						cnt::sarray_ext<detail::VmLabel, MAX_ITEMS_IN_QUERY> orSrcOpLabels;
+						const auto srcOrCnt = (uint32_t)m_compCtx.terms_or_src.size();
+						GAIA_FOR(srcOrCnt) {
+							detail::CompiledOp op{};
+							op.opcode = detail::EOpcode::Src_OrTerm;
+							op.arg = (uint8_t)i;
+							orSrcOpLabels.push_back(add_op(GAIA_MOV(op)));
+						}
+
+						const auto orExitPc = (detail::VmLabel)m_compCtx.ops.size();
+						for (const auto opLabel: orSrcOpLabels)
+							m_compCtx.ops[opLabel].pc_ok = orExitPc;
+
+						const auto lastIdx = (uint32_t)orSrcOpLabels.size() - 1u;
+						GAIA_FOR(lastIdx)
+						m_compCtx.ops[orSrcOpLabels[i]].pc_fail = orSrcOpLabels[i + 1];
+
+						m_compCtx.ops[orSrcOpLabels[lastIdx]].pc_fail = hasOrFallback ? orExitPc : (detail::VmLabel)-1;
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
