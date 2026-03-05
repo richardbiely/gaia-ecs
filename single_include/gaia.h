@@ -30974,6 +30974,10 @@ namespace gaia {
 					Var_Filter,
 					//! Filter current result set using variable terms (all variables pre-bound)
 					Var_Filter_Bound,
+					//! Filter current result set using ALL-only variable terms
+					Var_Filter_AllOnly,
+					//! Filter current result set using a single-variable specialized matcher
+					Var_Filter_1Var,
 					//! Source term gates
 					Src_AllTerm,
 					Src_NotTerm,
@@ -31004,6 +31008,11 @@ namespace gaia {
 						EOpcode opcode = EOpcode::Src_Never;
 						QueryTerm term{};
 					};
+					struct VarTermOp {
+						EOpcode sourceOpcode = EOpcode::Src_Never;
+						QueryTerm term{};
+						uint8_t varMask = 0;
+					};
 
 					cnt::darray<CompiledOp> ops;
 					//! Array of ops that can be evaluated with a ALL opcode
@@ -31019,18 +31028,22 @@ namespace gaia {
 					//! Source lookup terms for NOT
 					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_not_src;
 					//! Variable terms for ALL
-					QueryTermArray terms_all_var;
+					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_all_var;
 					//! Variable terms for OR
-					QueryTermArray terms_or_var;
+					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_or_var;
 					//! Variable terms for NOT
-					QueryTermArray terms_not_var;
+					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_not_var;
 					//! Variable terms for ANY
-					QueryTermArray terms_any_var;
+					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_any_var;
 					//! Variable masks (Var0..Var7) used by variable terms.
 					uint8_t varMaskAll = 0;
 					uint8_t varMaskOr = 0;
 					uint8_t varMaskNot = 0;
 					uint8_t varMaskAny = 0;
+					//! Single-variable unbound fast-path metadata.
+					uint8_t varSingleIdx = 0;
+					bool varAllOnlyFastPath = false;
+					bool varSingleUnboundFastPath = false;
 
 					GAIA_NODISCARD bool has_source_terms() const {
 						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
@@ -31714,36 +31727,53 @@ namespace gaia {
 						return;
 					}
 
+					const auto queryRel = entity_from_id(w, queryId.id());
+					const auto queryTgt = entity_from_id(w, queryId.gen());
+					if (queryRel == EntityBad || queryTgt == EntityBad)
+						return;
+					const bool relIsConcrete = !is_var_entity(queryRel) && queryRel.id() != All.id();
+					const bool tgtIsConcrete = !is_var_entity(queryTgt) && queryTgt.id() != All.id();
+
 					GAIA_FOR(cnt) {
 						const auto idInArchetype = archetypeIds[i];
 						if (!idInArchetype.pair())
 							continue;
 
-						const auto rel = entity_from_id(w, idInArchetype.id());
-						const auto tgt = entity_from_id(w, idInArchetype.gen());
-						const auto queryRel = entity_from_id(w, queryId.id());
-						const auto queryTgt = entity_from_id(w, queryId.gen());
-						if (rel == EntityBad || tgt == EntityBad)
+						if (relIsConcrete && idInArchetype.id() != queryRel.id())
 							continue;
-						if (queryRel == EntityBad || queryTgt == EntityBad)
+						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
 							continue;
+
+						if (relIsConcrete && tgtIsConcrete) {
+							outStates.emplace_back(varsIn);
+							continue;
+						}
 
 						auto vars = varsIn;
-						if (!match_token(vars, queryRel, rel, true))
-							continue;
-						if (!match_token(vars, queryTgt, tgt, true))
-							continue;
-
+						if (!relIsConcrete) {
+							const auto rel = entity_from_id(w, idInArchetype.id());
+							if (rel == EntityBad)
+								continue;
+							if (!match_token(vars, queryRel, rel, true))
+								continue;
+						}
+						if (!tgtIsConcrete) {
+							const auto tgt = entity_from_id(w, idInArchetype.gen());
+							if (tgt == EntityBad)
+								continue;
+							if (!match_token(vars, queryTgt, tgt, true))
+								continue;
+						}
 						outStates.emplace_back(vars);
 					}
 				}
 
 				inline void collect_term_matches(
-						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& varsIn,
-						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
-					const auto sourceOpcode = source_opcode_from_term(term);
+						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& varsIn, cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
+					const auto& term = termOp.term;
 					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						each_lookup_source(w, sourceOpcode, term, sourceEntity, [&](Entity source) {
+						each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype != nullptr)
 								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
@@ -31769,10 +31799,11 @@ namespace gaia {
 					collect_on_source(term.src, varsIn);
 				}
 
-				GAIA_NODISCARD inline bool
-				term_has_match(const World& w, const Archetype& archetype, const QueryTerm& term, const VarBindings& varsIn) {
+				GAIA_NODISCARD inline bool term_has_match(
+						const World& w, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& varsIn) {
 					cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-					collect_term_matches(w, archetype, term, varsIn, states);
+					collect_term_matches(w, archetype, termOp, varsIn, states);
 					return !states.empty();
 				}
 
@@ -31823,20 +31854,29 @@ namespace gaia {
 						queryTgt = vars.values[var_index(queryTgt)];
 					}
 
+					const bool relIsConcrete = queryRel.id() != All.id();
+					const bool tgtIsConcrete = queryTgt.id() != All.id();
+
 					GAIA_FOR(cnt) {
 						const auto idInArchetype = archetypeIds[i];
 						if (!idInArchetype.pair())
 							continue;
 
-						const auto rel = entity_from_id(w, idInArchetype.id());
-						const auto tgt = entity_from_id(w, idInArchetype.gen());
-						if (rel == EntityBad || tgt == EntityBad)
+						if (relIsConcrete && idInArchetype.id() != queryRel.id())
+							continue;
+						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
 							continue;
 
-						if (queryRel.id() != All.id() && queryRel.id() != rel.id())
-							continue;
-						if (queryTgt.id() != All.id() && queryTgt.id() != tgt.id())
-							continue;
+						if (!relIsConcrete) {
+							const auto rel = entity_from_id(w, idInArchetype.id());
+							if (rel == EntityBad)
+								continue;
+						}
+						if (!tgtIsConcrete) {
+							const auto tgt = entity_from_id(w, idInArchetype.gen());
+							if (tgt == EntityBad)
+								continue;
+						}
 
 						return true;
 					}
@@ -31845,7 +31885,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD inline bool term_has_match_bound(
-						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& vars) {
+						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& vars) {
+					const auto& term = termOp.term;
 					auto match_on_archetype = [&](const Archetype& archetype) {
 						return match_id_bound(w, archetype, term.id, vars);
 					};
@@ -31861,8 +31903,7 @@ namespace gaia {
 					}
 
 					bool matched = false;
-					const auto sourceOpcode = source_opcode_from_term(term);
-					each_lookup_source(w, sourceOpcode, term, sourceEntity, [&](Entity source) {
+					each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 						auto* pSrcArchetype = archetype_from_entity(w, source);
 						if (pSrcArchetype == nullptr)
 							return false;
@@ -31873,6 +31914,108 @@ namespace gaia {
 					});
 
 					return matched;
+				}
+
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_id_match(
+						const World& w, const Archetype& archetype, Entity queryId, const VarBindings& varsIn, Func&& func) {
+					auto archetypeIds = archetype.ids_view();
+					const auto cnt = (uint32_t)archetypeIds.size();
+
+					if (!queryId.pair()) {
+						GAIA_FOR(cnt) {
+							const auto idInArchetype = archetypeIds[i];
+							if (idInArchetype.pair())
+								continue;
+
+							const auto value = entity_from_id(w, idInArchetype.id());
+							if (value == EntityBad)
+								continue;
+
+							auto vars = varsIn;
+							if (!match_token(vars, queryId, value, false))
+								continue;
+
+							if (func(vars))
+								return true;
+						}
+						return false;
+					}
+
+					const auto queryRel = entity_from_id(w, queryId.id());
+					const auto queryTgt = entity_from_id(w, queryId.gen());
+					if (queryRel == EntityBad || queryTgt == EntityBad)
+						return false;
+					const bool relIsConcrete = !is_var_entity(queryRel) && queryRel.id() != All.id();
+					const bool tgtIsConcrete = !is_var_entity(queryTgt) && queryTgt.id() != All.id();
+
+					GAIA_FOR(cnt) {
+						const auto idInArchetype = archetypeIds[i];
+						if (!idInArchetype.pair())
+							continue;
+
+						if (relIsConcrete && idInArchetype.id() != queryRel.id())
+							continue;
+						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
+							continue;
+
+						if (relIsConcrete && tgtIsConcrete) {
+							if (func(varsIn))
+								return true;
+							continue;
+						}
+
+						auto vars = varsIn;
+						if (!relIsConcrete) {
+							const auto rel = entity_from_id(w, idInArchetype.id());
+							if (rel == EntityBad)
+								continue;
+							if (!match_token(vars, queryRel, rel, true))
+								continue;
+						}
+						if (!tgtIsConcrete) {
+							const auto tgt = entity_from_id(w, idInArchetype.gen());
+							if (tgt == EntityBad)
+								continue;
+							if (!match_token(vars, queryTgt, tgt, true))
+								continue;
+						}
+
+						if (func(vars))
+							return true;
+					}
+
+					return false;
+				}
+
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_term_match(
+						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& varsIn, Func&& func) {
+					const auto& term = termOp.term;
+					auto&& matchFunc = GAIA_FWD(func);
+					auto each_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
+						return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+							auto* pSrcArchetype = archetype_from_entity(w, source);
+							if (pSrcArchetype == nullptr)
+								return false;
+
+							return each_id_match(w, *pSrcArchetype, term.id, vars, matchFunc);
+						});
+					};
+
+					if (term.src == EntityBad)
+						return each_id_match(w, candidateArchetype, term.id, varsIn, matchFunc);
+
+					if (is_var_entity(term.src)) {
+						if (!var_is_bound(varsIn, term.src))
+							return false;
+
+						const auto source = varsIn.values[var_index(term.src)];
+						return each_on_source(source, varsIn);
+					}
+
+					return each_on_source(term.src, varsIn);
 				}
 
 				template <typename OpKind, MatchingStyle Style>
@@ -32183,10 +32326,10 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all",			"allw",	 "allc", "or",		"orw",			 "orc",
-																					"ora",			"oraw",	 "orac", "not",		"notw",			 "notc",
-																					"seed",			"varcb", "varf", "varfb", "src_all_t", "src_not_t",
-																					"src_or_t", "nev",	 "self", "up",		"down",			 "updown"};
+					static const char* s_names[] = {"all",	"allw",	 "allc",	"or",		 "orw",				"orc",			 "ora",
+																					"oraw", "orac",	 "not",		"notw",	 "notc",			"seed",			 "varcb",
+																					"varf", "varfb", "varfa", "varf1", "src_all_t", "src_not_t", "src_or_t",
+																					"nev",	"self",	 "up",		"down",	 "updown"};
 					static_assert(
 							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Src_UpDown + 1u,
 							"Opcode name table out of sync with EOpcode.");
@@ -32333,8 +32476,9 @@ namespace gaia {
 					}
 				}
 
-				static void
-				append_var_terms_section(util::str& out, const char* title, const QueryTermArray& terms, const World& world) {
+				static void append_var_terms_section(
+						util::str& out, const char* title,
+						const cnt::sarray_ext<detail::QueryCompileCtx::VarTermOp, MAX_ITEMS_IN_QUERY>& terms, const World& world) {
 					if (terms.empty())
 						return;
 
@@ -32348,7 +32492,9 @@ namespace gaia {
 						out.append("  [");
 						append_uint(out, i);
 						out.append("] ");
-						append_term_expr(out, world, terms[i]);
+						append_cstr(out, opcode_name(terms[i].sourceOpcode));
+						out.append(" id=");
+						append_term_expr(out, world, terms[i].term);
 						out.append('\n');
 					}
 				}
@@ -32430,6 +32576,110 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool eval_variable_terms_1var_on_archetype(
+						const MatchingCtx& ctx, const Archetype& archetype, [[maybe_unused]] bool orAlreadySatisfied) const {
+					using namespace detail;
+
+					GAIA_ASSERT(m_compCtx.varSingleUnboundFastPath);
+					GAIA_ASSERT(m_compCtx.terms_or_var.empty());
+					GAIA_ASSERT(m_compCtx.terms_any_var.empty());
+					GAIA_ASSERT(!m_compCtx.terms_all_var.empty());
+
+					const auto varsBase = make_initial_var_bindings(ctx);
+					const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + m_compCtx.varSingleIdx));
+					GAIA_ASSERT(varEntity != EntityBad);
+
+					const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+					uint32_t anchorIdx = (uint32_t)-1;
+					GAIA_FOR(allCnt) {
+						const auto& termOp = m_compCtx.terms_all_var[i];
+						if (is_var_entity(termOp.term.src) && !var_is_bound(varsBase, termOp.term.src))
+							continue;
+
+						anchorIdx = i;
+						break;
+					}
+
+					if (anchorIdx == (uint32_t)-1)
+						return false;
+
+					const auto& anchorTerm = m_compCtx.terms_all_var[anchorIdx];
+					return each_term_match(*ctx.pWorld, archetype, anchorTerm, varsBase, [&](const VarBindings& vars) {
+						if (!var_is_bound(vars, varEntity))
+							return false;
+
+						GAIA_FOR(allCnt) {
+							if (i == anchorIdx)
+								continue;
+							if (!term_has_match_bound(*ctx.pWorld, archetype, m_compCtx.terms_all_var[i], vars))
+								return false;
+						}
+
+						for (const auto& term: m_compCtx.terms_not_var) {
+							if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+								return false;
+						}
+
+						return true;
+					});
+				}
+
+				GAIA_NODISCARD bool eval_variable_terms_allonly_on_archetype(
+						const MatchingCtx& ctx, const Archetype& archetype, [[maybe_unused]] bool orAlreadySatisfied) const {
+					using namespace detail;
+
+					GAIA_ASSERT(m_compCtx.varAllOnlyFastPath);
+					GAIA_ASSERT(!m_compCtx.terms_all_var.empty());
+					GAIA_ASSERT(m_compCtx.terms_or_var.empty());
+					GAIA_ASSERT(m_compCtx.terms_not_var.empty());
+					GAIA_ASSERT(m_compCtx.terms_any_var.empty());
+
+					auto solve = [&](auto&& self, uint16_t pendingAllMask, const VarBindings& vars) -> bool {
+						if (pendingAllMask == 0)
+							return true;
+
+						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
+						uint32_t bestIdx = (uint32_t)-1;
+						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestStates;
+						GAIA_FOR(allCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingAllMask & bit) == 0)
+								continue;
+
+							const auto& termOp = m_compCtx.terms_all_var[i];
+							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
+								continue;
+
+							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
+							if (states.empty())
+								return false;
+
+							if (bestIdx == (uint32_t)-1 || states.size() < bestStates.size()) {
+								bestIdx = i;
+								bestStates = GAIA_MOV(states);
+								if (bestStates.size() == 1)
+									break;
+							}
+						}
+
+						if (bestIdx == (uint32_t)-1)
+							return false;
+
+						const auto nextAllMask = (uint16_t)(pendingAllMask & ~(uint16_t(1) << bestIdx));
+						for (const auto& state: bestStates) {
+							if (self(self, nextAllMask, state))
+								return true;
+						}
+
+						return false;
+					};
+
+					const auto pendingAllMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_all_var.size()) - 1u);
+					VarBindings vars = make_initial_var_bindings(ctx);
+					return solve(solve, pendingAllMask, vars);
+				}
+
 				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
 					using namespace detail;
@@ -32443,8 +32693,8 @@ namespace gaia {
 							if ((pendingAllMask & bit) == 0)
 								continue;
 
-							const auto& term = m_compCtx.terms_all_var[i];
-							const auto missingMask = term_unbound_var_mask(*ctx.pWorld, term, vars);
+							const auto& termOp = m_compCtx.terms_all_var[i];
+							const auto missingMask = (uint8_t)(termOp.varMask & ~vars.mask);
 							if (missingMask == 0)
 								return false;
 							if ((missingMask & ~anyVarMask) != 0)
@@ -32491,12 +32741,12 @@ namespace gaia {
 							if ((pendingAllMask & bit) == 0)
 								continue;
 
-							const auto& term = m_compCtx.terms_all_var[i];
-							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+							const auto& termOp = m_compCtx.terms_all_var[i];
+							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
 							if (states.empty())
 								return false;
 
@@ -32530,12 +32780,12 @@ namespace gaia {
 							if ((pendingOrMask & bit) == 0)
 								continue;
 
-							const auto& term = m_compCtx.terms_or_var[i];
-							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+							const auto& termOp = m_compCtx.terms_or_var[i];
+							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
 							if (states.empty())
 								continue;
 
@@ -32566,12 +32816,12 @@ namespace gaia {
 							if ((pendingOrMask & bit) == 0)
 								continue;
 
-							const auto& term = m_compCtx.terms_or_var[i];
-							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+							const auto& termOp = m_compCtx.terms_or_var[i];
+							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
 							if (states.empty())
 								continue;
 
@@ -32590,12 +32840,12 @@ namespace gaia {
 							if ((pendingAnyMask & bit) == 0)
 								continue;
 
-							const auto& term = m_compCtx.terms_any_var[i];
-							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+							const auto& termOp = m_compCtx.terms_any_var[i];
+							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
 							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
 							if (states.empty()) {
 								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, vars, orMatched))
@@ -32636,12 +32886,10 @@ namespace gaia {
 					constexpr uint32_t FilterChunkSize = 64;
 					cnt::sarray_ext<const Archetype*, FilterChunkSize> filtered;
 					uint32_t writeIdx = 0;
-					ctx.pMatchesSet->clear();
 
 					const auto flush_filtered = [&]() {
 						for (const auto* pFiltered: filtered) {
 							(*ctx.pMatchesArr)[writeIdx++] = pFiltered;
-							ctx.pMatchesSet->emplace(pFiltered);
 						}
 						filtered.clear();
 					};
@@ -32671,6 +32919,14 @@ namespace gaia {
 
 				void filter_variable_terms_bound(MatchingCtx& ctx) const {
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_bound_on_archetype);
+				}
+
+				void filter_variable_terms_allonly(MatchingCtx& ctx) const {
+					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_allonly_on_archetype);
+				}
+
+				void filter_variable_terms_1var(MatchingCtx& ctx) const {
+					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_1var_on_archetype);
 				}
 
 				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
@@ -32843,6 +33099,18 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool op_var_filter_allonly(MatchingCtx& ctx) const {
+					GAIA_PROF_SCOPE(vm::op_var_filter_allonly);
+					filter_variable_terms_allonly(ctx);
+					return true;
+				}
+
+				GAIA_NODISCARD bool op_var_filter_1var(MatchingCtx& ctx) const {
+					GAIA_PROF_SCOPE(vm::op_var_filter_1var);
+					filter_variable_terms_1var(ctx);
+					return true;
+				}
+
 				GAIA_NODISCARD bool op_src_all_term(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_src_all);
 					const auto& termOp = detail::get_source_term_op(m_compCtx, ctx, m_compCtx.terms_all_src);
@@ -32885,6 +33153,8 @@ namespace gaia {
 						&VirtualMachine::op_var_check_bound, //
 						&VirtualMachine::op_var_filter, //
 						&VirtualMachine::op_var_filter_bound, //
+						&VirtualMachine::op_var_filter_allonly, //
+						&VirtualMachine::op_var_filter_1var, //
 						&VirtualMachine::op_src_all_term, //
 						&VirtualMachine::op_src_not_term, //
 						&VirtualMachine::op_src_or_term //
@@ -32967,6 +33237,9 @@ namespace gaia {
 					m_compCtx.varMaskOr = 0;
 					m_compCtx.varMaskNot = 0;
 					m_compCtx.varMaskAny = 0;
+					m_compCtx.varSingleIdx = 0;
+					m_compCtx.varAllOnlyFastPath = false;
+					m_compCtx.varSingleUnboundFastPath = false;
 					m_compCtx.ops.clear();
 
 					auto& data = queryCtx.data;
@@ -32987,8 +33260,9 @@ namespace gaia {
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
 							if (term_has_variables(p)) {
-								m_compCtx.terms_all_var.push_back(p);
-								m_compCtx.varMaskAll |= term_unbound_var_mask(world, p, detail::VarBindings{});
+								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
+								m_compCtx.terms_all_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.varMaskAll |= varMask;
 								continue;
 							}
 
@@ -33008,8 +33282,9 @@ namespace gaia {
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
 							if (term_has_variables(p)) {
-								m_compCtx.terms_or_var.push_back(p);
-								m_compCtx.varMaskOr |= term_unbound_var_mask(world, p, detail::VarBindings{});
+								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
+								m_compCtx.terms_or_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.varMaskOr |= varMask;
 								continue;
 							}
 
@@ -33028,8 +33303,9 @@ namespace gaia {
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
 							if (term_has_variables(p)) {
-								m_compCtx.terms_not_var.push_back(p);
-								m_compCtx.varMaskNot |= term_unbound_var_mask(world, p, detail::VarBindings{});
+								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
+								m_compCtx.terms_not_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.varMaskNot |= varMask;
 								continue;
 							}
 
@@ -33049,14 +33325,27 @@ namespace gaia {
 							auto& p = terms_any[i];
 							if (!term_has_variables(p))
 								continue;
-							m_compCtx.terms_any_var.push_back(p);
-							m_compCtx.varMaskAny |= term_unbound_var_mask(world, p, detail::VarBindings{});
+							const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
+							m_compCtx.terms_any_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+							m_compCtx.varMaskAny |= varMask;
 						}
 					}
 
 					detail::sort_source_terms_by_cost(m_compCtx.terms_all_src);
 					detail::sort_source_terms_by_cost(m_compCtx.terms_or_src);
 					detail::sort_source_terms_by_cost(m_compCtx.terms_not_src);
+
+					const auto varMask =
+							(uint8_t)(m_compCtx.varMaskAll | m_compCtx.varMaskOr | m_compCtx.varMaskNot | m_compCtx.varMaskAny);
+					if (!m_compCtx.terms_all_var.empty() && m_compCtx.terms_or_var.empty() && m_compCtx.terms_not_var.empty() &&
+							m_compCtx.terms_any_var.empty()) {
+						m_compCtx.varAllOnlyFastPath = true;
+					}
+					if (varMask != 0 && GAIA_POPCNT(varMask) == 1 && m_compCtx.terms_or_var.empty() &&
+							m_compCtx.terms_any_var.empty() && !m_compCtx.terms_all_var.empty()) {
+						m_compCtx.varSingleIdx = (uint8_t)(GAIA_FFS(varMask) - 1u);
+						m_compCtx.varSingleUnboundFastPath = true;
+					}
 
 					create_opcodes(queryCtx);
 				}
@@ -33121,7 +33410,12 @@ namespace gaia {
 						const auto opBoundLabel = add_gate_op(GAIA_MOV(opBound));
 
 						detail::CompiledOp opUnbound{};
-						opUnbound.opcode = detail::EOpcode::Var_Filter;
+						if (m_compCtx.varSingleUnboundFastPath)
+							opUnbound.opcode = detail::EOpcode::Var_Filter_1Var;
+						else if (m_compCtx.varAllOnlyFastPath)
+							opUnbound.opcode = detail::EOpcode::Var_Filter_AllOnly;
+						else
+							opUnbound.opcode = detail::EOpcode::Var_Filter;
 						const auto opUnboundLabel = add_gate_op(GAIA_MOV(opUnbound));
 
 						m_compCtx.ops[opCheckLabel].pc_ok = opBoundLabel;
