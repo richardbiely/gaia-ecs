@@ -30976,6 +30976,8 @@ namespace gaia {
 					Var_Filter,
 					//! Filter current result set using variable terms (all variables pre-bound)
 					Var_Filter_Bound,
+					//! Filter current result set using a single-variable pair mixed matcher (bound)
+					Var_Filter_Bound_1VarPairMixed,
 					//! Filter current result set using ALL-only variable terms
 					Var_Filter_AllOnly,
 					//! Filter current result set using grouped ALL-only variable terms
@@ -32404,6 +32406,7 @@ namespace gaia {
 							"varcb", //
 							"varf", //
 							"varfb", //
+							"varfb1pm", //
 							"varfa", //
 							"varfag", //
 							"varf1", //
@@ -32664,6 +32667,21 @@ namespace gaia {
 					}
 
 					return true;
+				}
+
+				GAIA_NODISCARD bool eval_variable_terms_bound_1var_pairmixed_on_archetype(
+						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
+					using namespace detail;
+
+					GAIA_ASSERT(m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed);
+					const auto vars = make_initial_var_bindings(ctx);
+					const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + m_compCtx.varIdx0));
+					GAIA_ASSERT(varEntity != EntityBad);
+					if (!var_is_bound(vars, varEntity))
+						return false;
+
+					return match_1var_pairmixed_candidate_on_archetype(
+							archetype, vars.values[var_index(varEntity)], orAlreadySatisfied, false);
 				}
 
 				GAIA_NODISCARD bool init_pairall_group_anchor_on_archetype(
@@ -33558,6 +33576,10 @@ namespace gaia {
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_bound_on_archetype);
 				}
 
+				void filter_variable_terms_bound_1var_pairmixed(MatchingCtx& ctx) const {
+					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_bound_1var_pairmixed_on_archetype);
+				}
+
 				void filter_variable_terms_allonly(MatchingCtx& ctx) const {
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_allonly_on_archetype);
 				}
@@ -33752,6 +33774,12 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool op_var_filter_bound_1var_pairmixed(MatchingCtx& ctx) const {
+					GAIA_PROF_SCOPE(vm::op_var_filter_bound_1var_pairmixed);
+					filter_variable_terms_bound_1var_pairmixed(ctx);
+					return true;
+				}
+
 				GAIA_NODISCARD bool op_var_filter_allonly(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_var_filter_allonly);
 					filter_variable_terms_allonly(ctx);
@@ -33836,6 +33864,7 @@ namespace gaia {
 						&VirtualMachine::op_var_check_bound, //
 						&VirtualMachine::op_var_filter, //
 						&VirtualMachine::op_var_filter_bound, //
+						&VirtualMachine::op_var_filter_bound_1var_pairmixed, //
 						&VirtualMachine::op_var_filter_allonly, //
 						&VirtualMachine::op_var_filter_allonly_grouped, //
 						&VirtualMachine::op_var_filter_1var, //
@@ -34364,7 +34393,10 @@ namespace gaia {
 						const auto opCheckLabel = add_op(GAIA_MOV(opCheck));
 
 						detail::CompiledOp opBound{};
-						opBound.opcode = detail::EOpcode::Var_Filter_Bound;
+						if (m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed)
+							opBound.opcode = detail::EOpcode::Var_Filter_Bound_1VarPairMixed;
+						else
+							opBound.opcode = detail::EOpcode::Var_Filter_Bound;
 						const auto opBoundLabel = add_gate_op(GAIA_MOV(opBound));
 
 						detail::CompiledOp opUnbound{};

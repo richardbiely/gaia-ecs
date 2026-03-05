@@ -6567,7 +6567,8 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varfb1pm ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") == BadIndex);
 		CHECK(bytecode.find("] varf1pm ") != BadIndex);
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varf1os ") == BadIndex);
