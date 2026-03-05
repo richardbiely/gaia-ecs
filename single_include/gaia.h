@@ -30441,7 +30441,7 @@ namespace gaia {
 
 				//! Returns the number of entities accessible via the iterator
 				GAIA_NODISCARD uint16_t size() const noexcept {
-					return size(m_pChunk);
+					return (uint16_t)(to() - from());
 				}
 
 				//! Returns the absolute index that should be used to access an item in the chunk.
@@ -30679,6 +30679,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+
 /*** End of inlined file: chunk_iterator.h ***/
 
 

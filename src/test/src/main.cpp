@@ -11657,6 +11657,59 @@ TEST_CASE("Observer - simple") {
 	}
 }
 
+TEST_CASE("Observer - copy_ext payload") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	uint32_t iterSize = 0;
+	uint32_t entityViewSize = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	Position pos{};
+	Acceleration acc{};
+
+	const auto obs = wld.observer()
+											.event(ecs::ObserverEvent::OnAdd)
+											.all<Position>()
+											.all<Acceleration>()
+											.on_each([&](ecs::Iter& it) {
+												++hits;
+												iterSize = it.size();
+												auto entityView = it.view<ecs::Entity>();
+												entityViewSize = entityView.size();
+												observedEntity = entityView[0];
+												auto posView = it.view<Position>();
+												auto accView = it.view<Acceleration>();
+												pos = posView[0];
+												acc = accView[0];
+											})
+											.entity();
+	(void)obs;
+
+	const auto src = wld.add();
+	wld.add<Position>(src, {11.0f, 22.0f, 33.0f});
+	wld.add<Acceleration>(src, {44.0f, 55.0f, 66.0f});
+
+	hits = 0;
+	iterSize = 0;
+	entityViewSize = 0;
+	observedEntity = ecs::EntityBad;
+	pos = {};
+	acc = {};
+
+	const auto dst = wld.copy_ext(src);
+
+	CHECK(hits == 1);
+	CHECK(iterSize == 1);
+	CHECK(entityViewSize == 1);
+	CHECK(observedEntity == dst);
+	CHECK(pos.x == 11.0f);
+	CHECK(pos.y == 22.0f);
+	CHECK(pos.z == 33.0f);
+	CHECK(acc.x == 44.0f);
+	CHECK(acc.y == 55.0f);
+	CHECK(acc.z == 66.0f);
+}
+
 TEST_CASE("Observer - fast path") {
 	TestWorld twld;
 
