@@ -5500,9 +5500,9 @@ void Test_Query_SourceOr_VariableOr_Interaction() {
 		wld.add<Cable>(cableB);
 
 		auto q = wld.query<UseCachedQuery>()
-							 .template all<Cable>()
-							 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
-							 .or_(ecs::Pair(connectedTo, ecs::Var0));
+								 .template all<Cable>()
+								 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
+								 .or_(ecs::Pair(connectedTo, ecs::Var0));
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableA});
 	}
@@ -5524,9 +5524,9 @@ void Test_Query_SourceOr_VariableOr_Interaction() {
 		wld.add<Cable>(cableB);
 
 		auto q = wld.query<UseCachedQuery>()
-							 .template all<Cable>()
-							 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
-							 .or_(ecs::Pair(connectedTo, ecs::Var0));
+								 .template all<Cable>()
+								 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
+								 .or_(ecs::Pair(connectedTo, ecs::Var0));
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
@@ -5566,10 +5566,10 @@ void Test_Query_VariableOr_Backtracking_SkipBranch() {
 	// First OR term can bind $d to a non-device. The solver must be able to skip it
 	// and backtrack into the second OR term.
 	auto qApi = wld.query<UseCachedQuery>()
-								 .template all<Cable>()
-								 .template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
-								 .or_(ecs::Pair(connectedTo, ecs::Var0))
-								 .or_(ecs::Pair(linkedTo, ecs::Var0));
+									.template all<Cable>()
+									.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+									.or_(ecs::Pair(connectedTo, ecs::Var0))
+									.or_(ecs::Pair(linkedTo, ecs::Var0));
 	CHECK(qApi.count() == 1);
 	expect_exact_entities(qApi, {cable});
 
@@ -6190,6 +6190,67 @@ TEST_CASE("Query - bytecode dump") {
 	}
 	SUBCASE("Non-cached query") {
 		Test_Query_Bytecode_Dump<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_SingleOr_CanonicalizedToAll() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	auto collect_sorted = [](auto& query) {
+		cnt::darr<ecs::Entity> out;
+		query.each([&](ecs::Entity entity) {
+			out.push_back(entity);
+		});
+		core::sort(out, [](ecs::Entity left, ecs::Entity right) {
+			return left.id() < right.id();
+		});
+		return out;
+	};
+
+	TestWorld twld;
+	struct A {};
+	struct B {};
+
+	const auto source = wld.add();
+	wld.add<A>(source);
+
+	const auto eA = wld.add();
+	wld.add<A>(eA);
+
+	const auto eB = wld.add();
+	wld.add<B>(eB);
+	(void)eB;
+
+	// Single OR has required semantics and matches ALL.
+	auto qOr = wld.query<UseCachedQuery>().template or_<A>();
+	auto qAll = wld.query<UseCachedQuery>().template all<A>();
+	CHECK(qOr.count() == qAll.count());
+	const auto qOrEntities = collect_sorted(qOr);
+	const auto qAllEntities = collect_sorted(qAll);
+	CHECK(qOrEntities.size() == qAllEntities.size());
+	GAIA_FOR((uint32_t)qOrEntities.size()) {
+		CHECK(qOrEntities[i] == qAllEntities[i]);
+	}
+
+	// Source-based single OR is canonicalized in the same way.
+	auto qOrSrc = wld.query<UseCachedQuery>().template or_<A>(ecs::QueryTermOptions{}.src(source));
+	auto qAllSrc = wld.query<UseCachedQuery>().template all<A>(ecs::QueryTermOptions{}.src(source));
+	CHECK(qOrSrc.count() == qAllSrc.count());
+	const auto qOrSrcEntities = collect_sorted(qOrSrc);
+	const auto qAllSrcEntities = collect_sorted(qAllSrc);
+	CHECK(qOrSrcEntities.size() == qAllSrcEntities.size());
+	GAIA_FOR((uint32_t)qOrSrcEntities.size()) {
+		CHECK(qOrSrcEntities[i] == qAllSrcEntities[i]);
+	}
+}
+
+TEST_CASE("Query - single or canonicalized to all") {
+	SUBCASE("Cached query") {
+		Test_Query_SingleOr_CanonicalizedToAll<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_SingleOr_CanonicalizedToAll<ecs::QueryUncached>();
 	}
 }
 
