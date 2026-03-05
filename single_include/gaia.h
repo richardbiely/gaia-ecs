@@ -32726,24 +32726,36 @@ namespace gaia {
 						return;
 
 					const bool orAlreadySatisfied = !m_compCtx.ids_or.empty() || ctx.skipOr;
-
-					cnt::darr<const Archetype*> filtered;
-
-					if (!ctx.pMatchesArr->empty()) {
-						filtered.reserve(ctx.pMatchesArr->size());
-						for (const auto* pArchetype: *ctx.pMatchesArr) {
-							if (!eval_variable_terms_on_archetype(ctx, *pArchetype, orAlreadySatisfied))
-								continue;
-							filtered.push_back(pArchetype);
-						}
-					}
-
-					ctx.pMatchesArr->clear();
+					const auto sourceCnt = ctx.pMatchesArr->size();
+					constexpr uint32_t FilterChunkSize = 64;
+					cnt::sarray_ext<const Archetype*, FilterChunkSize> filtered;
+					uint32_t writeIdx = 0;
 					ctx.pMatchesSet->clear();
-					for (const auto* pArchetype: filtered) {
-						ctx.pMatchesArr->push_back(pArchetype);
-						ctx.pMatchesSet->emplace(pArchetype);
+
+					const auto flush_filtered = [&]() {
+						for (const auto* pFiltered: filtered) {
+							(*ctx.pMatchesArr)[writeIdx++] = pFiltered;
+							ctx.pMatchesSet->emplace(pFiltered);
+						}
+						filtered.clear();
+					};
+
+					GAIA_FOR(sourceCnt) {
+						const auto* pArchetype = (*ctx.pMatchesArr)[i];
+						if (!eval_variable_terms_on_archetype(ctx, *pArchetype, orAlreadySatisfied))
+							continue;
+
+						filtered.push_back(pArchetype);
+						if (filtered.size() != FilterChunkSize)
+							continue;
+
+						flush_filtered();
 					}
+
+					if (!filtered.empty())
+						flush_filtered();
+
+					ctx.pMatchesArr->resize(writeIdx);
 				}
 
 				GAIA_NODISCARD detail::VmLabel add_op(detail::CompiledOp&& op) {
