@@ -30966,6 +30966,10 @@ namespace gaia {
 					Not_Simple,
 					Not_Wildcard,
 					Not_Complex,
+					//! Source term groups
+					Src_All,
+					Src_Not,
+					Src_Or,
 					//! Source traversal sub-opcodes (used by source terms)
 					Src_Never,
 					Src_Self,
@@ -31019,6 +31023,10 @@ namespace gaia {
 
 					GAIA_NODISCARD bool has_variable_terms() const {
 						return !terms_all_var.empty() || !terms_or_var.empty() || !terms_not_var.empty() || !terms_any_var.empty();
+					}
+
+					GAIA_NODISCARD bool has_id_terms() const {
+						return !ids_all.empty() || !ids_or.empty() || !ids_not.empty();
 					}
 				};
 
@@ -32165,6 +32173,73 @@ namespace gaia {
 						return exec_not_impl<MatchingStyle::Complex>(comp, ctx);
 					}
 				};
+
+				template <typename SourceTermsArray, bool MustMatch>
+				GAIA_NODISCARD inline bool exec_src_all_not_impl(const MatchingCtx& ctx, const SourceTermsArray& terms) {
+					for (const auto& termOp: terms) {
+						const bool matched = match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+						if constexpr (MustMatch) {
+							if (!matched)
+								return false;
+						} else {
+							if (matched)
+								return false;
+						}
+					}
+
+					return true;
+				}
+
+				GAIA_NODISCARD inline bool exec_src_or_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+					bool matched = false;
+					for (const auto& termOp: comp.terms_or_src) {
+						if (!match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
+							continue;
+
+						matched = true;
+						break;
+					}
+
+					// Source OR terms were present but nothing matched and there is no OR fallback.
+					if (!matched && comp.ids_or.empty() && comp.terms_or_var.empty())
+						return false;
+
+					// OR was already satisfied by source matching.
+					if (matched) {
+						ctx.skipOr = true;
+						if (comp.ids_all.empty())
+							add_all_archetypes(ctx);
+					}
+
+					return true;
+				}
+
+				struct OpcodeSrc_All {
+					static constexpr EOpcode Id = EOpcode::Src_All;
+
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_src_all);
+						return exec_src_all_not_impl<decltype(comp.terms_all_src), true>(ctx, comp.terms_all_src);
+					}
+				};
+
+				struct OpcodeSrc_Not {
+					static constexpr EOpcode Id = EOpcode::Src_Not;
+
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_src_not);
+						return exec_src_all_not_impl<decltype(comp.terms_not_src), false>(ctx, comp.terms_not_src);
+					}
+				};
+
+				struct OpcodeSrc_Or {
+					static constexpr EOpcode Id = EOpcode::Src_Or;
+
+					bool exec(const QueryCompileCtx& comp, MatchingCtx& ctx) {
+						GAIA_PROF_SCOPE(vm::op_src_or);
+						return exec_src_or_impl(comp, ctx);
+					}
+				};
 			} // namespace detail
 
 			class VirtualMachine {
@@ -32234,14 +32309,33 @@ namespace gaia {
 							detail::OpcodeNot_Complex op;
 							return op.exec(comp, ctx);
 						},
+						// OpcodeSrc_All
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeSrc_All op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeSrc_Not
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeSrc_Not op;
+							return op.exec(comp, ctx);
+						},
+						// OpcodeSrc_Or
+						[](const detail::QueryCompileCtx& comp, MatchingCtx& ctx) {
+							detail::OpcodeSrc_Or op;
+							return op.exec(comp, ctx);
+						},
 				};
+				static_assert(
+						sizeof(OpcodeFuncs) / sizeof(OpcodeFuncs[0]) == (uint32_t)detail::EOpcode::Src_Never,
+						"OpcodeFuncs must contain all executable opcodes.");
 
 				detail::QueryCompileCtx m_compCtx;
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all", "allw", "allc", "or",	"orw",	"orc", "ora",	 "oraw",	"orac",
-																					"not", "notw", "notc", "nev", "self", "up",	 "down", "updown"};
+					static const char* s_names[] = {"all",		"allw", "allc", "or",		"orw",	"orc",		 "ora",
+																					"oraw",		"orac", "not",	"notw", "notc", "src_all", "src_not",
+																					"src_or", "nev",	"self", "up",		"down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -32400,54 +32494,6 @@ namespace gaia {
 				}
 
 			private:
-				GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
-					ctx.skipOr = false;
-
-					auto eval_source_group_all = [&](const auto& terms, bool mustMatch) -> bool {
-						for (const auto& termOp: terms) {
-							const bool matched = detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
-							if ((mustMatch && !matched) || (!mustMatch && matched))
-								return false;
-						}
-
-						return true;
-					};
-
-					auto eval_source_group_or = [&](const auto& terms) -> bool {
-						for (const auto& termOp: terms) {
-							if (detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
-								return true;
-						}
-
-						return false;
-					};
-
-					// ALL source terms must all match.
-					if (!eval_source_group_all(m_compCtx.terms_all_src, true))
-						return false;
-
-					// NOT source terms must all be absent.
-					if (!eval_source_group_all(m_compCtx.terms_not_src, false))
-						return false;
-
-					// OR source terms short-circuit the OR group if one matches.
-					const bool orSourceMatched = eval_source_group_or(m_compCtx.terms_or_src);
-
-					if (!m_compCtx.terms_or_src.empty() && //
-							!orSourceMatched && //
-							m_compCtx.ids_or.empty() && //
-							m_compCtx.terms_or_var.empty())
-						return false;
-
-					if (orSourceMatched) {
-						ctx.skipOr = true;
-						if (m_compCtx.ids_all.empty())
-							detail::add_all_archetypes(ctx);
-					}
-
-					return true;
-				}
-
 				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
 					using namespace detail;
@@ -32714,6 +32760,12 @@ namespace gaia {
 					return cnt;
 				}
 
+				GAIA_NODISCARD detail::VmLabel add_gate_op(detail::CompiledOp&& op) {
+					const auto cnt = add_op(GAIA_MOV(op));
+					m_compCtx.ops[cnt].pc_fail = (detail::VmLabel)-1;
+					return cnt;
+				}
+
 			public:
 				GAIA_NODISCARD util::str bytecode(const World& world) const {
 					util::str out;
@@ -32869,6 +32921,25 @@ namespace gaia {
 					// Reset the list of opcodes
 					m_compCtx.ops.clear();
 
+					// Source terms are emitted as explicit VM gate ops.
+					if (!m_compCtx.terms_all_src.empty()) {
+						detail::CompiledOp op{};
+						op.opcode = detail::EOpcode::Src_All;
+						(void)add_gate_op(GAIA_MOV(op));
+					}
+
+					if (!m_compCtx.terms_not_src.empty()) {
+						detail::CompiledOp op{};
+						op.opcode = detail::EOpcode::Src_Not;
+						(void)add_gate_op(GAIA_MOV(op));
+					}
+
+					if (!m_compCtx.terms_or_src.empty()) {
+						detail::CompiledOp op{};
+						op.opcode = detail::EOpcode::Src_Or;
+						(void)add_gate_op(GAIA_MOV(op));
+					}
+
 					// ALL
 					if (!m_compCtx.ids_all.empty()) {
 						detail::CompiledOp op{};
@@ -32878,7 +32949,7 @@ namespace gaia {
 							op.opcode = detail::EOpcode::All_Complex;
 						else
 							op.opcode = detail::EOpcode::All_Wildcard;
-						(void)add_op(GAIA_MOV(op));
+						(void)add_gate_op(GAIA_MOV(op));
 					}
 
 					// OR
@@ -32925,11 +32996,8 @@ namespace gaia {
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
+					ctx.skipOr = false;
 
-					if (!eval_source_terms(ctx))
-						return;
-
-					// Query contains only source terms.
 					if (m_compCtx.ops.empty()) {
 						if (ctx.pMatchesArr->empty())
 							detail::add_all_archetypes(ctx);
@@ -32948,7 +33016,7 @@ namespace gaia {
 						ctx.pc = ret ? stackItem.pc_ok : stackItem.pc_fail;
 					} while (ctx.pc < m_compCtx.ops.size()); // (uint32_t)-1 falls in this category as well
 
-					filter_variable_terms(ctx, false);
+					filter_variable_terms(ctx, !m_compCtx.has_id_terms());
 				}
 			};
 
