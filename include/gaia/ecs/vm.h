@@ -947,6 +947,105 @@ namespace gaia {
 					return !states.empty();
 				}
 
+				GAIA_NODISCARD inline bool
+				match_id_bound(const World& w, const Archetype& archetype, Entity queryId, const VarBindings& vars) {
+					auto archetypeIds = archetype.ids_view();
+					const auto cnt = (uint32_t)archetypeIds.size();
+
+					if (!queryId.pair()) {
+						Entity queryToken = queryId;
+						if (is_var_entity(queryToken)) {
+							if (!var_is_bound(vars, queryToken))
+								return false;
+							queryToken = vars.values[var_index(queryToken)];
+						}
+
+						GAIA_FOR(cnt) {
+							const auto idInArchetype = archetypeIds[i];
+							if (idInArchetype.pair())
+								continue;
+
+							const auto value = entity_from_id(w, idInArchetype.id());
+							if (value == EntityBad)
+								continue;
+							if (queryToken.id() != value.id())
+								continue;
+
+							return true;
+						}
+
+						return false;
+					}
+
+					auto queryRel = entity_from_id(w, queryId.id());
+					auto queryTgt = entity_from_id(w, queryId.gen());
+					if (queryRel == EntityBad || queryTgt == EntityBad)
+						return false;
+
+					if (is_var_entity(queryRel)) {
+						if (!var_is_bound(vars, queryRel))
+							return false;
+						queryRel = vars.values[var_index(queryRel)];
+					}
+
+					if (is_var_entity(queryTgt)) {
+						if (!var_is_bound(vars, queryTgt))
+							return false;
+						queryTgt = vars.values[var_index(queryTgt)];
+					}
+
+					GAIA_FOR(cnt) {
+						const auto idInArchetype = archetypeIds[i];
+						if (!idInArchetype.pair())
+							continue;
+
+						const auto rel = entity_from_id(w, idInArchetype.id());
+						const auto tgt = entity_from_id(w, idInArchetype.gen());
+						if (rel == EntityBad || tgt == EntityBad)
+							continue;
+
+						if (queryRel.id() != All.id() && queryRel.id() != rel.id())
+							continue;
+						if (queryTgt.id() != All.id() && queryTgt.id() != tgt.id())
+							continue;
+
+						return true;
+					}
+
+					return false;
+				}
+
+				GAIA_NODISCARD inline bool term_has_match_bound(
+						const World& w, const Archetype& candidateArchetype, const QueryTerm& term, const VarBindings& vars) {
+					auto match_on_archetype = [&](const Archetype& archetype) {
+						return match_id_bound(w, archetype, term.id, vars);
+					};
+
+					if (term.src == EntityBad)
+						return match_on_archetype(candidateArchetype);
+
+					auto sourceEntity = term.src;
+					if (is_var_entity(sourceEntity)) {
+						if (!var_is_bound(vars, sourceEntity))
+							return false;
+						sourceEntity = vars.values[var_index(sourceEntity)];
+					}
+
+					bool matched = false;
+					const auto sourceOpcode = source_opcode_from_term(term);
+					each_lookup_source(w, sourceOpcode, term, sourceEntity, [&](Entity source) {
+						auto* pSrcArchetype = archetype_from_entity(w, source);
+						if (pSrcArchetype == nullptr)
+							return false;
+						if (!match_on_archetype(*pSrcArchetype))
+							return false;
+						matched = true;
+						return true;
+					});
+
+					return matched;
+				}
+
 				template <typename OpKind, MatchingStyle Style>
 				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const Archetype*> archetypes) {
 					if constexpr (Style == MatchingStyle::Complex) {
@@ -1478,14 +1577,14 @@ namespace gaia {
 					const auto vars = make_initial_var_bindings(ctx);
 
 					for (const auto& term: m_compCtx.terms_all_var) {
-						if (!term_has_match(*ctx.pWorld, archetype, term, vars))
+						if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 							return false;
 					}
 
 					if (!orAlreadySatisfied && !m_compCtx.terms_or_var.empty()) {
 						bool orMatched = false;
 						for (const auto& term: m_compCtx.terms_or_var) {
-							if (!term_has_match(*ctx.pWorld, archetype, term, vars))
+							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 								continue;
 							orMatched = true;
 							break;
@@ -1495,7 +1594,7 @@ namespace gaia {
 					}
 
 					for (const auto& term: m_compCtx.terms_not_var) {
-						if (term_has_match(*ctx.pWorld, archetype, term, vars))
+						if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 							return false;
 					}
 
