@@ -6254,6 +6254,64 @@ void Test_Query_Variable_Opcode_Paths() {
 	}
 
 	// Multi-variable ALL-only query should use the ALL-only variable opcode.
+	// Single-variable ALL pair-intersection query should use the pair-intersection opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		const auto devC = wld.add();
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devA});
+		wld.add(cableGood, {linkedTo, devA});
+		wld.add(cableGood, {routedVia, devA});
+
+		const auto cableWrongA = wld.add();
+		wld.add<Cable>(cableWrongA);
+		wld.add(cableWrongA, {connectedTo, devA});
+		wld.add(cableWrongA, {linkedTo, devB});
+		wld.add(cableWrongA, {routedVia, devA});
+
+		const auto cableWrongB = wld.add();
+		wld.add<Cable>(cableWrongB);
+		wld.add(cableWrongB, {connectedTo, devA});
+		wld.add(cableWrongB, {linkedTo, devA});
+		wld.add(cableWrongB, {routedVia, devC});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .all(ecs::Pair(linkedTo, ecs::Var0))
+								 .all(ecs::Pair(routedVia, ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf1p ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devA);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+	}
+
+	// Multi-variable ALL-only query should use the ALL-only variable opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
