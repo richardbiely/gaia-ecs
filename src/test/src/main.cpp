@@ -11773,7 +11773,7 @@ TEST_CASE("Observer - copy_ext payload") {
 												 ++hits;
 												 iterSize = it.size();
 												 auto entityView = it.view<ecs::Entity>();
-												 entityViewSize = entityView.size();
+												 entityViewSize = (uint32_t)entityView.size();
 												 observedEntity = entityView[0];
 												 auto posView = it.view<Position>();
 												 auto accView = it.view<Acceleration>();
