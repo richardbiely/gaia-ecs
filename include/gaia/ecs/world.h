@@ -297,7 +297,12 @@ namespace gaia {
 							// Trigger the event for each matching observer.
 							auto& queryInfo = obs.query.fetch();
 							obs.query.match_one(queryInfo, archetype, targets);
-							matches = queryInfo.begin() != queryInfo.end();
+							for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
+								if (pMatchedArchetype != &archetype)
+									continue;
+								matches = true;
+								break;
+							}
 						}
 
 						if (matches) {
@@ -364,7 +369,12 @@ namespace gaia {
 							// Trigger the event for each matching observer.
 							auto& queryInfo = obs.query.fetch();
 							obs.query.match_one(queryInfo, archetype, targets);
-							matches = queryInfo.begin() != queryInfo.end();
+							for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
+								if (pMatchedArchetype != &archetype)
+									continue;
+								matches = true;
+								break;
+							}
 						}
 
 						if (matches) {
