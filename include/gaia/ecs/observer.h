@@ -86,17 +86,7 @@ namespace gaia {
 				}
 			}
 
-			void exec(Iter& iter, EntitySpan targets) {
-	#if GAIA_PROFILER_CPU
-				const auto& queryInfo = query.fetch();
-				const char* pName = entity_name(*queryInfo.world(), entity);
-				const char* pScopeName = pName != nullptr ? pName : sc_observer_query_func_str;
-				GAIA_PROF_SCOPE2(pScopeName);
-	#endif
-
-				for (auto e: targets)
-					on_each_func(iter);
-			}
+			void exec(Iter& iter, EntitySpan targets);
 		};
 
 		//! Compact ECS-stored observer header.

@@ -9,6 +9,23 @@
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
+		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
+	#if GAIA_PROFILER_CPU
+			const auto& queryInfo = query.fetch();
+			const char* pName = entity_name(*queryInfo.world(), entity);
+			const char* pScopeName = pName != nullptr ? pName : sc_observer_query_func_str;
+			GAIA_PROF_SCOPE2(pScopeName);
+	#endif
+
+			auto* pWorld = iter.world();
+			for (auto e: targets) {
+				const auto& ec = pWorld->fetch(e);
+				iter.set_archetype(ec.pArchetype);
+				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+				on_each_func(iter);
+			}
+		}
+
 		class ObserverBuilder {
 			World& m_world;
 			Entity m_entity;
