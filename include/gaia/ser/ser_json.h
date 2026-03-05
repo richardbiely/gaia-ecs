@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
+#include <limits>
 
 #include "gaia/cnt/darray.h"
 #include "gaia/core/utility.h"

@@ -18751,6 +18751,7 @@ namespace gaia {
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
+#include <limits>
 
 
 /*** Start of inlined file: ser_buffer_binary.h ***/
