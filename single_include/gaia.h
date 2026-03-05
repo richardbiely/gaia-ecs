@@ -31702,109 +31702,30 @@ namespace gaia {
 					return bind_var(vars, token, value);
 				}
 
-				inline void collect_id_matches(
-						const World& w, const Archetype& archetype, Entity queryId, const VarBindings& varsIn,
-						cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
-					auto archetypeIds = archetype.ids_view();
-					const auto cnt = (uint32_t)archetypeIds.size();
-
-					if (!queryId.pair()) {
-						GAIA_FOR(cnt) {
-							const auto idInArchetype = archetypeIds[i];
-							if (idInArchetype.pair())
-								continue;
-
-							const auto value = entity_from_id(w, idInArchetype.id());
-							if (value == EntityBad)
-								continue;
-
-							auto vars = varsIn;
-							if (!match_token(vars, queryId, value, false))
-								continue;
-
-							outStates.emplace_back(vars);
-						}
-						return;
-					}
-
-					const auto queryRel = entity_from_id(w, queryId.id());
-					const auto queryTgt = entity_from_id(w, queryId.gen());
-					if (queryRel == EntityBad || queryTgt == EntityBad)
-						return;
-					const bool relIsConcrete = !is_var_entity(queryRel) && queryRel.id() != All.id();
-					const bool tgtIsConcrete = !is_var_entity(queryTgt) && queryTgt.id() != All.id();
-
-					GAIA_FOR(cnt) {
-						const auto idInArchetype = archetypeIds[i];
-						if (!idInArchetype.pair())
-							continue;
-
-						if (relIsConcrete && idInArchetype.id() != queryRel.id())
-							continue;
-						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
-							continue;
-
-						if (relIsConcrete && tgtIsConcrete) {
-							outStates.emplace_back(varsIn);
-							continue;
-						}
-
-						auto vars = varsIn;
-						if (!relIsConcrete) {
-							const auto rel = entity_from_id(w, idInArchetype.id());
-							if (rel == EntityBad)
-								continue;
-							if (!match_token(vars, queryRel, rel, true))
-								continue;
-						}
-						if (!tgtIsConcrete) {
-							const auto tgt = entity_from_id(w, idInArchetype.gen());
-							if (tgt == EntityBad)
-								continue;
-							if (!match_token(vars, queryTgt, tgt, true))
-								continue;
-						}
-						outStates.emplace_back(vars);
-					}
-				}
-
-				inline void collect_term_matches(
+				template <typename Func>
+				GAIA_NODISCARD inline bool each_term_match(
 						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
-						const VarBindings& varsIn, cnt::sarray_ext<VarBindings, VarBindings::VarCnt>& outStates) {
-					const auto& term = termOp.term;
-					auto collect_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
-							auto* pSrcArchetype = archetype_from_entity(w, source);
-							if (pSrcArchetype != nullptr)
-								collect_id_matches(w, *pSrcArchetype, term.id, vars, outStates);
-
-							return false;
-						});
-					};
-
-					if (term.src == EntityBad) {
-						collect_id_matches(w, candidateArchetype, term.id, varsIn, outStates);
-						return;
-					}
-
-					if (is_var_entity(term.src)) {
-						if (!var_is_bound(varsIn, term.src))
-							return;
-
-						const auto source = varsIn.values[var_index(term.src)];
-						collect_on_source(source, varsIn);
-						return;
-					}
-
-					collect_on_source(term.src, varsIn);
-				}
+						const VarBindings& varsIn, Func&& func);
 
 				GAIA_NODISCARD inline bool term_has_match(
 						const World& w, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
 						const VarBindings& varsIn) {
-					cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-					collect_term_matches(w, archetype, termOp, varsIn, states);
-					return !states.empty();
+					return each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
+						return true;
+					});
+				}
+
+				GAIA_NODISCARD inline uint32_t count_term_matches_limited(
+						const World& w, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& varsIn, uint32_t limit) {
+					GAIA_ASSERT(limit > 0);
+
+					uint32_t count = 0;
+					each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
+						++count;
+						return count >= limit;
+					});
+					return count;
 				}
 
 				GAIA_NODISCARD inline bool
@@ -32634,13 +32555,14 @@ namespace gaia {
 					GAIA_ASSERT(m_compCtx.terms_not_var.empty());
 					GAIA_ASSERT(m_compCtx.terms_any_var.empty());
 
+					constexpr uint32_t MatchProbeLimit = 64;
 					auto solve = [&](auto&& self, uint16_t pendingAllMask, const VarBindings& vars) -> bool {
 						if (pendingAllMask == 0)
 							return true;
 
 						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						uint32_t bestIdx = (uint32_t)-1;
-						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestStates;
+						uint32_t bestMatchCnt = MatchProbeLimit + 1;
 						GAIA_FOR(allCnt) {
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingAllMask & bit) == 0)
@@ -32650,15 +32572,15 @@ namespace gaia {
 							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
-							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
-							if (states.empty())
+							const uint32_t probeLimit = bestMatchCnt;
+							const uint32_t matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, vars, probeLimit);
+							if (matchCnt == 0)
 								return false;
 
-							if (bestIdx == (uint32_t)-1 || states.size() < bestStates.size()) {
+							if (bestIdx == (uint32_t)-1 || matchCnt < bestMatchCnt) {
 								bestIdx = i;
-								bestStates = GAIA_MOV(states);
-								if (bestStates.size() == 1)
+								bestMatchCnt = matchCnt;
+								if (bestMatchCnt == 1)
 									break;
 							}
 						}
@@ -32667,12 +32589,10 @@ namespace gaia {
 							return false;
 
 						const auto nextAllMask = (uint16_t)(pendingAllMask & ~(uint16_t(1) << bestIdx));
-						for (const auto& state: bestStates) {
-							if (self(self, nextAllMask, state))
-								return true;
-						}
-
-						return false;
+						const auto& bestTerm = m_compCtx.terms_all_var[bestIdx];
+						return each_term_match(*ctx.pWorld, archetype, bestTerm, vars, [&](const VarBindings& state) {
+							return self(self, nextAllMask, state);
+						});
 					};
 
 					const auto pendingAllMask = (uint16_t)((uint16_t(1) << m_compCtx.terms_all_var.size()) - 1u);
@@ -32735,7 +32655,8 @@ namespace gaia {
 						// Resolve the ready ALL term with the smallest match domain first (fail-fast).
 						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						uint32_t bestIdx = (uint32_t)-1;
-						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestStates;
+						constexpr uint32_t MatchProbeLimit = 64;
+						uint32_t bestMatchCnt = MatchProbeLimit + 1;
 						GAIA_FOR(allCnt) {
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingAllMask & bit) == 0)
@@ -32745,17 +32666,17 @@ namespace gaia {
 							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
-							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
-							if (states.empty())
+							const uint32_t probeLimit = bestMatchCnt;
+							const uint32_t matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, vars, probeLimit);
+							if (matchCnt == 0)
 								return false;
 
-							if (bestIdx == (uint32_t)-1 || states.size() < bestStates.size()) {
+							if (bestIdx == (uint32_t)-1 || matchCnt < bestMatchCnt) {
 								bestIdx = i;
-								bestStates = GAIA_MOV(states);
+								bestMatchCnt = matchCnt;
 
 								// Can't do better than one branch.
-								if (bestStates.size() == 1)
+								if (bestMatchCnt == 1)
 									break;
 							}
 						}
@@ -32763,18 +32684,16 @@ namespace gaia {
 						if (bestIdx != (uint32_t)-1) {
 							const auto bit = (uint16_t(1) << bestIdx);
 							const auto nextAllMask = (uint16_t)(pendingAllMask & ~bit);
-							for (const auto& state: bestStates) {
-								if (self(self, nextAllMask, pendingOrMask, pendingAnyMask, state, orMatched))
-									return true;
-							}
-
-							return false;
+							const auto& bestTerm = m_compCtx.terms_all_var[bestIdx];
+							return each_term_match(*ctx.pWorld, archetype, bestTerm, vars, [&](const VarBindings& state) {
+								return self(self, nextAllMask, pendingOrMask, pendingAnyMask, state, orMatched);
+							});
 						}
 
 						// No ALL term was ready. Use OR terms to discover missing bindings.
 						const auto orCnt = (uint32_t)m_compCtx.terms_or_var.size();
 						uint32_t bestOrIdx = (uint32_t)-1;
-						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestOrStates;
+						uint32_t bestOrMatchCnt = MatchProbeLimit + 1;
 						GAIA_FOR(orCnt) {
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingOrMask & bit) == 0)
@@ -32784,17 +32703,17 @@ namespace gaia {
 							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
-							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
-							if (states.empty())
+							const uint32_t probeLimit = bestOrMatchCnt;
+							const uint32_t matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, vars, probeLimit);
+							if (matchCnt == 0)
 								continue;
 
-							if (bestOrIdx == (uint32_t)-1 || states.size() < bestOrStates.size()) {
+							if (bestOrIdx == (uint32_t)-1 || matchCnt < bestOrMatchCnt) {
 								bestOrIdx = i;
-								bestOrStates = GAIA_MOV(states);
+								bestOrMatchCnt = matchCnt;
 
 								// Can't do better than one branch.
-								if (bestOrStates.size() == 1)
+								if (bestOrMatchCnt == 1)
 									break;
 							}
 						}
@@ -32802,10 +32721,11 @@ namespace gaia {
 						if (bestOrIdx != (uint32_t)-1) {
 							const auto bit = (uint16_t(1) << bestOrIdx);
 							const auto nextOrMask = (uint16_t)(pendingOrMask & ~bit);
-							for (const auto& state: bestOrStates) {
-								if (self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true))
-									return true;
-							}
+							const auto& bestOrTerm = m_compCtx.terms_or_var[bestOrIdx];
+							if (each_term_match(*ctx.pWorld, archetype, bestOrTerm, vars, [&](const VarBindings& state) {
+										return self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true);
+									}))
+								return true;
 						}
 
 						GAIA_FOR(orCnt) {
@@ -32820,16 +32740,11 @@ namespace gaia {
 							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
-							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
-							if (states.empty())
-								continue;
-
 							const auto nextOrMask = (uint16_t)(pendingOrMask & ~bit);
-							for (const auto& state: states) {
-								if (self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true))
-									return true;
-							}
+							if (each_term_match(*ctx.pWorld, archetype, termOp, vars, [&](const VarBindings& state) {
+										return self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true);
+									}))
+								return true;
 						}
 
 						// ANY terms can bind variables when matched; if unmatched they are ignored.
@@ -32844,18 +32759,17 @@ namespace gaia {
 							if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
 								continue;
 
-							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
-							collect_term_matches(*ctx.pWorld, archetype, termOp, vars, states);
 							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
-							if (states.empty()) {
-								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, vars, orMatched))
-									return true;
-								continue;
-							}
+							bool matched = false;
+							if (each_term_match(*ctx.pWorld, archetype, termOp, vars, [&](const VarBindings& state) {
+										matched = true;
+										anyMatched = true;
+										return self(self, pendingAllMask, pendingOrMask, nextAnyMask, state, orMatched);
+									}))
+								return true;
 
-							anyMatched = true;
-							for (const auto& state: states) {
-								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, state, orMatched))
+							if (!matched) {
+								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, vars, orMatched))
 									return true;
 							}
 						}
