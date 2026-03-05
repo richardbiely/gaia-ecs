@@ -6375,7 +6375,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Single-variable OR query should use the single-variable variable opcode.
+	// Single-variable OR query with a source-gated ALL anchor should use the dedicated source-gated opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6408,7 +6408,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varf1os ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(q.count() == 2);
@@ -6426,6 +6427,39 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
+
+	// Single-variable OR query without a source-gated ALL anchor should stay on the generic 1-variable opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, devA});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {linkedTo, devB});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .or_(ecs::Pair(connectedTo, ecs::Var0))
+								 .or_(ecs::Pair(linkedTo, ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varf1os ") == BadIndex);
+		CHECK(bytecode.find("] varf ") == BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+	}
 }
 
 TEST_CASE("Query - variable opcode paths") {
@@ -6434,6 +6468,70 @@ TEST_CASE("Query - variable opcode paths") {
 	}
 	SUBCASE("Non-cached query") {
 		Test_Query_Variable_Opcode_Paths<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_Variable_Opcode_Selection_IsStructural() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	struct Cable {};
+	struct ConnectedTo {};
+	struct LinkedTo {};
+	struct RoutedVia {};
+	struct Marker {};
+
+	auto build_bytecode = [&](uint32_t extraMarkerCnt) {
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		wld.add<Marker>(devA);
+		for (uint32_t i = 0; i < extraMarkerCnt; ++i) {
+			const auto extra = wld.add();
+			wld.add<Marker>(extra);
+		}
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, devA});
+		wld.add(cableA, {linkedTo, devB});
+		wld.add(cableA, {routedVia, devB});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {connectedTo, devB});
+		wld.add(cableB, {linkedTo, devA});
+		wld.add(cableB, {routedVia, devB});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0))
+								 .or_(ecs::Pair(connectedTo, ecs::Var0))
+								 .or_(ecs::Pair(linkedTo, ecs::Var0))
+								 .or_(ecs::Pair(routedVia, ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varf1os ") != BadIndex);
+		CHECK(q.count() == 2);
+		return bytecode;
+	};
+
+	const auto bytecodeFew = build_bytecode(0);
+	const auto bytecodeMany = build_bytecode(1024);
+
+	CHECK(bytecodeFew == bytecodeMany);
+}
+
+TEST_CASE("Query - variable opcode selection is structural") {
+	SUBCASE("Cached query") {
+		Test_Query_Variable_Opcode_Selection_IsStructural<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variable_Opcode_Selection_IsStructural<ecs::QueryUncached>();
 	}
 }
 
