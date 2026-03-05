@@ -11508,20 +11508,22 @@ TEST_CASE("Observer - simple") {
 													.event(ecs::ObserverEvent::OnAdd)
 													.all<Position>()
 													.all<Acceleration>()
-													.on_each([&cnt, &isDel](ecs::Iter& it) {
+													.on_each([&cnt, &isDel]() {
 														++cnt;
 														isDel = false;
 													})
 													.entity();
+	(void)on_add;
 	const auto on_del = wld.observer() //
 													.event(ecs::ObserverEvent::OnDel)
 													.no<Position>()
 													.no<Acceleration>()
-													.on_each([&cnt, &isDel](ecs::Iter& it) {
+													.on_each([&cnt, &isDel]() {
 														++cnt;
 														isDel = true;
 													})
 													.entity();
+	(void)on_del;
 
 	ecs::Entity e, e1, e2;
 
