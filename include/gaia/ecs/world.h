@@ -96,6 +96,17 @@ namespace gaia {
 								 m_observer_map_del.find(termKey) != m_observer_map_del.end();
 				}
 
+				GAIA_NODISCARD static bool can_mark_term_observed(World& world, Entity term) {
+					if (!term.pair())
+						return world.valid(term);
+
+					if (is_wildcard(term))
+						return false;
+
+					const auto it = world.m_recs.pairs.find(EntityLookupKey(term));
+					return it != world.m_recs.pairs.end() && world.valid(it->second, term);
+				}
+
 				void mark_term_observed(World& world, Entity term, bool observed) {
 					auto& ec = world.fetch(term);
 					if (observed)
@@ -126,6 +137,10 @@ namespace gaia {
 				}
 
 			public:
+				GAIA_NODISCARD bool has_observers(Entity term) const {
+					return has_observers_for_term(term);
+				}
+
 				ObserverRuntimeData& data_add(Entity observer) {
 					return m_observer_data[EntityLookupKey(observer)];
 				}
@@ -163,7 +178,10 @@ namespace gaia {
 				void add(World& world, Entity term, Entity observer) {
 					GAIA_ASSERT(!observer.pair());
 					GAIA_ASSERT(world.valid(observer));
-					GAIA_ASSERT(world.valid(term));
+					// For a pair term, valid(pair) is true only if that exact pair is already materialized
+					// in m_recs.pairs (exists in-world). Observers are allowed to register pair terms that
+					// may appear later, so asserting just world.valid(term) for pairs when adding is wrong.
+					GAIA_ASSERT(term.pair() || world.valid(term));
 
 					const auto wasObserved = has_observers_for_term(term);
 					const auto& ec = world.fetch(observer);
@@ -180,7 +198,7 @@ namespace gaia {
 							// OnSet observers are not triggered via OnAdd/OnDel hooks.
 							break;
 					}
-					if (!wasObserved && has_observers_for_term(term))
+					if (!wasObserved && has_observers_for_term(term) && can_mark_term_observed(world, term))
 						mark_term_observed(world, term, true);
 				}
 
@@ -194,7 +212,7 @@ namespace gaia {
 					const auto erasedData = m_observer_data.erase(termKey);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
-					if (erasedOnAdd != 0 || erasedOnDel != 0)
+					if ((erasedOnAdd != 0 || erasedOnDel != 0) && can_mark_term_observed(w, term))
 						mark_term_observed(w, term, false);
 
 					// A regular term deletion has nothing else to clean up.
@@ -217,7 +235,7 @@ namespace gaia {
 								auto itToErase = it++;
 								map.erase(itToErase);
 
-								if (w.valid(mappedTerm) && !has_observers_for_term(mappedTerm))
+								if (can_mark_term_observed(w, mappedTerm) && !has_observers_for_term(mappedTerm))
 									mark_term_observed(w, mappedTerm, false);
 							} else
 								++it;
@@ -269,13 +287,22 @@ namespace gaia {
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
 
-						// Entity still matches at this point, but won't after removal completes.
-						// Trigger the event for each matching observer.
-						auto& queryInfo = obs.query.fetch();
-						obs.query.match_one(queryInfo, archetype, targets);
-						if (queryInfo.begin() != queryInfo.end()) {
+						bool matches = false;
+						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
+							matches = true;
+						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
+							matches = false;
+						else {
+							// Entity still matches at this point, but won't after removal completes.
+							// Trigger the event for each matching observer.
+							auto& queryInfo = obs.query.fetch();
+							obs.query.match_one(queryInfo, archetype, targets);
+							matches = queryInfo.begin() != queryInfo.end();
+						}
+
+						if (matches) {
 							Iter it;
-							it.set_world(queryInfo.ctx().w);
+							it.set_world(&world);
 							it.set_archetype(&archetype);
 							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
 							it.set_group_id(0);
@@ -327,13 +354,22 @@ namespace gaia {
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
 
-						// Entity still matches at this point, but won't after removal completes.
-						// Trigger the event for each matching observer.
-						auto& queryInfo = obs.query.fetch();
-						obs.query.match_one(queryInfo, archetype, targets);
-						if (queryInfo.begin() != queryInfo.end()) {
+						bool matches = false;
+						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
+							matches = false;
+						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
+							matches = true;
+						else {
+							// Entity still matches at this point, but won't after removal completes.
+							// Trigger the event for each matching observer.
+							auto& queryInfo = obs.query.fetch();
+							obs.query.match_one(queryInfo, archetype, targets);
+							matches = queryInfo.begin() != queryInfo.end();
+						}
+
+						if (matches) {
 							Iter it;
-							it.set_world(queryInfo.ctx().w);
+							it.set_world(&world);
 							it.set_archetype(&archetype);
 							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
 							it.set_group_id(0);
@@ -360,6 +396,9 @@ namespace gaia {
 			//! Records removed as soon as the query is compiled.
 			QuerySerMap m_querySerMap;
 			uint32_t m_nextQuerySerId = 0;
+
+			//! TODO: Use this empty space for something
+			uint32_t m_emptySpace0 = 0;
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
@@ -402,6 +441,9 @@ namespace gaia {
 			Archetype* m_pCompArchetype = nullptr;
 			//! Id assigned to the next created archetype
 			ArchetypeId m_nextArchetypeId = 0;
+
+			//! TODO: Use this empty space for something
+			uint32_t m_emptySpace1 = 0;
 
 			//! Entity records
 			EntityContainers m_recs;
@@ -3075,11 +3117,11 @@ namespace gaia {
 					for (auto* pArchetype: m_archetypes)
 						Archetype::destroy(pArchetype);
 
-						m_entityToAsRelations = {};
-						m_entityToAsTargets = {};
-						m_targetsToRelations = {};
-						m_relationsToTargets = {};
-						m_relationVersions = {};
+					m_entityToAsRelations = {};
+					m_entityToAsTargets = {};
+					m_targetsToRelations = {};
+					m_relationsToTargets = {};
+					m_relationVersions = {};
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -4004,8 +4046,14 @@ namespace gaia {
 
 				for (auto entity: entities) {
 					add_entity_archetype_pair(entity, pArchetype);
-					if ((fetch(entity).flags & EntityContainerFlags::IsObserved) != 0)
+
+#if GAIA_OBSERVERS_ENABLED
+					auto& ec = fetch(entity);
+					if ((ec.flags & EntityContainerFlags::IsObserved) != 0 || m_observers.has_observers(entity)) {
+						ec.flags |= EntityContainerFlags::IsObserved;
 						pArchetype->observed_terms_inc();
+					}
+#endif
 
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.

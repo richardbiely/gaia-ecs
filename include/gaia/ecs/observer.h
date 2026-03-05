@@ -42,6 +42,7 @@ namespace gaia {
 		//! Runtime payload for observers kept out-of-line from ECS component storage.
 		struct ObserverRuntimeData {
 			using TObserverIterFunc = std::function<void(Iter&)>;
+			enum class MatchFastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
 
 			//! Entity identifying the observer
 			Entity entity = EntityBad;
@@ -49,6 +50,41 @@ namespace gaia {
 			TObserverIterFunc on_each_func;
 			//! Query associated with the system
 			QueryUncached query;
+			//! Fast-path classification for trivial single-term observers.
+			MatchFastPath fastPath = MatchFastPath::None;
+			//! Number of terms added to the observer query.
+			uint8_t termCount = 0;
+
+			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
+				++termCount;
+
+				if (!allowFastPath) {
+					fastPath = MatchFastPath::Disabled;
+					return;
+				}
+
+				if (fastPath == MatchFastPath::Disabled)
+					return;
+
+				if (termCount != 1) {
+					fastPath = MatchFastPath::Disabled;
+					return;
+				}
+
+				switch (op) {
+					case QueryOpKind::All:
+					case QueryOpKind::Any:
+					case QueryOpKind::Or:
+						fastPath = MatchFastPath::SinglePositiveTerm;
+						break;
+					case QueryOpKind::Not:
+						fastPath = MatchFastPath::SingleNegativeTerm;
+						break;
+					default:
+						fastPath = MatchFastPath::Disabled;
+						break;
+				}
+			}
 
 			void exec(Iter& iter, EntitySpan targets) {
 	#if GAIA_PROFILER_CPU

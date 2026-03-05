@@ -37,6 +37,64 @@ namespace gaia {
 				return m_world.observers().data(m_entity);
 			}
 
+			bool has_default_match_options(const QueryTermOptions& options) const {
+				// Access mode (read/write) does not change membership, only access semantics.
+				// Source/traversal options can change membership and must stay on generic matcher.
+				return options.entSrc == EntityBad && options.entTrav == EntityBad;
+			}
+
+			bool is_complex_pair_term(Entity term) const {
+				GAIA_ASSERT(term.pair());
+
+				// Wildcards, Is-relations and variable-like endpoints can have dynamic semantics.
+				// Keep these on the generic matcher.
+				if (is_wildcard(term))
+					return true;
+				if (term.id() == Is.id())
+					return true;
+				if (is_variable(term.id()) || is_variable(term.gen()))
+					return true;
+
+				return false;
+			}
+
+			bool is_fast_path_eligible_term(Entity term, const QueryTermOptions& options) const {
+				// Pair/traversal/source terms can carry non-trivial semantics (e.g. IsA-like expressions).
+				// Also exclude wildcard-style terms (All), which are not fixed direct term matches.
+				// Keep these on the generic matcher for correctness.
+				if (term == EntityBad)
+					return false;
+
+				if (!has_default_match_options(options))
+					return false;
+
+				if (term == All)
+					return false;
+
+				if (!term.pair())
+					return true;
+
+				// Pair fast-path only supports fixed direct pairs.
+				if (is_complex_pair_term(term))
+					return false;
+
+				return true;
+			}
+
+			template <QueryOpKind Op, typename T>
+			void reg_typed_term(ObserverRuntimeData& data) {
+				const auto term = m_world.add<T>().entity;
+				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
+				m_world.observers().add(m_world, term, m_entity);
+			}
+
+			template <QueryOpKind Op, typename T>
+			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
+				const auto term = m_world.add<T>().entity;
+				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
+				m_world.observers().add(m_world, term, m_entity);
+			}
+
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
@@ -52,7 +110,18 @@ namespace gaia {
 
 			ObserverBuilder& add(QueryInput item) {
 				validate();
-				runtime_data().query.add(item);
+				auto& data = runtime_data();
+				data.query.add(item);
+
+				QueryTermOptions options{};
+				options.entSrc = item.entSrc;
+				options.entTrav = item.entTrav;
+				options.travKind = item.travKind;
+				options.travDepth = item.travDepth;
+				options.access = item.access;
+
+				data.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
+				m_world.observers().add(m_world, item.id, m_entity);
 				return *this;
 			}
 
@@ -60,28 +129,36 @@ namespace gaia {
 
 			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				runtime_data().query.all(entity, options);
+				auto& data = runtime_data();
+				data.query.all(entity, options);
+				data.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				runtime_data().query.any(entity, options);
+				auto& data = runtime_data();
+				data.query.any(entity, options);
+				data.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				runtime_data().query.or_(entity, options);
+				auto& data = runtime_data();
+				data.query.or_(entity, options);
+				data.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
 
 			ObserverBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
-				runtime_data().query.no(entity, options);
+				auto& data = runtime_data();
+				data.query.no(entity, options);
+				data.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
 				m_world.observers().add(m_world, entity, m_entity);
 				return *this;
 			}
@@ -89,32 +166,36 @@ namespace gaia {
 			template <typename T>
 			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
-				runtime_data().query.template all<T>(options);
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.template all<T>(options);
+				reg_typed_term<QueryOpKind::All, T>(data, options);
 				return *this;
 			}
 
 			template <typename T>
 			ObserverBuilder& any(const QueryTermOptions& options) {
 				validate();
-				runtime_data().query.template any<T>(options);
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.template any<T>(options);
+				reg_typed_term<QueryOpKind::Any, T>(data, options);
 				return *this;
 			}
 
 			template <typename T>
 			ObserverBuilder& or_(const QueryTermOptions& options) {
 				validate();
-				runtime_data().query.template or_<T>(options);
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.template or_<T>(options);
+				reg_typed_term<QueryOpKind::Or, T>(data, options);
 				return *this;
 			}
 
 			template <typename T>
 			ObserverBuilder& no(const QueryTermOptions& options) {
 				validate();
-				runtime_data().query.template no<T>(options);
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.template no<T>(options);
+				reg_typed_term<QueryOpKind::Not, T>(data, options);
 				return *this;
 			}
 
@@ -124,58 +205,66 @@ namespace gaia {
 			template <typename... T>
 			ObserverBuilder& all() {
 				validate();
-				runtime_data().query.all<T...>();
-				(m_world.observers().add(m_world, m_world.add<T>().entity(), m_entity), ...);
+				auto& data = runtime_data();
+				data.query.all<T...>();
+				(reg_typed_term<QueryOpKind::All, T>(data), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& any() {
 				validate();
-				runtime_data().query.any<T...>();
-				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				auto& data = runtime_data();
+				data.query.any<T...>();
+				(reg_typed_term<QueryOpKind::Any, T>(data), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& or_() {
 				validate();
-				runtime_data().query.or_<T...>();
-				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				auto& data = runtime_data();
+				data.query.or_<T...>();
+				(reg_typed_term<QueryOpKind::Or, T>(data), ...);
 				return *this;
 			}
 			template <typename... T>
 			ObserverBuilder& no() {
 				validate();
-				runtime_data().query.no<T...>();
-				(m_world.observers().add(m_world, m_world.add<T>().entity, m_entity), ...);
+				auto& data = runtime_data();
+				data.query.no<T...>();
+				(reg_typed_term<QueryOpKind::Not, T>(data), ...);
 				return *this;
 			}
 	#else
 			template <typename T>
 			ObserverBuilder& all() {
 				validate();
-				runtime_data().query.all<T>();
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.all<T>();
+				reg_typed_term<QueryOpKind::All, T>(data);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& any() {
 				validate();
-				runtime_data().query.any<T>();
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.any<T>();
+				reg_typed_term<QueryOpKind::Any, T>(data);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& or_() {
 				validate();
-				runtime_data().query.or_<T>();
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.or_<T>();
+				reg_typed_term<QueryOpKind::Or, T>(data);
 				return *this;
 			}
 			template <typename T>
 			ObserverBuilder& no() {
 				validate();
-				runtime_data().query.no<T>();
-				m_world.observers().add(m_world, m_world.add<T>().entity, m_entity);
+				auto& data = runtime_data();
+				data.query.no<T>();
+				reg_typed_term<QueryOpKind::Not, T>(data);
 				return *this;
 			}
 	#endif

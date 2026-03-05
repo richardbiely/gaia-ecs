@@ -10387,7 +10387,12 @@ void Test_Query_Filter_Changed_Order_NoSystems() {
 	wld.add<B>(e, {2});
 
 	// Intentionally reversed relative to canonical component order.
-	auto q = wld.query<UseCachedQuery>().template all<Marker>().template all<A>().template all<B>().template changed<B>().template changed<A>();
+	auto q = wld.query<UseCachedQuery>() //
+							 .template all<Marker>()
+							 .template all<A>()
+							 .template all<B>()
+							 .template changed<B>()
+							 .template changed<A>();
 
 	CHECK(q.count() == 1);
 	expect_exact_entities(q, {e});
@@ -10441,11 +10446,11 @@ void Test_Query_Filter_Changed_Or_Missing_Component() {
 	// Archetypes can match with only one of OR terms present.
 	// Both changed filters must remain safe.
 	auto q = wld.query<UseCachedQuery>()
-						 .template all<Marker>()
-						 .template or_<A>()
-						 .template or_<B>()
-						 .template changed<B>()
-						 .template changed<A>();
+							 .template all<Marker>()
+							 .template or_<A>()
+							 .template or_<B>()
+							 .template changed<B>()
+							 .template changed<A>();
 
 	CHECK(q.count() == 2);
 	expect_exact_entities(q, {eA, eB});
@@ -10486,10 +10491,18 @@ TEST_CASE("Query Filter - changed order cache key canonicalization") {
 	wld.add<A>(e, {1});
 	wld.add<B>(e, {2});
 
-	ecs::Query qAB =
-			wld.query().template all<Marker>().template all<A>().template all<B>().template changed<A>().template changed<B>();
-	ecs::Query qBA =
-			wld.query().template all<Marker>().template all<A>().template all<B>().template changed<B>().template changed<A>();
+	ecs::Query qAB = wld.query() //
+											 .template all<Marker>()
+											 .template all<A>()
+											 .template all<B>()
+											 .template changed<A>()
+											 .template changed<B>();
+	ecs::Query qBA = wld.query() //
+											 .template all<Marker>()
+											 .template all<A>()
+											 .template all<B>()
+											 .template changed<B>()
+											 .template changed<A>();
 
 	CHECK(qAB.count() == 1);
 	CHECK(qBA.count() == 1);
@@ -11198,6 +11211,173 @@ TEST_CASE("Observer - simple") {
 			CHECK(isDel);
 		}
 	}
+}
+
+TEST_CASE("Observer - fast path") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto fixedPair = (ecs::Entity)ecs::Pair(relation, target);
+
+	const auto baseEntity = wld.add();
+	const auto inheritingEntity = wld.add();
+	wld.as(inheritingEntity, baseEntity);
+	const auto isPair = (ecs::Entity)ecs::Pair(ecs::Is, baseEntity);
+	const auto wildcardPair = (ecs::Entity)ecs::Pair(relation, ecs::All);
+
+	const auto observerAllPos =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().on_each([](ecs::Iter&) {}).entity();
+	const auto observerNoPos =
+			wld.observer().event(ecs::ObserverEvent::OnDel).no<Position>().on_each([](ecs::Iter&) {}).entity();
+	const auto observerPairFixed =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all(fixedPair).on_each([](ecs::Iter&) {}).entity();
+	const auto observerPairIs =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all(isPair).on_each([](ecs::Iter&) {}).entity();
+	const auto observerPairWildcard =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all(wildcardPair).on_each([](ecs::Iter&) {}).entity();
+	ecs::QueryTermOptions readOpts;
+	readOpts.read();
+	const auto observerAllPosRead =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(readOpts).on_each([](ecs::Iter&) {}).entity();
+	ecs::QueryTermOptions writeOpts;
+	writeOpts.write();
+	const auto observerAllPosWrite =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(writeOpts).on_each([](ecs::Iter&) {}).entity();
+	ecs::QueryTermOptions travKindOnlyOpts;
+	travKindOnlyOpts.trav_kind(ecs::QueryTravKind::Down);
+	const auto observerAllPosTravKindOnly = wld.observer()
+																							.event(ecs::ObserverEvent::OnAdd)
+																							.all<Position>(travKindOnlyOpts)
+																							.on_each([](ecs::Iter&) {})
+																							.entity();
+	ecs::QueryTermOptions travDepthOnlyOpts;
+	travDepthOnlyOpts.trav_depth(2);
+	const auto observerAllPosTravDepthOnly = wld.observer()
+																							 .event(ecs::ObserverEvent::OnAdd)
+																							 .all<Position>(travDepthOnlyOpts)
+																							 .on_each([](ecs::Iter&) {})
+																							 .entity();
+	ecs::QueryTermOptions srcOpts;
+	srcOpts.src(wld.add());
+	const auto observerAllPosSrc =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(srcOpts).on_each([](ecs::Iter&) {}).entity();
+	ecs::QueryTermOptions travOpts;
+	travOpts.trav(ecs::ChildOf);
+	const auto observerAllPosTrav =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(travOpts).on_each([](ecs::Iter&) {}).entity();
+
+	const auto& dataAllPos = wld.observers().data(observerAllPos);
+	const auto& dataNoPos = wld.observers().data(observerNoPos);
+	const auto& dataPairFixed = wld.observers().data(observerPairFixed);
+	const auto& dataPairIs = wld.observers().data(observerPairIs);
+	const auto& dataPairWildcard = wld.observers().data(observerPairWildcard);
+	const auto& dataAllPosRead = wld.observers().data(observerAllPosRead);
+	const auto& dataAllPosWrite = wld.observers().data(observerAllPosWrite);
+	const auto& dataAllPosTravKindOnly = wld.observers().data(observerAllPosTravKindOnly);
+	const auto& dataAllPosTravDepthOnly = wld.observers().data(observerAllPosTravDepthOnly);
+	const auto& dataAllPosSrc = wld.observers().data(observerAllPosSrc);
+	const auto& dataAllPosTrav = wld.observers().data(observerAllPosTrav);
+
+	CHECK(dataAllPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
+	CHECK(dataPairFixed.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataPairIs.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+	CHECK(dataPairWildcard.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+	CHECK(dataAllPosRead.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataAllPosWrite.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataAllPosTravKindOnly.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataAllPosTravDepthOnly.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataAllPosSrc.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+	CHECK(dataAllPosTrav.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+
+	int pairHits = 0;
+	const auto observerPairRuntime = wld.observer()
+																			 .event(ecs::ObserverEvent::OnAdd)
+																			 .all(fixedPair)
+																			 .on_each([&pairHits](ecs::Iter&) {
+																				 ++pairHits;
+																			 })
+																			 .entity();
+	const auto e = wld.add();
+	wld.add(e, ecs::Pair(relation, target));
+	CHECK(pairHits == 1);
+	(void)observerPairRuntime;
+}
+
+TEST_CASE("Observer - add(QueryInput) registration and fast path") {
+	TestWorld twld;
+
+	const auto positionTerm = wld.add<Position>().entity;
+
+	ecs::QueryInput simpleItem{};
+	simpleItem.op = ecs::QueryOpKind::All;
+	simpleItem.access = ecs::QueryAccess::Read;
+	simpleItem.id = positionTerm;
+
+	int hits = 0;
+	const auto observerSimple = wld.observer()
+																	.event(ecs::ObserverEvent::OnAdd)
+																	.add(simpleItem)
+																	.on_each([&hits](ecs::Iter&) {
+																		++hits;
+																	})
+																	.entity();
+
+	const auto& dataSimple = wld.observers().data(observerSimple);
+	CHECK(dataSimple.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {});
+	CHECK(hits == 1);
+
+	ecs::QueryInput srcItem{};
+	srcItem.op = ecs::QueryOpKind::All;
+	srcItem.access = ecs::QueryAccess::Read;
+	srcItem.id = positionTerm;
+	srcItem.entSrc = wld.add();
+
+	const auto observerSrc =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).add(srcItem).on_each([](ecs::Iter&) {}).entity();
+
+	const auto& dataSrc = wld.observers().data(observerSrc);
+	CHECK(dataSrc.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+}
+
+TEST_CASE("Observer - single negative fast path runtime") {
+	TestWorld twld;
+
+	int onAddHits = 0;
+	int onDelHits = 0;
+
+	const auto observerOnAddNoPos = wld.observer()
+																			.event(ecs::ObserverEvent::OnAdd)
+																			.no<Position>()
+																			.on_each([&onAddHits](ecs::Iter&) {
+																				++onAddHits;
+																			})
+																			.entity();
+	const auto observerOnDelNoPos = wld.observer()
+																			.event(ecs::ObserverEvent::OnDel)
+																			.no<Position>()
+																			.on_each([&onDelHits](ecs::Iter&) {
+																				++onDelHits;
+																			})
+																			.entity();
+
+	const auto& dataOnAddNoPos = wld.observers().data(observerOnAddNoPos);
+	const auto& dataOnDelNoPos = wld.observers().data(observerOnDelNoPos);
+	CHECK(dataOnAddNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
+	CHECK(dataOnDelNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {});
+	CHECK(onAddHits == 0);
+	CHECK(onDelHits == 0);
+
+	wld.del<Position>(e);
+	CHECK(onAddHits == 0);
+	CHECK(onDelHits == 1);
 }
 
 #endif
