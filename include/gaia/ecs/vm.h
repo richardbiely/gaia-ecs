@@ -202,15 +202,26 @@ namespace gaia {
 						QueryTerm term{};
 						uint8_t varMask = 0;
 					};
+					struct SingleVarTermRef {
+						uint8_t termIdx = 0;
+						uint8_t cost = 0;
+					};
+					struct SingleVarCheckOp {
+						uint8_t termIdx = 0;
+						uint8_t cost = 0;
+						bool negate = false;
+					};
 					struct SingleVarPlan {
 						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> allAnchorTerms;
-						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> allTermsNoAnchor;
 						cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY> orAnchorTerms;
+						cnt::sarray_ext<SingleVarCheckOp, MAX_ITEMS_IN_QUERY> requiredChecks;
+						cnt::sarray_ext<SingleVarTermRef, MAX_ITEMS_IN_QUERY> orChecks;
 
 						void clear() {
 							allAnchorTerms.clear();
-							allTermsNoAnchor.clear();
 							orAnchorTerms.clear();
+							requiredChecks.clear();
+							orChecks.clear();
 						}
 					};
 
@@ -280,6 +291,73 @@ namespace gaia {
 							return depth1 ? 3 : 5;
 						default:
 							return 6;
+					}
+				}
+
+				GAIA_NODISCARD inline uint8_t bound_match_id_cost(Entity queryId) {
+					if (!queryId.pair())
+						return (!is_variable(queryId) && queryId.id() != All.id()) ? 1u : 3u;
+
+					uint8_t cost = 0;
+					cost += (!is_variable((EntityId)queryId.id()) && queryId.id() != All.id()) ? 1u : 3u;
+					cost += (!is_variable((EntityId)queryId.gen()) && queryId.gen() != All.id()) ? 1u : 3u;
+					return cost;
+				}
+
+				GAIA_NODISCARD inline uint8_t bound_term_cost(const QueryCompileCtx::VarTermOp& termOp) {
+					uint8_t cost = bound_match_id_cost(termOp.term.id);
+					if (termOp.term.src != EntityBad)
+						cost = (uint8_t)(cost + source_term_cost({termOp.sourceOpcode, termOp.term}));
+					return cost;
+				}
+
+				template <typename TermRefsArray>
+				inline void sort_single_var_term_refs_by_cost(TermRefsArray& terms) {
+					const auto cnt = (uint32_t)terms.size();
+					if (cnt < 2)
+						return;
+
+					for (uint32_t i = 1; i < cnt; ++i) {
+						const auto key = terms[i];
+
+						uint32_t j = i;
+						while (j > 0) {
+							const auto prev = terms[j - 1];
+							if (prev.cost < key.cost)
+								break;
+							if (prev.cost == key.cost && prev.termIdx <= key.termIdx)
+								break;
+							terms[j] = prev;
+							--j;
+						}
+
+						terms[j] = key;
+					}
+				}
+
+				template <typename ChecksArray>
+				inline void sort_single_var_checks_by_cost(ChecksArray& checks) {
+					const auto cnt = (uint32_t)checks.size();
+					if (cnt < 2)
+						return;
+
+					for (uint32_t i = 1; i < cnt; ++i) {
+						const auto key = checks[i];
+
+						uint32_t j = i;
+						while (j > 0) {
+							const auto prev = checks[j - 1];
+							if (prev.cost < key.cost)
+								break;
+							if (prev.cost == key.cost && prev.negate && !key.negate)
+								break;
+							if (prev.cost == key.cost && prev.negate == key.negate && prev.termIdx <= key.termIdx)
+								break;
+							checks[j] = prev;
+							--j;
+						}
+
+						checks[j] = key;
 					}
 				}
 
@@ -1874,42 +1952,55 @@ namespace gaia {
 					if (!var_is_bound(vars, varEntity))
 						return false;
 
-					if (skipAllTermIdx != (uint32_t)-1 && m_compCtx.varAnchorTermIdx != (uint8_t)-1 &&
-							skipAllTermIdx == (uint32_t)m_compCtx.varAnchorTermIdx) {
-						for (const auto termIdx8: m_compCtx.var1Plan.allTermsNoAnchor) {
-							const auto& term = m_compCtx.terms_all_var[(uint32_t)termIdx8];
-							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
-								return false;
-						}
-					} else {
-						const auto allCnt = (uint32_t)m_compCtx.terms_all_var.size();
-						GAIA_FOR(allCnt) {
-							if (i == skipAllTermIdx)
-								continue;
+					const auto run_required_checks = [&]() {
+						for (const auto& check: m_compCtx.var1Plan.requiredChecks) {
+							if (!check.negate) {
+								if ((uint32_t)check.termIdx == skipAllTermIdx)
+									continue;
 
-							const auto& term = m_compCtx.terms_all_var[i];
-							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+								const auto& term = m_compCtx.terms_all_var[(uint32_t)check.termIdx];
+								if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+									return false;
+								continue;
+							}
+
+							const auto& term = m_compCtx.terms_not_var[(uint32_t)check.termIdx];
+							if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 								return false;
 						}
-					}
+
+						return true;
+					};
+
+					const auto run_or_checks = [&]() {
+						for (const auto& orCheck: m_compCtx.var1Plan.orChecks) {
+							const auto& term = m_compCtx.terms_or_var[(uint32_t)orCheck.termIdx];
+							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
+								continue;
+							return true;
+						}
+
+						return false;
+					};
 
 					bool orSatisfied = orAlreadySatisfied || orMatched;
-					if (!orSatisfied && !m_compCtx.terms_or_var.empty()) {
-						for (const auto& term: m_compCtx.terms_or_var) {
-							if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
-								continue;
-							orSatisfied = true;
-							break;
-						}
+					const auto requiredCost =
+							m_compCtx.var1Plan.requiredChecks.empty() ? uint8_t(0xff) : m_compCtx.var1Plan.requiredChecks[0].cost;
+					const auto orCost = (!orSatisfied && !m_compCtx.var1Plan.orChecks.empty())
+																	? m_compCtx.var1Plan.orChecks[0].cost
+																	: uint8_t(0xff);
+
+					if (!orSatisfied && orCost < requiredCost) {
+						if (!run_or_checks())
+							return false;
+						orSatisfied = true;
 					}
 
-					if (!orSatisfied && !m_compCtx.terms_or_var.empty())
+					if (!run_required_checks())
 						return false;
 
-					for (const auto& term: m_compCtx.terms_not_var) {
-						if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
-							return false;
-					}
+					if (!orSatisfied && !m_compCtx.var1Plan.orChecks.empty() && !run_or_checks())
+						return false;
 
 					return true;
 				}
@@ -3057,8 +3148,7 @@ namespace gaia {
 							if (termOp.term.src != varEntity)
 								m_compCtx.var1Plan.allAnchorTerms.push_back((uint8_t)i);
 
-							if (m_compCtx.varAnchorTermIdx == (uint8_t)-1 || i != m_compCtx.varAnchorTermIdx)
-								m_compCtx.var1Plan.allTermsNoAnchor.push_back((uint8_t)i);
+							m_compCtx.var1Plan.requiredChecks.push_back({(uint8_t)i, detail::bound_term_cost(termOp), false});
 						}
 
 						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
@@ -3068,7 +3158,20 @@ namespace gaia {
 
 							if (termOp.term.src != varEntity)
 								m_compCtx.var1Plan.orAnchorTerms.push_back((uint8_t)i);
+
+							m_compCtx.var1Plan.orChecks.push_back({(uint8_t)i, detail::bound_term_cost(termOp)});
 						}
+
+						const auto notVarCnt = (uint32_t)m_compCtx.terms_not_var.size();
+						GAIA_FOR(notVarCnt) {
+							const auto& termOp = m_compCtx.terms_not_var[i];
+							GAIA_ASSERT(termOp.varMask == 0 || termOp.varMask == (uint8_t(1) << varIdx));
+
+							m_compCtx.var1Plan.requiredChecks.push_back({(uint8_t)i, detail::bound_term_cost(termOp), true});
+						}
+
+						detail::sort_single_var_checks_by_cost(m_compCtx.var1Plan.requiredChecks);
+						detail::sort_single_var_term_refs_by_cost(m_compCtx.var1Plan.orChecks);
 					};
 
 					auto try_init_allonly_grouped = [&]() -> bool {
