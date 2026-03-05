@@ -6194,6 +6194,191 @@ TEST_CASE("Query - bytecode dump") {
 }
 
 template <typename TQuery>
+void Test_Query_Variable_Opcode_Paths() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	struct Cable {};
+	struct Device {};
+	struct PowerNode {};
+	struct ConnectedTo {};
+	struct PoweredBy {};
+	struct LinkedTo {};
+	struct RoutedVia {};
+	struct Marker {};
+
+	// Single variable ALL-only query should use the dedicated single-var opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		wld.add<Device>(devA);
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devA});
+		wld.add(cableGood, {poweredBy, devA});
+
+		const auto cableBad = wld.add();
+		wld.add<Cable>(cableBad);
+		wld.add(cableBad, {connectedTo, devA});
+		wld.add(cableBad, {poweredBy, devB});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .all(ecs::Pair(poweredBy, ecs::Var0))
+								 .template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") != BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devA);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+	}
+
+	// Multi-variable ALL-only query should use the ALL-only variable opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		const auto pwrA = wld.add();
+		const auto pwrB = wld.add();
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devA});
+		wld.add(cableGood, {linkedTo, devA});
+		wld.add(cableGood, {poweredBy, pwrA});
+		wld.add(cableGood, {routedVia, pwrA});
+
+		const auto cableWrongVar0 = wld.add();
+		wld.add<Cable>(cableWrongVar0);
+		wld.add(cableWrongVar0, {connectedTo, devA});
+		wld.add(cableWrongVar0, {linkedTo, devB});
+		wld.add(cableWrongVar0, {poweredBy, pwrA});
+		wld.add(cableWrongVar0, {routedVia, pwrA});
+
+		const auto cableWrongVar1 = wld.add();
+		wld.add<Cable>(cableWrongVar1);
+		wld.add(cableWrongVar1, {connectedTo, devA});
+		wld.add(cableWrongVar1, {linkedTo, devA});
+		wld.add(cableWrongVar1, {poweredBy, pwrA});
+		wld.add(cableWrongVar1, {routedVia, pwrB});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .all(ecs::Pair(poweredBy, ecs::Var1))
+								 .all(ecs::Pair(linkedTo, ecs::Var0))
+								 .all(ecs::Pair(routedVia, ecs::Var1));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varfa ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devA);
+		q.set_var(ecs::Var1, pwrA);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var1, pwrB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+	}
+
+	// Variable OR query should use the generic variable solver opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		wld.add<Marker>(devA);
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, devA});
+		wld.add(cableA, {linkedTo, devB});
+		wld.add(cableA, {routedVia, devB});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+		wld.add(cableB, {connectedTo, devB});
+		wld.add(cableB, {linkedTo, devA});
+		wld.add(cableB, {routedVia, devB});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0))
+								 .or_(ecs::Pair(connectedTo, ecs::Var0))
+								 .or_(ecs::Pair(linkedTo, ecs::Var0))
+								 .or_(ecs::Pair(routedVia, ecs::Var0));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf ") != BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		q.set_var(ecs::Var0, devA);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		q.set_var(ecs::Var0, devB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+	}
+}
+
+TEST_CASE("Query - variable opcode paths") {
+	SUBCASE("Cached query") {
+		Test_Query_Variable_Opcode_Paths<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variable_Opcode_Paths<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_SingleOr_CanonicalizedToAll() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 

@@ -65,6 +65,9 @@ struct VarTag6 {};
 struct VarTag7 {};
 struct VarTag8 {};
 struct VarTag9 {};
+struct SourceType0 {};
+struct SourceType1 {};
+struct SourceTypeOr {};
 
 #if GAIA_OBSERVERS_ENABLED
 struct ObsA {};
@@ -785,6 +788,27 @@ void BM_Query_Variable_Source_Unbound(picobench::state& state) {
 	BM_Query_Variable_Source<false>(state);
 }
 
+static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
+	if ((bits & (1u << 0)) != 0u)
+		w.add<VarTag0>(e);
+	if ((bits & (1u << 1)) != 0u)
+		w.add<VarTag1>(e);
+	if ((bits & (1u << 2)) != 0u)
+		w.add<VarTag2>(e);
+	if ((bits & (1u << 3)) != 0u)
+		w.add<VarTag3>(e);
+	if ((bits & (1u << 4)) != 0u)
+		w.add<VarTag4>(e);
+	if ((bits & (1u << 5)) != 0u)
+		w.add<VarTag5>(e);
+	if ((bits & (1u << 6)) != 0u)
+		w.add<VarTag6>(e);
+	if ((bits & (1u << 7)) != 0u)
+		w.add<VarTag7>(e);
+	if ((bits & (1u << 8)) != 0u)
+		w.add<VarTag8>(e);
+}
+
 template <bool BoundVar0>
 void BM_QueryMatch_Variable(picobench::state& state) {
 	const uint32_t archetypeCnt = (uint32_t)state.user_data();
@@ -812,25 +836,7 @@ void BM_QueryMatch_Variable(picobench::state& state) {
 	GAIA_FOR(archetypeCnt) {
 		auto e = w.add();
 		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
-
-		if ((i & (1u << 0)) != 0u)
-			w.add<VarTag0>(e);
-		if ((i & (1u << 1)) != 0u)
-			w.add<VarTag1>(e);
-		if ((i & (1u << 2)) != 0u)
-			w.add<VarTag2>(e);
-		if ((i & (1u << 3)) != 0u)
-			w.add<VarTag3>(e);
-		if ((i & (1u << 4)) != 0u)
-			w.add<VarTag4>(e);
-		if ((i & (1u << 5)) != 0u)
-			w.add<VarTag5>(e);
-		if ((i & (1u << 6)) != 0u)
-			w.add<VarTag6>(e);
-		if ((i & (1u << 7)) != 0u)
-			w.add<VarTag7>(e);
-		if ((i & (1u << 8)) != 0u)
-			w.add<VarTag8>(e);
+		add_var_match_tags(w, e, i);
 		for (const auto idx: candA)
 			w.add(e, ecs::Pair(relA, sources[idx]));
 		for (const auto idx: candB)
@@ -868,6 +874,139 @@ void BM_QueryMatch_Variable_Bound(picobench::state& state) {
 
 void BM_QueryMatch_Variable_Unbound(picobench::state& state) {
 	BM_QueryMatch_Variable<false>(state);
+}
+
+template <bool BoundVars>
+void BM_QueryMatch_Variable_AllOnly(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 24;
+
+	ecs::World w;
+
+	const auto relConnected = w.add();
+	const auto relMirror = w.add();
+	const auto relPowered = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> devices{};
+	cnt::sarray<ecs::Entity, SourceCnt> powers{};
+	GAIA_FOR(SourceCnt) {
+		devices[i] = w.add();
+		powers[i] = w.add();
+		w.add<SourceType0>(devices[i]);
+		w.add<SourceType1>(powers[i]);
+	}
+
+	// Keep intersections small to force branching in the unbound ALL-only solver.
+	static constexpr uint8_t candConnected[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
+	static constexpr uint8_t candMirror[] = {12, 13, 14, 18, 19};
+	static constexpr uint8_t candPowered[] = {3, 6, 9, 12, 15, 18};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candConnected)
+			w.add(e, ecs::Pair(relConnected, devices[idx]));
+		for (const auto idx: candMirror)
+			w.add(e, ecs::Pair(relMirror, devices[idx]));
+		for (const auto idx: candPowered)
+			w.add(e, ecs::Pair(relPowered, powers[idx]));
+	}
+
+	auto q = w.query()
+							 .all(ecs::Pair(relConnected, ecs::Var0))
+							 .all(ecs::Pair(relMirror, ecs::Var0))
+							 .all(ecs::Pair(relPowered, ecs::Var1))
+							 .template all<SourceType0>(ecs::QueryTermOptions{}.src(ecs::Var0))
+							 .template all<SourceType1>(ecs::QueryTermOptions{}.src(ecs::Var1));
+	if constexpr (BoundVars) {
+		q.set_var(ecs::Var0, devices[12]);
+		q.set_var(ecs::Var1, powers[12]);
+	} else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_AllOnly_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_AllOnly<true>(state);
+}
+
+void BM_QueryMatch_Variable_AllOnly_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_AllOnly<false>(state);
+}
+
+template <bool BoundVar0>
+void BM_QueryMatch_Variable_GenericOr(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 16;
+
+	ecs::World w;
+
+	const auto relA = w.add();
+	const auto relB = w.add();
+	const auto relC = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> sources{};
+	GAIA_FOR(SourceCnt) {
+		sources[i] = w.add();
+	}
+	// Single valid source target forces unbound OR backtracking in the generic solver.
+	w.add<SourceTypeOr>(sources[15]);
+
+	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+	static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+	static constexpr uint8_t candC[] = {1, 7, 8, 9, 15};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candA)
+			w.add(e, ecs::Pair(relA, sources[idx]));
+		for (const auto idx: candB)
+			w.add(e, ecs::Pair(relB, sources[idx]));
+		for (const auto idx: candC)
+			w.add(e, ecs::Pair(relC, sources[idx]));
+	}
+
+	auto q = w.query()
+							 .template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0))
+							 .or_(ecs::Pair(relA, ecs::Var0))
+							 .or_(ecs::Pair(relB, ecs::Var0))
+							 .or_(ecs::Pair(relC, ecs::Var0));
+	if constexpr (BoundVar0)
+		q.set_var(ecs::Var0, sources[15]);
+	else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_GenericOr_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_GenericOr<true>(state);
+}
+
+void BM_QueryMatch_Variable_GenericOr_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_GenericOr<false>(state);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1285,6 +1424,22 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_SUITE_REG("Query variable match");
 		PICOBENCH_REG(BM_QueryMatch_Variable_Bound).PICO_SETTINGS_HEAVY().user_data(128).label("match only (bound)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_Unbound).PICO_SETTINGS_HEAVY().user_data(128).label("match only (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnly_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match all-only 2var (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnly_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match all-only 2var (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_GenericOr_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match generic or (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_GenericOr_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match generic or (unbound)");
 
 #if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");
