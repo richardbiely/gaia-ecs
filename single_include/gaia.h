@@ -36859,8 +36859,6 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Stamp used for O(1) deduplication during observer candidate collection.
-			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
 			QueryUncached query;
 
@@ -36883,6 +36881,8 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
+			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>
@@ -37051,13 +37051,40 @@ namespace gaia {
 					GAIA_ASSERT(w.valid(term));
 
 					const auto termKey = EntityLookupKey(term);
+					const auto erasedData = m_observer_data.erase(termKey);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
-					(void)m_observer_data.erase(termKey);
-					if (erasedOnAdd == 0 && erasedOnDel == 0)
+					if (erasedOnAdd != 0 || erasedOnDel != 0)
+						mark_term_observed(w, term, false);
+
+					// A regular term deletion has nothing else to clean up.
+					// If an observer gets deleted, remove it from all term mappings.
+					if (erasedData == 0)
 						return;
 
-					mark_term_observed(w, term, false);
+					auto remove_observer_from_map = [&](auto& map) {
+						for (auto it = map.begin(); it != map.end();) {
+							auto& observers = it->second;
+							for (uint32_t i = 0; i < observers.size();) {
+								if (observers[i] == term)
+									core::swap_erase_unsafe(observers, i);
+								else
+									++i;
+							}
+
+							if (observers.empty()) {
+								const auto mappedTerm = it->first.entity();
+								auto itToErase = it++;
+								map.erase(itToErase);
+
+								if (w.valid(mappedTerm) && !has_observers_for_term(mappedTerm))
+									mark_term_observed(w, mappedTerm, false);
+							} else
+								++it;
+						}
+					};
+					remove_observer_from_map(m_observer_map_add);
+					remove_observer_from_map(m_observer_map_del);
 				}
 
 				//! Called when components are added to an entity.
@@ -37079,16 +37106,21 @@ namespace gaia {
 							continue;
 
 						for (auto observer: it->second) {
+							if (!world.valid(observer))
+								continue;
 							const auto& ec = world.fetch(observer);
 							if (!world.enabled(ec))
 								continue;
 
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+							obsHdr.lastMatchStamp = matchStamp;
+
 							auto* pObs = data_try(observer);
 							if (pObs == nullptr)
 								continue;
-							if (pObs->lastMatchStamp == matchStamp)
-								continue;
-							pObs->lastMatchStamp = matchStamp;
 							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
@@ -37132,16 +37164,21 @@ namespace gaia {
 							continue;
 
 						for (auto observer: it->second) {
+							if (!world.valid(observer))
+								continue;
 							const auto& ec = world.fetch(observer);
 							if (!world.enabled(ec))
 								continue;
 
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+							obsHdr.lastMatchStamp = matchStamp;
+
 							auto* pObs = data_try(observer);
 							if (pObs == nullptr)
 								continue;
-							if (pObs->lastMatchStamp == matchStamp)
-								continue;
-							pObs->lastMatchStamp = matchStamp;
 							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}

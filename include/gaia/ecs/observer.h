@@ -47,8 +47,6 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Stamp used for O(1) deduplication during observer candidate collection.
-			uint64_t lastMatchStamp = 0;
 			//! Query associated with the system
 			QueryUncached query;
 
@@ -71,6 +69,8 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
+			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>

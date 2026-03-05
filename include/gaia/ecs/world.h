@@ -252,12 +252,15 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+							obsHdr.lastMatchStamp = matchStamp;
+
 							auto* pObs = data_try(observer);
 							if (pObs == nullptr)
 								continue;
-							if (pObs->lastMatchStamp == matchStamp)
-								continue;
-							pObs->lastMatchStamp = matchStamp;
 							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
@@ -307,12 +310,15 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+							obsHdr.lastMatchStamp = matchStamp;
+
 							auto* pObs = data_try(observer);
 							if (pObs == nullptr)
 								continue;
-							if (pObs->lastMatchStamp == matchStamp)
-								continue;
-							pObs->lastMatchStamp = matchStamp;
 							m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
