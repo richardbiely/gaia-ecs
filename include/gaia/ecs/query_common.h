@@ -631,6 +631,24 @@ namespace gaia {
 			auto& ctxData = ctx.data;
 			auto remappingCopy = ctxData._remapping;
 
+			// Canonicalize degenerate OR queries: a single OR term has AND semantics.
+			// Rewriting it here keeps ordering/hash behavior identical to an explicit ALL term.
+			if (idsCnt > 0) {
+				uint32_t orCnt = 0;
+				uint32_t orIdx = BadIndex;
+				GAIA_FOR(idsCnt) {
+					if (ctxData._terms[i].op != QueryOpKind::Or)
+						continue;
+					++orCnt;
+					orIdx = i;
+					if (orCnt > 1)
+						break;
+				}
+
+				if (orCnt == 1)
+					ctxData._terms[orIdx].op = QueryOpKind::All;
+			}
+
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
@@ -667,21 +685,18 @@ namespace gaia {
 				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Or)
 					++i;
 				ctxData.firstNot = (uint8_t)i;
-				GAIA_ASSERT2(
-						(ctxData.firstNot - ctxData.firstOr) != 1,
-						"Single OR term is ambiguous. Use all() for required terms or any() for optional terms.");
 				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Not)
 					++i;
 				ctxData.firstAny = (uint8_t)i;
 			} else
 				ctxData.firstOr = ctxData.firstNot = ctxData.firstAny = 0;
 
-				// Canonicalize filter order. This enables monotonic component lookup in filter matching
-				// and keeps cache keys stable regardless of changed() call order.
-				if (changedCnt > 1) {
-					core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
-				}
+			// Canonicalize filter order. This enables monotonic component lookup in filter matching
+			// and keeps cache keys stable regardless of changed() call order.
+			if (changedCnt > 1) {
+				core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
 			}
+		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
 			GAIA_ASSERT(ctx.cc != nullptr);

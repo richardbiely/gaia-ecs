@@ -2209,9 +2209,7 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! OR terms (at least one has to match).
-				//! Debug builds assert if the query contains exactly one OR term
-				//! (for example: q.or_<A>()), because this is ambiguous.
-				//! Use all<A>() for required matching or any<A>() for optional matching.
+				//! A single OR term is canonicalized to ALL during query normalization.
 				QueryImpl& or_(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Or, entity, options);
 					return *this;

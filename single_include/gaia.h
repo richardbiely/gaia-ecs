@@ -30016,6 +30016,24 @@ namespace gaia {
 			auto& ctxData = ctx.data;
 			auto remappingCopy = ctxData._remapping;
 
+			// Canonicalize degenerate OR queries: a single OR term has AND semantics.
+			// Rewriting it here keeps ordering/hash behavior identical to an explicit ALL term.
+			if (idsCnt > 0) {
+				uint32_t orCnt = 0;
+				uint32_t orIdx = BadIndex;
+				GAIA_FOR(idsCnt) {
+					if (ctxData._terms[i].op != QueryOpKind::Or)
+						continue;
+					++orCnt;
+					orIdx = i;
+					if (orCnt > 1)
+						break;
+				}
+
+				if (orCnt == 1)
+					ctxData._terms[orIdx].op = QueryOpKind::All;
+			}
+
 			// Sort data. Necessary for correct hash calculation.
 			// Without sorting query.all<XXX, YYY> would be different than query.all<YYY, XXX>.
 			// Also makes sure data is in optimal order for query processing.
@@ -30052,21 +30070,18 @@ namespace gaia {
 				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Or)
 					++i;
 				ctxData.firstNot = (uint8_t)i;
-				GAIA_ASSERT2(
-						(ctxData.firstNot - ctxData.firstOr) != 1,
-						"Single OR term is ambiguous. Use all() for required terms or any() for optional terms.");
 				while (i < idsCnt && ctxData._terms[i].op == QueryOpKind::Not)
 					++i;
 				ctxData.firstAny = (uint8_t)i;
 			} else
 				ctxData.firstOr = ctxData.firstNot = ctxData.firstAny = 0;
 
-				// Canonicalize filter order. This enables monotonic component lookup in filter matching
-				// and keeps cache keys stable regardless of changed() call order.
-				if (changedCnt > 1) {
-					core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
-				}
+			// Canonicalize filter order. This enables monotonic component lookup in filter matching
+			// and keeps cache keys stable regardless of changed() call order.
+			if (changedCnt > 1) {
+				core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
 			}
+		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
 			GAIA_ASSERT(ctx.cc != nullptr);
@@ -31003,8 +31018,45 @@ namespace gaia {
 					}
 				};
 
-				inline uint32_t handle_last_archetype_match(
-						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+				GAIA_NODISCARD inline uint8_t source_term_cost(const QueryCompileCtx::SourceTermOp& termOp) {
+					const bool depth1 = termOp.term.travDepth == 1;
+					switch (termOp.opcode) {
+						case EOpcode::Src_Never:
+							return 0;
+						case EOpcode::Src_Self:
+							return 1;
+						case EOpcode::Src_Up:
+						case EOpcode::Src_Down:
+							return depth1 ? 2 : 4;
+						case EOpcode::Src_UpDown:
+							return depth1 ? 3 : 5;
+						default:
+							return 6;
+					}
+				}
+
+				template <typename SourceTermsArray>
+				inline void sort_source_terms_by_cost(SourceTermsArray& terms) {
+					const auto cnt = (uint32_t)terms.size();
+					if (cnt < 2)
+						return;
+
+					for (uint32_t i = 1; i < cnt; ++i) {
+						auto key = terms[i];
+						const auto keyCost = source_term_cost(key);
+
+						uint32_t j = i;
+						while (j > 0 && source_term_cost(terms[j - 1]) > keyCost) {
+							terms[j] = terms[j - 1];
+							--j;
+						}
+
+						terms[j] = key;
+					}
+				}
+
+				inline uint32_t
+				handle_last_archetype_match(QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
 					const auto cache_it = pCont->find(entityKey);
 					uint32_t lastMatchedIdx = 0;
 					if (cache_it == pCont->end())
@@ -32166,8 +32218,8 @@ namespace gaia {
 
 			private:
 				static const char* opcode_name(detail::EOpcode opcode) {
-					static const char* s_names[] = {"all",	"allw", "allc", "or", "ora",	"not",	 "notw",
-																					"notc", "nev",	"self", "up", "down", "updown"};
+					static const char* s_names[] = {
+							"all", "allw", "allc", "or", "ora", "not", "notw", "notc", "nev", "self", "up", "down", "updown"};
 					return s_names[(uint32_t)opcode];
 				}
 
@@ -32325,46 +32377,54 @@ namespace gaia {
 					}
 				}
 
-			private:
-				GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
-					ctx.skipOr = false;
+				private:
+					GAIA_NODISCARD bool eval_source_terms(MatchingCtx& ctx) const {
+						ctx.skipOr = false;
 
-					// ALL source terms must all match.
-					for (const auto& termOp: m_compCtx.terms_all_src) {
-						if (!detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
+						auto eval_source_group_all = [&](const auto& terms, bool mustMatch) -> bool {
+							for (const auto& termOp: terms) {
+								const bool matched = detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+								if ((mustMatch && !matched) || (!mustMatch && matched))
+									return false;
+							}
+
+							return true;
+						};
+
+						auto eval_source_group_or = [&](const auto& terms) -> bool {
+							for (const auto& termOp: terms) {
+								if (detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
+									return true;
+							}
+
 							return false;
-					}
+						};
 
-					// NOT source terms must all be absent.
-					for (const auto& termOp: m_compCtx.terms_not_src) {
-						if (detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
+						// ALL source terms must all match.
+						if (!eval_source_group_all(m_compCtx.terms_all_src, true))
 							return false;
+
+						// NOT source terms must all be absent.
+						if (!eval_source_group_all(m_compCtx.terms_not_src, false))
+							return false;
+
+						// OR source terms short-circuit the OR group if one matches.
+						const bool orSourceMatched = eval_source_group_or(m_compCtx.terms_or_src);
+
+						if (!m_compCtx.terms_or_src.empty() && //
+								!orSourceMatched && //
+								m_compCtx.ids_or.empty() && //
+								m_compCtx.terms_or_var.empty())
+							return false;
+
+						if (orSourceMatched) {
+							ctx.skipOr = true;
+							if (m_compCtx.ids_all.empty())
+								detail::add_all_archetypes(ctx);
+						}
+
+						return true;
 					}
-
-					// OR source terms short-circuit the OR group if one matches.
-					bool orSourceMatched = false;
-					for (const auto& termOp: m_compCtx.terms_or_src) {
-						if (!detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode))
-							continue;
-
-						orSourceMatched = true;
-						break;
-					}
-
-					if (!m_compCtx.terms_or_src.empty() && //
-							!orSourceMatched && //
-							m_compCtx.ids_or.empty() && //
-							m_compCtx.terms_or_var.empty())
-						return false;
-
-					if (orSourceMatched) {
-						ctx.skipOr = true;
-						if (m_compCtx.ids_all.empty())
-							detail::add_all_archetypes(ctx);
-					}
-
-					return true;
-				}
 
 				GAIA_NODISCARD bool eval_variable_terms_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
@@ -32438,7 +32498,7 @@ namespace gaia {
 					};
 
 					auto solve = [&](auto&& self, uint16_t pendingAllMask, uint16_t pendingOrMask, uint16_t pendingAnyMask,
-													 const VarBindings& vars, bool orMatched) -> bool {
+												 const VarBindings& vars, bool orMatched) -> bool {
 						if (pendingAllMask == 0)
 							return finalize(vars, orMatched);
 
@@ -32483,7 +32543,45 @@ namespace gaia {
 
 						// No ALL term was ready. Use OR terms to discover missing bindings.
 						const auto orCnt = (uint32_t)m_compCtx.terms_or_var.size();
+						uint32_t bestOrIdx = (uint32_t)-1;
+						cnt::sarray_ext<VarBindings, VarBindings::VarCnt> bestOrStates;
 						GAIA_FOR(orCnt) {
+							const auto bit = (uint16_t(1) << i);
+							if ((pendingOrMask & bit) == 0)
+								continue;
+
+							const auto& term = m_compCtx.terms_or_var[i];
+							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
+								continue;
+
+							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
+							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							if (states.empty())
+								continue;
+
+							if (bestOrIdx == (uint32_t)-1 || states.size() < bestOrStates.size()) {
+								bestOrIdx = i;
+								bestOrStates = GAIA_MOV(states);
+
+								// Can't do better than one branch.
+								if (bestOrStates.size() == 1)
+									break;
+							}
+						}
+
+						if (bestOrIdx != (uint32_t)-1) {
+							const auto bit = (uint16_t(1) << bestOrIdx);
+							const auto nextOrMask = (uint16_t)(pendingOrMask & ~bit);
+							for (const auto& state: bestOrStates) {
+								if (self(self, pendingAllMask, nextOrMask, pendingAnyMask, state, true))
+									return true;
+							}
+						}
+
+						GAIA_FOR(orCnt) {
+							if (i == bestOrIdx)
+								continue;
+
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingOrMask & bit) == 0)
 								continue;
@@ -32505,8 +32603,8 @@ namespace gaia {
 						}
 
 						// ANY terms can bind variables when matched; if unmatched they are ignored.
-						bool anyMatched = false;
 						const auto anyCnt = (uint32_t)m_compCtx.terms_any_var.size();
+						bool anyMatched = false;
 						GAIA_FOR(anyCnt) {
 							const auto bit = (uint16_t(1) << i);
 							if ((pendingAnyMask & bit) == 0)
@@ -32516,9 +32614,9 @@ namespace gaia {
 							if (is_var_entity(term.src) && !var_is_bound(vars, term.src))
 								continue;
 
-							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
 							cnt::sarray_ext<VarBindings, VarBindings::VarCnt> states;
 							collect_term_matches(*ctx.pWorld, archetype, term, vars, states);
+							const auto nextAnyMask = (uint16_t)(pendingAnyMask & ~bit);
 							if (states.empty()) {
 								if (self(self, pendingAllMask, pendingOrMask, nextAnyMask, vars, orMatched))
 									return true;
@@ -32532,7 +32630,7 @@ namespace gaia {
 							}
 						}
 
-						// Remaining ALL terms depend only on variables produced by ANY terms.
+						// No OR/ANY term was ready. Remaining ALL terms depend only on variables produced by ANY terms.
 						// If those variables are still unresolved, we can skip those terms.
 						if (!anyMatched && can_skip_pending_all(pendingAllMask, vars))
 							return finalize(vars, orMatched);
@@ -32554,11 +32652,11 @@ namespace gaia {
 					return solve(solve, pendingAllMask, pendingOrMask, pendingAnyMask, vars, false);
 				}
 
-				void filter_variable_terms(MatchingCtx& ctx, bool fallbackToAllArchetypes) const {
-					if (!m_compCtx.has_variable_terms())
-						return;
+					void filter_variable_terms(MatchingCtx& ctx, bool fallbackToAllArchetypes) const {
+						if (!m_compCtx.has_variable_terms())
+							return;
 
-					const bool orAlreadySatisfied = !m_compCtx.ids_or.empty() || !m_compCtx.terms_or_src.empty();
+						const bool orAlreadySatisfied = !m_compCtx.ids_or.empty() || ctx.skipOr;
 
 					cnt::darr<const Archetype*> filtered;
 
@@ -32722,21 +32820,25 @@ namespace gaia {
 						}
 					}
 
-					// ANY
-					if (!terms_any.empty()) {
-						GAIA_PROF_SCOPE(vm::compile_any);
+						// ANY
+						if (!terms_any.empty()) {
+							GAIA_PROF_SCOPE(vm::compile_any);
 
-						const auto cnt = terms_any.size();
-						GAIA_FOR(cnt) {
-							auto& p = terms_any[i];
-							if (!term_has_variables(p))
-								continue;
-							m_compCtx.terms_any_var.push_back(p);
+							const auto cnt = terms_any.size();
+							GAIA_FOR(cnt) {
+								auto& p = terms_any[i];
+								if (!term_has_variables(p))
+									continue;
+								m_compCtx.terms_any_var.push_back(p);
+							}
 						}
-					}
 
-					create_opcodes(queryCtx);
-				}
+						detail::sort_source_terms_by_cost(m_compCtx.terms_all_src);
+						detail::sort_source_terms_by_cost(m_compCtx.terms_or_src);
+						detail::sort_source_terms_by_cost(m_compCtx.terms_not_src);
+
+						create_opcodes(queryCtx);
+					}
 
 				void create_opcodes(QueryCtx& queryCtx) {
 					const bool isSimple = (queryCtx.data.flags & QueryCtx::QueryFlags::Complex) == 0U;
@@ -36104,9 +36206,7 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! OR terms (at least one has to match).
-				//! Debug builds assert if the query contains exactly one OR term
-				//! (for example: q.or_<A>()), because this is ambiguous.
-				//! Use all<A>() for required matching or any<A>() for optional matching.
+				//! A single OR term is canonicalized to ALL during query normalization.
 				QueryImpl& or_(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Or, entity, options);
 					return *this;

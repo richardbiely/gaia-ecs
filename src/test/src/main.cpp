@@ -5477,6 +5477,117 @@ TEST_CASE("Query - variables") {
 }
 
 template <typename TQuery>
+void Test_Query_SourceOr_VariableOr_Interaction() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	struct Cable {};
+	struct Device {};
+	struct ConnectedTo {};
+
+	// Unmatched source OR must not bypass variable OR terms.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+
+		const auto source = wld.add();
+		const auto deviceA = wld.add();
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, deviceA});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+
+		auto q = wld.query<UseCachedQuery>()
+							 .template all<Cable>()
+							 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
+							 .or_(ecs::Pair(connectedTo, ecs::Var0));
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableA});
+	}
+
+	// Matched source OR can satisfy OR-group globally, so variable OR may be skipped.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+
+		const auto source = wld.add();
+		wld.add<Device>(source);
+		const auto deviceA = wld.add();
+
+		const auto cableA = wld.add();
+		wld.add<Cable>(cableA);
+		wld.add(cableA, {connectedTo, deviceA});
+
+		const auto cableB = wld.add();
+		wld.add<Cable>(cableB);
+
+		auto q = wld.query<UseCachedQuery>()
+							 .template all<Cable>()
+							 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
+							 .or_(ecs::Pair(connectedTo, ecs::Var0));
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+	}
+}
+
+TEST_CASE("Query - source or and variable or interaction") {
+	SUBCASE("Cached query") {
+		Test_Query_SourceOr_VariableOr_Interaction<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_SourceOr_VariableOr_Interaction<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_VariableOr_Backtracking_SkipBranch() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+	struct Cable {};
+	struct Device {};
+	struct ConnectedTo {};
+	struct LinkedTo {};
+
+	const auto connectedTo = wld.add<ConnectedTo>().entity;
+	const auto linkedTo = wld.add<LinkedTo>().entity;
+
+	const auto deviceA = wld.add();
+	const auto deviceB = wld.add();
+	wld.add<Device>(deviceB);
+
+	const auto cable = wld.add();
+	wld.add<Cable>(cable);
+	wld.add(cable, {connectedTo, deviceA});
+	wld.add(cable, {linkedTo, deviceB});
+
+	// First OR term can bind $d to a non-device. The solver must be able to skip it
+	// and backtrack into the second OR term.
+	auto qApi = wld.query<UseCachedQuery>()
+								 .template all<Cable>()
+								 .template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
+								 .or_(ecs::Pair(connectedTo, ecs::Var0))
+								 .or_(ecs::Pair(linkedTo, ecs::Var0));
+	CHECK(qApi.count() == 1);
+	expect_exact_entities(qApi, {cable});
+
+	auto qExpr = wld.query<UseCachedQuery>().add("Cable, Device($d), (ConnectedTo, $d) || (LinkedTo, $d)");
+	CHECK(qExpr.count() == 1);
+	expect_exact_entities(qExpr, {cable});
+}
+
+TEST_CASE("Query - variable or backtracking skip branch") {
+	SUBCASE("Cached query") {
+		Test_Query_VariableOr_Backtracking_SkipBranch<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_VariableOr_Backtracking_SkipBranch<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_Variables_Advanced() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
@@ -6044,6 +6155,26 @@ void Test_Query_Bytecode_Dump() {
 									 .all(level, ecs::QueryTermOptions{}.src(root).trav_self_down());
 	const auto bytecodeDown = qDown.bytecode();
 	CHECK(bytecodeDown.find("] down id=") != BadIndex);
+
+	// Single OR term is canonicalized to AND.
+	auto qOrOnlySingle = wld.query<UseCachedQuery>().template or_<PlanetTag>();
+	const auto bytecodeOrOnlySingle = qOrOnlySingle.bytecode();
+	CHECK(bytecodeOrOnlySingle.find("ids_all: 1") != BadIndex);
+	CHECK(bytecodeOrOnlySingle.find("ids_or:") == BadIndex);
+
+	auto qOrWithAllSingle = wld.query<UseCachedQuery>().template all<Position>().template or_<PlanetTag>();
+	const auto bytecodeOrWithAllSingle = qOrWithAllSingle.bytecode();
+	CHECK(bytecodeOrWithAllSingle.find("ids_all: 2") != BadIndex);
+	CHECK(bytecodeOrWithAllSingle.find("ids_or:") == BadIndex);
+
+	auto qOrOnlyMulti = wld.query<UseCachedQuery>().template or_<PlanetTag>().template or_<Position>();
+	const auto bytecodeOrOnlyMulti = qOrOnlyMulti.bytecode();
+	CHECK(bytecodeOrOnlyMulti.find("] or ") != BadIndex);
+
+	auto qOrWithAllMulti =
+			wld.query<UseCachedQuery>().template all<Position>().template or_<PlanetTag>().template or_<ConnectedTo>();
+	const auto bytecodeOrWithAllMulti = qOrWithAllMulti.bytecode();
+	CHECK(bytecodeOrWithAllMulti.find("] ora ") != BadIndex);
 
 	// We do this just for code coverage.
 	// Hide logging so it does not spam the results of unit testing.
