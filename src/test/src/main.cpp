@@ -6239,6 +6239,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfag ") != BadIndex);
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varg0_check:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6296,6 +6298,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf1p ") != BadIndex);
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varg0_check:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6359,6 +6363,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf2p ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6422,6 +6428,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfag ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("] varf2p ") == BadIndex);
+		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
