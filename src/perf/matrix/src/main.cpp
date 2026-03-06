@@ -1571,6 +1571,7 @@ void BM_MixedFrame_Churn(picobench::state& state) {
 
 #define PICO_SETTINGS() iterations({256}).samples(3)
 #define PICO_SETTINGS_HEAVY() iterations({64}).samples(3)
+#define PICO_SETTINGS_FOCUS() iterations({256}).samples(7)
 #if GAIA_OBSERVERS_ENABLED
 	#define PICO_SETTINGS_OBS() iterations({64}).samples(3)
 #endif
@@ -1726,6 +1727,16 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match 1var pair-mixed (unbound)");
+
+		PICOBENCH_SUITE_REG("Query variable focus");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarMixed_Bound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(128)
+				.label("1var pair-mixed (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarMixed_Unbound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(128)
+				.label("1var pair-mixed (unbound)");
 
 #if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");
