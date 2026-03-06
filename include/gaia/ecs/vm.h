@@ -152,7 +152,8 @@ namespace gaia {
 					Src_Down,
 					Src_UpDown,
 					//! Variable search micro-ops
-					Var_Term_All,
+					Var_Term_All_Check,
+					Var_Term_All_Bind,
 					Var_Term_Or_Check,
 					Var_Term_Or_Bind,
 					Var_Term_Any_Check,
@@ -215,6 +216,7 @@ namespace gaia {
 						uint16_t initialOrMask = 0;
 						uint16_t initialAnyMask = 0;
 						uint16_t allBegin = 0;
+						uint16_t allCheckBegin = 0;
 						uint16_t allCount = 0;
 						uint16_t orBegin = 0;
 						uint16_t orCheckBegin = 0;
@@ -278,9 +280,10 @@ namespace gaia {
 					EVarProgramTermSet termSet;
 				};
 
-				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Term_All;
+				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Term_All_Check;
 				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_Final_Success;
 				static constexpr VarProgramOpcodeMeta VarProgramOpcodeMetaTable[] = {
+						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::Or}, //
 						{EVarProgramTermSet::Or}, //
@@ -1798,7 +1801,8 @@ namespace gaia {
 							"up", //
 							"down", //
 							"updown", //
-							"term_all", //
+							"term_all_check", //
+							"term_all_bind", //
 							"term_or_check", //
 							"term_or_bind", //
 							"term_any_check", //
@@ -2121,7 +2125,8 @@ namespace gaia {
 						case detail::EOpcode::Var_Term_Not:
 						case detail::EOpcode::Var_Final_Not_Check:
 							return m_compCtx.terms_not_var[(uint32_t)op.arg];
-						case detail::EOpcode::Var_Term_All:
+						case detail::EOpcode::Var_Term_All_Check:
+						case detail::EOpcode::Var_Term_All_Bind:
 							return m_compCtx.terms_all_var[(uint32_t)op.arg];
 						default:
 							GAIA_ASSERT(false);
@@ -2129,36 +2134,46 @@ namespace gaia {
 					}
 				}
 
-				GAIA_NODISCARD uint32_t select_next_pending_search_term(
-						std::span<const detail::CompiledOp> programOps, uint16_t begin, uint16_t count, uint16_t pendingMask,
-						const detail::VarBindings& vars, bool preferBoundTerms = true, bool requireNewBindings = false) const {
-					uint32_t firstReadyIdx = (uint32_t)-1;
+				GAIA_NODISCARD bool select_next_pending_search_all_term(
+						std::span<const detail::CompiledOp> programOps, const detail::QueryCompileCtx::VarSearchMeta& search,
+						uint16_t pendingMask, const detail::VarBindings& vars, uint32_t& outLocalIdx, uint32_t& outPc,
+						bool preferBoundTerms = true) const {
+					outLocalIdx = (uint32_t)-1;
+					outPc = (uint32_t)-1;
+					uint32_t firstReadyLocalIdx = (uint32_t)-1;
+					uint32_t firstReadyPc = (uint32_t)-1;
 
-					for (uint32_t localIdx = 0; localIdx < count; ++localIdx) {
-						const auto i = (uint32_t)begin + localIdx;
-						const auto bit = (uint16_t)(uint16_t(1) << i);
+					for (uint32_t localIdx = 0; localIdx < search.allCount; ++localIdx) {
+						const auto bit = (uint16_t)(uint16_t(1) << localIdx);
 						if ((pendingMask & bit) == 0)
 							continue;
 
-						const auto& termOp = search_program_term_op(programOps[i]);
+						const auto bindPc = (uint32_t)search.allBegin + localIdx;
+						const auto& bindOp = programOps[bindPc];
+						const auto& termOp = search_program_term_op(bindOp);
 						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src))
 							continue;
 
 						const bool bindsNewVars = (uint8_t)(termOp.varMask & ~vars.mask) != 0;
-						if (requireNewBindings) {
-							if (bindsNewVars)
-								return i;
-							continue;
+						const auto pc = bindsNewVars ? bindPc : (uint32_t)search.allCheckBegin + localIdx;
+						if (preferBoundTerms && !bindsNewVars) {
+							outLocalIdx = localIdx;
+							outPc = pc;
+							return true;
 						}
 
-						if (preferBoundTerms && !bindsNewVars)
-							return i;
-
-						if (firstReadyIdx == (uint32_t)-1)
-							firstReadyIdx = i;
+						if (firstReadyLocalIdx == (uint32_t)-1) {
+							firstReadyLocalIdx = localIdx;
+							firstReadyPc = pc;
+						}
 					}
 
-					return firstReadyIdx;
+					if (firstReadyLocalIdx == (uint32_t)-1)
+						return false;
+
+					outLocalIdx = firstReadyLocalIdx;
+					outPc = firstReadyPc;
+					return true;
 				}
 
 				GAIA_NODISCARD bool select_next_pending_search_or_term(
@@ -2356,7 +2371,8 @@ namespace gaia {
 						const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
 						state.vars = nextVars;
 						switch (op.opcode) {
-							case EOpcode::Var_Term_All:
+							case EOpcode::Var_Term_All_Check:
+							case EOpcode::Var_Term_All_Bind:
 								state.pendingAllMask = (uint16_t)(state.pendingAllMask & ~bit);
 								state.pc = op.pc_ok;
 								break;
@@ -2457,6 +2473,18 @@ namespace gaia {
 								}
 
 								if (search.orCount == 0 && search.anyCount == 0) {
+									uint32_t nextAllLocalIdx = (uint32_t)-1;
+									uint32_t nextAllPc = (uint32_t)-1;
+									if (select_next_pending_search_all_term(
+													programOps, search, state.pendingAllMask, state.vars, nextAllLocalIdx, nextAllPc)) {
+										const auto bindPc = (uint32_t)search.allBegin + nextAllLocalIdx;
+										if (nextAllPc != bindPc) {
+											state.termOpIdx = (uint8_t)nextAllLocalIdx;
+											state.pc = (uint16_t)nextAllPc;
+											break;
+										}
+									}
+
 									uint32_t bestAllIdx = (uint32_t)-1;
 									const auto allSel = select_best_pending_search_term(
 											ctx, archetype, programOps, search.allBegin, search.allCount, state.pendingAllMask, state.vars,
@@ -2473,11 +2501,12 @@ namespace gaia {
 										break;
 									}
 								} else {
-									const auto nextAllIdx = select_next_pending_search_term(
-											programOps, search.allBegin, search.allCount, state.pendingAllMask, state.vars);
-									if (nextAllIdx != (uint32_t)-1) {
-										state.termOpIdx = (uint8_t)nextAllIdx;
-										state.pc = (uint16_t)nextAllIdx;
+									uint32_t nextAllLocalIdx = (uint32_t)-1;
+									uint32_t nextAllPc = (uint32_t)-1;
+									if (select_next_pending_search_all_term(
+													programOps, search, state.pendingAllMask, state.vars, nextAllLocalIdx, nextAllPc)) {
+										state.termOpIdx = (uint8_t)nextAllLocalIdx;
+										state.pc = (uint16_t)nextAllPc;
 										break;
 									}
 								}
@@ -2574,7 +2603,22 @@ namespace gaia {
 							case EOpcode::Var_Search_Finalize:
 								state.pc = op.pc_ok;
 								break;
-							case EOpcode::Var_Term_All:
+							case EOpcode::Var_Term_All_Check:
+								if (term_has_match(*ctx.pWorld, archetype, search_program_term_op(op), state.vars))
+									advance_after_search_term_success(state, op, state.vars);
+								else {
+									handle_search_term_exhausted(state, op);
+									if (state.pc == BacktrackPc && !backtrack(state, stack))
+										return false;
+								}
+								break;
+							case EOpcode::Var_Term_All_Bind:
+								if (!try_enter_search_term(state, stack)) {
+									handle_search_term_exhausted(state, op);
+									if (state.pc == BacktrackPc && !backtrack(state, stack))
+										return false;
+								}
+								break;
 							case EOpcode::Var_Term_Or_Check:
 							case EOpcode::Var_Term_Or_Bind:
 							case EOpcode::Var_Term_Any_Check:
@@ -3063,7 +3107,8 @@ namespace gaia {
 					auto init_var_search_program = [&]() {
 						varSearchProgramOps.clear();
 						varSearchMeta = {};
-						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAllOps;
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAllBindOps;
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAllCheckOps;
 						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchOrBindOps;
 						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchOrCheckOps;
 						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAnyBindOps;
@@ -3073,11 +3118,12 @@ namespace gaia {
 
 						const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						GAIA_FOR(allVarCnt) {
-							searchAllOps.push_back(
-									{detail::EOpcode::Var_Term_All, 0, 0, (uint8_t)i,
-									 detail::search_term_cost(m_compCtx.terms_all_var[i])});
+							const auto cost = detail::search_term_cost(m_compCtx.terms_all_var[i]);
+							searchAllBindOps.push_back({detail::EOpcode::Var_Term_All_Bind, 0, 0, (uint8_t)i, cost});
+							searchAllCheckOps.push_back({detail::EOpcode::Var_Term_All_Check, 0, 0, (uint8_t)i, cost});
 						}
-						detail::sort_program_ops_by_cost(searchAllOps);
+						detail::sort_program_ops_by_cost(searchAllBindOps);
+						detail::sort_program_ops_by_cost(searchAllCheckOps);
 
 						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
 						GAIA_FOR(orVarCnt) {
@@ -3107,7 +3153,7 @@ namespace gaia {
 						}
 						detail::sort_program_ops_by_cost(finalNotOps);
 
-						for (const auto& op: searchAllOps)
+						for (const auto& op: searchAllBindOps)
 							varSearchProgramOps.push_back(op);
 						for (const auto& op: searchOrBindOps)
 							varSearchProgramOps.push_back(op);
@@ -3115,7 +3161,7 @@ namespace gaia {
 							varSearchProgramOps.push_back(op);
 
 						varSearchMeta.allBegin = 0;
-						varSearchMeta.allCount = (uint16_t)searchAllOps.size();
+						varSearchMeta.allCount = (uint16_t)searchAllBindOps.size();
 						varSearchMeta.orBegin = varSearchMeta.allCount;
 						varSearchMeta.orCount = (uint16_t)searchOrBindOps.size();
 						varSearchMeta.anyBegin = (uint16_t)(varSearchMeta.orBegin + varSearchMeta.orCount);
@@ -3128,7 +3174,8 @@ namespace gaia {
 						const auto selectOtherOrPc = (uint16_t)(termOpsCnt + 1u);
 						const auto selectAnyPc = (uint16_t)(termOpsCnt + 2u);
 						const auto finalizePc = (uint16_t)(termOpsCnt + 3u);
-						const auto orCheckBegin = (uint16_t)(termOpsCnt + 4u);
+						const auto allCheckBegin = (uint16_t)(termOpsCnt + 4u);
+						const auto orCheckBegin = (uint16_t)(allCheckBegin + searchAllCheckOps.size());
 						const auto anyCheckBegin = (uint16_t)(orCheckBegin + searchOrCheckOps.size());
 						const auto finalNotBegin = (uint16_t)(anyCheckBegin + searchAnyCheckOps.size());
 						const auto finalRequireOrPc = (uint16_t)(finalNotBegin + finalNotOps.size());
@@ -3139,7 +3186,7 @@ namespace gaia {
 
 						for (auto& op: varSearchProgramOps) {
 							switch (op.opcode) {
-								case detail::EOpcode::Var_Term_All:
+								case detail::EOpcode::Var_Term_All_Bind:
 									op.pc_ok = enterPc;
 									op.pc_fail = backtrackPc;
 									break;
@@ -3161,6 +3208,11 @@ namespace gaia {
 								{detail::EOpcode::Var_Search_SelectOtherOr, selectOtherOrPc, selectAnyPc, 0, 0});
 						varSearchProgramOps.push_back({detail::EOpcode::Var_Search_SelectAny, selectAnyPc, finalizePc, 0, 0});
 						varSearchProgramOps.push_back({detail::EOpcode::Var_Search_Finalize, finalBegin, backtrackPc, 0, 0});
+						for (auto op: searchAllCheckOps) {
+							op.pc_ok = enterPc;
+							op.pc_fail = backtrackPc;
+							varSearchProgramOps.push_back(op);
+						}
 						for (auto op: searchOrCheckOps) {
 							op.pc_ok = enterPc;
 							op.pc_fail = selectOtherOrPc;
@@ -3192,6 +3244,7 @@ namespace gaia {
 						varSearchMeta.selectOtherOrPc = selectOtherOrPc;
 						varSearchMeta.selectAnyPc = selectAnyPc;
 						varSearchMeta.finalizePc = finalizePc;
+						varSearchMeta.allCheckBegin = allCheckBegin;
 						varSearchMeta.orCheckBegin = orCheckBegin;
 						varSearchMeta.anyCheckBegin = anyCheckBegin;
 						varSearchMeta.notBegin = finalNotBegin;
