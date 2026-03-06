@@ -6477,7 +6477,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf1 ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
-		CHECK(bytecode.find("var1_bind:") != BadIndex);
+		CHECK(bytecode.find("var1_bind_req:") != BadIndex);
+		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
 		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(bytecode.find("check_or") != BadIndex);
 		CHECK(q.count() == 2);
@@ -6526,7 +6527,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf1os ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
-		CHECK(bytecode.find("var1_bind:") != BadIndex);
+		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
+		CHECK(bytecode.find("var1_bind_req:") == BadIndex);
 		CHECK(bytecode.find("bind_or") != BadIndex);
 		CHECK(bytecode.find("var1_check:") != BadIndex);
 		CHECK(q.count() == 2);
