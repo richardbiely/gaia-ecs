@@ -6665,6 +6665,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
 		CHECK(bytecode.find("term_all") == BadIndex);
+		CHECK(bytecode.find("final_require_or") != BadIndex);
+		CHECK(bytecode.find("final_or_check") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
@@ -6717,9 +6719,12 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_all") != BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
-		CHECK(bytecode.find("term_not") != BadIndex);
+		CHECK(bytecode.find("final_not_check") != BadIndex);
+		CHECK(bytecode.find("final_require_or") != BadIndex);
+		CHECK(bytecode.find("final_or_check") != BadIndex);
 		CHECK(bytecode.find("search_enter") != BadIndex);
 		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("final_success") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableGoodA, cableGoodB});
 
