@@ -6564,6 +6564,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_srcself_bind") == BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
 		CHECK(bytecode.find("search_begin_any") != BadIndex);
@@ -6624,7 +6625,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
-		CHECK(bytecode.find("term_all_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_srcself_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_bind") == BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
 		CHECK(bytecode.find("search_begin_any") != BadIndex);
@@ -6850,7 +6852,8 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
-		CHECK(bytecode.find("term_all_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_srcself_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_bind") == BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
 		CHECK(q.count() == 2);
