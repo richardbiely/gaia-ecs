@@ -6590,6 +6590,65 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
+	// Single-variable ALL query with an up+down source anchor should use explicit updown source binding.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+
+		const auto root = wld.add();
+		const auto parent = wld.add();
+		const auto leaf = wld.add();
+		wld.child(parent, root);
+		wld.child(leaf, parent);
+		wld.add<Marker>(parent);
+
+		const auto cableRoot = wld.add();
+		wld.add<Cable>(cableRoot);
+		wld.add(cableRoot, {connectedTo, root});
+
+		const auto cableParent = wld.add();
+		wld.add<Cable>(cableParent);
+		wld.add(cableParent, {connectedTo, parent});
+
+		const auto cableLeaf = wld.add();
+		wld.add<Cable>(cableLeaf);
+		wld.add(cableLeaf, {connectedTo, leaf});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_down().trav_kind(
+										 ecs::QueryTravKind::Up | ecs::QueryTravKind::Down));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varf ") != BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
+		CHECK(bytecode.find("varp0:") != BadIndex);
+		CHECK(bytecode.find("term_all_check") != BadIndex);
+		CHECK(bytecode.find("term_all_srcupdown_bind") != BadIndex);
+		CHECK(bytecode.find("term_all_srcself_bind") == BadIndex);
+		CHECK(bytecode.find("term_all_srcup_bind") == BadIndex);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableRoot, cableLeaf});
+
+		q.set_var(ecs::Var0, root);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableRoot});
+
+		q.set_var(ecs::Var0, parent);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.set_var(ecs::Var0, leaf);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableLeaf});
+
+		q.clear_vars();
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableRoot, cableLeaf});
+	}
+
 	// Single-variable OR query with a source-gated ALL anchor should use the shared variable program opcode.
 	{
 		TestWorld twld;

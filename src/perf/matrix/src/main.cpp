@@ -1277,6 +1277,76 @@ void BM_QueryMatch_Variable_1VarOr_Unbound(picobench::state& state) {
 }
 
 template <bool BoundVar0>
+void BM_QueryMatch_Variable_1VarOrUpDown(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 16;
+
+	ecs::World w;
+
+	const auto relA = w.add();
+	const auto relB = w.add();
+	const auto relC = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> roots{};
+	cnt::sarray<ecs::Entity, SourceCnt> mids{};
+	cnt::sarray<ecs::Entity, SourceCnt> leaves{};
+	GAIA_FOR(SourceCnt) {
+		roots[i] = w.add();
+		mids[i] = w.add();
+		leaves[i] = w.add();
+		w.child(mids[i], roots[i]);
+		w.child(leaves[i], mids[i]);
+	}
+	w.add<SourceTypeOr>(mids[15]);
+
+	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+	static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+	static constexpr uint8_t candC[] = {1, 7, 8, 9, 15};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candA)
+			w.add(e, ecs::Pair(relA, roots[idx]));
+		for (const auto idx: candB)
+			w.add(e, ecs::Pair(relB, leaves[idx]));
+		for (const auto idx: candC)
+			w.add(e, ecs::Pair(relC, roots[idx]));
+	}
+
+	auto q = w.query()
+							 .template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_down().trav_kind(
+									 ecs::QueryTravKind::Up | ecs::QueryTravKind::Down))
+							 .or_(ecs::Pair(relA, ecs::Var0))
+							 .or_(ecs::Pair(relB, ecs::Var0))
+							 .or_(ecs::Pair(relC, ecs::Var0));
+	if constexpr (BoundVar0)
+		q.set_var(ecs::Var0, roots[15]);
+	else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_1VarOrUpDown_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarOrUpDown<true>(state);
+}
+
+void BM_QueryMatch_Variable_1VarOrUpDown_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarOrUpDown<false>(state);
+}
+
+template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarAny(picobench::state& state) {
 	const uint32_t archetypeCnt = (uint32_t)state.user_data();
 	constexpr uint32_t SourceCnt = 16;
@@ -2306,6 +2376,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match 1var or-source-gated (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarOrUpDown_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match 1var or-updown-source (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarOrUpDown_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match 1var or-updown-source (unbound)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1VarAny_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
