@@ -6235,10 +6235,12 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varfag ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] group $0") != BadIndex);
 		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
 		CHECK(bytecode.find("varg0_check:") != BadIndex);
 		CHECK(q.count() == 1);
@@ -6257,7 +6259,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Single-variable ALL pair-intersection query should use the pair-intersection opcode.
+	// Single-variable ALL pair-intersection query should use the shared variable program opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6294,10 +6296,12 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varf1p ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] group $0") != BadIndex);
 		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
 		CHECK(bytecode.find("varg0_check:") != BadIndex);
 		CHECK(q.count() == 1);
@@ -6316,7 +6320,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Two-variable ALL pair-intersection query should use the dedicated 2-variable opcode.
+	// Two-variable ALL pair-intersection query should use the shared variable program opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6359,10 +6363,13 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varf2p ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 2") != BadIndex);
+		CHECK(bytecode.find("] group $0") != BadIndex);
+		CHECK(bytecode.find("] group $1") != BadIndex);
 		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
 		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
 		CHECK(q.count() == 1);
@@ -6382,7 +6389,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Two-variable ALL-only source-gated groups should use the grouped ALL-only opcode.
+	// Two-variable ALL-only source-gated groups should use the shared grouped program opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6424,12 +6431,16 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] varfag ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
-		CHECK(bytecode.find("] varf2p ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 2") != BadIndex);
+		CHECK(bytecode.find("] group $0") != BadIndex);
+		CHECK(bytecode.find("] group $1") != BadIndex);
 		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
 		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
+		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6486,8 +6497,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varcb ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") != BadIndex);
-		CHECK(bytecode.find("] varfag ") == BadIndex);
-		CHECK(bytecode.find("] varf2p ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") == BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6555,9 +6565,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
-		CHECK(bytecode.find("] varf1os ") == BadIndex);
-		CHECK(bytecode.find("] varfag ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") == BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6575,7 +6583,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
-	// Single-variable OR query with a source-gated ALL anchor should use the dedicated source-gated opcode.
+	// Single-variable OR query with a source-gated ALL anchor should use the shared variable program opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6607,12 +6615,13 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb1 ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") == BadIndex);
-		CHECK(bytecode.find("] varf1os ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] main $0") != BadIndex);
 		CHECK(bytecode.find("var1_bind_req:") != BadIndex);
 		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
 		CHECK(bytecode.find("bind_src") != BadIndex);
@@ -6633,7 +6642,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableA, cableB});
 	}
 
-	// Single-variable OR query without a source-gated ALL anchor should stay on the generic 1-variable opcode.
+	// Single-variable OR query without a source-gated ALL anchor should stay on the shared single-variable program path.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6657,12 +6666,13 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb1 ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") == BadIndex);
-		CHECK(bytecode.find("] varf1 ") != BadIndex);
-		CHECK(bytecode.find("] varf1os ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] main $0") != BadIndex);
 		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
 		CHECK(bytecode.find("var1_bind_req:") == BadIndex);
 		CHECK(bytecode.find("bind_or") != BadIndex);
@@ -6716,8 +6726,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfb1pm ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") == BadIndex);
 		CHECK(bytecode.find("] varf1pm ") != BadIndex);
-		CHECK(bytecode.find("] varf1 ") == BadIndex);
-		CHECK(bytecode.find("] varf1os ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var1pm_bind_req:") != BadIndex);
@@ -6796,7 +6805,10 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 								 .or_(ecs::Pair(routedVia, ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varf1os ") != BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
+		CHECK(bytecode.find("] main $0") != BadIndex);
+		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(q.count() == 2);
 		return bytecode;
 	};
