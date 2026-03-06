@@ -773,27 +773,31 @@ namespace gaia {
 				return m_vm.bytecode(*world());
 			}
 
+			GAIA_NODISCARD uint32_t op_count() const {
+				return m_vm.op_count();
+			}
+
 			GAIA_NODISCARD bool has_filters() const {
 				return m_ctx.data.changedCnt > 0;
 			}
 
 			template <typename... T>
-			bool has_any() const {
+			GAIA_NODISCARD bool has_any() const {
 				return (has_inter<T>(QueryOpKind::Any) || ...);
 			}
 
 			template <typename... T>
-			bool has_or() const {
+			GAIA_NODISCARD bool has_or() const {
 				return (has_inter<T>(QueryOpKind::Or) || ...);
 			}
 
 			template <typename... T>
-			bool has_all() const {
+			GAIA_NODISCARD bool has_all() const {
 				return (has_inter<T>(QueryOpKind::All) && ...);
 			}
 
 			template <typename... T>
-			bool has_no() const {
+			GAIA_NODISCARD bool has_no() const {
 				return (!has_inter<T>(QueryOpKind::Not) && ...);
 			}
 

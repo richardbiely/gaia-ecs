@@ -1342,6 +1342,280 @@ void BM_QueryMatch_Variable_1VarMixed_Unbound(picobench::state& state) {
 	BM_QueryMatch_Variable_1VarMixed<false>(state);
 }
 
+static constexpr uint32_t VariableBuildArchetypeCnt = 128U;
+
+struct VariableBuildFixture_1VarSource {
+	ecs::World w;
+	ecs::Entity relA = ecs::EntityBad;
+	ecs::Entity relB = ecs::EntityBad;
+	cnt::sarray<ecs::Entity, 16> sources{};
+
+	explicit VariableBuildFixture_1VarSource(uint32_t archetypeCnt) {
+		relA = w.add();
+		relB = w.add();
+
+		GAIA_FOR((uint32_t)sources.size()) {
+			sources[i] = w.add();
+		}
+		w.add<SourceType0>(sources[15]);
+
+		static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+		static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			add_var_match_tags(w, e, i);
+
+			for (const auto idx: candA)
+				w.add(e, ecs::Pair(relA, sources[idx]));
+			for (const auto idx: candB)
+				w.add(e, ecs::Pair(relB, sources[idx]));
+		}
+	}
+
+	template <bool UseCachedQuery>
+	auto query() {
+		return w.query<UseCachedQuery>()
+				.all(ecs::Pair(relA, ecs::Var0))
+				.all(ecs::Pair(relB, ecs::Var0))
+				.template all<SourceType0>(ecs::QueryTermOptions{}.src(ecs::Var0));
+	}
+};
+
+struct VariableBuildFixture_1VarOrSource {
+	ecs::World w;
+	ecs::Entity relA = ecs::EntityBad;
+	ecs::Entity relB = ecs::EntityBad;
+	ecs::Entity relC = ecs::EntityBad;
+	cnt::darray<ecs::Entity> sources;
+
+	explicit VariableBuildFixture_1VarOrSource(uint32_t sourceCandidateCnt) {
+		const uint32_t sourceTotalCnt = sourceCandidateCnt > 16U ? sourceCandidateCnt : 16U;
+
+		relA = w.add();
+		relB = w.add();
+		relC = w.add();
+
+		sources.resize(sourceTotalCnt);
+		GAIA_FOR(sourceTotalCnt) {
+			sources[i] = w.add();
+			if (i < sourceCandidateCnt)
+				w.add<SourceTypeOr>(sources[i]);
+		}
+
+		static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+		static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+		static constexpr uint8_t candC[] = {1, 7, 8, 9, 15};
+
+		GAIA_FOR(VariableBuildArchetypeCnt) {
+			auto e = w.add();
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			add_var_match_tags(w, e, i);
+
+			for (const auto idx: candA)
+				w.add(e, ecs::Pair(relA, sources[idx]));
+			for (const auto idx: candB)
+				w.add(e, ecs::Pair(relB, sources[idx]));
+			for (const auto idx: candC)
+				w.add(e, ecs::Pair(relC, sources[idx]));
+		}
+	}
+
+	template <bool UseCachedQuery>
+	auto query() {
+		return w.query<UseCachedQuery>()
+				.template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0))
+				.or_(ecs::Pair(relA, ecs::Var0))
+				.or_(ecs::Pair(relB, ecs::Var0))
+				.or_(ecs::Pair(relC, ecs::Var0));
+	}
+};
+
+struct VariableBuildFixture_2VarPairAll {
+	ecs::World w;
+	ecs::Entity relConnected = ecs::EntityBad;
+	ecs::Entity relMirror = ecs::EntityBad;
+	ecs::Entity relPowered = ecs::EntityBad;
+	ecs::Entity relRouted = ecs::EntityBad;
+	cnt::sarray<ecs::Entity, 24> devices{};
+	cnt::sarray<ecs::Entity, 24> powers{};
+
+	explicit VariableBuildFixture_2VarPairAll(uint32_t archetypeCnt) {
+		relConnected = w.add();
+		relMirror = w.add();
+		relPowered = w.add();
+		relRouted = w.add();
+
+		GAIA_FOR((uint32_t)devices.size()) {
+			devices[i] = w.add();
+			powers[i] = w.add();
+		}
+
+		static constexpr uint8_t candConnected[] = {0, 2, 4, 6, 8, 10, 12, 14, 18};
+		static constexpr uint8_t candMirror[] = {12, 13, 14, 18, 19};
+		static constexpr uint8_t candPowered[] = {3, 6, 9, 12, 15, 18};
+		static constexpr uint8_t candRouted[] = {12, 15, 17, 18};
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			add_var_match_tags(w, e, i);
+
+			for (const auto idx: candConnected)
+				w.add(e, ecs::Pair(relConnected, devices[idx]));
+			for (const auto idx: candMirror)
+				w.add(e, ecs::Pair(relMirror, devices[idx]));
+			for (const auto idx: candPowered)
+				w.add(e, ecs::Pair(relPowered, powers[idx]));
+			for (const auto idx: candRouted)
+				w.add(e, ecs::Pair(relRouted, powers[idx]));
+		}
+	}
+
+	template <bool UseCachedQuery>
+	auto query() {
+		return w.query<UseCachedQuery>()
+				.all(ecs::Pair(relConnected, ecs::Var0))
+				.all(ecs::Pair(relMirror, ecs::Var0))
+				.all(ecs::Pair(relPowered, ecs::Var1))
+				.all(ecs::Pair(relRouted, ecs::Var1));
+	}
+};
+
+struct VariableBuildFixture_GenericSourceBacktrack {
+	ecs::World w;
+	ecs::Entity relConnected = ecs::EntityBad;
+	ecs::Entity relRoute = ecs::EntityBad;
+	ecs::Entity relRouteAlt = ecs::EntityBad;
+	cnt::darray<ecs::Entity> parents;
+	cnt::darray<ecs::Entity> devices;
+	cnt::darray<ecs::Entity> routes;
+
+	explicit VariableBuildFixture_GenericSourceBacktrack(uint32_t sourceCnt) {
+		const uint32_t sourceTotalCnt = sourceCnt > 24U ? sourceCnt : 24U;
+
+		relConnected = w.add();
+		relRoute = w.add();
+		relRouteAlt = w.add();
+
+		parents.resize(sourceTotalCnt);
+		devices.resize(sourceTotalCnt);
+		routes.resize(sourceTotalCnt);
+		GAIA_FOR(sourceTotalCnt) {
+			parents[i] = w.add();
+			devices[i] = w.add();
+			routes[i] = w.add();
+			w.add(devices[i], ecs::Pair(ecs::ChildOf, parents[i]));
+			if ((i % 3U) == 0U)
+				w.add<SourceTypeOr>(parents[i]);
+		}
+
+		static constexpr uint8_t candConnected[] = {0, 6, 12, 21};
+		static constexpr uint8_t candRoutes[] = {0, 12, 21};
+
+		GAIA_FOR(VariableBuildArchetypeCnt) {
+			auto e = w.add();
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			add_var_match_tags(w, e, i);
+
+			for (const auto idx: candConnected)
+				w.add(e, ecs::Pair(relConnected, devices[idx]));
+			for (const auto idx: candRoutes) {
+				w.add(e, ecs::Pair(relRoute, routes[idx]));
+				w.add(e, ecs::Pair(relRouteAlt, routes[(idx + 3U) % sourceTotalCnt]));
+				if ((idx % 3U) == 0U)
+					w.add(e, ecs::Pair(routes[idx], devices[idx]));
+			}
+		}
+	}
+
+	template <bool UseCachedQuery>
+	auto query() {
+		return w.query<UseCachedQuery>()
+				.all(ecs::Pair(relConnected, ecs::Var0))
+				.all(ecs::Pair(ecs::Var1, ecs::Var0))
+				.template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent())
+				.or_(ecs::Pair(relRoute, ecs::Var1))
+				.or_(ecs::Pair(relRouteAlt, ecs::Var1));
+	}
+};
+
+template <typename Fixture>
+void BM_QueryBuild_Variable_Uncached(picobench::state& state) {
+	Fixture fixture((uint32_t)state.user_data());
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+		state.start_timer();
+
+		auto q = fixture.template query<false>();
+		auto& qi = q.fetch();
+		dont_optimize(qi.op_count());
+		const auto bytecode = qi.bytecode();
+		dont_optimize(bytecode.size());
+
+		state.stop_timer();
+	}
+}
+
+template <typename Fixture>
+void BM_QueryBuild_Variable_Recompile(picobench::state& state) {
+	Fixture fixture((uint32_t)state.user_data());
+
+	auto q = fixture.template query<true>();
+	auto& qi = q.fetch();
+	dont_optimize(qi.op_count());
+	const auto bytecodeWarm = qi.bytecode();
+	dont_optimize(bytecodeWarm.size());
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+		state.start_timer();
+
+		qi.recompile();
+		dont_optimize(qi.op_count());
+		const auto bytecode = qi.bytecode();
+		dont_optimize(bytecode.size());
+
+		state.stop_timer();
+	}
+}
+
+void BM_QueryBuild_Variable_1VarSource_Uncached(picobench::state& state) {
+	BM_QueryBuild_Variable_Uncached<VariableBuildFixture_1VarSource>(state);
+}
+
+void BM_QueryBuild_Variable_1VarSource_Recompile(picobench::state& state) {
+	BM_QueryBuild_Variable_Recompile<VariableBuildFixture_1VarSource>(state);
+}
+
+void BM_QueryBuild_Variable_1VarOrSource_Uncached(picobench::state& state) {
+	BM_QueryBuild_Variable_Uncached<VariableBuildFixture_1VarOrSource>(state);
+}
+
+void BM_QueryBuild_Variable_1VarOrSource_Recompile(picobench::state& state) {
+	BM_QueryBuild_Variable_Recompile<VariableBuildFixture_1VarOrSource>(state);
+}
+
+void BM_QueryBuild_Variable_2VarPairAll_Uncached(picobench::state& state) {
+	BM_QueryBuild_Variable_Uncached<VariableBuildFixture_2VarPairAll>(state);
+}
+
+void BM_QueryBuild_Variable_2VarPairAll_Recompile(picobench::state& state) {
+	BM_QueryBuild_Variable_Recompile<VariableBuildFixture_2VarPairAll>(state);
+}
+
+void BM_QueryBuild_Variable_GenericSourceBacktrack_Uncached(picobench::state& state) {
+	BM_QueryBuild_Variable_Uncached<VariableBuildFixture_GenericSourceBacktrack>(state);
+}
+
+void BM_QueryBuild_Variable_GenericSourceBacktrack_Recompile(picobench::state& state) {
+	BM_QueryBuild_Variable_Recompile<VariableBuildFixture_GenericSourceBacktrack>(state);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Fragmented archetypes
 ////////////////////////////////////////////////////////////////////////////////
@@ -1416,60 +1690,6 @@ void BM_QueryBuild_Cached_4(picobench::state& state) {
 
 void BM_QueryBuild_Uncached_4(picobench::state& state) {
 	BM_QueryBuild<false, 4>(state);
-}
-
-void BM_QueryBuild_Variable_1VarOrSource_Uncached(picobench::state& state) {
-	const uint32_t sourceCandidateCnt = (uint32_t)state.user_data();
-	const uint32_t sourceTotalCnt = sourceCandidateCnt > 16U ? sourceCandidateCnt : 16U;
-	constexpr uint32_t archetypeCnt = 128U;
-
-	ecs::World w;
-
-	const auto relA = w.add();
-	const auto relB = w.add();
-	const auto relC = w.add();
-
-	cnt::darray<ecs::Entity> sources;
-	sources.resize(sourceTotalCnt);
-	GAIA_FOR(sourceTotalCnt) {
-		sources[i] = w.add();
-		if (i < sourceCandidateCnt)
-			w.add<SourceTypeOr>(sources[i]);
-	}
-
-	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
-	static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
-	static constexpr uint8_t candC[] = {1, 7, 8, 9, 15};
-
-	GAIA_FOR(archetypeCnt) {
-		auto e = w.add();
-		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
-		add_var_match_tags(w, e, i);
-
-		for (const auto idx: candA)
-			w.add(e, ecs::Pair(relA, sources[idx]));
-		for (const auto idx: candB)
-			w.add(e, ecs::Pair(relB, sources[idx]));
-		for (const auto idx: candC)
-			w.add(e, ecs::Pair(relC, sources[idx]));
-	}
-
-	state.stop_timer();
-	for (auto _: state) {
-		(void)_;
-		state.start_timer();
-
-		auto q = w.query<false>()
-								 .template all<Position>()
-								 .template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0))
-								 .or_(ecs::Pair(relA, ecs::Var0))
-								 .or_(ecs::Pair(relB, ecs::Var0))
-								 .or_(ecs::Pair(relC, ecs::Var0));
-		const auto bytecode = q.bytecode();
-		dont_optimize(bytecode.size());
-
-		state.stop_timer();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1808,14 +2028,56 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryBuild_Uncached_2).PICO_SETTINGS_HEAVY().label("uncached, 2 comp");
 		PICOBENCH_REG(BM_QueryBuild_Cached_4).PICO_SETTINGS_HEAVY().label("cached, 4 comp");
 		PICOBENCH_REG(BM_QueryBuild_Uncached_4).PICO_SETTINGS_HEAVY().label("uncached, 4 comp");
+
+		PICOBENCH_SUITE_REG("Query variable build");
+		PICOBENCH_REG(BM_QueryBuild_Variable_1VarSource_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("uncached, 1var source-gated");
+		PICOBENCH_REG(BM_QueryBuild_Variable_1VarSource_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("recompile, 1var source-gated");
 		PICOBENCH_REG(BM_QueryBuild_Variable_1VarOrSource_Uncached)
-				.PICO_SETTINGS_HEAVY()
+				.PICO_SETTINGS_FOCUS()
 				.user_data(1)
 				.label("uncached, 1var or-source, 1 src");
 		PICOBENCH_REG(BM_QueryBuild_Variable_1VarOrSource_Uncached)
-				.PICO_SETTINGS_HEAVY()
+				.PICO_SETTINGS_FOCUS()
 				.user_data(4096)
 				.label("uncached, 1var or-source, 4K src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_1VarOrSource_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("recompile, 1var or-source, 1 src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_1VarOrSource_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("recompile, 1var or-source, 4K src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_2VarPairAll_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("uncached, 2var pair-all");
+		PICOBENCH_REG(BM_QueryBuild_Variable_2VarPairAll_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("recompile, 2var pair-all");
+		PICOBENCH_REG(BM_QueryBuild_Variable_GenericSourceBacktrack_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(24)
+				.label("uncached, generic source-backtrack, 24 src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_GenericSourceBacktrack_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("uncached, generic source-backtrack, 4K src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_GenericSourceBacktrack_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(24)
+				.label("recompile, generic source-backtrack, 24 src");
+		PICOBENCH_REG(BM_QueryBuild_Variable_GenericSourceBacktrack_Recompile)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("recompile, generic source-backtrack, 4K src");
 
 		PICOBENCH_SUITE_REG("Query variable match");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1Var_Bound)

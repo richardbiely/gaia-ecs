@@ -3025,6 +3025,10 @@ namespace gaia {
 					return !m_compCtx.ops.empty();
 				}
 
+				GAIA_NODISCARD uint32_t op_count() const {
+					return (uint32_t)m_compCtx.ops.size();
+				}
+
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
