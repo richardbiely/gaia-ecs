@@ -6818,6 +6818,93 @@ TEST_CASE("Query - variable opcode selection is structural") {
 }
 
 template <typename TQuery>
+void Test_Query_Variable_Program_Recompile() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	struct Cable {};
+	struct ConnectedTo {};
+	struct LinkedTo {};
+	struct RoutedVia {};
+	struct Marker {};
+
+	TestWorld twld;
+	const auto connectedTo = wld.add<ConnectedTo>().entity;
+	const auto linkedTo = wld.add<LinkedTo>().entity;
+	const auto routedVia = wld.add<RoutedVia>().entity;
+
+	const auto parentMarked = wld.add();
+	const auto parentPlain = wld.add();
+	wld.add<Marker>(parentMarked);
+
+	const auto devMarked = wld.add();
+	const auto devPlain = wld.add();
+	wld.add(devMarked, ecs::Pair(ecs::ChildOf, parentMarked));
+	wld.add(devPlain, ecs::Pair(ecs::ChildOf, parentPlain));
+
+	const auto routeA = wld.add();
+	const auto routeB = wld.add();
+
+	const auto cableGood = wld.add();
+	wld.add<Cable>(cableGood);
+	wld.add(cableGood, {connectedTo, devMarked});
+	wld.add(cableGood, {routedVia, routeA});
+	wld.add(cableGood, {routeA, devMarked});
+
+	const auto cableBadSource = wld.add();
+	wld.add<Cable>(cableBadSource);
+	wld.add(cableBadSource, {connectedTo, devPlain});
+	wld.add(cableBadSource, {linkedTo, routeA});
+	wld.add(cableBadSource, {routeA, devPlain});
+
+	const auto cableBadCoupling = wld.add();
+	wld.add<Cable>(cableBadCoupling);
+	wld.add(cableBadCoupling, {connectedTo, devMarked});
+	wld.add(cableBadCoupling, {linkedTo, routeB});
+	wld.add(cableBadCoupling, {routeA, devMarked});
+
+	auto q = wld.query<UseCachedQuery>() //
+							 .template all<Cable>()
+							 .all(ecs::Pair(connectedTo, ecs::Var0))
+							 .all(ecs::Pair(ecs::Var1, ecs::Var0))
+							 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent())
+							 .or_(ecs::Pair(routedVia, ecs::Var1))
+							 .or_(ecs::Pair(linkedTo, ecs::Var1));
+
+	const auto bytecodeBefore = q.bytecode();
+	CHECK(bytecodeBefore.find("var_exec: 1") != BadIndex);
+	CHECK(bytecodeBefore.find("search_enter") != BadIndex);
+	CHECK(bytecodeBefore.find("search_finalize") != BadIndex);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {cableGood});
+
+	q.fetch().ctx().data.flags |= ecs::QueryCtx::QueryFlags::Recompile;
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {cableGood});
+	const auto bytecodeAfter = q.bytecode();
+	CHECK(bytecodeAfter == bytecodeBefore);
+
+	q.set_var(ecs::Var0, devMarked);
+	q.set_var(ecs::Var1, routeA);
+	q.fetch().ctx().data.flags |= ecs::QueryCtx::QueryFlags::Recompile;
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {cableGood});
+
+	q.set_var(ecs::Var0, devPlain);
+	q.fetch().ctx().data.flags |= ecs::QueryCtx::QueryFlags::Recompile;
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+}
+
+TEST_CASE("Query - variable program recompile") {
+	SUBCASE("Cached query") {
+		Test_Query_Variable_Program_Recompile<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Variable_Program_Recompile<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_SingleOr_CanonicalizedToAll() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
