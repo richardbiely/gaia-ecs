@@ -6563,6 +6563,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
+		CHECK(bytecode.find("term_all_srcup_bind") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
 		CHECK(bytecode.find("term_all_srcself_bind") == BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
@@ -6930,6 +6931,7 @@ void Test_Query_Variable_Program_Recompile() {
 
 	const auto bytecodeBefore = q.bytecode();
 	CHECK(bytecodeBefore.find("var_exec: 1") != BadIndex);
+	CHECK(bytecodeBefore.find("term_all_srcup_bind") != BadIndex);
 	CHECK(bytecodeBefore.find("search_begin_any") != BadIndex);
 	CHECK(bytecodeBefore.find("search_other_or_bind") != BadIndex);
 	CHECK(bytecodeBefore.find("search_maybe_finalize") != BadIndex);

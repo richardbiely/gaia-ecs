@@ -30987,6 +30987,7 @@ namespace gaia {
 					Var_Term_All_Check,
 					Var_Term_All_Bind,
 					Var_Term_All_SrcSelf_Bind,
+					Var_Term_All_SrcUp_Bind,
 					Var_Term_Or_Check,
 					Var_Term_Or_Bind,
 					Var_Term_Any_Check,
@@ -31123,6 +31124,7 @@ namespace gaia {
 				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Term_All_Check;
 				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_Final_Success;
 				static constexpr VarProgramOpcodeMeta VarProgramOpcodeMetaTable[] = {
+						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
@@ -32238,13 +32240,81 @@ namespace gaia {
 					return false;
 				}
 
+				GAIA_NODISCARD inline bool next_up_source_var_match_cursor(
+						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
+						VarTermMatchCursor& cursor, VarBindings& outVars) {
+					GAIA_ASSERT(ctx.pWorld != nullptr);
+					GAIA_ASSERT(is_var_entity(termOp.term.src));
+					GAIA_ASSERT(!var_is_bound(varsIn, termOp.term.src));
+					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_Up);
+
+					const auto advance_matches = [&](std::span<const Archetype*> sourceArchetypes) {
+						for (; cursor.sourceArchetypeIdx < sourceArchetypes.size(); ++cursor.sourceArchetypeIdx) {
+							const auto* pSrcArchetype = sourceArchetypes[cursor.sourceArchetypeIdx];
+							if (pSrcArchetype == nullptr)
+								continue;
+							if (!match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
+								continue;
+
+							const auto& chunks = pSrcArchetype->chunks();
+							for (; cursor.sourceChunkIdx < chunks.size(); ++cursor.sourceChunkIdx) {
+								const auto* pChunk = chunks[cursor.sourceChunkIdx];
+								if (pChunk == nullptr || pChunk->empty())
+									continue;
+
+								const auto entities = pChunk->entity_view();
+								while (cursor.sourceEntityIdx < entities.size()) {
+									if (cursor.source == EntityBad) {
+										cursor.source = entities[cursor.sourceEntityIdx];
+										cursor.sourceCursor = {};
+									}
+
+									Entity candidate = EntityBad;
+									if (next_lookup_source_cursor(
+													*ctx.pWorld, EOpcode::Src_Down, termOp.term, cursor.source, cursor.sourceCursor, candidate)) {
+										auto vars = varsIn;
+										if (!bind_var(vars, termOp.term.src, candidate))
+											continue;
+
+										outVars = vars;
+										return true;
+									}
+
+									cursor.source = EntityBad;
+									++cursor.sourceEntityIdx;
+								}
+
+								cursor.sourceEntityIdx = 0;
+							}
+
+							cursor.sourceChunkIdx = 0;
+						}
+
+						return false;
+					};
+
+					if (ctx.pEntityToArchetypeMap != nullptr) {
+						const auto sourceArchetypes = fetch_archetypes_for_select(
+								*ctx.pEntityToArchetypeMap, ctx.allArchetypes, termOp.term.id, termOp.term.id);
+						if (advance_matches(sourceArchetypes))
+							return true;
+					} else if (advance_matches(ctx.allArchetypes))
+						return true;
+
+					return false;
+				}
+
 				GAIA_NODISCARD inline bool next_term_match_cursor(
 						const MatchingCtx& ctx, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
 						const VarBindings& varsIn, VarTermMatchCursor& cursor, VarBindings& outVars) {
 					const auto& term = termOp.term;
-					if (term.src != EntityBad && is_var_entity(term.src) && !var_is_bound(varsIn, term.src) &&
-							termOp.sourceOpcode == EOpcode::Src_Self) {
+					const bool hasUnboundVar =
+							term.src != EntityBad && is_var_entity(term.src) && !var_is_bound(varsIn, term.src);
+					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_Self) {
 						return next_self_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
+					}
+					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_Up) {
+						return next_up_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
 					}
 
 					return next_term_match_cursor(*ctx.pWorld, archetype, termOp, varsIn, cursor, outVars);
@@ -32718,6 +32788,7 @@ namespace gaia {
 							"term_all_check", //
 							"term_all_bind", //
 							"term_all_srcself_bind", //
+							"term_all_srcup_bind", //
 							"term_or_check", //
 							"term_or_bind", //
 							"term_any_check", //
@@ -33046,6 +33117,7 @@ namespace gaia {
 						case detail::EOpcode::Var_Term_All_Check:
 						case detail::EOpcode::Var_Term_All_Bind:
 						case detail::EOpcode::Var_Term_All_SrcSelf_Bind:
+						case detail::EOpcode::Var_Term_All_SrcUp_Bind:
 							return m_compCtx.terms_all_var[(uint32_t)op.arg];
 						default:
 							GAIA_ASSERT(false);
@@ -33071,7 +33143,8 @@ namespace gaia {
 						const auto& bindOp = programOps[bindPc];
 						const auto& termOp = search_program_term_op(bindOp);
 						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src) &&
-								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcSelf_Bind)
+								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcSelf_Bind &&
+								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcUp_Bind)
 							continue;
 
 						const bool bindsNewVars = (uint8_t)(termOp.varMask & ~vars.mask) != 0;
@@ -33291,7 +33364,7 @@ namespace gaia {
 					const auto is_term_ready = [&](const detail::CompiledOp& op, const VarBindings& vars) {
 						const auto& termOp = search_program_term_op(op);
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src) ||
-								op.opcode == EOpcode::Var_Term_All_SrcSelf_Bind;
+									 op.opcode == EOpcode::Var_Term_All_SrcSelf_Bind || op.opcode == EOpcode::Var_Term_All_SrcUp_Bind;
 					};
 					const auto advance_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
 																														 VarBindings nextVars) {
@@ -33301,6 +33374,7 @@ namespace gaia {
 							case EOpcode::Var_Term_All_Check:
 							case EOpcode::Var_Term_All_Bind:
 							case EOpcode::Var_Term_All_SrcSelf_Bind:
+							case EOpcode::Var_Term_All_SrcUp_Bind:
 								state.pendingAllMask = (uint16_t)(state.pendingAllMask & ~bit);
 								state.pc = op.pc_ok;
 								break;
@@ -33599,6 +33673,7 @@ namespace gaia {
 								break;
 							case EOpcode::Var_Term_All_Bind:
 							case EOpcode::Var_Term_All_SrcSelf_Bind:
+							case EOpcode::Var_Term_All_SrcUp_Bind:
 								if (!try_enter_search_term(state, stack)) {
 									handle_search_term_exhausted(state, op);
 									if (state.pc == BacktrackPc && !backtrack(state, stack))
@@ -34105,14 +34180,23 @@ namespace gaia {
 						const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						GAIA_FOR(allVarCnt) {
 							const auto cost = detail::search_term_cost(m_compCtx.terms_all_var[i]);
+							const auto srcVarBit =
+									detail::is_var_entity(m_compCtx.terms_all_var[i].term.src)
+											? (uint8_t)(uint8_t(1) << detail::var_index(m_compCtx.terms_all_var[i].term.src))
+											: 0;
 							const auto canBindFromSelfSource =
 									m_compCtx.terms_all_var[i].sourceOpcode == detail::EOpcode::Src_Self &&
 									detail::is_var_entity(m_compCtx.terms_all_var[i].term.src) &&
+									m_compCtx.terms_all_var[i].varMask == srcVarBit &&
 									(uint8_t)(m_compCtx.terms_all_var[i].varMask & m_compCtx.varMaskAny) == 0;
-							const auto opcode =
-									canBindFromSelfSource
-											? detail::EOpcode::Var_Term_All_SrcSelf_Bind
-											: detail::EOpcode::Var_Term_All_Bind;
+							const auto canBindFromUpSource =
+									m_compCtx.terms_all_var[i].sourceOpcode == detail::EOpcode::Src_Up &&
+									detail::is_var_entity(m_compCtx.terms_all_var[i].term.src) &&
+									m_compCtx.terms_all_var[i].varMask == srcVarBit &&
+									(uint8_t)(m_compCtx.terms_all_var[i].varMask & m_compCtx.varMaskAny) == 0;
+							const auto opcode = canBindFromSelfSource ? detail::EOpcode::Var_Term_All_SrcSelf_Bind
+																	: canBindFromUpSource ? detail::EOpcode::Var_Term_All_SrcUp_Bind
+																												: detail::EOpcode::Var_Term_All_Bind;
 							searchAllBindOps.push_back({opcode, 0, 0, (uint8_t)i, cost});
 							searchAllCheckOps.push_back({detail::EOpcode::Var_Term_All_Check, 0, 0, (uint8_t)i, cost});
 						}
@@ -34186,6 +34270,7 @@ namespace gaia {
 							switch (op.opcode) {
 								case detail::EOpcode::Var_Term_All_Bind:
 								case detail::EOpcode::Var_Term_All_SrcSelf_Bind:
+								case detail::EOpcode::Var_Term_All_SrcUp_Bind:
 									op.pc_ok = selectAllPc;
 									op.pc_fail = backtrackPc;
 									break;
