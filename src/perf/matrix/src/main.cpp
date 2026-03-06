@@ -1277,6 +1277,64 @@ void BM_QueryMatch_Variable_1VarOr_Unbound(picobench::state& state) {
 }
 
 template <bool BoundVar0>
+void BM_QueryMatch_Variable_1VarAny(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 16;
+
+	ecs::World w;
+
+	const auto relA = w.add();
+	const auto relB = w.add();
+	const auto relC = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> sources{};
+	GAIA_FOR(SourceCnt) {
+		sources[i] = w.add();
+	}
+
+	static constexpr uint8_t candA[] = {0, 1, 2, 3, 15};
+	static constexpr uint8_t candB[] = {3, 4, 5, 6, 15};
+	static constexpr uint8_t candC[] = {1, 7, 8, 9, 15};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candA)
+			w.add(e, ecs::Pair(relA, sources[idx]));
+		for (const auto idx: candB)
+			w.add(e, ecs::Pair(relB, sources[idx]));
+		for (const auto idx: candC)
+			w.add(e, ecs::Pair(relC, sources[idx]));
+	}
+
+	auto q = w.query().any(ecs::Pair(relA, ecs::Var0)).any(ecs::Pair(relB, ecs::Var0)).any(ecs::Pair(relC, ecs::Var0));
+	if constexpr (BoundVar0)
+		q.set_var(ecs::Var0, sources[15]);
+	else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_1VarAny_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarAny<true>(state);
+}
+
+void BM_QueryMatch_Variable_1VarAny_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_1VarAny<false>(state);
+}
+
+template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarMixed(picobench::state& state) {
 	const uint32_t archetypeCnt = (uint32_t)state.user_data();
 	constexpr uint32_t SourceCnt = 16;
@@ -2248,6 +2306,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match 1var or-source-gated (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarAny_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match 1var any (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_1VarAny_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match 1var any (unbound)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1VarMixed_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
