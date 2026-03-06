@@ -6240,9 +6240,9 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] group $0") != BadIndex);
-		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
-		CHECK(bytecode.find("varg0_check:") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp0_check:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6301,9 +6301,9 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] group $0") != BadIndex);
-		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
-		CHECK(bytecode.find("varg0_check:") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp0_check:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6368,10 +6368,10 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 2") != BadIndex);
-		CHECK(bytecode.find("] group $0") != BadIndex);
-		CHECK(bytecode.find("] group $1") != BadIndex);
-		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
-		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] entity $1") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp1_bind_req:") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6436,10 +6436,10 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 2") != BadIndex);
-		CHECK(bytecode.find("] group $0") != BadIndex);
-		CHECK(bytecode.find("] group $1") != BadIndex);
-		CHECK(bytecode.find("varg0_bind_req:") != BadIndex);
-		CHECK(bytecode.find("varg1_bind_req:") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] entity $1") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp1_bind_req:") != BadIndex);
 		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
@@ -6621,9 +6621,9 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] main $0") != BadIndex);
-		CHECK(bytecode.find("var1_bind_req:") != BadIndex);
-		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_or:") != BadIndex);
 		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(bytecode.find("check_or") != BadIndex);
 		CHECK(q.count() == 2);
@@ -6672,11 +6672,11 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] main $0") != BadIndex);
-		CHECK(bytecode.find("var1_bind_or:") != BadIndex);
-		CHECK(bytecode.find("var1_bind_req:") == BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_or:") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") == BadIndex);
 		CHECK(bytecode.find("bind_or") != BadIndex);
-		CHECK(bytecode.find("var1_check:") != BadIndex);
+		CHECK(bytecode.find("varp0_check:") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
@@ -6730,9 +6730,9 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varfa ") == BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
 		CHECK(bytecode.find("] pair $0") != BadIndex);
-		CHECK(bytecode.find("var1pm_bind_req:") != BadIndex);
-		CHECK(bytecode.find("var1pm_bind_or:") != BadIndex);
-		CHECK(bytecode.find("var1pm_check:") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_req:") != BadIndex);
+		CHECK(bytecode.find("varp0_bind_or:") != BadIndex);
+		CHECK(bytecode.find("varp0_check:") != BadIndex);
 		CHECK(bytecode.find("pair_bind_all") != BadIndex);
 		CHECK(bytecode.find("pair_bind_or") != BadIndex);
 		CHECK(bytecode.find("pair_check_not") != BadIndex);
@@ -6808,7 +6808,7 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varfbp ") != BadIndex);
-		CHECK(bytecode.find("] main $0") != BadIndex);
+		CHECK(bytecode.find("] entity $0") != BadIndex);
 		CHECK(bytecode.find("bind_src") != BadIndex);
 		CHECK(q.count() == 2);
 		return bytecode;
