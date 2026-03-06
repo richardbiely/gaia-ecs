@@ -6234,12 +6234,13 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6292,12 +6293,13 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .all(ecs::Pair(routedVia, ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6356,14 +6358,13 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .all(ecs::Pair(routedVia, ecs::Var1));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
-		CHECK(bytecode.find("var_exec: 2") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
-		CHECK(bytecode.find("] entity $1") != BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
-		CHECK(bytecode.find("varp1:") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6422,15 +6423,13 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .template all<PowerNode>(ecs::QueryTermOptions{}.src(ecs::Var1));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
-		CHECK(bytecode.find("var_exec: 2") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
-		CHECK(bytecode.find("] entity $1") != BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
-		CHECK(bytecode.find("varp1:") != BadIndex);
-		CHECK(bytecode.find("bind_src") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6484,11 +6483,9 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .all(ecs::Pair(ecs::Var0, ecs::Var1));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("search or=1") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all") != BadIndex);
 		CHECK(bytecode.find("search_enter") != BadIndex);
@@ -6556,11 +6553,9 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .or_(ecs::Pair(linkedTo, ecs::Var1));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("search or=1") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all") != BadIndex);
 		CHECK(bytecode.find("term_or") != BadIndex);
@@ -6614,14 +6609,14 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .or_(ecs::Pair(routedVia, ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
-		CHECK(bytecode.find("bind_src") != BadIndex);
-		CHECK(bytecode.find("check_or") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("term_or") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 
@@ -6661,15 +6656,12 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .or_(ecs::Pair(linkedTo, ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
-		CHECK(bytecode.find("bind_or") != BadIndex);
-		CHECK(bytecode.find("bind_all") == BadIndex);
-		CHECK(bytecode.find("bind_src") == BadIndex);
+		CHECK(bytecode.find("term_or") != BadIndex);
+		CHECK(bytecode.find("term_all") == BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
@@ -6715,15 +6707,15 @@ void Test_Query_Variable_Opcode_Paths() {
 								 .no(ecs::Pair(blockedBy, ecs::Var0));
 
 		const auto bytecode = q.bytecode();
-		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
 		CHECK(bytecode.find("] varf ") != BadIndex);
 		CHECK(bytecode.find("var_exec: 1") != BadIndex);
-		CHECK(bytecode.find("] pair $0") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
-		CHECK(bytecode.find("pair_bind_all") != BadIndex);
-		CHECK(bytecode.find("pair_bind_or") != BadIndex);
-		CHECK(bytecode.find("pair_check_not") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("term_or") != BadIndex);
+		CHECK(bytecode.find("term_not") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableGoodA, cableGoodB});
 
@@ -6795,9 +6787,9 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 
 		auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varf ") != BadIndex);
-		CHECK(bytecode.find("] varfb ") != BadIndex);
-		CHECK(bytecode.find("] entity $0") != BadIndex);
-		CHECK(bytecode.find("bind_src") != BadIndex);
+		CHECK(bytecode.find("] search") != BadIndex);
+		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("term_or") != BadIndex);
 		CHECK(q.count() == 2);
 		return bytecode;
 	};
