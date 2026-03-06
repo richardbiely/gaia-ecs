@@ -147,14 +147,10 @@ namespace gaia {
 					Var_Filter_Bound,
 					//! Filter current result set using compiled variable programs (bound)
 					Var_Filter_Bound_Program,
-					//! Filter current result set using a single-variable pair mixed matcher (bound)
-					Var_Filter_Bound_1VarPairMixed,
 					//! Filter current result set using ALL-only variable terms
 					Var_Filter_AllOnly,
 					//! Filter current result set using compiled variable programs
 					Var_Filter_Program,
-					//! Filter current result set using a single-variable pair mixed matcher
-					Var_Filter_1VarPairMixed,
 					//! Source term gates
 					Src_AllTerm,
 					Src_NotTerm,
@@ -164,7 +160,19 @@ namespace gaia {
 					Src_Self,
 					Src_Up,
 					Src_Down,
-					Src_UpDown
+					Src_UpDown,
+					//! Variable program micro-ops
+					Var_Bind_All,
+					Var_Bind_Or,
+					Var_Bind_SourceAll,
+					Var_PairBind_All,
+					Var_PairBind_Or,
+					Var_Check_All,
+					Var_Check_Not,
+					Var_Check_Or,
+					Var_PairCheck_All,
+					Var_PairCheck_Not,
+					Var_PairCheck_Or
 				};
 
 				using VmLabel = uint16_t;
@@ -178,6 +186,8 @@ namespace gaia {
 					VmLabel pc_fail;
 					//! Optional opcode argument (e.g. index to a source term array).
 					uint8_t arg = 0;
+					//! Optional planner-side cost used for sorting compiled micro-op plans.
+					uint8_t cost = 0;
 				};
 
 				enum class EVarUnboundStrategy : uint8_t {
@@ -201,28 +211,10 @@ namespace gaia {
 						QueryTerm term{};
 						uint8_t varMask = 0;
 					};
-					enum class EVarProgramOpcode : uint8_t {
-						Bind_AllTerm,
-						Bind_OrTerm,
-						Bind_SourceAll,
-						PairBind_AllTerm,
-						PairBind_OrTerm,
-						Check_All,
-						Check_Not,
-						Check_Or,
-						PairCheck_All,
-						PairCheck_Not,
-						PairCheck_Or
-					};
-					struct VarProgramOp {
-						EVarProgramOpcode opcode = EVarProgramOpcode::Bind_AllTerm;
-						uint8_t termIdx = 0;
-						uint8_t cost = 0;
-					};
 					struct VarProgram {
-						cnt::sarray_ext<VarProgramOp, MAX_ITEMS_IN_QUERY> requiredBindOps;
-						cnt::sarray_ext<VarProgramOp, MAX_ITEMS_IN_QUERY> orBindOps;
-						cnt::sarray_ext<VarProgramOp, MAX_ITEMS_IN_QUERY> checkOps;
+						cnt::sarray_ext<CompiledOp, MAX_ITEMS_IN_QUERY> requiredBindOps;
+						cnt::sarray_ext<CompiledOp, MAX_ITEMS_IN_QUERY> orBindOps;
+						cnt::sarray_ext<CompiledOp, MAX_ITEMS_IN_QUERY> checkOps;
 
 						void clear() {
 							requiredBindOps.clear();
@@ -230,7 +222,7 @@ namespace gaia {
 							checkOps.clear();
 						}
 					};
-					enum class EVarProgramStore : uint8_t { Main, Group };
+					enum class EVarProgramStore : uint8_t { Main, Group, Pair };
 					struct VarProgramExecItem {
 						uint8_t varIdx = 0;
 						EVarProgramStore store = EVarProgramStore::Main;
@@ -294,6 +286,8 @@ namespace gaia {
 					uint8_t checkOrder;
 				};
 
+				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Bind_All;
+				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_PairCheck_Or;
 				static constexpr VarProgramOpcodeMeta VarProgramOpcodeMetaTable[] = {
 						{"bind_all", EVarProgramTermSet::All, 3}, //
 						{"bind_or", EVarProgramTermSet::Or, 3}, //
@@ -310,12 +304,13 @@ namespace gaia {
 
 				static_assert(
 						sizeof(VarProgramOpcodeMetaTable) / sizeof(VarProgramOpcodeMetaTable[0]) ==
-								(uint32_t)QueryCompileCtx::EVarProgramOpcode::PairCheck_Or + 1u,
-						"VarProgramOpcodeMetaTable out of sync with EVarProgramOpcode.");
+								(uint32_t)VarProgramOpcodeLast - (uint32_t)VarProgramOpcodeFirst + 1u,
+						"VarProgramOpcodeMetaTable out of sync with EOpcode variable micro-op range.");
 
-				GAIA_NODISCARD inline const VarProgramOpcodeMeta&
-				var_program_opcode_meta(QueryCompileCtx::EVarProgramOpcode opcode) {
-					return VarProgramOpcodeMetaTable[(uint32_t)opcode];
+				GAIA_NODISCARD inline const VarProgramOpcodeMeta& var_program_opcode_meta(EOpcode opcode) {
+					GAIA_ASSERT((uint32_t)opcode >= (uint32_t)VarProgramOpcodeFirst);
+					GAIA_ASSERT((uint32_t)opcode <= (uint32_t)VarProgramOpcodeLast);
+					return VarProgramOpcodeMetaTable[(uint32_t)opcode - (uint32_t)VarProgramOpcodeFirst];
 				}
 
 				GAIA_NODISCARD inline uint8_t source_term_cost(const QueryCompileCtx::SourceTermOp& termOp) {
@@ -352,7 +347,7 @@ namespace gaia {
 					return cost;
 				}
 
-				inline uint8_t program_check_order(QueryCompileCtx::EVarProgramOpcode opcode) {
+				inline uint8_t program_check_order(EOpcode opcode) {
 					return var_program_opcode_meta(opcode).checkOrder;
 				}
 
@@ -372,7 +367,7 @@ namespace gaia {
 								break;
 							if (prev.cost == key.cost && (uint8_t)prev.opcode < (uint8_t)key.opcode)
 								break;
-							if (prev.cost == key.cost && prev.opcode == key.opcode && prev.termIdx <= key.termIdx)
+							if (prev.cost == key.cost && prev.opcode == key.opcode && prev.arg <= key.arg)
 								break;
 							bindOps[j] = prev;
 							--j;
@@ -400,7 +395,7 @@ namespace gaia {
 								break;
 							if (prev.cost == key.cost && prevOrder < keyOrder)
 								break;
-							if (prev.cost == key.cost && prev.opcode == key.opcode && prev.termIdx <= key.termIdx)
+							if (prev.cost == key.cost && prev.opcode == key.opcode && prev.arg <= key.arg)
 								break;
 							checkOps[j] = prev;
 							--j;
@@ -1779,10 +1774,8 @@ namespace gaia {
 							"varf", //
 							"varfb", //
 							"varfbp", //
-							"varfb1pm", //
 							"varfa", //
 							"varfp", //
-							"varf1pm", //
 							"src_all_t", //
 							"src_not_t", //
 							"src_or_t", //
@@ -1791,9 +1784,20 @@ namespace gaia {
 							"up", //
 							"down", //
 							"updown", //
+							"bind_all", //
+							"bind_or", //
+							"bind_src", //
+							"pair_bind_all", //
+							"pair_bind_or", //
+							"check_all", //
+							"check_not", //
+							"check_or", //
+							"pair_check_all", //
+							"pair_check_not", //
+							"pair_check_or", //
 					};
 					static_assert(
-							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Src_UpDown + 1u,
+							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Var_PairCheck_Or + 1u,
 							"Opcode name table out of sync with EOpcode.");
 					return s_names[(uint32_t)opcode];
 				}
@@ -1804,7 +1808,7 @@ namespace gaia {
 								 opcode == detail::EOpcode::Src_OrTerm;
 				}
 
-				static const char* var_program_opcode_name(detail::QueryCompileCtx::EVarProgramOpcode opcode) {
+				static const char* var_program_opcode_name(detail::EOpcode opcode) {
 					return detail::var_program_opcode_meta(opcode).name;
 				}
 
@@ -1966,21 +1970,20 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD static const QueryTerm&
-				var_program_op_term(const detail::QueryCompileCtx& comp, const detail::QueryCompileCtx::VarProgramOp& op) {
+				var_program_op_term(const detail::QueryCompileCtx& comp, const detail::CompiledOp& op) {
 					switch (detail::var_program_opcode_meta(op.opcode).termSet) {
 						case detail::EVarProgramTermSet::Or:
-							return comp.terms_or_var[(uint32_t)op.termIdx].term;
+							return comp.terms_or_var[(uint32_t)op.arg].term;
 						case detail::EVarProgramTermSet::Not:
-							return comp.terms_not_var[(uint32_t)op.termIdx].term;
+							return comp.terms_not_var[(uint32_t)op.arg].term;
 						case detail::EVarProgramTermSet::All:
 						default:
-							return comp.terms_all_var[(uint32_t)op.termIdx].term;
+							return comp.terms_all_var[(uint32_t)op.arg].term;
 					}
 				}
 
 				static void append_var_program_ops_section(
-						util::str& out, const char* title,
-						const cnt::sarray_ext<detail::QueryCompileCtx::VarProgramOp, MAX_ITEMS_IN_QUERY>& ops,
+						util::str& out, const char* title, const cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY>& ops,
 						const detail::QueryCompileCtx& comp, const World& world) {
 					if (ops.empty())
 						return;
@@ -1998,7 +2001,7 @@ namespace gaia {
 						out.append("] ");
 						append_cstr(out, var_program_opcode_name(op.opcode));
 						out.append(" term=");
-						append_uint(out, (uint32_t)op.termIdx);
+						append_uint(out, (uint32_t)op.arg);
 						out.append(" cost=");
 						append_uint(out, (uint32_t)op.cost);
 						out.append(" id=");
@@ -2021,7 +2024,10 @@ namespace gaia {
 						out.append("  [");
 						append_uint(out, i);
 						out.append("] ");
-						append_cstr(out, item.store == detail::QueryCompileCtx::EVarProgramStore::Main ? "main" : "group");
+						append_cstr(
+								out, item.store == detail::QueryCompileCtx::EVarProgramStore::Main		? "main"
+										 : item.store == detail::QueryCompileCtx::EVarProgramStore::Group ? "group"
+																																											: "pair");
 						out.append(" $");
 						append_uint(out, (uint32_t)item.varIdx);
 						out.append('\n');
@@ -2124,24 +2130,9 @@ namespace gaia {
 					return true;
 				}
 
-				GAIA_NODISCARD bool eval_variable_terms_bound_1var_pairmixed_on_archetype(
-						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
-					using namespace detail;
-
-					GAIA_ASSERT(m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed);
-					const auto vars = make_initial_var_bindings(ctx);
-					const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + m_compCtx.varIdx0));
-					GAIA_ASSERT(varEntity != EntityBad);
-					if (!var_is_bound(vars, varEntity))
-						return false;
-
-					return match_pair_target_program_check(
-							archetype, vars.values[var_index(varEntity)], m_compCtx.var1PairProgram, orAlreadySatisfied, false);
-				}
-
 				GAIA_NODISCARD static bool
-				can_eval_single_var_bind_op(const MatchingCtx& ctx, const detail::QueryCompileCtx::VarProgramOp& bindOp) {
-					if (bindOp.opcode != detail::QueryCompileCtx::EVarProgramOpcode::Bind_SourceAll)
+				can_eval_single_var_bind_op(const MatchingCtx& ctx, const detail::CompiledOp& bindOp) {
+					if (bindOp.opcode != detail::EOpcode::Var_Bind_SourceAll)
 						return true;
 					return ctx.pEntityToArchetypeMap != nullptr;
 				}
@@ -2160,11 +2151,11 @@ namespace gaia {
 					const auto bindOpCnt = (uint32_t)bindOps.size();
 					GAIA_FOR(bindOpCnt) {
 						const auto& bindOp = bindOps[i];
-						if (bindOp.opcode != detail::QueryCompileCtx::EVarProgramOpcode::Bind_AllTerm)
+						if (bindOp.opcode != detail::EOpcode::Var_Bind_All)
 							continue;
 
 						hasLocalBind = true;
-						const auto& termOp = m_compCtx.terms_all_var[(uint32_t)bindOp.termIdx];
+						const auto& termOp = m_compCtx.terms_all_var[(uint32_t)bindOp.arg];
 						const auto matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, varsBase, bestMatchCnt);
 						if (matchCnt == 0)
 							return -1;
@@ -2185,27 +2176,27 @@ namespace gaia {
 				template <typename Func>
 				GAIA_NODISCARD bool each_single_var_bind_candidate(
 						const MatchingCtx& ctx, const Archetype& archetype, Entity varEntity, const detail::VarBindings& varsBase,
-						const detail::QueryCompileCtx::VarProgramOp& bindOp, Func&& func) const {
+						const detail::CompiledOp& bindOp, Func&& func) const {
 					using namespace detail;
 
 					switch (bindOp.opcode) {
-						case detail::QueryCompileCtx::EVarProgramOpcode::Bind_AllTerm: {
-							const auto& termOp = m_compCtx.terms_all_var[(uint32_t)bindOp.termIdx];
+						case detail::EOpcode::Var_Bind_All: {
+							const auto& termOp = m_compCtx.terms_all_var[(uint32_t)bindOp.arg];
 							return each_term_match(*ctx.pWorld, archetype, termOp, varsBase, [&](const VarBindings& vars) {
 								return func(vars, false, (uint32_t)-1);
 							});
 						}
-						case detail::QueryCompileCtx::EVarProgramOpcode::Bind_OrTerm: {
-							const auto& termOp = m_compCtx.terms_or_var[(uint32_t)bindOp.termIdx];
+						case detail::EOpcode::Var_Bind_Or: {
+							const auto& termOp = m_compCtx.terms_or_var[(uint32_t)bindOp.arg];
 							return each_term_match(*ctx.pWorld, archetype, termOp, varsBase, [&](const VarBindings& vars) {
 								return func(vars, true, (uint32_t)-1);
 							});
 						}
-						case detail::QueryCompileCtx::EVarProgramOpcode::Bind_SourceAll: {
+						case detail::EOpcode::Var_Bind_SourceAll: {
 							if (ctx.pEntityToArchetypeMap == nullptr)
 								return false;
 
-							const auto termIdx = (uint32_t)bindOp.termIdx;
+							const auto termIdx = (uint32_t)bindOp.arg;
 							const auto& anchorTerm = m_compCtx.terms_all_var[termIdx];
 							GAIA_ASSERT(anchorTerm.term.src == varEntity);
 							GAIA_ASSERT(anchorTerm.sourceOpcode == detail::EOpcode::Src_Self);
@@ -2247,28 +2238,28 @@ namespace gaia {
 
 					for (const auto& checkOp: program.checkOps) {
 						switch (checkOp.opcode) {
-							case detail::QueryCompileCtx::EVarProgramOpcode::Check_All: {
-								if ((uint32_t)checkOp.termIdx == skipAllTermIdx)
+							case detail::EOpcode::Var_Check_All: {
+								if ((uint32_t)checkOp.arg == skipAllTermIdx)
 									continue;
 
-								const auto& term = m_compCtx.terms_all_var[(uint32_t)checkOp.termIdx];
+								const auto& term = m_compCtx.terms_all_var[(uint32_t)checkOp.arg];
 								hasChecks = true;
 								if (!term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 									return false;
 								break;
 							}
-							case detail::QueryCompileCtx::EVarProgramOpcode::Check_Not: {
-								const auto& term = m_compCtx.terms_not_var[(uint32_t)checkOp.termIdx];
+							case detail::EOpcode::Var_Check_Not: {
+								const auto& term = m_compCtx.terms_not_var[(uint32_t)checkOp.arg];
 								hasChecks = true;
 								if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 									return false;
 								break;
 							}
-							case detail::QueryCompileCtx::EVarProgramOpcode::Check_Or: {
+							case detail::EOpcode::Var_Check_Or: {
 								if (orSatisfied)
 									continue;
 
-								const auto& term = m_compCtx.terms_or_var[(uint32_t)checkOp.termIdx];
+								const auto& term = m_compCtx.terms_or_var[(uint32_t)checkOp.arg];
 								hasChecks = true;
 								if (term_has_match_bound(*ctx.pWorld, archetype, term, vars))
 									orSatisfied = true;
@@ -2287,9 +2278,11 @@ namespace gaia {
 
 				GAIA_NODISCARD const detail::QueryCompileCtx::VarProgram&
 				var_program_from_exec_item(const detail::QueryCompileCtx::VarProgramExecItem& item) const {
-					return item.store == detail::QueryCompileCtx::EVarProgramStore::Main
-										 ? m_compCtx.var1Program
-										 : m_compCtx.varGroupPrograms[item.varIdx];
+					if (item.store == detail::QueryCompileCtx::EVarProgramStore::Main)
+						return m_compCtx.var1Program;
+					if (item.store == detail::QueryCompileCtx::EVarProgramStore::Pair)
+						return m_compCtx.var1PairProgram;
+					return m_compCtx.varGroupPrograms[item.varIdx];
 				}
 
 				GAIA_NODISCARD bool match_var_program_on_archetype(
@@ -2318,7 +2311,7 @@ namespace gaia {
 					for (const auto& bindOp: program.requiredBindOps) {
 						if (!can_eval_single_var_bind_op(ctx, bindOp))
 							continue;
-						if (bindOp.opcode != detail::QueryCompileCtx::EVarProgramOpcode::Bind_SourceAll)
+						if (bindOp.opcode != detail::EOpcode::Var_Bind_SourceAll)
 							continue;
 
 						return each_single_var_bind_candidate(
@@ -2353,9 +2346,21 @@ namespace gaia {
 					for (const auto& execItem: m_compCtx.varProgramExecItems) {
 						const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + execItem.varIdx));
 						GAIA_ASSERT(varEntity != EntityBad);
+						const auto inheritOr = execItem.store == detail::QueryCompileCtx::EVarProgramStore::Main ||
+																	 execItem.store == detail::QueryCompileCtx::EVarProgramStore::Pair;
+						if (execItem.store == detail::QueryCompileCtx::EVarProgramStore::Pair) {
+							const auto boundTarget =
+									var_is_bound(varsBase, varEntity) ? varsBase.values[var_index(varEntity)] : EntityBad;
+							if (!match_pair_target_program_on_archetype(
+											ctx, archetype, boundTarget, var_program_from_exec_item(execItem),
+											inheritOr ? orAlreadySatisfied : false))
+								return false;
+							continue;
+						}
+
 						if (!match_var_program_on_archetype(
 										ctx, archetype, varsBase, varEntity, var_program_from_exec_item(execItem),
-										execItem.store == detail::QueryCompileCtx::EVarProgramStore::Main ? orAlreadySatisfied : false))
+										inheritOr ? orAlreadySatisfied : false))
 							return false;
 					}
 
@@ -2363,19 +2368,19 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD const detail::QueryCompileCtx::VarTermOp&
-				pair_target_bind_term(const detail::QueryCompileCtx::VarProgramOp& bindOp) const {
-					if (bindOp.opcode == detail::QueryCompileCtx::EVarProgramOpcode::PairBind_OrTerm)
-						return m_compCtx.terms_or_var[(uint32_t)bindOp.termIdx];
-					return m_compCtx.terms_all_var[(uint32_t)bindOp.termIdx];
+				pair_target_bind_term(const detail::CompiledOp& bindOp) const {
+					if (bindOp.opcode == detail::EOpcode::Var_PairBind_Or)
+						return m_compCtx.terms_or_var[(uint32_t)bindOp.arg];
+					return m_compCtx.terms_all_var[(uint32_t)bindOp.arg];
 				}
 
 				GAIA_NODISCARD const detail::QueryCompileCtx::VarTermOp&
-				pair_target_check_term(const detail::QueryCompileCtx::VarProgramOp& checkOp) const {
-					if (checkOp.opcode == detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Or)
-						return m_compCtx.terms_or_var[(uint32_t)checkOp.termIdx];
-					if (checkOp.opcode == detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Not)
-						return m_compCtx.terms_not_var[(uint32_t)checkOp.termIdx];
-					return m_compCtx.terms_all_var[(uint32_t)checkOp.termIdx];
+				pair_target_check_term(const detail::CompiledOp& checkOp) const {
+					if (checkOp.opcode == detail::EOpcode::Var_PairCheck_Or)
+						return m_compCtx.terms_or_var[(uint32_t)checkOp.arg];
+					if (checkOp.opcode == detail::EOpcode::Var_PairCheck_Not)
+						return m_compCtx.terms_not_var[(uint32_t)checkOp.arg];
+					return m_compCtx.terms_all_var[(uint32_t)checkOp.arg];
 				}
 
 				GAIA_NODISCARD static uint32_t
@@ -2424,12 +2429,11 @@ namespace gaia {
 
 				template <typename Func>
 				GAIA_NODISCARD bool each_pair_target_bind_candidate(
-						const MatchingCtx& ctx, const Archetype& archetype, const detail::QueryCompileCtx::VarProgramOp& bindOp,
-						Func&& func) const {
+						const MatchingCtx& ctx, const Archetype& archetype, const detail::CompiledOp& bindOp, Func&& func) const {
 					const auto& termOp = pair_target_bind_term(bindOp);
 					const auto archetypeIds = archetype.ids_view();
 					const auto idsCnt = (uint32_t)archetypeIds.size();
-					const auto orMatched = bindOp.opcode == detail::QueryCompileCtx::EVarProgramOpcode::PairBind_OrTerm;
+					const auto orMatched = bindOp.opcode == detail::EOpcode::Var_PairBind_Or;
 					for (uint32_t idIdx = 0; idIdx < idsCnt; ++idIdx) {
 						const auto idInArchetype = archetypeIds[idIdx];
 						if (!idInArchetype.pair())
@@ -2441,7 +2445,7 @@ namespace gaia {
 						if (target == EntityBad)
 							continue;
 
-						if (func(target, orMatched, (uint32_t)bindOp.termIdx))
+						if (func(target, orMatched, (uint32_t)bindOp.arg))
 							return true;
 					}
 
@@ -2474,8 +2478,7 @@ namespace gaia {
 					bool hasChecks = false;
 
 					for (const auto& checkOp: program.checkOps) {
-						if (checkOp.opcode == detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_All &&
-								(uint32_t)checkOp.termIdx == skipAllTermIdx)
+						if (checkOp.opcode == detail::EOpcode::Var_PairCheck_All && (uint32_t)checkOp.arg == skipAllTermIdx)
 							continue;
 
 						const auto& termOp = pair_target_check_term(checkOp);
@@ -2483,15 +2486,15 @@ namespace gaia {
 						hasChecks = true;
 
 						switch (checkOp.opcode) {
-							case detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_All:
+							case detail::EOpcode::Var_PairCheck_All:
 								if (!matched)
 									return false;
 								break;
-							case detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Not:
+							case detail::EOpcode::Var_PairCheck_Not:
 								if (matched)
 									return false;
 								break;
-							case detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Or:
+							case detail::EOpcode::Var_PairCheck_Or:
 								if (matched)
 									orSatisfied = true;
 								break;
@@ -2543,26 +2546,6 @@ namespace gaia {
 
 					return false;
 				}
-
-				GAIA_NODISCARD bool eval_variable_terms_1var_pairmixed_on_archetype(
-						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
-					using namespace detail;
-
-					GAIA_ASSERT(m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed);
-					GAIA_ASSERT(!m_compCtx.terms_all_var.empty());
-					GAIA_ASSERT(!m_compCtx.terms_or_var.empty());
-					GAIA_ASSERT(m_compCtx.terms_any_var.empty());
-
-					const auto varEntity = entity_from_id(*ctx.pWorld, (EntityId)(Var0.id() + m_compCtx.varIdx0));
-					GAIA_ASSERT(varEntity != EntityBad);
-
-					const auto varsBase = make_initial_var_bindings(ctx);
-					const auto boundTarget =
-							var_is_bound(varsBase, varEntity) ? varsBase.values[var_index(varEntity)] : EntityBad;
-					return match_pair_target_program_on_archetype(
-							ctx, archetype, boundTarget, m_compCtx.var1PairProgram, orAlreadySatisfied);
-				}
-
 				GAIA_NODISCARD int32_t select_best_allonly_term(
 						const MatchingCtx& ctx, const Archetype& archetype, uint16_t pendingAllMask,
 						const detail::VarBindings& vars, uint32_t& outBestIdx) const {
@@ -3015,10 +2998,6 @@ namespace gaia {
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_program_on_archetype);
 				}
 
-				void filter_variable_terms_bound_1var_pairmixed(MatchingCtx& ctx) const {
-					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_bound_1var_pairmixed_on_archetype);
-				}
-
 				void filter_variable_terms_allonly(MatchingCtx& ctx) const {
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_allonly_on_archetype);
 				}
@@ -3203,12 +3182,6 @@ namespace gaia {
 					return true;
 				}
 
-				GAIA_NODISCARD bool op_var_filter_bound_1var_pairmixed(MatchingCtx& ctx) const {
-					GAIA_PROF_SCOPE(vm::op_var_filter_bound_1var_pairmixed);
-					filter_variable_terms_bound_1var_pairmixed(ctx);
-					return true;
-				}
-
 				GAIA_NODISCARD bool op_var_filter_allonly(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_var_filter_allonly);
 					filter_variable_terms_allonly(ctx);
@@ -3218,12 +3191,6 @@ namespace gaia {
 				GAIA_NODISCARD bool op_var_filter_program(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_var_filter_program);
 					filter_variable_terms_program(ctx);
-					return true;
-				}
-
-				GAIA_NODISCARD bool op_var_filter_1var_pairmixed(MatchingCtx& ctx) const {
-					GAIA_PROF_SCOPE(vm::op_var_filter_1var_pairmixed);
-					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_1var_pairmixed_on_archetype);
 					return true;
 				}
 
@@ -3270,10 +3237,8 @@ namespace gaia {
 						&VirtualMachine::op_var_filter, //
 						&VirtualMachine::op_var_filter_bound, //
 						&VirtualMachine::op_var_filter_bound_program, //
-						&VirtualMachine::op_var_filter_bound_1var_pairmixed, //
 						&VirtualMachine::op_var_filter_allonly, //
 						&VirtualMachine::op_var_filter_program, //
-						&VirtualMachine::op_var_filter_1var_pairmixed, //
 						&VirtualMachine::op_src_all_term, //
 						&VirtualMachine::op_src_not_term, //
 						&VirtualMachine::op_src_or_term //
@@ -3584,25 +3549,23 @@ namespace gaia {
 						GAIA_FOR(allVarCnt) {
 							const auto cost = detail::bound_term_cost(m_compCtx.terms_all_var[i]);
 							m_compCtx.var1PairProgram.requiredBindOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::PairBind_AllTerm, (uint8_t)i, cost});
+									{detail::EOpcode::Var_PairBind_All, 0, 0, (uint8_t)i, cost});
 							m_compCtx.var1PairProgram.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_All, (uint8_t)i, cost});
+									{detail::EOpcode::Var_PairCheck_All, 0, 0, (uint8_t)i, cost});
 						}
 
 						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
 						GAIA_FOR(orVarCnt) {
 							const auto cost = detail::bound_term_cost(m_compCtx.terms_or_var[i]);
-							m_compCtx.var1PairProgram.orBindOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::PairBind_OrTerm, (uint8_t)i, cost});
-							m_compCtx.var1PairProgram.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Or, (uint8_t)i, cost});
+							m_compCtx.var1PairProgram.orBindOps.push_back({detail::EOpcode::Var_PairBind_Or, 0, 0, (uint8_t)i, cost});
+							m_compCtx.var1PairProgram.checkOps.push_back({detail::EOpcode::Var_PairCheck_Or, 0, 0, (uint8_t)i, cost});
 						}
 
 						const auto notVarCnt = (uint32_t)m_compCtx.terms_not_var.size();
 						GAIA_FOR(notVarCnt) {
 							const auto cost = detail::bound_term_cost(m_compCtx.terms_not_var[i]);
 							m_compCtx.var1PairProgram.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::PairCheck_Not, (uint8_t)i, cost});
+									{detail::EOpcode::Var_PairCheck_Not, 0, 0, (uint8_t)i, cost});
 						}
 
 						detail::sort_program_bind_ops_by_cost(m_compCtx.var1PairProgram.requiredBindOps);
@@ -3628,13 +3591,12 @@ namespace gaia {
 							if (termOp.term.src == varEntity && termOp.sourceOpcode == detail::EOpcode::Src_Self &&
 									detail::has_concrete_match_id(termOp.term.id))
 								m_compCtx.var1Program.requiredBindOps.push_back(
-										{detail::QueryCompileCtx::EVarProgramOpcode::Bind_SourceAll, (uint8_t)i, cost});
+										{detail::EOpcode::Var_Bind_SourceAll, 0, 0, (uint8_t)i, cost});
 							else if (termOp.term.src != varEntity)
 								m_compCtx.var1Program.requiredBindOps.push_back(
-										{detail::QueryCompileCtx::EVarProgramOpcode::Bind_AllTerm, (uint8_t)i, cost});
+										{detail::EOpcode::Var_Bind_All, 0, 0, (uint8_t)i, cost});
 
-							m_compCtx.var1Program.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::Check_All, (uint8_t)i, cost});
+							m_compCtx.var1Program.checkOps.push_back({detail::EOpcode::Var_Check_All, 0, 0, (uint8_t)i, cost});
 						}
 
 						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
@@ -3644,11 +3606,9 @@ namespace gaia {
 
 							const auto cost = detail::bound_term_cost(termOp);
 							if (termOp.term.src != varEntity)
-								m_compCtx.var1Program.orBindOps.push_back(
-										{detail::QueryCompileCtx::EVarProgramOpcode::Bind_OrTerm, (uint8_t)i, cost});
+								m_compCtx.var1Program.orBindOps.push_back({detail::EOpcode::Var_Bind_Or, 0, 0, (uint8_t)i, cost});
 
-							m_compCtx.var1Program.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::Check_Or, (uint8_t)i, cost});
+							m_compCtx.var1Program.checkOps.push_back({detail::EOpcode::Var_Check_Or, 0, 0, (uint8_t)i, cost});
 						}
 
 						const auto notVarCnt = (uint32_t)m_compCtx.terms_not_var.size();
@@ -3657,7 +3617,7 @@ namespace gaia {
 							GAIA_ASSERT(termOp.varMask == 0 || termOp.varMask == (uint8_t(1) << varIdx));
 
 							m_compCtx.var1Program.checkOps.push_back(
-									{detail::QueryCompileCtx::EVarProgramOpcode::Check_Not, (uint8_t)i, detail::bound_term_cost(termOp)});
+									{detail::EOpcode::Var_Check_Not, 0, 0, (uint8_t)i, detail::bound_term_cost(termOp)});
 						}
 
 						detail::sort_program_bind_ops_by_cost(m_compCtx.var1Program.requiredBindOps);
@@ -3680,13 +3640,11 @@ namespace gaia {
 							const auto cost = detail::bound_term_cost(termOp);
 							if (termOp.term.src == varEntity && termOp.sourceOpcode == detail::EOpcode::Src_Self &&
 									detail::has_concrete_match_id(termOp.term.id))
-								program.requiredBindOps.push_back(
-										{detail::QueryCompileCtx::EVarProgramOpcode::Bind_SourceAll, (uint8_t)i, cost});
+								program.requiredBindOps.push_back({detail::EOpcode::Var_Bind_SourceAll, 0, 0, (uint8_t)i, cost});
 							else if (termOp.term.src != varEntity)
-								program.requiredBindOps.push_back(
-										{detail::QueryCompileCtx::EVarProgramOpcode::Bind_AllTerm, (uint8_t)i, cost});
+								program.requiredBindOps.push_back({detail::EOpcode::Var_Bind_All, 0, 0, (uint8_t)i, cost});
 
-							program.checkOps.push_back({detail::QueryCompileCtx::EVarProgramOpcode::Check_All, (uint8_t)i, cost});
+							program.checkOps.push_back({detail::EOpcode::Var_Check_All, 0, 0, (uint8_t)i, cost});
 						}
 
 						GAIA_FOR(8) {
@@ -3795,6 +3753,10 @@ namespace gaia {
 							m_compCtx.varProgramExecItems.push_back(
 									{m_compCtx.varIdx0, detail::QueryCompileCtx::EVarProgramStore::Group});
 							break;
+						case detail::EVarUnboundStrategy::OneVarPairMixed:
+							m_compCtx.varProgramExecItems.push_back(
+									{m_compCtx.varIdx0, detail::QueryCompileCtx::EVarProgramStore::Pair});
+							break;
 						case detail::EVarUnboundStrategy::TwoVarPairAll:
 							m_compCtx.varProgramExecItems.push_back(
 									{m_compCtx.varIdx0, detail::QueryCompileCtx::EVarProgramStore::Group});
@@ -3872,18 +3834,14 @@ namespace gaia {
 						const auto opCheckLabel = add_op(GAIA_MOV(opCheck));
 
 						detail::CompiledOp opBound{};
-						if (m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed)
-							opBound.opcode = detail::EOpcode::Var_Filter_Bound_1VarPairMixed;
-						else if (!m_compCtx.varProgramExecItems.empty())
+						if (!m_compCtx.varProgramExecItems.empty())
 							opBound.opcode = detail::EOpcode::Var_Filter_Bound_Program;
 						else
 							opBound.opcode = detail::EOpcode::Var_Filter_Bound;
 						const auto opBoundLabel = add_gate_op(GAIA_MOV(opBound));
 
 						detail::CompiledOp opUnbound{};
-						if (m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::OneVarPairMixed)
-							opUnbound.opcode = detail::EOpcode::Var_Filter_1VarPairMixed;
-						else if (m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::AllOnly)
+						if (m_compCtx.varUnboundStrategy == detail::EVarUnboundStrategy::AllOnly)
 							opUnbound.opcode = detail::EOpcode::Var_Filter_AllOnly;
 						else if (!m_compCtx.varProgramExecItems.empty())
 							opUnbound.opcode = detail::EOpcode::Var_Filter_Program;

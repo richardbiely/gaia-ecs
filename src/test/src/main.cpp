@@ -6681,7 +6681,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableA, cableB});
 	}
 
-	// Single-variable pair mixed ALL/OR/NOT query should use the dedicated mixed pair opcode.
+	// Single-variable pair mixed ALL/OR/NOT query should use the shared variable program opcode.
 	{
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
@@ -6723,12 +6723,13 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto bytecode = q.bytecode();
 		CHECK(bytecode.find("] varcb ") != BadIndex);
-		CHECK(bytecode.find("] varfb1pm ") != BadIndex);
+		CHECK(bytecode.find("] varfbp ") != BadIndex);
 		CHECK(bytecode.find("] varfb ") == BadIndex);
-		CHECK(bytecode.find("] varf1pm ") != BadIndex);
-		CHECK(bytecode.find("] varfp ") == BadIndex);
+		CHECK(bytecode.find("] varfp ") != BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var_exec: 1") != BadIndex);
+		CHECK(bytecode.find("] pair $0") != BadIndex);
 		CHECK(bytecode.find("var1pm_bind_req:") != BadIndex);
 		CHECK(bytecode.find("var1pm_bind_or:") != BadIndex);
 		CHECK(bytecode.find("var1pm_check:") != BadIndex);
