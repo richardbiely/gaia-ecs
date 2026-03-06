@@ -2107,7 +2107,8 @@ namespace gaia {
 
 				GAIA_NODISCARD uint32_t select_next_pending_search_term(
 						std::span<const detail::CompiledOp> programOps, uint16_t begin, uint16_t count, uint16_t pendingMask,
-						const detail::VarBindings& vars) const {
+						const detail::VarBindings& vars, bool preferBoundTerms = true,
+						bool requireNewBindings = false) const {
 					uint32_t firstReadyIdx = (uint32_t)-1;
 
 					for (uint32_t localIdx = 0; localIdx < count; ++localIdx) {
@@ -2120,7 +2121,14 @@ namespace gaia {
 						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src))
 							continue;
 
-						if ((uint8_t)(termOp.varMask & ~vars.mask) == 0)
+						const bool bindsNewVars = (uint8_t)(termOp.varMask & ~vars.mask) != 0;
+						if (requireNewBindings) {
+							if (bindsNewVars)
+								return i;
+							continue;
+						}
+
+						if (preferBoundTerms && !bindsNewVars)
 							return i;
 
 						if (firstReadyIdx == (uint32_t)-1)
@@ -2382,7 +2390,8 @@ namespace gaia {
 								}
 
 								const auto nextOrIdx = select_next_pending_search_term(
-										programOps, search.orBegin, search.orCount, state.pendingOrMask, state.vars);
+										programOps, search.orBegin, search.orCount, state.pendingOrMask, state.vars,
+										!state.orMatched, state.orMatched);
 								if (nextOrIdx != (uint32_t)-1) {
 									state.bestOrIdx = (uint8_t)nextOrIdx;
 									state.termOpIdx = state.bestOrIdx;
@@ -2396,6 +2405,7 @@ namespace gaia {
 								break;
 							}
 							case EOpcode::Var_Search_SelectOtherOr: {
+								uint32_t firstReadyBindingIdx = (uint32_t)-1;
 								bool found = false;
 								while (state.scanIdx < search.orCount) {
 									const auto idx = (uint32_t)search.orBegin + state.scanIdx++;
@@ -2408,10 +2418,29 @@ namespace gaia {
 									if (!is_term_ready(programOps[idx], state.vars))
 										continue;
 
+									const bool bindsNewVars =
+											(uint8_t)(search_program_term_op(programOps[idx]).varMask & ~state.vars.mask) != 0;
+									if (state.orMatched) {
+										if (!bindsNewVars)
+											continue;
+									} else {
+										if (bindsNewVars) {
+											if (firstReadyBindingIdx == (uint32_t)-1)
+												firstReadyBindingIdx = idx;
+											continue;
+										}
+									}
+
 									state.termOpIdx = (uint8_t)idx;
 									state.pc = (uint16_t)idx;
 									found = true;
 									break;
+								}
+
+								if (!found && !state.orMatched && firstReadyBindingIdx != (uint32_t)-1) {
+									state.termOpIdx = (uint8_t)firstReadyBindingIdx;
+									state.pc = (uint16_t)firstReadyBindingIdx;
+									found = true;
 								}
 
 								if (!found) {
