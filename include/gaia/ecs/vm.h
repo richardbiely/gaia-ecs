@@ -2063,32 +2063,47 @@ namespace gaia {
 					}
 				}
 
+				GAIA_NODISCARD uint32_t select_next_pending_search_term(
+						std::span<const detail::CompiledOp> programOps, uint16_t begin, uint16_t count, uint16_t pendingMask,
+						const detail::VarBindings& vars) const {
+					for (uint32_t localIdx = 0; localIdx < count; ++localIdx) {
+						const auto i = (uint32_t)begin + localIdx;
+						const auto bit = (uint16_t)(uint16_t(1) << i);
+						if ((pendingMask & bit) == 0)
+							continue;
+
+						const auto& termOp = search_program_term_op(programOps[i]);
+						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src))
+							continue;
+
+						return i;
+					}
+
+					return (uint32_t)-1;
+				}
+
 				GAIA_NODISCARD int32_t select_best_pending_search_term(
 						const MatchingCtx& ctx, const Archetype& archetype, std::span<const detail::CompiledOp> programOps,
-						uint16_t begin, uint16_t count, uint16_t pendingMask, const detail::VarBindings& vars, uint32_t& outBestIdx,
-						bool failOnZero) const {
-					using namespace detail;
-
+						uint16_t begin, uint16_t count, uint16_t pendingMask, const detail::VarBindings& vars,
+						uint32_t& outBestIdx) const {
 					constexpr uint32_t MatchProbeLimit = 64;
 					outBestIdx = (uint32_t)-1;
 					uint32_t bestMatchCnt = MatchProbeLimit + 1;
 
 					for (uint32_t localIdx = 0; localIdx < count; ++localIdx) {
 						const auto i = (uint32_t)begin + localIdx;
-						const auto bit = (uint16_t(1) << i);
+						const auto bit = (uint16_t)(uint16_t(1) << i);
 						if ((pendingMask & bit) == 0)
 							continue;
 
 						const auto& termOp = search_program_term_op(programOps[i]);
-						if (is_var_entity(termOp.term.src) && !var_is_bound(vars, termOp.term.src))
+						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src))
 							continue;
 
-						const auto matchCnt = count_term_matches_limited(*ctx.pWorld, archetype, termOp, vars, bestMatchCnt);
-						if (matchCnt == 0) {
-							if (failOnZero)
-								return -1;
-							continue;
-						}
+						const auto matchCnt =
+								detail::count_term_matches_limited(*ctx.pWorld, archetype, termOp, vars, bestMatchCnt);
+						if (matchCnt == 0)
+							return -1;
 
 						if (outBestIdx == (uint32_t)-1 || matchCnt < bestMatchCnt) {
 							outBestIdx = i;
@@ -2292,30 +2307,38 @@ namespace gaia {
 									break;
 								}
 
-								uint32_t bestAllIdx = (uint32_t)-1;
-								const auto allSel = select_best_pending_search_term(
-										ctx, archetype, programOps, search.allBegin, search.allCount, state.pendingAllMask, state.vars,
-										bestAllIdx, true);
-								if (allSel < 0) {
-									if (!backtrack(state, stack))
-										return false;
-									break;
+								if (search.orCount == 0 && search.anyCount == 0) {
+									uint32_t bestAllIdx = (uint32_t)-1;
+									const auto allSel = select_best_pending_search_term(
+											ctx, archetype, programOps, search.allBegin, search.allCount, state.pendingAllMask, state.vars,
+											bestAllIdx);
+									if (allSel < 0) {
+										if (!backtrack(state, stack))
+											return false;
+										break;
+									}
+
+									if (allSel > 0) {
+										state.termOpIdx = (uint8_t)bestAllIdx;
+										state.pc = (uint16_t)bestAllIdx;
+										break;
+									}
+								} else {
+									const auto nextAllIdx = select_next_pending_search_term(
+											programOps, search.allBegin, search.allCount, state.pendingAllMask, state.vars);
+									if (nextAllIdx != (uint32_t)-1) {
+										state.termOpIdx = (uint8_t)nextAllIdx;
+										state.pc = (uint16_t)nextAllIdx;
+										break;
+									}
 								}
 
-								if (allSel > 0) {
-									state.termOpIdx = (uint8_t)bestAllIdx;
-									state.pc = (uint16_t)bestAllIdx;
-									break;
-								}
-
-								uint32_t bestOrIdx = (uint32_t)-1;
-								(void)select_best_pending_search_term(
-										ctx, archetype, programOps, search.orBegin, search.orCount, state.pendingOrMask, state.vars,
-										bestOrIdx, false);
-								if (bestOrIdx != (uint32_t)-1) {
-									state.bestOrIdx = (uint8_t)bestOrIdx;
+								const auto nextOrIdx = select_next_pending_search_term(
+										programOps, search.orBegin, search.orCount, state.pendingOrMask, state.vars);
+								if (nextOrIdx != (uint32_t)-1) {
+									state.bestOrIdx = (uint8_t)nextOrIdx;
 									state.termOpIdx = state.bestOrIdx;
-									state.pc = (uint16_t)bestOrIdx;
+									state.pc = (uint16_t)nextOrIdx;
 									break;
 								}
 
