@@ -2412,13 +2412,27 @@ namespace gaia {
 								break;
 							case EOpcode::Var_Term_All:
 							case EOpcode::Var_Term_Or:
-							case EOpcode::Var_Term_Any:
+							case EOpcode::Var_Term_Any: {
+								const auto& termOp = search_program_term_op(op);
+								const bool bindsNewVars = (uint8_t)(termOp.varMask & ~state.vars.mask) != 0;
+								if (!bindsNewVars) {
+									if (term_has_match(*ctx.pWorld, archetype, termOp, state.vars))
+										advance_after_search_term_success(state, op, state.vars);
+									else {
+										handle_search_term_exhausted(state, op);
+										if (state.pc == BacktrackPc && !backtrack(state, stack))
+											return false;
+									}
+									break;
+								}
+
 								if (!try_enter_search_term(state, stack)) {
 									handle_search_term_exhausted(state, op);
 									if (state.pc == BacktrackPc && !backtrack(state, stack))
 										return false;
 								}
 								break;
+							}
 							default:
 								GAIA_ASSERT(false);
 								return false;
