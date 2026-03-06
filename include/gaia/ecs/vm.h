@@ -3029,6 +3029,21 @@ namespace gaia {
 					return (uint32_t)m_compCtx.ops.size();
 				}
 
+				GAIA_NODISCARD uint64_t op_signature() const {
+					uint64_t hash = 1469598103934665603ull;
+					for (const auto& op: m_compCtx.ops) {
+						const uint64_t packed = //
+								(uint64_t)(uint8_t)op.opcode | //
+								((uint64_t)op.pc_ok << 8u) | //
+								((uint64_t)op.pc_fail << 24u) | //
+								((uint64_t)op.arg << 40u) | //
+								((uint64_t)op.cost << 48u);
+						hash ^= packed;
+						hash *= 1099511628211ull;
+					}
+					return hash;
+				}
+
 				//! Executes compiled opcodes
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);

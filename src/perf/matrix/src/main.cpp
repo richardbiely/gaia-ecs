@@ -1343,6 +1343,7 @@ void BM_QueryMatch_Variable_1VarMixed_Unbound(picobench::state& state) {
 }
 
 static constexpr uint32_t VariableBuildArchetypeCnt = 128U;
+static constexpr uint32_t VariableCompileBatch = 256U;
 
 struct VariableBuildFixture_1VarSource {
 	ecs::World w;
@@ -1584,6 +1585,59 @@ void BM_QueryBuild_Variable_Recompile(picobench::state& state) {
 	}
 }
 
+template <typename Fixture>
+void BM_QueryCompile_Variable_Uncached(picobench::state& state) {
+	Fixture fixture((uint32_t)state.user_data());
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+		state.start_timer();
+
+		uint64_t signatureSum = 0;
+		GAIA_FOR(VariableCompileBatch) {
+			auto q = fixture.template query<false>();
+			dont_optimize(q);
+			auto& qi = q.fetch();
+			dont_optimize(qi);
+			signatureSum ^= qi.op_signature() + (uint64_t)i;
+			dont_optimize(qi);
+		}
+		dont_optimize(signatureSum);
+
+		state.stop_timer();
+	}
+}
+
+template <typename Fixture>
+void BM_QueryCompile_Variable_Recompile(picobench::state& state) {
+	Fixture fixture((uint32_t)state.user_data());
+
+	auto q = fixture.template query<true>();
+	dont_optimize(q);
+	auto& qi = q.fetch();
+	dont_optimize(qi);
+	dont_optimize(qi.op_signature());
+
+	state.stop_timer();
+	for (auto _: state) {
+		(void)_;
+		state.start_timer();
+
+		uint64_t signatureSum = 0;
+		GAIA_FOR(VariableCompileBatch) {
+			dont_optimize(qi);
+			qi.recompile();
+			dont_optimize(qi);
+			signatureSum ^= qi.op_signature() + (uint64_t)i;
+			dont_optimize(qi);
+		}
+		dont_optimize(signatureSum);
+
+		state.stop_timer();
+	}
+}
+
 void BM_QueryBuild_Variable_1VarSource_Uncached(picobench::state& state) {
 	BM_QueryBuild_Variable_Uncached<VariableBuildFixture_1VarSource>(state);
 }
@@ -1614,6 +1668,38 @@ void BM_QueryBuild_Variable_GenericSourceBacktrack_Uncached(picobench::state& st
 
 void BM_QueryBuild_Variable_GenericSourceBacktrack_Recompile(picobench::state& state) {
 	BM_QueryBuild_Variable_Recompile<VariableBuildFixture_GenericSourceBacktrack>(state);
+}
+
+void BM_QueryCompile_Variable_1VarSource_Uncached(picobench::state& state) {
+	BM_QueryCompile_Variable_Uncached<VariableBuildFixture_1VarSource>(state);
+}
+
+void BM_QueryCompile_Variable_1VarSource_Recompile(picobench::state& state) {
+	BM_QueryCompile_Variable_Recompile<VariableBuildFixture_1VarSource>(state);
+}
+
+void BM_QueryCompile_Variable_1VarOrSource_Uncached(picobench::state& state) {
+	BM_QueryCompile_Variable_Uncached<VariableBuildFixture_1VarOrSource>(state);
+}
+
+void BM_QueryCompile_Variable_1VarOrSource_Recompile(picobench::state& state) {
+	BM_QueryCompile_Variable_Recompile<VariableBuildFixture_1VarOrSource>(state);
+}
+
+void BM_QueryCompile_Variable_2VarPairAll_Uncached(picobench::state& state) {
+	BM_QueryCompile_Variable_Uncached<VariableBuildFixture_2VarPairAll>(state);
+}
+
+void BM_QueryCompile_Variable_2VarPairAll_Recompile(picobench::state& state) {
+	BM_QueryCompile_Variable_Recompile<VariableBuildFixture_2VarPairAll>(state);
+}
+
+void BM_QueryCompile_Variable_GenericSourceBacktrack_Uncached(picobench::state& state) {
+	BM_QueryCompile_Variable_Uncached<VariableBuildFixture_GenericSourceBacktrack>(state);
+}
+
+void BM_QueryCompile_Variable_GenericSourceBacktrack_Recompile(picobench::state& state) {
+	BM_QueryCompile_Variable_Recompile<VariableBuildFixture_GenericSourceBacktrack>(state);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2078,6 +2164,32 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(4096)
 				.label("recompile, generic source-backtrack, 4K src");
+
+		PICOBENCH_SUITE_REG("Query variable compile");
+		PICOBENCH_REG(BM_QueryCompile_Variable_1VarSource_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("uncached x256, 1var source-gated");
+		PICOBENCH_REG(BM_QueryCompile_Variable_1VarOrSource_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("uncached x256, 1var or-source, 1 src");
+		PICOBENCH_REG(BM_QueryCompile_Variable_1VarOrSource_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("uncached x256, 1var or-source, 4K src");
+		PICOBENCH_REG(BM_QueryCompile_Variable_2VarPairAll_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(VariableBuildArchetypeCnt)
+				.label("uncached x256, 2var pair-all");
+		PICOBENCH_REG(BM_QueryCompile_Variable_GenericSourceBacktrack_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(24)
+				.label("uncached x256, generic source-backtrack, 24 src");
+		PICOBENCH_REG(BM_QueryCompile_Variable_GenericSourceBacktrack_Uncached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("uncached x256, generic source-backtrack, 4K src");
 
 		PICOBENCH_SUITE_REG("Query variable match");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1Var_Bound)

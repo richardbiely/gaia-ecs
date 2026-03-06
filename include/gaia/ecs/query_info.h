@@ -777,6 +777,10 @@ namespace gaia {
 				return m_vm.op_count();
 			}
 
+			GAIA_NODISCARD uint64_t op_signature() const {
+				return m_vm.op_signature();
+			}
+
 			GAIA_NODISCARD bool has_filters() const {
 				return m_ctx.data.changedCnt > 0;
 			}
