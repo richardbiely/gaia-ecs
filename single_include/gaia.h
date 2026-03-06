@@ -33213,8 +33213,7 @@ namespace gaia {
 						}
 					};
 					const auto handle_search_term_exhausted = [&](SearchProgramState& state, const detail::CompiledOp& op) {
-						if ((op.opcode == EOpcode::Var_Term_Any_Check || op.opcode == EOpcode::Var_Term_Any_Bind) &&
-								!state.currentAnyMatched) {
+						if (op.opcode == EOpcode::Var_Term_Any_Check || op.opcode == EOpcode::Var_Term_Any_Bind) {
 							state.pendingAnyMask = (uint16_t)(state.pendingAnyMask & ~(uint16_t(1) << state.termOpIdx));
 						}
 						state.pc = op.pc_fail;
