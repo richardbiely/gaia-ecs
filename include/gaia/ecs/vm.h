@@ -1063,6 +1063,39 @@ namespace gaia {
 					return bind_var(vars, token, value);
 				}
 
+				struct ResolvedPairToken {
+					Entity token = EntityBad;
+					Entity matchValue = EntityBad;
+					bool concrete = false;
+					bool needsBind = false;
+				};
+
+				GAIA_NODISCARD inline ResolvedPairToken resolve_pair_query_token(Entity queryToken, const VarBindings& vars) {
+					ResolvedPairToken out{};
+					out.token = queryToken;
+
+					if (queryToken == EntityBad)
+						return out;
+
+					if (is_var_entity(queryToken)) {
+						if (!var_is_bound(vars, queryToken)) {
+							out.needsBind = true;
+							return out;
+						}
+
+						out.matchValue = vars.values[var_index(queryToken)];
+						out.concrete = out.matchValue.id() != All.id();
+						return out;
+					}
+
+					if (queryToken.id() == All.id())
+						return out;
+
+					out.matchValue = queryToken;
+					out.concrete = true;
+					return out;
+				}
+
 				template <typename Func>
 				GAIA_NODISCARD inline bool each_term_match(
 						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
@@ -1100,33 +1133,32 @@ namespace gaia {
 					const auto queryTgt = entity_from_id(w, queryId.gen());
 					if (queryRel == EntityBad || queryTgt == EntityBad)
 						return false;
-
-					const bool relIsConcrete = !is_var_entity(queryRel) && queryRel.id() != All.id();
-					const bool tgtIsConcrete = !is_var_entity(queryTgt) && queryTgt.id() != All.id();
+					const auto rel = resolve_pair_query_token(queryRel, varsIn);
+					const auto tgt = resolve_pair_query_token(queryTgt, varsIn);
 
 					for (uint32_t i = idIdx; i < cnt; ++i) {
 						const auto idInArchetype = archetypeIds[i];
 						if (!idInArchetype.pair())
 							continue;
 
-						if (relIsConcrete && idInArchetype.id() != queryRel.id())
+						if (rel.concrete && idInArchetype.id() != rel.matchValue.id())
 							continue;
-						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
+						if (tgt.concrete && idInArchetype.gen() != tgt.matchValue.id())
 							continue;
 
 						auto vars = varsIn;
-						if (!relIsConcrete) {
-							const auto rel = entity_from_id(w, idInArchetype.id());
-							if (rel == EntityBad)
+						if (rel.needsBind) {
+							const auto relValue = entity_from_id(w, idInArchetype.id());
+							if (relValue == EntityBad)
 								continue;
-							if (!match_token(vars, queryRel, rel, true))
+							if (!match_token(vars, rel.token, relValue, true))
 								continue;
 						}
-						if (!tgtIsConcrete) {
-							const auto tgt = entity_from_id(w, idInArchetype.gen());
-							if (tgt == EntityBad)
+						if (tgt.needsBind) {
+							const auto tgtValue = entity_from_id(w, idInArchetype.gen());
+							if (tgtValue == EntityBad)
 								continue;
-							if (!match_token(vars, queryTgt, tgt, true))
+							if (!match_token(vars, tgt.token, tgtValue, true))
 								continue;
 						}
 
@@ -1171,9 +1203,16 @@ namespace gaia {
 					}
 				}
 
+				GAIA_NODISCARD inline bool term_has_match_bound(
+						const World& w, const Archetype& candidateArchetype, const QueryCompileCtx::VarTermOp& termOp,
+						const VarBindings& vars);
+
 				GAIA_NODISCARD inline bool term_has_match(
 						const World& w, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
 						const VarBindings& varsIn) {
+					if ((uint8_t)(termOp.varMask & ~varsIn.mask) == 0)
+						return term_has_match_bound(w, archetype, termOp, varsIn);
+
 					return each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
 						return true;
 					});
@@ -1183,6 +1222,9 @@ namespace gaia {
 						const World& w, const Archetype& archetype, const QueryCompileCtx::VarTermOp& termOp,
 						const VarBindings& varsIn, uint32_t limit) {
 					GAIA_ASSERT(limit > 0);
+
+					if ((uint8_t)(termOp.varMask & ~varsIn.mask) == 0)
+						return term_has_match_bound(w, archetype, termOp, varsIn) ? 1u : 0u;
 
 					uint32_t count = 0;
 					each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
@@ -1339,38 +1381,38 @@ namespace gaia {
 					const auto queryTgt = entity_from_id(w, queryId.gen());
 					if (queryRel == EntityBad || queryTgt == EntityBad)
 						return false;
-					const bool relIsConcrete = !is_var_entity(queryRel) && queryRel.id() != All.id();
-					const bool tgtIsConcrete = !is_var_entity(queryTgt) && queryTgt.id() != All.id();
+					const auto rel = resolve_pair_query_token(queryRel, varsIn);
+					const auto tgt = resolve_pair_query_token(queryTgt, varsIn);
 
 					GAIA_FOR(cnt) {
 						const auto idInArchetype = archetypeIds[i];
 						if (!idInArchetype.pair())
 							continue;
 
-						if (relIsConcrete && idInArchetype.id() != queryRel.id())
+						if (rel.concrete && idInArchetype.id() != rel.matchValue.id())
 							continue;
-						if (tgtIsConcrete && idInArchetype.gen() != queryTgt.id())
+						if (tgt.concrete && idInArchetype.gen() != tgt.matchValue.id())
 							continue;
 
-						if (relIsConcrete && tgtIsConcrete) {
+						if (!rel.needsBind && !tgt.needsBind) {
 							if (func(varsIn))
 								return true;
 							continue;
 						}
 
 						auto vars = varsIn;
-						if (!relIsConcrete) {
-							const auto rel = entity_from_id(w, idInArchetype.id());
-							if (rel == EntityBad)
+						if (rel.needsBind) {
+							const auto relValue = entity_from_id(w, idInArchetype.id());
+							if (relValue == EntityBad)
 								continue;
-							if (!match_token(vars, queryRel, rel, true))
+							if (!match_token(vars, rel.token, relValue, true))
 								continue;
 						}
-						if (!tgtIsConcrete) {
-							const auto tgt = entity_from_id(w, idInArchetype.gen());
-							if (tgt == EntityBad)
+						if (tgt.needsBind) {
+							const auto tgtValue = entity_from_id(w, idInArchetype.gen());
+							if (tgtValue == EntityBad)
 								continue;
-							if (!match_token(vars, queryTgt, tgt, true))
+							if (!match_token(vars, tgt.token, tgtValue, true))
 								continue;
 						}
 
@@ -2066,6 +2108,8 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t select_next_pending_search_term(
 						std::span<const detail::CompiledOp> programOps, uint16_t begin, uint16_t count, uint16_t pendingMask,
 						const detail::VarBindings& vars) const {
+					uint32_t firstReadyIdx = (uint32_t)-1;
+
 					for (uint32_t localIdx = 0; localIdx < count; ++localIdx) {
 						const auto i = (uint32_t)begin + localIdx;
 						const auto bit = (uint16_t)(uint16_t(1) << i);
@@ -2076,10 +2120,14 @@ namespace gaia {
 						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src))
 							continue;
 
-						return i;
+						if ((uint8_t)(termOp.varMask & ~vars.mask) == 0)
+							return i;
+
+						if (firstReadyIdx == (uint32_t)-1)
+							firstReadyIdx = i;
 					}
 
-					return (uint32_t)-1;
+					return firstReadyIdx;
 				}
 
 				GAIA_NODISCARD int32_t select_best_pending_search_term(
@@ -2374,6 +2422,7 @@ namespace gaia {
 								break;
 							}
 							case EOpcode::Var_Search_SelectAny: {
+								uint32_t firstReadyAnyIdx = (uint32_t)-1;
 								bool found = false;
 								while (state.scanIdx < search.anyCount) {
 									const auto idx = (uint32_t)search.anyBegin + state.scanIdx++;
@@ -2383,11 +2432,23 @@ namespace gaia {
 									if (!is_term_ready(programOps[idx], state.vars))
 										continue;
 
+									if (firstReadyAnyIdx == (uint32_t)-1)
+										firstReadyAnyIdx = idx;
+									if ((uint8_t)(search_program_term_op(programOps[idx]).varMask & ~state.vars.mask) != 0)
+										continue;
+
 									state.termOpIdx = (uint8_t)idx;
 									state.currentAnyMatched = false;
 									state.pc = (uint16_t)idx;
 									found = true;
 									break;
+								}
+
+								if (!found && firstReadyAnyIdx != (uint32_t)-1) {
+									state.termOpIdx = (uint8_t)firstReadyAnyIdx;
+									state.currentAnyMatched = false;
+									state.pc = (uint16_t)firstReadyAnyIdx;
+									found = true;
 								}
 
 								if (found)
