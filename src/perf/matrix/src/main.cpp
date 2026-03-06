@@ -1073,6 +1073,145 @@ void BM_QueryMatch_Variable_AllOnly_Unbound(picobench::state& state) {
 	BM_QueryMatch_Variable_AllOnly<false>(state);
 }
 
+template <bool BoundVars>
+void BM_QueryMatch_Variable_AllOnlyCoupled(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 24;
+
+	ecs::World w;
+
+	const auto relConnected = w.add();
+	const auto relPowered = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> devices{};
+	cnt::sarray<ecs::Entity, SourceCnt> powers{};
+	GAIA_FOR(SourceCnt) {
+		devices[i] = w.add();
+		powers[i] = w.add();
+	}
+
+	static constexpr uint8_t candConnected[] = {0, 2, 4, 6, 12, 18};
+	static constexpr uint8_t candPowered[] = {3, 6, 9, 12, 15, 18};
+	struct CoupledPair {
+		uint8_t devIdx;
+		uint8_t pwrIdx;
+	};
+	static constexpr CoupledPair coupled[] = {{0, 3}, {2, 9}, {6, 12}, {12, 15}, {18, 18}};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candConnected)
+			w.add(e, ecs::Pair(relConnected, devices[idx]));
+		for (const auto idx: candPowered)
+			w.add(e, ecs::Pair(relPowered, powers[idx]));
+		for (const auto& pair: coupled)
+			w.add(e, ecs::Pair(devices[pair.devIdx], powers[pair.pwrIdx]));
+	}
+
+	auto q = w.query()
+							 .all(ecs::Pair(relConnected, ecs::Var0))
+							 .all(ecs::Pair(relPowered, ecs::Var1))
+							 .all(ecs::Pair(ecs::Var0, ecs::Var1));
+	if constexpr (BoundVars) {
+		q.set_var(ecs::Var0, devices[12]);
+		q.set_var(ecs::Var1, powers[15]);
+	} else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_AllOnlyCoupled_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_AllOnlyCoupled<true>(state);
+}
+
+void BM_QueryMatch_Variable_AllOnlyCoupled_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_AllOnlyCoupled<false>(state);
+}
+
+template <bool BoundVars>
+void BM_QueryMatch_Variable_GenericSourceBacktrack(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	constexpr uint32_t SourceCnt = 24;
+
+	ecs::World w;
+
+	const auto relConnected = w.add();
+	const auto relRoute = w.add();
+	const auto relRouteAlt = w.add();
+
+	cnt::sarray<ecs::Entity, SourceCnt> parents{};
+	cnt::sarray<ecs::Entity, SourceCnt> devices{};
+	cnt::sarray<ecs::Entity, SourceCnt> routes{};
+	GAIA_FOR(SourceCnt) {
+		parents[i] = w.add();
+		devices[i] = w.add();
+		routes[i] = w.add();
+		w.add(devices[i], ecs::Pair(ecs::ChildOf, parents[i]));
+		if ((i % 3U) == 0)
+			w.add<SourceTypeOr>(parents[i]);
+	}
+
+	static constexpr uint8_t candConnected[] = {0, 6, 12, 21};
+	static constexpr uint8_t candRoutes[] = {0, 12, 21};
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		add_var_match_tags(w, e, i);
+
+		for (const auto idx: candConnected)
+			w.add(e, ecs::Pair(relConnected, devices[idx]));
+		for (const auto idx: candRoutes) {
+			w.add(e, ecs::Pair(relRoute, routes[idx]));
+			w.add(e, ecs::Pair(relRouteAlt, routes[(idx + 3U) % SourceCnt]));
+			if ((idx % 3U) == 0)
+				w.add(e, ecs::Pair(routes[idx], devices[idx]));
+		}
+	}
+
+	auto q = w.query()
+							 .all(ecs::Pair(relConnected, ecs::Var0))
+							 .all(ecs::Pair(ecs::Var1, ecs::Var0))
+							 .template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent())
+							 .or_(ecs::Pair(relRoute, ecs::Var1))
+							 .or_(ecs::Pair(relRouteAlt, ecs::Var1));
+	if constexpr (BoundVars) {
+		q.set_var(ecs::Var0, devices[12]);
+		q.set_var(ecs::Var1, routes[12]);
+	} else
+		q.clear_vars();
+
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_Variable_GenericSourceBacktrack_Bound(picobench::state& state) {
+	BM_QueryMatch_Variable_GenericSourceBacktrack<true>(state);
+}
+
+void BM_QueryMatch_Variable_GenericSourceBacktrack_Unbound(picobench::state& state) {
+	BM_QueryMatch_Variable_GenericSourceBacktrack<false>(state);
+}
+
 template <bool BoundVar0>
 void BM_QueryMatch_Variable_1VarOr(picobench::state& state) {
 	const uint32_t archetypeCnt = (uint32_t)state.user_data();
@@ -1711,6 +1850,22 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match all-only 2var src-gated (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnlyCoupled_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match all-only coupled (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnlyCoupled_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match all-only coupled (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_GenericSourceBacktrack_Bound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match generic source-backtrack (bound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_GenericSourceBacktrack_Unbound)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("match generic source-backtrack (unbound)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_1VarOr_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)

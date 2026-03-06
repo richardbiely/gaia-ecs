@@ -6447,6 +6447,134 @@ void Test_Query_Variable_Opcode_Paths() {
 		expect_exact_entities(q, {cableGood});
 	}
 
+	// Coupled ALL-only multi-variable query should stay on the generic ALL-only opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto poweredBy = wld.add<PoweredBy>().entity;
+
+		const auto devA = wld.add();
+		const auto devB = wld.add();
+		const auto pwrA = wld.add();
+		const auto pwrB = wld.add();
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devA});
+		wld.add(cableGood, {poweredBy, pwrA});
+		wld.add(cableGood, {devA, pwrA});
+
+		const auto cableWrongCoupling = wld.add();
+		wld.add<Cable>(cableWrongCoupling);
+		wld.add(cableWrongCoupling, {connectedTo, devA});
+		wld.add(cableWrongCoupling, {poweredBy, pwrA});
+		wld.add(cableWrongCoupling, {devB, pwrA});
+
+		const auto cableWrongTarget = wld.add();
+		wld.add<Cable>(cableWrongTarget);
+		wld.add(cableWrongTarget, {connectedTo, devA});
+		wld.add(cableWrongTarget, {poweredBy, pwrB});
+		wld.add(cableWrongTarget, {devA, pwrA});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .all(ecs::Pair(poweredBy, ecs::Var1))
+								 .all(ecs::Pair(ecs::Var0, ecs::Var1));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varfa ") != BadIndex);
+		CHECK(bytecode.find("] varfag ") == BadIndex);
+		CHECK(bytecode.find("] varf2p ") == BadIndex);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devA);
+		q.set_var(ecs::Var1, pwrA);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var1, pwrB);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+	}
+
+	// Mixed multi-variable query with source traversal should stay on the generic variable opcode.
+	{
+		TestWorld twld;
+		const auto connectedTo = wld.add<ConnectedTo>().entity;
+		const auto linkedTo = wld.add<LinkedTo>().entity;
+		const auto routedVia = wld.add<RoutedVia>().entity;
+
+		const auto parentMarked = wld.add();
+		const auto parentPlain = wld.add();
+		wld.add<Marker>(parentMarked);
+
+		const auto devMarked = wld.add();
+		const auto devPlain = wld.add();
+		wld.add(devMarked, ecs::Pair(ecs::ChildOf, parentMarked));
+		wld.add(devPlain, ecs::Pair(ecs::ChildOf, parentPlain));
+
+		const auto routeA = wld.add();
+		const auto routeB = wld.add();
+
+		const auto cableGood = wld.add();
+		wld.add<Cable>(cableGood);
+		wld.add(cableGood, {connectedTo, devMarked});
+		wld.add(cableGood, {routedVia, routeA});
+		wld.add(cableGood, {routeA, devMarked});
+
+		const auto cableBadSource = wld.add();
+		wld.add<Cable>(cableBadSource);
+		wld.add(cableBadSource, {connectedTo, devPlain});
+		wld.add(cableBadSource, {linkedTo, routeA});
+		wld.add(cableBadSource, {routeA, devPlain});
+
+		const auto cableBadCoupling = wld.add();
+		wld.add<Cable>(cableBadCoupling);
+		wld.add(cableBadCoupling, {connectedTo, devMarked});
+		wld.add(cableBadCoupling, {linkedTo, routeB});
+		wld.add(cableBadCoupling, {routeA, devMarked});
+
+		auto q = wld.query<UseCachedQuery>() //
+								 .template all<Cable>()
+								 .all(ecs::Pair(connectedTo, ecs::Var0))
+								 .all(ecs::Pair(ecs::Var1, ecs::Var0))
+								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent())
+								 .or_(ecs::Pair(routedVia, ecs::Var1))
+								 .or_(ecs::Pair(linkedTo, ecs::Var1));
+
+		const auto bytecode = q.bytecode();
+		CHECK(bytecode.find("] varcb ") != BadIndex);
+		CHECK(bytecode.find("] varfb ") != BadIndex);
+		CHECK(bytecode.find("] varf ") != BadIndex);
+		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("] varf1 ") == BadIndex);
+		CHECK(bytecode.find("] varf1os ") == BadIndex);
+		CHECK(bytecode.find("] varfag ") == BadIndex);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devMarked);
+		q.set_var(ecs::Var1, routeA);
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+
+		q.set_var(ecs::Var0, devPlain);
+		CHECK(q.count() == 0);
+		expect_exact_entities(q, {});
+
+		q.clear_vars();
+		CHECK(q.count() == 1);
+		expect_exact_entities(q, {cableGood});
+	}
+
 	// Single-variable OR query with a source-gated ALL anchor should use the dedicated source-gated opcode.
 	{
 		TestWorld twld;
@@ -6592,6 +6720,12 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("] varf1os ") == BadIndex);
 		CHECK(bytecode.find("] varf ") == BadIndex);
 		CHECK(bytecode.find("] varfa ") == BadIndex);
+		CHECK(bytecode.find("var1pm_bind_req:") != BadIndex);
+		CHECK(bytecode.find("var1pm_bind_or:") != BadIndex);
+		CHECK(bytecode.find("var1pm_check:") != BadIndex);
+		CHECK(bytecode.find("pair_bind_all") != BadIndex);
+		CHECK(bytecode.find("pair_bind_or") != BadIndex);
+		CHECK(bytecode.find("pair_check_not") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableGoodA, cableGoodB});
 
