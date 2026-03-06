@@ -265,7 +265,7 @@ namespace gaia {
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				auto* ptr = &data()[m_cnt];
+				auto* ptr = &data()[m_cnt - 1];
 				core::call_dtor(ptr);
 				GAIA_MEM_SANI_POP(value_size, m_pData, m_cap, m_cnt);
 

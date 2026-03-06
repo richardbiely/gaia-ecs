@@ -177,7 +177,7 @@ namespace gaia {
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				auto* ptr = &data()[m_cnt];
+				auto* ptr = &data()[m_cnt - 1];
 				core::call_dtor(ptr);
 
 				--m_cnt;
