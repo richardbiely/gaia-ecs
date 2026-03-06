@@ -6240,8 +6240,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6300,8 +6300,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6366,8 +6366,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6432,8 +6432,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6493,8 +6493,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all_check") != BadIndex);
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6566,8 +6566,11 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_all") != BadIndex);
+		CHECK(bytecode.find("search_or") != BadIndex);
+		CHECK(bytecode.find("search_other_or_bind") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6624,8 +6627,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_all_bind") != BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 
@@ -6671,6 +6674,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
+		CHECK(bytecode.find("search_or") != BadIndex);
+		CHECK(bytecode.find("search_other_or_bind") != BadIndex);
 		CHECK(bytecode.find("term_all_check") == BadIndex);
 		CHECK(bytecode.find("term_all_bind") == BadIndex);
 		CHECK(bytecode.find("final_require_or") != BadIndex);
@@ -6731,8 +6736,11 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("final_not_check") != BadIndex);
 		CHECK(bytecode.find("final_require_or") != BadIndex);
 		CHECK(bytecode.find("final_or_check") != BadIndex);
-		CHECK(bytecode.find("search_enter") != BadIndex);
-		CHECK(bytecode.find("search_finalize") != BadIndex);
+		CHECK(bytecode.find("search_begin_any") != BadIndex);
+		CHECK(bytecode.find("search_all") != BadIndex);
+		CHECK(bytecode.find("search_or") != BadIndex);
+		CHECK(bytecode.find("search_other_or_bind") != BadIndex);
+		CHECK(bytecode.find("search_maybe_finalize") != BadIndex);
 		CHECK(bytecode.find("final_success") != BadIndex);
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableGoodA, cableGoodB});
@@ -6919,8 +6927,9 @@ void Test_Query_Variable_Program_Recompile() {
 
 	const auto bytecodeBefore = q.bytecode();
 	CHECK(bytecodeBefore.find("var_exec: 1") != BadIndex);
-	CHECK(bytecodeBefore.find("search_enter") != BadIndex);
-	CHECK(bytecodeBefore.find("search_finalize") != BadIndex);
+	CHECK(bytecodeBefore.find("search_begin_any") != BadIndex);
+	CHECK(bytecodeBefore.find("search_other_or_bind") != BadIndex);
+	CHECK(bytecodeBefore.find("search_maybe_finalize") != BadIndex);
 	CHECK(q.count() == 1);
 	expect_exact_entities(q, {cableGood});
 
