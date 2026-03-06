@@ -6491,6 +6491,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("search or=1") != BadIndex);
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 
@@ -6562,6 +6564,8 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("varp0:") != BadIndex);
 		CHECK(bytecode.find("term_all") != BadIndex);
 		CHECK(bytecode.find("term_or") != BadIndex);
+		CHECK(bytecode.find("search_enter") != BadIndex);
+		CHECK(bytecode.find("search_finalize") != BadIndex);
 		CHECK(q.count() == 1);
 		expect_exact_entities(q, {cableGood});
 

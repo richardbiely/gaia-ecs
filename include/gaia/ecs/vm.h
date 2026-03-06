@@ -170,7 +170,11 @@ namespace gaia {
 					Var_Term_All,
 					Var_Term_Or,
 					Var_Term_Any,
-					Var_Term_Not
+					Var_Term_Not,
+					Var_Search_Enter,
+					Var_Search_SelectOtherOr,
+					Var_Search_SelectAny,
+					Var_Search_Finalize
 				};
 
 				using VmLabel = uint16_t;
@@ -288,8 +292,8 @@ namespace gaia {
 					}
 				};
 
-				enum class EVarProgramTermSet : uint8_t { All, Or, Any, Not };
-				enum class EVarProgramOpRole : uint8_t { BindRequired, BindOr, Check, Search };
+				enum class EVarProgramTermSet : uint8_t { None, All, Or, Any, Not };
+				enum class EVarProgramOpRole : uint8_t { BindRequired, BindOr, Check, Search, Control };
 
 				struct VarProgramOpcodeMeta {
 					const char* name;
@@ -300,7 +304,7 @@ namespace gaia {
 				};
 
 				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Bind_All;
-				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_Term_Not;
+				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_Search_Finalize;
 				static constexpr VarProgramOpcodeMeta VarProgramOpcodeMetaTable[] = {
 						{"bind_all", EVarProgramTermSet::All, QueryCompileCtx::EVarProgramKind::Entity,
 						 EVarProgramOpRole::BindRequired, 3}, //
@@ -332,6 +336,14 @@ namespace gaia {
 						 2}, //
 						{"term_not", EVarProgramTermSet::Not, QueryCompileCtx::EVarProgramKind::Search, EVarProgramOpRole::Search,
 						 3}, //
+						{"search_enter", EVarProgramTermSet::None, QueryCompileCtx::EVarProgramKind::Search,
+						 EVarProgramOpRole::Control, 0}, //
+						{"search_other_or", EVarProgramTermSet::None, QueryCompileCtx::EVarProgramKind::Search,
+						 EVarProgramOpRole::Control, 0}, //
+						{"search_any", EVarProgramTermSet::None, QueryCompileCtx::EVarProgramKind::Search,
+						 EVarProgramOpRole::Control, 0}, //
+						{"search_finalize", EVarProgramTermSet::None, QueryCompileCtx::EVarProgramKind::Search,
+						 EVarProgramOpRole::Control, 0}, //
 				};
 
 				static_assert(
@@ -376,6 +388,15 @@ namespace gaia {
 					uint8_t cost = bound_match_id_cost(termOp.term.id);
 					if (termOp.term.src != EntityBad)
 						cost = (uint8_t)(cost + source_term_cost({termOp.sourceOpcode, termOp.term}));
+					return cost;
+				}
+
+				GAIA_NODISCARD inline uint8_t search_term_cost(const QueryCompileCtx::VarTermOp& termOp) {
+					uint8_t cost = bound_term_cost(termOp);
+					if (termOp.term.src != EntityBad) {
+						const bool srcIsVar = is_variable(EntityId(termOp.term.src.id()));
+						cost = (uint8_t)(cost + (srcIsVar ? 32u : 8u));
+					}
 					return cost;
 				}
 
@@ -1869,9 +1890,13 @@ namespace gaia {
 							"term_or", //
 							"term_any", //
 							"term_not", //
+							"search_enter", //
+							"search_other_or", //
+							"search_any", //
+							"search_finalize", //
 					};
 					static_assert(
-							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Var_Term_Not + 1u,
+							sizeof(s_names) / sizeof(s_names[0]) == (uint32_t)detail::EOpcode::Var_Search_Finalize + 1u,
 							"Opcode name table out of sync with EOpcode.");
 					return s_names[(uint32_t)opcode];
 				}
@@ -2046,6 +2071,9 @@ namespace gaia {
 				GAIA_NODISCARD static const QueryTerm&
 				var_program_op_term(const detail::QueryCompileCtx& comp, const detail::CompiledOp& op) {
 					switch (detail::var_program_opcode_meta(op.opcode).termSet) {
+						case detail::EVarProgramTermSet::None:
+							GAIA_ASSERT(false);
+							return comp.terms_all_var[0].term;
 						case detail::EVarProgramTermSet::Or:
 							return comp.terms_or_var[(uint32_t)op.arg].term;
 						case detail::EVarProgramTermSet::Any:
@@ -2076,12 +2104,20 @@ namespace gaia {
 						append_uint(out, i);
 						out.append("] ");
 						append_cstr(out, var_program_opcode_name(op.opcode));
-						out.append(" term=");
-						append_uint(out, (uint32_t)op.arg);
-						out.append(" cost=");
-						append_uint(out, (uint32_t)op.cost);
-						out.append(" id=");
-						append_term_expr(out, world, var_program_op_term(comp, op));
+						if (detail::var_program_opcode_meta(op.opcode).role != detail::EVarProgramOpRole::Control) {
+							out.append(" term=");
+							append_uint(out, (uint32_t)op.arg);
+							out.append(" cost=");
+							append_uint(out, (uint32_t)op.cost);
+							out.append(" id=");
+							append_term_expr(out, world, var_program_op_term(comp, op));
+						}
+						if (detail::var_program_opcode_meta(op.opcode).kind == detail::QueryCompileCtx::EVarProgramKind::Search) {
+							out.append(" ok=");
+							append_uint(out, (uint32_t)op.pc_ok);
+							out.append(" fail=");
+							append_uint(out, (uint32_t)op.pc_fail);
+						}
 						out.append('\n');
 					}
 				}
@@ -2655,8 +2691,10 @@ namespace gaia {
 						case detail::EOpcode::Var_Term_Not:
 							return m_compCtx.terms_not_var[(uint32_t)op.arg];
 						case detail::EOpcode::Var_Term_All:
-						default:
 							return m_compCtx.terms_all_var[(uint32_t)op.arg];
+						default:
+							GAIA_ASSERT(false);
+							return m_compCtx.terms_all_var[0];
 					}
 				}
 
@@ -2750,58 +2788,157 @@ namespace gaia {
 						bool orAlreadySatisfied) const {
 					using namespace detail;
 
-					enum class ESearchVarState : uint8_t {
-						Enter,
-						IterateAll,
-						IterateBestOr,
-						PrepareOtherOr,
-						IterateOtherOr,
-						PrepareAny,
-						IterateAny,
-						IterateAnySkip
+					constexpr uint16_t BacktrackPc = (uint16_t)-1;
+
+					struct SearchProgramPc {
+						uint16_t enter = BacktrackPc;
+						uint16_t selectOtherOr = BacktrackPc;
+						uint16_t selectAny = BacktrackPc;
+						uint16_t finalize = BacktrackPc;
 					};
 
-					struct SearchVarBacktrackFrame {
+					struct SearchProgramState {
 						VarBindings vars{};
 						uint16_t pendingAllMask = 0;
 						uint16_t pendingOrMask = 0;
 						uint16_t pendingAnyMask = 0;
-						uint8_t opIdx = 0xff;
+						uint16_t pc = BacktrackPc;
+						uint8_t termOpIdx = 0xff;
 						uint8_t bestOrIdx = 0xff;
 						uint8_t scanIdx = 0;
 						bool orMatched = false;
 						bool anyMatched = false;
 						bool currentAnyMatched = false;
-						ESearchVarState state = ESearchVarState::Enter;
+					};
+
+					struct SearchBacktrackFrame {
+						SearchProgramState state{};
+						VarBindings varsBase{};
+						VarTermMatchCursor cursor{};
 					};
 
 					const auto programOps = detail::program_ops(m_compCtx, program);
 					if (programOps.empty())
 						return true;
 
+					SearchProgramPc pcs{};
+					const auto opCnt = (uint32_t)programOps.size();
+					GAIA_FOR(opCnt) {
+						switch (programOps[i].opcode) {
+							case EOpcode::Var_Search_Enter:
+								pcs.enter = (uint16_t)i;
+								break;
+							case EOpcode::Var_Search_SelectOtherOr:
+								pcs.selectOtherOr = (uint16_t)i;
+								break;
+							case EOpcode::Var_Search_SelectAny:
+								pcs.selectAny = (uint16_t)i;
+								break;
+							case EOpcode::Var_Search_Finalize:
+								pcs.finalize = (uint16_t)i;
+								break;
+							default:
+								break;
+						}
+					}
+
+					GAIA_ASSERT(pcs.enter != BacktrackPc);
+					GAIA_ASSERT(pcs.selectOtherOr != BacktrackPc);
+					GAIA_ASSERT(pcs.selectAny != BacktrackPc);
+					GAIA_ASSERT(pcs.finalize != BacktrackPc);
+
 					const auto is_term_ready = [&](const detail::CompiledOp& op, const VarBindings& vars) {
 						const auto& termOp = search_program_term_op(op);
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src);
 					};
-					const auto push_frame = [&](cnt::sarray_ext<SearchVarBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack,
-																			detail::VarTermMatchCursor(&cursors)[MAX_ITEMS_IN_QUERY], VarBindings vars,
-																			uint16_t pendingAllMask, uint16_t pendingOrMask, uint16_t pendingAnyMask,
-																			bool orMatched) {
-						cursors[stack.size()] = {};
-						stack.push_back(
-								{vars, pendingAllMask, pendingOrMask, pendingAnyMask, 0xff, 0xff, 0, orMatched, false, false,
-								 ESearchVarState::Enter});
+					const auto advance_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
+																														 VarBindings nextVars) {
+						const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
+						state.vars = nextVars;
+						switch (op.opcode) {
+							case EOpcode::Var_Term_All:
+								state.pendingAllMask = (uint16_t)(state.pendingAllMask & ~bit);
+								state.pc = op.pc_ok;
+								break;
+							case EOpcode::Var_Term_Or:
+								state.pendingOrMask = (uint16_t)(state.pendingOrMask & ~bit);
+								state.orMatched = true;
+								state.pc = op.pc_ok;
+								break;
+							case EOpcode::Var_Term_Any:
+								state.pendingAnyMask = (uint16_t)(state.pendingAnyMask & ~bit);
+								state.anyMatched = true;
+								state.currentAnyMatched = true;
+								state.pc = op.pc_ok;
+								break;
+							default:
+								GAIA_ASSERT(false);
+								state.pc = BacktrackPc;
+								break;
+						}
 					};
-					const auto pop_frame = [&](cnt::sarray_ext<SearchVarBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack,
-																		 detail::VarTermMatchCursor(&cursors)[MAX_ITEMS_IN_QUERY]) {
-						cursors[stack.size() - 1] = {};
-						stack.pop_back();
+					const auto handle_search_term_exhausted = [&](SearchProgramState& state, const detail::CompiledOp& op) {
+						if (op.opcode == EOpcode::Var_Term_Any && !state.currentAnyMatched) {
+							const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
+							state.pendingAnyMask = (uint16_t)(state.pendingAnyMask & ~bit);
+						}
+						state.pc = op.pc_fail;
+					};
+					const auto try_enter_search_term = [&](SearchProgramState& state,
+																								 cnt::sarray_ext<SearchBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack) {
+						const auto& op = programOps[state.pc];
+						const auto& termOp = search_program_term_op(op);
+						VarBindings nextVars{};
+						SearchBacktrackFrame frame{};
+						frame.state = state;
+						frame.varsBase = state.vars;
+
+						if (!detail::next_term_match_cursor(*ctx.pWorld, archetype, termOp, frame.varsBase, frame.cursor, nextVars))
+							return false;
+
+						if (op.opcode == EOpcode::Var_Term_Any) {
+							frame.state.anyMatched = true;
+							frame.state.currentAnyMatched = true;
+						}
+
+						stack.push_back(GAIA_MOV(frame));
+						advance_after_search_term_success(state, op, nextVars);
+						return true;
+					};
+					const auto backtrack = [&](SearchProgramState& state,
+																		 cnt::sarray_ext<SearchBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack) {
+						while (!stack.empty()) {
+							auto& frame = stack.back();
+							const auto resumeState = frame.state;
+							const auto& op = programOps[resumeState.pc];
+							const auto& termOp = search_program_term_op(op);
+							VarBindings nextVars{};
+
+							if (detail::next_term_match_cursor(
+											*ctx.pWorld, archetype, termOp, frame.varsBase, frame.cursor, nextVars)) {
+								if (op.opcode == EOpcode::Var_Term_Any) {
+									frame.state.anyMatched = true;
+									frame.state.currentAnyMatched = true;
+								}
+
+								state = frame.state;
+								advance_after_search_term_success(state, op, nextVars);
+								return true;
+							}
+
+							stack.pop_back();
+							state = resumeState;
+							handle_search_term_exhausted(state, op);
+							if (state.pc != BacktrackPc)
+								return true;
+						}
+
+						return false;
 					};
 
 					uint16_t initialAllMask = 0;
 					uint16_t initialOrMask = 0;
 					uint16_t initialAnyMask = 0;
-					const auto opCnt = (uint32_t)programOps.size();
 					GAIA_FOR(opCnt) {
 						const auto bit = (uint16_t(1) << i);
 						switch (programOps[i].opcode) {
@@ -2819,145 +2956,92 @@ namespace gaia {
 						}
 					}
 
-					cnt::sarray_ext<SearchVarBacktrackFrame, MAX_ITEMS_IN_QUERY> stack;
-					detail::VarTermMatchCursor cursors[MAX_ITEMS_IN_QUERY];
-					push_frame(
-							stack, cursors, make_initial_var_bindings(ctx), initialAllMask, initialOrMask, initialAnyMask, false);
+					cnt::sarray_ext<SearchBacktrackFrame, MAX_ITEMS_IN_QUERY> stack;
+					SearchProgramState state{};
+					state.vars = make_initial_var_bindings(ctx);
+					state.pendingAllMask = initialAllMask;
+					state.pendingOrMask = initialOrMask;
+					state.pendingAnyMask = initialAnyMask;
+					state.pc = pcs.enter;
 
-					while (!stack.empty()) {
-						auto& frame = stack.back();
-						auto& cursor = cursors[stack.size() - 1];
-
-						switch (frame.state) {
-							case ESearchVarState::Enter: {
-								if (frame.pendingAllMask == 0) {
-									if (finalize_search_program(
-													ctx, archetype, programOps, frame.vars, orAlreadySatisfied, frame.orMatched))
-										return true;
-									pop_frame(stack, cursors);
+					for (;;) {
+						const auto& op = programOps[state.pc];
+						switch (op.opcode) {
+							case EOpcode::Var_Search_Enter: {
+								if (state.pendingAllMask == 0) {
+									state.pc = pcs.finalize;
 									break;
 								}
 
 								uint32_t bestAllIdx = (uint32_t)-1;
 								const auto allSel = select_best_pending_search_term(
-										ctx, archetype, programOps, frame.pendingAllMask, frame.vars, bestAllIdx, true);
+										ctx, archetype, programOps, state.pendingAllMask, state.vars, bestAllIdx, true);
 								if (allSel < 0) {
-									pop_frame(stack, cursors);
+									if (!backtrack(state, stack))
+										return false;
 									break;
 								}
 
 								if (allSel > 0) {
-									frame.opIdx = (uint8_t)bestAllIdx;
-									frame.state = ESearchVarState::IterateAll;
-									cursor = {};
+									state.termOpIdx = (uint8_t)bestAllIdx;
+									state.pc = (uint16_t)bestAllIdx;
 									break;
 								}
 
 								uint32_t bestOrIdx = (uint32_t)-1;
 								(void)select_best_pending_search_term(
-										ctx, archetype, programOps, frame.pendingOrMask, frame.vars, bestOrIdx, false);
-								frame.bestOrIdx = bestOrIdx == (uint32_t)-1 ? uint8_t(0xff) : (uint8_t)bestOrIdx;
-								frame.state = ESearchVarState::IterateBestOr;
-								cursor = {};
-								break;
-							}
-							case ESearchVarState::IterateAll: {
-								const auto opIdx = (uint32_t)frame.opIdx;
-								const auto& termOp = search_program_term_op(programOps[opIdx]);
-								VarBindings nextVars{};
-								if (detail::next_term_match_cursor(*ctx.pWorld, archetype, termOp, frame.vars, cursor, nextVars)) {
-									push_frame(
-											stack, cursors, nextVars, (uint16_t)(frame.pendingAllMask & ~(uint16_t(1) << opIdx)),
-											frame.pendingOrMask, frame.pendingAnyMask, frame.orMatched);
+										ctx, archetype, programOps, state.pendingOrMask, state.vars, bestOrIdx, false);
+								if (bestOrIdx != (uint32_t)-1) {
+									state.bestOrIdx = (uint8_t)bestOrIdx;
+									state.termOpIdx = state.bestOrIdx;
+									state.pc = (uint16_t)bestOrIdx;
 									break;
 								}
 
-								pop_frame(stack, cursors);
+								state.bestOrIdx = 0xff;
+								state.scanIdx = 0;
+								state.pc = pcs.selectOtherOr;
 								break;
 							}
-							case ESearchVarState::IterateBestOr: {
-								if (frame.bestOrIdx == 0xff) {
-									frame.state = ESearchVarState::PrepareOtherOr;
-									frame.scanIdx = 0;
-									break;
-								}
-
-								const auto opIdx = (uint32_t)frame.bestOrIdx;
-								const auto& termOp = search_program_term_op(programOps[opIdx]);
-								VarBindings nextVars{};
-								if (detail::next_term_match_cursor(*ctx.pWorld, archetype, termOp, frame.vars, cursor, nextVars)) {
-									push_frame(
-											stack, cursors, nextVars, frame.pendingAllMask,
-											(uint16_t)(frame.pendingOrMask & ~(uint16_t(1) << opIdx)), frame.pendingAnyMask, true);
-									break;
-								}
-
-								cursor = {};
-								frame.state = ESearchVarState::PrepareOtherOr;
-								frame.scanIdx = 0;
-								break;
-							}
-							case ESearchVarState::PrepareOtherOr: {
+							case EOpcode::Var_Search_SelectOtherOr: {
 								bool found = false;
-								while (frame.scanIdx < opCnt) {
-									const auto idx = frame.scanIdx++;
-									if (idx == frame.bestOrIdx)
+								while (state.scanIdx < opCnt) {
+									const auto idx = state.scanIdx++;
+									if (idx == state.bestOrIdx)
 										continue;
 
-									const auto bit = (uint16_t(1) << idx);
-									if ((frame.pendingOrMask & bit) == 0)
+									const auto bit = (uint16_t)(uint16_t(1) << idx);
+									if ((state.pendingOrMask & bit) == 0)
 										continue;
-									if (!is_term_ready(programOps[idx], frame.vars))
+									if (!is_term_ready(programOps[idx], state.vars))
 										continue;
 
-									frame.opIdx = (uint8_t)idx;
-									frame.state = ESearchVarState::IterateOtherOr;
-									cursor = {};
+									state.termOpIdx = (uint8_t)idx;
+									state.pc = (uint16_t)idx;
 									found = true;
 									break;
 								}
 
 								if (!found) {
-									frame.state = ESearchVarState::PrepareAny;
-									frame.scanIdx = 0;
+									state.anyMatched = false;
+									state.scanIdx = 0;
+									state.pc = pcs.selectAny;
 								}
 								break;
 							}
-							case ESearchVarState::IterateOtherOr: {
-								const auto opIdx = (uint32_t)frame.opIdx;
-								const auto& termOp = search_program_term_op(programOps[opIdx]);
-								VarBindings nextVars{};
-								if (detail::next_term_match_cursor(*ctx.pWorld, archetype, termOp, frame.vars, cursor, nextVars)) {
-									push_frame(
-											stack, cursors, nextVars, frame.pendingAllMask,
-											(uint16_t)(frame.pendingOrMask & ~(uint16_t(1) << opIdx)), frame.pendingAnyMask, true);
-									break;
-								}
-
-								cursor = {};
-								frame.state = ESearchVarState::PrepareOtherOr;
-								break;
-							}
-							case ESearchVarState::PrepareAny: {
-								frame.anyMatched = false;
-								frame.scanIdx = 0;
-								frame.state = ESearchVarState::IterateAny;
-								break;
-							}
-							case ESearchVarState::IterateAny: {
+							case EOpcode::Var_Search_SelectAny: {
 								bool found = false;
-								while (frame.scanIdx < opCnt) {
-									const auto idx = frame.scanIdx++;
-									const auto bit = (uint16_t(1) << idx);
-									if ((frame.pendingAnyMask & bit) == 0)
+								while (state.scanIdx < opCnt) {
+									const auto idx = state.scanIdx++;
+									const auto bit = (uint16_t)(uint16_t(1) << idx);
+									if ((state.pendingAnyMask & bit) == 0)
 										continue;
-									if (!is_term_ready(programOps[idx], frame.vars))
+									if (!is_term_ready(programOps[idx], state.vars))
 										continue;
 
-									frame.opIdx = (uint8_t)idx;
-									frame.currentAnyMatched = false;
-									frame.state = ESearchVarState::IterateAnySkip;
-									cursor = {};
+									state.termOpIdx = (uint8_t)idx;
+									state.currentAnyMatched = false;
+									state.pc = (uint16_t)idx;
 									found = true;
 									break;
 								}
@@ -2965,42 +3049,36 @@ namespace gaia {
 								if (found)
 									break;
 
-								if (!frame.anyMatched && can_skip_pending_search_all(programOps, frame.pendingAllMask, frame.vars)) {
-									if (finalize_search_program(
-													ctx, archetype, programOps, frame.vars, orAlreadySatisfied, frame.orMatched))
-										return true;
-								}
-
-								pop_frame(stack, cursors);
-								break;
-							}
-							case ESearchVarState::IterateAnySkip: {
-								const auto opIdx = (uint32_t)frame.opIdx;
-								const auto bit = (uint16_t(1) << opIdx);
-								const auto& termOp = search_program_term_op(programOps[opIdx]);
-								VarBindings nextVars{};
-								if (detail::next_term_match_cursor(*ctx.pWorld, archetype, termOp, frame.vars, cursor, nextVars)) {
-									frame.currentAnyMatched = true;
-									frame.anyMatched = true;
-									push_frame(
-											stack, cursors, nextVars, frame.pendingAllMask, frame.pendingOrMask,
-											(uint16_t)(frame.pendingAnyMask & ~bit), frame.orMatched);
+								if (!state.anyMatched && can_skip_pending_search_all(programOps, state.pendingAllMask, state.vars)) {
+									state.pc = pcs.finalize;
 									break;
 								}
 
-								cursor = {};
-								frame.state = ESearchVarState::IterateAny;
-								if (!frame.currentAnyMatched) {
-									push_frame(
-											stack, cursors, frame.vars, frame.pendingAllMask, frame.pendingOrMask,
-											(uint16_t)(frame.pendingAnyMask & ~bit), frame.orMatched);
-								}
+								if (!backtrack(state, stack))
+									return false;
 								break;
 							}
+							case EOpcode::Var_Search_Finalize:
+								if (finalize_search_program(
+												ctx, archetype, programOps, state.vars, orAlreadySatisfied, state.orMatched))
+									return true;
+								if (!backtrack(state, stack))
+									return false;
+								break;
+							case EOpcode::Var_Term_All:
+							case EOpcode::Var_Term_Or:
+							case EOpcode::Var_Term_Any:
+								if (!try_enter_search_term(state, stack)) {
+									handle_search_term_exhausted(state, op);
+									if (state.pc == BacktrackPc && !backtrack(state, stack))
+										return false;
+								}
+								break;
+							default:
+								GAIA_ASSERT(false);
+								return false;
 						}
 					}
-
-					return false;
 				}
 				using VarEvalFunc = bool (VirtualMachine::*)(const MatchingCtx&, const Archetype&, bool) const;
 
@@ -3659,33 +3737,87 @@ namespace gaia {
 
 					auto init_var_search_program = [&]() {
 						varSearchProgramOps.clear();
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAllOps;
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchOrOps;
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchAnyOps;
+						cnt::sarray_ext<detail::CompiledOp, MAX_ITEMS_IN_QUERY> searchNotOps;
 
 						const auto allVarCnt = (uint32_t)m_compCtx.terms_all_var.size();
 						GAIA_FOR(allVarCnt) {
-							varSearchProgramOps.push_back(
+							searchAllOps.push_back(
 									{detail::EOpcode::Var_Term_All, 0, 0, (uint8_t)i,
-									 detail::bound_term_cost(m_compCtx.terms_all_var[i])});
+									 detail::search_term_cost(m_compCtx.terms_all_var[i])});
 						}
+						detail::sort_program_bind_ops_by_cost(searchAllOps);
 
 						const auto orVarCnt = (uint32_t)m_compCtx.terms_or_var.size();
 						GAIA_FOR(orVarCnt) {
-							varSearchProgramOps.push_back(
-									{detail::EOpcode::Var_Term_Or, 0, 0, (uint8_t)i, detail::bound_term_cost(m_compCtx.terms_or_var[i])});
+							searchOrOps.push_back(
+									{detail::EOpcode::Var_Term_Or, 0, 0, (uint8_t)i,
+									 detail::search_term_cost(m_compCtx.terms_or_var[i])});
 						}
+						detail::sort_program_bind_ops_by_cost(searchOrOps);
 
 						const auto anyVarCnt = (uint32_t)m_compCtx.terms_any_var.size();
 						GAIA_FOR(anyVarCnt) {
-							varSearchProgramOps.push_back(
+							searchAnyOps.push_back(
 									{detail::EOpcode::Var_Term_Any, 0, 0, (uint8_t)i,
-									 detail::bound_term_cost(m_compCtx.terms_any_var[i])});
+									 detail::search_term_cost(m_compCtx.terms_any_var[i])});
 						}
+						detail::sort_program_bind_ops_by_cost(searchAnyOps);
 
 						const auto notVarCnt = (uint32_t)m_compCtx.terms_not_var.size();
 						GAIA_FOR(notVarCnt) {
-							varSearchProgramOps.push_back(
+							searchNotOps.push_back(
 									{detail::EOpcode::Var_Term_Not, 0, 0, (uint8_t)i,
-									 detail::bound_term_cost(m_compCtx.terms_not_var[i])});
+									 detail::search_term_cost(m_compCtx.terms_not_var[i])});
 						}
+						detail::sort_program_bind_ops_by_cost(searchNotOps);
+
+						for (const auto& op: searchAllOps)
+							varSearchProgramOps.push_back(op);
+						for (const auto& op: searchOrOps)
+							varSearchProgramOps.push_back(op);
+						for (const auto& op: searchAnyOps)
+							varSearchProgramOps.push_back(op);
+						for (const auto& op: searchNotOps)
+							varSearchProgramOps.push_back(op);
+
+						const auto termOpsCnt = (uint16_t)varSearchProgramOps.size();
+						const auto enterPc = termOpsCnt;
+						const auto selectOtherOrPc = (uint16_t)(termOpsCnt + 1u);
+						const auto selectAnyPc = (uint16_t)(termOpsCnt + 2u);
+						const auto finalizePc = (uint16_t)(termOpsCnt + 3u);
+						const auto backtrackPc = (detail::VmLabel)-1;
+
+						for (auto& op: varSearchProgramOps) {
+							switch (op.opcode) {
+								case detail::EOpcode::Var_Term_All:
+									op.pc_ok = enterPc;
+									op.pc_fail = backtrackPc;
+									break;
+								case detail::EOpcode::Var_Term_Or:
+									op.pc_ok = enterPc;
+									op.pc_fail = selectOtherOrPc;
+									break;
+								case detail::EOpcode::Var_Term_Any:
+									op.pc_ok = enterPc;
+									op.pc_fail = selectAnyPc;
+									break;
+								case detail::EOpcode::Var_Term_Not:
+									op.pc_ok = finalizePc;
+									op.pc_fail = backtrackPc;
+									break;
+								default:
+									break;
+							}
+						}
+
+						varSearchProgramOps.push_back({detail::EOpcode::Var_Search_Enter, enterPc, backtrackPc, 0, 0});
+						varSearchProgramOps.push_back(
+								{detail::EOpcode::Var_Search_SelectOtherOr, selectOtherOrPc, selectAnyPc, 0, 0});
+						varSearchProgramOps.push_back({detail::EOpcode::Var_Search_SelectAny, selectAnyPc, finalizePc, 0, 0});
+						varSearchProgramOps.push_back({detail::EOpcode::Var_Search_Finalize, finalizePc, backtrackPc, 0, 0});
 					};
 
 					auto try_init_allonly_grouped = [&]() -> bool {
