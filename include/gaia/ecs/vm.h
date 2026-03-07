@@ -154,10 +154,7 @@ namespace gaia {
 					//! Variable search micro-ops
 					Var_Term_All_Check,
 					Var_Term_All_Bind,
-					Var_Term_All_SrcSelf_Bind,
-					Var_Term_All_SrcUp_Bind,
-					Var_Term_All_SrcDown_Bind,
-					Var_Term_All_SrcUpDown_Bind,
+					Var_Term_All_Src_Bind,
 					Var_Term_Or_Check,
 					Var_Term_Or_Bind,
 					Var_Term_Any_Check,
@@ -294,9 +291,6 @@ namespace gaia {
 				static constexpr auto VarProgramOpcodeFirst = EOpcode::Var_Term_All_Check;
 				static constexpr auto VarProgramOpcodeLast = EOpcode::Var_Final_Success;
 				static constexpr VarProgramOpcodeMeta VarProgramOpcodeMetaTable[] = {
-						{EVarProgramTermSet::All}, //
-						{EVarProgramTermSet::All}, //
-						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
 						{EVarProgramTermSet::All}, //
@@ -1991,10 +1985,7 @@ namespace gaia {
 							"updown", //
 							"term_all_check", //
 							"term_all_bind", //
-							"term_all_srcself_bind", //
-							"term_all_srcup_bind", //
-							"term_all_srcdown_bind", //
-							"term_all_srcupdown_bind", //
+							"term_all_src_bind", //
 							"term_or_check", //
 							"term_or_bind", //
 							"term_any_check", //
@@ -2322,10 +2313,7 @@ namespace gaia {
 							return m_compCtx.terms_not_var[(uint32_t)op.arg];
 						case detail::EOpcode::Var_Term_All_Check:
 						case detail::EOpcode::Var_Term_All_Bind:
-						case detail::EOpcode::Var_Term_All_SrcSelf_Bind:
-						case detail::EOpcode::Var_Term_All_SrcUp_Bind:
-						case detail::EOpcode::Var_Term_All_SrcDown_Bind:
-						case detail::EOpcode::Var_Term_All_SrcUpDown_Bind:
+						case detail::EOpcode::Var_Term_All_Src_Bind:
 							return m_compCtx.terms_all_var[(uint32_t)op.arg];
 						default:
 							GAIA_ASSERT(false);
@@ -2351,10 +2339,7 @@ namespace gaia {
 						const auto& bindOp = programOps[bindPc];
 						const auto& termOp = search_program_term_op(bindOp);
 						if (detail::is_var_entity(termOp.term.src) && !detail::var_is_bound(vars, termOp.term.src) &&
-								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcSelf_Bind &&
-								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcUp_Bind &&
-								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcDown_Bind &&
-								bindOp.opcode != detail::EOpcode::Var_Term_All_SrcUpDown_Bind)
+								bindOp.opcode != detail::EOpcode::Var_Term_All_Src_Bind)
 							continue;
 
 						const bool bindsNewVars = (uint8_t)(termOp.varMask & ~vars.mask) != 0;
@@ -2574,8 +2559,7 @@ namespace gaia {
 					const auto is_term_ready = [&](const detail::CompiledOp& op, const VarBindings& vars) {
 						const auto& termOp = search_program_term_op(op);
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src) ||
-									 op.opcode == EOpcode::Var_Term_All_SrcSelf_Bind || op.opcode == EOpcode::Var_Term_All_SrcUp_Bind ||
-									 op.opcode == EOpcode::Var_Term_All_SrcDown_Bind || op.opcode == EOpcode::Var_Term_All_SrcUpDown_Bind;
+									 op.opcode == EOpcode::Var_Term_All_Src_Bind;
 					};
 					const auto advance_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
 																														 VarBindings nextVars) {
@@ -2584,10 +2568,7 @@ namespace gaia {
 						switch (op.opcode) {
 							case EOpcode::Var_Term_All_Check:
 							case EOpcode::Var_Term_All_Bind:
-							case EOpcode::Var_Term_All_SrcSelf_Bind:
-							case EOpcode::Var_Term_All_SrcUp_Bind:
-							case EOpcode::Var_Term_All_SrcDown_Bind:
-							case EOpcode::Var_Term_All_SrcUpDown_Bind:
+							case EOpcode::Var_Term_All_Src_Bind:
 								state.pendingAllMask = (uint16_t)(state.pendingAllMask & ~bit);
 								state.pc = op.pc_ok;
 								break;
@@ -2885,10 +2866,7 @@ namespace gaia {
 								}
 								break;
 							case EOpcode::Var_Term_All_Bind:
-							case EOpcode::Var_Term_All_SrcSelf_Bind:
-							case EOpcode::Var_Term_All_SrcUp_Bind:
-							case EOpcode::Var_Term_All_SrcDown_Bind:
-							case EOpcode::Var_Term_All_SrcUpDown_Bind:
+							case EOpcode::Var_Term_All_Src_Bind:
 								if (!try_enter_search_term(state, stack)) {
 									handle_search_term_exhausted(state, op);
 									if (state.pc == BacktrackPC && !backtrack(state, stack))
@@ -3419,11 +3397,10 @@ namespace gaia {
 									detail::is_var_entity(m_compCtx.terms_all_var[i].term.src) &&
 									m_compCtx.terms_all_var[i].varMask == srcVarBit &&
 									(uint8_t)(m_compCtx.terms_all_var[i].varMask & m_compCtx.varMaskAny) == 0;
-							const auto opcode = canBindFromSelfSource			? detail::EOpcode::Var_Term_All_SrcSelf_Bind
-																	: canBindFromUpSource			? detail::EOpcode::Var_Term_All_SrcUp_Bind
-																	: canBindFromDownSource		? detail::EOpcode::Var_Term_All_SrcDown_Bind
-																	: canBindFromUpDownSource ? detail::EOpcode::Var_Term_All_SrcUpDown_Bind
-																														: detail::EOpcode::Var_Term_All_Bind;
+							const auto opcode =
+									canBindFromSelfSource || canBindFromUpSource || canBindFromDownSource || canBindFromUpDownSource
+											? detail::EOpcode::Var_Term_All_Src_Bind
+											: detail::EOpcode::Var_Term_All_Bind;
 							searchAllBindOps.push_back({opcode, 0, 0, (uint8_t)i, cost});
 							searchAllCheckOps.push_back({detail::EOpcode::Var_Term_All_Check, 0, 0, (uint8_t)i, cost});
 						}
@@ -3496,10 +3473,7 @@ namespace gaia {
 						for (auto& op: varSearchProgramOps) {
 							switch (op.opcode) {
 								case detail::EOpcode::Var_Term_All_Bind:
-								case detail::EOpcode::Var_Term_All_SrcSelf_Bind:
-								case detail::EOpcode::Var_Term_All_SrcUp_Bind:
-								case detail::EOpcode::Var_Term_All_SrcDown_Bind:
-								case detail::EOpcode::Var_Term_All_SrcUpDown_Bind:
+								case detail::EOpcode::Var_Term_All_Src_Bind:
 									op.pc_ok = selectAllPc;
 									op.pc_fail = backtrackPc;
 									break;
