@@ -10163,6 +10163,46 @@ TEST_CASE("Query - cached wildcard pair queries eagerly track matching archetype
 	CHECK(qTgt.count() == 1);
 }
 
+TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt = wld.add();
+
+	auto q = wld.query().all(ecs::Pair{ecs::All, ecs::All});
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+	const auto entityCntBefore = q.count();
+
+	auto e = wld.add();
+	wld.build(e).add({rel, tgt});
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
+	CHECK(q.count() == entityCntBefore + 1);
+}
+
+TEST_CASE("Query - cached wildcard pair query stays stable for pair-heavy archetypes") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt0 = wld.add();
+	auto tgt1 = wld.add();
+
+	auto q = wld.query().all(ecs::Pair{rel, ecs::All});
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.build(e).add({rel, tgt0}).add({rel, tgt1});
+
+	const auto archetypeCntAfterBuild = info.cache_archetype_view().size();
+	CHECK(archetypeCntAfterBuild >= 1);
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == archetypeCntAfterBuild);
+}
+
 TEST_CASE("Query - cached sorted query refreshes lazily after archetype creation") {
 	TestWorld twld;
 

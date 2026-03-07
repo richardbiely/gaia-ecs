@@ -568,8 +568,15 @@ namespace gaia {
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				EntityToArchetypeMap entityToArchetypeMap;
 				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
+				auto addLookup = [&](Entity key) {
+					auto& archetypes = entityToArchetypeMap[EntityLookupKey(key)];
+					// This incremental path evaluates a single archetype, so each lookup key only needs
+					// one pointer back to that archetype even when multiple pair ids share the same wildcard key.
+					if (archetypes.empty())
+						archetypes.push_back(pArchetypeMut);
+				};
 				for (const auto entity: archetype.ids_view()) {
-					entityToArchetypeMap[EntityLookupKey(entity)].push_back(pArchetypeMut);
+					addLookup(entity);
 
 					if (!entity.pair())
 						continue;
@@ -579,8 +586,8 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					entityToArchetypeMap[EntityLookupKey(Pair(All, tgt))].push_back(pArchetypeMut);
-					entityToArchetypeMap[EntityLookupKey(Pair(rel, All))].push_back(pArchetypeMut);
+					addLookup(Pair(All, tgt));
+					addLookup(Pair(rel, All));
 				}
 
 				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);

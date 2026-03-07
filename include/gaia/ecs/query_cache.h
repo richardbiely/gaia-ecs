@@ -277,10 +277,13 @@ namespace gaia {
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
 				auto& handles = prepare_create_query_handles();
+				bool hasAnyPair = false;
 				for (const auto entity: pArchetype->ids_view()) {
 					append_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
 						continue;
+
+					hasAnyPair = true;
 
 					// Pair ids retain the relation/target ids plus their kind bits. That is enough to
 					// rebuild wildcard pair lookup keys without touching the world record storage.
@@ -289,8 +292,10 @@ namespace gaia {
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
 					append_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
 					append_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
-					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 				}
+
+				if (hasAnyPair)
+					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 
 				for (const auto handle: handles) {
 					auto* pInfo = try_get(handle);

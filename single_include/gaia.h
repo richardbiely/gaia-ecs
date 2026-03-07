@@ -35105,8 +35105,15 @@ namespace gaia {
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				EntityToArchetypeMap entityToArchetypeMap;
 				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
+				auto addLookup = [&](Entity key) {
+					auto& archetypes = entityToArchetypeMap[EntityLookupKey(key)];
+					// This incremental path evaluates a single archetype, so each lookup key only needs
+					// one pointer back to that archetype even when multiple pair ids share the same wildcard key.
+					if (archetypes.empty())
+						archetypes.push_back(pArchetypeMut);
+				};
 				for (const auto entity: archetype.ids_view()) {
-					entityToArchetypeMap[EntityLookupKey(entity)].push_back(pArchetypeMut);
+					addLookup(entity);
 
 					if (!entity.pair())
 						continue;
@@ -35116,8 +35123,8 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					entityToArchetypeMap[EntityLookupKey(Pair(All, tgt))].push_back(pArchetypeMut);
-					entityToArchetypeMap[EntityLookupKey(Pair(rel, All))].push_back(pArchetypeMut);
+					addLookup(Pair(All, tgt));
+					addLookup(Pair(rel, All));
 				}
 
 				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);
@@ -35901,10 +35908,13 @@ namespace gaia {
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
 				auto& handles = prepare_create_query_handles();
+				bool hasAnyPair = false;
 				for (const auto entity: pArchetype->ids_view()) {
 					append_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
 						continue;
+
+					hasAnyPair = true;
 
 					// Pair ids retain the relation/target ids plus their kind bits. That is enough to
 					// rebuild wildcard pair lookup keys without touching the world record storage.
@@ -35913,8 +35923,10 @@ namespace gaia {
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
 					append_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
 					append_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
-					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 				}
+
+				if (hasAnyPair)
+					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 
 				for (const auto handle: handles) {
 					auto* pInfo = try_get(handle);
