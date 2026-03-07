@@ -335,7 +335,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
-				return m_plan.vm.is_compiled() && !has_dynamic_terms() && !m_state.needs_refresh();
+				const auto& ctxData = m_plan.ctx.data;
+				// Archetype-create eager updates currently target plain structural caches only.
+				// Sorted/grouped queries keep using the normal read-time path because they
+				// maintain additional global ordering state.
+				return m_plan.vm.is_compiled() && !has_dynamic_terms() && !m_state.needs_refresh() &&
+							 ctxData.sortByFunc == nullptr && ctxData.groupBy == EntityBad;
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -551,8 +556,6 @@ namespace gaia {
 			}
 
 			bool register_archetype(const Archetype& archetype) {
-				CleanUpTmpArchetypeMatches autoCleanup;
-
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary.
@@ -562,38 +565,37 @@ namespace gaia {
 				if (!can_update_with_new_archetype())
 					return false;
 
-				GAIA_PROF_SCOPE(queryinfo::reg_archetype);
+				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
+				EntityToArchetypeMap entityToArchetypeMap;
+				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
+				for (const auto entity: archetype.ids_view()) {
+					entityToArchetypeMap[EntityLookupKey(entity)].push_back(pArchetypeMut);
 
-				vm::MatchingCtx ctx{};
-				ctx.pWorld = world();
-				const auto* pArchetype = &archetype;
-				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
-				ctx.pEntityToArchetypeMap = nullptr;
-				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
-				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
-				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesEpoch = next_archetype_match_epoch();
-				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
-				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
-				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
-				ctx.queryMask = ctxData.queryMask;
-				ctx.as_mask_0 = ctxData.as_mask_0;
-				ctx.as_mask_1 = ctxData.as_mask_1;
-				ctx.flags = ctxData.flags;
-				ctx.varBindings = ctxData.varBindings;
-				ctx.varBindingMask = ctxData.varBindingMask;
+					if (!entity.pair())
+						continue;
 
-				m_plan.vm.exec(ctx);
-
-				bool matched = false;
-				for (const auto* pMatchedArchetype: *ctx.pMatchesArr) {
-					add_archetype_to_seed_cache(pMatchedArchetype);
-					add_archetype_to_cache(pMatchedArchetype);
-					matched = true;
+					// Wildcard pair lookups use the same special records as the world-level
+					// entity-to-archetype map, so incremental matching can reuse the normal VM path.
+					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
+					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
+					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
+					entityToArchetypeMap[EntityLookupKey(Pair(All, tgt))].push_back(pArchetypeMut);
+					entityToArchetypeMap[EntityLookupKey(Pair(rel, All))].push_back(pArchetypeMut);
 				}
 
-				if (m_state.lastArchetypeId < archetype.id())
-					m_state.lastArchetypeId = archetype.id();
+				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);
+				auto lastMatchedArchetypeIdx_Or = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_Or);
+				auto lastMatchedArchetypeIdx_Not = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_Not);
+				GAIA_ASSERT(ctxData.lastMatchedArchetypeIdx_All.empty());
+				GAIA_ASSERT(ctxData.lastMatchedArchetypeIdx_Or.empty());
+				GAIA_ASSERT(ctxData.lastMatchedArchetypeIdx_Not.empty());
+
+				const auto* pArchetype = &archetype;
+				match(entityToArchetypeMap, std::span((const Archetype**)&pArchetype, 1), archetype.id());
+				ctxData.lastMatchedArchetypeIdx_All = GAIA_MOV(lastMatchedArchetypeIdx_All);
+				ctxData.lastMatchedArchetypeIdx_Or = GAIA_MOV(lastMatchedArchetypeIdx_Or);
+				ctxData.lastMatchedArchetypeIdx_Not = GAIA_MOV(lastMatchedArchetypeIdx_Not);
+				const bool matched = !hadMatchBefore && m_state.archetypeSet.contains(&archetype);
 
 				if (!matched)
 					return false;

@@ -10116,6 +10116,127 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached structural query picks up new matching archetype after warm match") {
+	TestWorld twld;
+
+	auto e0 = wld.add();
+	wld.add<Position>(e0, {1, 0, 0});
+
+	auto q = wld.query().all<Position>();
+	CHECK(q.count() == 1);
+	CHECK(q.count() == 1);
+
+	auto& info = q.fetch();
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	auto e1 = wld.add();
+	wld.add<Position>(e1, {2, 0, 0});
+	wld.add<Something>(e1, {false});
+
+	CHECK(info.cache_archetype_view().size() == 2);
+	CHECK(q.count() == 2);
+}
+
+TEST_CASE("Query - cached wildcard pair queries eagerly track matching archetypes") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt = wld.add();
+
+	auto qRel = wld.query().all(ecs::Pair{rel, ecs::All});
+	auto qTgt = wld.query().all(ecs::Pair{ecs::All, tgt});
+
+	auto& infoRel = qRel.fetch();
+	auto& infoTgt = qTgt.fetch();
+	qRel.match_all(infoRel);
+	qTgt.match_all(infoTgt);
+
+	CHECK(infoRel.cache_archetype_view().empty());
+	CHECK(infoTgt.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add(e, ecs::Pair(rel, tgt));
+
+	CHECK(infoRel.cache_archetype_view().size() == 1);
+	CHECK(infoTgt.cache_archetype_view().size() == 1);
+	CHECK(qRel.count() == 1);
+	CHECK(qTgt.count() == 1);
+}
+
+TEST_CASE("Query - cached sorted query refreshes lazily after archetype creation") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position>().sort_by(
+			wld.get<Position>(), []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+
+	// Sorted queries keep using the normal read-time refresh path.
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+}
+
+TEST_CASE("Query - cached grouped query refreshes lazily after archetype creation") {
+	TestWorld twld;
+
+	auto eats = wld.add();
+	auto carrot = wld.add();
+
+	auto q = wld.query().all<Position>().group_by(eats);
+
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+	wld.add(e, ecs::Pair(eats, carrot));
+
+	// Grouped queries keep using the normal read-time refresh path.
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 1);
+	CHECK(!info.cache_archetype_view().empty());
+	q.group_id(carrot);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - uncached query state is not eagerly updated by shared cache propagation") {
+	TestWorld twld;
+
+	auto qCached = wld.query().all<Position>();
+	auto qUncached = wld.query<false>().all<Position>();
+
+	auto& cachedInfo = qCached.fetch();
+	auto& uncachedInfo = qUncached.fetch();
+	qCached.match_all(cachedInfo);
+	qUncached.match_all(uncachedInfo);
+
+	CHECK(cachedInfo.cache_archetype_view().empty());
+	CHECK(uncachedInfo.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+
+	CHECK(cachedInfo.cache_archetype_view().size() == 1);
+	CHECK(uncachedInfo.cache_archetype_view().empty());
+	CHECK(qCached.count() == 1);
+	CHECK(qUncached.count() == 1);
+}
+
 TEST_CASE("Query - remove decrements ALL/OR/NOT cached cursors") {
 	TestWorld twld;
 

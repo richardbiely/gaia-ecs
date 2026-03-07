@@ -55,6 +55,8 @@ namespace gaia {
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
+			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
 			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
@@ -88,6 +90,7 @@ namespace gaia {
 				m_queryCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
+				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
 			}
@@ -154,6 +157,7 @@ namespace gaia {
 
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
+				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
 			}
@@ -176,10 +180,11 @@ namespace gaia {
 				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
 				GAIA_ASSERT(it != m_queryCache.end());
 				m_queryCache.erase(it);
-				m_queryArr.free(handle);
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
+				del_create_to_query_pairs(pInfo->ctx(), handle);
+				m_queryArr.free(handle);
 
 				return true;
 			}
@@ -263,14 +268,31 @@ namespace gaia {
 			}
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
-				for (auto& info: m_queryArr) {
-					if (info.refs() == 0)
+				cnt::darray<QueryHandle> handles;
+				for (const auto entity: pArchetype->ids_view()) {
+					append_create_query_handles(EntityLookupKey(entity), handles);
+					if (!entity.pair())
 						continue;
 
-					if (!info.register_archetype(*pArchetype))
+					// Pair ids retain the relation/target ids plus their kind bits. That is enough to
+					// rebuild wildcard pair lookup keys without touching the world record storage.
+					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
+					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
+					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
+					append_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
+					append_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
+				}
+
+				for (const auto handle: handles) {
+					auto* pInfo = try_get(handle);
+					if (pInfo == nullptr || pInfo->refs() == 0)
 						continue;
 
-					register_query_archetype(QueryInfo::handle(info), pArchetype);
+					if (!pInfo->register_archetype(*pArchetype))
+						continue;
+
+					register_query_archetype(handle, pArchetype);
 				}
 			}
 
@@ -333,6 +355,78 @@ namespace gaia {
 			void del_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
 				for (auto entity: entities) {
 					del_entity_query_pair(entity, handle);
+				}
+			}
+
+			static bool is_create_selector_term(const QueryTerm& term) {
+				return term.src == EntityBad && !term_has_variables(term) &&
+							 (term.op == QueryOpKind::All || term.op == QueryOpKind::Or);
+			}
+
+			static bool is_structural_create_query(const QueryCtx& ctx) {
+				const auto flags = ctx.data.flags;
+				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) == 0;
+			}
+
+			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
+				EntityLookupKey entityKey(entity);
+				const auto it = m_entityToCreateQuery.find(entityKey);
+				if (it == m_entityToCreateQuery.end()) {
+					m_entityToCreateQuery.try_emplace(entityKey, cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_create_to_query_pair(Entity entity, QueryHandle handle) {
+				auto it = m_entityToCreateQuery.find(EntityLookupKey(entity));
+				if (it == m_entityToCreateQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_entityToCreateQuery.erase(it);
+			}
+
+			void add_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (!is_structural_create_query(ctx))
+					return;
+
+				// Only queries with a positive structural selector term are tracked here.
+				// Broad structural queries such as pure NOT/ANY still rely on the normal
+				// read-time incremental refresh path until they get a dedicated index.
+				for (const auto& term: ctx.data.terms_view()) {
+					if (!is_create_selector_term(term))
+						continue;
+
+					add_create_to_query_pair(term.id, handle);
+				}
+			}
+
+			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (!is_structural_create_query(ctx))
+					return;
+
+				for (const auto& term: ctx.data.terms_view()) {
+					if (!is_create_selector_term(term))
+						continue;
+
+					del_create_to_query_pair(term.id, handle);
+				}
+			}
+
+			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) const {
+				const auto it = m_entityToCreateQuery.find(entityKey);
+				if (it == m_entityToCreateQuery.end())
+					return;
+
+				for (const auto handle: it->second) {
+					if (!core::has(handles, handle))
+						handles.push_back(handle);
 				}
 			}
 
