@@ -190,15 +190,15 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
-			void invalidate_queries_for_entity(EntityLookupKey entityKey) {
+			void invalidate_queries_for_entity(EntityLookupKey entityKey, QueryInfo::InvalidationKind kind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
 					return;
 
 				const auto& handles = it->second;
-				for (auto& handle: handles) {
+				for (const auto& handle: handles) {
 					auto& info = get(handle);
-					info.invalidate();
+					info.invalidate(kind);
 					info.ctx().refresh();
 				}
 			}

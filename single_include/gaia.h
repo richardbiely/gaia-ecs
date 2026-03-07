@@ -34596,6 +34596,10 @@ namespace gaia {
 				bool needsSorting;
 			};
 
+		public:
+			enum class InvalidationKind : uint8_t { Result, Seed, All };
+
+		private:
 			struct QueryPlan {
 				QueryCtx ctx;
 				vm::VirtualMachine vm;
@@ -34637,12 +34641,28 @@ namespace gaia {
 					dirtyFlags = DirtyFlags::All;
 				}
 
-				void invalidate() {
+				void invalidate_seed() {
+					dirtyFlags = (uint8_t)(dirtyFlags | DirtyFlags::Seed | DirtyFlags::Result);
+				}
+
+				void invalidate_result() {
+					dirtyFlags = (uint8_t)(dirtyFlags | DirtyFlags::Result);
+				}
+
+				void invalidate_all() {
 					dirtyFlags = DirtyFlags::All;
 				}
 
+				GAIA_NODISCARD bool seed_dirty() const {
+					return (dirtyFlags & DirtyFlags::Seed) != 0;
+				}
+
+				GAIA_NODISCARD bool result_dirty() const {
+					return (dirtyFlags & DirtyFlags::Result) != 0;
+				}
+
 				GAIA_NODISCARD bool needs_refresh() const {
-					return dirtyFlags != DirtyFlags::Clean;
+					return seed_dirty() || result_dirty();
 				}
 
 				void clear_dirty() {
@@ -34729,8 +34749,26 @@ namespace gaia {
 				reset_matching_cache();
 			}
 
-			void invalidate() {
-				m_state.invalidate();
+			void invalidate(InvalidationKind kind = InvalidationKind::All) {
+				switch (kind) {
+					case InvalidationKind::Result:
+						m_state.invalidate_result();
+						break;
+					case InvalidationKind::Seed:
+						m_state.invalidate_seed();
+						break;
+					case InvalidationKind::All:
+						m_state.invalidate_all();
+						break;
+				}
+			}
+
+			void invalidate_seed() {
+				invalidate(InvalidationKind::Seed);
+			}
+
+			void invalidate_result() {
+				invalidate(InvalidationKind::Result);
 			}
 
 			GAIA_NODISCARD static QueryInfo create(
@@ -34875,7 +34913,7 @@ namespace gaia {
 					// Source lookups can change query results without creating new archetypes.
 					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
 					reset_matching_cache();
-				} else if (m_state.needs_refresh()) {
+				} else if (m_state.seed_dirty()) {
 					reset_matching_cache();
 				}
 
@@ -34945,7 +34983,7 @@ namespace gaia {
 					return;
 
 				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U ||
-						m_state.needs_refresh()) {
+						m_state.seed_dirty()) {
 					// Source lookups can invalidate previously cached archetype matches.
 					// Variable terms can invalidate them as well.
 					reset_matching_cache();
@@ -35634,15 +35672,15 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
-			void invalidate_queries_for_entity(EntityLookupKey entityKey) {
+			void invalidate_queries_for_entity(EntityLookupKey entityKey, QueryInfo::InvalidationKind kind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
 					return;
 
 				const auto& handles = it->second;
-				for (auto& handle: handles) {
+				for (const auto& handle: handles) {
 					auto& info = get(handle);
-					info.invalidate();
+					info.invalidate(kind);
 					info.ctx().refresh();
 				}
 			}
@@ -44289,7 +44327,8 @@ namespace gaia {
 				auto e = is_pair.second();
 				as_up_trav<false>(e, [&](Entity target) {
 					// Invalidate all queries that contain  everything in our path.
-					m_queryCache.invalidate_queries_for_entity(EntityLookupKey(Pair{Is, target}));
+					m_queryCache.invalidate_queries_for_entity(
+							EntityLookupKey(Pair{Is, target}), QueryInfo::InvalidationKind::Seed);
 				});
 			}
 

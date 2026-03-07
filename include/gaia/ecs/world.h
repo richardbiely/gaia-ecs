@@ -5632,7 +5632,8 @@ namespace gaia {
 				auto e = is_pair.second();
 				as_up_trav<false>(e, [&](Entity target) {
 					// Invalidate all queries that contain  everything in our path.
-					m_queryCache.invalidate_queries_for_entity(EntityLookupKey(Pair{Is, target}));
+					m_queryCache.invalidate_queries_for_entity(
+							EntityLookupKey(Pair{Is, target}), QueryInfo::InvalidationKind::Seed);
 				});
 			}
 
