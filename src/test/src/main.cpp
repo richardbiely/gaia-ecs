@@ -10149,6 +10149,25 @@ TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
+TEST_CASE("Query - cached query destruction unregisters archetype reverse index") {
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	wld.add<Acceleration>(e, {4, 5, 6});
+	wld.set_max_lifespan(e, 1);
+
+	{
+		auto q = wld.query().all<Position&>().all<Acceleration&>();
+		CHECK(q.count() == 1);
+	}
+
+	wld.del<Acceleration>(e);
+	twld.update();
+
+	CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 0);
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 

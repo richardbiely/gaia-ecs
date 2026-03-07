@@ -3712,18 +3712,10 @@ namespace gaia {
 					if (tmp.empty())
 						return;
 
-					// TODO: How to speed this up? If there are 1k cached queries is it still going to
-					//       be fast enough or do we get spikes? Probably a linked list for query cache
-					//       would be a way to go.
-					for (auto& info: m_queryCache) {
-						if (info.refs() == 0)
-							continue;
-						for (auto* pArchetype: tmp)
-							info.remove(pArchetype);
-					}
-
-					for (auto* pArchetype: tmp)
+					for (auto* pArchetype: tmp) {
+						m_queryCache.remove_archetype_from_queries(pArchetype);
 						del_empty_archetype(pArchetype);
+					}
 					tmp.clear();
 				};
 

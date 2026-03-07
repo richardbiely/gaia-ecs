@@ -595,6 +595,10 @@ namespace gaia {
 
 				void match_all(QueryInfo& queryInfo) {
 					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
+					if constexpr (UseCaching) {
+						m_storage.m_queryCache->sync_archetype_cache(
+								QueryInfo::handle(queryInfo), queryInfo.cache_archetype_view());
+					}
 				}
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {

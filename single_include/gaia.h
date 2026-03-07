@@ -35620,6 +35620,10 @@ namespace gaia {
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
+			//! Archetype -> cached queries whose current result cache contains it
+			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
+			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
+			cnt::map<QueryHandleLookupKey, cnt::darray<const Archetype*>> m_queryToArchetype;
 
 		public:
 			QueryCache() {
@@ -35649,6 +35653,8 @@ namespace gaia {
 				m_queryCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
+				m_archetypeToQuery.clear();
+				m_queryToArchetype.clear();
 			}
 
 			//! Returns a QueryInfo object associated with @a handle.
@@ -35729,6 +35735,8 @@ namespace gaia {
 				if (pInfo->refs() != 0)
 					return false;
 
+				unregister_query_archetypes(handle);
+
 				// If this was the last reference to the query, we can safely remove it
 				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
 				GAIA_ASSERT(it != m_queryCache.end());
@@ -35768,7 +35776,70 @@ namespace gaia {
 				}
 			}
 
+			void sync_archetype_cache(QueryHandle handle, std::span<const Archetype*> archetypes) {
+				if (!valid(handle))
+					return;
+
+				const auto key = QueryHandleLookupKey(handle);
+				auto it = m_queryToArchetype.find(key);
+				if (it != m_queryToArchetype.end() && same_archetype_views(it->second, archetypes))
+					return;
+
+				unregister_query_archetypes(handle);
+
+				if (archetypes.empty())
+					return;
+
+				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(key);
+				auto& tracked = trackedIt->second;
+				if (!inserted)
+					tracked.clear();
+
+				tracked.reserve((uint32_t)archetypes.size());
+				for (const auto* pArchetype: archetypes) {
+					tracked.push_back(pArchetype);
+					add_archetype_query_pair(pArchetype, handle);
+				}
+			}
+
+			void remove_archetype_from_queries(Archetype* pArchetype) {
+				const auto archetypeKey = ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash());
+				auto it = m_archetypeToQuery.find(archetypeKey);
+				if (it == m_archetypeToQuery.end())
+					return;
+
+				const auto handles = it->second;
+				for (const auto handle: handles) {
+					auto* pInfo = try_get(handle);
+					if (pInfo != nullptr && pInfo->refs() != 0)
+						pInfo->remove(pArchetype);
+
+					auto trackedIt = m_queryToArchetype.find(QueryHandleLookupKey(handle));
+					if (trackedIt == m_queryToArchetype.end())
+						continue;
+
+					auto& tracked = trackedIt->second;
+					core::swap_erase(tracked, core::get_index(tracked, pArchetype));
+					if (tracked.empty())
+						m_queryToArchetype.erase(trackedIt);
+				}
+
+				m_archetypeToQuery.erase(it);
+			}
+
 		private:
+			static bool same_archetype_views(std::span<const Archetype*> left, std::span<const Archetype*> right) {
+				if (left.size() != right.size())
+					return false;
+
+				const auto cnt = (uint32_t)left.size();
+				GAIA_FOR(cnt) {
+					if (left[i] != right[i])
+						return false;
+				}
+				return true;
+			}
+
 			//! Adds an entity to the <entity, query> map
 			//! \param entity Entity getting added
 			//! \param handle Query handle
@@ -35816,6 +35887,42 @@ namespace gaia {
 				for (auto entity: entities) {
 					del_entity_query_pair(entity, handle);
 				}
+			}
+
+			void add_archetype_query_pair(const Archetype* pArchetype, QueryHandle handle) {
+				const auto archetypeKey = ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash());
+				const auto it = m_archetypeToQuery.find(archetypeKey);
+				if (it == m_archetypeToQuery.end()) {
+					m_archetypeToQuery.try_emplace(archetypeKey, cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_archetype_query_pair(const Archetype* pArchetype, QueryHandle handle) {
+				auto it = m_archetypeToQuery.find(ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash()));
+				if (it == m_archetypeToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_archetypeToQuery.erase(it);
+			}
+
+			void unregister_query_archetypes(QueryHandle handle) {
+				auto it = m_queryToArchetype.find(QueryHandleLookupKey(handle));
+				if (it == m_queryToArchetype.end())
+					return;
+
+				const auto& tracked = it->second;
+				for (const auto* pArchetype: tracked)
+					del_archetype_query_pair(pArchetype, handle);
+
+				m_queryToArchetype.erase(it);
 			}
 		};
 	} // namespace ecs
@@ -36390,6 +36497,10 @@ namespace gaia {
 
 				void match_all(QueryInfo& queryInfo) {
 					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
+					if constexpr (UseCaching) {
+						m_storage.m_queryCache->sync_archetype_cache(
+								QueryInfo::handle(queryInfo), queryInfo.cache_archetype_view());
+					}
 				}
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
@@ -42490,18 +42601,10 @@ namespace gaia {
 					if (tmp.empty())
 						return;
 
-					// TODO: How to speed this up? If there are 1k cached queries is it still going to
-					//       be fast enough or do we get spikes? Probably a linked list for query cache
-					//       would be a way to go.
-					for (auto& info: m_queryCache) {
-						if (info.refs() == 0)
-							continue;
-						for (auto* pArchetype: tmp)
-							info.remove(pArchetype);
-					}
-
-					for (auto* pArchetype: tmp)
+					for (auto* pArchetype: tmp) {
+						m_queryCache.remove_archetype_from_queries(pArchetype);
 						del_empty_archetype(pArchetype);
+					}
 					tmp.clear();
 				};
 
