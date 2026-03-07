@@ -409,12 +409,14 @@ namespace gaia {
 					reset_matching_cache();
 				} else if (m_state.seed_dirty()) {
 					reset_matching_cache();
-				} else if (m_state.result_dirty() && m_state.lastArchetypeId == archetypeLastId) {
+				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
-					sort_entities();
-					sort_cache_groups();
-					m_state.clear_dirty();
-					return;
+					if (m_state.lastArchetypeId == archetypeLastId) {
+						sort_entities();
+						sort_cache_groups();
+						m_state.clear_dirty();
+						return;
+					}
 				}
 
 				// Skip if no new archetype appeared
@@ -454,14 +456,13 @@ namespace gaia {
 
 				// Write found matches to cache
 				for (const auto* pArchetype: *ctx.pMatchesArr) {
-					if (hasDynamicTerms)
+					if (hasDynamicTerms) {
 						add_archetype_to_cache(pArchetype);
-					else
+					} else {
 						add_archetype_to_seed_cache(pArchetype);
+						add_archetype_to_cache(pArchetype);
+					}
 				}
-
-				if (!hasDynamicTerms)
-					sync_result_cache_from_seed_cache();
 
 				// Sort entities if necessary
 				sort_entities();
@@ -495,8 +496,6 @@ namespace gaia {
 					reset_matching_cache();
 				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
-					m_state.clear_dirty();
-					return;
 				}
 
 				GAIA_PROF_SCOPE(queryinfo::match1);
@@ -527,13 +526,13 @@ namespace gaia {
 
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
-					if (hasDynamicTerms)
+					if (hasDynamicTerms) {
 						add_archetype_to_cache(pArch);
-					else
+					} else {
 						add_archetype_to_seed_cache(pArch);
+						add_archetype_to_cache(pArch);
+					}
 				}
-				if (!hasDynamicTerms)
-					sync_result_cache_from_seed_cache();
 				m_state.clear_dirty();
 			}
 
