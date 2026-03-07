@@ -33350,7 +33350,7 @@ namespace gaia {
 						const detail::QueryCompileCtx::VarProgramStep& programStep, bool orAlreadySatisfied) const {
 					using namespace detail;
 
-					constexpr uint16_t BacktrackPc = (uint16_t)-1;
+					static constexpr uint16_t BacktrackPC = (uint16_t)-1;
 
 					struct SearchProgramState {
 						VarBindings vars{};
@@ -33358,7 +33358,7 @@ namespace gaia {
 						uint16_t pendingOrMask = 0;
 						uint16_t pendingFinalOrMask = 0;
 						uint16_t pendingAnyMask = 0;
-						uint16_t pc = BacktrackPc;
+						uint16_t pc = BacktrackPC;
 						uint8_t termOpIdx = 0xff;
 						uint8_t bestOrIdx = 0xff;
 						uint8_t scanIdx = 0;
@@ -33378,13 +33378,13 @@ namespace gaia {
 					const auto programOps = detail::program_ops(m_compCtx, program);
 					if (programOps.empty())
 						return true;
-					GAIA_ASSERT(search.selectAllPc != BacktrackPc);
-					GAIA_ASSERT(search.selectOrPc != BacktrackPc);
-					GAIA_ASSERT(search.selectOtherOrPc != BacktrackPc);
-					GAIA_ASSERT(search.selectOtherOrBindPc != BacktrackPc);
-					GAIA_ASSERT(search.beginAnyPc != BacktrackPc);
-					GAIA_ASSERT(search.selectAnyPc != BacktrackPc);
-					GAIA_ASSERT(search.maybeFinalizePc != BacktrackPc);
+					GAIA_ASSERT(search.selectAllPc != BacktrackPC);
+					GAIA_ASSERT(search.selectOrPc != BacktrackPC);
+					GAIA_ASSERT(search.selectOtherOrPc != BacktrackPC);
+					GAIA_ASSERT(search.selectOtherOrBindPc != BacktrackPC);
+					GAIA_ASSERT(search.beginAnyPc != BacktrackPC);
+					GAIA_ASSERT(search.selectAnyPc != BacktrackPC);
+					GAIA_ASSERT(search.maybeFinalizePc != BacktrackPC);
 
 					const auto is_term_ready = [&](const detail::CompiledOp& op, const VarBindings& vars) {
 						const auto& termOp = search_program_term_op(op);
@@ -33421,7 +33421,7 @@ namespace gaia {
 								break;
 							default:
 								GAIA_ASSERT(false);
-								state.pc = BacktrackPc;
+								state.pc = BacktrackPC;
 								break;
 						}
 					};
@@ -33475,7 +33475,7 @@ namespace gaia {
 							stack.pop_back();
 							state = resumeState;
 							handle_search_term_exhausted(state, op);
-							if (state.pc != BacktrackPc)
+							if (state.pc != BacktrackPC)
 								return true;
 						}
 
@@ -33492,7 +33492,7 @@ namespace gaia {
 					state.pc = search.selectAllPc;
 
 					for (;;) {
-						if (state.pc == BacktrackPc) {
+						if (state.pc == BacktrackPC) {
 							if (!backtrack(state, stack))
 								return false;
 							continue;
@@ -33684,7 +33684,7 @@ namespace gaia {
 								if (!state.anyMatched &&
 										can_skip_pending_search_all(programOps, search, state.pendingAllMask, state.vars))
 									state.pc = op.pc_ok;
-								else if (op.pc_fail != BacktrackPc)
+								else if (op.pc_fail != BacktrackPC)
 									state.pc = op.pc_fail;
 								else if (!backtrack(state, stack))
 									return false;
@@ -33694,7 +33694,7 @@ namespace gaia {
 									advance_after_search_term_success(state, op, state.vars);
 								else {
 									handle_search_term_exhausted(state, op);
-									if (state.pc == BacktrackPc && !backtrack(state, stack))
+									if (state.pc == BacktrackPC && !backtrack(state, stack))
 										return false;
 								}
 								break;
@@ -33704,7 +33704,7 @@ namespace gaia {
 							case EOpcode::Var_Term_All_SrcUpDown_Bind:
 								if (!try_enter_search_term(state, stack)) {
 									handle_search_term_exhausted(state, op);
-									if (state.pc == BacktrackPc && !backtrack(state, stack))
+									if (state.pc == BacktrackPC && !backtrack(state, stack))
 										return false;
 								}
 								break;
@@ -33722,7 +33722,7 @@ namespace gaia {
 											state.pendingFinalOrMask =
 													(uint16_t)(state.pendingFinalOrMask & ~(uint16_t(1) << state.termOpIdx));
 										handle_search_term_exhausted(state, op);
-										if (state.pc == BacktrackPc && !backtrack(state, stack))
+										if (state.pc == BacktrackPC && !backtrack(state, stack))
 											return false;
 									}
 									break;
@@ -33730,7 +33730,7 @@ namespace gaia {
 
 								if (!try_enter_search_term(state, stack)) {
 									handle_search_term_exhausted(state, op);
-									if (state.pc == BacktrackPc && !backtrack(state, stack))
+									if (state.pc == BacktrackPC && !backtrack(state, stack))
 										return false;
 								}
 								break;
@@ -33745,7 +33745,7 @@ namespace gaia {
 							case EOpcode::Var_Final_Require_Or:
 								if (orAlreadySatisfied || state.orMatched || search.orCount == 0)
 									state.pc = op.pc_ok;
-								else if (op.pc_fail != BacktrackPc)
+								else if (op.pc_fail != BacktrackPC)
 									state.pc = op.pc_fail;
 								else if (!backtrack(state, stack))
 									return false;
@@ -33757,7 +33757,7 @@ namespace gaia {
 									state.pc = op.pc_ok;
 								else {
 									state.pendingFinalOrMask = (uint16_t)(state.pendingFinalOrMask & ~(uint16_t(1) << op.arg));
-									if (op.pc_fail != BacktrackPc)
+									if (op.pc_fail != BacktrackPC)
 										state.pc = op.pc_fail;
 									else if (!backtrack(state, stack))
 										return false;
