@@ -60,7 +60,14 @@ namespace gaia {
 			};
 
 		public:
-			enum class InvalidationKind : uint8_t { Result, Seed, All };
+			enum class InvalidationKind : uint8_t {
+				//! Only the final result cache is stale. Structural seed matches remain valid and can be reused.
+				Result,
+				//! Structural seed matches are stale. This also implies the final result cache must be rebuilt.
+				Seed,
+				//! Full invalidation of all query cache state.
+				All
+			};
 
 		private:
 			struct QueryPlan {
@@ -70,6 +77,11 @@ namespace gaia {
 
 			struct QueryState {
 				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, All = Seed | Result };
+
+				//! Structural seed cache built without source/variable refinement.
+				cnt::set<const Archetype*> seedArchetypeSet;
+				CArchetypeDArray seedArchetypeCache;
+				cnt::darray<ArchetypeCacheData> seedArchetypeCacheData;
 
 				//! Used to make sure only unique archetypes are inserted into the cache
 				//! TODO: Get rid of the set by changing the way the caching works.
@@ -90,12 +102,23 @@ namespace gaia {
 				uint32_t worldVersion{};
 				uint8_t dirtyFlags = DirtyFlags::All;
 
-				void clear_cache() {
+				void clear_seed_cache() {
+					seedArchetypeSet = {};
+					seedArchetypeCache = {};
+					seedArchetypeCacheData = {};
+				}
+
+				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
 					archetypeSortData = {};
 					archetypeCacheData = {};
 					archetypeGroupData = {};
+				}
+
+				void clear_cache() {
+					clear_seed_cache();
+					clear_result_cache();
 				}
 
 				void reset() {
@@ -147,6 +170,15 @@ namespace gaia {
 				ctxData.lastMatchedArchetypeIdx_All = {};
 				ctxData.lastMatchedArchetypeIdx_Or = {};
 				ctxData.lastMatchedArchetypeIdx_Not = {};
+			}
+
+			void clear_result_cache() {
+				m_state.clear_result_cache();
+			}
+
+			GAIA_NODISCARD bool has_dynamic_terms() const {
+				const auto flags = m_plan.ctx.data.flags;
+				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U;
 			}
 
 			template <typename TType>
@@ -370,20 +402,24 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				const bool hasSourceTerms = (ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U;
-				const bool hasVariableTerms = (ctxData.flags & QueryCtx::QueryFlags::HasVariableTerms) != 0U;
-				if (hasSourceTerms || hasVariableTerms) {
+				const bool hasDynamicTerms = has_dynamic_terms();
+				if (hasDynamicTerms) {
 					// Source lookups can change query results without creating new archetypes.
 					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
 					reset_matching_cache();
 				} else if (m_state.seed_dirty()) {
 					reset_matching_cache();
+				} else if (m_state.result_dirty() && m_state.lastArchetypeId == archetypeLastId) {
+					sync_result_cache_from_seed_cache();
+					sort_entities();
+					sort_cache_groups();
+					m_state.clear_dirty();
+					return;
 				}
 
 				// Skip if no new archetype appeared
 				GAIA_ASSERT(archetypeLastId >= m_state.lastArchetypeId);
-				if (!hasSourceTerms && !hasVariableTerms && !m_state.needs_refresh() &&
-						m_state.lastArchetypeId == archetypeLastId) {
+				if (!hasDynamicTerms && !m_state.needs_refresh() && m_state.lastArchetypeId == archetypeLastId) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -417,8 +453,15 @@ namespace gaia {
 				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
-				for (const auto* pArchetype: *ctx.pMatchesArr)
-					add_archetype_to_cache(pArchetype);
+				for (const auto* pArchetype: *ctx.pMatchesArr) {
+					if (hasDynamicTerms)
+						add_archetype_to_cache(pArchetype);
+					else
+						add_archetype_to_seed_cache(pArchetype);
+				}
+
+				if (!hasDynamicTerms)
+					sync_result_cache_from_seed_cache();
 
 				// Sort entities if necessary
 				sort_entities();
@@ -445,11 +488,15 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U ||
-						m_state.seed_dirty()) {
+				const bool hasDynamicTerms = has_dynamic_terms();
+				if (hasDynamicTerms || m_state.seed_dirty()) {
 					// Source lookups can invalidate previously cached archetype matches.
 					// Variable terms can invalidate them as well.
 					reset_matching_cache();
+				} else if (m_state.result_dirty()) {
+					sync_result_cache_from_seed_cache();
+					m_state.clear_dirty();
+					return;
 				}
 
 				GAIA_PROF_SCOPE(queryinfo::match1);
@@ -479,8 +526,14 @@ namespace gaia {
 				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
-				for (const auto* pArch: *ctx.pMatchesArr)
-					add_archetype_to_cache(pArch);
+				for (const auto* pArch: *ctx.pMatchesArr) {
+					if (hasDynamicTerms)
+						add_archetype_to_cache(pArch);
+					else
+						add_archetype_to_seed_cache(pArch);
+				}
+				if (!hasDynamicTerms)
+					sync_result_cache_from_seed_cache();
 				m_state.clear_dirty();
 			}
 
@@ -693,6 +746,15 @@ namespace gaia {
 				m_state.archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
+			void add_archetype_to_seed_cache(const Archetype* pArchetype) {
+				if (m_state.seedArchetypeSet.contains(pArchetype))
+					return;
+
+				m_state.seedArchetypeSet.emplace(pArchetype);
+				m_state.seedArchetypeCache.push_back(pArchetype);
+				m_state.seedArchetypeCacheData.push_back(create_cache_data(pArchetype));
+			}
+
 			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
@@ -780,6 +842,13 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype);
 			}
 
+			void sync_result_cache_from_seed_cache() {
+				clear_result_cache();
+				const auto cnt = (uint32_t)m_state.seedArchetypeCache.size();
+				GAIA_FOR(cnt)
+				add_archetype_to_cache(m_state.seedArchetypeCache[i]);
+			}
+
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
 				const auto it = m_state.archetypeSet.find(pArchetype);
 				if (it == m_state.archetypeSet.end())
@@ -819,6 +888,19 @@ namespace gaia {
 						m_state.archetypeGroupData.erase(m_state.archetypeGroupData.begin() + grpIdx);
 				}
 
+				return true;
+			}
+
+			bool del_archetype_from_seed_cache(const Archetype* pArchetype) {
+				const auto it = m_state.seedArchetypeSet.find(pArchetype);
+				if (it == m_state.seedArchetypeSet.end())
+					return false;
+				m_state.seedArchetypeSet.erase(it);
+
+				const auto archetypeIdx = core::get_index_unsafe(m_state.seedArchetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
+				core::swap_erase(m_state.seedArchetypeCache, archetypeIdx);
+				core::swap_erase(m_state.seedArchetypeCacheData, archetypeIdx);
 				return true;
 			}
 
@@ -886,7 +968,9 @@ namespace gaia {
 			void remove(Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::remove);
 
-				if (!del_archetype_from_cache(pArchetype))
+				const bool removedFromSeed = del_archetype_from_seed_cache(pArchetype);
+				const bool removedFromResult = del_archetype_from_cache(pArchetype);
+				if (!removedFromSeed && !removedFromResult)
 					return;
 
 				// An archetype was removed from the world so the last matching archetype index needs to be
