@@ -10099,6 +10099,23 @@ TEST_CASE("Query - cached OR query sees matches added after creation") {
 	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 1);
 }
 
+TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position&>().all<Acceleration&>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	CHECK(info.cache_archetype_view().empty());
+
+	wld.add<Acceleration>(e, {4, 5, 6});
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - remove decrements ALL/OR/NOT cached cursors") {
 	TestWorld twld;
 

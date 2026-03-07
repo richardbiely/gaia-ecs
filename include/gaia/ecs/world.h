@@ -4098,6 +4098,8 @@ namespace gaia {
 
 				pArchetype->list_idx(m_archetypes.size());
 				m_archetypes.emplace_back(pArchetype);
+
+				m_queryCache.register_archetype_with_queries(pArchetype);
 			}
 
 			//! Unregisters the archetype from the world.

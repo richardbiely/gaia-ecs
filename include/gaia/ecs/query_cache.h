@@ -262,6 +262,18 @@ namespace gaia {
 				m_archetypeToQuery.erase(it);
 			}
 
+			void register_archetype_with_queries(const Archetype* pArchetype) {
+				for (auto& info: m_queryArr) {
+					if (info.refs() == 0)
+						continue;
+
+					if (!info.register_archetype(*pArchetype))
+						continue;
+
+					register_query_archetype(QueryInfo::handle(info), pArchetype);
+				}
+			}
+
 		private:
 			static bool same_archetype_views(std::span<const Archetype*> left, std::span<const Archetype*> right) {
 				if (left.size() != right.size())
@@ -358,6 +370,16 @@ namespace gaia {
 					del_archetype_query_pair(pArchetype, handle);
 
 				m_queryToArchetype.erase(it);
+			}
+
+			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype) {
+				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
+				auto& tracked = trackedIt->second;
+				if (!inserted && core::has(tracked, pArchetype))
+					return;
+
+				tracked.push_back(pArchetype);
+				add_archetype_query_pair(pArchetype, handle);
 			}
 		};
 	} // namespace ecs

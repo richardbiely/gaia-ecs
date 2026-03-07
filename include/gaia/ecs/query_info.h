@@ -334,6 +334,10 @@ namespace gaia {
 				return m_state.worldVersion;
 			}
 
+			GAIA_NODISCARD bool can_update_with_new_archetype() const {
+				return m_plan.vm.is_compiled() && !has_dynamic_terms() && !m_state.needs_refresh();
+			}
+
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				return m_plan.ctx == other;
 			}
@@ -544,6 +548,59 @@ namespace gaia {
 
 			void ensure_matches_one(const Archetype& archetype, EntitySpan targetEntities) {
 				match_one(archetype, targetEntities);
+			}
+
+			bool register_archetype(const Archetype& archetype) {
+				CleanUpTmpArchetypeMatches autoCleanup;
+
+				auto& ctxData = m_plan.ctx.data;
+
+				// Recompile if necessary.
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
+				if (!can_update_with_new_archetype())
+					return false;
+
+				GAIA_PROF_SCOPE(queryinfo::reg_archetype);
+
+				vm::MatchingCtx ctx{};
+				ctx.pWorld = world();
+				const auto* pArchetype = &archetype;
+				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
+				ctx.pEntityToArchetypeMap = nullptr;
+				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
+				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
+				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
+				ctx.matchesEpoch = next_archetype_match_epoch();
+				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
+				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
+				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
+				ctx.varBindings = ctxData.varBindings;
+				ctx.varBindingMask = ctxData.varBindingMask;
+
+				m_plan.vm.exec(ctx);
+
+				bool matched = false;
+				for (const auto* pMatchedArchetype: *ctx.pMatchesArr) {
+					add_archetype_to_seed_cache(pMatchedArchetype);
+					add_archetype_to_cache(pMatchedArchetype);
+					matched = true;
+				}
+
+				if (m_state.lastArchetypeId < archetype.id())
+					m_state.lastArchetypeId = archetype.id();
+
+				if (!matched)
+					return false;
+
+				sort_entities();
+				sort_cache_groups();
+				return true;
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
