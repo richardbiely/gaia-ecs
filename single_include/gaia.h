@@ -35685,6 +35685,11 @@ namespace gaia {
 			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
 			cnt::map<QueryHandleLookupKey, cnt::darray<const Archetype*>> m_queryToArchetype;
+			//! Scratch candidate list reused while routing a newly created archetype to cached queries.
+			cnt::darray<QueryHandle> m_createQueryHandleScratch;
+			//! Handle-id stamp table used to deduplicate create candidates in O(1) per hit.
+			cnt::darray<uint32_t> m_createQueryHandleStampById;
+			uint32_t m_createQueryHandleStamp = 1;
 
 		public:
 			QueryCache() {
@@ -35717,6 +35722,9 @@ namespace gaia {
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
+				m_createQueryHandleScratch.clear();
+				m_createQueryHandleStampById.clear();
+				m_createQueryHandleStamp = 1;
 			}
 
 			//! Returns a QueryInfo object associated with @a handle.
@@ -35892,7 +35900,7 @@ namespace gaia {
 			}
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
-				cnt::darray<QueryHandle> handles;
+				auto& handles = prepare_create_query_handles();
 				for (const auto entity: pArchetype->ids_view()) {
 					append_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
@@ -36043,15 +36051,42 @@ namespace gaia {
 				}
 			}
 
-			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) const {
+			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
 				const auto it = m_entityToCreateQuery.find(entityKey);
 				if (it == m_entityToCreateQuery.end())
 					return;
 
 				for (const auto handle: it->second) {
-					if (!core::has(handles, handle))
+					if (mark_create_query_handle(handle))
 						handles.push_back(handle);
 				}
+			}
+
+			cnt::darray<QueryHandle>& prepare_create_query_handles() {
+				m_createQueryHandleScratch.clear();
+
+				// Archetype creation can fan out through many positive selector ids. Use a monotonic stamp table
+				// keyed by query-handle id so duplicate candidates do not devolve into repeated linear scans.
+				++m_createQueryHandleStamp;
+				if (m_createQueryHandleStamp == 0) {
+					m_createQueryHandleStampById = {};
+					m_createQueryHandleStamp = 1;
+				}
+
+				return m_createQueryHandleScratch;
+			}
+
+			GAIA_NODISCARD bool mark_create_query_handle(QueryHandle handle) {
+				const auto handleId = (uint32_t)handle.id();
+				if (handleId >= m_createQueryHandleStampById.size())
+					m_createQueryHandleStampById.resize(handleId + 1);
+
+				auto& stamp = m_createQueryHandleStampById[handleId];
+				if (stamp == m_createQueryHandleStamp)
+					return false;
+
+				stamp = m_createQueryHandleStamp;
+				return true;
 			}
 
 			void add_archetype_query_pair(const Archetype* pArchetype, QueryHandle handle) {
