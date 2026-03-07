@@ -23,6 +23,7 @@
 namespace gaia {
 	namespace ecs {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
+		using SingleArchetypeLookup = cnt::map<EntityLookupKey, const Archetype*>;
 
 		struct ArchetypeMatchStamp {
 			cnt::sparse_id id = 0;
@@ -44,6 +45,26 @@ namespace gaia {
 
 			enum class MatchingStyle { Simple, Wildcard, Complex };
 
+			struct ArchetypeLookupView {
+				using FetchByKeyFn =
+						std::span<const Archetype*> (*)(const void*, std::span<const Archetype*>, Entity, const EntityLookupKey&);
+
+				const void* pData = nullptr;
+				FetchByKeyFn fetchByKey = nullptr;
+
+				GAIA_NODISCARD bool empty() const {
+					return fetchByKey == nullptr;
+				}
+
+				GAIA_NODISCARD std::span<const Archetype*>
+				fetch(std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) const {
+					if (empty())
+						return {};
+
+					return fetchByKey(pData, arr, ent, key);
+				}
+			};
+
 			struct MatchingCtx {
 				// Setup up externally
 				//////////////////////////////////
@@ -52,8 +73,8 @@ namespace gaia {
 				const World* pWorld;
 				//! Entities for which we run the VM. If empty, we run against all of them.
 				EntitySpan targetEntities;
-				//! entity -> archetypes mapping
-				const EntityToArchetypeMap* pEntityToArchetypeMap;
+				//! entity -> archetypes lookup used to seed structural candidate archetypes
+				ArchetypeLookupView archetypeLookup;
 				//! Array of all archetypes in the world
 				std::span<const Archetype*> allArchetypes;
 				//! Set of already matched archetypes. Reset before each exec().
@@ -114,10 +135,50 @@ namespace gaia {
 			}
 
 			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const SingleArchetypeLookup& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
+				GAIA_ASSERT(key != EntityBadLookupKey);
+
+				if (ent == Pair(All, All))
+					return arr;
+
+				const auto it = map.find(key);
+				if (it == map.end() || it->second == nullptr)
+					return {};
+
+				const auto* pArchetype = &it->second;
+				return std::span((const Archetype**)pArchetype, 1);
+			}
+
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
 					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
 				GAIA_ASSERT(src != EntityBad);
 
 				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
+			}
+
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const SingleArchetypeLookup& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
+				GAIA_ASSERT(src != EntityBad);
+
+				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
+			}
+
+			inline std::span<const Archetype*> fetch_archetypes_for_select_from_map(
+					const void* pData, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
+				return fetch_archetypes_for_select(*(const EntityToArchetypeMap*)pData, arr, ent, key);
+			}
+
+			inline std::span<const Archetype*> fetch_archetypes_for_select_from_single(
+					const void* pData, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
+				return fetch_archetypes_for_select(*(const SingleArchetypeLookup*)pData, arr, ent, key);
+			}
+
+			inline ArchetypeLookupView make_archetype_lookup_view(const EntityToArchetypeMap& map) {
+				return ArchetypeLookupView{&map, fetch_archetypes_for_select_from_map};
+			}
+
+			inline ArchetypeLookupView make_archetype_lookup_view(const SingleArchetypeLookup& map) {
+				return ArchetypeLookupView{&map, fetch_archetypes_for_select_from_single};
 			}
 
 			namespace detail {
@@ -1395,9 +1456,9 @@ namespace gaia {
 						return false;
 					};
 
-					if (ctx.pEntityToArchetypeMap != nullptr) {
-						const auto sourceArchetypes = fetch_archetypes_for_select(
-								*ctx.pEntityToArchetypeMap, ctx.allArchetypes, termOp.term.id, termOp.term.id);
+					if (!ctx.archetypeLookup.empty()) {
+						const auto sourceArchetypes =
+								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
 						if (advance_matches(sourceArchetypes))
 							return true;
 					} else if (advance_matches(ctx.allArchetypes))
@@ -1461,9 +1522,9 @@ namespace gaia {
 						return false;
 					};
 
-					if (ctx.pEntityToArchetypeMap != nullptr) {
-						const auto sourceArchetypes = fetch_archetypes_for_select(
-								*ctx.pEntityToArchetypeMap, ctx.allArchetypes, termOp.term.id, termOp.term.id);
+					if (!ctx.archetypeLookup.empty()) {
+						const auto sourceArchetypes =
+								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
 						if (advance_matches(sourceArchetypes))
 							return true;
 					} else if (advance_matches(ctx.allArchetypes))
@@ -1717,8 +1778,7 @@ namespace gaia {
 						} else {
 							auto entityKey = EntityLookupKey(ctx.ent);
 
-							auto archetypes =
-									fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+							auto archetypes = ctx.archetypeLookup.fetch(ctx.allArchetypes, ctx.ent, entityKey);
 							if (archetypes.empty())
 								return;
 
@@ -1729,8 +1789,7 @@ namespace gaia {
 
 						// For ALL we need all the archetypes to match. We start by checking
 						// if the first one is registered in the world at all.
-						auto archetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						auto archetypes = ctx.archetypeLookup.fetch(ctx.allArchetypes, ctx.ent, entityKey);
 						if (archetypes.empty())
 							return;
 
@@ -1745,8 +1804,7 @@ namespace gaia {
 					// For OR we need at least one archetype to match.
 					// However, because any of them can match, we need to check them all.
 					// Iterating all of them is caller's responsibility.
-					auto archetypes =
-							fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+					auto archetypes = ctx.archetypeLookup.fetch(ctx.allArchetypes, ctx.ent, entityKey);
 					if (archetypes.empty())
 						return;
 
@@ -1765,8 +1823,7 @@ namespace gaia {
 					} else {
 						entityKey = EntityLookupKey(ctx.ent);
 
-						auto archetypes =
-								fetch_archetypes_for_select(*ctx.pEntityToArchetypeMap, ctx.allArchetypes, ctx.ent, entityKey);
+						auto archetypes = ctx.archetypeLookup.fetch(ctx.allArchetypes, ctx.ent, entityKey);
 						if (archetypes.empty())
 							return;
 

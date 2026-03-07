@@ -388,13 +388,14 @@ namespace gaia {
 
 			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			//! \param entityToArchetypeMap Map of all archetypes
+			//! \param entityToArchetypeMap Lookup of archetypes by queried id
 			//! \param allArchetypes List of all archetypes
 			//! \param archetypeLastId Last recorded archetype id
 			//! \warning Not thread safe. No two threads can call this at the same time.
+			template <typename ArchetypeLookup>
 			void match(
 					// entity -> archetypes mapping
-					const EntityToArchetypeMap& entityToArchetypeMap,
+					const ArchetypeLookup& entityToArchetypeMap,
 					// all archetypes in the world
 					std::span<const Archetype*> allArchetypes,
 					// last matched archetype id
@@ -445,7 +446,7 @@ namespace gaia {
 				ctx.pWorld = world();
 				// ctx.targetEntities = {};
 				ctx.allArchetypes = allArchetypes;
-				ctx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap);
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
@@ -515,7 +516,7 @@ namespace gaia {
 				ctx.targetEntities = targetEntities;
 				const auto* pArchetype = &archetype;
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
-				ctx.pEntityToArchetypeMap = nullptr;
+				ctx.archetypeLookup = {};
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
@@ -566,14 +567,10 @@ namespace gaia {
 					return false;
 
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
-				EntityToArchetypeMap entityToArchetypeMap;
+				SingleArchetypeLookup entityToArchetypeMap;
 				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
 				auto addLookup = [&](Entity key) {
-					auto& archetypes = entityToArchetypeMap[EntityLookupKey(key)];
-					// This incremental path evaluates a single archetype, so each lookup key only needs
-					// one pointer back to that archetype even when multiple pair ids share the same wildcard key.
-					if (archetypes.empty())
-						archetypes.push_back(pArchetypeMut);
+					entityToArchetypeMap.try_emplace(EntityLookupKey(key), pArchetypeMut);
 				};
 				for (const auto entity: archetype.ids_view()) {
 					addLookup(entity);
