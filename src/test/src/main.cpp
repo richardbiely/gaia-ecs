@@ -10128,6 +10128,27 @@ TEST_CASE("Query - remove decrements ALL/OR/NOT cached cursors") {
 	CHECK(info.ctx().data.lastMatchedArchetypeIdx_Not[key] == 4);
 }
 
+TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	wld.add<Acceleration>(e, {4, 5, 6});
+	wld.set_max_lifespan(e, 1);
+
+	auto q = wld.query().all<Position&>().all<Acceleration&>();
+	CHECK(q.count() == 1);
+
+	auto& info = q.fetch();
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	wld.del<Acceleration>(e);
+	twld.update();
+
+	CHECK(q.count() == 0);
+	CHECK(info.cache_archetype_view().empty());
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 

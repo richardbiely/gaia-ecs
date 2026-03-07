@@ -42494,6 +42494,8 @@ namespace gaia {
 					//       be fast enough or do we get spikes? Probably a linked list for query cache
 					//       would be a way to go.
 					for (auto& info: m_queryCache) {
+						if (info.refs() == 0)
+							continue;
 						for (auto* pArchetype: tmp)
 							info.remove(pArchetype);
 					}
