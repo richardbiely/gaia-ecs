@@ -10287,6 +10287,35 @@ TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
+TEST_CASE("Query - cached structural query stays stable across eager add and gc") {
+	TestWorld twld;
+
+	auto e0 = wld.add();
+	wld.add<Position>(e0, {1, 0, 0});
+	wld.add<Something>(e0, {false});
+
+	auto q = wld.query().all<Position>().all<Something>();
+	auto& info = q.fetch();
+
+	CHECK(q.count() == 1);
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	auto e1 = wld.add();
+	wld.add<Position>(e1, {2, 0, 0});
+	wld.add<Something>(e1, {true});
+	wld.add<Acceleration>(e1, {1, 0, 0});
+	CHECK(info.cache_archetype_view().size() == 2);
+	CHECK(q.count() == 2);
+	CHECK(info.cache_archetype_view().size() == 2);
+
+	wld.del<Something>(e1);
+	twld.update();
+
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+}
+
 TEST_CASE("Query - cached query destruction unregisters archetype reverse index") {
 	TestWorld twld;
 

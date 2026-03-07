@@ -474,8 +474,9 @@ namespace gaia {
 				}
 
 				auto& handles = it->second;
-				if (!core::has(handles, handle))
-					handles.push_back(handle);
+				// Callers only register a <query, archetype> edge after they proved that edge is new.
+				GAIA_ASSERT(!core::has(handles, handle));
+				handles.push_back(handle);
 			}
 
 			void del_archetype_query_pair(const Archetype* pArchetype, QueryHandle handle) {
@@ -504,9 +505,10 @@ namespace gaia {
 			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype) {
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
 				auto& tracked = trackedIt->second;
-				if (!inserted && core::has(tracked, pArchetype))
-					return;
 
+				// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,
+				// so reverse-index registration can append directly instead of re-scanning tracked archetypes.
+				GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));
 				tracked.push_back(pArchetype);
 				add_archetype_query_pair(pArchetype, handle);
 			}
