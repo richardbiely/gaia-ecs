@@ -7,6 +7,7 @@
 
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/sarray.h"
+#include "gaia/cnt/sarray_ext.h"
 #include "gaia/cnt/set.h"
 #include "gaia/cnt/sparse_storage.h"
 #include "gaia/config/profiler.h"
