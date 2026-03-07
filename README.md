@@ -19,25 +19,23 @@
 [discord]: https://discord.gg/wJjK72yze2
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
+**Gaia-ECS** is a fast, ergonomic C++17 ECS framework designed to be the option you can actually learn in an afternoon without reading a manual the size of a novel.
+You get complex queries with relationship traversal, per-component AoS/SoA layouts, integrated serialization, and multithreading with job dependencies — all behind an API that stays out of your way.
 
-**Gaia-ECS** is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
-* very simple and safe API
-* based on [C++17](https://en.cppreference.com/w/cpp/17) with no external dependencies (no STL strings or containers)
-* compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
-* archetype / chunk-based storage for maximum iteration speed and easy code parallelization
-* supports applications with large number of components and archetypes
-* can be compiled to run in a web browser using [Emscripten](https://emscripten.org)
-* automatic component registration
-* supports [run-time defined tags](#create-or-delete-entity)
-* supports [entity relationships](#relationships)
-* supports smart pointer-like [entity lifespan](#entity-lifespan) management
-* integrated both [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
-* comes with [multithreading](#multithreading) support with job-dependencies, supported on the [ECS level](#parallel-execution), too
-* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
-* compiles almost instantly
-* stability and correctness ensured by thousands of [unit tests](#testing), in-code asserts, and sanitizers
-* thoroughly documented both public and internal code
-* exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
+***Highlights:***
+* Clean, safe API — no boilerplate, no footguns
+* Archetype/chunk storage for cache-friendly iteration
+* Expressive queries: [relationships](#relationships), wildcards, hierarchy traversal (DFS/BFS), variables
+* Per-component [AoS or SoA data layout](#data-layouts) with minimal code changes
+* Integrated [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
+* [Multithreading](#multithreading) with job dependencies, including [parallel ECS](#parallel-execution) iteration
+* No external dependencies, no STL strings or containers
+* [Single-header](#single-header) option — drop it in and go
+* Compiles fast, runs on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions), even in web browser thanks to [Emscripten](https://emscripten.org)
+
+***Quality:***
+* Thoroughly documented — both public API and internals
+* Correctness ensured by thousands of [unit tests](#testing), in-code asserts, and sanitizers
 
 NOTE: Due to its extensive use of acceleration structures and caching, this library is not a good fit for hardware with very limited memory resources (measured in MiBs or less). Micro-controllers, retro gaming consoles, and similar platforms should consider alternative solutions.
 
@@ -64,8 +62,14 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Archetype lifespan](#archetype-lifespan)
   * [Data processing](#data-processing)
     * [Query](#query)
+    * [Simple query](#simple-query)
+    * [Query traversal](#query-traversal)
+    * [Query variables](query-variables)
+    * [Multi-variable queries](#multi-variable-queries)
+    * [Query low-level API](#query-low-level-api)
     * [Query string](#query-string)
     * [Uncached query](#uncached-query)
+    * [Query remarks](#query-remarks)
     * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
@@ -121,44 +125,29 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
 # Introduction
 
 ## ECS
-[Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is a software architectural pattern based on organizing your code around data which follows the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).  
+[Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is an architectural pattern that organizes code around data rather than objects, following the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).
 
-Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
+Instead of modeling your program around real-world objects (car, house, human), you think in terms of the data needed to achieve a result. When moving something from A to B you don't care if it's a car or a plane — you only care about its position and velocity. This makes code easier to maintain, extend, and reason about, while also being more naturally suited to how modern hardware works.
 
-This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code that is easier to maintain, expand and reason about.
+Think of ECS as a database engine without [ACID](https://en.wikipedia.org/wiki/ACID) constraints — optimized for latency and throughput beyond what a general-purpose database could achieve, at the cost of data safety guarantees. Queries over entities are fast by design, and data locality is a first-class concern rather than an afterthought.
 
-For instance, when moving an object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
+The three building blocks are:
+* **Entity** — a unique id that represents an object in your world
+* **Component** — a piece of data attached to an entity (position, velocity, health)
+* **System** — logic that operates on all entities matching a given set of components
 
-Three building blocks of ECS are:
-* **Entity** (id) - an index that uniquely identifies a group of components
-* **Component** (data) - a piece of data (position, velocity, age)
-* **System** (processor) - a place where your program's logic is implemented
-
-Following the example given above, a vehicle could be any entity with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
-The actual movement is handled by [systems](#systems). Those that match the Flying component will implement the logic for flying. Systems matching the Driving component handle the land movement.
-
-On the outside ECS is not much different from database engines. The main difference is it does not need to follow the [ACID](https://en.wikipedia.org/wiki/ACID) principle which allows it to be optimized beyond what an ordinary database engine could ever be both in terms of latency and absolute performance. At the cost of data safety.
-
-The main strengths of an ECS done right could be summarized as:
-* *decoupling of logic* - separates data (components) from logic (systems)
-* *modularity and reusability* - promotes modular and reusable code with self-contained components
-* *ease of maintenance* - promotes less spaghetti code with a modular structure that is easier to debug
-* *flexibility* - allows dynamic object behavior through composition of entities with specific components
-* *adaptability* - easily adapts to changing project requirements through component and system modifications
-* *performance* - optimized for data locality, supports data- and thread-level parallelism almost out-of-the-box; scales well with a predictable performance impact as the number of entities increases
+A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.
 
 ## Implementation
-**Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
+**Gaia-ECS** is an archetype-based ECS. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
 
-Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs. Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator.
+Each archetype is made up of chunks: fixed-size blocks of memory sized so that a full chunk fits in L1 cache on most CPUs. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.
 
-Components of the same type are grouped together and laid out linearly in memory. Thanks to all that data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
+The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing components requires moving data between archetypes — mitigated here by an archetype graph and support for batched component changes.
 
-The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize.
+Queries are compiled into bytecode and executed by an internal virtual machine, ensuring only the complexity your query actually needs is paid for.
 
-On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by building an archetype graph and having the ability to add and remove components in batches.
-
-In this project, components are entities with the `Component` component attached to them. Treating components as entities allows for great design simplification and big features.
+Components are themselves entities with a `Component` tag attached. Treating components as first-class entities is what enables relationships and keeps the overall design orthogonal — the same mechanisms that handle entities handle components, without special cases.
 
 ## Project structure
 The entire project is implemented inside gaia namespace. It is further split into multiple sub-projects each with a separate namespaces.
@@ -773,7 +762,9 @@ For querying data you can use a Query. It can help you find all entities, compon
 
 Every Query is cached internally. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
-Note, the first Query invocation is always slower than the subsequent ones because internals of the Query need to be initialized.
+Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.
+
+### Simple query
 
 ```cpp
 ecs::Query q = w.query();
@@ -838,6 +829,85 @@ ecs::Query q = w.query();
   // ... and no Player component (no access)...
   .no<Player>(); 
 ```
+
+`all(...)` requires the term, `any(...)` keeps the term optional, `or_(...)` creates an OR-chain that requires at least one OR term.
+
+```cpp
+struct Cable {};
+struct Device {};
+struct Powered {};
+
+ecs::World w;
+const ecs::Entity cablePlain = w.add();
+w.add<Cable>(cablePlain);
+
+const ecs::Entity cableDevice = w.add();
+w.add<Cable>(cableDevice);
+w.add<Device>(cableDevice);
+
+const ecs::Entity cablePowered = w.add();
+w.add<Cable>(cablePowered);
+w.add<Powered>(cablePowered);
+
+const ecs::Entity cableBoth = w.add();
+w.add<Cable>(cableBoth);
+w.add<Device>(cableBoth);
+w.add<Powered>(cableBoth);
+
+ecs::Query qAll = w.query().all<Cable>().all<Device>();
+qAll.count(); // expected: 2 (cableDevice, cableBoth)
+
+ecs::Query qAny = w.query().all<Cable>().any<Device>();
+qAny.count(); // expected: 4 (cablePlain, cableDevice, cablePowered, cableBoth)
+
+ecs::Query qOr = w.query().all<Cable>().or_<Device>().or_<Powered>();
+qOr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
+
+ecs::Query qExpr = w.query().add("Cable, Device || Powered");
+qExpr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
+```
+
+OR terms never duplicate matches. If an entity/archetype satisfies more than one OR term, it is still returned once.
+When no `all(...)` terms are present, chaining multiple `or_(...)` terms still means logical OR.
+
+```cpp
+struct Marker {};
+struct A {};
+struct B {};
+
+ecs::World w;
+const ecs::Entity e = w.add();
+w.add<Marker>(e);
+w.add<A>(e);
+w.add<B>(e);
+
+ecs::Query q = w.query()
+  .all<Marker>()
+  .any<A>()
+  .any<B>();
+q.count(); // expected: 1 (entity `e` is matched once)
+
+ecs::Query qOr = w.query()
+  .all<Marker>()
+  .or_<A>()
+  .or_<B>();
+qOr.count(); // expected: 1
+
+ecs::Entity e1 = w.add();
+ecs::Entity e2 = w.add();
+w.add(e1, e1);
+w.add(e2, e2);
+
+ecs::Query qAny = w.query()
+  .or_(e1)
+  .or_(e2);
+qAny.count(); // expected: 2 (matches entities with e1 OR e2)
+
+ecs::Query qBad = w.query().or_<A>();
+qBad.count(); // expected (Debug): assertion failure, use all<A>() or any<A>()
+```
+
+### Query traversal
 
 More advanced lookup settings are supported via `QueryTermOptions`. This includes source selection, traversal by relation (`ChildOf` by default), traversal filtering (`trav`, `trav_up`, `trav_parent`, `trav_self_parent`, `trav_down`, `trav_child`, `trav_self_down`, `trav_self_child`, `trav_depth`), and access type (read or write).
 
@@ -911,106 +981,7 @@ ecs::Query qDownUnlimited = w.query()
   .all(level, ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
 ```
 
-OR terms never duplicate matches. If an entity/archetype satisfies more than one OR term, it is still returned once.
-When no `all(...)` terms are present, chaining multiple `or_(...)` terms still means logical OR.
-Debug builds assert on a single `or_(...)` term because it is ambiguous.
-
-```cpp
-struct Marker {};
-struct A {};
-struct B {};
-
-ecs::World w;
-const ecs::Entity e = w.add();
-w.add<Marker>(e);
-w.add<A>(e);
-w.add<B>(e);
-
-ecs::Query q = w.query()
-  .all<Marker>()
-  .any<A>()
-  .any<B>();
-q.count(); // expected: 1 (entity `e` is matched once)
-
-ecs::Query qOr = w.query()
-  .all<Marker>()
-  .or_<A>()
-  .or_<B>();
-qOr.count(); // expected: 1
-
-ecs::Entity e1 = w.add();
-ecs::Entity e2 = w.add();
-w.add(e1, e1);
-w.add(e2, e2);
-
-ecs::Query qAny = w.query()
-  .or_(e1)
-  .or_(e2);
-qAny.count(); // expected: 2 (matches entities with e1 OR e2)
-
-ecs::Query qBad = w.query().or_<A>();
-qBad.count(); // expected (Debug): assertion failure, use all<A>() or any<A>()
-```
-
-`all(...)` requires the term, `any(...)` keeps the term optional, `or_(...)` creates an OR-chain that requires at least one OR term.
-
-```cpp
-struct Cable {};
-struct Device {};
-struct Powered {};
-
-ecs::World w;
-const ecs::Entity cablePlain = w.add();
-w.add<Cable>(cablePlain);
-
-const ecs::Entity cableDevice = w.add();
-w.add<Cable>(cableDevice);
-w.add<Device>(cableDevice);
-
-const ecs::Entity cablePowered = w.add();
-w.add<Cable>(cablePowered);
-w.add<Powered>(cablePowered);
-
-const ecs::Entity cableBoth = w.add();
-w.add<Cable>(cableBoth);
-w.add<Device>(cableBoth);
-w.add<Powered>(cableBoth);
-
-ecs::Query qAll = w.query().all<Cable>().all<Device>();
-qAll.count(); // expected: 2 (cableDevice, cableBoth)
-
-ecs::Query qAny = w.query().all<Cable>().any<Device>();
-qAny.count(); // expected: 4 (cablePlain, cableDevice, cablePowered, cableBoth)
-
-ecs::Query qOr = w.query().all<Cable>().or_<Device>().or_<Powered>();
-qOr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
-
-ecs::Query qExpr = w.query().add("Cable, Device || Powered");
-qExpr.count(); // expected: 3 (cableDevice, cablePowered, cableBoth)
-```
-
-Cached queries keep reflecting new matching archetypes/entities:
-
-```cpp
-ecs::Entity e1 = w.add();
-ecs::Entity e2 = w.add();
-w.add(e1, e1);
-w.add(e2, e2);
-
-ecs::Query qAll = w.query().all(e1).all(e2);
-ecs::Query qAny = w.query().all(e1).any(e2);
-
-qAll.count(); // expected: 0
-qAny.count(); // expected: 1 (e1, because any(e2) is optional)
-
-ecs::Entity e3 = w.add();
-w.add(e3, e3);
-w.add(e3, e1);
-w.add(e3, e2);
-
-qAll.count(); // expected: 1 (e3)
-qAny.count(); // expected: 2 (e1, e3)
-```
+### Query variables
 
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
 
@@ -1091,6 +1062,8 @@ qBound.clear_vars();
 qBound.count(); // expected: 1 (cableA)
 ```
 
+### Multi-variable queries
+
 Multi-variable queries are supported as well.
 In plain language: you can "remember" multiple entities while matching one cable (for example its device, power source, and backup device), and then apply additional checks on each remembered entity.
 
@@ -1141,18 +1114,7 @@ ecs::Query qMultiExpr = w.query().add(
   "Cable, (ConnectedTo, $dev), (PoweredBy, $pwr), (BackupTo, $backup), Device($dev), PowerNode($pwr), Device($backup)");
 ```
 
-When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
-
-```cpp
-ecs::Query q = w.query();
-  // Take into account everything with Position (mutable access)
-  // and at the same time everything with Velocity (mutable access)...
-  .all<Position&, Velocity&>()
-  // ... at least Something or SomethingElse (immutable access)...
-  .or_<Something, SomethingElse>()
-  // ... and no Player component (no access)...
-  .no<Player>(); 
-```
+### Query low-level API
 
 Queries can be defined using a low-level API (used internally).
 
@@ -1192,41 +1154,18 @@ ecs::Query qAny = w.query()
 qAny.count(); // expected: 2 (eCable, eBoth)
 ```
 
-Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
-
-```cpp
-q.reset();
-```
-
-If this is a cached query, even after resetting it it still remains in the query cache. To remove it from there all queries with the matching signature will need to be destroyed first:
-
-```cpp
-ecs::Query q1 = w.query();
-ecs::Query q2 = w.query();
-q1.add<Position>();
-q2.add<Position>();
-
-(void)q1.count(); // do some operation that compiles the query and inserts it into the query cache
-(void)q2.count(); // do some operation that compiles the query and inserts it into the query cache
-
-q1 = w.query(); // First reference to cached query is destroyed.
-q2 = w.query(); // Last reference to cache query is destroyed. The cache is cleared of queries with the given signature
-```
-
-Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via World::query have a valid state.
-
 ### Query string
 Another way to define queries is using the string notation. This allows you to define the entire query or its parts using a string composed of simple expressions. Any spaces in between modifiers and expressions are trimmed.
 
 Supported modifiers:
-* `,` - separates expressions
-* `||` - query::or_(OR-chain, at least two OR terms)
-* `?` - query::any (optional)
-* `!` - query::none
-* `&` - read-write access
+* `,` - term separator
+* `||` - QueryOpKind::Or
+* `?` - QueryOpKind::Any
+* `!` - QueryOpKind::Not
+* `&` - read-write access modifier (QueryAccess::Write)
 * `%e` - entity value
 * `(rel,tgt)` - relationship pair, a wildcard character in either rel or tgt is translated into `All`
-* `$name` - query variable (mapped to `Var0..Var7` for a query expression, `$this` is reserved)
+* `$name` - query variable
 * `Id(src)` - source lookup, where `src` can be a variable or `$this` for the default source
 
 ```cpp
@@ -1276,6 +1215,44 @@ ecs::Query q2 = w.query(). ...;
 // This is an uncached query
 ecs::QueryUncached q3 = w.query<false>(). ...; 
 ```
+
+### Query remarks
+
+When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
+
+```cpp
+ecs::Query q = w.query();
+  // Take into account everything with Position (mutable access)
+  // and at the same time everything with Velocity (mutable access)...
+  .all<Position&, Velocity&>()
+  // ... at least Something or SomethingElse (immutable access)...
+  .or_<Something, SomethingElse>()
+  // ... and no Player component (no access)...
+  .no<Player>(); 
+```
+
+Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
+
+```cpp
+q.reset();
+```
+
+If this is a cached query, even after resetting it it still remains in the query cache. To remove it from there all queries with the matching signature will need to be destroyed first:
+
+```cpp
+ecs::Query q1 = w.query();
+ecs::Query q2 = w.query();
+q1.add<Position>();
+q2.add<Position>();
+
+(void)q1.count(); // do some operation that compiles the query and inserts it into the query cache
+(void)q2.count(); // do some operation that compiles the query and inserts it into the query cache
+
+q1 = w.query(); // First reference to cached query is destroyed.
+q2 = w.query(); // Last reference to cache query is destroyed. The cache is cleared of queries with the given signature
+```
+
+Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via World::query have a valid state.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.
@@ -2888,7 +2865,7 @@ The size of the cache can be controlled via preprocessor definitions **GAIA_LOG_
 # Requirements
 
 ## Compiler
-Compiler with a good support of C++17 is required.<br/>
+Compiler with a support of [C++17](https://en.cppreference.com/w/cpp/17) is required.<br/>
 The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml) and guaranteed to build warning-free on the following compilers:<br/>
 - [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
 - [Clang](https://clang.llvm.org/) 7 or later<br/>
