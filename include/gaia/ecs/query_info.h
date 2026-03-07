@@ -59,32 +59,75 @@ namespace gaia {
 				bool needsSorting;
 			};
 
+			struct QueryPlan {
+				QueryCtx ctx;
+				vm::VirtualMachine vm;
+			};
+
+			struct QueryState {
+				enum DirtyFlags : uint8_t { Clean = 0x00, Seed = 0x01, Result = 0x02, All = Seed | Result };
+
+				//! Used to make sure only unique archetypes are inserted into the cache
+				//! TODO: Get rid of the set by changing the way the caching works.
+				cnt::set<const Archetype*> archetypeSet;
+				//! Cached array of archetypes matching the query
+				CArchetypeDArray archetypeCache;
+				//! Cached array of query-specific data
+				cnt::darray<ArchetypeCacheData> archetypeCacheData;
+
+				//! Sort data used by cache
+				cnt::darray<SortData> archetypeSortData;
+				//! Group data used by cache
+				cnt::darray<GroupData> archetypeGroupData;
+
+				//! Id of the last archetype in the world we checked
+				ArchetypeId lastArchetypeId{};
+				//! Version of the world for which the query has been called most recently
+				uint32_t worldVersion{};
+				uint8_t dirtyFlags = DirtyFlags::All;
+
+				void clear_cache() {
+					archetypeSet = {};
+					archetypeCache = {};
+					archetypeSortData = {};
+					archetypeCacheData = {};
+					archetypeGroupData = {};
+				}
+
+				void reset() {
+					clear_cache();
+					lastArchetypeId = 0;
+					dirtyFlags = DirtyFlags::All;
+				}
+
+				void invalidate() {
+					dirtyFlags = DirtyFlags::All;
+				}
+
+				GAIA_NODISCARD bool needs_refresh() const {
+					return dirtyFlags != DirtyFlags::Clean;
+				}
+
+				void clear_dirty() {
+					dirtyFlags = DirtyFlags::Clean;
+				}
+			};
+
 			uint32_t m_refs = 0;
 
-			//! Query context
-			QueryCtx m_ctx;
-			//! Virtual machine
-			vm::VirtualMachine m_vm;
-
-			//! Used to make sure only unique archetypes are inserted into the cache
-			//! TODO: Get rid of the set by changing the way the caching works.
-			cnt::set<const Archetype*> m_archetypeSet;
-			//! Cached array of archetypes matching the query
-			CArchetypeDArray m_archetypeCache;
-			//! Cached array of query-specific data
-			cnt::darray<ArchetypeCacheData> m_archetypeCacheData;
-
-			//! Sort data used by cache
-			cnt::darray<SortData> m_archetypeSortData;
-			//! Group data used by cache
-			cnt::darray<GroupData> m_archetypeGroupData;
-
-			//! Id of the last archetype in the world we checked
-			ArchetypeId m_lastArchetypeId{};
-			//! Version of the world for which the query has been called most recently
-			uint32_t m_worldVersion{};
+			QueryPlan m_plan;
+			QueryState m_state;
 
 			enum QueryCmdType : uint8_t { ALL, OR, NOT };
+
+			void reset_matching_cache() {
+				m_state.reset();
+
+				auto& ctxData = m_plan.ctx.data;
+				ctxData.lastMatchedArchetypeIdx_All = {};
+				ctxData.lastMatchedArchetypeIdx_Or = {};
+				ctxData.lastMatchedArchetypeIdx_Not = {};
+			}
 
 			template <typename TType>
 			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOpKind op, bool isReadWrite) const {
@@ -99,14 +142,14 @@ namespace gaia {
 					Entity id;
 
 					if constexpr (is_pair<T>::value) {
-						const auto rel = m_ctx.cc->get<typename T::rel>().entity;
-						const auto tgt = m_ctx.cc->get<typename T::tgt>().entity;
+						const auto rel = m_plan.ctx.cc->get<typename T::rel>().entity;
+						const auto tgt = m_plan.ctx.cc->get<typename T::tgt>().entity;
 						id = (Entity)Pair(rel, tgt);
 					} else {
-						id = m_ctx.cc->get<T>().entity;
+						id = m_plan.ctx.cc->get<T>().entity;
 					}
 
-					const auto& ctxData = m_ctx.data;
+					const auto& ctxData = m_plan.ctx.data;
 					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(ctxData._terms.data(), id, EntityBad);
 
 					if (op != ctxData._terms[compIdx].op)
@@ -142,20 +185,15 @@ namespace gaia {
 			}
 
 			void init(World* world) {
-				m_ctx.w = world;
+				m_plan.ctx.w = world;
 			}
 
 			void reset() {
-				m_archetypeSet = {};
-				m_archetypeCache = {};
-				m_archetypeSortData = {};
-				m_archetypeCacheData = {};
-				m_archetypeGroupData = {};
-				m_lastArchetypeId = 0;
+				reset_matching_cache();
+			}
 
-				m_ctx.data.lastMatchedArchetypeIdx_All = {};
-				m_ctx.data.lastMatchedArchetypeIdx_Or = {};
-				m_ctx.data.lastMatchedArchetypeIdx_Not = {};
+			void invalidate() {
+				m_state.invalidate();
 			}
 
 			GAIA_NODISCARD static QueryInfo create(
@@ -168,8 +206,8 @@ namespace gaia {
 				info.idx = id;
 				info.data.gen = 0;
 
-				info.m_ctx = GAIA_MOV(ctx);
-				info.m_ctx.q.handle = {id, 0};
+				info.m_plan.ctx = GAIA_MOV(ctx);
+				info.m_plan.ctx.q.handle = {id, 0};
 
 				// Compile the query
 				info.compile(entityToArchetypeMap, allArchetypes);
@@ -189,8 +227,8 @@ namespace gaia {
 				info.idx = idx;
 				info.data.gen = gen;
 
-				info.m_ctx = GAIA_MOV(queryCtx);
-				info.m_ctx.q.handle = {idx, gen};
+				info.m_plan.ctx = GAIA_MOV(queryCtx);
+				info.m_plan.ctx.q.handle = {idx, gen};
 
 				// Compile the query
 				info.compile(entityToArchetypeMap, pCreationCtx->allArchetypes);
@@ -207,7 +245,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
 				// Compile the opcodes
-				m_vm.compile(entityToArchetypeMap, allArchetypes, m_ctx);
+				m_plan.vm.compile(entityToArchetypeMap, allArchetypes, m_plan.ctx);
 			}
 
 			//! Recompile the query
@@ -215,23 +253,23 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::recompile);
 
 				// Compile the opcodes
-				m_vm.create_opcodes(m_ctx);
+				m_plan.vm.create_opcodes(m_plan.ctx);
 			}
 
 			void set_world_version(uint32_t version) {
-				m_worldVersion = version;
+				m_state.worldVersion = version;
 			}
 
 			GAIA_NODISCARD uint32_t world_version() const {
-				return m_worldVersion;
+				return m_state.worldVersion;
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
-				return m_ctx == other;
+				return m_plan.ctx == other;
 			}
 
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
-				return m_ctx != other;
+				return m_plan.ctx != other;
 			}
 
 			// Global temporary buffers for collecting archetypes that match a query.
@@ -284,14 +322,14 @@ namespace gaia {
 					ArchetypeId archetypeLastId) {
 				CleanUpTmpArchetypeMatches autoCleanup;
 
-				auto& ctxData = m_ctx.data;
+				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary
 				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
 					recompile();
 
 				// Skip if nothing has been compiled.
-				if (!m_vm.is_compiled())
+				if (!m_plan.vm.is_compiled())
 					return;
 
 				const bool hasSourceTerms = (ctxData.flags & QueryCtx::QueryFlags::HasSourceTerms) != 0U;
@@ -299,26 +337,21 @@ namespace gaia {
 				if (hasSourceTerms || hasVariableTerms) {
 					// Source lookups can change query results without creating new archetypes.
 					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
-					m_archetypeSet.clear();
-					m_archetypeCache.clear();
-					m_archetypeCacheData.clear();
-					m_archetypeSortData.clear();
-					m_archetypeGroupData.clear();
-
-					ctxData.lastMatchedArchetypeIdx_All.clear();
-					ctxData.lastMatchedArchetypeIdx_Or.clear();
-					ctxData.lastMatchedArchetypeIdx_Not.clear();
+					reset_matching_cache();
+				} else if (m_state.needs_refresh()) {
+					reset_matching_cache();
 				}
 
 				// Skip if no new archetype appeared
-				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
-				if (!hasSourceTerms && !hasVariableTerms && m_lastArchetypeId == archetypeLastId) {
+				GAIA_ASSERT(archetypeLastId >= m_state.lastArchetypeId);
+				if (!hasSourceTerms && !hasVariableTerms && !m_state.needs_refresh() &&
+						m_state.lastArchetypeId == archetypeLastId) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
 				}
 
-				m_lastArchetypeId = archetypeLastId;
+				m_state.lastArchetypeId = archetypeLastId;
 
 				GAIA_PROF_SCOPE(queryinfo::match);
 
@@ -343,7 +376,7 @@ namespace gaia {
 				ctx.varBindingMask = ctxData.varBindingMask;
 
 				// Run the virtual machine
-				m_vm.exec(ctx);
+				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
 				for (const auto* pArchetype: *ctx.pMatchesArr)
@@ -353,6 +386,7 @@ namespace gaia {
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+				m_state.clear_dirty();
 			}
 
 			//! Tries to match the query against the provided archetype.
@@ -363,28 +397,21 @@ namespace gaia {
 			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
 				CleanUpTmpArchetypeMatches autoCleanup;
 
-				auto& ctxData = m_ctx.data;
+				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary
 				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
 					recompile();
 
 				// Skip if nothing has been compiled.
-				if (!m_vm.is_compiled())
+				if (!m_plan.vm.is_compiled())
 					return;
 
-				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U) {
+				if ((ctxData.flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U ||
+						m_state.needs_refresh()) {
 					// Source lookups can invalidate previously cached archetype matches.
 					// Variable terms can invalidate them as well.
-					m_archetypeSet.clear();
-					m_archetypeCache.clear();
-					m_archetypeCacheData.clear();
-					m_archetypeSortData.clear();
-					m_archetypeGroupData.clear();
-
-					ctxData.lastMatchedArchetypeIdx_All.clear();
-					ctxData.lastMatchedArchetypeIdx_Or.clear();
-					ctxData.lastMatchedArchetypeIdx_Not.clear();
+					reset_matching_cache();
 				}
 
 				GAIA_PROF_SCOPE(queryinfo::match1);
@@ -411,11 +438,22 @@ namespace gaia {
 				ctx.varBindingMask = ctxData.varBindingMask;
 
 				// Run the virtual machine
-				m_vm.exec(ctx);
+				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr)
 					add_archetype_to_cache(pArch);
+				m_state.clear_dirty();
+			}
+
+			void ensure_matches(
+					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
+					ArchetypeId archetypeLastId) {
+				match(entityToArchetypeMap, allArchetypes, archetypeLastId);
+			}
+
+			void ensure_matches_one(const Archetype& archetype, EntitySpan targetEntities) {
+				match_one(archetype, targetEntities);
 			}
 
 			//! Calculates the sort data for the archetypes in the cache.
@@ -423,7 +461,7 @@ namespace gaia {
 			void calculate_sort_data() {
 				GAIA_PROF_SCOPE(queryinfo::calc_sort_data);
 
-				m_archetypeSortData.clear();
+				m_state.archetypeSortData.clear();
 
 				// The function doesn't do any moves and expects that all chunks have their data sorted already.
 				// We use a min-heap / priority queue - like structure during query iteration to merge sorted tables:
@@ -445,7 +483,7 @@ namespace gaia {
 					uint16_t row = 0;
 				};
 
-				auto& archetypes = m_archetypeCache;
+				auto& archetypes = m_state.archetypeCache;
 
 				// Initialize cursors. We will need as many as there are archetypes.
 				cnt::sarray_ext<Cursor, 128> cursors(archetypes.size());
@@ -479,8 +517,8 @@ namespace gaia {
 						const auto* pChunk = pArchetype->chunks()[cur.chunkIdx];
 						auto entity = pChunk->entity_view()[cur.row];
 
-						if (m_ctx.data.sortBy != ecs::EntityBad) {
-							const auto compIdx = pChunk->comp_idx(m_ctx.data.sortBy);
+						if (m_plan.ctx.data.sortBy != ecs::EntityBad) {
+							const auto compIdx = pChunk->comp_idx(m_plan.ctx.data.sortBy);
 							pDataCurr = pChunk->comp_ptr(compIdx, cur.row);
 						} else
 							pDataCurr = &pChunk->entity_view()[cur.row];
@@ -492,7 +530,7 @@ namespace gaia {
 							continue;
 						}
 
-						if (m_ctx.data.sortByFunc(*m_ctx.w, pDataCurr, pDataMin) < 0) {
+						if (m_plan.ctx.data.sortByFunc(*m_plan.ctx.w, pDataCurr, pDataMin) < 0) {
 							minEntity = entity;
 							minArchetypeIdx = t;
 						}
@@ -511,7 +549,7 @@ namespace gaia {
 					} else {
 						// End previous slice
 						if (pCurrentChunk != nullptr) {
-							m_archetypeSortData.push_back(
+							m_state.archetypeSortData.push_back(
 									{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
 						}
 
@@ -526,24 +564,24 @@ namespace gaia {
 				}
 
 				if (pCurrentChunk != nullptr) {
-					m_archetypeSortData.push_back(
+					m_state.archetypeSortData.push_back(
 							{pCurrentChunk, currArchetypeIdx, currentStartRow, (uint16_t)(currentRow - currentStartRow)});
 				}
 			}
 
 			void sort_entities() {
-				if (m_ctx.data.sortByFunc == nullptr)
+				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
 
-				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
 					// TODO: We need observers to implement that would listen to entity movements within chunks.
 					//       thanks to that we would know right away if some movement happenend without
 					//       having to check this constantly.
 					bool hasChanged = false;
-					for (const auto* pArchetype: m_archetypeCache) {
+					for (const auto* pArchetype: m_state.archetypeCache) {
 						const auto& chunks = pArchetype->chunks();
 						for (const auto* pChunk: chunks) {
-							if (pChunk->changed(m_worldVersion)) {
+							if (pChunk->changed(m_state.worldVersion)) {
 								hasChanged = true;
 								break;
 							}
@@ -552,20 +590,20 @@ namespace gaia {
 					if (!hasChanged)
 						return;
 				}
-				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
+				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
-				for (const auto* pArchetype: m_archetypeCache)
-					const_cast<Archetype*>(pArchetype)->sort_entities(m_ctx.data.sortBy, m_ctx.data.sortByFunc);
+				for (const auto* pArchetype: m_state.archetypeCache)
+					const_cast<Archetype*>(pArchetype)->sort_entities(m_plan.ctx.data.sortBy, m_plan.ctx.data.sortByFunc);
 
 				// Now that entites are sorted, we can start creating slices
 				calculate_sort_data();
 			}
 
 			void sort_cache_groups() {
-				if ((m_ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
 					return;
-				m_ctx.data.flags ^= QueryCtx::QueryFlags::SortGroups;
+				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortGroups;
 
 				struct sort_cond {
 					bool operator()(const ArchetypeCacheData& a, const ArchetypeCacheData& b) const {
@@ -578,14 +616,14 @@ namespace gaia {
 				// 2 2 3 3 3 3 4 4 4 [2]
 				// -->
 				// 2 2 [2] 3 3 3 3 4 4 4
-				core::sort(m_archetypeCacheData, sort_cond{}, [&](uint32_t left, uint32_t right) {
-					auto* pTmpArchetype = m_archetypeCache[left];
-					m_archetypeCache[left] = m_archetypeCache[right];
-					m_archetypeCache[right] = pTmpArchetype;
+				core::sort(m_state.archetypeCacheData, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					auto* pTmpArchetype = m_state.archetypeCache[left];
+					m_state.archetypeCache[left] = m_state.archetypeCache[right];
+					m_state.archetypeCache[right] = pTmpArchetype;
 
-					auto tmp = m_archetypeCacheData[left];
-					m_archetypeCacheData[left] = m_archetypeCacheData[right];
-					m_archetypeCacheData[right] = tmp;
+					auto tmp = m_state.archetypeCacheData[left];
+					m_state.archetypeCacheData[left] = m_state.archetypeCacheData[right];
+					m_state.archetypeCacheData[right] = tmp;
 				});
 			}
 
@@ -594,7 +632,7 @@ namespace gaia {
 				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_ctx.data._remapping[i];
+					const auto idxBeforeRemapping = m_plan.ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					// compIdx can be -1. We are fine with it because the user should never ask for something
 					// that is not present on the archetype. If they do, they made a mistake.
@@ -609,58 +647,58 @@ namespace gaia {
 			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
-				if (m_archetypeSet.contains(pArchetype))
+				if (m_state.archetypeSet.contains(pArchetype))
 					return;
 
-				m_archetypeSet.emplace(pArchetype);
-				m_archetypeCache.push_back(pArchetype);
-				m_archetypeCacheData.push_back(create_cache_data(pArchetype));
+				m_state.archetypeSet.emplace(pArchetype);
+				m_state.archetypeCache.push_back(pArchetype);
+				m_state.archetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
 			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
-				if (m_archetypeSet.contains(pArchetype))
+				if (m_state.archetypeSet.contains(pArchetype))
 					return;
 
-				const GroupId groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
+				const GroupId groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 
 				ArchetypeCacheData cacheData = create_cache_data(pArchetype);
 				cacheData.groupId = groupId;
 
-				if (m_archetypeGroupData.empty()) {
-					m_archetypeGroupData.push_back({groupId, 0, 0, false});
+				if (m_state.archetypeGroupData.empty()) {
+					m_state.archetypeGroupData.push_back({groupId, 0, 0, false});
 				} else {
-					const auto cnt = m_archetypeGroupData.size();
+					const auto cnt = m_state.archetypeGroupData.size();
 					GAIA_FOR(cnt) {
-						if (groupId < m_archetypeGroupData[i].groupId) {
+						if (groupId < m_state.archetypeGroupData[i].groupId) {
 							// Insert the new group before one with a lower groupId.
 							// 2 3 5 10 20 25 [7]<-new group
 							// -->
 							// 2 3 5 [7] 10 20 25
-							m_archetypeGroupData.insert(
-									m_archetypeGroupData.begin() + i,
-									{groupId, m_archetypeGroupData[i].idxFirst, m_archetypeGroupData[i].idxFirst, false});
-							const auto lastGrpIdx = m_archetypeGroupData.size();
+							m_state.archetypeGroupData.insert(
+									m_state.archetypeGroupData.begin() + i,
+									{groupId, m_state.archetypeGroupData[i].idxFirst, m_state.archetypeGroupData[i].idxFirst, false});
+							const auto lastGrpIdx = m_state.archetypeGroupData.size();
 
 							// Update ranges
 							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
-								++m_archetypeGroupData[j].idxFirst;
-								++m_archetypeGroupData[j].idxLast;
+								++m_state.archetypeGroupData[j].idxFirst;
+								++m_state.archetypeGroupData[j].idxLast;
 							}
 
 							// Resort groups
-							m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+							m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
 							goto groupWasFound;
-						} else if (m_archetypeGroupData[i].groupId == groupId) {
-							const auto lastGrpIdx = m_archetypeGroupData.size();
-							++m_archetypeGroupData[i].idxLast;
+						} else if (m_state.archetypeGroupData[i].groupId == groupId) {
+							const auto lastGrpIdx = m_state.archetypeGroupData.size();
+							++m_state.archetypeGroupData[i].idxLast;
 
 							// Update ranges
 							for (uint32_t j = i + 1; j < lastGrpIdx; ++j) {
-								++m_archetypeGroupData[j].idxFirst;
-								++m_archetypeGroupData[j].idxLast;
-								m_ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
+								++m_state.archetypeGroupData[j].idxFirst;
+								++m_state.archetypeGroupData[j].idxLast;
+								m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
 							}
 
 							goto groupWasFound;
@@ -669,16 +707,16 @@ namespace gaia {
 
 					{
 						// We have a new group
-						const auto groupsCnt = m_archetypeGroupData.size();
+						const auto groupsCnt = m_state.archetypeGroupData.size();
 						if (groupsCnt == 0) {
 							// No groups exist yet, the range is {0 .. 0}
-							m_archetypeGroupData.push_back( //
+							m_state.archetypeGroupData.push_back( //
 									{groupId, 0, 0, false});
 						} else {
-							const auto& groupPrev = m_archetypeGroupData[groupsCnt - 1];
-							GAIA_ASSERT(groupPrev.idxLast + 1 == m_archetypeCache.size());
+							const auto& groupPrev = m_state.archetypeGroupData[groupsCnt - 1];
+							GAIA_ASSERT(groupPrev.idxLast + 1 == m_state.archetypeCache.size());
 							// The new group starts where the old one ends
-							m_archetypeGroupData.push_back(
+							m_state.archetypeGroupData.push_back(
 									{groupId, //
 									 groupPrev.idxLast + 1, //
 									 groupPrev.idxLast + 1, //
@@ -689,100 +727,100 @@ namespace gaia {
 				groupWasFound:;
 				}
 
-				m_archetypeSet.emplace(pArchetype);
-				m_archetypeCache.push_back(pArchetype);
-				m_archetypeCacheData.push_back(GAIA_MOV(cacheData));
+				m_state.archetypeSet.emplace(pArchetype);
+				m_state.archetypeCache.push_back(pArchetype);
+				m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
 			void add_archetype_to_cache(const Archetype* pArchetype) {
-				if (m_ctx.data.sortByFunc != nullptr)
-					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+				if (m_plan.ctx.data.sortByFunc != nullptr)
+					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
-				if (m_ctx.data.groupBy != EntityBad)
+				if (m_plan.ctx.data.groupBy != EntityBad)
 					add_archetype_to_cache_w_grouping(pArchetype);
 				else
 					add_archetype_to_cache_no_grouping(pArchetype);
 			}
 
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
-				const auto it = m_archetypeSet.find(pArchetype);
-				if (it == m_archetypeSet.end())
+				const auto it = m_state.archetypeSet.find(pArchetype);
+				if (it == m_state.archetypeSet.end())
 					return false;
-				m_archetypeSet.erase(it);
+				m_state.archetypeSet.erase(it);
 
-				if (m_ctx.data.sortByFunc != nullptr)
-					m_ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+				if (m_plan.ctx.data.sortByFunc != nullptr)
+					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
-				const auto archetypeIdx = core::get_index_unsafe(m_archetypeCache, pArchetype);
+				const auto archetypeIdx = core::get_index_unsafe(m_state.archetypeCache, pArchetype);
 				GAIA_ASSERT(archetypeIdx != BadIndex);
 
-				core::swap_erase(m_archetypeCache, archetypeIdx);
-				core::swap_erase(m_archetypeCacheData, archetypeIdx);
+				core::swap_erase(m_state.archetypeCache, archetypeIdx);
+				core::swap_erase(m_state.archetypeCacheData, archetypeIdx);
 
 				// Update the group data if possible
-				if (m_ctx.data.groupBy != EntityBad) {
-					const auto groupId = m_ctx.data.groupByFunc(*m_ctx.w, *pArchetype, m_ctx.data.groupBy);
-					const auto grpIdx = core::get_index_if_unsafe(m_archetypeGroupData, [&](const GroupData& group) {
+				if (m_plan.ctx.data.groupBy != EntityBad) {
+					const auto groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
+					const auto grpIdx = core::get_index_if_unsafe(m_state.archetypeGroupData, [&](const GroupData& group) {
 						return group.groupId == groupId;
 					});
 					GAIA_ASSERT(grpIdx != BadIndex);
 
-					auto& currGrp = m_archetypeGroupData[archetypeIdx];
+					auto& currGrp = m_state.archetypeGroupData[archetypeIdx];
 
 					// Update ranges
-					const auto lastGrpIdx = m_archetypeGroupData.size();
+					const auto lastGrpIdx = m_state.archetypeGroupData.size();
 					for (uint32_t j = grpIdx + 1; j < lastGrpIdx; ++j) {
-						--m_archetypeGroupData[j].idxFirst;
-						--m_archetypeGroupData[j].idxLast;
+						--m_state.archetypeGroupData[j].idxFirst;
+						--m_state.archetypeGroupData[j].idxLast;
 					}
 
 					// Handle the current group. If it's about to be left empty, delete it.
 					if (currGrp.idxLast - currGrp.idxFirst > 0)
 						--currGrp.idxLast;
 					else
-						m_archetypeGroupData.erase(m_archetypeGroupData.begin() + grpIdx);
+						m_state.archetypeGroupData.erase(m_state.archetypeGroupData.begin() + grpIdx);
 				}
 
 				return true;
 			}
 
 			GAIA_NODISCARD World* world() {
-				GAIA_ASSERT(m_ctx.w != nullptr);
-				return const_cast<World*>(m_ctx.w);
+				GAIA_ASSERT(m_plan.ctx.w != nullptr);
+				return const_cast<World*>(m_plan.ctx.w);
 			}
 			GAIA_NODISCARD const World* world() const {
-				GAIA_ASSERT(m_ctx.w != nullptr);
-				return m_ctx.w;
+				GAIA_ASSERT(m_plan.ctx.w != nullptr);
+				return m_plan.ctx.w;
 			}
 
 			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
-				return m_ctx.q.ser_buffer(world());
+				return m_plan.ctx.q.ser_buffer(world());
 			}
 			void ser_buffer_reset() {
-				m_ctx.q.ser_buffer_reset(world());
+				m_plan.ctx.q.ser_buffer_reset(world());
 			}
 
 			GAIA_NODISCARD QueryCtx& ctx() {
-				return m_ctx;
+				return m_plan.ctx;
 			}
 			GAIA_NODISCARD const QueryCtx& ctx() const {
-				return m_ctx;
+				return m_plan.ctx;
 			}
 
 			GAIA_NODISCARD util::str bytecode() const {
-				return m_vm.bytecode(*world());
+				return m_plan.vm.bytecode(*world());
 			}
 
 			GAIA_NODISCARD uint32_t op_count() const {
-				return m_vm.op_count();
+				return m_plan.vm.op_count();
 			}
 
 			GAIA_NODISCARD uint64_t op_signature() const {
-				return m_vm.op_signature();
+				return m_plan.vm.op_signature();
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return m_ctx.data.changedCnt > 0;
+				return m_plan.ctx.data.changedCnt > 0;
 			}
 
 			template <typename... T>
@@ -822,55 +860,55 @@ namespace gaia {
 							--lastMatchedArchetypeIdx;
 					}
 				};
-				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_All);
-				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Or);
-				clearMatches(m_ctx.data.lastMatchedArchetypeIdx_Not);
+				clearMatches(m_plan.ctx.data.lastMatchedArchetypeIdx_All);
+				clearMatches(m_plan.ctx.data.lastMatchedArchetypeIdx_Or);
+				clearMatches(m_plan.ctx.data.lastMatchedArchetypeIdx_Not);
 			}
 
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
-				const auto& ctxData = m_archetypeCacheData[archetypeIdx];
+				const auto& ctxData = m_state.archetypeCacheData[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
-				return m_archetypeCache.begin();
+				return m_state.archetypeCache.begin();
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::const_iterator begin() const {
-				return m_archetypeCache.begin();
+				return m_state.archetypeCache.begin();
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::const_iterator cbegin() const {
-				return m_archetypeCache.begin();
+				return m_state.archetypeCache.begin();
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::iterator end() {
-				return m_archetypeCache.end();
+				return m_state.archetypeCache.end();
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::const_iterator end() const {
-				return m_archetypeCache.end();
+				return m_state.archetypeCache.end();
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::const_iterator cend() const {
-				return m_archetypeCache.end();
+				return m_state.archetypeCache.end();
 			}
 
 			GAIA_NODISCARD std::span<const Archetype*> cache_archetype_view() const {
-				return std::span{(const Archetype**)m_archetypeCache.data(), m_archetypeCache.size()};
+				return std::span{(const Archetype**)m_state.archetypeCache.data(), m_state.archetypeCache.size()};
 			}
 
 			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
-				return std::span{m_archetypeCacheData.data(), m_archetypeCacheData.size()};
+				return std::span{m_state.archetypeCacheData.data(), m_state.archetypeCacheData.size()};
 			}
 
 			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
-				return std::span{m_archetypeSortData.data(), m_archetypeSortData.size()};
+				return std::span{m_state.archetypeSortData.data(), m_state.archetypeSortData.size()};
 			}
 
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
-				return std::span{m_archetypeGroupData.data(), m_archetypeGroupData.size()};
+				return std::span{m_state.archetypeGroupData.data(), m_state.archetypeGroupData.size()};
 			}
 		};
 	} // namespace ecs

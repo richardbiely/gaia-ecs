@@ -198,7 +198,7 @@ namespace gaia {
 				const auto& handles = it->second;
 				for (auto& handle: handles) {
 					auto& info = get(handle);
-					info.reset();
+					info.invalidate();
 					info.ctx().refresh();
 				}
 			}

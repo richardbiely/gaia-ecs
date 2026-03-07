@@ -594,11 +594,11 @@ namespace gaia {
 				}
 
 				void match_all(QueryInfo& queryInfo) {
-					queryInfo.match(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
+					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
 				}
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
-					queryInfo.match_one(archetype, targetEntities);
+					queryInfo.ensure_matches_one(archetype, targetEntities);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -984,8 +984,7 @@ namespace gaia {
 					if constexpr (UseCaching) {
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
-							core::sort(
-									ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
+							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
 						}
 						calc_lookup_hash(ctx);
 					}
@@ -1063,8 +1062,8 @@ namespace gaia {
 					for (const auto comp: filtered) {
 						uint32_t compIdx = BadIndex;
 						if (lastIdx < (uint32_t)ids.size()) {
-							const auto suffixIdx = core::get_index(
-									std::span<const Entity>(ids.data() + lastIdx, ids.size() - lastIdx), comp);
+							const auto suffixIdx =
+									core::get_index(std::span<const Entity>(ids.data() + lastIdx, ids.size() - lastIdx), comp);
 							if (suffixIdx != BadIndex)
 								compIdx = lastIdx + suffixIdx;
 						}
