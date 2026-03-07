@@ -1,8 +1,6 @@
-*.h eol=lf
-*.hpp eol=lf
-*.cpp eol=lf
-*.inl eol=lf
-*.md eol=lf
-*.sh eol=lf
-*.txt eol=lf
-*.bat eol=crlf
+# Normalize all text files to LF in the repository
+* text=auto eol=lf
+
+# Windows scripts must stay CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
