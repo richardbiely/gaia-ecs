@@ -30855,7 +30855,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
-		using SingleArchetypeLookup = cnt::map<EntityLookupKey, const Archetype*>;
+		// Key + (X, id) + (id, X) wildcards
+		using SingleArchetypeLookup = cnt::sarray_ext<EntityLookupKey, ChunkHeader::MAX_COMPONENTS * 3>;
 
 		struct ArchetypeMatchStamp {
 			cnt::sparse_id id = 0;
@@ -30967,25 +30968,24 @@ namespace gaia {
 			}
 
 			inline std::span<const Archetype*> fetch_archetypes_for_select(
+					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
+				GAIA_ASSERT(src != EntityBad);
+
+				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
+			}
+
+			inline std::span<const Archetype*> fetch_archetypes_for_select(
 					const SingleArchetypeLookup& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
 				if (ent == Pair(All, All))
 					return arr;
 
-				const auto it = map.find(key);
-				if (it == map.end() || it->second == nullptr)
+				const auto idx = core::get_index(map, key);
+				if (idx == BadIndex || arr.empty())
 					return {};
 
-				const auto* pArchetype = &it->second;
-				return std::span((const Archetype**)pArchetype, 1);
-			}
-
-			inline std::span<const Archetype*> fetch_archetypes_for_select(
-					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, Entity src) {
-				GAIA_ASSERT(src != EntityBad);
-
-				return fetch_archetypes_for_select(map, arr, ent, EntityLookupKey(src));
+				return std::span(arr.data(), 1);
 			}
 
 			inline std::span<const Archetype*> fetch_archetypes_for_select(
@@ -35162,9 +35162,8 @@ namespace gaia {
 
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				SingleArchetypeLookup entityToArchetypeMap;
-				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
 				auto addLookup = [&](Entity key) {
-					entityToArchetypeMap.try_emplace(EntityLookupKey(key), pArchetypeMut);
+					entityToArchetypeMap.push_back(EntityLookupKey(key));
 				};
 				for (const auto entity: archetype.ids_view()) {
 					addLookup(entity);

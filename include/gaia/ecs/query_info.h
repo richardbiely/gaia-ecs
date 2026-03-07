@@ -568,9 +568,8 @@ namespace gaia {
 
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				SingleArchetypeLookup entityToArchetypeMap;
-				auto* pArchetypeMut = const_cast<Archetype*>(&archetype);
 				auto addLookup = [&](Entity key) {
-					entityToArchetypeMap.try_emplace(EntityLookupKey(key), pArchetypeMut);
+					entityToArchetypeMap.push_back(EntityLookupKey(key));
 				};
 				for (const auto entity: archetype.ids_view()) {
 					addLookup(entity);
