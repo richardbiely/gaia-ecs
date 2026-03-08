@@ -36709,7 +36709,8 @@ namespace gaia {
 		};
 
 		enum class QueryCacheKind : uint8_t {
-			// Use the engine's default cache behavior, including explicit opt-ins such as source-state snapshots.
+			// Use the engine's default cache behavior.
+			// Explicit opt-ins such as source-state snapshots are allowed.
 			Default,
 			// Restrict the query to automatically derived cache layers only.
 			// Manual cache extensions such as source-state snapshots are rejected.
@@ -37361,11 +37362,13 @@ namespace gaia {
 
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
+					if constexpr (!UseCaching)
+						return true;
+
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return UseCaching && !uses_manual_source_state_cache();
+						return !uses_manual_source_state_cache();
 					if (m_cacheKind == QueryCacheKind::All)
-						return UseCaching && !uses_manual_source_state_cache() &&
-									 ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return !uses_manual_source_state_cache() && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}
