@@ -238,7 +238,7 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
 					return true;
 
-				return m_plan.ctx.data.cacheSourceStateMaxItems != 0;
+				return m_plan.ctx.data.cacheSrcTrav != 0;
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
@@ -321,7 +321,7 @@ namespace gaia {
 			//! Builds the traversed source lookup closure snapshot.
 			//! Returns false if the configured snapshot cap was exceeded.
 			GAIA_NODISCARD bool build_dyn_src_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
-				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
+				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSrcTrav;
 				items.clear();
 				if (maxItems == 0)
 					return false;

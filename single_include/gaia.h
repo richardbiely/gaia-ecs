@@ -29887,8 +29887,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
-				//! Maximum allowed size of a cached traversed-source lookup closure.
-				uint16_t cacheSourceStateMaxItems = 0;
+				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
+				uint16_t cacheSrcTrav = 0;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -30096,7 +30096,7 @@ namespace gaia {
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
-				if (left.cacheSourceStateMaxItems != right.cacheSourceStateMaxItems)
+				if (left.cacheSrcTrav != right.cacheSrcTrav)
 					return false;
 
 				// Components need to be the same
@@ -30268,7 +30268,7 @@ namespace gaia {
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSourceStateMaxItems);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
 
 				hashLookup = hash;
 			}
@@ -34990,7 +34990,7 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
 					return true;
 
-				return m_plan.ctx.data.cacheSourceStateMaxItems != 0;
+				return m_plan.ctx.data.cacheSrcTrav != 0;
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
@@ -35073,7 +35073,7 @@ namespace gaia {
 			//! Builds the traversed source lookup closure snapshot.
 			//! Returns false if the configured snapshot cap was exceeded.
 			GAIA_NODISCARD bool build_dyn_src_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
-				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
+				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSrcTrav;
 				items.clear();
 				if (maxItems == 0)
 					return false;
@@ -36718,7 +36718,8 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
-		inline static constexpr uint16_t MaxCacheSrcState = 32;
+		//! Maximal cap for cached traversed-source closure snapshots.
+		inline static constexpr uint16_t MaxCacheSrcTrav = 32;
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -36742,10 +36743,10 @@ namespace gaia {
 
 		enum class QueryCacheKind : uint8_t {
 			// Use the engine's default cache behavior.
-			// Explicit opt-ins such as source-state snapshots are allowed.
+			// Explicit opt-ins such as traversed-source snapshots are allowed.
 			Default,
 			// Restrict the query to automatically derived cache layers only.
-			// Manual cache extensions such as source-state snapshots are rejected.
+			// Manual cache extensions such as traversed-source snapshots are rejected.
 			Auto,
 			// Require a fully eager structural cache.
 			// Query creation fails for lazy or dynamic cache policies.
@@ -37143,8 +37144,8 @@ namespace gaia {
 				cnt::darray<ChunkBatch> m_batches;
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
-				//! Maximum traversed-source closure size allowed for snapshot reuse.
-				uint16_t m_cacheSrcStateMaxItems = 0;
+				//! Traversed-source closure size allowed for explicit snapshot reuse.
+				uint16_t m_cacheSrcTrav = 0;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -37335,25 +37336,27 @@ namespace gaia {
 					return fetch().cache_policy();
 				}
 
+				//! Enables traversed-source snapshot reuse and caps the cached source closure size.
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				QueryImpl& cache_src_state(uint16_t maxItems) {
-					if (m_cacheSrcStateMaxItems == maxItems)
+				QueryImpl& cache_src_trav(uint16_t maxItems) {
+					if (m_cacheSrcTrav == maxItems)
 						return *this;
 
-					if (maxItems > MaxCacheSrcState) {
-						GAIA_ASSERT(false && "cache_src_state should be a value smaller than MaxCacheSrcState");
-						maxItems = MaxCacheSrcState;
+					if (maxItems > MaxCacheSrcTrav) {
+						GAIA_ASSERT(false && "cache_src_trav should be a value smaller than MaxCacheSrcTrav");
+						maxItems = MaxCacheSrcTrav;
 					}
 
 					invalidate_each_bfs_cache();
-					m_cacheSrcStateMaxItems = maxItems;
+					m_cacheSrcTrav = maxItems;
 					m_storage.invalidate();
 					return *this;
 				}
 
+				//! Returns the traversed-source snapshot cap. 0 disables explicit traversed-source caching.
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				GAIA_NODISCARD uint16_t cache_src_state() const {
-					return m_cacheSrcStateMaxItems;
+				GAIA_NODISCARD uint16_t cache_src_trav() const {
+					return m_cacheSrcTrav;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
@@ -37387,8 +37390,8 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 			private:
 				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
-				GAIA_NODISCARD bool uses_manual_src_state_cache(const QueryCtx& ctx) const {
-					return m_cacheSrcStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
+				GAIA_NODISCARD bool uses_manual_src_trav_cache(const QueryCtx& ctx) const {
+					return m_cacheSrcTrav != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
 								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
 				}
 
@@ -37398,9 +37401,9 @@ namespace gaia {
 						return true;
 
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return !uses_manual_src_state_cache(ctx);
+						return !uses_manual_src_trav_cache(ctx);
 					if (m_cacheKind == QueryCacheKind::All)
-						return !uses_manual_src_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return !uses_manual_src_trav_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}
@@ -37784,7 +37787,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
-						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
+						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -37818,7 +37821,7 @@ namespace gaia {
 						CommandBufferRead[id](serBuffer, ctx);
 					}
 					if constexpr (UseCaching)
-						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
+						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();

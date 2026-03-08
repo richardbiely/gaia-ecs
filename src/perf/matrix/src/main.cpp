@@ -852,7 +852,7 @@ SourceChain create_parent_chain(ecs::World& w, uint32_t depth) {
 	return chain;
 }
 
-//! Benchmarks warm reads for a traversed source query, with source-state snapshot caching optional.
+//! Benchmarks warm reads for a traversed source query, with traversed-source snapshot caching optional.
 template <bool CacheSourceState>
 void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
@@ -873,7 +873,7 @@ void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 
 	auto q = CacheSourceState //
 							 ? w.query()
-										 .cache_src_state(ecs::MaxCacheSrcState)
+										 .cache_src_trav(ecs::MaxCacheSrcTrav)
 										 .all<Position>()
 										 .all<Acceleration>(ecs::QueryTermOptions{}.src(chain.leaf).trav())
 							 : w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(chain.leaf).trav());
@@ -885,7 +885,7 @@ void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 	}
 }
 
-//! Benchmarks warm reads for a direct concrete-source query, with explicit source-state opt-in optional.
+//! Benchmarks warm reads for a direct concrete-source query, with explicit traversed-source snapshot opt-in optional.
 //! Direct-source reuse is automatic, so the opt-in path measures redundant API usage overhead only.
 template <bool CacheSourceState>
 void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
@@ -906,7 +906,7 @@ void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
 
 	auto q = CacheSourceState //
 							 ? w.query()
-										 .cache_src_state(ecs::MaxCacheSrcState)
+										 .cache_src_trav(ecs::MaxCacheSrcTrav)
 										 .all<Position>()
 										 .all<Acceleration>(ecs::QueryTermOptions{}.src(source))
 							 : w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
@@ -918,7 +918,7 @@ void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
 	}
 }
 
-//! Benchmarks warm reads for a query with no source terms, with source-state caching toggled.
+//! Benchmarks warm reads for a query with no source terms, with traversed-source snapshot caching toggled.
 template <bool CacheSourceState>
 void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
@@ -935,7 +935,7 @@ void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
 	}
 
 	auto q = CacheSourceState //
-							 ? w.query().cache_src_state(ecs::MaxCacheSrcState).all<Position>().all<Acceleration>()
+							 ? w.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>().all<Acceleration>()
 							 : w.query().all<Position>().all<Acceleration>();
 	dont_optimize(q.count());
 
@@ -2533,7 +2533,7 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_SourceState)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
-				.label("no source source-state");
+				.label("no source src-trav");
 		PICOBENCH_REG(BM_QueryCache_DirectSource_WarmRead_Default)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
@@ -2541,7 +2541,7 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryCache_DirectSource_WarmRead_SourceState)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
-				.label("direct source source-state");
+				.label("direct source src-trav");
 		PICOBENCH_REG(BM_QueryCache_SourceTraversal_WarmRead_Lazy)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)

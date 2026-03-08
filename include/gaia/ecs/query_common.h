@@ -498,8 +498,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
-				//! Maximum allowed size of a cached traversed-source lookup closure.
-				uint16_t cacheSourceStateMaxItems = 0;
+				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
+				uint16_t cacheSrcTrav = 0;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -707,7 +707,7 @@ namespace gaia {
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
-				if (left.cacheSourceStateMaxItems != right.cacheSourceStateMaxItems)
+				if (left.cacheSrcTrav != right.cacheSrcTrav)
 					return false;
 
 				// Components need to be the same
@@ -879,7 +879,7 @@ namespace gaia {
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSourceStateMaxItems);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
 
 				hashLookup = hash;
 			}
