@@ -1301,6 +1301,68 @@ void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks uncached matching of queries that depend on transitive `Is` traversal.
+//! This isolates the inheritance walk used by the query matcher.
+template <uint32_t ChainDepth>
+void BM_QueryMatch_IsChain(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	ecs::World w;
+
+	cnt::sarray<ecs::Entity, ChainDepth> matchingBases{};
+	cnt::sarray<ecs::Entity, ChainDepth> nonMatchingBases{};
+	GAIA_FOR(ChainDepth) {
+		matchingBases[i] = w.add();
+		nonMatchingBases[i] = w.add();
+		if (i == 0)
+			continue;
+
+		w.add(matchingBases[i], ecs::Pair(ecs::Is, matchingBases[i - 1]));
+		w.add(nonMatchingBases[i], ecs::Pair(ecs::Is, nonMatchingBases[i - 1]));
+	}
+
+	cnt::darray<ecs::Entity> tags;
+	tags.resize(archetypeCnt);
+	GAIA_FOR(archetypeCnt) {
+		tags[i] = w.add();
+	}
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		w.add(e, tags[i]);
+		w.add(e, ecs::Pair(ecs::Is, (i & 1U) == 0U ? matchingBases[ChainDepth - 1] : nonMatchingBases[ChainDepth - 1]));
+	}
+
+	auto q = w.query<false>().all<Position>().all(ecs::Pair(ecs::Is, matchingBases[0]));
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		qi.reset();
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
+void BM_QueryMatch_IsChain_2(picobench::state& state) {
+	BM_QueryMatch_IsChain<2>(state);
+}
+
+void BM_QueryMatch_IsChain_4(picobench::state& state) {
+	BM_QueryMatch_IsChain<4>(state);
+}
+
+void BM_QueryMatch_IsChain_8(picobench::state& state) {
+	BM_QueryMatch_IsChain<8>(state);
+}
+
+void BM_QueryMatch_IsChain_32(picobench::state& state) {
+	BM_QueryMatch_IsChain<32>(state);
+}
+
 //! Benchmarks repeated creation, emptying, and GC of chunk-heavy archetypes.
 //! This exercises World's deferred chunk-delete queue maintenance.
 void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
@@ -2950,6 +3012,10 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_Query_ReadWrite_2Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 2 comp");
 		PICOBENCH_REG(BM_Query_ReadWrite_4Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 4 comp");
 		PICOBENCH_REG(BM_Query_Filter_NoFrozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw + no<Frozen>");
+		PICOBENCH_REG(BM_QueryMatch_IsChain_2).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d2");
+		PICOBENCH_REG(BM_QueryMatch_IsChain_4).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d4");
+		PICOBENCH_REG(BM_QueryMatch_IsChain_8).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d8");
+		PICOBENCH_REG(BM_QueryMatch_IsChain_32).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d32");
 		PICOBENCH_REG(BM_Query_Variable_Source_Bound)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)

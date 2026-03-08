@@ -429,6 +429,9 @@ namespace gaia {
 			//!   animal -> {herbivore}
 			//!   herbivore -> {rabbit, hare}
 			PairMap m_entityToAsRelations;
+			//! Lazily built transitive closure for m_entityToAsRelations.
+			//! Cleared whenever an `Is` edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_entityToAsRelationsTravCache;
 			//! Map of relation -> targets
 			PairMap m_relToTgt;
 			//! Map of target -> relations
@@ -1201,6 +1204,7 @@ namespace gaia {
 						// e -> {..., m_entity}
 						auto& e_to_entity = m_world.m_entityToAsRelations[eKey];
 						e_to_entity.insert(entityKey);
+						m_world.m_entityToAsRelationsTravCache = {};
 
 						// Make sure the relation entity is registered as archetype so queries can find it
 						// auto& ec = m_world.fetch(tgt);
@@ -1276,6 +1280,7 @@ namespace gaia {
 							if (set.empty())
 								m_world.m_entityToAsRelations.erase(it);
 						}
+						m_world.m_entityToAsRelationsTravCache = {};
 					}
 
 					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
@@ -2500,21 +2505,52 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the cached transitive `Is` descendants for a target entity.
+			//! The cache is rebuilt lazily and cleared whenever an `Is` edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& as_relations_trav_cache(Entity target) const {
+				const auto key = EntityLookupKey(target);
+				const auto itCache = m_entityToAsRelationsTravCache.find(key);
+				if (itCache != m_entityToAsRelationsTravCache.end())
+					return itCache->second;
+
+				auto& cache = m_entityToAsRelationsTravCache[key];
+				const auto it = m_entityToAsRelations.find(key);
+				if (it == m_entityToAsRelations.end())
+					return cache;
+
+				//! Small inline traversal stack for the common shallow inheritance case.
+				cnt::darray_ext<EntityLookupKey, 32> stack;
+				stack.reserve((uint32_t)it->second.size());
+				for (auto relation: it->second)
+					stack.push_back(relation);
+
+				while (!stack.empty()) {
+					const auto relationKey = stack.back();
+					stack.pop_back();
+
+					const auto relation = relationKey.entity();
+					cache.push_back(relation);
+
+					const auto itChild = m_entityToAsRelations.find(relationKey);
+					if (itChild == m_entityToAsRelations.end())
+						continue;
+
+					for (auto childRelation: itChild->second)
+						stack.push_back(childRelation);
+				}
+
+				return cache;
+			}
+
 			template <typename Func>
 			void as_relations_trav(Entity target, Func func) const {
 				GAIA_ASSERT(valid(target));
 				if (!valid(target))
 					return;
 
-				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
-				if (it == m_entityToAsRelations.end())
-					return;
-
-				const auto& set = it->second;
-				for (auto relation: set) {
-					func(relation.entity());
-					as_relations_trav(relation.entity(), func);
-				}
+				const auto& relations = as_relations_trav_cache(target);
+				for (auto relation: relations)
+					func(relation);
 			}
 
 			template <typename Func>
@@ -2523,15 +2559,9 @@ namespace gaia {
 				if (!valid(target))
 					return false;
 
-				const auto it = m_entityToAsRelations.find(EntityLookupKey(target));
-				if (it == m_entityToAsRelations.end())
-					return false;
-
-				const auto& set = it->second;
-				for (auto relation: set) {
-					if (func(relation.entity()))
-						return true;
-					if (as_relations_trav_if(relation.entity(), func))
+				const auto& relations = as_relations_trav_cache(target);
+				for (auto relation: relations) {
+					if (func(relation))
 						return true;
 				}
 
@@ -3155,6 +3185,7 @@ namespace gaia {
 						Archetype::destroy(pArchetype);
 
 					m_entityToAsRelations = {};
+					m_entityToAsRelationsTravCache = {};
 					m_entityToAsTargets = {};
 					m_tgtToRel = {};
 					m_relToTgt = {};
