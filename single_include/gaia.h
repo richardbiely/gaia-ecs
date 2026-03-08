@@ -34988,10 +34988,17 @@ namespace gaia {
 				return m_plan.ctx.data.cacheSourceStateMaxItems != 0 && deps.can_reuse_source_cache();
 			}
 
+			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
+			GAIA_NODISCARD bool uses_direct_source_versions() const {
+				const auto& deps = m_plan.ctx.data.deps;
+				return !deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+							 can_reuse_dynamic_cache();
+			}
+
 			GAIA_NODISCARD bool uses_source_lookup_snapshot() const {
 				const auto& deps = m_plan.ctx.data.deps;
-				return can_reuse_dynamic_cache() && deps.has(QueryCtx::DependencyHasSourceTerms) &&
-							 deps.has(QueryCtx::DependencyHasTraversalTerms);
+				return deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+							 can_reuse_dynamic_cache();
 			}
 
 			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
@@ -35023,10 +35030,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool dynamic_direct_source_entities_changed() const {
-				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms) || deps.has(QueryCtx::DependencyHasTraversalTerms))
+				if (!uses_direct_source_versions())
 					return false;
 
+				const auto& deps = m_plan.ctx.data.deps;
 				const auto sourceEntities = deps.source_entities_view();
 				const auto cnt = (uint32_t)sourceEntities.size();
 				GAIA_FOR(cnt) {
@@ -35153,7 +35160,7 @@ namespace gaia {
 				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (deps.has(QueryCtx::DependencyHasSourceTerms)) {
+				if (uses_direct_source_versions()) {
 					const auto sourceEntities = deps.source_entities_view();
 					const auto sourceCnt = (uint32_t)sourceEntities.size();
 					GAIA_FOR(sourceCnt)
