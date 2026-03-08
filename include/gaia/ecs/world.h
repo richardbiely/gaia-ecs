@@ -3013,6 +3013,8 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
 			//! \param entity Entity
 			//! \param lifespan How many world updates an empty archetype is kept.
@@ -6015,6 +6017,10 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
+		inline uint32_t world_relation_version(const World& world, Entity relation) {
+			return world.relation_version(relation);
+		}
+
 		inline ObserverBuilder World::observer() {
 			// Create the observer
 			auto e = add();

@@ -526,6 +526,7 @@ namespace gaia {
 		inline Entity Var5 = Entity(24, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var6 = Entity(25, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var7 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Always has to match the last internal entity
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;

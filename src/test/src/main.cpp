@@ -10139,6 +10139,46 @@ TEST_CASE("Query - cached query reverse-index revision changes only on membershi
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
+TEST_CASE("Query - cached dynamic query keeps warm reads stable until inputs change") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgtA = wld.add();
+	auto tgtB = wld.add();
+
+	auto eA = wld.add();
+	wld.add(eA, ecs::Pair(rel, tgtA));
+
+	auto eB = wld.add();
+	wld.add(eB, ecs::Pair(rel, tgtB));
+
+	auto q = wld.query().all(ecs::Pair(rel, ecs::Var0));
+	q.set_var(ecs::Var0, tgtA);
+
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revA);
+	CHECK(q.count() == 1);
+
+	q.set_var(ecs::Var0, tgtB);
+	auto& infoB = q.fetch();
+	CHECK(&infoB == &info);
+	q.match_all(infoB);
+	const auto revB = info.reverse_index_revision();
+	CHECK(revB != revA);
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revB);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - dependency metadata classification") {
 	TestWorld twld;
 

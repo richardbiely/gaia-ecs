@@ -1109,8 +1109,7 @@ namespace gaia {
 				}
 
 				struct VarBindings {
-					static constexpr uint32_t VarCnt = 8;
-					cnt::sarray<Entity, VarCnt> values{};
+					cnt::sarray<Entity, MaxVarCnt> values{};
 					uint8_t mask = 0;
 				};
 
@@ -2315,7 +2314,7 @@ namespace gaia {
 				GAIA_NODISCARD static detail::VarBindings make_initial_var_bindings(const MatchingCtx& ctx) {
 					detail::VarBindings vars{};
 					vars.mask = ctx.varBindingMask;
-					GAIA_FOR(detail::VarBindings::VarCnt) {
+					GAIA_FOR(MaxVarCnt) {
 						const auto bit = (uint8_t(1) << i);
 						if ((vars.mask & bit) == 0)
 							continue;

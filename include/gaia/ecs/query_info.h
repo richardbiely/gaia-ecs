@@ -100,6 +100,11 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
+				//! Last seen versions for tracked dynamic relation dependencies.
+				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
+				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
+				cnt::sarray<Entity, MaxVarCnt> varBindings;
+				uint8_t varBindingMask = 0;
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
@@ -190,6 +195,60 @@ namespace gaia {
 
 			GAIA_NODISCARD bool has_dynamic_terms() const {
 				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
+			}
+
+			GAIA_NODISCARD bool can_reuse_dynamic_cache() const {
+				// Source-based dynamic queries can change due to source entity state that is not yet tracked
+				// through dedicated version metadata. Keep them on the conservative rebuild path for now.
+				return has_dynamic_terms() && !m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms);
+			}
+
+			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
+				const auto relations = m_plan.ctx.data.deps.relations_view();
+				const auto cnt = (uint32_t)relations.size();
+				GAIA_FOR(cnt) {
+					if (m_state.relationVersions[i] != world_relation_version(*world(), relations[i]))
+						return true;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD bool dynamic_var_bindings_changed() const {
+				const auto& ctxData = m_plan.ctx.data;
+				if (m_state.varBindingMask != ctxData.varBindingMask)
+					return true;
+
+				GAIA_FOR(MaxVarCnt) {
+					const auto bit = (uint8_t(1) << i);
+					if ((ctxData.varBindingMask & bit) == 0)
+						continue;
+
+					if (m_state.varBindings[i] != ctxData.varBindings[i])
+						return true;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD bool dynamic_inputs_changed() const {
+				if (!can_reuse_dynamic_cache())
+					return false;
+
+				return dynamic_relation_versions_changed() || dynamic_var_bindings_changed();
+			}
+
+			void snapshot_dynamic_inputs() {
+				if (!can_reuse_dynamic_cache())
+					return;
+
+				const auto relations = m_plan.ctx.data.deps.relations_view();
+				const auto cnt = (uint32_t)relations.size();
+				GAIA_FOR(cnt)
+				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
+
+				m_state.varBindings = m_plan.ctx.data.varBindings;
+				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;
 			}
 
 			template <typename TType>
@@ -429,9 +488,10 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dynamic_terms();
-				if (hasDynamicTerms) {
-					// Source lookups can change query results without creating new archetypes.
-					// Variable terms can do the same. Rebuild the cache from scratch on each match call.
+				if (hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) {
+					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
+					// Source-based queries still take the conservative rebuild path until their inputs
+					// are tracked with finer-grained version metadata.
 					reset_matching_cache();
 				} else if (m_state.seed_dirty()) {
 					reset_matching_cache();
@@ -494,6 +554,7 @@ namespace gaia {
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
+				snapshot_dynamic_inputs();
 				m_state.clear_dirty();
 			}
 
@@ -516,9 +577,11 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dynamic_terms();
-				if (hasDynamicTerms || m_state.seed_dirty()) {
-					// Source lookups can invalidate previously cached archetype matches.
-					// Variable terms can invalidate them as well.
+				if ((hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) ||
+						m_state.seed_dirty()) {
+					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
+					// Source-based queries still take the conservative rebuild path until their inputs
+					// are tracked with finer-grained version metadata.
 					reset_matching_cache();
 				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
@@ -559,6 +622,7 @@ namespace gaia {
 						add_archetype_to_cache(pArch, true);
 					}
 				}
+				snapshot_dynamic_inputs();
 				m_state.clear_dirty();
 			}
 

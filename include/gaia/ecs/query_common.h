@@ -20,6 +20,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;
@@ -545,6 +546,10 @@ namespace gaia {
 							data.deps.add_relation(entity_from_id(*w, id.id()));
 						if (term.entTrav != EntityBad)
 							data.deps.add_relation(term.entTrav);
+						if (term.src != EntityBad) {
+							hasSourceTerms = true;
+							data.deps.add(DependencyHasSourceTerms);
+						}
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
@@ -556,8 +561,6 @@ namespace gaia {
 						// Source terms are evaluated separately by the VM.
 						// They should not affect archetype-level query masks.
 						if (term.src != EntityBad) {
-							hasSourceTerms = true;
-							data.deps.add(DependencyHasSourceTerms);
 							continue;
 						}
 
