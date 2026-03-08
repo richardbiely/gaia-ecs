@@ -61,10 +61,11 @@ namespace gaia {
 
 			struct SourceLookupSnapshotItem {
 				Entity entity = EntityBad;
-				ArchetypeId archetypeId = 0;
+				//! Version of the source entity's archetype membership captured in the snapshot.
+				uint32_t sourceVersion = 0;
 
 				GAIA_NODISCARD bool operator==(const SourceLookupSnapshotItem& other) const {
-					return entity == other.entity && archetypeId == other.archetypeId;
+					return entity == other.entity && sourceVersion == other.sourceVersion;
 				}
 
 				GAIA_NODISCARD bool operator!=(const SourceLookupSnapshotItem& other) const {
@@ -113,12 +114,10 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
-				//! Last seen query-cache structural version used to skip source-state checks on unchanged worlds.
-				uint32_t dynamicInputVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
-				//! Last seen archetype ids for tracked direct concrete source entities.
-				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
+				//! Last seen archetype versions for tracked direct concrete source entities.
+				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> sourceEntityVersions;
 				//! Last seen concrete source lookup closure for reusable source queries.
 				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshot;
 				//! True when the traversed source closure exceeded the configured snapshot cap.
@@ -155,7 +154,6 @@ namespace gaia {
 					clear_cache();
 					sourceLookupSnapshot.clear();
 					sourceLookupSnapshotOverflowed = false;
-					dynamicInputVersion = 0;
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -279,7 +277,7 @@ namespace gaia {
 				const auto sourceEntities = deps.source_entities_view();
 				const auto cnt = (uint32_t)sourceEntities.size();
 				GAIA_FOR(cnt) {
-					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+					if (m_state.sourceEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
 						return true;
 				}
 
@@ -321,7 +319,7 @@ namespace gaia {
 						overflowed = true;
 						return true;
 					}
-					items.push_back({source, world_entity_archetype_id(*world(), source)});
+					items.push_back({source, world_entity_archetype_version(*world(), source)});
 					return false;
 				});
 
@@ -371,9 +369,6 @@ namespace gaia {
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
-				if (m_state.dynamicInputVersion == world_query_cache_version(*world()))
-					return false;
-
 				return dynamic_source_entities_changed();
 			}
 
@@ -391,7 +386,7 @@ namespace gaia {
 					const auto sourceEntities = deps.source_entities_view();
 					const auto sourceCnt = (uint32_t)sourceEntities.size();
 					GAIA_FOR(sourceCnt)
-					m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
+					m_state.sourceEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
 				}
 
 				if (uses_source_lookup_snapshot()) {
@@ -410,7 +405,6 @@ namespace gaia {
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
 				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;
-				m_state.dynamicInputVersion = world_query_cache_version(*world());
 			}
 
 			template <typename TType>

@@ -10210,6 +10210,54 @@ TEST_CASE("Query - cached direct-source query keeps warm reads stable until sour
 	CHECK(q.count() == 0);
 }
 
+TEST_CASE("Query - cached direct-source query ignores unrelated archetype changes") {
+	TestWorld twld;
+
+	auto source = wld.add();
+	wld.add<Acceleration>(source, {1, 2, 3});
+
+	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(q.count() == 1);
+
+	auto unrelated = wld.add();
+	wld.add<Rotation>(unrelated, {4, 5, 6});
+	wld.add<Scale>(unrelated, {7, 8, 9});
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revA);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached direct-source query sees deleted source entities") {
+	TestWorld twld;
+
+	auto source = wld.add();
+	wld.add<Acceleration>(source, {1, 2, 3});
+
+	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(q.count() == 1);
+
+	wld.del(source);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() != revA);
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - cached traversed-source query keeps warm reads stable until traversal state changes") {
 	TestWorld twld;
 
@@ -10249,6 +10297,36 @@ TEST_CASE("Query - cached traversed-source query keeps warm reads stable until t
 	q.match_all(info);
 	CHECK(info.reverse_index_revision() != revParent);
 	CHECK(q.count() == 0);
+}
+
+TEST_CASE("Query - cached traversed-source query ignores unrelated archetype changes") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto parent = wld.add();
+	auto scene = wld.add();
+	wld.child(scene, parent);
+	wld.child(parent, root);
+	wld.add<Acceleration>(parent, {1, 2, 3});
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+
+	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(
+			ecs::QueryTermOptions{}.src(scene).trav_parent());
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(q.count() == 1);
+
+	auto unrelated = wld.add();
+	wld.add<Rotation>(unrelated, {4, 5, 6});
+	wld.add<Scale>(unrelated, {7, 8, 9});
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revA);
+	CHECK(q.count() == 1);
 }
 
 TEST_CASE("Query - source-state caching is opt-in for cached source queries") {

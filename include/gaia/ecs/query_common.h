@@ -21,9 +21,8 @@ namespace gaia {
 		class World;
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
-		GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
-		//! Returns the world-level structural query-cache version used for coarse query-cache freshness checks.
-		GAIA_NODISCARD uint32_t world_query_cache_version(const World& world);
+		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
+		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;

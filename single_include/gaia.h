@@ -29410,9 +29410,8 @@ namespace gaia {
 		class World;
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
-		GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
-		//! Returns the world-level structural query-cache version used for coarse query-cache freshness checks.
-		GAIA_NODISCARD uint32_t world_query_cache_version(const World& world);
+		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
+		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;
@@ -34815,10 +34814,11 @@ namespace gaia {
 
 			struct SourceLookupSnapshotItem {
 				Entity entity = EntityBad;
-				ArchetypeId archetypeId = 0;
+				//! Version of the source entity's archetype membership captured in the snapshot.
+				uint32_t sourceVersion = 0;
 
 				GAIA_NODISCARD bool operator==(const SourceLookupSnapshotItem& other) const {
-					return entity == other.entity && archetypeId == other.archetypeId;
+					return entity == other.entity && sourceVersion == other.sourceVersion;
 				}
 
 				GAIA_NODISCARD bool operator!=(const SourceLookupSnapshotItem& other) const {
@@ -34867,12 +34867,10 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
-				//! Last seen query-cache structural version used to skip source-state checks on unchanged worlds.
-				uint32_t dynamicInputVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
-				//! Last seen archetype ids for tracked direct concrete source entities.
-				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
+				//! Last seen archetype versions for tracked direct concrete source entities.
+				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> sourceEntityVersions;
 				//! Last seen concrete source lookup closure for reusable source queries.
 				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshot;
 				//! True when the traversed source closure exceeded the configured snapshot cap.
@@ -34909,7 +34907,6 @@ namespace gaia {
 					clear_cache();
 					sourceLookupSnapshot.clear();
 					sourceLookupSnapshotOverflowed = false;
-					dynamicInputVersion = 0;
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -35033,7 +35030,7 @@ namespace gaia {
 				const auto sourceEntities = deps.source_entities_view();
 				const auto cnt = (uint32_t)sourceEntities.size();
 				GAIA_FOR(cnt) {
-					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+					if (m_state.sourceEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
 						return true;
 				}
 
@@ -35075,7 +35072,7 @@ namespace gaia {
 						overflowed = true;
 						return true;
 					}
-					items.push_back({source, world_entity_archetype_id(*world(), source)});
+					items.push_back({source, world_entity_archetype_version(*world(), source)});
 					return false;
 				});
 
@@ -35125,9 +35122,6 @@ namespace gaia {
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
-				if (m_state.dynamicInputVersion == world_query_cache_version(*world()))
-					return false;
-
 				return dynamic_source_entities_changed();
 			}
 
@@ -35145,7 +35139,7 @@ namespace gaia {
 					const auto sourceEntities = deps.source_entities_view();
 					const auto sourceCnt = (uint32_t)sourceEntities.size();
 					GAIA_FOR(sourceCnt)
-					m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
+					m_state.sourceEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
 				}
 
 				if (uses_source_lookup_snapshot()) {
@@ -35164,7 +35158,6 @@ namespace gaia {
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
 				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;
-				m_state.dynamicInputVersion = world_query_cache_version(*world());
 			}
 
 			template <typename TType>
@@ -40186,6 +40179,9 @@ namespace gaia {
 			PairMap m_targetsToRelations;
 			//! Relation-local structural version used for dependency ordering caches.
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
+			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
+			//! Entries are created lazily on first snapshot to avoid any global per-entity tax.
+			mutable cnt::map<EntityLookupKey, uint32_t> m_sourceEntityVersions;
 
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
@@ -40242,8 +40238,6 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
-			//! Structural query-cache version used for coarse cached-query freshness checks.
-			uint32_t m_queryCacheVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -42676,7 +42670,6 @@ namespace gaia {
 				if (wasEnabled != enable) {
 					pChunk->update_world_version();
 					update_version(m_worldVersion);
-					update_version(m_queryCacheVersion);
 				}
 			}
 
@@ -42767,9 +42760,23 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
-			friend GAIA_NODISCARD uint32_t world_query_cache_version(const World& world);
 			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
-			friend GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
+			friend GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
+
+			//! Updates a tracked source-entity version after the entity changes archetype membership.
+			void update_source_entity_version(Entity entity) {
+				const auto key = EntityLookupKey(entity);
+				const auto it = m_sourceEntityVersions.find(key);
+				if (it == m_sourceEntityVersions.end())
+					return;
+
+				update_version(it->second);
+			}
+
+			//! Removes sparse source-version state for an entity that is being destroyed.
+			void remove_source_entity_version(Entity entity) {
+				m_sourceEntityVersions.erase(EntityLookupKey(entity));
+			}
 
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
 			//! \param entity Entity
@@ -42818,7 +42825,6 @@ namespace gaia {
 				m_pCompArchetype = nullptr;
 				m_nextArchetypeId = 0;
 				m_defragLastArchetypeIdx = 0;
-				m_queryCacheVersion = 0;
 				m_worldVersion = 0;
 				init();
 			}
@@ -42895,6 +42901,7 @@ namespace gaia {
 					m_targetsToRelations = {};
 					m_relationsToTargets = {};
 					m_relationVersions = {};
+					m_sourceEntityVersions = {};
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -43219,7 +43226,6 @@ namespace gaia {
 						// because if your program used reference counting it probably won't work correctly.
 						GAIA_ASSERT(ec.unused == 0);
 #endif
-
 						// Store the archetype idx inside the pointer. We will decode this once archetypes are created.
 						uint32_t archetypeIdx = 0;
 						s.load(archetypeIdx);
@@ -43286,7 +43292,6 @@ namespace gaia {
 					}
 
 					s.load(m_worldVersion);
-					m_queryCacheVersion = 0;
 				}
 
 				// Update entity records.
@@ -43701,7 +43706,6 @@ namespace gaia {
 						pSrcChunk->update_world_version();
 						pDstChunk->update_world_version();
 						update_version(m_worldVersion);
-						update_version(m_queryCacheVersion);
 					}
 
 					maxEntities -= entitiesToMove;
@@ -44153,6 +44157,7 @@ namespace gaia {
 					// which has already been destructed which is not nice.
 					del_name(ec, entity);
 					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
+					remove_source_entity_version(entity);
 				}
 
 				// Invalidate on-demand.
@@ -44372,10 +44377,8 @@ namespace gaia {
 					updated = true;
 				}
 
-				if (updated) {
+				if (updated)
 					update_version(m_worldVersion);
-					update_version(m_queryCacheVersion);
-				}
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing \param entity.
@@ -44912,6 +44915,7 @@ namespace gaia {
 				const bool wasEnabled = !ec.data.dis;
 
 				auto& srcArchetype = *ec.pArchetype;
+				const bool archetypeChanged = srcArchetype.id() != dstArchetype.id();
 #if GAIA_ASSERT_ENABLED
 				verify_move(*this, srcArchetype, entity);
 #endif
@@ -44938,6 +44942,8 @@ namespace gaia {
 				ec.pArchetype = &dstArchetype;
 				ec.pChunk = pDstChunk;
 				ec.row = (uint16_t)dstRow;
+				if (archetypeChanged)
+					update_source_entity_version(entity);
 
 				// Make the enabled state in the new chunk match the original state
 				dstArchetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
@@ -44961,7 +44967,6 @@ namespace gaia {
 				// Update world versions
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
-				update_version(m_queryCacheVersion);
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
@@ -44981,7 +44986,6 @@ namespace gaia {
 				// Update world versions
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
-				update_version(m_queryCacheVersion);
 
 				return pDstChunk;
 			}
@@ -47487,13 +47491,20 @@ namespace gaia {
 			return world.relation_version(relation);
 		}
 
-		inline ArchetypeId world_entity_archetype_id(const World& world, Entity entity) {
-			return world.fetch(entity).pArchetype->id();
-		}
+		//! Returns the sparse archetype-membership version tracked for a source entity.
+		//! Invalid source entities report version 0 so cached queries see deletions immediately.
+		//! Valid entries are created on first use so non-source entities do not pay any extra storage.
+		inline uint32_t world_entity_archetype_version(const World& world, Entity entity) {
+			if (!world.valid(entity))
+				return 0;
 
-		//! Returns the structural query-cache version used for coarse cached-query freshness checks.
-		inline uint32_t world_query_cache_version(const World& world) {
-			return world.m_queryCacheVersion;
+			const auto key = EntityLookupKey(entity);
+			auto it = world.m_sourceEntityVersions.find(key);
+			if (it != world.m_sourceEntityVersions.end())
+				return it->second;
+
+			it = world.m_sourceEntityVersions.try_emplace(key, 1).first;
+			return it->second;
 		}
 
 		inline ObserverBuilder World::observer() {
