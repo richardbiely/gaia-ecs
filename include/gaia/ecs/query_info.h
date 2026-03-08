@@ -113,6 +113,8 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
+				//! Last seen query-cache structural version used to skip source-state checks on unchanged worlds.
+				uint32_t dynamicInputVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
 				//! Last seen archetype ids for tracked direct concrete source entities.
@@ -123,6 +125,7 @@ namespace gaia {
 				bool sourceLookupSnapshotOverflowed = false;
 				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
+				//! Bitmask of the variable bindings captured in varBindings.
 				uint8_t varBindingMask = 0;
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
@@ -152,6 +155,7 @@ namespace gaia {
 					clear_cache();
 					sourceLookupSnapshot.clear();
 					sourceLookupSnapshotOverflowed = false;
+					dynamicInputVersion = 0;
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -297,11 +301,14 @@ namespace gaia {
 				}
 			}
 
+			//! Returns thread-local scratch reused while comparing traversed source closures.
 			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
 				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
 				return scratch;
 			}
 
+			//! Builds the traversed source lookup closure snapshot.
+			//! Returns false if the configured snapshot cap was exceeded.
 			GAIA_NODISCARD bool build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
 				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
 				items.clear();
@@ -352,8 +359,22 @@ namespace gaia {
 				if (!can_reuse_dynamic_cache())
 					return false;
 
-				return dynamic_relation_versions_changed() || dynamic_source_entities_changed() ||
-							 dynamic_var_bindings_changed();
+				if (dynamic_var_bindings_changed())
+					return true;
+				if (dynamic_relation_versions_changed())
+					return true;
+
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+					return false;
+
+				if (m_state.sourceLookupSnapshotOverflowed)
+					return true;
+
+				if (m_state.dynamicInputVersion == world_query_cache_version(*world()))
+					return false;
+
+				return dynamic_source_entities_changed();
 			}
 
 			void snapshot_dynamic_inputs() {
@@ -389,6 +410,7 @@ namespace gaia {
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
 				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;
+				m_state.dynamicInputVersion = world_query_cache_version(*world());
 			}
 
 			template <typename TType>

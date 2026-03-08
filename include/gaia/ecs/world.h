@@ -491,6 +491,8 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
+			//! Structural query-cache version used for coarse cached-query freshness checks.
+			uint32_t m_queryCacheVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -3013,6 +3015,7 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			friend GAIA_NODISCARD uint32_t world_query_cache_version(const World& world);
 			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
 			friend GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
 
@@ -3063,6 +3066,7 @@ namespace gaia {
 				m_pCompArchetype = nullptr;
 				m_nextArchetypeId = 0;
 				m_defragLastArchetypeIdx = 0;
+				m_queryCacheVersion = 0;
 				m_worldVersion = 0;
 				init();
 			}
@@ -3530,6 +3534,7 @@ namespace gaia {
 					}
 
 					s.load(m_worldVersion);
+					m_queryCacheVersion = 0;
 				}
 
 				// Update entity records.
@@ -4614,8 +4619,10 @@ namespace gaia {
 					updated = true;
 				}
 
-				if (updated)
+				if (updated) {
 					update_version(m_worldVersion);
+					update_version(m_queryCacheVersion);
+				}
 			}
 
 			//! Find the destination archetype \param pArchetype as if removing \param entity.
@@ -5201,6 +5208,7 @@ namespace gaia {
 				// Update world versions
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
+				update_version(m_queryCacheVersion);
 			}
 
 			//! Moves an entity along with all its generic components from its current chunk to another one in a new
@@ -5220,6 +5228,7 @@ namespace gaia {
 				// Update world versions
 				pDstChunk->update_world_version();
 				update_version(m_worldVersion);
+				update_version(m_queryCacheVersion);
 
 				return pDstChunk;
 			}
@@ -6024,6 +6033,11 @@ namespace gaia {
 
 		inline ArchetypeId world_entity_archetype_id(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype->id();
+		}
+
+		//! Returns the structural query-cache version used for coarse cached-query freshness checks.
+		inline uint32_t world_query_cache_version(const World& world) {
+			return world.m_queryCacheVersion;
 		}
 
 		inline ObserverBuilder World::observer() {
