@@ -3016,8 +3016,8 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
-			friend GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
-			friend GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
+			friend uint32_t world_rel_version(const World& world, Entity relation);
+			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
 			void update_src_entity_version(Entity entity) {

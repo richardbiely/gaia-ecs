@@ -313,7 +313,7 @@ namespace gaia {
 					if (term.src == EntityBad || is_variable(term.src))
 						continue;
 
-					vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
+					(void)vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
 						return func(source);
 					});
 				}

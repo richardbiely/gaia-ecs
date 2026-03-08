@@ -1321,7 +1321,7 @@ namespace gaia {
 						return term_has_match_bound(w, archetype, termOp, varsIn) ? 1u : 0u;
 
 					uint32_t count = 0;
-					each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
+					(void)each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
 						++count;
 						return count >= limit;
 					});
@@ -1597,18 +1597,15 @@ namespace gaia {
 						sourceEntity = vars.values[var_index(sourceEntity)];
 					}
 
-					bool matched = false;
-					each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 						auto* pSrcArchetype = archetype_from_entity(w, source);
 						if (pSrcArchetype == nullptr)
 							return false;
 						if (!match_on_archetype(*pSrcArchetype))
 							return false;
-						matched = true;
+						
 						return true;
 					});
-
-					return matched;
 				}
 
 				template <typename Func>

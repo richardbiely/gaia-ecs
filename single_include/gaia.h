@@ -32336,7 +32336,7 @@ namespace gaia {
 						return term_has_match_bound(w, archetype, termOp, varsIn) ? 1u : 0u;
 
 					uint32_t count = 0;
-					each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
+					(void)each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
 						++count;
 						return count >= limit;
 					});
@@ -32612,18 +32612,15 @@ namespace gaia {
 						sourceEntity = vars.values[var_index(sourceEntity)];
 					}
 
-					bool matched = false;
-					each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 						auto* pSrcArchetype = archetype_from_entity(w, source);
 						if (pSrcArchetype == nullptr)
 							return false;
 						if (!match_on_archetype(*pSrcArchetype))
 							return false;
-						matched = true;
+
 						return true;
 					});
-
-					return matched;
 				}
 
 				template <typename Func>
@@ -35089,7 +35086,7 @@ namespace gaia {
 					if (term.src == EntityBad || is_variable(term.src))
 						continue;
 
-					vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
+					(void)vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
 						return func(source);
 					});
 				}
@@ -42887,8 +42884,8 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
-			friend GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
-			friend GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
+			friend uint32_t world_rel_version(const World& world, Entity relation);
+			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
 			void update_src_entity_version(Entity entity) {
