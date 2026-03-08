@@ -10474,9 +10474,19 @@ TEST_CASE("Query - public cache kind construction") {
 	auto source = wld.add();
 
 	auto qDefault = wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>();
+	auto qDefaultSourceState = wld.query()
+																 .cache_kind(ecs::QueryCacheKind::Default)
+																 .cache_source_state()
+																 .all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qAuto = wld.query().cache_kind(ecs::QueryCacheKind::Auto).no<Position>();
+	auto qAutoSourceState = wld.query()
+															.cache_kind(ecs::QueryCacheKind::Auto)
+															.cache_source_state()
+															.all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qAll = wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>();
 	auto qAllFail = wld.query().cache_kind(ecs::QueryCacheKind::All).no<Position>();
+	auto qAllDynamic =
+			wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qDynamic =
 			wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>(ecs::QueryTermOptions{}.src(source));
 
@@ -10485,10 +10495,18 @@ TEST_CASE("Query - public cache kind construction") {
 	CHECK(qDefault.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
+	CHECK(qDefaultSourceState.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qDefaultSourceState.valid());
+	CHECK(qDefaultSourceState.caches_source_state());
+
 	CHECK(qAuto.cache_kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAuto.valid());
 	CHECK(qAuto.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qAuto.cache_policy() == ecs::QueryCachePolicy::Lazy);
+
+	CHECK(qAutoSourceState.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(!qAutoSourceState.valid());
+	CHECK(qAutoSourceState.count() == 0);
 
 	CHECK(qAll.cache_kind() == ecs::QueryCacheKind::All);
 	CHECK(qAll.valid());
@@ -10498,6 +10516,10 @@ TEST_CASE("Query - public cache kind construction") {
 	CHECK(qAllFail.cache_kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllFail.valid());
 	CHECK(qAllFail.count() == 0);
+
+	CHECK(qAllDynamic.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(!qAllDynamic.valid());
+	CHECK(qAllDynamic.count() == 0);
 
 	CHECK(qDynamic.valid());
 	CHECK(qDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);

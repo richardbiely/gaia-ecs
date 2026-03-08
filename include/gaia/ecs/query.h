@@ -53,11 +53,13 @@ namespace gaia {
 		};
 
 		enum class QueryCacheKind : uint8_t {
-			// Use the default shared-cache policy.
+			// Use the engine's default cache behavior, including explicit opt-ins such as source-state snapshots.
 			Default,
-			// Use shared cached query state with automatic policy selection from query shape.
+			// Restrict the query to automatically derived cache layers only.
+			// Manual cache extensions such as source-state snapshots are rejected.
 			Auto,
-			// Use shared cached query state and keep the requested kind explicit for diagnostics/API symmetry.
+			// Require a fully eager structural cache.
+			// Query creation fails for lazy or dynamic cache policies.
 			All
 		};
 
@@ -696,11 +698,18 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			private:
+				//! Returns true when the query requests source-state snapshots beyond the default automatic cache layers.
+				GAIA_NODISCARD bool uses_manual_source_state_cache() const {
+					return m_cacheSourceStateMaxItems != 0;
+				}
+
+				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return UseCaching;
+						return UseCaching && !uses_manual_source_state_cache();
 					if (m_cacheKind == QueryCacheKind::All)
-						return UseCaching && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return UseCaching && !uses_manual_source_state_cache() &&
+									 ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}
