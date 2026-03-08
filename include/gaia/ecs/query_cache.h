@@ -376,20 +376,6 @@ namespace gaia {
 							 (term.op == QueryOpKind::All || term.op == QueryOpKind::Or);
 			}
 
-			static bool is_structural_create_query(const QueryCtx& ctx) {
-				const auto flags = ctx.data.flags;
-				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) == 0;
-			}
-
-			GAIA_NODISCARD static bool has_create_selector_term(const QueryCtx& ctx) {
-				for (const auto& term: ctx.data.terms_view()) {
-					if (is_create_selector_term(term))
-						return true;
-				}
-
-				return false;
-			}
-
 			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToCreateQuery.find(entityKey);
@@ -415,14 +401,8 @@ namespace gaia {
 			}
 
 			void add_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (!is_structural_create_query(ctx))
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
 					return;
-
-				if (!has_create_selector_term(ctx)) {
-					// Structural cached queries without a positive selector term stay cached, but they refresh lazily
-					// on the next read instead of participating in eager archetype-create propagation.
-					return;
-				}
 
 				// Only structural queries with a positive selector term are tracked here.
 				// This keeps eager create-time propagation narrow and leaves awkward cases to lazy repair.
@@ -435,12 +415,8 @@ namespace gaia {
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (!is_structural_create_query(ctx))
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
 					return;
-
-				if (!has_create_selector_term(ctx)) {
-					return;
-				}
 
 				for (const auto& term: ctx.data.terms_view()) {
 					if (!is_create_selector_term(term))

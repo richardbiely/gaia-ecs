@@ -177,8 +177,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_dynamic_terms() const {
-				const auto flags = m_plan.ctx.data.flags;
-				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U;
+				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
+			}
+
+			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
+				return m_plan.ctx.data.cachePolicy;
 			}
 
 			template <typename TType>
@@ -335,12 +338,9 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
-				const auto& ctxData = m_plan.ctx.data;
-				// Archetype-create eager updates currently target plain structural caches only.
-				// Sorted/grouped queries keep using the normal read-time path because they
-				// maintain additional global ordering state.
-				return m_plan.vm.is_compiled() && !has_dynamic_terms() && !m_state.needs_refresh() &&
-							 ctxData.sortByFunc == nullptr && ctxData.groupBy == EntityBad;
+				// Only eagerly maintained structural queries participate in archetype-create propagation.
+				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::EagerStructural &&
+							 !m_state.needs_refresh();
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {

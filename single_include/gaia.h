@@ -29746,6 +29746,15 @@ namespace gaia {
 				HasVariableTerms = 0x20,
 			};
 
+			enum class CachePolicy : uint8_t {
+				// Structural query with a positive selector term. Safe to update eagerly on archetype creation.
+				EagerStructural,
+				// Structural query that stays cached but refreshes lazily on the next read.
+				LazyStructural,
+				// Query with source or variable terms. Cached state is repaired on demand.
+				Dynamic,
+			};
+
 			struct Data {
 				//! Array of queried ids
 				QueryEntityArray _ids;
@@ -29794,6 +29803,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
+				//! Cache maintenance policy derived from query shape.
+				CachePolicy cachePolicy = CachePolicy::LazyStructural;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -29824,6 +29835,7 @@ namespace gaia {
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
+				const auto cachePolicy_old = data.cachePolicy;
 
 				// Update masks
 				{
@@ -29832,6 +29844,7 @@ namespace gaia {
 					bool isComplex = false;
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
+					bool hasCreateSelector = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 
@@ -29857,6 +29870,8 @@ namespace gaia {
 						// ANY terms are not hard requirements and must not affect archetype prefilter masks.
 						if (term.op != QueryOpKind::Any)
 							idsNoSrc[idsNoSrcCnt++] = id;
+
+						hasCreateSelector |= term.op == QueryOpKind::All || term.op == QueryOpKind::Or;
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
@@ -29899,6 +29914,13 @@ namespace gaia {
 					else
 						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
 
+					if (hasSourceTerms || hasVariableTerms)
+						data.cachePolicy = CachePolicy::Dynamic;
+					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
+						data.cachePolicy = CachePolicy::EagerStructural;
+					else
+						data.cachePolicy = CachePolicy::LazyStructural;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -29914,7 +29936,7 @@ namespace gaia {
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
-						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms))
+						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) || cachePolicy_old != data.cachePolicy)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -34771,8 +34793,11 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_dynamic_terms() const {
-				const auto flags = m_plan.ctx.data.flags;
-				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) != 0U;
+				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
+			}
+
+			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
+				return m_plan.ctx.data.cachePolicy;
 			}
 
 			template <typename TType>
@@ -34929,12 +34954,9 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
-				const auto& ctxData = m_plan.ctx.data;
-				// Archetype-create eager updates currently target plain structural caches only.
-				// Sorted/grouped queries keep using the normal read-time path because they
-				// maintain additional global ordering state.
-				return m_plan.vm.is_compiled() && !has_dynamic_terms() && !m_state.needs_refresh() &&
-							 ctxData.sortByFunc == nullptr && ctxData.groupBy == EntityBad;
+				// Only eagerly maintained structural queries participate in archetype-create propagation.
+				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::EagerStructural &&
+							 !m_state.needs_refresh();
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -36060,20 +36082,6 @@ namespace gaia {
 							 (term.op == QueryOpKind::All || term.op == QueryOpKind::Or);
 			}
 
-			static bool is_structural_create_query(const QueryCtx& ctx) {
-				const auto flags = ctx.data.flags;
-				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) == 0;
-			}
-
-			GAIA_NODISCARD static bool has_create_selector_term(const QueryCtx& ctx) {
-				for (const auto& term: ctx.data.terms_view()) {
-					if (is_create_selector_term(term))
-						return true;
-				}
-
-				return false;
-			}
-
 			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToCreateQuery.find(entityKey);
@@ -36099,14 +36107,8 @@ namespace gaia {
 			}
 
 			void add_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (!is_structural_create_query(ctx))
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
 					return;
-
-				if (!has_create_selector_term(ctx)) {
-					// Structural cached queries without a positive selector term stay cached, but they refresh lazily
-					// on the next read instead of participating in eager archetype-create propagation.
-					return;
-				}
 
 				// Only structural queries with a positive selector term are tracked here.
 				// This keeps eager create-time propagation narrow and leaves awkward cases to lazy repair.
@@ -36119,12 +36121,8 @@ namespace gaia {
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (!is_structural_create_query(ctx))
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
 					return;
-
-				if (!has_create_selector_term(ctx)) {
-					return;
-				}
 
 				for (const auto& term: ctx.data.terms_view()) {
 					if (!is_create_selector_term(term))

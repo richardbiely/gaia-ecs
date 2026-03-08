@@ -359,6 +359,15 @@ namespace gaia {
 				HasVariableTerms = 0x20,
 			};
 
+			enum class CachePolicy : uint8_t {
+				// Structural query with a positive selector term. Safe to update eagerly on archetype creation.
+				EagerStructural,
+				// Structural query that stays cached but refreshes lazily on the next read.
+				LazyStructural,
+				// Query with source or variable terms. Cached state is repaired on demand.
+				Dynamic,
+			};
+
 			struct Data {
 				//! Array of queried ids
 				QueryEntityArray _ids;
@@ -407,6 +416,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
+				//! Cache maintenance policy derived from query shape.
+				CachePolicy cachePolicy = CachePolicy::LazyStructural;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -437,6 +448,7 @@ namespace gaia {
 				const auto isComplex_old = data.flags & QueryFlags::Complex;
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
+				const auto cachePolicy_old = data.cachePolicy;
 
 				// Update masks
 				{
@@ -445,6 +457,7 @@ namespace gaia {
 					bool isComplex = false;
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
+					bool hasCreateSelector = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 
@@ -470,6 +483,8 @@ namespace gaia {
 						// ANY terms are not hard requirements and must not affect archetype prefilter masks.
 						if (term.op != QueryOpKind::Any)
 							idsNoSrc[idsNoSrcCnt++] = id;
+
+						hasCreateSelector |= term.op == QueryOpKind::All || term.op == QueryOpKind::Or;
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
@@ -512,6 +527,13 @@ namespace gaia {
 					else
 						data.flags &= ~QueryCtx::QueryFlags::HasVariableTerms;
 
+					if (hasSourceTerms || hasVariableTerms)
+						data.cachePolicy = CachePolicy::Dynamic;
+					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
+						data.cachePolicy = CachePolicy::EagerStructural;
+					else
+						data.cachePolicy = CachePolicy::LazyStructural;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -527,7 +549,7 @@ namespace gaia {
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
-						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms))
+						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) || cachePolicy_old != data.cachePolicy)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
