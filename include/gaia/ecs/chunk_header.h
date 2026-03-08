@@ -97,9 +97,12 @@ namespace gaia {
 			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
+			//! Version tracking entity order changes inside the chunk.
+			//! Updated on entity add/remove/move operations, but not on unrelated component writes.
+			uint32_t entityOrderVersion;
 
 			static inline uint32_t s_worldVersionDummy = 0;
-			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
+			ChunkHeader(): worldVersion(s_worldVersionDummy), entityOrderVersion(0) {}
 
 			ChunkHeader(
 					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
@@ -109,7 +112,7 @@ namespace gaia {
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
 					//
-					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
+					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version), entityOrderVersion(0) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

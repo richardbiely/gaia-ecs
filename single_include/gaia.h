@@ -24933,9 +24933,12 @@ namespace gaia {
 			uint8_t cntEntities;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
+			//! Version tracking entity order changes inside the chunk.
+			//! Updated on entity add/remove/move operations, but not on unrelated component writes.
+			uint32_t entityOrderVersion;
 
 			static inline uint32_t s_worldVersionDummy = 0;
-			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
+			ChunkHeader(): worldVersion(s_worldVersionDummy), entityOrderVersion(0) {}
 
 			ChunkHeader(
 					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
@@ -24945,7 +24948,7 @@ namespace gaia {
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
 					//
-					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version) {
+					genEntities(genEntitiesCnt), cntEntities(0), worldVersion(version), entityOrderVersion(0) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}
@@ -28080,6 +28083,12 @@ namespace gaia {
 				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
+			//! Returns true if entity order changed since @a requiredVersion.
+			//! This is narrower than changed(requiredVersion): unrelated component writes do not affect it.
+			GAIA_NODISCARD bool entity_order_changed(uint32_t requiredVersion) const {
+				return ::gaia::ecs::version_changed(m_header.entityOrderVersion, requiredVersion);
+			}
+
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
@@ -28097,6 +28106,7 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
+				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			//! Update the version of all components on chunk init
@@ -28105,6 +28115,7 @@ namespace gaia {
 				// We update the version of the entity and all components to match the world version.
 				versions[0] = m_header.worldVersion;
 				GAIA_FOR(m_header.genEntities) versions[1 + i] = m_header.worldVersion;
+				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			void diag() const {
@@ -34794,6 +34805,7 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 		class World;
+		uint32_t world_version(const World& world);
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
@@ -34882,6 +34894,9 @@ namespace gaia {
 				cnt::darray<SortData> archetypeSortData;
 				//! Group data used by cache
 				cnt::darray<GroupData> archetypeGroupData;
+				//! World version at which the sorted cache slices were last rebuilt.
+				//! Unlike worldVersion, this is only updated after a real sort refresh.
+				uint32_t sortVersion{};
 
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
@@ -34916,6 +34931,7 @@ namespace gaia {
 					archetypeSortData = {};
 					archetypeCacheData = {};
 					archetypeGroupData = {};
+					sortVersion = 0;
 				}
 
 				void clear_cache() {
@@ -35771,25 +35787,41 @@ namespace gaia {
 				}
 			}
 
+			//! Returns true when the cached sorted slices need to be rebuilt.
+			//! Sorting depends on entity order changes plus writes to the active sort key.
+			GAIA_NODISCARD bool sort_cache_changed() const {
+				if (m_state.sortVersion == 0)
+					return true;
+
+				const auto sortBy = m_plan.ctx.data.sortBy;
+				for (const auto* pArchetype: m_state.archetypeCache) {
+					const auto& chunks = pArchetype->chunks();
+					for (const auto* pChunk: chunks) {
+						if (pChunk->entity_order_changed(m_state.sortVersion))
+							return true;
+
+						if (sortBy == EntityBad)
+							continue;
+
+						const auto compIdx = pChunk->comp_idx(sortBy);
+						GAIA_ASSERT(compIdx != BadIndex);
+						if (compIdx == BadIndex)
+							return true;
+
+						if (pChunk->changed(m_state.sortVersion, compIdx))
+							return true;
+					}
+				}
+
+				return false;
+			}
+
 			void sort_entities() {
 				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
-					// TODO: We need observers to implement that would listen to entity movements within chunks.
-					//       thanks to that we would know right away if some movement happenend without
-					//       having to check this constantly.
-					bool hasChanged = false;
-					for (const auto* pArchetype: m_state.archetypeCache) {
-						const auto& chunks = pArchetype->chunks();
-						for (const auto* pChunk: chunks) {
-							if (pChunk->changed(m_state.worldVersion)) {
-								hasChanged = true;
-								break;
-							}
-						}
-					}
-					if (!hasChanged)
+					if (!sort_cache_changed())
 						return;
 				}
 				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
@@ -35800,6 +35832,7 @@ namespace gaia {
 
 				// Now that entites are sorted, we can start creating slices
 				calculate_sort_data();
+				m_state.sortVersion = ::gaia::ecs::world_version(*world());
 			}
 
 			void sort_cache_groups() {
@@ -42886,6 +42919,7 @@ namespace gaia {
 			}
 
 			friend uint32_t world_rel_version(const World& world, Entity relation);
+			friend uint32_t world_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
@@ -47608,6 +47642,14 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #endif
+
+namespace gaia {
+	namespace ecs {
+		inline uint32_t world_version(const World& world) {
+			return world.m_worldVersion;
+		}
+	} // namespace ecs
+} // namespace gaia
 
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {

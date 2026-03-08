@@ -1179,6 +1179,38 @@ void BM_QueryCache_Invalidate_Relation_Read(picobench::state& state) {
 	}
 }
 
+//! Benchmarks warm reads for a sorted query after writes to a component unrelated to the sort key.
+//! A narrow sort dirty signal should avoid rebuilding the sorted slices in this case.
+void BM_QueryCache_Sorted_UnrelatedWrite(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<true, false, true, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position>().all<Health>().sort_by<Position>(
+			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+	dont_optimize(q.count());
+
+	uint32_t cursor = 0;
+	for (auto _: state) {
+		(void)_;
+
+		auto& health = w.set<Health>(entities[cursor % entities.size()]);
+		health.value += 1;
+		dont_optimize(q.count());
+		++cursor;
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -2760,6 +2792,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesMedium)
 				.label("invalidate relation+read 100K");
+		PICOBENCH_REG(BM_QueryCache_Sorted_UnrelatedWrite)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("sorted unrelated write 10K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");

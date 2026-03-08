@@ -12571,6 +12571,18 @@ TEST_CASE("Query Filter - systems") {
 
 struct Eats {};
 struct Healthy {};
+static uint32_t g_query_sort_cmp_cnt = 0;
+static int compare_position_counted([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+	++g_query_sort_cmp_cnt;
+
+	const auto& p0 = *static_cast<const Position*>(pData0);
+	const auto& p1 = *static_cast<const Position*>(pData1);
+	if (p0.x < p1.x)
+		return -1;
+	if (p0.x > p1.x)
+		return 1;
+	return 0;
+}
 ecs::GroupId
 group_by_rel([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
 	if (archetype.pairs() > 0) {
@@ -12794,6 +12806,43 @@ TEST_CASE("Query - sort") {
 			CHECK(tmp[2] == e3);
 			CHECK(tmp[3] == e1);
 		}
+	}
+
+	SUBCASE("Doesn't resort after unrelated component write") {
+		wld.add<Something>(e0, {false});
+		wld.add<Something>(e1, {false});
+		wld.add<Something>(e2, {false});
+		wld.add<Something>(e3, {false});
+
+		g_query_sort_cmp_cnt = 0;
+		auto q = wld.query().all<Position>().all<Something>().sort_by<Position>(compare_position_counted);
+
+		q.each([](ecs::Iter&) {});
+		CHECK(g_query_sort_cmp_cnt > 0);
+
+		g_query_sort_cmp_cnt = 0;
+		wld.set<Something>(e0).value = true;
+		q.each([](ecs::Iter&) {});
+		CHECK(g_query_sort_cmp_cnt == 0);
+	}
+
+	SUBCASE("Resorts after entity order changes") {
+		wld.add<Something>(e0, {false});
+		wld.add<Something>(e1, {false});
+		wld.add<Something>(e2, {false});
+		wld.add<Something>(e3, {false});
+
+		g_query_sort_cmp_cnt = 0;
+		auto q = wld.query().all<Position>().all<Something>().sort_by<Position>(compare_position_counted);
+
+		q.each([](ecs::Iter&) {});
+		g_query_sort_cmp_cnt = 0;
+
+		auto e4 = wld.add();
+		wld.add<Position>(e4, {0, 0, 0});
+		wld.add<Something>(e4, {true});
+		q.each([](ecs::Iter&) {});
+		CHECK(g_query_sort_cmp_cnt > 0);
 	}
 }
 

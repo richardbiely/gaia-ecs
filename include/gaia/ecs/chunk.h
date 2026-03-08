@@ -1516,6 +1516,12 @@ namespace gaia {
 				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
+			//! Returns true if entity order changed since @a requiredVersion.
+			//! This is narrower than changed(requiredVersion): unrelated component writes do not affect it.
+			GAIA_NODISCARD bool entity_order_changed(uint32_t requiredVersion) const {
+				return ::gaia::ecs::version_changed(m_header.entityOrderVersion, requiredVersion);
+			}
+
 			//! Update the version of a component at the index \param compIdx
 			GAIA_FORCEINLINE void update_world_version(uint32_t compIdx) {
 				auto versions = comp_version_view_mut();
@@ -1533,6 +1539,7 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
+				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			//! Update the version of all components on chunk init
@@ -1541,6 +1548,7 @@ namespace gaia {
 				// We update the version of the entity and all components to match the world version.
 				versions[0] = m_header.worldVersion;
 				GAIA_FOR(m_header.genEntities) versions[1 + i] = m_header.worldVersion;
+				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			void diag() const {

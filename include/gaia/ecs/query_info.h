@@ -22,6 +22,7 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 		class World;
+		uint32_t world_version(const World& world);
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
 		struct ArchetypeCacheData {
@@ -110,6 +111,9 @@ namespace gaia {
 				cnt::darray<SortData> archetypeSortData;
 				//! Group data used by cache
 				cnt::darray<GroupData> archetypeGroupData;
+				//! World version at which the sorted cache slices were last rebuilt.
+				//! Unlike worldVersion, this is only updated after a real sort refresh.
+				uint32_t sortVersion{};
 
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
@@ -144,6 +148,7 @@ namespace gaia {
 					archetypeSortData = {};
 					archetypeCacheData = {};
 					archetypeGroupData = {};
+					sortVersion = 0;
 				}
 
 				void clear_cache() {
@@ -999,25 +1004,41 @@ namespace gaia {
 				}
 			}
 
+			//! Returns true when the cached sorted slices need to be rebuilt.
+			//! Sorting depends on entity order changes plus writes to the active sort key.
+			GAIA_NODISCARD bool sort_cache_changed() const {
+				if (m_state.sortVersion == 0)
+					return true;
+
+				const auto sortBy = m_plan.ctx.data.sortBy;
+				for (const auto* pArchetype: m_state.archetypeCache) {
+					const auto& chunks = pArchetype->chunks();
+					for (const auto* pChunk: chunks) {
+						if (pChunk->entity_order_changed(m_state.sortVersion))
+							return true;
+
+						if (sortBy == EntityBad)
+							continue;
+
+						const auto compIdx = pChunk->comp_idx(sortBy);
+						GAIA_ASSERT(compIdx != BadIndex);
+						if (compIdx == BadIndex)
+							return true;
+
+						if (pChunk->changed(m_state.sortVersion, compIdx))
+							return true;
+					}
+				}
+
+				return false;
+			}
+
 			void sort_entities() {
 				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
 
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
-					// TODO: We need observers to implement that would listen to entity movements within chunks.
-					//       thanks to that we would know right away if some movement happenend without
-					//       having to check this constantly.
-					bool hasChanged = false;
-					for (const auto* pArchetype: m_state.archetypeCache) {
-						const auto& chunks = pArchetype->chunks();
-						for (const auto* pChunk: chunks) {
-							if (pChunk->changed(m_state.worldVersion)) {
-								hasChanged = true;
-								break;
-							}
-						}
-					}
-					if (!hasChanged)
+					if (!sort_cache_changed())
 						return;
 				}
 				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
@@ -1028,6 +1049,7 @@ namespace gaia {
 
 				// Now that entites are sorted, we can start creating slices
 				calculate_sort_data();
+				m_state.sortVersion = ::gaia::ecs::world_version(*world());
 			}
 
 			void sort_cache_groups() {

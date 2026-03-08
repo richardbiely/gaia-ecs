@@ -3017,6 +3017,7 @@ namespace gaia {
 			}
 
 			friend uint32_t world_rel_version(const World& world, Entity relation);
+			friend uint32_t world_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
@@ -6036,6 +6037,14 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 #endif
+
+namespace gaia {
+	namespace ecs {
+		inline uint32_t world_version(const World& world) {
+			return world.m_worldVersion;
+		}
+	} // namespace ecs
+} // namespace gaia
 
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
