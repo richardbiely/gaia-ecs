@@ -36401,8 +36401,9 @@ namespace gaia {
 				const auto& handles = it->second;
 				for (const auto& handle: handles) {
 					auto& info = get(handle);
+					// World mutations invalidate cached results, but they do not change query shape.
+					// Recomputing QueryCtx metadata here only adds overhead to the invalidation path.
 					info.invalidate(select_invalidation_kind(info, changeKind));
-					info.ctx().refresh();
 				}
 			}
 
@@ -36413,8 +36414,8 @@ namespace gaia {
 
 				for (const auto handle: it->second) {
 					auto& info = get(handle);
+					// Relation changes affect dynamic freshness, not the query definition itself.
 					info.invalidate(select_invalidation_kind(info, changeKind));
-					info.ctx().refresh();
 				}
 			}
 

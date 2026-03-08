@@ -1092,6 +1092,93 @@ void BM_QueryCache_Invalidate_Churn(picobench::state& state) {
 	}
 }
 
+//! Benchmarks relation-driven query invalidation without forcing an immediate query repair.
+//! This isolates the cost of routing relation changes through QueryCache.
+void BM_QueryCache_Invalidate_Relation(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	const auto rel = w.add<LinkedTo>().entity;
+	auto rootA = w.add();
+	auto rootB = w.add();
+	auto source = w.add();
+
+	w.add<Acceleration>(rootA, {1, 2, 3});
+	w.add<Acceleration>(rootB, {4, 5, 6});
+	w.add(source, ecs::Pair(rel, rootA));
+
+	GAIA_FOR(n) {
+		auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+	}
+
+	auto q = w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	dont_optimize(q.count());
+
+	bool useA = true;
+	for (auto _: state) {
+		(void)_;
+
+		if (useA) {
+			w.del(source, ecs::Pair(rel, rootA));
+			w.add(source, ecs::Pair(rel, rootB));
+		} else {
+			w.del(source, ecs::Pair(rel, rootB));
+			w.add(source, ecs::Pair(rel, rootA));
+		}
+
+		useA = !useA;
+		dont_optimize(q.cache_policy());
+	}
+}
+
+//! Benchmarks relation-driven invalidation followed by the next read that repairs the dynamic cache.
+void BM_QueryCache_Invalidate_Relation_Read(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	const auto rel = w.add<LinkedTo>().entity;
+	auto rootA = w.add();
+	auto rootB = w.add();
+	auto source = w.add();
+
+	w.add<Acceleration>(rootA, {1, 2, 3});
+	w.add<Acceleration>(rootB, {4, 5, 6});
+	w.add(source, ecs::Pair(rel, rootA));
+
+	GAIA_FOR(n) {
+		auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+	}
+
+	auto q = w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	dont_optimize(q.count());
+
+	bool useA = true;
+	for (auto _: state) {
+		(void)_;
+
+		if (useA) {
+			w.del(source, ecs::Pair(rel, rootA));
+			w.add(source, ecs::Pair(rel, rootB));
+		} else {
+			w.del(source, ecs::Pair(rel, rootB));
+			w.add(source, ecs::Pair(rel, rootA));
+		}
+
+		useA = !useA;
+		dont_optimize(q.count());
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -2665,6 +2752,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesMedium)
 				.label("invalidate churn 100K");
+		PICOBENCH_REG(BM_QueryCache_Invalidate_Relation)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("invalidate relation 100K");
+		PICOBENCH_REG(BM_QueryCache_Invalidate_Relation_Read)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("invalidate relation+read 100K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");
