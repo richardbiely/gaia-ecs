@@ -10555,6 +10555,49 @@ TEST_CASE("Query - public cache kind construction") {
 	ecs::Query::SilenceInvalidCacheKindAssertions = false;
 }
 
+TEST_CASE("Query - cache_src_trav affects cache lookup hash only for traversed source queries") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto leaf = wld.add();
+	wld.child(leaf, root);
+	const auto pos = wld.comp_cache().get<Position>().entity;
+
+	auto build_ctx = [&](ecs::Entity src, ecs::Entity trav, uint16_t cacheSrcTrav) {
+		ecs::QueryCtx ctx;
+		ctx.init(&wld);
+		ctx.data.idsCnt = 1;
+		ctx.data._ids[0] = pos;
+		ctx.data._terms[0] = {pos,
+													src,
+													trav,
+													ecs::QueryTravKind::Up,
+													ecs::QueryTermOptions::TravDepthUnlimited,
+													nullptr,
+													ecs::QueryOpKind::All};
+		ctx.data.cacheSrcTrav = cacheSrcTrav;
+		ecs::sort(ctx);
+		ecs::normalize_cache_src_trav(ctx);
+		ecs::calc_lookup_hash(ctx);
+		ctx.refresh();
+		return ctx;
+	};
+
+	const auto ctxNoSource = build_ctx(ecs::EntityBad, ecs::EntityBad, 0);
+	const auto ctxNoSourceSrcTrav = build_ctx(ecs::EntityBad, ecs::EntityBad, ecs::MaxCacheSrcTrav);
+	const auto ctxDirectSource = build_ctx(root, ecs::EntityBad, 0);
+	const auto ctxDirectSourceSrcTrav = build_ctx(root, ecs::EntityBad, ecs::MaxCacheSrcTrav);
+	const auto ctxTraversedSource = build_ctx(leaf, ecs::ChildOf, 0);
+	const auto ctxTraversedSourceSrcTrav = build_ctx(leaf, ecs::ChildOf, ecs::MaxCacheSrcTrav);
+
+	CHECK(ctxNoSource.hashLookup.hash == ctxNoSourceSrcTrav.hashLookup.hash);
+	CHECK(ctxDirectSource.hashLookup.hash == ctxDirectSourceSrcTrav.hashLookup.hash);
+	CHECK(ctxTraversedSource.hashLookup.hash != ctxTraversedSourceSrcTrav.hashLookup.hash);
+	CHECK(ctxNoSourceSrcTrav.data.cacheSrcTrav == 0);
+	CHECK(ctxDirectSourceSrcTrav.data.cacheSrcTrav == 0);
+	CHECK(ctxTraversedSourceSrcTrav.data.cacheSrcTrav == ecs::MaxCacheSrcTrav);
+}
+
 TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
 	TestWorld twld;
 

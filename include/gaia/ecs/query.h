@@ -1135,6 +1135,7 @@ namespace gaia {
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
 						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
+						normalize_cache_src_trav(ctx);
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -1169,6 +1170,8 @@ namespace gaia {
 					}
 					if constexpr (UseCaching)
 						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
+					if constexpr (UseCaching)
+						normalize_cache_src_trav(ctx);
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();

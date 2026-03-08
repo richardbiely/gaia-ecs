@@ -661,6 +661,10 @@ namespace gaia {
 					else
 						data.cachePolicy = CachePolicy::Lazy;
 
+					// Traversed-source snapshot caching is only effective for traversed source terms.
+					if (!data.deps.has(DependencyHasSourceTerms) || !data.deps.has(DependencyHasTraversalTerms))
+						data.cacheSrcTrav = 0;
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -853,6 +857,26 @@ namespace gaia {
 			if (changedCnt > 1) {
 				core::sort(ctxData._changed.data(), ctxData._changed.data() + changedCnt, SortComponentCond{});
 			}
+		}
+
+		//! Traversed-source snapshot caching only has meaning for terms that use both a source and traversal.
+		//! All other query shapes normalize the effective cap to 0 so shared cache identity does not diverge.
+		inline void normalize_cache_src_trav(QueryCtx& ctx) {
+			auto& ctxData = ctx.data;
+			if (ctxData.cacheSrcTrav == 0)
+				return;
+
+			bool hasTraversedSourceTerm = false;
+			for (const auto& term: ctxData.terms_view()) {
+				if (term.src == EntityBad || term.entTrav == EntityBad)
+					continue;
+
+				hasTraversedSourceTerm = true;
+				break;
+			}
+
+			if (!hasTraversedSourceTerm)
+				ctxData.cacheSrcTrav = 0;
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
