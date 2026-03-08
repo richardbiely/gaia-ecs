@@ -104,6 +104,14 @@ namespace components {
 		float x{1.0f};
 		float y{1.0f};
 	};
+
+	struct GlobalStateComponent {
+		uint32_t frame{0};
+	};
+
+	struct SceneStateComponent {
+		uint32_t flags{0};
+	};
 } // namespace components
 
 constexpr float MinDelta = 0.01f;
@@ -656,6 +664,95 @@ void BM_Run(picobench::state& state) {
 	}
 }
 
+//! Prevents the compiler from optimizing away the query-mix accumulation.
+static volatile uint64_t QueryMixSink = 0;
+
+//! World state reused by the app-style query-mix benchmarks.
+struct AppQueryWorkload {
+	ecs::World world;
+	FrameBuffer frameBuffer{FrameBufferWidth, FrameBufferHeight};
+	ecs::Entity globalState = ecs::EntityBad;
+	ecs::Entity sceneRoot = ecs::EntityBad;
+	ecs::Entity sceneMid = ecs::EntityBad;
+	ecs::Entity sceneLeaf = ecs::EntityBad;
+};
+
+//! Initializes a game-like world and a small scene hierarchy for source-query benchmarks.
+void init_query_workload(AppQueryWorkload& workload, uint32_t nentities) {
+	init_entities<false>(workload.world, nentities);
+
+	workload.globalState = workload.world.add();
+	workload.world.template add<components::GlobalStateComponent>(workload.globalState, {1});
+
+	workload.sceneRoot = workload.world.add();
+	workload.sceneMid = workload.world.add();
+	workload.sceneLeaf = workload.world.add();
+	workload.world.child(workload.sceneMid, workload.sceneRoot);
+	workload.world.child(workload.sceneLeaf, workload.sceneMid);
+	workload.world.template add<components::SceneStateComponent>(workload.sceneRoot, {1});
+}
+
+//! Benchmarks repeated query reuse on the app-style world instead of isolated micro cases.
+//! Direct-source and traversed-source queries can be toggled independently so their costs can
+//! be measured separately on top of the same structural query base.
+template <bool UseCaching, bool IncludeGlobalQuery, bool IncludeSceneQuery, bool CacheSrcTrav>
+void BM_QueryMix(picobench::state& state) {
+	using PositionT = components::PositionComponent;
+	using VelocityT = components::VelocityComponent;
+
+	AppQueryWorkload workload;
+
+	state.stop_timer();
+	init_query_workload(workload, (uint32_t)state.user_data());
+
+	auto qMove = workload.world.template query<UseCaching>().template all<PositionT>().template all<VelocityT>();
+	auto qDamage = workload.world.template query<UseCaching>()
+										 .template all<components::HealthComponent>()
+										 .template all<components::DamageComponent>();
+	auto qRender =
+			workload.world.template query<UseCaching>().template all<PositionT>().template all<components::SpriteComponent>();
+	decltype(workload.world.template query<UseCaching>()) qGlobal;
+	if constexpr (IncludeGlobalQuery) {
+		qGlobal = workload.world.template query<UseCaching>()
+									.template all<PositionT>()
+									.template all<components::GlobalStateComponent>(ecs::QueryTermOptions{}.src(workload.globalState));
+	}
+
+	decltype(workload.world.template query<UseCaching>()) qScene;
+	if constexpr (IncludeSceneQuery) {
+		qScene = workload.world.template query<UseCaching>()
+								 .template all<PositionT>()
+								 .template all<components::SceneStateComponent>(ecs::QueryTermOptions{}.src(workload.sceneLeaf).trav());
+
+		if constexpr (UseCaching && CacheSrcTrav)
+			qScene.cache_src_trav(8);
+	}
+
+	// Warm query state outside the timed section so the benchmark measures steady-state reads.
+	QueryMixSink += qMove.count();
+	QueryMixSink += qDamage.count();
+	QueryMixSink += qRender.count();
+	if constexpr (IncludeGlobalQuery)
+		QueryMixSink += qGlobal.count();
+	if constexpr (IncludeSceneQuery)
+		QueryMixSink += qScene.count();
+	state.start_timer();
+
+	for (auto _: state) {
+		(void)_;
+
+		uint64_t total = 0;
+		total += qMove.count();
+		total += qDamage.count();
+		total += qRender.count();
+		if constexpr (IncludeGlobalQuery)
+			total += qGlobal.count();
+		if constexpr (IncludeSceneQuery)
+			total += qScene.count();
+		QueryMixSink += total;
+	}
+}
+
 #define PICO_SETTINGS() iterations({1024}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
@@ -715,6 +812,90 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_SUITE_REG("SoA");
 			PICOBENCH_REG(BM_Run<true>).PICO_SETTINGS().user_data(NFew).label("1K");
 			PICOBENCH_REG(BM_Run<true>).PICO_SETTINGS().user_data(NMany).label("1M");
+			PICOBENCH_SUITE_REG("QueryCore");
+			(void)r.add_benchmark("BM_QueryMix<cached_core>", BM_QueryMix<true, false, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_core>", BM_QueryMix<true, false, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached 100K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_core>", BM_QueryMix<false, false, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("uncached 10K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_core>", BM_QueryMix<false, false, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("uncached 100K");
+			PICOBENCH_SUITE_REG("AoS QueryDirect");
+			(void)r.add_benchmark("BM_QueryMix<cached_direct>", BM_QueryMix<true, true, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_direct>", BM_QueryMix<true, true, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached 100K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_direct>", BM_QueryMix<false, true, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("uncached 10K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_direct>", BM_QueryMix<false, true, false, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("uncached 100K");
+			PICOBENCH_SUITE_REG("AoS QueryTravOnly");
+			(void)r.add_benchmark("BM_QueryMix<cached_trav_only>", BM_QueryMix<true, false, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_trav_only>", BM_QueryMix<true, false, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached 100K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_trav_only>", BM_QueryMix<false, false, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("uncached 10K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_trav_only>", BM_QueryMix<false, false, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("uncached 100K");
+			(void)r.add_benchmark("BM_QueryMix<cached_src_trav_only>", BM_QueryMix<true, false, true, true>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached src_trav 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_src_trav_only>", BM_QueryMix<true, false, true, true>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached src_trav 100K");
+			PICOBENCH_SUITE_REG("AoS QueryTrav");
+			(void)r.add_benchmark("BM_QueryMix<cached_trav>", BM_QueryMix<true, true, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_trav>", BM_QueryMix<true, true, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached 100K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_trav>", BM_QueryMix<false, true, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("uncached 10K");
+			(void)r.add_benchmark("BM_QueryMix<uncached_trav>", BM_QueryMix<false, true, true, false>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("uncached 100K");
+			(void)r.add_benchmark("BM_QueryMix<cached_src_trav>", BM_QueryMix<true, true, true, true>)
+					.PICO_SETTINGS()
+					.user_data(NFew)
+					.label("cached src_trav 10K");
+			(void)r.add_benchmark("BM_QueryMix<cached_src_trav>", BM_QueryMix<true, true, true, true>)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("cached src_trav 100K");
 		}
 	}
 

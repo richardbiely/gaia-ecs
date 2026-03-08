@@ -1280,7 +1280,7 @@ Quick guide:
 |---|---|---|
 | Plain structural query | `ecs::Query` + `QueryCacheKind::Default` | Best default choice for repeated queries. |
 | Repeated direct source lookup (`src(entity)`) | `ecs::Query` + `QueryCacheKind::Default` | Direct source reuse is automatic. No extra option is needed. |
-| Traversed source lookup (`src(entity).trav(...)`) | Start with `ecs::Query` + `QueryCacheKind::Default` | Add `cache_src_trav(...)` only after profiling and only when the traversed source closure stays small and stable. |
+| Traversed source lookup (`src(entity).trav(...)`) | Start with `ecs::Query` + `QueryCacheKind::Default` | Add `cache_src_trav(...)` only after profiling.  If the traversed source closure stays small and stable, it can be a clean win. |
 | One-shot or highly specialized query | `ecs::QueryUncached` / `World::query<false>()` | Avoids shared cache overhead when reuse is unlikely. |
 | Automatic cache layers only | `QueryCacheKind::Auto` | Rejects explicit traversed-source snapshots. |
 | Immediate structural cache only | `QueryCacheKind::All` | Query creation fails unless the query can stay fully on the immediate structural cache layer. |
