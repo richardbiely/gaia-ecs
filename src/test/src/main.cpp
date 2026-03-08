@@ -10116,7 +10116,7 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached broad NOT query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
 	TestWorld twld;
 
 	auto excluded = wld.add();
@@ -10129,8 +10129,10 @@ TEST_CASE("Query - cached broad NOT query eagerly tracks matching archetypes") {
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
 
-	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
+	// Selector-less structural queries use the lazy cached path.
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
 	CHECK(q.count() == qUncached.count());
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
 }
 
 TEST_CASE("Query - cached broad NOT query ignores non-matching archetypes") {
@@ -10149,6 +10151,82 @@ TEST_CASE("Query - cached broad NOT query ignores non-matching archetypes") {
 
 	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
 	CHECK(q.count() == entityCntBefore);
+	CHECK(q.count() == qUncached.count());
+}
+
+TEST_CASE("Query - cached broad NOT wildcard pair query refreshes lazily after archetype creation") {
+	TestWorld twld;
+
+	auto relExcluded = wld.add();
+	auto relOther = wld.add();
+	auto tgt = wld.add();
+	auto q = wld.query().no(ecs::Pair(relExcluded, ecs::All));
+	auto qUncached = wld.query<false>().no(ecs::Pair(relExcluded, ecs::All));
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+
+	auto e = wld.add();
+	wld.add(e, ecs::Pair(relOther, tgt));
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
+	CHECK(q.count() == qUncached.count());
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
+}
+
+TEST_CASE("Query - cached broad NOT wildcard pair query ignores excluded archetypes") {
+	TestWorld twld;
+
+	auto relExcluded = wld.add();
+	auto tgt = wld.add();
+	auto q = wld.query().no(ecs::Pair(relExcluded, ecs::All));
+	auto qUncached = wld.query<false>().no(ecs::Pair(relExcluded, ecs::All));
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+
+	auto e = wld.add();
+	wld.add(e, ecs::Pair(relExcluded, tgt));
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
+	CHECK(q.count() == qUncached.count());
+}
+
+TEST_CASE("Query - cached multi-NOT query refreshes lazily after archetype creation") {
+	TestWorld twld;
+
+	auto excludedA = wld.add();
+	auto excludedB = wld.add();
+	auto included = wld.add();
+	auto q = wld.query().no(excludedA).no(excludedB);
+	auto qUncached = wld.query<false>().no(excludedA).no(excludedB);
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+
+	auto e = wld.add();
+	wld.add(e, included);
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
+	CHECK(q.count() == qUncached.count());
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
+}
+
+TEST_CASE("Query - cached multi-NOT query ignores archetypes with excluded ids") {
+	TestWorld twld;
+
+	auto excludedA = wld.add();
+	auto excludedB = wld.add();
+	auto q = wld.query().no(excludedA).no(excludedB);
+	auto qUncached = wld.query<false>().no(excludedA).no(excludedB);
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+
+	auto e = wld.add();
+	wld.add(e, excludedB);
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
 	CHECK(q.count() == qUncached.count());
 }
 
