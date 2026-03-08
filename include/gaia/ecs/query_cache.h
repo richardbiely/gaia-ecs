@@ -45,6 +45,11 @@ namespace gaia {
 		};
 
 		class QueryCache {
+			struct TrackedArchetypes {
+				cnt::darray<const Archetype*> archetypes;
+				uint32_t syncedRevision = 0;
+			};
+
 			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
 			// TODO: Make m_queryArr allocate data in pages.
 			//       Currently ilist always uses a darray internally which keeps growing, making
@@ -60,7 +65,7 @@ namespace gaia {
 			//! Archetype -> cached queries whose current result cache contains it
 			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
-			cnt::map<QueryHandleLookupKey, cnt::darray<const Archetype*>> m_queryToArchetype;
+			cnt::map<QueryHandleLookupKey, TrackedArchetypes> m_queryToArchetype;
 			//! Scratch candidate list reused while routing a newly created archetype to cached queries.
 			cnt::darray<QueryHandle> m_createQueryHandleScratch;
 			//! Handle-id stamp table used to deduplicate create candidates in O(1) per hit.
@@ -224,13 +229,15 @@ namespace gaia {
 				}
 			}
 
-			void sync_archetype_cache(QueryHandle handle, std::span<const Archetype*> archetypes) {
+			void sync_archetype_cache(QueryInfo& queryInfo) {
+				const auto handle = QueryInfo::handle(queryInfo);
 				if (!valid(handle))
 					return;
 
+				const auto archetypes = queryInfo.cache_archetype_view();
 				const auto key = QueryHandleLookupKey(handle);
 				auto it = m_queryToArchetype.find(key);
-				if (it != m_queryToArchetype.end() && same_archetype_views(it->second, archetypes))
+				if (it != m_queryToArchetype.end() && it->second.syncedRevision == queryInfo.reverse_index_revision())
 					return;
 
 				unregister_query_archetypes(handle);
@@ -239,7 +246,7 @@ namespace gaia {
 					return;
 
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(key);
-				auto& tracked = trackedIt->second;
+				auto& tracked = trackedIt->second.archetypes;
 				if (!inserted)
 					tracked.clear();
 
@@ -248,6 +255,7 @@ namespace gaia {
 					tracked.push_back(pArchetype);
 					add_archetype_query_pair(pArchetype, handle);
 				}
+				trackedIt->second.syncedRevision = queryInfo.reverse_index_revision();
 			}
 
 			void remove_archetype_from_queries(Archetype* pArchetype) {
@@ -266,7 +274,7 @@ namespace gaia {
 					if (trackedIt == m_queryToArchetype.end())
 						continue;
 
-					auto& tracked = trackedIt->second;
+					auto& tracked = trackedIt->second.archetypes;
 					core::swap_erase(tracked, core::get_index(tracked, pArchetype));
 					if (tracked.empty())
 						m_queryToArchetype.erase(trackedIt);
@@ -305,23 +313,11 @@ namespace gaia {
 					if (!pInfo->register_archetype(*pArchetype))
 						continue;
 
-					register_query_archetype(handle, pArchetype);
+					register_query_archetype(handle, pArchetype, pInfo->reverse_index_revision());
 				}
 			}
 
 		private:
-			static bool same_archetype_views(std::span<const Archetype*> left, std::span<const Archetype*> right) {
-				if (left.size() != right.size())
-					return false;
-
-				const auto cnt = (uint32_t)left.size();
-				GAIA_FOR(cnt) {
-					if (left[i] != right[i])
-						return false;
-				}
-				return true;
-			}
-
 			//! Adds an entity to the <entity, query> map
 			//! \param entity Entity getting added
 			//! \param handle Query handle
@@ -494,21 +490,22 @@ namespace gaia {
 				if (it == m_queryToArchetype.end())
 					return;
 
-				const auto& tracked = it->second;
+				const auto& tracked = it->second.archetypes;
 				for (const auto* pArchetype: tracked)
 					del_archetype_query_pair(pArchetype, handle);
 
 				m_queryToArchetype.erase(it);
 			}
 
-			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype) {
+			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype, uint32_t syncedRevision) {
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
-				auto& tracked = trackedIt->second;
+				auto& tracked = trackedIt->second.archetypes;
 
 				// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,
 				// so reverse-index registration can append directly instead of re-scanning tracked archetypes.
 				GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));
 				tracked.push_back(pArchetype);
+				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);
 			}
 		};

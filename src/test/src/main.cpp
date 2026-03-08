@@ -10116,6 +10116,29 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached query reverse-index revision changes only on membership changes") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position&>().all<Acceleration&>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto revBefore = info.reverse_index_revision();
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	CHECK(info.reverse_index_revision() == revBefore);
+
+	wld.add<Acceleration>(e, {4, 5, 6});
+	const auto revAfterMembershipChange = info.reverse_index_revision();
+	CHECK(revAfterMembershipChange != revBefore);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	info.invalidate_result();
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revAfterMembershipChange);
+	CHECK(info.cache_archetype_view().size() == 1);
+}
+
 TEST_CASE("Query - public cache mode and policy classification") {
 	TestWorld twld;
 

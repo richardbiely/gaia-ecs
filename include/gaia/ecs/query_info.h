@@ -100,6 +100,9 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
+				//! Bumped when the result archetype membership changes.
+				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
+				uint32_t resultCacheRevision = 1;
 				uint8_t dirtyFlags = DirtyFlags::All;
 
 				void clear_seed_cache() {
@@ -174,6 +177,15 @@ namespace gaia {
 
 			void clear_result_cache() {
 				m_state.clear_result_cache();
+			}
+
+			void mark_result_cache_membership_changed() {
+				++m_state.resultCacheRevision;
+				if (m_state.resultCacheRevision != 0)
+					return;
+
+				// Reserve 0 as the "never synced" value in QueryCache.
+				m_state.resultCacheRevision = 1;
 			}
 
 			GAIA_NODISCARD bool has_dynamic_terms() const {
@@ -337,6 +349,10 @@ namespace gaia {
 				return m_plan.ctx.data.cachePolicy;
 			}
 
+			GAIA_NODISCARD uint32_t reverse_index_revision() const {
+				return m_state.resultCacheRevision;
+			}
+
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only eagerly maintained structural queries participate in archetype-create propagation.
 				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
@@ -467,10 +483,10 @@ namespace gaia {
 				// Write found matches to cache
 				for (const auto* pArchetype: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArchetype);
+						add_archetype_to_cache(pArchetype, true);
 					} else {
 						add_archetype_to_seed_cache(pArchetype);
-						add_archetype_to_cache(pArchetype);
+						add_archetype_to_cache(pArchetype, true);
 					}
 				}
 
@@ -537,10 +553,10 @@ namespace gaia {
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArch);
+						add_archetype_to_cache(pArch, true);
 					} else {
 						add_archetype_to_seed_cache(pArch);
-						add_archetype_to_cache(pArch);
+						add_archetype_to_cache(pArch, true);
 					}
 				}
 				m_state.clear_dirty();
@@ -796,7 +812,7 @@ namespace gaia {
 				return cacheData;
 			}
 
-			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype) {
+			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_state.archetypeSet.contains(pArchetype))
@@ -805,6 +821,8 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.archetypeCacheData.push_back(create_cache_data(pArchetype));
+				if (trackMembershipChange)
+					mark_result_cache_membership_changed();
 			}
 
 			void add_archetype_to_seed_cache(const Archetype* pArchetype) {
@@ -816,7 +834,7 @@ namespace gaia {
 				m_state.seedArchetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
-			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
+			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_state.archetypeSet.contains(pArchetype))
@@ -891,23 +909,41 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
+				if (trackMembershipChange)
+					mark_result_cache_membership_changed();
 			}
 
-			void add_archetype_to_cache(const Archetype* pArchetype) {
+			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange) {
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				if (m_plan.ctx.data.groupBy != EntityBad)
-					add_archetype_to_cache_w_grouping(pArchetype);
+					add_archetype_to_cache_w_grouping(pArchetype, trackMembershipChange);
 				else
-					add_archetype_to_cache_no_grouping(pArchetype);
+					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
+			}
+
+			GAIA_NODISCARD bool has_same_result_membership_as_seed_cache() const {
+				if (m_state.archetypeSet.size() != m_state.seedArchetypeSet.size())
+					return false;
+
+				for (const auto* pArchetype: m_state.seedArchetypeCache) {
+					if (!m_state.archetypeSet.contains(pArchetype))
+						return false;
+				}
+
+				return true;
 			}
 
 			void sync_result_cache_from_seed_cache() {
+				const bool membershipChanged = !has_same_result_membership_as_seed_cache();
 				clear_result_cache();
 				const auto cnt = (uint32_t)m_state.seedArchetypeCache.size();
-				GAIA_FOR(cnt)
-				add_archetype_to_cache(m_state.seedArchetypeCache[i]);
+				GAIA_FOR(cnt) {
+					add_archetype_to_cache(m_state.seedArchetypeCache[i], false);
+				}
+				if (membershipChanged)
+					mark_result_cache_membership_changed();
 			}
 
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
@@ -949,6 +985,7 @@ namespace gaia {
 						m_state.archetypeGroupData.erase(m_state.archetypeGroupData.begin() + grpIdx);
 				}
 
+				mark_result_cache_membership_changed();
 				return true;
 			}
 

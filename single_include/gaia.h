@@ -34716,6 +34716,9 @@ namespace gaia {
 				ArchetypeId lastArchetypeId{};
 				//! Version of the world for which the query has been called most recently
 				uint32_t worldVersion{};
+				//! Bumped when the result archetype membership changes.
+				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
+				uint32_t resultCacheRevision = 1;
 				uint8_t dirtyFlags = DirtyFlags::All;
 
 				void clear_seed_cache() {
@@ -34790,6 +34793,15 @@ namespace gaia {
 
 			void clear_result_cache() {
 				m_state.clear_result_cache();
+			}
+
+			void mark_result_cache_membership_changed() {
+				++m_state.resultCacheRevision;
+				if (m_state.resultCacheRevision != 0)
+					return;
+
+				// Reserve 0 as the "never synced" value in QueryCache.
+				m_state.resultCacheRevision = 1;
 			}
 
 			GAIA_NODISCARD bool has_dynamic_terms() const {
@@ -34953,6 +34965,10 @@ namespace gaia {
 				return m_plan.ctx.data.cachePolicy;
 			}
 
+			GAIA_NODISCARD uint32_t reverse_index_revision() const {
+				return m_state.resultCacheRevision;
+			}
+
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only eagerly maintained structural queries participate in archetype-create propagation.
 				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
@@ -35083,10 +35099,10 @@ namespace gaia {
 				// Write found matches to cache
 				for (const auto* pArchetype: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArchetype);
+						add_archetype_to_cache(pArchetype, true);
 					} else {
 						add_archetype_to_seed_cache(pArchetype);
-						add_archetype_to_cache(pArchetype);
+						add_archetype_to_cache(pArchetype, true);
 					}
 				}
 
@@ -35153,10 +35169,10 @@ namespace gaia {
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArch);
+						add_archetype_to_cache(pArch, true);
 					} else {
 						add_archetype_to_seed_cache(pArch);
-						add_archetype_to_cache(pArch);
+						add_archetype_to_cache(pArch, true);
 					}
 				}
 				m_state.clear_dirty();
@@ -35412,7 +35428,7 @@ namespace gaia {
 				return cacheData;
 			}
 
-			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype) {
+			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
 				if (m_state.archetypeSet.contains(pArchetype))
@@ -35421,6 +35437,8 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.archetypeCacheData.push_back(create_cache_data(pArchetype));
+				if (trackMembershipChange)
+					mark_result_cache_membership_changed();
 			}
 
 			void add_archetype_to_seed_cache(const Archetype* pArchetype) {
@@ -35432,7 +35450,7 @@ namespace gaia {
 				m_state.seedArchetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
-			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype) {
+			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
 				if (m_state.archetypeSet.contains(pArchetype))
@@ -35507,23 +35525,41 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
+				if (trackMembershipChange)
+					mark_result_cache_membership_changed();
 			}
 
-			void add_archetype_to_cache(const Archetype* pArchetype) {
+			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange) {
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				if (m_plan.ctx.data.groupBy != EntityBad)
-					add_archetype_to_cache_w_grouping(pArchetype);
+					add_archetype_to_cache_w_grouping(pArchetype, trackMembershipChange);
 				else
-					add_archetype_to_cache_no_grouping(pArchetype);
+					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
+			}
+
+			GAIA_NODISCARD bool has_same_result_membership_as_seed_cache() const {
+				if (m_state.archetypeSet.size() != m_state.seedArchetypeSet.size())
+					return false;
+
+				for (const auto* pArchetype: m_state.seedArchetypeCache) {
+					if (!m_state.archetypeSet.contains(pArchetype))
+						return false;
+				}
+
+				return true;
 			}
 
 			void sync_result_cache_from_seed_cache() {
+				const bool membershipChanged = !has_same_result_membership_as_seed_cache();
 				clear_result_cache();
 				const auto cnt = (uint32_t)m_state.seedArchetypeCache.size();
-				GAIA_FOR(cnt)
-				add_archetype_to_cache(m_state.seedArchetypeCache[i]);
+				GAIA_FOR(cnt) {
+					add_archetype_to_cache(m_state.seedArchetypeCache[i], false);
+				}
+				if (membershipChanged)
+					mark_result_cache_membership_changed();
 			}
 
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
@@ -35565,6 +35601,7 @@ namespace gaia {
 						m_state.archetypeGroupData.erase(m_state.archetypeGroupData.begin() + grpIdx);
 				}
 
+				mark_result_cache_membership_changed();
 				return true;
 			}
 
@@ -35751,6 +35788,11 @@ namespace gaia {
 		};
 
 		class QueryCache {
+			struct TrackedArchetypes {
+				cnt::darray<const Archetype*> archetypes;
+				uint32_t syncedRevision = 0;
+			};
+
 			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
 			// TODO: Make m_queryArr allocate data in pages.
 			//       Currently ilist always uses a darray internally which keeps growing, making
@@ -35766,7 +35808,7 @@ namespace gaia {
 			//! Archetype -> cached queries whose current result cache contains it
 			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
-			cnt::map<QueryHandleLookupKey, cnt::darray<const Archetype*>> m_queryToArchetype;
+			cnt::map<QueryHandleLookupKey, TrackedArchetypes> m_queryToArchetype;
 			//! Scratch candidate list reused while routing a newly created archetype to cached queries.
 			cnt::darray<QueryHandle> m_createQueryHandleScratch;
 			//! Handle-id stamp table used to deduplicate create candidates in O(1) per hit.
@@ -35930,13 +35972,15 @@ namespace gaia {
 				}
 			}
 
-			void sync_archetype_cache(QueryHandle handle, std::span<const Archetype*> archetypes) {
+			void sync_archetype_cache(QueryInfo& queryInfo) {
+				const auto handle = QueryInfo::handle(queryInfo);
 				if (!valid(handle))
 					return;
 
+				const auto archetypes = queryInfo.cache_archetype_view();
 				const auto key = QueryHandleLookupKey(handle);
 				auto it = m_queryToArchetype.find(key);
-				if (it != m_queryToArchetype.end() && same_archetype_views(it->second, archetypes))
+				if (it != m_queryToArchetype.end() && it->second.syncedRevision == queryInfo.reverse_index_revision())
 					return;
 
 				unregister_query_archetypes(handle);
@@ -35945,7 +35989,7 @@ namespace gaia {
 					return;
 
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(key);
-				auto& tracked = trackedIt->second;
+				auto& tracked = trackedIt->second.archetypes;
 				if (!inserted)
 					tracked.clear();
 
@@ -35954,6 +35998,7 @@ namespace gaia {
 					tracked.push_back(pArchetype);
 					add_archetype_query_pair(pArchetype, handle);
 				}
+				trackedIt->second.syncedRevision = queryInfo.reverse_index_revision();
 			}
 
 			void remove_archetype_from_queries(Archetype* pArchetype) {
@@ -35972,7 +36017,7 @@ namespace gaia {
 					if (trackedIt == m_queryToArchetype.end())
 						continue;
 
-					auto& tracked = trackedIt->second;
+					auto& tracked = trackedIt->second.archetypes;
 					core::swap_erase(tracked, core::get_index(tracked, pArchetype));
 					if (tracked.empty())
 						m_queryToArchetype.erase(trackedIt);
@@ -36011,23 +36056,11 @@ namespace gaia {
 					if (!pInfo->register_archetype(*pArchetype))
 						continue;
 
-					register_query_archetype(handle, pArchetype);
+					register_query_archetype(handle, pArchetype, pInfo->reverse_index_revision());
 				}
 			}
 
 		private:
-			static bool same_archetype_views(std::span<const Archetype*> left, std::span<const Archetype*> right) {
-				if (left.size() != right.size())
-					return false;
-
-				const auto cnt = (uint32_t)left.size();
-				GAIA_FOR(cnt) {
-					if (left[i] != right[i])
-						return false;
-				}
-				return true;
-			}
-
 			//! Adds an entity to the <entity, query> map
 			//! \param entity Entity getting added
 			//! \param handle Query handle
@@ -36200,21 +36233,22 @@ namespace gaia {
 				if (it == m_queryToArchetype.end())
 					return;
 
-				const auto& tracked = it->second;
+				const auto& tracked = it->second.archetypes;
 				for (const auto* pArchetype: tracked)
 					del_archetype_query_pair(pArchetype, handle);
 
 				m_queryToArchetype.erase(it);
 			}
 
-			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype) {
+			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype, uint32_t syncedRevision) {
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
-				auto& tracked = trackedIt->second;
+				auto& tracked = trackedIt->second.archetypes;
 
 				// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,
 				// so reverse-index registration can append directly instead of re-scanning tracked archetypes.
 				GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));
 				tracked.push_back(pArchetype);
+				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);
 			}
 		};
@@ -36819,8 +36853,7 @@ namespace gaia {
 
 					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
 					if constexpr (UseCaching) {
-						m_storage.m_queryCache->sync_archetype_cache(
-								QueryInfo::handle(queryInfo), queryInfo.cache_archetype_view());
+						m_storage.m_queryCache->sync_archetype_cache(queryInfo);
 					}
 				}
 
