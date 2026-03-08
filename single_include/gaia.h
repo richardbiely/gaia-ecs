@@ -31044,7 +31044,7 @@ namespace gaia {
 
 		struct ArchetypeMatchStamp {
 			cnt::sparse_id id = 0;
-			uint32_t epoch = 0;
+			uint32_t version = 0;
 		};
 	} // namespace ecs
 
@@ -31101,8 +31101,8 @@ namespace gaia {
 				//! Optional per-archetype stamp table for O(1) dedup in hot loops.
 				//! If null, matching falls back to pMatchesSet-based dedup.
 				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
-				//! Current dedup epoch used with pMatchesStampByArchetypeId.
-				uint32_t matchesEpoch;
+				//! Current dedup version used with pMatchesStampByArchetypeId.
+				uint32_t matchesVersion;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the OR opcode
@@ -31573,7 +31573,7 @@ namespace gaia {
 					if (!stamps.has(sid))
 						return false;
 
-					return stamps[sid].epoch == ctx.matchesEpoch;
+					return stamps[sid].version == ctx.matchesVersion;
 				}
 
 				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
@@ -31586,11 +31586,11 @@ namespace gaia {
 					auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
 					if (stamps.has(sid))
-						stamps.set(sid).epoch = ctx.matchesEpoch;
+						stamps.set(sid).version = ctx.matchesVersion;
 					else {
 						ecs::ArchetypeMatchStamp stamp{};
 						stamp.id = sid;
-						stamp.epoch = ctx.matchesEpoch;
+						stamp.version = ctx.matchesVersion;
 						stamps.add(stamp);
 					}
 
@@ -34870,7 +34870,7 @@ namespace gaia {
 				CArchetypeDArray seedArchetypeCache;
 				cnt::darray<ArchetypeCacheData> seedArchetypeCacheData;
 
-				//! Used to make sure only unique archetypes are inserted into the cache
+				//! Used to make sure only unique archetypes are inserted into the cache.
 				//! TODO: Get rid of the set by changing the way the caching works.
 				cnt::set<const Archetype*> archetypeSet;
 				//! Cached array of archetypes matching the query
@@ -35402,17 +35402,17 @@ namespace gaia {
 			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
 			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
 			static inline cnt::sparse_storage<ArchetypeMatchStamp> s_tmpArchetypeMatchStamps;
-			static inline uint32_t s_tmpArchetypeMatchEpoch = 0;
+			static inline uint32_t s_tmpArchetypeMatchVersion = 0;
 
-			static uint32_t next_archetype_match_epoch() {
-				++s_tmpArchetypeMatchEpoch;
-				if (s_tmpArchetypeMatchEpoch != 0)
-					return s_tmpArchetypeMatchEpoch;
+			static uint32_t next_archetype_match_version() {
+				++s_tmpArchetypeMatchVersion;
+				if (s_tmpArchetypeMatchVersion != 0)
+					return s_tmpArchetypeMatchVersion;
 
-				// Overflow: drop stamps so epoch value can be reused safely.
+				// Overflow: drop stamps so the version value can be reused safely.
 				s_tmpArchetypeMatchStamps.clear();
-				s_tmpArchetypeMatchEpoch = 1;
-				return s_tmpArchetypeMatchEpoch;
+				s_tmpArchetypeMatchVersion = 1;
+				return s_tmpArchetypeMatchVersion;
 			}
 
 			struct CleanUpTmpArchetypeMatches {
@@ -35496,7 +35496,7 @@ namespace gaia {
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesEpoch = next_archetype_match_epoch();
+				ctx.matchesVersion = next_archetype_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
@@ -35569,7 +35569,7 @@ namespace gaia {
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesEpoch = next_archetype_match_epoch();
+				ctx.matchesVersion = next_archetype_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;

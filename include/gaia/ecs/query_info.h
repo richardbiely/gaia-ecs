@@ -4,6 +4,7 @@
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/cnt/set.h"
+#include "gaia/cnt/sparse_storage.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
@@ -97,7 +98,7 @@ namespace gaia {
 				CArchetypeDArray seedArchetypeCache;
 				cnt::darray<ArchetypeCacheData> seedArchetypeCacheData;
 
-				//! Used to make sure only unique archetypes are inserted into the cache
+				//! Used to make sure only unique archetypes are inserted into the cache.
 				//! TODO: Get rid of the set by changing the way the caching works.
 				cnt::set<const Archetype*> archetypeSet;
 				//! Cached array of archetypes matching the query
@@ -629,17 +630,17 @@ namespace gaia {
 			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
 			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
 			static inline cnt::sparse_storage<ArchetypeMatchStamp> s_tmpArchetypeMatchStamps;
-			static inline uint32_t s_tmpArchetypeMatchEpoch = 0;
+			static inline uint32_t s_tmpArchetypeMatchVersion = 0;
 
-			static uint32_t next_archetype_match_epoch() {
-				++s_tmpArchetypeMatchEpoch;
-				if (s_tmpArchetypeMatchEpoch != 0)
-					return s_tmpArchetypeMatchEpoch;
+			static uint32_t next_archetype_match_version() {
+				++s_tmpArchetypeMatchVersion;
+				if (s_tmpArchetypeMatchVersion != 0)
+					return s_tmpArchetypeMatchVersion;
 
-				// Overflow: drop stamps so epoch value can be reused safely.
+				// Overflow: drop stamps so the version value can be reused safely.
 				s_tmpArchetypeMatchStamps.clear();
-				s_tmpArchetypeMatchEpoch = 1;
-				return s_tmpArchetypeMatchEpoch;
+				s_tmpArchetypeMatchVersion = 1;
+				return s_tmpArchetypeMatchVersion;
 			}
 
 			struct CleanUpTmpArchetypeMatches {
@@ -723,7 +724,7 @@ namespace gaia {
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesEpoch = next_archetype_match_epoch();
+				ctx.matchesVersion = next_archetype_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
@@ -796,7 +797,7 @@ namespace gaia {
 				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
 				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
 				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesEpoch = next_archetype_match_epoch();
+				ctx.matchesVersion = next_archetype_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;

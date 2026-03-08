@@ -29,7 +29,7 @@ namespace gaia {
 
 		struct ArchetypeMatchStamp {
 			cnt::sparse_id id = 0;
-			uint32_t epoch = 0;
+			uint32_t version = 0;
 		};
 	} // namespace ecs
 
@@ -86,8 +86,8 @@ namespace gaia {
 				//! Optional per-archetype stamp table for O(1) dedup in hot loops.
 				//! If null, matching falls back to pMatchesSet-based dedup.
 				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
-				//! Current dedup epoch used with pMatchesStampByArchetypeId.
-				uint32_t matchesEpoch;
+				//! Current dedup version used with pMatchesStampByArchetypeId.
+				uint32_t matchesVersion;
 				//! Idx of the last matched archetype against the ALL opcode
 				QueryArchetypeCacheIndexMap* pLastMatchedArchetypeIdx_All;
 				//! Idx of the last matched archetype against the OR opcode
@@ -558,7 +558,7 @@ namespace gaia {
 					if (!stamps.has(sid))
 						return false;
 
-					return stamps[sid].epoch == ctx.matchesEpoch;
+					return stamps[sid].version == ctx.matchesVersion;
 				}
 
 				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
@@ -571,11 +571,11 @@ namespace gaia {
 					auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
 					if (stamps.has(sid))
-						stamps.set(sid).epoch = ctx.matchesEpoch;
+						stamps.set(sid).version = ctx.matchesVersion;
 					else {
 						ecs::ArchetypeMatchStamp stamp{};
 						stamp.id = sid;
-						stamp.epoch = ctx.matchesEpoch;
+						stamp.version = ctx.matchesVersion;
 						stamps.add(stamp);
 					}
 
@@ -1603,7 +1603,7 @@ namespace gaia {
 							return false;
 						if (!match_on_archetype(*pSrcArchetype))
 							return false;
-						
+
 						return true;
 					});
 				}
