@@ -1330,6 +1330,32 @@ void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
 	}
 }
 
+//! Benchmarks deleting wildcard pairs matching (*, target) across many relations.
+//! The delete loop should avoid copying the full relation set before removing pairs.
+void BM_World_Delete_Wildcard_Target(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		const auto target = w.add();
+		cnt::darray<ecs::Entity> rels;
+		rels.reserve(n);
+
+		for (uint32_t i = 0; i < n; ++i) {
+			auto rel = w.add();
+			rels.push_back(rel);
+			auto src = w.add();
+			w.add(src, ecs::Pair(rel, target));
+		}
+
+		w.del(ecs::Pair(ecs::All, target));
+		w.update();
+		dont_optimize(rels.size());
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -2931,6 +2957,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("chunk delete queue gc 10K");
+		PICOBENCH_REG(BM_World_Delete_Wildcard_Target)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1000)
+				.label("delete wildcard target 1K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");

@@ -44100,12 +44100,25 @@ namespace gaia {
 				// 	m_entityToArchetypeMap.erase(it); DON'T
 			}
 
+			//! Deletes a known archetype from the <pairEntity, archetype> map.
+			//! Used when deleting pair entities, where the owning archetype is already known.
+			void del_entity_query_pair(Pair pair, Archetype* pArchetypeToRemove) {
+				GAIA_ASSERT(pair != Pair(All, All));
+				GAIA_ASSERT(pArchetypeToRemove != nullptr);
+
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				auto& archetypes = it->second;
+				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
+				if (idx != BadIndex)
+					core::swap_erase_unsafe(archetypes, idx);
+			}
+
 			//! Deletes an archetype from the <entity, archetype> map
 			//! \param entity Entity getting deleted
-			void del_entity_archetype_pairs(Entity entity) {
-				// TODO: Optimize. Either switch to an array or add an index to the map value.
-				//       Otherwise all these lookups make deleting entities slow.
-
+			void del_entity_archetype_pairs(Entity entity, Archetype* pArchetype) {
 				GAIA_ASSERT(entity != Pair(All, All));
 
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
@@ -44114,10 +44127,17 @@ namespace gaia {
 					const auto first = get(entity.id());
 					const auto second = get(entity.gen());
 
-					// (*, tgt)
-					del_entity_query_pair(Pair(All, second), entity);
-					// (src, *)
-					del_entity_query_pair(Pair(first, All), entity);
+					if (pArchetype != nullptr) {
+						// (*, tgt)
+						del_entity_query_pair(Pair(All, second), pArchetype);
+						// (src, *)
+						del_entity_query_pair(Pair(first, All), pArchetype);
+					} else {
+						// (*, tgt)
+						del_entity_query_pair(Pair(All, second), entity);
+						// (src, *)
+						del_entity_query_pair(Pair(first, All), entity);
+					}
 				}
 			}
 
@@ -45143,9 +45163,12 @@ namespace gaia {
 					}
 				};
 
+				Archetype* pArchetype = nullptr;
+
 				if (entity.pair()) {
 					const auto it = m_recs.pairs.find(EntityLookupKey(entity));
 					if (it != m_recs.pairs.end()) {
+						pArchetype = it->second.pArchetype;
 						// Delete the container record
 						m_recs.pairs.erase(it);
 
@@ -45176,6 +45199,8 @@ namespace gaia {
 					m_relToTgt.erase(EntityLookupKey(entity));
 					m_tgtToRel.erase(EntityLookupKey(entity));
 				}
+
+				del_entity_archetype_pairs(entity, pArchetype);
 			}
 
 			//! Invalidates the entity record, effectively deleting it.
@@ -45183,7 +45208,6 @@ namespace gaia {
 			void invalidate_entity(Entity entity) {
 				del_graph_edges(entity);
 				del_reltgt_tgtrel_pairs(entity);
-				del_entity_archetype_pairs(entity);
 			}
 
 			//! Associates an entity with a chunk.
