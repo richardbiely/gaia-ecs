@@ -36743,13 +36743,22 @@ namespace gaia {
 
 		enum class QueryCacheKind : uint8_t {
 			// Use the engine's default cache behavior.
-			// Explicit opt-ins such as traversed-source snapshots are allowed.
+			// Allows all automatic cache layers:
+			// - immediate structural cache
+			// - lazy structural cache
+			// - dynamic relation/source cache
+			// Explicit traversed-source snapshot opt-ins are also allowed.
 			Default,
 			// Restrict the query to automatically derived cache layers only.
-			// Manual cache extensions such as traversed-source snapshots are rejected.
+			// Allows:
+			// - immediate structural cache
+			// - lazy structural cache
+			// - dynamic relation/source cache derived automatically by query shape
+			// Rejects explicit traversed-source snapshot opt-ins.
 			Auto,
 			// Require a fully eager structural cache.
-			// Query creation fails for lazy or dynamic cache policies.
+			// Allows only the immediate structural cache layer.
+			// Query creation fails for lazy, dynamic, or explicit traversed-source snapshot layers.
 			All
 		};
 
@@ -37395,15 +37404,39 @@ namespace gaia {
 								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
 				}
 
+				//! Returns true when the query uses the fully eager structural cache layer.
+				GAIA_NODISCARD static bool uses_immediate_structural_cache(const QueryCtx& ctx) {
+					return ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+				}
+
+				//! Returns true when the query uses the lazy structural cache layer.
+				GAIA_NODISCARD static bool uses_lazy_structural_cache(const QueryCtx& ctx) {
+					return ctx.data.cachePolicy == QueryCachePolicy::Lazy;
+				}
+
+				//! Returns true when the query uses the dynamic cache layer.
+				GAIA_NODISCARD static bool uses_dynamic_cache(const QueryCtx& ctx) {
+					return ctx.data.cachePolicy == QueryCachePolicy::Dynamic;
+				}
+
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
 					if constexpr (!UseCaching)
 						return true;
 
-					if (m_cacheKind == QueryCacheKind::Auto)
-						return !uses_manual_src_trav_cache(ctx);
-					if (m_cacheKind == QueryCacheKind::All)
-						return !uses_manual_src_trav_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+					if (m_cacheKind == QueryCacheKind::Auto) {
+						const bool usesImmediateLayer = uses_immediate_structural_cache(ctx);
+						const bool usesLazyLayer = uses_lazy_structural_cache(ctx);
+						const bool usesDynamicLayer = uses_dynamic_cache(ctx);
+						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+						return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
+					}
+
+					if (m_cacheKind == QueryCacheKind::All) {
+						const bool usesImmediateLayer = uses_immediate_structural_cache(ctx);
+						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+						return usesImmediateLayer && !usesExplicitSrcTravLayer;
+					}
 
 					return true;
 				}
