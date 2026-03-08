@@ -299,7 +299,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns thread-local scratch reused while comparing traversed source closures.
+			//! Returns thread-local scratch reused when a traversed source closure must be rebuilt for comparison.
 			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
 				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
 				return scratch;
@@ -326,7 +326,20 @@ namespace gaia {
 				return !overflowed;
 			}
 
-			GAIA_NODISCARD bool dynamic_source_entities_changed() {
+			//! Checks whether the previously snapshotted traversed source entities changed archetype membership.
+			//! This avoids rebuilding the full traversal closure while relation topology is unchanged.
+			GAIA_NODISCARD bool dynamic_traversed_source_versions_changed() const {
+				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
+				GAIA_FOR(cnt) {
+					const auto& item = m_state.sourceLookupSnapshot[i];
+					if (item.sourceVersion != world_entity_archetype_version(*world(), item.entity))
+						return true;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD bool dynamic_source_entities_changed(bool relationVersionsChanged) {
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return false;
@@ -336,6 +349,9 @@ namespace gaia {
 
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
+
+				if (!relationVersionsChanged)
+					return dynamic_traversed_source_versions_changed();
 
 				auto& scratch = source_lookup_snapshot_scratch();
 				if (!build_dynamic_source_lookup_snapshot(scratch))
@@ -359,17 +375,19 @@ namespace gaia {
 
 				if (dynamic_var_bindings_changed())
 					return true;
-				if (dynamic_relation_versions_changed())
+
+				const bool relationVersionsChanged = dynamic_relation_versions_changed();
+				if (relationVersionsChanged && !uses_source_lookup_snapshot())
 					return true;
 
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
-					return false;
+					return relationVersionsChanged;
 
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
-				return dynamic_source_entities_changed();
+				return dynamic_source_entities_changed(relationVersionsChanged);
 			}
 
 			void snapshot_dynamic_inputs() {
