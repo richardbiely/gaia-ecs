@@ -1274,16 +1274,18 @@ Cached queries share compiled query state internally, so creating the same query
 * lazy cache - for structural queries that stay cached, but rebuild on demand after relevant world changes
 * dynamic cache - for queries with dynamic inputs such as relations, variables, or source lookups
 
-Direct source lookups such as `src(entity)` are reused automatically for cached queries. Traversed source lookups such as `src(entity).trav()` are more expensive and stay opt-in via `cache_src_trav(...)`.
+Quick guide:
 
-Recommendations:
+| Query shape | Recommended setup | Notes |
+|---|---|---|
+| Plain structural query | `ecs::Query` + `QueryCacheKind::Default` | Best default choice for repeated queries. |
+| Repeated direct source lookup (`src(entity)`) | `ecs::Query` + `QueryCacheKind::Default` | Direct source reuse is automatic. No extra option is needed. |
+| Traversed source lookup (`src(entity).trav(...)`) | Start with `ecs::Query` + `QueryCacheKind::Default` | Add `cache_src_trav(...)` only after profiling and only when the traversed source closure stays small and stable. |
+| One-shot or highly specialized query | `ecs::QueryUncached` / `World::query<false>()` | Avoids shared cache overhead when reuse is unlikely. |
+| Automatic cache layers only | `QueryCacheKind::Auto` | Rejects explicit traversed-source snapshots. |
+| Immediate structural cache only | `QueryCacheKind::All` | Query creation fails unless the query can stay fully on the immediate structural cache layer. |
 
-* Use `ecs::Query` for most queries.
-* Use `ecs::QueryUncached` for one-shot or highly specialized queries that are unlikely to be reused.
-* Use `QueryCacheKind::Default` as the general-purpose choice (default behavior). 
-* Use `QueryCacheKind::Auto` when you want only engine-derived cache behavior and want explicit traversed-source snapshots rejected.
-* Use `QueryCacheKind::All` only when query creation must fail unless the query can stay on the immediate structural cache layer.
-* Use `cache_src_trav(...)` only for traversed-source queries with small, stable source closures. Large traversed closures are often better left on the default lazy path.
+Use `ecs::QueryUncached` for one-shot or highly specialized queries that are unlikely to be reused.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.

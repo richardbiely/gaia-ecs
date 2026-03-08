@@ -10561,34 +10561,21 @@ TEST_CASE("Query - cache_src_trav affects cache lookup hash only for traversed s
 	auto root = wld.add();
 	auto leaf = wld.add();
 	wld.child(leaf, root);
-	const auto pos = wld.comp_cache().get<Position>().entity;
+	auto qNoSource = wld.query().all<Position>();
+	auto qNoSourceSrcTrav = wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>();
+	auto qDirectSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(root));
+	auto qDirectSourceSrcTrav =
+			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(root));
+	auto qTraversedSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
+	auto qTraversedSourceSrcTrav =
+			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
 
-	auto build_ctx = [&](ecs::Entity src, ecs::Entity trav, uint16_t cacheSrcTrav) {
-		ecs::QueryCtx ctx;
-		ctx.init(&wld);
-		ctx.data.idsCnt = 1;
-		ctx.data._ids[0] = pos;
-		ctx.data._terms[0] = {pos,
-													src,
-													trav,
-													ecs::QueryTravKind::Up,
-													ecs::QueryTermOptions::TravDepthUnlimited,
-													nullptr,
-													ecs::QueryOpKind::All};
-		ctx.data.cacheSrcTrav = cacheSrcTrav;
-		ecs::sort(ctx);
-		ecs::normalize_cache_src_trav(ctx);
-		ecs::calc_lookup_hash(ctx);
-		ctx.refresh();
-		return ctx;
-	};
-
-	const auto ctxNoSource = build_ctx(ecs::EntityBad, ecs::EntityBad, 0);
-	const auto ctxNoSourceSrcTrav = build_ctx(ecs::EntityBad, ecs::EntityBad, ecs::MaxCacheSrcTrav);
-	const auto ctxDirectSource = build_ctx(root, ecs::EntityBad, 0);
-	const auto ctxDirectSourceSrcTrav = build_ctx(root, ecs::EntityBad, ecs::MaxCacheSrcTrav);
-	const auto ctxTraversedSource = build_ctx(leaf, ecs::ChildOf, 0);
-	const auto ctxTraversedSourceSrcTrav = build_ctx(leaf, ecs::ChildOf, ecs::MaxCacheSrcTrav);
+	const auto& ctxNoSource = qNoSource.fetch().ctx();
+	const auto& ctxNoSourceSrcTrav = qNoSourceSrcTrav.fetch().ctx();
+	const auto& ctxDirectSource = qDirectSource.fetch().ctx();
+	const auto& ctxDirectSourceSrcTrav = qDirectSourceSrcTrav.fetch().ctx();
+	const auto& ctxTraversedSource = qTraversedSource.fetch().ctx();
+	const auto& ctxTraversedSourceSrcTrav = qTraversedSourceSrcTrav.fetch().ctx();
 
 	CHECK(ctxNoSource.hashLookup.hash == ctxNoSourceSrcTrav.hashLookup.hash);
 	CHECK(ctxDirectSource.hashLookup.hash == ctxDirectSourceSrcTrav.hashLookup.hash);
