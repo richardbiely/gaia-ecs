@@ -115,10 +115,12 @@ namespace gaia {
 				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
+				//! Last seen archetype ids for tracked direct concrete source entities.
+				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
 				//! Last seen concrete source lookup closure for reusable source queries.
 				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshot;
-				//! Scratch buffer reused while comparing source lookup closures on warm reads.
-				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshotScratch;
+				//! True when the traversed source closure exceeded the configured snapshot cap.
+				bool sourceLookupSnapshotOverflowed = false;
 				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				uint8_t varBindingMask = 0;
@@ -148,6 +150,8 @@ namespace gaia {
 
 				void reset() {
 					clear_cache();
+					sourceLookupSnapshot.clear();
+					sourceLookupSnapshotOverflowed = false;
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -225,8 +229,14 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				// Source-state snapshots are opt-in. Even for the safe subset, keep the default path conservative.
-				return m_plan.ctx.data.cacheSourceState && deps.can_reuse_source_cache();
+				// Source-state caching is opt-in and only applies to the reusable concrete-source subset.
+				return m_plan.ctx.data.cacheSourceStateMaxItems != 0 && deps.can_reuse_source_cache();
+			}
+
+			GAIA_NODISCARD bool uses_source_lookup_snapshot() const {
+				const auto& deps = m_plan.ctx.data.deps;
+				return can_reuse_dynamic_cache() && deps.has(QueryCtx::DependencyHasSourceTerms) &&
+							 deps.has(QueryCtx::DependencyHasTraversalTerms);
 			}
 
 			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
@@ -257,6 +267,21 @@ namespace gaia {
 				return false;
 			}
 
+			GAIA_NODISCARD bool dynamic_direct_source_entities_changed() const {
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms) || deps.has(QueryCtx::DependencyHasTraversalTerms))
+					return false;
+
+				const auto sourceEntities = deps.source_entities_view();
+				const auto cnt = (uint32_t)sourceEntities.size();
+				GAIA_FOR(cnt) {
+					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+						return true;
+				}
+
+				return false;
+			}
+
 			template <typename Func>
 			void each_reusable_source_lookup_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
@@ -267,30 +292,56 @@ namespace gaia {
 						continue;
 
 					vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
-						func(source);
-						return false;
+						return func(source);
 					});
 				}
 			}
 
-			void build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
+				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
+				return scratch;
+			}
+
+			GAIA_NODISCARD bool build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
 				items.clear();
+				if (maxItems == 0)
+					return false;
+
+				bool overflowed = false;
 				each_reusable_source_lookup_entity([&](Entity source) {
+					if (items.size() >= maxItems) {
+						overflowed = true;
+						return true;
+					}
 					items.push_back({source, world_entity_archetype_id(*world(), source)});
+					return false;
 				});
+
+				return !overflowed;
 			}
 
 			GAIA_NODISCARD bool dynamic_source_entities_changed() {
-				if (!m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms))
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
-				build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
-				if (m_state.sourceLookupSnapshotScratch.size() != m_state.sourceLookupSnapshot.size())
+				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+					return dynamic_direct_source_entities_changed();
+
+				if (m_state.sourceLookupSnapshotOverflowed)
+					return true;
+
+				auto& scratch = source_lookup_snapshot_scratch();
+				if (!build_dynamic_source_lookup_snapshot(scratch))
+					return true;
+
+				if (scratch.size() != m_state.sourceLookupSnapshot.size())
 					return true;
 
 				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
 				GAIA_FOR(cnt) {
-					if (m_state.sourceLookupSnapshotScratch[i] != m_state.sourceLookupSnapshot[i])
+					if (scratch[i] != m_state.sourceLookupSnapshot[i])
 						return true;
 				}
 
@@ -314,9 +365,26 @@ namespace gaia {
 				GAIA_FOR(cnt)
 				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
 
-				if (m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms)) {
-					build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
-					m_state.sourceLookupSnapshot = m_state.sourceLookupSnapshotScratch;
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has(QueryCtx::DependencyHasSourceTerms)) {
+					const auto sourceEntities = deps.source_entities_view();
+					const auto sourceCnt = (uint32_t)sourceEntities.size();
+					GAIA_FOR(sourceCnt)
+					m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
+				}
+
+				if (uses_source_lookup_snapshot()) {
+					auto& scratch = source_lookup_snapshot_scratch();
+					if (build_dynamic_source_lookup_snapshot(scratch)) {
+						m_state.sourceLookupSnapshot = scratch;
+						m_state.sourceLookupSnapshotOverflowed = false;
+					} else {
+						m_state.sourceLookupSnapshot.clear();
+						m_state.sourceLookupSnapshotOverflowed = true;
+					}
+				} else {
+					m_state.sourceLookupSnapshot.clear();
+					m_state.sourceLookupSnapshotOverflowed = false;
 				}
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;

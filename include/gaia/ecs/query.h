@@ -378,6 +378,7 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				static constexpr uint16_t DefaultSourceStateSnapshotMaxItems = 32;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -452,8 +453,8 @@ namespace gaia {
 				cnt::darray<ChunkBatch> m_batches;
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
-				//! Opt-in for source-state snapshot caching on reusable dynamic source queries.
-				bool m_cacheSourceState = false;
+				//! Maximum traversed-source closure size allowed for snapshot reuse.
+				uint16_t m_cacheSourceStateMaxItems = 0;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -645,21 +646,27 @@ namespace gaia {
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				QueryImpl& cache_source_state(bool enabled = true) {
-					if (m_cacheSourceState == enabled)
+				QueryImpl& cache_source_state(uint16_t maxItems = DefaultSourceStateSnapshotMaxItems) {
+					if (m_cacheSourceStateMaxItems == maxItems)
 						return *this;
 
 					invalidate_each_bfs_cache();
-					m_cacheSourceState = enabled;
+					m_cacheSourceStateMaxItems = maxItems;
 					m_storage.invalidate();
 					return *this;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD bool caches_source_state() const {
-					return m_cacheSourceState;
+					return m_cacheSourceStateMaxItems != 0;
 				}
 
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				GAIA_NODISCARD uint16_t source_state_snapshot_limit() const {
+					return m_cacheSourceStateMaxItems;
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
 					if (m_cacheKind == cacheKind)
 						return *this;
@@ -674,12 +681,17 @@ namespace gaia {
 					return *this;
 				}
 
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD QueryCacheKind cache_kind() const {
 					return m_cacheKind;
 				}
 
 				GAIA_NODISCARD bool valid() {
-					return validate_cache_kind(fetch().ctx());
+					if constexpr (UseCaching) {
+						return validate_cache_kind(fetch().ctx());
+					} else {
+						return true;
+					}
 				}
 
 				//--------------------------------------------------------------------------------
@@ -1072,7 +1084,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
-						ctx.data.cacheSourceState = m_cacheSourceState;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -1105,9 +1117,8 @@ namespace gaia {
 							return;
 						CommandBufferRead[id](serBuffer, ctx);
 					}
-
 					if constexpr (UseCaching)
-						ctx.data.cacheSourceState = m_cacheSourceState;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();

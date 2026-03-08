@@ -29886,6 +29886,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
+				//! Maximum allowed size of a cached traversed-source lookup closure.
+				uint16_t cacheSourceStateMaxItems = 0;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -30093,6 +30095,8 @@ namespace gaia {
 					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
+				if (left.cacheSourceStateMaxItems != right.cacheSourceStateMaxItems)
+					return false;
 
 				// Components need to be the same
 				{
@@ -30263,6 +30267,7 @@ namespace gaia {
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSourceStateMaxItems);
 
 				hashLookup = hash;
 			}
@@ -34862,10 +34867,12 @@ namespace gaia {
 				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
+				//! Last seen archetype ids for tracked direct concrete source entities.
+				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
 				//! Last seen concrete source lookup closure for reusable source queries.
 				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshot;
-				//! Scratch buffer reused while comparing source lookup closures on warm reads.
-				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshotScratch;
+				//! True when the traversed source closure exceeded the configured snapshot cap.
+				bool sourceLookupSnapshotOverflowed = false;
 				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				uint8_t varBindingMask = 0;
@@ -34895,6 +34902,8 @@ namespace gaia {
 
 				void reset() {
 					clear_cache();
+					sourceLookupSnapshot.clear();
+					sourceLookupSnapshotOverflowed = false;
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -34972,8 +34981,14 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				// Safe subset only. Direct concrete source entities without traversal.
-				return deps.can_reuse_source_cache();
+				// Source-state caching is opt-in and only applies to the reusable concrete-source subset.
+				return m_plan.ctx.data.cacheSourceStateMaxItems != 0 && deps.can_reuse_source_cache();
+			}
+
+			GAIA_NODISCARD bool uses_source_lookup_snapshot() const {
+				const auto& deps = m_plan.ctx.data.deps;
+				return can_reuse_dynamic_cache() && deps.has(QueryCtx::DependencyHasSourceTerms) &&
+							 deps.has(QueryCtx::DependencyHasTraversalTerms);
 			}
 
 			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
@@ -35004,6 +35019,21 @@ namespace gaia {
 				return false;
 			}
 
+			GAIA_NODISCARD bool dynamic_direct_source_entities_changed() const {
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms) || deps.has(QueryCtx::DependencyHasTraversalTerms))
+					return false;
+
+				const auto sourceEntities = deps.source_entities_view();
+				const auto cnt = (uint32_t)sourceEntities.size();
+				GAIA_FOR(cnt) {
+					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+						return true;
+				}
+
+				return false;
+			}
+
 			template <typename Func>
 			void each_reusable_source_lookup_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
@@ -35014,30 +35044,56 @@ namespace gaia {
 						continue;
 
 					vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
-						func(source);
-						return false;
+						return func(source);
 					});
 				}
 			}
 
-			void build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
+				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
+				return scratch;
+			}
+
+			GAIA_NODISCARD bool build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
 				items.clear();
+				if (maxItems == 0)
+					return false;
+
+				bool overflowed = false;
 				each_reusable_source_lookup_entity([&](Entity source) {
+					if (items.size() >= maxItems) {
+						overflowed = true;
+						return true;
+					}
 					items.push_back({source, world_entity_archetype_id(*world(), source)});
+					return false;
 				});
+
+				return !overflowed;
 			}
 
 			GAIA_NODISCARD bool dynamic_source_entities_changed() {
-				if (!m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms))
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
-				build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
-				if (m_state.sourceLookupSnapshotScratch.size() != m_state.sourceLookupSnapshot.size())
+				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+					return dynamic_direct_source_entities_changed();
+
+				if (m_state.sourceLookupSnapshotOverflowed)
+					return true;
+
+				auto& scratch = source_lookup_snapshot_scratch();
+				if (!build_dynamic_source_lookup_snapshot(scratch))
+					return true;
+
+				if (scratch.size() != m_state.sourceLookupSnapshot.size())
 					return true;
 
 				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
 				GAIA_FOR(cnt) {
-					if (m_state.sourceLookupSnapshotScratch[i] != m_state.sourceLookupSnapshot[i])
+					if (scratch[i] != m_state.sourceLookupSnapshot[i])
 						return true;
 				}
 
@@ -35061,9 +35117,26 @@ namespace gaia {
 				GAIA_FOR(cnt)
 				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
 
-				if (m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms)) {
-					build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
-					m_state.sourceLookupSnapshot = m_state.sourceLookupSnapshotScratch;
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has(QueryCtx::DependencyHasSourceTerms)) {
+					const auto sourceEntities = deps.source_entities_view();
+					const auto sourceCnt = (uint32_t)sourceEntities.size();
+					GAIA_FOR(sourceCnt)
+					m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
+				}
+
+				if (uses_source_lookup_snapshot()) {
+					auto& scratch = source_lookup_snapshot_scratch();
+					if (build_dynamic_source_lookup_snapshot(scratch)) {
+						m_state.sourceLookupSnapshot = scratch;
+						m_state.sourceLookupSnapshotOverflowed = false;
+					} else {
+						m_state.sourceLookupSnapshot.clear();
+						m_state.sourceLookupSnapshotOverflowed = true;
+					}
+				} else {
+					m_state.sourceLookupSnapshot.clear();
+					m_state.sourceLookupSnapshotOverflowed = false;
 				}
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
@@ -36944,6 +37017,7 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				static constexpr uint16_t DefaultSourceStateSnapshotMaxItems = 32;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -37018,6 +37092,8 @@ namespace gaia {
 				cnt::darray<ChunkBatch> m_batches;
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
+				//! Maximum traversed-source closure size allowed for snapshot reuse.
+				uint16_t m_cacheSourceStateMaxItems = 0;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -37208,6 +37284,28 @@ namespace gaia {
 					return fetch().cache_policy();
 				}
 
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				QueryImpl& cache_source_state(uint16_t maxItems = DefaultSourceStateSnapshotMaxItems) {
+					if (m_cacheSourceStateMaxItems == maxItems)
+						return *this;
+
+					invalidate_each_bfs_cache();
+					m_cacheSourceStateMaxItems = maxItems;
+					m_storage.invalidate();
+					return *this;
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				GAIA_NODISCARD bool caches_source_state() const {
+					return m_cacheSourceStateMaxItems != 0;
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				GAIA_NODISCARD uint16_t source_state_snapshot_limit() const {
+					return m_cacheSourceStateMaxItems;
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
 					if (m_cacheKind == cacheKind)
 						return *this;
@@ -37222,12 +37320,17 @@ namespace gaia {
 					return *this;
 				}
 
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD QueryCacheKind cache_kind() const {
 					return m_cacheKind;
 				}
 
 				GAIA_NODISCARD bool valid() {
-					return validate_cache_kind(fetch().ctx());
+					if constexpr (UseCaching) {
+						return validate_cache_kind(fetch().ctx());
+					} else {
+						return true;
+					}
 				}
 
 				//--------------------------------------------------------------------------------
@@ -37620,6 +37723,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
+						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -37652,6 +37756,8 @@ namespace gaia {
 							return;
 						CommandBufferRead[id](serBuffer, ctx);
 					}
+					if constexpr (UseCaching)
+						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
