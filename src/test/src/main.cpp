@@ -10169,6 +10169,14 @@ TEST_CASE("Query - dependency metadata classification") {
 	CHECK(depsVar.has(ecs::QueryCtx::DependencyHasVariableTerms));
 	CHECK(!depsVar.has(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsVar.create_selectors_view().empty());
+	CHECK(depsVar.relations_view().size() == 1);
+	CHECK(core::has(depsVar.relations_view(), rel));
+
+	auto qTrav = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	const auto& depsTrav = qTrav.fetch().ctx().data.deps;
+	CHECK(depsTrav.has(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(depsTrav.relations_view().size() == 1);
+	CHECK(core::has(depsTrav.relations_view(), rel));
 
 	auto qSorted = wld.query().all<Position>().sort_by<Position>(
 			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {

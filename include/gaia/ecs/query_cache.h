@@ -71,6 +71,8 @@ namespace gaia {
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
+			//! Relation entity -> queries with relation/traversal dependencies on it.
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_relationToQuery;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
@@ -111,6 +113,7 @@ namespace gaia {
 				m_queryCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
+				m_relationToQuery.clear();
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
@@ -181,6 +184,7 @@ namespace gaia {
 
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
+				add_relation_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -207,6 +211,7 @@ namespace gaia {
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
+				del_relation_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -234,6 +239,18 @@ namespace gaia {
 
 				const auto& handles = it->second;
 				for (const auto& handle: handles) {
+					auto& info = get(handle);
+					info.invalidate(select_invalidation_kind(info, changeKind));
+					info.ctx().refresh();
+				}
+			}
+
+			void invalidate_queries_for_relation(Entity relation, ChangeKind changeKind) {
+				auto it = m_relationToQuery.find(EntityLookupKey(relation));
+				if (it == m_relationToQuery.end())
+					return;
+
+				for (const auto handle: it->second) {
 					auto& info = get(handle);
 					info.invalidate(select_invalidation_kind(info, changeKind));
 					info.ctx().refresh();
@@ -526,6 +543,40 @@ namespace gaia {
 				tracked.push_back(pArchetype);
 				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);
+			}
+
+			void add_relation_query_pair(Entity relation, QueryHandle handle) {
+				const auto key = EntityLookupKey(relation);
+				const auto it = m_relationToQuery.find(key);
+				if (it == m_relationToQuery.end()) {
+					m_relationToQuery.try_emplace(key, cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_relation_query_pair(Entity relation, QueryHandle handle) {
+				auto it = m_relationToQuery.find(EntityLookupKey(relation));
+				if (it == m_relationToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_relationToQuery.erase(it);
+			}
+
+			void add_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				for (const auto relation: ctx.data.deps.relations_view())
+					add_relation_query_pair(relation, handle);
+			}
+
+			void del_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				for (const auto relation: ctx.data.deps.relations_view())
+					del_relation_query_pair(relation, handle);
 			}
 		};
 	} // namespace ecs

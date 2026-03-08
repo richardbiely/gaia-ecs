@@ -384,13 +384,16 @@ namespace gaia {
 				struct Dependencies {
 					QueryEntityArray createSelectors;
 					QueryEntityArray exclusions;
+					QueryEntityArray relations;
 					uint8_t createSelectorCnt = 0;
 					uint8_t exclusionCnt = 0;
+					uint8_t relationCnt = 0;
 					DependencyFlags flags = DependencyNone;
 
 					void clear() {
 						createSelectorCnt = 0;
 						exclusionCnt = 0;
+						relationCnt = 0;
 						flags = DependencyNone;
 					}
 
@@ -402,8 +405,20 @@ namespace gaia {
 						return {exclusions.data(), exclusionCnt};
 					}
 
+					GAIA_NODISCARD std::span<const Entity> relations_view() const {
+						return {relations.data(), relationCnt};
+					}
+
 					void add(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
+					}
+
+					void add_relation(Entity relation) {
+						if (relation == EntityBad || core::has(relations_view(), relation))
+							return;
+
+						GAIA_ASSERT(relationCnt < MAX_ITEMS_IN_QUERY);
+						relations[relationCnt++] = relation;
 					}
 
 					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
@@ -496,8 +511,10 @@ namespace gaia {
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
+				const auto relationCnt_old = data.deps.relationCnt;
 				auto createSelectors_old = data.deps.createSelectors;
 				auto exclusions_old = data.deps.exclusions;
+				auto relations_old = data.deps.relations;
 
 				// Update masks
 				{
@@ -522,6 +539,12 @@ namespace gaia {
 						const auto id = term.id;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
+						const bool hasDynamicRelationUsage =
+								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
+						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
+							data.deps.add_relation(entity_from_id(*w, id.id()));
+						if (term.entTrav != EntityBad)
+							data.deps.add_relation(term.entTrav);
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
@@ -619,7 +642,8 @@ namespace gaia {
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
-						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions)
+						relationCnt_old != data.deps.relationCnt || createSelectors_old != data.deps.createSelectors ||
+						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 

@@ -29771,13 +29771,16 @@ namespace gaia {
 				struct Dependencies {
 					QueryEntityArray createSelectors;
 					QueryEntityArray exclusions;
+					QueryEntityArray relations;
 					uint8_t createSelectorCnt = 0;
 					uint8_t exclusionCnt = 0;
+					uint8_t relationCnt = 0;
 					DependencyFlags flags = DependencyNone;
 
 					void clear() {
 						createSelectorCnt = 0;
 						exclusionCnt = 0;
+						relationCnt = 0;
 						flags = DependencyNone;
 					}
 
@@ -29789,8 +29792,20 @@ namespace gaia {
 						return {exclusions.data(), exclusionCnt};
 					}
 
+					GAIA_NODISCARD std::span<const Entity> relations_view() const {
+						return {relations.data(), relationCnt};
+					}
+
 					void add(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
+					}
+
+					void add_relation(Entity relation) {
+						if (relation == EntityBad || core::has(relations_view(), relation))
+							return;
+
+						GAIA_ASSERT(relationCnt < MAX_ITEMS_IN_QUERY);
+						relations[relationCnt++] = relation;
 					}
 
 					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
@@ -29883,8 +29898,10 @@ namespace gaia {
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
+				const auto relationCnt_old = data.deps.relationCnt;
 				auto createSelectors_old = data.deps.createSelectors;
 				auto exclusions_old = data.deps.exclusions;
+				auto relations_old = data.deps.relations;
 
 				// Update masks
 				{
@@ -29909,6 +29926,12 @@ namespace gaia {
 						const auto id = term.id;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
+						const bool hasDynamicRelationUsage =
+								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
+						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
+							data.deps.add_relation(entity_from_id(*w, id.id()));
+						if (term.entTrav != EntityBad)
+							data.deps.add_relation(term.entTrav);
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
@@ -30006,7 +30029,8 @@ namespace gaia {
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
-						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions)
+						relationCnt_old != data.deps.relationCnt || createSelectors_old != data.deps.createSelectors ||
+						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -35884,6 +35908,8 @@ namespace gaia {
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
+			//! Relation entity -> queries with relation/traversal dependencies on it.
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_relationToQuery;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
@@ -35924,6 +35950,7 @@ namespace gaia {
 				m_queryCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
+				m_relationToQuery.clear();
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
@@ -35994,6 +36021,7 @@ namespace gaia {
 
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
+				add_relation_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -36020,6 +36048,7 @@ namespace gaia {
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
+				del_relation_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -36047,6 +36076,18 @@ namespace gaia {
 
 				const auto& handles = it->second;
 				for (const auto& handle: handles) {
+					auto& info = get(handle);
+					info.invalidate(select_invalidation_kind(info, changeKind));
+					info.ctx().refresh();
+				}
+			}
+
+			void invalidate_queries_for_relation(Entity relation, ChangeKind changeKind) {
+				auto it = m_relationToQuery.find(EntityLookupKey(relation));
+				if (it == m_relationToQuery.end())
+					return;
+
+				for (const auto handle: it->second) {
 					auto& info = get(handle);
 					info.invalidate(select_invalidation_kind(info, changeKind));
 					info.ctx().refresh();
@@ -36339,6 +36380,40 @@ namespace gaia {
 				tracked.push_back(pArchetype);
 				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);
+			}
+
+			void add_relation_query_pair(Entity relation, QueryHandle handle) {
+				const auto key = EntityLookupKey(relation);
+				const auto it = m_relationToQuery.find(key);
+				if (it == m_relationToQuery.end()) {
+					m_relationToQuery.try_emplace(key, cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_relation_query_pair(Entity relation, QueryHandle handle) {
+				auto it = m_relationToQuery.find(EntityLookupKey(relation));
+				if (it == m_relationToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_relationToQuery.erase(it);
+			}
+
+			void add_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				for (const auto relation: ctx.data.deps.relations_view())
+					add_relation_query_pair(relation, handle);
+			}
+
+			void del_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				for (const auto relation: ctx.data.deps.relations_view())
+					del_relation_query_pair(relation, handle);
 			}
 		};
 	} // namespace ecs
@@ -40550,8 +40625,11 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return false;
 
-					if (entity.pair())
-						m_world.touch_relation_version(m_world.get(entity.id()));
+					if (entity.pair()) {
+						auto relation = m_world.get(entity.id());
+						m_world.touch_relation_version(relation);
+						m_world.invalidate_queries_for_relation(relation);
+					}
 
 					try_set_flags(entity, true);
 
@@ -40599,8 +40677,11 @@ namespace gaia {
 					if (!m_pArchetype->has(entity))
 						return;
 
-					if (entity.pair())
-						m_world.touch_relation_version(m_world.get(entity.id()));
+					if (entity.pair()) {
+						auto relation = m_world.get(entity.id());
+						m_world.touch_relation_version(relation);
+						m_world.invalidate_queries_for_relation(relation);
+					}
 
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
@@ -44984,6 +45065,10 @@ namespace gaia {
 
 			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
+			}
+
+			void invalidate_queries_for_relation(Entity relation) {
+				m_queryCache.invalidate_queries_for_relation(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
 			void invalidate_queries_for_entity(Pair is_pair) {

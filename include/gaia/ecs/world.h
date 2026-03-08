@@ -1177,8 +1177,11 @@ namespace gaia {
 					if (m_pArchetype->has(entity))
 						return false;
 
-					if (entity.pair())
-						m_world.touch_relation_version(m_world.get(entity.id()));
+					if (entity.pair()) {
+						auto relation = m_world.get(entity.id());
+						m_world.touch_relation_version(relation);
+						m_world.invalidate_queries_for_relation(relation);
+					}
 
 					try_set_flags(entity, true);
 
@@ -1226,8 +1229,11 @@ namespace gaia {
 					if (!m_pArchetype->has(entity))
 						return;
 
-					if (entity.pair())
-						m_world.touch_relation_version(m_world.get(entity.id()));
+					if (entity.pair()) {
+						auto relation = m_world.get(entity.id());
+						m_world.touch_relation_version(relation);
+						m_world.invalidate_queries_for_relation(relation);
+					}
 
 					try_set_flags(entity, false);
 					handle_DependsOn(entity, false);
@@ -5611,6 +5617,10 @@ namespace gaia {
 
 			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
+			}
+
+			void invalidate_queries_for_relation(Entity relation) {
+				m_queryCache.invalidate_queries_for_relation(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
 			void invalidate_queries_for_entity(Pair is_pair) {
