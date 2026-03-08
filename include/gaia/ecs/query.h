@@ -32,6 +32,8 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
+		inline static constexpr uint16_t MaxCacheSrcState = 32;
+
 		enum class QueryExecType : uint32_t {
 			// Main thread
 			Serial,
@@ -381,7 +383,6 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
-				static constexpr uint16_t DefaultSourceStateSnapshotMaxItems = 32;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -457,7 +458,7 @@ namespace gaia {
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
 				//! Maximum traversed-source closure size allowed for snapshot reuse.
-				uint16_t m_cacheSourceStateMaxItems = 0;
+				uint16_t m_cacheSrcStateMaxItems = 0;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -649,24 +650,24 @@ namespace gaia {
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				QueryImpl& cache_source_state(uint16_t maxItems = DefaultSourceStateSnapshotMaxItems) {
-					if (m_cacheSourceStateMaxItems == maxItems)
+				QueryImpl& cache_src_state(uint16_t maxItems) {
+					if (m_cacheSrcStateMaxItems == maxItems)
 						return *this;
 
+					if (maxItems > MaxCacheSrcState) {
+						GAIA_ASSERT(false && "cache_src_state should be a value smaller than MaxCacheSrcState");
+						maxItems = MaxCacheSrcState;
+					}
+
 					invalidate_each_bfs_cache();
-					m_cacheSourceStateMaxItems = maxItems;
+					m_cacheSrcStateMaxItems = maxItems;
 					m_storage.invalidate();
 					return *this;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				GAIA_NODISCARD bool caches_source_state() const {
-					return m_cacheSourceStateMaxItems != 0;
-				}
-
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				GAIA_NODISCARD uint16_t source_state_snapshot_limit() const {
-					return m_cacheSourceStateMaxItems;
+				GAIA_NODISCARD uint16_t cache_src_state() const {
+					return m_cacheSrcStateMaxItems;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
@@ -700,8 +701,8 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 			private:
 				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
-				GAIA_NODISCARD bool uses_manual_source_state_cache(const QueryCtx& ctx) const {
-					return m_cacheSourceStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
+				GAIA_NODISCARD bool uses_manual_src_state_cache(const QueryCtx& ctx) const {
+					return m_cacheSrcStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
 								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
 				}
 
@@ -711,9 +712,9 @@ namespace gaia {
 						return true;
 
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return !uses_manual_source_state_cache(ctx);
+						return !uses_manual_src_state_cache(ctx);
 					if (m_cacheKind == QueryCacheKind::All)
-						return !uses_manual_source_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return !uses_manual_src_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}
@@ -1097,7 +1098,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
-						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -1131,7 +1132,7 @@ namespace gaia {
 						CommandBufferRead[id](serBuffer, ctx);
 					}
 					if constexpr (UseCaching)
-						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
@@ -2072,7 +2073,7 @@ namespace gaia {
 						return expr_to_entity((const World&)*m_storage.world(), args, expr);
 					};
 
-					auto parse_source_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
+					auto parse_src_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
 						auto srcExpr = util::trim(srcExprRaw);
 						if (srcExpr.empty())
 							return false;
@@ -2117,7 +2118,7 @@ namespace gaia {
 										return false;
 
 									Entity src = EntityBad;
-									if (!parse_source_expr(srcExpr, src))
+									if (!parse_src_expr(srcExpr, src))
 										return false;
 
 									options.src(src);
@@ -2767,7 +2768,7 @@ namespace gaia {
 
 					auto& bfsData = ensure_each_bfs_data();
 					auto& world = *m_storage.world();
-					const uint32_t relationVersion = world.relation_version(relation);
+					const uint32_t relationVersion = world.rel_version(relation);
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 

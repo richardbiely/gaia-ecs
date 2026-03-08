@@ -18751,8 +18751,8 @@ namespace gaia {
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <type_traits>
 #include <limits>
+#include <type_traits>
 
 
 /*** Start of inlined file: ser_buffer_binary.h ***/
@@ -19649,7 +19649,7 @@ namespace gaia {
 			const char* m_it = nullptr;
 			const char* m_end = nullptr;
 
-			static void append_escaped(json_str& out, const char* str, uint32_t len) {
+			static void add_escaped(json_str& out, const char* str, uint32_t len) {
 				GAIA_FOR(len) {
 					const char ch = str[i];
 					switch (ch) {
@@ -19794,7 +19794,7 @@ namespace gaia {
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, MaxImplicitKeyLength) : len;
 				m_out.append("\"");
-				append_escaped(m_out, name, l);
+				add_escaped(m_out, name, l);
 				m_out.append("\":");
 			}
 
@@ -19843,7 +19843,7 @@ namespace gaia {
 				before_value();
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(str, MaxImplicitStringLength) : len;
 				m_out.append("\"");
-				append_escaped(m_out, str, l);
+				add_escaped(m_out, str, l);
 				m_out.append("\"");
 			}
 
@@ -29409,7 +29409,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
-		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -29807,7 +29807,7 @@ namespace gaia {
 						return {relations.data(), relationCnt};
 					}
 
-					GAIA_NODISCARD std::span<const Entity> source_entities_view() const {
+					GAIA_NODISCARD std::span<const Entity> src_entities_view() const {
 						return {sourceEntities.data(), sourceEntityCnt};
 					}
 
@@ -29815,7 +29815,7 @@ namespace gaia {
 						flags = (DependencyFlags)(flags | dependency);
 					}
 
-					void add_relation(Entity relation) {
+					void add_rel(Entity relation) {
 						if (relation == EntityBad || core::has(relations_view(), relation))
 							return;
 
@@ -29823,15 +29823,15 @@ namespace gaia {
 						relations[relationCnt++] = relation;
 					}
 
-					void add_source_entity(Entity entity) {
-						if (entity == EntityBad || core::has(source_entities_view(), entity))
+					void add_src_entity(Entity entity) {
+						if (entity == EntityBad || core::has(src_entities_view(), entity))
 							return;
 
 						GAIA_ASSERT(sourceEntityCnt < MAX_ITEMS_IN_QUERY);
 						sourceEntities[sourceEntityCnt++] = entity;
 					}
 
-					GAIA_NODISCARD bool can_reuse_source_cache() const {
+					GAIA_NODISCARD bool can_reuse_src_cache() const {
 						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
 
@@ -29961,9 +29961,9 @@ namespace gaia {
 						const bool hasDynamicRelationUsage =
 								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
 						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
-							data.deps.add_relation(entity_from_id(*w, id.id()));
+							data.deps.add_rel(entity_from_id(*w, id.id()));
 						if (term.entTrav != EntityBad) {
-							data.deps.add_relation(term.entTrav);
+							data.deps.add_rel(term.entTrav);
 							data.deps.add(DependencyHasTraversalTerms);
 						}
 						if (term.src != EntityBad) {
@@ -29971,7 +29971,7 @@ namespace gaia {
 							data.deps.add(DependencyHasSourceTerms);
 							++data.deps.sourceTermCnt;
 							if (!is_variable(term.src))
-								data.deps.add_source_entity(term.src);
+								data.deps.add_src_entity(term.src);
 						}
 
 						if (term_has_variables(term)) {
@@ -31322,7 +31322,7 @@ namespace gaia {
 					uint8_t varMaskAny = 0;
 					cnt::sarray_ext<VarProgramStep, 8> varPrograms;
 
-					GAIA_NODISCARD bool has_source_terms() const {
+					GAIA_NODISCARD bool has_src_terms() const {
 						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
 					}
 
@@ -31376,7 +31376,7 @@ namespace gaia {
 					return VarProgramOpcodeMetaTable[(uint32_t)opcode - (uint32_t)VarProgramOpcodeFirst];
 				}
 
-				GAIA_NODISCARD inline uint8_t source_term_cost(const QueryCompileCtx::SourceTermOp& termOp) {
+				GAIA_NODISCARD inline uint8_t src_term_cost(const QueryCompileCtx::SourceTermOp& termOp) {
 					const bool depth1 = termOp.term.travDepth == 1;
 					switch (termOp.opcode) {
 						case EOpcode::Src_Never:
@@ -31406,7 +31406,7 @@ namespace gaia {
 				GAIA_NODISCARD inline uint8_t bound_term_cost(const QueryCompileCtx::VarTermOp& termOp) {
 					uint8_t cost = bound_match_id_cost(termOp.term.id);
 					if (termOp.term.src != EntityBad)
-						cost = (uint8_t)(cost + source_term_cost({termOp.sourceOpcode, termOp.term}));
+						cost = (uint8_t)(cost + src_term_cost({termOp.sourceOpcode, termOp.term}));
 					return cost;
 				}
 
@@ -31446,17 +31446,17 @@ namespace gaia {
 				}
 
 				template <typename SourceTermsArray>
-				inline void sort_source_terms_by_cost(SourceTermsArray& terms) {
+				inline void sort_src_terms_by_cost(SourceTermsArray& terms) {
 					const auto cnt = (uint32_t)terms.size();
 					if (cnt < 2)
 						return;
 
 					for (uint32_t i = 1; i < cnt; ++i) {
 						auto key = terms[i];
-						const auto keyCost = source_term_cost(key);
+						const auto keyCost = src_term_cost(key);
 
 						uint32_t j = i;
-						while (j > 0 && source_term_cost(terms[j - 1]) > keyCost) {
+						while (j > 0 && src_term_cost(terms[j - 1]) > keyCost) {
 							terms[j] = terms[j - 1];
 							--j;
 						}
@@ -31880,7 +31880,7 @@ namespace gaia {
 					return match_res_as<OpOr>(w, archetype, EntitySpan{ids, 1});
 				}
 
-				GAIA_NODISCARD inline EOpcode source_opcode_from_term(const QueryTerm& term) {
+				GAIA_NODISCARD inline EOpcode src_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
 					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad;
 					const bool includeDown = query_trav_has(term.travKind, QueryTravKind::Down) && term.entTrav != EntityBad;
@@ -31924,7 +31924,7 @@ namespace gaia {
 					}
 				};
 
-				GAIA_NODISCARD inline bool next_lookup_source_cursor(
+				GAIA_NODISCARD inline bool next_lookup_src_cursor(
 						const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor,
 						Entity& outSource);
 
@@ -31933,7 +31933,7 @@ namespace gaia {
 				each_lookup_source(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					SourceLookupCursor cursor{};
 					Entity source = EntityBad;
-					while (next_lookup_source_cursor(w, opcode, term, sourceEntity, cursor, source)) {
+					while (next_lookup_src_cursor(w, opcode, term, sourceEntity, cursor, source)) {
 						if (func(source))
 							return true;
 					}
@@ -31944,10 +31944,10 @@ namespace gaia {
 				template <typename Func>
 				GAIA_NODISCARD inline bool
 				each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
-					return each_lookup_source(w, source_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
+					return each_lookup_source(w, src_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
 				}
 
-				GAIA_NODISCARD inline bool next_lookup_source_cursor_up(
+				GAIA_NODISCARD inline bool next_lookup_src_cursor_up(
 						const World& w, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor, Entity& outSource,
 						bool includeSelf) {
 					if (!valid(w, sourceEntity))
@@ -31982,7 +31982,7 @@ namespace gaia {
 					return false;
 				}
 
-				GAIA_NODISCARD inline bool next_lookup_source_cursor_down(
+				GAIA_NODISCARD inline bool next_lookup_src_cursor_down(
 						const World& w, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor, Entity& outSource,
 						bool includeSelf) {
 					if (!valid(w, sourceEntity))
@@ -32049,7 +32049,7 @@ namespace gaia {
 					}
 				}
 
-				GAIA_NODISCARD inline bool next_lookup_source_cursor(
+				GAIA_NODISCARD inline bool next_lookup_src_cursor(
 						const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor,
 						Entity& outSource) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
@@ -32063,25 +32063,25 @@ namespace gaia {
 							outSource = sourceEntity;
 							return true;
 						case EOpcode::Src_Up:
-							return next_lookup_source_cursor_up(w, term, sourceEntity, cursor, outSource, includeSelf);
+							return next_lookup_src_cursor_up(w, term, sourceEntity, cursor, outSource, includeSelf);
 						case EOpcode::Src_Down:
-							return next_lookup_source_cursor_down(w, term, sourceEntity, cursor, outSource, includeSelf);
+							return next_lookup_src_cursor_down(w, term, sourceEntity, cursor, outSource, includeSelf);
 						case EOpcode::Src_UpDown:
 							if (cursor.phase == 0) {
-								if (next_lookup_source_cursor_up(w, term, sourceEntity, cursor, outSource, includeSelf))
+								if (next_lookup_src_cursor_up(w, term, sourceEntity, cursor, outSource, includeSelf))
 									return true;
 								cursor.reset_runtime_state();
 								cursor.phase = 1;
 							}
-							return next_lookup_source_cursor_down(w, term, sourceEntity, cursor, outSource, false);
+							return next_lookup_src_cursor_down(w, term, sourceEntity, cursor, outSource, false);
 						default:
 							GAIA_ASSERT(false);
 							return false;
 					}
 				}
 
-				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term, EOpcode opcode) {
-					auto match_source_entity = [&](Entity source) {
+				GAIA_NODISCARD inline bool match_src_term(const World& w, const QueryTerm& term, EOpcode opcode) {
+					auto match_src_entity = [&](Entity source) {
 						if (!valid(w, source))
 							return false;
 
@@ -32092,11 +32092,11 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					return each_lookup_source(w, opcode, term, term.src, match_source_entity);
+					return each_lookup_source(w, opcode, term, term.src, match_src_entity);
 				}
 
-				GAIA_NODISCARD inline bool match_source_term(const World& w, const QueryTerm& term) {
-					return match_source_term(w, term, source_opcode_from_term(term));
+				GAIA_NODISCARD inline bool match_src_term(const World& w, const QueryTerm& term) {
+					return match_src_term(w, term, src_opcode_from_term(term));
 				}
 
 				struct VarBindings {
@@ -32281,7 +32281,7 @@ namespace gaia {
 						}
 
 						Entity nextSource = EntityBad;
-						if (!next_lookup_source_cursor(w, termOp.sourceOpcode, term, sourceEntity, cursor.sourceCursor, nextSource))
+						if (!next_lookup_src_cursor(w, termOp.sourceOpcode, term, sourceEntity, cursor.sourceCursor, nextSource))
 							return false;
 
 						cursor.source = nextSource;
@@ -32404,7 +32404,7 @@ namespace gaia {
 					return false;
 				}
 
-				GAIA_NODISCARD inline bool next_self_source_var_match_cursor(
+				GAIA_NODISCARD inline bool next_self_src_var_match_cursor(
 						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
 						VarTermMatchCursor& cursor, VarBindings& outVars) {
 					GAIA_ASSERT(ctx.pWorld != nullptr);
@@ -32458,7 +32458,7 @@ namespace gaia {
 					return false;
 				}
 
-				GAIA_NODISCARD inline bool next_source_var_match_cursor_inverse(
+				GAIA_NODISCARD inline bool next_src_var_match_cursor_inverse(
 						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
 						VarTermMatchCursor& cursor, VarBindings& outVars, EOpcode inverseOpcode) {
 					GAIA_ASSERT(ctx.pWorld != nullptr);
@@ -32490,7 +32490,7 @@ namespace gaia {
 									}
 
 									Entity candidate = EntityBad;
-									if (next_lookup_source_cursor(
+									if (next_lookup_src_cursor(
 													*ctx.pWorld, inverseOpcode, termOp.term, cursor.source, cursor.sourceCursor, candidate)) {
 										auto vars = varsIn;
 										if (!bind_var(vars, termOp.term.src, candidate))
@@ -32524,28 +32524,28 @@ namespace gaia {
 					return false;
 				}
 
-				GAIA_NODISCARD inline bool next_up_source_var_match_cursor(
+				GAIA_NODISCARD inline bool next_up_src_var_match_cursor(
 						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
 						VarTermMatchCursor& cursor, VarBindings& outVars) {
 					GAIA_ASSERT(ctx.pWorld != nullptr);
 					GAIA_ASSERT(is_var_entity(termOp.term.src));
 					GAIA_ASSERT(!var_is_bound(varsIn, termOp.term.src));
 					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_Up);
-					return next_source_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_Down);
+					return next_src_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_Down);
 				}
 
-				GAIA_NODISCARD inline bool next_down_source_var_match_cursor(
+				GAIA_NODISCARD inline bool next_down_src_var_match_cursor(
 						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
 						VarTermMatchCursor& cursor, VarBindings& outVars) {
 					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_Down);
-					return next_source_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_Up);
+					return next_src_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_Up);
 				}
 
-				GAIA_NODISCARD inline bool next_updown_source_var_match_cursor(
+				GAIA_NODISCARD inline bool next_updown_src_var_match_cursor(
 						const MatchingCtx& ctx, const QueryCompileCtx::VarTermOp& termOp, const VarBindings& varsIn,
 						VarTermMatchCursor& cursor, VarBindings& outVars) {
 					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_UpDown);
-					return next_source_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_UpDown);
+					return next_src_var_match_cursor_inverse(ctx, termOp, varsIn, cursor, outVars, EOpcode::Src_UpDown);
 				}
 
 				GAIA_NODISCARD inline bool next_term_match_cursor(
@@ -32555,16 +32555,16 @@ namespace gaia {
 					const bool hasUnboundVar =
 							term.src != EntityBad && is_var_entity(term.src) && !var_is_bound(varsIn, term.src);
 					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_Self) {
-						return next_self_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
+						return next_self_src_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
 					}
 					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_Up) {
-						return next_up_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
+						return next_up_src_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
 					}
 					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_Down) {
-						return next_down_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
+						return next_down_src_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
 					}
 					if (hasUnboundVar && termOp.sourceOpcode == EOpcode::Src_UpDown) {
-						return next_updown_source_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
+						return next_updown_src_var_match_cursor(ctx, termOp, varsIn, cursor, outVars);
 					}
 
 					return next_term_match_cursor(*ctx.pWorld, archetype, termOp, varsIn, cursor, outVars);
@@ -32991,7 +32991,7 @@ namespace gaia {
 
 				template <typename SourceTermsArray>
 				GAIA_NODISCARD inline const QueryCompileCtx::SourceTermOp&
-				get_source_term_op(const QueryCompileCtx& comp, const MatchingCtx& ctx, const SourceTermsArray& terms) {
+				get_src_term_op(const QueryCompileCtx& comp, const MatchingCtx& ctx, const SourceTermsArray& terms) {
 					const auto& stackItem = comp.ops[ctx.pc];
 					GAIA_ASSERT(stackItem.arg < terms.size());
 					return terms[stackItem.arg];
@@ -33063,22 +33063,22 @@ namespace gaia {
 								 opcode == detail::EOpcode::Src_OrTerm;
 				}
 
-				static void append_uint(util::str& out, uint32_t value) {
+				static void add_uint(util::str& out, uint32_t value) {
 					char buffer[32];
 					const auto len = GAIA_STRFMT(buffer, sizeof(buffer), "%u", value);
 					GAIA_ASSERT(len >= 0);
 					out.append(buffer, (uint32_t)len);
 				}
 
-				static void append_cstr(util::str& out, const char* value) {
+				static void add_cstr(util::str& out, const char* value) {
 					GAIA_ASSERT(value != nullptr);
 					out.append(value, (uint32_t)GAIA_STRLEN(value, 64));
 				}
 
-				static void append_id_expr(util::str& out, const World& world, EntityId id) {
+				static void add_id_expr(util::str& out, const World& world, EntityId id) {
 					if (is_variable(id)) {
 						out.append('$');
-						append_uint(out, (uint32_t)(id - Var0.id()));
+						add_uint(out, (uint32_t)(id - Var0.id()));
 						return;
 					}
 
@@ -33089,14 +33089,14 @@ namespace gaia {
 
 					const auto entity = entity_from_id(world, id);
 					if (entity != EntityBad)
-						append_entity_expr(out, world, entity);
+						add_entity_expr(out, world, entity);
 					else {
 						out.append('#');
-						append_uint(out, (uint32_t)id);
+						add_uint(out, (uint32_t)id);
 					}
 				}
 
-				static void append_entity_expr(util::str& out, const World& world, Entity entity) {
+				static void add_entity_expr(util::str& out, const World& world, Entity entity) {
 					if (entity == EntityBad) {
 						out.append("EntityBad");
 						return;
@@ -33104,16 +33104,16 @@ namespace gaia {
 
 					if (entity.pair()) {
 						out.append('(');
-						append_id_expr(out, world, (EntityId)entity.id());
+						add_id_expr(out, world, (EntityId)entity.id());
 						out.append(',');
-						append_id_expr(out, world, (EntityId)entity.gen());
+						add_id_expr(out, world, (EntityId)entity.gen());
 						out.append(')');
 						return;
 					}
 
 					if (is_variable(EntityId(entity.id()))) {
 						out.append('$');
-						append_uint(out, (uint32_t)(entity.id() - Var0.id()));
+						add_uint(out, (uint32_t)(entity.id() - Var0.id()));
 						return;
 					}
 
@@ -33128,94 +33128,94 @@ namespace gaia {
 						return;
 					}
 
-					append_uint(out, entity.id());
+					add_uint(out, entity.id());
 					out.append('.');
-					append_uint(out, entity.gen());
+					add_uint(out, entity.gen());
 				}
 
-				static void append_term_expr(util::str& out, const World& world, const QueryTerm& term) {
-					append_entity_expr(out, world, term.id);
+				static void add_term_expr(util::str& out, const World& world, const QueryTerm& term) {
+					add_entity_expr(out, world, term.id);
 					out.append('(');
 					if (term.src == EntityBad)
 						out.append("$this");
 					else
-						append_entity_expr(out, world, term.src);
+						add_entity_expr(out, world, term.src);
 					out.append(')');
 
 					if (term.entTrav != EntityBad) {
 						out.append(" trav=");
-						append_entity_expr(out, world, term.entTrav);
+						add_entity_expr(out, world, term.entTrav);
 						out.append(" depth=");
 						if (term.travDepth == QueryTermOptions::TravDepthUnlimited)
 							out.append('*');
 						else
-							append_uint(out, (uint32_t)term.travDepth);
+							add_uint(out, (uint32_t)term.travDepth);
 					}
 				}
 
 				static void
-				append_ids_section(util::str& out, const char* title, std::span<const Entity> ids, const World& world) {
+				add_ids_section(util::str& out, const char* title, std::span<const Entity> ids, const World& world) {
 					if (ids.empty())
 						return;
 
-					append_cstr(out, title);
+					add_cstr(out, title);
 					out.append(": ");
-					append_uint(out, (uint32_t)ids.size());
+					add_uint(out, (uint32_t)ids.size());
 					out.append('\n');
 
 					const auto cnt = (uint32_t)ids.size();
 					GAIA_FOR(cnt) {
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] ");
-						append_entity_expr(out, world, ids[i]);
+						add_entity_expr(out, world, ids[i]);
 						out.append('\n');
 					}
 				}
 
-				static void append_source_terms_section(
+				static void add_src_terms_section(
 						util::str& out, const char* title,
 						const cnt::sarray_ext<detail::QueryCompileCtx::SourceTermOp, MAX_ITEMS_IN_QUERY>& terms,
 						const World& world) {
 					if (terms.empty())
 						return;
 
-					append_cstr(out, title);
+					add_cstr(out, title);
 					out.append(": ");
-					append_uint(out, (uint32_t)terms.size());
+					add_uint(out, (uint32_t)terms.size());
 					out.append('\n');
 
 					const auto cnt = (uint32_t)terms.size();
 					GAIA_FOR(cnt) {
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] ");
-						append_cstr(out, opcode_name(terms[i].opcode));
+						add_cstr(out, opcode_name(terms[i].opcode));
 						out.append(" id=");
-						append_term_expr(out, world, terms[i].term);
+						add_term_expr(out, world, terms[i].term);
 						out.append('\n');
 					}
 				}
 
-				static void append_var_terms_section(
+				static void add_var_terms_section(
 						util::str& out, const char* title,
 						const cnt::sarray_ext<detail::QueryCompileCtx::VarTermOp, MAX_ITEMS_IN_QUERY>& terms, const World& world) {
 					if (terms.empty())
 						return;
 
-					append_cstr(out, title);
+					add_cstr(out, title);
 					out.append(": ");
-					append_uint(out, (uint32_t)terms.size());
+					add_uint(out, (uint32_t)terms.size());
 					out.append('\n');
 
 					const auto cnt = (uint32_t)terms.size();
 					GAIA_FOR(cnt) {
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] ");
-						append_cstr(out, opcode_name(terms[i].sourceOpcode));
+						add_cstr(out, opcode_name(terms[i].sourceOpcode));
 						out.append(" id=");
-						append_term_expr(out, world, terms[i].term);
+						add_term_expr(out, world, terms[i].term);
 						out.append('\n');
 					}
 				}
@@ -33238,66 +33238,65 @@ namespace gaia {
 					}
 				}
 
-				static void append_var_program_ops_section(
+				static void add_var_program_ops_section(
 						util::str& out, const char* title, std::span<const detail::CompiledOp> ops,
 						const detail::QueryCompileCtx& comp, const World& world) {
 					if (ops.empty())
 						return;
 
-					append_cstr(out, title);
+					add_cstr(out, title);
 					out.append(": ");
-					append_uint(out, (uint32_t)ops.size());
+					add_uint(out, (uint32_t)ops.size());
 					out.append('\n');
 
 					const auto cnt = (uint32_t)ops.size();
 					GAIA_FOR(cnt) {
 						const auto& op = ops[i];
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] ");
-						append_cstr(out, opcode_name(op.opcode));
+						add_cstr(out, opcode_name(op.opcode));
 						if (detail::var_program_opcode_meta(op.opcode).termSet != detail::EVarProgramTermSet::None) {
 							out.append(" term=");
-							append_uint(out, (uint32_t)op.arg);
+							add_uint(out, (uint32_t)op.arg);
 							out.append(" cost=");
-							append_uint(out, (uint32_t)op.cost);
+							add_uint(out, (uint32_t)op.cost);
 							out.append(" id=");
-							append_term_expr(out, world, var_program_op_term(comp, op));
+							add_term_expr(out, world, var_program_op_term(comp, op));
 						}
 						out.append(" ok=");
-						append_uint(out, (uint32_t)op.pc_ok);
+						add_uint(out, (uint32_t)op.pc_ok);
 						out.append(" fail=");
-						append_uint(out, (uint32_t)op.pc_fail);
+						add_uint(out, (uint32_t)op.pc_fail);
 						out.append('\n');
 					}
 				}
 
-				static void append_var_program_exec_section(util::str& out, const detail::QueryCompileCtx& comp) {
+				static void add_var_program_exec_section(util::str& out, const detail::QueryCompileCtx& comp) {
 					if (comp.varPrograms.empty())
 						return;
 
 					out.append("var_exec: ");
-					append_uint(out, (uint32_t)comp.varPrograms.size());
+					add_uint(out, (uint32_t)comp.varPrograms.size());
 					out.append('\n');
 
 					const auto cnt = (uint32_t)comp.varPrograms.size();
 					GAIA_FOR(cnt) {
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] search");
 						out.append('\n');
 					}
 				}
 
-				static void
-				append_var_program_sections(util::str& out, const detail::QueryCompileCtx& comp, const World& world) {
+				static void add_var_program_sections(util::str& out, const detail::QueryCompileCtx& comp, const World& world) {
 					const auto cnt = (uint32_t)comp.varPrograms.size();
 					GAIA_FOR(cnt) {
 						const auto& step = comp.varPrograms[i];
 						char title[32];
 						[[maybe_unused]] const auto len = GAIA_STRFMT(title, sizeof(title), "varp%u", i);
 						GAIA_ASSERT(len > 0);
-						append_var_program_ops_section(out, title, detail::program_ops(comp, step.program), comp, world);
+						add_var_program_ops_section(out, title, detail::program_ops(comp, step.program), comp, world);
 					}
 				}
 
@@ -34041,7 +34040,7 @@ namespace gaia {
 				}
 
 				template <typename SourceTermsArray>
-				void emit_source_gate_terms(const SourceTermsArray& terms, detail::EOpcode opcode) {
+				void emit_src_gate_terms(const SourceTermsArray& terms, detail::EOpcode opcode) {
 					const auto cnt = (uint32_t)terms.size();
 					GAIA_FOR(cnt) {
 						detail::CompiledOp op{};
@@ -34051,7 +34050,7 @@ namespace gaia {
 					}
 				}
 
-				void emit_source_or_terms(bool hasOrFallback) {
+				void emit_src_or_terms(bool hasOrFallback) {
 					cnt::sarray_ext<detail::VmLabel, MAX_ITEMS_IN_QUERY> orSrcOpLabels;
 
 					const auto srcOrCnt = (uint32_t)m_compCtx.terms_or_src.size();
@@ -34183,20 +34182,20 @@ namespace gaia {
 
 				GAIA_NODISCARD bool op_src_all_term(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_src_all);
-					const auto& termOp = detail::get_source_term_op(m_compCtx, ctx, m_compCtx.terms_all_src);
-					return detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+					const auto& termOp = detail::get_src_term_op(m_compCtx, ctx, m_compCtx.terms_all_src);
+					return detail::match_src_term(*ctx.pWorld, termOp.term, termOp.opcode);
 				}
 
 				GAIA_NODISCARD bool op_src_not_term(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_src_not);
-					const auto& termOp = detail::get_source_term_op(m_compCtx, ctx, m_compCtx.terms_not_src);
-					return !detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+					const auto& termOp = detail::get_src_term_op(m_compCtx, ctx, m_compCtx.terms_not_src);
+					return !detail::match_src_term(*ctx.pWorld, termOp.term, termOp.opcode);
 				}
 
 				GAIA_NODISCARD bool op_src_or_term(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_src_or);
-					const auto& termOp = detail::get_source_term_op(m_compCtx, ctx, m_compCtx.terms_or_src);
-					const bool matched = detail::match_source_term(*ctx.pWorld, termOp.term, termOp.opcode);
+					const auto& termOp = detail::get_src_term_op(m_compCtx, ctx, m_compCtx.terms_or_src);
+					const bool matched = detail::match_src_term(*ctx.pWorld, termOp.term, termOp.opcode);
 					if (!matched)
 						return false;
 
@@ -34241,44 +34240,44 @@ namespace gaia {
 					out.reserve(2048);
 
 					out.append("main_ops: ");
-					append_uint(out, (uint32_t)m_compCtx.mainOpsCount);
+					add_uint(out, (uint32_t)m_compCtx.mainOpsCount);
 					out.append('\n');
 
 					const auto opsCnt = (uint32_t)m_compCtx.mainOpsCount;
 					GAIA_FOR(opsCnt) {
 						const auto& op = m_compCtx.ops[i];
 						out.append("  [");
-						append_uint(out, i);
+						add_uint(out, i);
 						out.append("] ");
-						append_cstr(out, opcode_name(op.opcode));
+						add_cstr(out, opcode_name(op.opcode));
 						if (opcode_has_arg(op.opcode)) {
 							out.append(" arg=");
-							append_uint(out, op.arg);
+							add_uint(out, op.arg);
 						}
 						out.append(" ok=");
-						append_uint(out, op.pc_ok);
+						add_uint(out, op.pc_ok);
 						out.append(" fail=");
-						append_uint(out, op.pc_fail);
+						add_uint(out, op.pc_fail);
 						out.append('\n');
 					}
 
-					append_ids_section(
+					add_ids_section(
 							out, "ids_all", std::span<const Entity>{m_compCtx.ids_all.data(), m_compCtx.ids_all.size()}, world);
-					append_ids_section(
+					add_ids_section(
 							out, "ids_or", std::span<const Entity>{m_compCtx.ids_or.data(), m_compCtx.ids_or.size()}, world);
-					append_ids_section(
+					add_ids_section(
 							out, "ids_not", std::span<const Entity>{m_compCtx.ids_not.data(), m_compCtx.ids_not.size()}, world);
 
-					append_source_terms_section(out, "src_all", m_compCtx.terms_all_src, world);
-					append_source_terms_section(out, "src_or", m_compCtx.terms_or_src, world);
-					append_source_terms_section(out, "src_not", m_compCtx.terms_not_src, world);
+					add_src_terms_section(out, "src_all", m_compCtx.terms_all_src, world);
+					add_src_terms_section(out, "src_or", m_compCtx.terms_or_src, world);
+					add_src_terms_section(out, "src_not", m_compCtx.terms_not_src, world);
 
-					append_var_terms_section(out, "var_all", m_compCtx.terms_all_var, world);
-					append_var_terms_section(out, "var_or", m_compCtx.terms_or_var, world);
-					append_var_terms_section(out, "var_not", m_compCtx.terms_not_var, world);
-					append_var_terms_section(out, "var_any", m_compCtx.terms_any_var, world);
-					append_var_program_exec_section(out, m_compCtx);
-					append_var_program_sections(out, m_compCtx, world);
+					add_var_terms_section(out, "var_all", m_compCtx.terms_all_var, world);
+					add_var_terms_section(out, "var_or", m_compCtx.terms_or_var, world);
+					add_var_terms_section(out, "var_not", m_compCtx.terms_not_var, world);
+					add_var_terms_section(out, "var_any", m_compCtx.terms_any_var, world);
+					add_var_program_exec_section(out, m_compCtx);
+					add_var_program_sections(out, m_compCtx, world);
 
 					return out;
 				}
@@ -34328,7 +34327,7 @@ namespace gaia {
 							auto& p = terms_all[i];
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
-								m_compCtx.terms_all_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.terms_all_var.push_back({detail::src_opcode_from_term(p), p, varMask});
 								m_compCtx.varMaskAll |= varMask;
 								continue;
 							}
@@ -34337,7 +34336,7 @@ namespace gaia {
 								m_compCtx.ids_all.push_back(p.id);
 								continue;
 							}
-							m_compCtx.terms_all_src.push_back({detail::source_opcode_from_term(p), p});
+							m_compCtx.terms_all_src.push_back({detail::src_opcode_from_term(p), p});
 						}
 					}
 
@@ -34350,7 +34349,7 @@ namespace gaia {
 							auto& p = terms_or[i];
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
-								m_compCtx.terms_or_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.terms_or_var.push_back({detail::src_opcode_from_term(p), p, varMask});
 								m_compCtx.varMaskOr |= varMask;
 								continue;
 							}
@@ -34358,7 +34357,7 @@ namespace gaia {
 							if (p.src == EntityBad)
 								m_compCtx.ids_or.push_back(p.id);
 							else
-								m_compCtx.terms_or_src.push_back({detail::source_opcode_from_term(p), p});
+								m_compCtx.terms_or_src.push_back({detail::src_opcode_from_term(p), p});
 						}
 					}
 
@@ -34371,7 +34370,7 @@ namespace gaia {
 							auto& p = terms_not[i];
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
-								m_compCtx.terms_not_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+								m_compCtx.terms_not_var.push_back({detail::src_opcode_from_term(p), p, varMask});
 								m_compCtx.varMaskNot |= varMask;
 								continue;
 							}
@@ -34379,7 +34378,7 @@ namespace gaia {
 							if (p.src == EntityBad)
 								m_compCtx.ids_not.push_back(p.id);
 							else
-								m_compCtx.terms_not_src.push_back({detail::source_opcode_from_term(p), p});
+								m_compCtx.terms_not_src.push_back({detail::src_opcode_from_term(p), p});
 						}
 					}
 
@@ -34393,14 +34392,14 @@ namespace gaia {
 							if (!term_has_variables(p))
 								continue;
 							const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
-							m_compCtx.terms_any_var.push_back({detail::source_opcode_from_term(p), p, varMask});
+							m_compCtx.terms_any_var.push_back({detail::src_opcode_from_term(p), p, varMask});
 							m_compCtx.varMaskAny |= varMask;
 						}
 					}
 
-					detail::sort_source_terms_by_cost(m_compCtx.terms_all_src);
-					detail::sort_source_terms_by_cost(m_compCtx.terms_or_src);
-					detail::sort_source_terms_by_cost(m_compCtx.terms_not_src);
+					detail::sort_src_terms_by_cost(m_compCtx.terms_all_src);
+					detail::sort_src_terms_by_cost(m_compCtx.terms_or_src);
+					detail::sort_src_terms_by_cost(m_compCtx.terms_not_src);
 
 					constexpr uint32_t VarSearchProgramOpCapacity = MAX_ITEMS_IN_QUERY * 3u + 8u;
 					cnt::sarray_ext<detail::CompiledOp, VarSearchProgramOpCapacity> varSearchProgramOps;
@@ -34657,20 +34656,20 @@ namespace gaia {
 
 					// Source ALL terms: all must match, each is a dedicated gate opcode.
 					if (!m_compCtx.terms_all_src.empty())
-						emit_source_gate_terms(m_compCtx.terms_all_src, detail::EOpcode::Src_AllTerm);
+						emit_src_gate_terms(m_compCtx.terms_all_src, detail::EOpcode::Src_AllTerm);
 
 					// Source NOT terms: none can match, each is a dedicated gate opcode.
 					if (!m_compCtx.terms_not_src.empty())
-						emit_source_gate_terms(m_compCtx.terms_not_src, detail::EOpcode::Src_NotTerm);
+						emit_src_gate_terms(m_compCtx.terms_not_src, detail::EOpcode::Src_NotTerm);
 
 					// Source OR terms: emit a fallback chain that backtracks across alternatives.
 					if (!m_compCtx.terms_or_src.empty()) {
 						const bool hasOrFallback = !m_compCtx.ids_or.empty() || !m_compCtx.terms_or_var.empty();
-						emit_source_or_terms(hasOrFallback);
+						emit_src_or_terms(hasOrFallback);
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
-					if (!m_compCtx.has_id_terms() && (m_compCtx.has_source_terms() || m_compCtx.has_variable_terms())) {
+					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms())) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Seed_All;
 						(void)add_op(GAIA_MOV(op));
@@ -34972,19 +34971,19 @@ namespace gaia {
 				m_state.resultCacheRevision = 1;
 			}
 
-			GAIA_NODISCARD bool has_dynamic_terms() const {
+			GAIA_NODISCARD bool has_dyn_terms() const {
 				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
 			}
 
-			GAIA_NODISCARD bool can_reuse_dynamic_cache() const {
-				if (!has_dynamic_terms())
+			GAIA_NODISCARD bool can_reuse_dyn_cache() const {
+				if (!has_dyn_terms())
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				if (!deps.can_reuse_source_cache())
+				if (!deps.can_reuse_src_cache())
 					return false;
 
 				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
@@ -34995,30 +34994,30 @@ namespace gaia {
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
-			GAIA_NODISCARD bool uses_direct_source_versions() const {
+			GAIA_NODISCARD bool uses_direct_src_versions() const {
 				const auto& deps = m_plan.ctx.data.deps;
 				return !deps.has(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dynamic_cache();
+							 can_reuse_dyn_cache();
 			}
 
-			GAIA_NODISCARD bool uses_source_lookup_snapshot() const {
+			GAIA_NODISCARD bool uses_src_lookup_snapshot() const {
 				const auto& deps = m_plan.ctx.data.deps;
 				return deps.has(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dynamic_cache();
+							 can_reuse_dyn_cache();
 			}
 
-			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
+			GAIA_NODISCARD bool dyn_rel_versions_changed() const {
 				const auto relations = m_plan.ctx.data.deps.relations_view();
 				const auto cnt = (uint32_t)relations.size();
 				GAIA_FOR(cnt) {
-					if (m_state.relationVersions[i] != world_relation_version(*world(), relations[i]))
+					if (m_state.relationVersions[i] != world_rel_version(*world(), relations[i]))
 						return true;
 				}
 
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_var_bindings_changed() const {
+			GAIA_NODISCARD bool dyn_var_bindings_changed() const {
 				const auto& ctxData = m_plan.ctx.data;
 				if (m_state.varBindingMask != ctxData.varBindingMask)
 					return true;
@@ -35035,12 +35034,12 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_direct_source_entities_changed() const {
-				if (!uses_direct_source_versions())
+			GAIA_NODISCARD bool dyn_direct_src_entities_changed() const {
+				if (!uses_direct_src_versions())
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				const auto sourceEntities = deps.source_entities_view();
+				const auto sourceEntities = deps.src_entities_view();
 				const auto cnt = (uint32_t)sourceEntities.size();
 				GAIA_FOR(cnt) {
 					if (m_state.sourceEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
@@ -35051,7 +35050,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void each_reusable_source_lookup_entity(Func&& func) const {
+			void each_reusable_src_lookup_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
 				const auto cnt = (uint32_t)terms.size();
 				GAIA_FOR(cnt) {
@@ -35066,21 +35065,21 @@ namespace gaia {
 			}
 
 			//! Returns thread-local scratch reused when a traversed source closure must be rebuilt for comparison.
-			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
+			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& src_lookup_snapshot_scratch() {
 				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
 				return scratch;
 			}
 
 			//! Builds the traversed source lookup closure snapshot.
 			//! Returns false if the configured snapshot cap was exceeded.
-			GAIA_NODISCARD bool build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+			GAIA_NODISCARD bool build_dyn_src_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
 				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
 				items.clear();
 				if (maxItems == 0)
 					return false;
 
 				bool overflowed = false;
-				each_reusable_source_lookup_entity([&](Entity source) {
+				each_reusable_src_lookup_entity([&](Entity source) {
 					if (items.size() >= maxItems) {
 						overflowed = true;
 						return true;
@@ -35094,7 +35093,7 @@ namespace gaia {
 
 			//! Checks whether the previously snapshotted traversed source entities changed archetype membership.
 			//! This avoids rebuilding the full traversal closure while relation topology is unchanged.
-			GAIA_NODISCARD bool dynamic_traversed_source_versions_changed() const {
+			GAIA_NODISCARD bool dyn_traversed_src_versions_changed() const {
 				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
 				GAIA_FOR(cnt) {
 					const auto& item = m_state.sourceLookupSnapshot[i];
@@ -35105,22 +35104,22 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_source_entities_changed(bool relationVersionsChanged) {
+			GAIA_NODISCARD bool dyn_src_entities_changed(bool relationVersionsChanged) {
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
 				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
-					return dynamic_direct_source_entities_changed();
+					return dyn_direct_src_entities_changed();
 
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
 				if (!relationVersionsChanged)
-					return dynamic_traversed_source_versions_changed();
+					return dyn_traversed_src_versions_changed();
 
-				auto& scratch = source_lookup_snapshot_scratch();
-				if (!build_dynamic_source_lookup_snapshot(scratch))
+				auto& scratch = src_lookup_snapshot_scratch();
+				if (!build_dyn_src_lookup_snapshot(scratch))
 					return true;
 
 				if (scratch.size() != m_state.sourceLookupSnapshot.size())
@@ -35135,15 +35134,15 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_inputs_changed() {
-				if (!can_reuse_dynamic_cache())
+			GAIA_NODISCARD bool dyn_inputs_changed() {
+				if (!can_reuse_dyn_cache())
 					return false;
 
-				if (dynamic_var_bindings_changed())
+				if (dyn_var_bindings_changed())
 					return true;
 
-				const bool relationVersionsChanged = dynamic_relation_versions_changed();
-				if (relationVersionsChanged && !uses_source_lookup_snapshot())
+				const bool relationVersionsChanged = dyn_rel_versions_changed();
+				if (relationVersionsChanged && !uses_src_lookup_snapshot())
 					return true;
 
 				const auto& deps = m_plan.ctx.data.deps;
@@ -35153,29 +35152,29 @@ namespace gaia {
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
-				return dynamic_source_entities_changed(relationVersionsChanged);
+				return dyn_src_entities_changed(relationVersionsChanged);
 			}
 
-			void snapshot_dynamic_inputs() {
-				if (!can_reuse_dynamic_cache())
+			void snapshot_dyn_inputs() {
+				if (!can_reuse_dyn_cache())
 					return;
 
 				const auto relations = m_plan.ctx.data.deps.relations_view();
 				const auto cnt = (uint32_t)relations.size();
 				GAIA_FOR(cnt)
-				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
+				m_state.relationVersions[i] = world_rel_version(*world(), relations[i]);
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (uses_direct_source_versions()) {
-					const auto sourceEntities = deps.source_entities_view();
+				if (uses_direct_src_versions()) {
+					const auto sourceEntities = deps.src_entities_view();
 					const auto sourceCnt = (uint32_t)sourceEntities.size();
 					GAIA_FOR(sourceCnt)
 					m_state.sourceEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
 				}
 
-				if (uses_source_lookup_snapshot()) {
-					auto& scratch = source_lookup_snapshot_scratch();
-					if (build_dynamic_source_lookup_snapshot(scratch)) {
+				if (uses_src_lookup_snapshot()) {
+					auto& scratch = src_lookup_snapshot_scratch();
+					if (build_dyn_src_lookup_snapshot(scratch)) {
 						m_state.sourceLookupSnapshot = scratch;
 						m_state.sourceLookupSnapshotOverflowed = false;
 					} else {
@@ -35427,8 +35426,8 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				const bool hasDynamicTerms = has_dynamic_terms();
-				if (hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) {
+				const bool hasDynamicTerms = has_dyn_terms();
+				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
 					// are tracked with finer-grained version metadata.
@@ -35494,7 +35493,7 @@ namespace gaia {
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
-				snapshot_dynamic_inputs();
+				snapshot_dyn_inputs();
 				m_state.clear_dirty();
 			}
 
@@ -35516,8 +35515,8 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				const bool hasDynamicTerms = has_dynamic_terms();
-				if ((hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) ||
+				const bool hasDynamicTerms = has_dyn_terms();
+				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
@@ -35562,7 +35561,7 @@ namespace gaia {
 						add_archetype_to_cache(pArch, true);
 					}
 				}
-				snapshot_dynamic_inputs();
+				snapshot_dyn_inputs();
 				m_state.clear_dirty();
 			}
 
@@ -36315,7 +36314,7 @@ namespace gaia {
 
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
-				add_relation_to_query_pairs(info.ctx(), handle);
+				add_rel_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -36342,7 +36341,7 @@ namespace gaia {
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
-				del_relation_to_query_pairs(pInfo->ctx(), handle);
+				del_rel_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -36376,7 +36375,7 @@ namespace gaia {
 				}
 			}
 
-			void invalidate_queries_for_relation(Entity relation, ChangeKind changeKind) {
+			void invalidate_queries_for_rel(Entity relation, ChangeKind changeKind) {
 				auto it = m_relationToQuery.find(EntityLookupKey(relation));
 				if (it == m_relationToQuery.end())
 					return;
@@ -36446,7 +36445,7 @@ namespace gaia {
 				auto& handles = prepare_create_query_handles();
 				bool hasAnyPair = false;
 				for (const auto entity: pArchetype->ids_view()) {
-					append_create_query_handles(EntityLookupKey(entity), handles);
+					add_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
 						continue;
 
@@ -36457,12 +36456,12 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					append_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
-					append_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
 				}
 
 				if (hasAnyPair)
-					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 
 				for (const auto handle: handles) {
 					auto* pInfo = try_get(handle);
@@ -36589,7 +36588,7 @@ namespace gaia {
 					del_create_to_query_pair(entity, handle);
 			}
 
-			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
+			void add_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
 				const auto it = m_entityToCreateQuery.find(entityKey);
 				if (it == m_entityToCreateQuery.end())
 					return;
@@ -36676,7 +36675,7 @@ namespace gaia {
 				add_archetype_query_pair(pArchetype, handle);
 			}
 
-			void add_relation_query_pair(Entity relation, QueryHandle handle) {
+			void add_rel_query_pair(Entity relation, QueryHandle handle) {
 				const auto key = EntityLookupKey(relation);
 				const auto it = m_relationToQuery.find(key);
 				if (it == m_relationToQuery.end()) {
@@ -36689,7 +36688,7 @@ namespace gaia {
 					handles.push_back(handle);
 			}
 
-			void del_relation_query_pair(Entity relation, QueryHandle handle) {
+			void del_rel_query_pair(Entity relation, QueryHandle handle) {
 				auto it = m_relationToQuery.find(EntityLookupKey(relation));
 				if (it == m_relationToQuery.end())
 					return;
@@ -36700,14 +36699,14 @@ namespace gaia {
 					m_relationToQuery.erase(it);
 			}
 
-			void add_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+			void add_rel_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				for (const auto relation: ctx.data.deps.relations_view())
-					add_relation_query_pair(relation, handle);
+					add_rel_query_pair(relation, handle);
 			}
 
-			void del_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+			void del_rel_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				for (const auto relation: ctx.data.deps.relations_view())
-					del_relation_query_pair(relation, handle);
+					del_rel_query_pair(relation, handle);
 			}
 		};
 	} // namespace ecs
@@ -36718,6 +36717,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+
+		inline static constexpr uint16_t MaxCacheSrcState = 32;
 
 		enum class QueryExecType : uint32_t {
 			// Main thread
@@ -37068,7 +37069,6 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
-				static constexpr uint16_t DefaultSourceStateSnapshotMaxItems = 32;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -37144,7 +37144,7 @@ namespace gaia {
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
 				//! Maximum traversed-source closure size allowed for snapshot reuse.
-				uint16_t m_cacheSourceStateMaxItems = 0;
+				uint16_t m_cacheSrcStateMaxItems = 0;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -37336,24 +37336,24 @@ namespace gaia {
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				QueryImpl& cache_source_state(uint16_t maxItems = DefaultSourceStateSnapshotMaxItems) {
-					if (m_cacheSourceStateMaxItems == maxItems)
+				QueryImpl& cache_src_state(uint16_t maxItems) {
+					if (m_cacheSrcStateMaxItems == maxItems)
 						return *this;
 
+					if (maxItems > MaxCacheSrcState) {
+						GAIA_ASSERT(false && "cache_src_state should be a value smaller than MaxCacheSrcState");
+						maxItems = MaxCacheSrcState;
+					}
+
 					invalidate_each_bfs_cache();
-					m_cacheSourceStateMaxItems = maxItems;
+					m_cacheSrcStateMaxItems = maxItems;
 					m_storage.invalidate();
 					return *this;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				GAIA_NODISCARD bool caches_source_state() const {
-					return m_cacheSourceStateMaxItems != 0;
-				}
-
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
-				GAIA_NODISCARD uint16_t source_state_snapshot_limit() const {
-					return m_cacheSourceStateMaxItems;
+				GAIA_NODISCARD uint16_t cache_src_state() const {
+					return m_cacheSrcStateMaxItems;
 				}
 
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
@@ -37387,8 +37387,8 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 			private:
 				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
-				GAIA_NODISCARD bool uses_manual_source_state_cache(const QueryCtx& ctx) const {
-					return m_cacheSourceStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
+				GAIA_NODISCARD bool uses_manual_src_state_cache(const QueryCtx& ctx) const {
+					return m_cacheSrcStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
 								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
 				}
 
@@ -37398,9 +37398,9 @@ namespace gaia {
 						return true;
 
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return !uses_manual_source_state_cache(ctx);
+						return !uses_manual_src_state_cache(ctx);
 					if (m_cacheKind == QueryCacheKind::All)
-						return !uses_manual_source_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return !uses_manual_src_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}
@@ -37784,7 +37784,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
-						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -37818,7 +37818,7 @@ namespace gaia {
 						CommandBufferRead[id](serBuffer, ctx);
 					}
 					if constexpr (UseCaching)
-						ctx.data.cacheSourceStateMaxItems = m_cacheSourceStateMaxItems;
+						ctx.data.cacheSourceStateMaxItems = m_cacheSrcStateMaxItems;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
@@ -38759,7 +38759,7 @@ namespace gaia {
 						return expr_to_entity((const World&)*m_storage.world(), args, expr);
 					};
 
-					auto parse_source_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
+					auto parse_src_expr = [&](std::span<const char> srcExprRaw, Entity& srcOut) -> bool {
 						auto srcExpr = util::trim(srcExprRaw);
 						if (srcExpr.empty())
 							return false;
@@ -38804,7 +38804,7 @@ namespace gaia {
 										return false;
 
 									Entity src = EntityBad;
-									if (!parse_source_expr(srcExpr, src))
+									if (!parse_src_expr(srcExpr, src))
 										return false;
 
 									options.src(src);
@@ -39454,7 +39454,7 @@ namespace gaia {
 
 					auto& bfsData = ensure_each_bfs_data();
 					auto& world = *m_storage.world();
-					const uint32_t relationVersion = world.relation_version(relation);
+					const uint32_t relationVersion = world.rel_version(relation);
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
@@ -40218,9 +40218,9 @@ namespace gaia {
 			//!   herbivore -> {rabbit, hare}
 			PairMap m_entityToAsRelations;
 			//! Map of relation -> targets
-			PairMap m_relationsToTargets;
+			PairMap m_relToTgt;
 			//! Map of target -> relations
-			PairMap m_targetsToRelations;
+			PairMap m_tgtToRel;
 			//! Relation-local structural version used for dependency ordering caches.
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
@@ -40970,8 +40970,8 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_relation_version(relation);
-						m_world.invalidate_queries_for_relation(relation);
+						m_world.touch_rel_version(relation);
+						m_world.invalidate_queries_for_rel(relation);
 					}
 
 					try_set_flags(entity, true);
@@ -41022,8 +41022,8 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_relation_version(relation);
-						m_world.invalidate_queries_for_relation(relation);
+						m_world.touch_rel_version(relation);
+						m_world.invalidate_queries_for_rel(relation);
 					}
 
 					try_set_flags(entity, false);
@@ -42185,8 +42185,8 @@ namespace gaia {
 			//! \param target Target entity
 			//! \warning It is expected @a target is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
-				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
-				if (it == m_targetsToRelations.end())
+				const auto it = m_tgtToRel.find(EntityLookupKey(target));
+				if (it == m_tgtToRel.end())
 					return nullptr;
 
 				return &it->second;
@@ -42332,8 +42332,8 @@ namespace gaia {
 			//! \param relation Relation entity
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
-				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
-				if (it == m_relationsToTargets.end())
+				const auto it = m_relToTgt.find(EntityLookupKey(relation));
+				if (it == m_relToTgt.end())
 					return nullptr;
 
 				return &it->second;
@@ -42799,16 +42799,16 @@ namespace gaia {
 
 			//! Returns structural version for a given relation.
 			//! Increments whenever any Pair(relation, *) is added or removed on any entity.
-			GAIA_NODISCARD uint32_t relation_version(Entity relation) const {
+			GAIA_NODISCARD uint32_t rel_version(Entity relation) const {
 				const auto it = m_relationVersions.find(EntityLookupKey(relation));
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
-			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+			friend GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 			friend GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
-			void update_source_entity_version(Entity entity) {
+			void update_src_entity_version(Entity entity) {
 				const auto key = EntityLookupKey(entity);
 				const auto it = m_sourceEntityVersions.find(key);
 				if (it == m_sourceEntityVersions.end())
@@ -42818,7 +42818,7 @@ namespace gaia {
 			}
 
 			//! Removes sparse source-version state for an entity that is being destroyed.
-			void remove_source_entity_version(Entity entity) {
+			void remove_src_entity_version(Entity entity) {
 				m_sourceEntityVersions.erase(EntityLookupKey(entity));
 			}
 
@@ -42942,8 +42942,8 @@ namespace gaia {
 
 					m_entityToAsRelations = {};
 					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
+					m_tgtToRel = {};
+					m_relToTgt = {};
 					m_relationVersions = {};
 					m_sourceEntityVersions = {};
 
@@ -44201,7 +44201,7 @@ namespace gaia {
 					// which has already been destructed which is not nice.
 					del_name(ec, entity);
 					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
-					remove_source_entity_version(entity);
+					remove_src_entity_version(entity);
 				}
 
 				// Invalidate on-demand.
@@ -44859,7 +44859,7 @@ namespace gaia {
 				remove_edges_from_pairs(entity);
 			}
 
-			void touch_relation_version(Entity relation) {
+			void touch_rel_version(Entity relation) {
 				const EntityLookupKey key(relation);
 				auto it = m_relationVersions.find(key);
 				if (it == m_relationVersions.end())
@@ -44890,10 +44890,10 @@ namespace gaia {
 						auto rel = get(entity.id());
 						auto tgt = get(entity.gen());
 
-						delPair(m_relationsToTargets, rel, tgt);
-						delPair(m_relationsToTargets, All, tgt);
-						delPair(m_targetsToRelations, tgt, rel);
-						delPair(m_targetsToRelations, All, rel);
+						delPair(m_relToTgt, rel, tgt);
+						delPair(m_relToTgt, All, tgt);
+						delPair(m_tgtToRel, tgt, rel);
+						delPair(m_tgtToRel, All, rel);
 					}
 				} else {
 					// Update the container record
@@ -44908,10 +44908,10 @@ namespace gaia {
 					EntityBuilder::set_flag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
-					delPair(m_relationsToTargets, All, entity);
-					delPair(m_targetsToRelations, All, entity);
-					m_relationsToTargets.erase(EntityLookupKey(entity));
-					m_targetsToRelations.erase(EntityLookupKey(entity));
+					delPair(m_relToTgt, All, entity);
+					delPair(m_tgtToRel, All, entity);
+					m_relToTgt.erase(EntityLookupKey(entity));
+					m_tgtToRel.erase(EntityLookupKey(entity));
 				}
 			}
 
@@ -44987,7 +44987,7 @@ namespace gaia {
 				ec.pChunk = pDstChunk;
 				ec.row = (uint16_t)dstRow;
 				if (archetypeChanged)
-					update_source_entity_version(entity);
+					update_src_entity_version(entity);
 
 				// Make the enabled state in the new chunk match the original state
 				dstArchetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
@@ -45312,10 +45312,10 @@ namespace gaia {
 					ents.insert(EntityLookupKey(add));
 				};
 
-				addPair(m_relationsToTargets, rel, tgt);
-				addPair(m_relationsToTargets, All, tgt);
-				addPair(m_targetsToRelations, tgt, rel);
-				addPair(m_targetsToRelations, All, rel);
+				addPair(m_relToTgt, rel, tgt);
+				addPair(m_relToTgt, All, tgt);
+				addPair(m_tgtToRel, tgt, rel);
+				addPair(m_tgtToRel, All, rel);
 			}
 
 			//! Creates a new entity of a given archetype.
@@ -45432,8 +45432,8 @@ namespace gaia {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
 			}
 
-			void invalidate_queries_for_relation(Entity relation) {
-				m_queryCache.invalidate_queries_for_relation(relation, QueryCache::ChangeKind::DynamicResult);
+			void invalidate_queries_for_rel(Entity relation) {
+				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
 			void invalidate_queries_for_entity(Pair is_pair) {
@@ -47531,8 +47531,8 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		inline uint32_t world_relation_version(const World& world, Entity relation) {
-			return world.relation_version(relation);
+		inline uint32_t world_rel_version(const World& world, Entity relation) {
+			return world.rel_version(relation);
 		}
 
 		//! Returns the sparse archetype-membership version tracked for a source entity.

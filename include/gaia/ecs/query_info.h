@@ -219,19 +219,19 @@ namespace gaia {
 				m_state.resultCacheRevision = 1;
 			}
 
-			GAIA_NODISCARD bool has_dynamic_terms() const {
+			GAIA_NODISCARD bool has_dyn_terms() const {
 				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
 			}
 
-			GAIA_NODISCARD bool can_reuse_dynamic_cache() const {
-				if (!has_dynamic_terms())
+			GAIA_NODISCARD bool can_reuse_dyn_cache() const {
+				if (!has_dyn_terms())
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				if (!deps.can_reuse_source_cache())
+				if (!deps.can_reuse_src_cache())
 					return false;
 
 				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
@@ -242,30 +242,30 @@ namespace gaia {
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
-			GAIA_NODISCARD bool uses_direct_source_versions() const {
+			GAIA_NODISCARD bool uses_direct_src_versions() const {
 				const auto& deps = m_plan.ctx.data.deps;
 				return !deps.has(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dynamic_cache();
+							 can_reuse_dyn_cache();
 			}
 
-			GAIA_NODISCARD bool uses_source_lookup_snapshot() const {
+			GAIA_NODISCARD bool uses_src_lookup_snapshot() const {
 				const auto& deps = m_plan.ctx.data.deps;
 				return deps.has(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dynamic_cache();
+							 can_reuse_dyn_cache();
 			}
 
-			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
+			GAIA_NODISCARD bool dyn_rel_versions_changed() const {
 				const auto relations = m_plan.ctx.data.deps.relations_view();
 				const auto cnt = (uint32_t)relations.size();
 				GAIA_FOR(cnt) {
-					if (m_state.relationVersions[i] != world_relation_version(*world(), relations[i]))
+					if (m_state.relationVersions[i] != world_rel_version(*world(), relations[i]))
 						return true;
 				}
 
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_var_bindings_changed() const {
+			GAIA_NODISCARD bool dyn_var_bindings_changed() const {
 				const auto& ctxData = m_plan.ctx.data;
 				if (m_state.varBindingMask != ctxData.varBindingMask)
 					return true;
@@ -282,12 +282,12 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_direct_source_entities_changed() const {
-				if (!uses_direct_source_versions())
+			GAIA_NODISCARD bool dyn_direct_src_entities_changed() const {
+				if (!uses_direct_src_versions())
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				const auto sourceEntities = deps.source_entities_view();
+				const auto sourceEntities = deps.src_entities_view();
 				const auto cnt = (uint32_t)sourceEntities.size();
 				GAIA_FOR(cnt) {
 					if (m_state.sourceEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
@@ -298,7 +298,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void each_reusable_source_lookup_entity(Func&& func) const {
+			void each_reusable_src_lookup_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
 				const auto cnt = (uint32_t)terms.size();
 				GAIA_FOR(cnt) {
@@ -313,21 +313,21 @@ namespace gaia {
 			}
 
 			//! Returns thread-local scratch reused when a traversed source closure must be rebuilt for comparison.
-			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& source_lookup_snapshot_scratch() {
+			GAIA_NODISCARD static cnt::darray<SourceLookupSnapshotItem>& src_lookup_snapshot_scratch() {
 				static thread_local cnt::darray<SourceLookupSnapshotItem> scratch;
 				return scratch;
 			}
 
 			//! Builds the traversed source lookup closure snapshot.
 			//! Returns false if the configured snapshot cap was exceeded.
-			GAIA_NODISCARD bool build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+			GAIA_NODISCARD bool build_dyn_src_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
 				const auto maxItems = (uint32_t)m_plan.ctx.data.cacheSourceStateMaxItems;
 				items.clear();
 				if (maxItems == 0)
 					return false;
 
 				bool overflowed = false;
-				each_reusable_source_lookup_entity([&](Entity source) {
+				each_reusable_src_lookup_entity([&](Entity source) {
 					if (items.size() >= maxItems) {
 						overflowed = true;
 						return true;
@@ -341,7 +341,7 @@ namespace gaia {
 
 			//! Checks whether the previously snapshotted traversed source entities changed archetype membership.
 			//! This avoids rebuilding the full traversal closure while relation topology is unchanged.
-			GAIA_NODISCARD bool dynamic_traversed_source_versions_changed() const {
+			GAIA_NODISCARD bool dyn_traversed_src_versions_changed() const {
 				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
 				GAIA_FOR(cnt) {
 					const auto& item = m_state.sourceLookupSnapshot[i];
@@ -352,22 +352,22 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_source_entities_changed(bool relationVersionsChanged) {
+			GAIA_NODISCARD bool dyn_src_entities_changed(bool relationVersionsChanged) {
 				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
 				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
-					return dynamic_direct_source_entities_changed();
+					return dyn_direct_src_entities_changed();
 
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
 				if (!relationVersionsChanged)
-					return dynamic_traversed_source_versions_changed();
+					return dyn_traversed_src_versions_changed();
 
-				auto& scratch = source_lookup_snapshot_scratch();
-				if (!build_dynamic_source_lookup_snapshot(scratch))
+				auto& scratch = src_lookup_snapshot_scratch();
+				if (!build_dyn_src_lookup_snapshot(scratch))
 					return true;
 
 				if (scratch.size() != m_state.sourceLookupSnapshot.size())
@@ -382,15 +382,15 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_inputs_changed() {
-				if (!can_reuse_dynamic_cache())
+			GAIA_NODISCARD bool dyn_inputs_changed() {
+				if (!can_reuse_dyn_cache())
 					return false;
 
-				if (dynamic_var_bindings_changed())
+				if (dyn_var_bindings_changed())
 					return true;
 
-				const bool relationVersionsChanged = dynamic_relation_versions_changed();
-				if (relationVersionsChanged && !uses_source_lookup_snapshot())
+				const bool relationVersionsChanged = dyn_rel_versions_changed();
+				if (relationVersionsChanged && !uses_src_lookup_snapshot())
 					return true;
 
 				const auto& deps = m_plan.ctx.data.deps;
@@ -400,29 +400,29 @@ namespace gaia {
 				if (m_state.sourceLookupSnapshotOverflowed)
 					return true;
 
-				return dynamic_source_entities_changed(relationVersionsChanged);
+				return dyn_src_entities_changed(relationVersionsChanged);
 			}
 
-			void snapshot_dynamic_inputs() {
-				if (!can_reuse_dynamic_cache())
+			void snapshot_dyn_inputs() {
+				if (!can_reuse_dyn_cache())
 					return;
 
 				const auto relations = m_plan.ctx.data.deps.relations_view();
 				const auto cnt = (uint32_t)relations.size();
 				GAIA_FOR(cnt)
-				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
+				m_state.relationVersions[i] = world_rel_version(*world(), relations[i]);
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (uses_direct_source_versions()) {
-					const auto sourceEntities = deps.source_entities_view();
+				if (uses_direct_src_versions()) {
+					const auto sourceEntities = deps.src_entities_view();
 					const auto sourceCnt = (uint32_t)sourceEntities.size();
 					GAIA_FOR(sourceCnt)
 					m_state.sourceEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
 				}
 
-				if (uses_source_lookup_snapshot()) {
-					auto& scratch = source_lookup_snapshot_scratch();
-					if (build_dynamic_source_lookup_snapshot(scratch)) {
+				if (uses_src_lookup_snapshot()) {
+					auto& scratch = src_lookup_snapshot_scratch();
+					if (build_dyn_src_lookup_snapshot(scratch)) {
 						m_state.sourceLookupSnapshot = scratch;
 						m_state.sourceLookupSnapshotOverflowed = false;
 					} else {
@@ -674,8 +674,8 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				const bool hasDynamicTerms = has_dynamic_terms();
-				if (hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) {
+				const bool hasDynamicTerms = has_dyn_terms();
+				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
 					// are tracked with finer-grained version metadata.
@@ -741,7 +741,7 @@ namespace gaia {
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
-				snapshot_dynamic_inputs();
+				snapshot_dyn_inputs();
 				m_state.clear_dirty();
 			}
 
@@ -763,8 +763,8 @@ namespace gaia {
 				if (!m_plan.vm.is_compiled())
 					return;
 
-				const bool hasDynamicTerms = has_dynamic_terms();
-				if ((hasDynamicTerms && (!can_reuse_dynamic_cache() || m_state.needs_refresh() || dynamic_inputs_changed())) ||
+				const bool hasDynamicTerms = has_dyn_terms();
+				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
@@ -809,7 +809,7 @@ namespace gaia {
 						add_archetype_to_cache(pArch, true);
 					}
 				}
-				snapshot_dynamic_inputs();
+				snapshot_dyn_inputs();
 				m_state.clear_dirty();
 			}
 

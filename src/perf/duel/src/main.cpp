@@ -992,7 +992,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
-	struct dynamic_units_group {
+
+	struct dyn_units_group {
 		cnt::darray<Position> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
@@ -1000,7 +1001,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		cnt::darray<Direction> units_d;
 		cnt::darray<Health> units_h;
 		cnt::darray<IsEnemy> units_e;
-	} dynamic_groups[Groups];
+	} dyn_groups[Groups];
 
 	{
 		GAIA_PROF_SCOPE(setup);
@@ -1019,7 +1020,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 
 		// Create dynamic entities
-		for (auto& g: dynamic_groups) {
+		for (auto& g: dyn_groups) {
 			g.units_p.resize(NGroup);
 			g.units_r.resize(NGroup);
 			g.units_s.resize(NGroup);
@@ -1048,21 +1049,21 @@ void BM_NonECS_DOD(picobench::state& state) {
 		{
 			GAIA_PROF_SCOPE(update_pos);
 
-			for (auto& g: dynamic_groups)
+			for (auto& g: dyn_groups)
 				UnitDynamic::update_pos(g.units_p, g.units_v, dt);
 		}
 
 		{
 			GAIA_PROF_SCOPE(handle_collision);
 
-			for (auto& g: dynamic_groups)
+			for (auto& g: dyn_groups)
 				UnitDynamic::handle_collision(g.units_p, g.units_v);
 		}
 
 		{
 			GAIA_PROF_SCOPE(apply_gravity);
 
-			for (auto& g: dynamic_groups)
+			for (auto& g: dyn_groups)
 				UnitDynamic::apply_gravity(g.units_v, dt);
 		}
 
@@ -1070,7 +1071,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			GAIA_PROF_SCOPE(calc_alive);
 
 			uint32_t aliveUnits = 0;
-			for (auto& g: dynamic_groups)
+			for (auto& g: dyn_groups)
 				aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
 			gaia::dont_optimize(aliveUnits);
 		}
@@ -1167,7 +1168,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
 	} static_groups[Groups];
-	struct dynamic_units_group {
+	struct dyn_units_group {
 		cnt::darray_soa<PositionSoA> units_p;
 		cnt::darray<Rotation> units_r;
 		cnt::darray<Scale> units_s;
@@ -1175,7 +1176,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		cnt::darray<Direction> units_d;
 		cnt::darray<Health> units_h;
 		cnt::darray<IsEnemy> units_e;
-	} dynamic_groups[Groups];
+	} dyn_groups[Groups];
 
 	{
 		GAIA_PROF_SCOPE(setup);
@@ -1194,7 +1195,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		// Create dynamic entities
-		for (auto& g: dynamic_groups) {
+		for (auto& g: dyn_groups) {
 			g.units_p.resize(NGroup);
 			g.units_r.resize(NGroup);
 			g.units_s.resize(NGroup);
@@ -1220,20 +1221,20 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		for (auto& g: dynamic_groups)
+		for (auto& g: dyn_groups)
 			UnitDynamic::update_pos(g.units_p, g.units_v);
 
-		for (auto& g: dynamic_groups)
+		for (auto& g: dyn_groups)
 			UnitDynamic::handle_collision(g.units_p, g.units_v);
 
-		for (auto& g: dynamic_groups)
+		for (auto& g: dyn_groups)
 			UnitDynamic::apply_gravity(g.units_v);
 
 		{
 			GAIA_PROF_SCOPE(calc_alive);
 
 			uint32_t aliveUnits = 0;
-			for (auto& g: dynamic_groups)
+			for (auto& g: dyn_groups)
 				aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
 			gaia::dont_optimize(aliveUnits);
 		}

@@ -7,8 +7,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <type_traits>
 #include <limits>
+#include <type_traits>
 
 #include "gaia/cnt/darray.h"
 #include "gaia/core/utility.h"
@@ -117,7 +117,7 @@ namespace gaia {
 			const char* m_it = nullptr;
 			const char* m_end = nullptr;
 
-			static void append_escaped(json_str& out, const char* str, uint32_t len) {
+			static void add_escaped(json_str& out, const char* str, uint32_t len) {
 				GAIA_FOR(len) {
 					const char ch = str[i];
 					switch (ch) {
@@ -262,7 +262,7 @@ namespace gaia {
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, MaxImplicitKeyLength) : len;
 				m_out.append("\"");
-				append_escaped(m_out, name, l);
+				add_escaped(m_out, name, l);
 				m_out.append("\":");
 			}
 
@@ -311,7 +311,7 @@ namespace gaia {
 				before_value();
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(str, MaxImplicitStringLength) : len;
 				m_out.append("\"");
-				append_escaped(m_out, str, l);
+				add_escaped(m_out, str, l);
 				m_out.append("\"");
 			}
 

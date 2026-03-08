@@ -872,8 +872,10 @@ void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 	}
 
 	auto q = CacheSourceState //
-							 ? w.query().cache_source_state().all<Position>().all<Acceleration>(
-										 ecs::QueryTermOptions{}.src(chain.leaf).trav())
+							 ? w.query()
+										 .cache_src_state(ecs::MaxCacheSrcState)
+										 .all<Position>()
+										 .all<Acceleration>(ecs::QueryTermOptions{}.src(chain.leaf).trav())
 							 : w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(chain.leaf).trav());
 	dont_optimize(q.count());
 
@@ -903,7 +905,10 @@ void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
 	}
 
 	auto q = CacheSourceState //
-							 ? w.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+							 ? w.query()
+										 .cache_src_state(ecs::MaxCacheSrcState)
+										 .all<Position>()
+										 .all<Acceleration>(ecs::QueryTermOptions{}.src(source))
 							 : w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
 	dont_optimize(q.count());
 
@@ -930,7 +935,7 @@ void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
 	}
 
 	auto q = CacheSourceState //
-							 ? w.query().cache_source_state().all<Position>().all<Acceleration>()
+							 ? w.query().cache_src_state(ecs::MaxCacheSrcState).all<Position>().all<Acceleration>()
 							 : w.query().all<Position>().all<Acceleration>();
 	dont_optimize(q.count());
 

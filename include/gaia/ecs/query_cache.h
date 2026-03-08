@@ -184,7 +184,7 @@ namespace gaia {
 
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
-				add_relation_to_query_pairs(info.ctx(), handle);
+				add_rel_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -211,7 +211,7 @@ namespace gaia {
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
-				del_relation_to_query_pairs(pInfo->ctx(), handle);
+				del_rel_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -245,7 +245,7 @@ namespace gaia {
 				}
 			}
 
-			void invalidate_queries_for_relation(Entity relation, ChangeKind changeKind) {
+			void invalidate_queries_for_rel(Entity relation, ChangeKind changeKind) {
 				auto it = m_relationToQuery.find(EntityLookupKey(relation));
 				if (it == m_relationToQuery.end())
 					return;
@@ -315,7 +315,7 @@ namespace gaia {
 				auto& handles = prepare_create_query_handles();
 				bool hasAnyPair = false;
 				for (const auto entity: pArchetype->ids_view()) {
-					append_create_query_handles(EntityLookupKey(entity), handles);
+					add_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
 						continue;
 
@@ -326,12 +326,12 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					append_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
-					append_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
 				}
 
 				if (hasAnyPair)
-					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
+					add_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 
 				for (const auto handle: handles) {
 					auto* pInfo = try_get(handle);
@@ -458,7 +458,7 @@ namespace gaia {
 					del_create_to_query_pair(entity, handle);
 			}
 
-			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
+			void add_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
 				const auto it = m_entityToCreateQuery.find(entityKey);
 				if (it == m_entityToCreateQuery.end())
 					return;
@@ -545,7 +545,7 @@ namespace gaia {
 				add_archetype_query_pair(pArchetype, handle);
 			}
 
-			void add_relation_query_pair(Entity relation, QueryHandle handle) {
+			void add_rel_query_pair(Entity relation, QueryHandle handle) {
 				const auto key = EntityLookupKey(relation);
 				const auto it = m_relationToQuery.find(key);
 				if (it == m_relationToQuery.end()) {
@@ -558,7 +558,7 @@ namespace gaia {
 					handles.push_back(handle);
 			}
 
-			void del_relation_query_pair(Entity relation, QueryHandle handle) {
+			void del_rel_query_pair(Entity relation, QueryHandle handle) {
 				auto it = m_relationToQuery.find(EntityLookupKey(relation));
 				if (it == m_relationToQuery.end())
 					return;
@@ -569,14 +569,14 @@ namespace gaia {
 					m_relationToQuery.erase(it);
 			}
 
-			void add_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+			void add_rel_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				for (const auto relation: ctx.data.deps.relations_view())
-					add_relation_query_pair(relation, handle);
+					add_rel_query_pair(relation, handle);
 			}
 
-			void del_relation_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+			void del_rel_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				for (const auto relation: ctx.data.deps.relations_view())
-					del_relation_query_pair(relation, handle);
+					del_rel_query_pair(relation, handle);
 			}
 		};
 	} // namespace ecs

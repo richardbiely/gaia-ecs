@@ -430,9 +430,9 @@ namespace gaia {
 			//!   herbivore -> {rabbit, hare}
 			PairMap m_entityToAsRelations;
 			//! Map of relation -> targets
-			PairMap m_relationsToTargets;
+			PairMap m_relToTgt;
 			//! Map of target -> relations
-			PairMap m_targetsToRelations;
+			PairMap m_tgtToRel;
 			//! Relation-local structural version used for dependency ordering caches.
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
@@ -1182,8 +1182,8 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_relation_version(relation);
-						m_world.invalidate_queries_for_relation(relation);
+						m_world.touch_rel_version(relation);
+						m_world.invalidate_queries_for_rel(relation);
 					}
 
 					try_set_flags(entity, true);
@@ -1234,8 +1234,8 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_relation_version(relation);
-						m_world.invalidate_queries_for_relation(relation);
+						m_world.touch_rel_version(relation);
+						m_world.invalidate_queries_for_rel(relation);
 					}
 
 					try_set_flags(entity, false);
@@ -2397,8 +2397,8 @@ namespace gaia {
 			//! \param target Target entity
 			//! \warning It is expected @a target is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
-				const auto it = m_targetsToRelations.find(EntityLookupKey(target));
-				if (it == m_targetsToRelations.end())
+				const auto it = m_tgtToRel.find(EntityLookupKey(target));
+				if (it == m_tgtToRel.end())
 					return nullptr;
 
 				return &it->second;
@@ -2544,8 +2544,8 @@ namespace gaia {
 			//! \param relation Relation entity
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
-				const auto it = m_relationsToTargets.find(EntityLookupKey(relation));
-				if (it == m_relationsToTargets.end())
+				const auto it = m_relToTgt.find(EntityLookupKey(relation));
+				if (it == m_relToTgt.end())
 					return nullptr;
 
 				return &it->second;
@@ -3011,16 +3011,16 @@ namespace gaia {
 
 			//! Returns structural version for a given relation.
 			//! Increments whenever any Pair(relation, *) is added or removed on any entity.
-			GAIA_NODISCARD uint32_t relation_version(Entity relation) const {
+			GAIA_NODISCARD uint32_t rel_version(Entity relation) const {
 				const auto it = m_relationVersions.find(EntityLookupKey(relation));
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
-			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+			friend GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 			friend GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
-			void update_source_entity_version(Entity entity) {
+			void update_src_entity_version(Entity entity) {
 				const auto key = EntityLookupKey(entity);
 				const auto it = m_sourceEntityVersions.find(key);
 				if (it == m_sourceEntityVersions.end())
@@ -3030,7 +3030,7 @@ namespace gaia {
 			}
 
 			//! Removes sparse source-version state for an entity that is being destroyed.
-			void remove_source_entity_version(Entity entity) {
+			void remove_src_entity_version(Entity entity) {
 				m_sourceEntityVersions.erase(EntityLookupKey(entity));
 			}
 
@@ -3154,8 +3154,8 @@ namespace gaia {
 
 					m_entityToAsRelations = {};
 					m_entityToAsTargets = {};
-					m_targetsToRelations = {};
-					m_relationsToTargets = {};
+					m_tgtToRel = {};
+					m_relToTgt = {};
 					m_relationVersions = {};
 					m_sourceEntityVersions = {};
 
@@ -4413,7 +4413,7 @@ namespace gaia {
 					// which has already been destructed which is not nice.
 					del_name(ec, entity);
 					remove_entity(*ec.pArchetype, *ec.pChunk, ec.row);
-					remove_source_entity_version(entity);
+					remove_src_entity_version(entity);
 				}
 
 				// Invalidate on-demand.
@@ -5071,7 +5071,7 @@ namespace gaia {
 				remove_edges_from_pairs(entity);
 			}
 
-			void touch_relation_version(Entity relation) {
+			void touch_rel_version(Entity relation) {
 				const EntityLookupKey key(relation);
 				auto it = m_relationVersions.find(key);
 				if (it == m_relationVersions.end())
@@ -5102,10 +5102,10 @@ namespace gaia {
 						auto rel = get(entity.id());
 						auto tgt = get(entity.gen());
 
-						delPair(m_relationsToTargets, rel, tgt);
-						delPair(m_relationsToTargets, All, tgt);
-						delPair(m_targetsToRelations, tgt, rel);
-						delPair(m_targetsToRelations, All, rel);
+						delPair(m_relToTgt, rel, tgt);
+						delPair(m_relToTgt, All, tgt);
+						delPair(m_tgtToRel, tgt, rel);
+						delPair(m_tgtToRel, All, rel);
 					}
 				} else {
 					// Update the container record
@@ -5120,10 +5120,10 @@ namespace gaia {
 					EntityBuilder::set_flag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
-					delPair(m_relationsToTargets, All, entity);
-					delPair(m_targetsToRelations, All, entity);
-					m_relationsToTargets.erase(EntityLookupKey(entity));
-					m_targetsToRelations.erase(EntityLookupKey(entity));
+					delPair(m_relToTgt, All, entity);
+					delPair(m_tgtToRel, All, entity);
+					m_relToTgt.erase(EntityLookupKey(entity));
+					m_tgtToRel.erase(EntityLookupKey(entity));
 				}
 			}
 
@@ -5199,7 +5199,7 @@ namespace gaia {
 				ec.pChunk = pDstChunk;
 				ec.row = (uint16_t)dstRow;
 				if (archetypeChanged)
-					update_source_entity_version(entity);
+					update_src_entity_version(entity);
 
 				// Make the enabled state in the new chunk match the original state
 				dstArchetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
@@ -5524,10 +5524,10 @@ namespace gaia {
 					ents.insert(EntityLookupKey(add));
 				};
 
-				addPair(m_relationsToTargets, rel, tgt);
-				addPair(m_relationsToTargets, All, tgt);
-				addPair(m_targetsToRelations, tgt, rel);
-				addPair(m_targetsToRelations, All, rel);
+				addPair(m_relToTgt, rel, tgt);
+				addPair(m_relToTgt, All, tgt);
+				addPair(m_tgtToRel, tgt, rel);
+				addPair(m_tgtToRel, All, rel);
 			}
 
 			//! Creates a new entity of a given archetype.
@@ -5644,8 +5644,8 @@ namespace gaia {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
 			}
 
-			void invalidate_queries_for_relation(Entity relation) {
-				m_queryCache.invalidate_queries_for_relation(relation, QueryCache::ChangeKind::DynamicResult);
+			void invalidate_queries_for_rel(Entity relation) {
+				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
 			void invalidate_queries_for_entity(Pair is_pair) {
@@ -6040,8 +6040,8 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		inline uint32_t world_relation_version(const World& world, Entity relation) {
-			return world.relation_version(relation);
+		inline uint32_t world_rel_version(const World& world, Entity relation) {
+			return world.rel_version(relation);
 		}
 
 		//! Returns the sparse archetype-membership version tracked for a source entity.

@@ -20,7 +20,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
-		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -418,7 +418,7 @@ namespace gaia {
 						return {relations.data(), relationCnt};
 					}
 
-					GAIA_NODISCARD std::span<const Entity> source_entities_view() const {
+					GAIA_NODISCARD std::span<const Entity> src_entities_view() const {
 						return {sourceEntities.data(), sourceEntityCnt};
 					}
 
@@ -426,7 +426,7 @@ namespace gaia {
 						flags = (DependencyFlags)(flags | dependency);
 					}
 
-					void add_relation(Entity relation) {
+					void add_rel(Entity relation) {
 						if (relation == EntityBad || core::has(relations_view(), relation))
 							return;
 
@@ -434,15 +434,15 @@ namespace gaia {
 						relations[relationCnt++] = relation;
 					}
 
-					void add_source_entity(Entity entity) {
-						if (entity == EntityBad || core::has(source_entities_view(), entity))
+					void add_src_entity(Entity entity) {
+						if (entity == EntityBad || core::has(src_entities_view(), entity))
 							return;
 
 						GAIA_ASSERT(sourceEntityCnt < MAX_ITEMS_IN_QUERY);
 						sourceEntities[sourceEntityCnt++] = entity;
 					}
 
-					GAIA_NODISCARD bool can_reuse_source_cache() const {
+					GAIA_NODISCARD bool can_reuse_src_cache() const {
 						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
 
@@ -572,9 +572,9 @@ namespace gaia {
 						const bool hasDynamicRelationUsage =
 								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
 						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
-							data.deps.add_relation(entity_from_id(*w, id.id()));
+							data.deps.add_rel(entity_from_id(*w, id.id()));
 						if (term.entTrav != EntityBad) {
-							data.deps.add_relation(term.entTrav);
+							data.deps.add_rel(term.entTrav);
 							data.deps.add(DependencyHasTraversalTerms);
 						}
 						if (term.src != EntityBad) {
@@ -582,7 +582,7 @@ namespace gaia {
 							data.deps.add(DependencyHasSourceTerms);
 							++data.deps.sourceTermCnt;
 							if (!is_variable(term.src))
-								data.deps.add_source_entity(term.src);
+								data.deps.add_src_entity(term.src);
 						}
 
 						if (term_has_variables(term)) {

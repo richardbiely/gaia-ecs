@@ -10270,8 +10270,10 @@ TEST_CASE("Query - cached traversed-source query keeps warm reads stable until t
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
 
-	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(
-			ecs::QueryTermOptions{}.src(scene).trav_parent());
+	auto q = wld.query()
+							 .cache_src_state(ecs::MaxCacheSrcState)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav_parent());
 	auto& info = q.fetch();
 
 	q.match_all(info);
@@ -10312,8 +10314,10 @@ TEST_CASE("Query - cached traversed-source query ignores unrelated archetype cha
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
 
-	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(
-			ecs::QueryTermOptions{}.src(scene).trav_parent());
+	auto q = wld.query()
+							 .cache_src_state(ecs::MaxCacheSrcState)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav_parent());
 	auto& info = q.fetch();
 
 	q.match_all(info);
@@ -10336,15 +10340,15 @@ TEST_CASE("Query - source-state caching is opt-in for cached traversed-source qu
 	auto rel = wld.add();
 
 	auto qDefault = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
-	auto qOptIn =
-			wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	auto qOptIn = wld.query()
+										.cache_src_state(ecs::MaxCacheSrcState)
+										.all<Position>()
+										.all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
 
-	CHECK(!qDefault.caches_source_state());
-	CHECK(qOptIn.caches_source_state());
 	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
-	CHECK(qDefault.source_state_snapshot_limit() == 0);
-	CHECK(qOptIn.source_state_snapshot_limit() > 0);
+	CHECK(qDefault.cache_src_state() == 0);
+	CHECK(qOptIn.cache_src_state() > 0);
 }
 
 TEST_CASE("Query - capped traversed-source snapshots fall back to lazy rebuild") {
@@ -10360,8 +10364,7 @@ TEST_CASE("Query - capped traversed-source snapshots fall back to lazy rebuild")
 	wld.add<Position>(e, {1, 2, 3});
 	wld.add<Acceleration>(root, {4, 5, 6});
 
-	auto q =
-			wld.query().cache_source_state(2).all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav());
+	auto q = wld.query().cache_src_state(2).all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav());
 	auto& info = q.fetch();
 
 	q.match_all(info);
@@ -10398,8 +10401,8 @@ TEST_CASE("Query - dependency metadata classification") {
 	CHECK(depsSource.has(ecs::QueryCtx::DependencyHasSourceTerms));
 	CHECK(!depsSource.has(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsSource.create_selectors_view().empty());
-	CHECK(depsSource.source_entities_view().size() == 1);
-	CHECK(core::has(depsSource.source_entities_view(), source));
+	CHECK(depsSource.src_entities_view().size() == 1);
+	CHECK(core::has(depsSource.src_entities_view(), source));
 
 	auto qVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	const auto& depsVar = qVar.fetch().ctx().data.deps;
@@ -10443,7 +10446,7 @@ TEST_CASE("Query - public cache mode and policy classification") {
 	auto qCachedLazy = wld.query().no<Position>();
 	auto qCachedDynamic = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qCachedDynamicOptIn =
-			wld.query().cache_source_state().all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
+			wld.query().cache_src_state(ecs::MaxCacheSrcState).all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	auto qUncachedImmediate = wld.query<false>().all<Position>();
 
@@ -10455,12 +10458,11 @@ TEST_CASE("Query - public cache mode and policy classification") {
 
 	CHECK(qCachedDynamic.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qCachedDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
-	CHECK(!qCachedDynamic.caches_source_state());
+	CHECK(qCachedDynamic.cache_src_state() == 0);
 
 	CHECK(qCachedDynamicOptIn.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qCachedDynamicOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
-	CHECK(qCachedDynamicOptIn.caches_source_state());
-	CHECK(qCachedDynamicOptIn.source_state_snapshot_limit() == 32);
+	CHECK(qCachedDynamicOptIn.cache_src_state() == 32);
 
 	CHECK(qCachedVar.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qCachedVar.cache_policy() == ecs::QueryCachePolicy::Dynamic);
@@ -10480,12 +10482,12 @@ TEST_CASE("Query - public cache kind construction") {
 	auto qDefault = wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>();
 	auto qDefaultSourceState = wld.query()
 																 .cache_kind(ecs::QueryCacheKind::Default)
-																 .cache_source_state()
+																 .cache_src_state(ecs::MaxCacheSrcState)
 																 .all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qAuto = wld.query().cache_kind(ecs::QueryCacheKind::Auto).no<Position>();
 	auto qAutoSourceState = wld.query()
 															.cache_kind(ecs::QueryCacheKind::Auto)
-															.cache_source_state()
+															.cache_src_state(ecs::MaxCacheSrcState)
 															.all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qAll = wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>();
 	auto qAllFail = wld.query().cache_kind(ecs::QueryCacheKind::All).no<Position>();
@@ -10501,7 +10503,7 @@ TEST_CASE("Query - public cache kind construction") {
 
 	CHECK(qDefaultSourceState.cache_kind() == ecs::QueryCacheKind::Default);
 	CHECK(qDefaultSourceState.valid());
-	CHECK(qDefaultSourceState.caches_source_state());
+	CHECK(qDefaultSourceState.cache_src_state() > 0);
 
 	CHECK(qAuto.cache_kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAuto.valid());
@@ -12518,7 +12520,7 @@ TEST_CASE("Query Filter - systems") {
 struct Eats {};
 struct Healthy {};
 ecs::GroupId
-group_by_relation([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
+group_by_rel([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
 	if (archetype.pairs() > 0) {
 		auto ids = archetype.ids_view();
 		for (auto id: ids) {
@@ -12609,7 +12611,7 @@ TEST_CASE("Query - group") {
 	}
 
 	{
-		auto qq = wld.query().all<Position>().group_by(eats, group_by_relation);
+		auto qq = wld.query().all<Position>().group_by(eats, group_by_rel);
 
 		// Grouping on, no group enforced
 		checkQuery(qq, {&ents_expected[0], 6});
