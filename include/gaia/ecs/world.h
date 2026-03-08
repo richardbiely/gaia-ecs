@@ -2925,6 +2925,7 @@ namespace gaia {
 
 				if (wasEnabled != enable) {
 					pChunk->update_world_version();
+					pChunk->update_entity_order_version();
 					update_version(m_worldVersion);
 				}
 			}
@@ -3962,6 +3963,8 @@ namespace gaia {
 					if (entitiesToMove > 0) {
 						pSrcChunk->update_world_version();
 						pDstChunk->update_world_version();
+						pSrcChunk->update_entity_order_version();
+						pDstChunk->update_entity_order_version();
 						update_version(m_worldVersion);
 					}
 
@@ -4625,12 +4628,14 @@ namespace gaia {
 						}
 
 						pDstChunk->update_world_version();
+						pDstChunk->update_entity_order_version();
 
 						GAIA_ASSERT(cnt <= i);
 						i -= cnt;
 					}
 
 					pSrcChunk->update_world_version();
+					pSrcChunk->update_entity_order_version();
 					updated = true;
 				}
 
@@ -5217,12 +5222,14 @@ namespace gaia {
 			void move_entity_raw(Entity entity, EntityContainer& ec, Archetype& dstArchetype) {
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
+				ec.pChunk->update_entity_order_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
+				pDstChunk->update_entity_order_version();
 				update_version(m_worldVersion);
 			}
 
@@ -5236,12 +5243,14 @@ namespace gaia {
 
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
+				ec.pChunk->update_entity_order_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
+				pDstChunk->update_entity_order_version();
 				update_version(m_worldVersion);
 
 				return pDstChunk;
@@ -5653,6 +5662,11 @@ namespace gaia {
 				m_queryCache.invalidate_sorted_queries_for_entity(entity);
 			}
 
+			//! Invalidates all cached sorted queries after row-order changes.
+			void invalidate_sorted_queries() {
+				m_queryCache.invalidate_sorted_queries();
+			}
+
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -6050,6 +6064,10 @@ namespace gaia {
 
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
 			world.invalidate_sorted_queries_for_entity(entity);
+		}
+
+		inline void world_invalidate_sorted_queries(World& world) {
+			world.invalidate_sorted_queries();
 		}
 	} // namespace ecs
 } // namespace gaia

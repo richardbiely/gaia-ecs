@@ -26595,6 +26595,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
+		void world_invalidate_sorted_queries(World& world);
 
 		class GAIA_API Chunk final {
 		public:
@@ -27077,6 +27078,7 @@ namespace gaia {
 			void update_versions() {
 				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
+				update_entity_order_version();
 			}
 
 			//! Returns a read-only entity or component view.
@@ -28104,6 +28106,13 @@ namespace gaia {
 						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
 			}
 
+			//! Updates the entity-order version after rows were added, removed, or reordered.
+			GAIA_FORCEINLINE void update_entity_order_version() {
+				m_header.entityOrderVersion = m_header.worldVersion;
+				// Row-order changes invalidate cached sorted slices regardless of sort key.
+				world_invalidate_sorted_queries(*const_cast<World*>(m_header.world));
+			}
+
 			//! Update the version of all components
 			GAIA_FORCEINLINE void update_world_version() {
 				// Edit the version pointer directly. The first elements is always the entity version.
@@ -28112,7 +28121,6 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
-				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			//! Update the version of all components on chunk init
@@ -35799,44 +35807,13 @@ namespace gaia {
 				}
 			}
 
-			//! Returns true when the cached sorted slices need to be rebuilt.
-			//! Sorting depends on entity order changes plus writes to the active sort key.
-			GAIA_NODISCARD bool sort_cache_changed() const {
-				if (m_state.sortVersion == 0)
-					return true;
-
-				const auto sortBy = m_plan.ctx.data.sortBy;
-				for (const auto* pArchetype: m_state.archetypeCache) {
-					const auto& chunks = pArchetype->chunks();
-					for (const auto* pChunk: chunks) {
-						if (pChunk->entity_order_changed(m_state.sortVersion))
-							return true;
-
-						if (sortBy == EntityBad)
-							continue;
-
-						const auto compIdx = pChunk->comp_idx(sortBy);
-						GAIA_ASSERT(compIdx != BadIndex);
-						if (compIdx == BadIndex)
-							return true;
-
-						if (pChunk->changed(m_state.sortVersion, compIdx))
-							return true;
-					}
-				}
-
-				return false;
-			}
-
 			void sort_entities() {
 				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
 
-				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
-					if (!sort_cache_changed())
-						return;
-				}
-				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0 && m_state.sortVersion != 0)
+					return;
+				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
 				for (const auto* pArchetype: m_state.archetypeCache)
@@ -36281,6 +36258,8 @@ namespace gaia {
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_relationToQuery;
 			//! Sort key entity -> cached sorted queries that need their sorted slices refreshed after writes.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_sortEntityToQuery;
+			//! Cached sorted queries that need their sorted slices refreshed after row-order changes.
+			cnt::darray<QueryHandle> m_sortedQueries;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
@@ -36323,6 +36302,7 @@ namespace gaia {
 				m_entityToQuery.clear();
 				m_relationToQuery.clear();
 				m_sortEntityToQuery.clear();
+				m_sortedQueries.clear();
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
@@ -36395,6 +36375,7 @@ namespace gaia {
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
 				add_rel_to_query_pairs(info.ctx(), handle);
 				add_sort_to_query_pairs(info.ctx(), handle);
+				add_sorted_query(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -36423,6 +36404,7 @@ namespace gaia {
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
 				del_rel_to_query_pairs(pInfo->ctx(), handle);
 				del_sort_to_query_pairs(pInfo->ctx(), handle);
+				del_sorted_query(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -36475,6 +36457,17 @@ namespace gaia {
 					return;
 
 				for (const auto handle: it->second) {
+					auto* pInfo = try_get(handle);
+					if (pInfo == nullptr || pInfo->refs() == 0)
+						continue;
+
+					pInfo->invalidate_sort();
+				}
+			}
+
+			//! Invalidates all cached sorted queries after chunk row order changes.
+			void invalidate_sorted_queries() {
+				for (const auto handle: m_sortedQueries) {
 					auto* pInfo = try_get(handle);
 					if (pInfo == nullptr || pInfo->refs() == 0)
 						continue;
@@ -36689,6 +36682,23 @@ namespace gaia {
 					return;
 
 				del_sort_to_query_pair(ctx.data.sortBy, handle);
+			}
+
+			void add_sorted_query(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr)
+					return;
+
+				m_sortedQueries.push_back(handle);
+			}
+
+			void del_sorted_query(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr)
+					return;
+
+				const auto idx = core::get_index(m_sortedQueries, handle);
+				GAIA_ASSERT(idx != BadIndex);
+				if (idx != BadIndex)
+					core::swap_erase(m_sortedQueries, idx);
 			}
 
 			void del_create_to_query_pair(Entity entity, QueryHandle handle) {
@@ -42895,6 +42905,7 @@ namespace gaia {
 
 				if (wasEnabled != enable) {
 					pChunk->update_world_version();
+					pChunk->update_entity_order_version();
 					update_version(m_worldVersion);
 				}
 			}
@@ -43932,6 +43943,8 @@ namespace gaia {
 					if (entitiesToMove > 0) {
 						pSrcChunk->update_world_version();
 						pDstChunk->update_world_version();
+						pSrcChunk->update_entity_order_version();
+						pDstChunk->update_entity_order_version();
 						update_version(m_worldVersion);
 					}
 
@@ -44595,12 +44608,14 @@ namespace gaia {
 						}
 
 						pDstChunk->update_world_version();
+						pDstChunk->update_entity_order_version();
 
 						GAIA_ASSERT(cnt <= i);
 						i -= cnt;
 					}
 
 					pSrcChunk->update_world_version();
+					pSrcChunk->update_entity_order_version();
 					updated = true;
 				}
 
@@ -45187,12 +45202,14 @@ namespace gaia {
 			void move_entity_raw(Entity entity, EntityContainer& ec, Archetype& dstArchetype) {
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
+				ec.pChunk->update_entity_order_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
+				pDstChunk->update_entity_order_version();
 				update_version(m_worldVersion);
 			}
 
@@ -45206,12 +45223,14 @@ namespace gaia {
 
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
+				ec.pChunk->update_entity_order_version();
 
 				auto* pDstChunk = dstArchetype.foc_free_chunk();
 				move_entity(entity, ec, dstArchetype, *pDstChunk);
 
 				// Update world versions
 				pDstChunk->update_world_version();
+				pDstChunk->update_entity_order_version();
 				update_version(m_worldVersion);
 
 				return pDstChunk;
@@ -45621,6 +45640,11 @@ namespace gaia {
 
 			void invalidate_sorted_queries_for_entity(Entity entity) {
 				m_queryCache.invalidate_sorted_queries_for_entity(entity);
+			}
+
+			//! Invalidates all cached sorted queries after row-order changes.
+			void invalidate_sorted_queries() {
+				m_queryCache.invalidate_sorted_queries();
 			}
 
 			void invalidate_queries_for_entity(Pair is_pair) {
@@ -47723,6 +47747,10 @@ namespace gaia {
 
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
 			world.invalidate_sorted_queries_for_entity(entity);
+		}
+
+		inline void world_invalidate_sorted_queries(World& world) {
+			world.invalidate_sorted_queries();
 		}
 	} // namespace ecs
 } // namespace gaia

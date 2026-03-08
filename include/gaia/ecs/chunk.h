@@ -28,6 +28,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
+		void world_invalidate_sorted_queries(World& world);
 
 		class GAIA_API Chunk final {
 		public:
@@ -510,6 +511,7 @@ namespace gaia {
 			void update_versions() {
 				::gaia::ecs::update_version(m_header.worldVersion);
 				update_world_version();
+				update_entity_order_version();
 			}
 
 			//! Returns a read-only entity or component view.
@@ -1537,6 +1539,13 @@ namespace gaia {
 						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
 			}
 
+			//! Updates the entity-order version after rows were added, removed, or reordered.
+			GAIA_FORCEINLINE void update_entity_order_version() {
+				m_header.entityOrderVersion = m_header.worldVersion;
+				// Row-order changes invalidate cached sorted slices regardless of sort key.
+				world_invalidate_sorted_queries(*const_cast<World*>(m_header.world));
+			}
+
 			//! Update the version of all components
 			GAIA_FORCEINLINE void update_world_version() {
 				// Edit the version pointer directly. The first elements is always the entity version.
@@ -1545,7 +1554,6 @@ namespace gaia {
 				// We update the version of the entity only. If this one changes,
 				// all other components are considered changed as well.
 				versions[0] = m_header.worldVersion;
-				m_header.entityOrderVersion = m_header.worldVersion;
 			}
 
 			//! Update the version of all components on chunk init

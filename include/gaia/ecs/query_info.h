@@ -1010,44 +1010,13 @@ namespace gaia {
 				}
 			}
 
-			//! Returns true when the cached sorted slices need to be rebuilt.
-			//! Sorting depends on entity order changes plus writes to the active sort key.
-			GAIA_NODISCARD bool sort_cache_changed() const {
-				if (m_state.sortVersion == 0)
-					return true;
-
-				const auto sortBy = m_plan.ctx.data.sortBy;
-				for (const auto* pArchetype: m_state.archetypeCache) {
-					const auto& chunks = pArchetype->chunks();
-					for (const auto* pChunk: chunks) {
-						if (pChunk->entity_order_changed(m_state.sortVersion))
-							return true;
-
-						if (sortBy == EntityBad)
-							continue;
-
-						const auto compIdx = pChunk->comp_idx(sortBy);
-						GAIA_ASSERT(compIdx != BadIndex);
-						if (compIdx == BadIndex)
-							return true;
-
-						if (pChunk->changed(m_state.sortVersion, compIdx))
-							return true;
-					}
-				}
-
-				return false;
-			}
-
 			void sort_entities() {
 				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
 
-				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0) {
-					if (!sort_cache_changed())
-						return;
-				}
-				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortEntities;
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortEntities) == 0 && m_state.sortVersion != 0)
+					return;
+				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortEntities;
 
 				// First, sort entities in archetypes
 				for (const auto* pArchetype: m_state.archetypeCache)
