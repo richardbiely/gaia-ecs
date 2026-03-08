@@ -3674,6 +3674,22 @@ namespace gaia {
 				try_enqueue_archetype_for_deletion(archetype);
 			}
 
+			//! Removes a chunk from the deferred delete queue and keeps the moved entry's queue index in sync.
+			void remove_chunk_from_delete_queue(uint32_t idx) {
+				GAIA_ASSERT(idx < m_chunksToDel.size());
+
+				auto* pChunk = m_chunksToDel[idx].pChunk;
+				pChunk->clear_delete_queue_index();
+
+				const auto lastIdx = (uint32_t)m_chunksToDel.size() - 1;
+				if (idx != lastIdx) {
+					auto* pMovedChunk = m_chunksToDel[lastIdx].pChunk;
+					pMovedChunk->delete_queue_index(idx);
+				}
+
+				core::swap_erase(m_chunksToDel, idx);
+			}
+
 			//! Remove an entity from its chunk.
 			//! \param archetype Archetype we remove the entity from
 			//! \param chunk Chunk we remove the entity from
@@ -3695,7 +3711,7 @@ namespace gaia {
 					if (!pChunk->empty()) {
 						pChunk->revive();
 						revive_archetype(*pArchetype);
-						core::swap_erase(m_chunksToDel, i);
+						remove_chunk_from_delete_queue(i);
 						continue;
 					}
 
@@ -3707,7 +3723,7 @@ namespace gaia {
 
 					// Delete unused chunks that are past their lifespan
 					remove_chunk(*pArchetype, *pChunk);
-					core::swap_erase(m_chunksToDel, i);
+					remove_chunk_from_delete_queue(i);
 				}
 			}
 
@@ -3800,6 +3816,7 @@ namespace gaia {
 				chunk.start_dying();
 
 				m_chunksToDel.push_back({&archetype, &chunk});
+				chunk.delete_queue_index((uint32_t)m_chunksToDel.size() - 1);
 			}
 
 			void try_enqueue_archetype_for_deletion(Archetype& archetype) {
@@ -4451,14 +4468,8 @@ namespace gaia {
 
 					// If the chunk was already dying we need to remove it from the delete list
 					// because we can delete it right away.
-					// TODO: Instead of searching for it we could store a delete index in the chunk
-					//       header. This way the lookup is O(1) instead of O(N) and it will help
-					//       with edge-cases (tons of chunks removed at the same time).
-					if (pChunk->dying()) {
-						const auto idx = core::get_index(m_chunksToDel, {&archetype, pChunk});
-						if (idx != BadIndex)
-							core::swap_erase(m_chunksToDel, idx);
-					}
+					if (pChunk->queued_for_deletion())
+						remove_chunk_from_delete_queue(pChunk->delete_queue_index());
 
 					remove_chunk(archetype, *pChunk);
 				}

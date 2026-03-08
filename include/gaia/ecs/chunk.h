@@ -1432,6 +1432,26 @@ namespace gaia {
 				return m_header.lifespanCountdown > 0;
 			}
 
+			//! Returns true when the chunk is currently queued for deferred deletion.
+			GAIA_NODISCARD bool queued_for_deletion() const {
+				return m_header.deleteQueueIndex != BadIndex;
+			}
+
+			//! Returns the index inside World's deferred chunk-delete queue.
+			GAIA_NODISCARD uint32_t delete_queue_index() const {
+				return m_header.deleteQueueIndex;
+			}
+
+			//! Stores the index inside World's deferred chunk-delete queue.
+			void delete_queue_index(uint32_t idx) {
+				m_header.deleteQueueIndex = idx;
+			}
+
+			//! Clears the deferred chunk-delete queue index.
+			void clear_delete_queue_index() {
+				m_header.deleteQueueIndex = BadIndex;
+			}
+
 			//! Marks the chunk as dead (ready to delete)
 			void die() {
 				m_header.dead = 1;
@@ -1445,6 +1465,7 @@ namespace gaia {
 			//! Starts the process of dying (not yet ready to delete, can be revived)
 			void start_dying() {
 				GAIA_ASSERT(!dead());
+				GAIA_ASSERT(!queued_for_deletion());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
@@ -1452,6 +1473,7 @@ namespace gaia {
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = 0;
+				clear_delete_queue_index();
 			}
 
 			//! Updates internal lifespan

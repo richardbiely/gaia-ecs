@@ -4312,6 +4312,40 @@ TEST_CASE("Add-del") {
 	}
 }
 
+TEST_CASE("Chunk delete queue handles multiple queued chunks") {
+	TestWorld twld;
+
+	struct ChunkQueueTag {};
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(5000);
+
+	for (uint32_t i = 0; i < 5000; ++i) {
+		auto e = wld.add();
+		wld.add<ChunkQueueTag>(e);
+		entities.push_back(e);
+	}
+
+	for (auto e: entities)
+		wld.del(e);
+
+	wld.update();
+
+	for (uint32_t i = 0; i < 5000; ++i) {
+		auto e = wld.add();
+		wld.add<ChunkQueueTag>(e);
+		entities[i] = e;
+	}
+
+	for (uint32_t i = 0; i < 2500; ++i)
+		wld.del(entities[i]);
+
+	wld.update();
+
+	auto q = wld.query().all<ChunkQueueTag>();
+	CHECK(q.count() == 2500);
+}
+
 TEST_CASE("Pair") {
 	{
 		TestWorld twld;

@@ -1268,6 +1268,68 @@ void BM_QueryCache_Grouped_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks grouped warm reads while rotating the selected group id.
+//! Cached group-id lookup should avoid rescanning all group ranges after each group switch.
+void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	const auto likes = w.add();
+	const auto apple = w.add();
+	const auto carrot = w.add();
+	const auto salad = w.add();
+	const ecs::Entity targets[] = {apple, carrot, salad};
+	static constexpr uint32_t TargetCount = 3;
+
+	const auto cnt = entities.size();
+	GAIA_FOR(cnt) {
+		w.add(entities[i], ecs::Pair(likes, targets[i % TargetCount]));
+	}
+
+	auto q = w.query().all<Position>().group_by(likes);
+	dont_optimize(q.count());
+
+	uint32_t cursor = 0;
+	for (auto _: state) {
+		(void)_;
+		q.group_id(targets[cursor % TargetCount]);
+		dont_optimize(q.count());
+		++cursor;
+	}
+}
+
+//! Benchmarks repeated creation, emptying, and GC of chunk-heavy archetypes.
+//! This exercises World's deferred chunk-delete queue maintenance.
+void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	struct ChunkQueueBenchTag {};
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	for (auto _: state) {
+		(void)_;
+
+		entities.clear();
+		for (uint32_t i = 0; i < n; ++i) {
+			auto e = w.add();
+			w.add<ChunkQueueBenchTag>(e);
+			entities.push_back(e);
+		}
+
+		for (auto e: entities)
+			w.del(e);
+
+		w.update();
+		dont_optimize(entities.size());
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -2861,6 +2923,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("grouped warm read 10K");
+		PICOBENCH_REG(BM_QueryCache_Grouped_SwitchingRead)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("grouped switching read 10K");
+		PICOBENCH_REG(BM_World_ChunkDeleteQueue_GC)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("chunk delete queue gc 10K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");

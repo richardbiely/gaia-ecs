@@ -24903,6 +24903,8 @@ namespace gaia {
 			const ComponentCache* cc;
 			//! Chunk index in its archetype list
 			uint32_t index;
+			//! Index in World's chunk-delete queue. BadIndex when not queued for deletion.
+			uint32_t deleteQueueIndex;
 			//! Total number of entities in the chunk.
 			uint16_t count;
 			//! Number of enabled entities in the chunk.
@@ -24943,7 +24945,8 @@ namespace gaia {
 			ChunkHeader(
 					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
 					uint32_t& version):
-					world(&wld), cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					world(&wld), cc(&compCache), index(chunkIndex), deleteQueueIndex(BadIndex), count(0), countEnabled(0),
+					capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
@@ -27999,6 +28002,26 @@ namespace gaia {
 				return m_header.lifespanCountdown > 0;
 			}
 
+			//! Returns true when the chunk is currently queued for deferred deletion.
+			GAIA_NODISCARD bool queued_for_deletion() const {
+				return m_header.deleteQueueIndex != BadIndex;
+			}
+
+			//! Returns the index inside World's deferred chunk-delete queue.
+			GAIA_NODISCARD uint32_t delete_queue_index() const {
+				return m_header.deleteQueueIndex;
+			}
+
+			//! Stores the index inside World's deferred chunk-delete queue.
+			void delete_queue_index(uint32_t idx) {
+				m_header.deleteQueueIndex = idx;
+			}
+
+			//! Clears the deferred chunk-delete queue index.
+			void clear_delete_queue_index() {
+				m_header.deleteQueueIndex = BadIndex;
+			}
+
 			//! Marks the chunk as dead (ready to delete)
 			void die() {
 				m_header.dead = 1;
@@ -28012,6 +28035,7 @@ namespace gaia {
 			//! Starts the process of dying (not yet ready to delete, can be revived)
 			void start_dying() {
 				GAIA_ASSERT(!dead());
+				GAIA_ASSERT(!queued_for_deletion());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
@@ -28019,6 +28043,7 @@ namespace gaia {
 			void revive() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = 0;
+				clear_delete_queue_index();
 			}
 
 			//! Updates internal lifespan
@@ -35988,16 +36013,6 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
 			}
 
-			GAIA_NODISCARD const GroupData* find_group_data(GroupId groupId) const {
-				const auto cnt = m_state.archetypeGroupData.size();
-				GAIA_FOR(cnt) {
-					if (m_state.archetypeGroupData[i].groupId == groupId)
-						return &m_state.archetypeGroupData[i];
-				}
-
-				return nullptr;
-			}
-
 			//! Returns cached group bounds for the currently selected group filter.
 			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
 			GAIA_NODISCARD const GroupData* selected_group_data() const {
@@ -36005,15 +36020,19 @@ namespace gaia {
 					return nullptr;
 
 				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != m_plan.ctx.data.groupIdSet) {
-					const auto* pGroupData = find_group_data(m_plan.ctx.data.groupIdSet);
-					if (pGroupData == nullptr) {
-						m_state.selectedGroupData = {};
-						m_state.selectedGroupDataValid = false;
-						return nullptr;
+					const auto cnt = m_state.archetypeGroupData.size();
+					GAIA_FOR(cnt) {
+						if (m_state.archetypeGroupData[i].groupId != m_plan.ctx.data.groupIdSet)
+							continue;
+
+						m_state.selectedGroupData = m_state.archetypeGroupData[i];
+						m_state.selectedGroupDataValid = true;
+						return &m_state.selectedGroupData;
 					}
 
-					m_state.selectedGroupData = *pGroupData;
-					m_state.selectedGroupDataValid = true;
+					m_state.selectedGroupData = {};
+					m_state.selectedGroupDataValid = false;
+					return nullptr;
 				}
 
 				return &m_state.selectedGroupData;
@@ -38246,7 +38265,6 @@ namespace gaia {
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto& chunks = pArchetype->chunks();
-
 							uint32_t chunkOffset = 0;
 							uint32_t itemsLeft = chunks.size();
 							while (itemsLeft > 0) {
@@ -43690,6 +43708,22 @@ namespace gaia {
 				try_enqueue_archetype_for_deletion(archetype);
 			}
 
+			//! Removes a chunk from the deferred delete queue and keeps the moved entry's queue index in sync.
+			void remove_chunk_from_delete_queue(uint32_t idx) {
+				GAIA_ASSERT(idx < m_chunksToDel.size());
+
+				auto* pChunk = m_chunksToDel[idx].pChunk;
+				pChunk->clear_delete_queue_index();
+
+				const auto lastIdx = (uint32_t)m_chunksToDel.size() - 1;
+				if (idx != lastIdx) {
+					auto* pMovedChunk = m_chunksToDel[lastIdx].pChunk;
+					pMovedChunk->delete_queue_index(idx);
+				}
+
+				core::swap_erase(m_chunksToDel, idx);
+			}
+
 			//! Remove an entity from its chunk.
 			//! \param archetype Archetype we remove the entity from
 			//! \param chunk Chunk we remove the entity from
@@ -43711,7 +43745,7 @@ namespace gaia {
 					if (!pChunk->empty()) {
 						pChunk->revive();
 						revive_archetype(*pArchetype);
-						core::swap_erase(m_chunksToDel, i);
+						remove_chunk_from_delete_queue(i);
 						continue;
 					}
 
@@ -43723,7 +43757,7 @@ namespace gaia {
 
 					// Delete unused chunks that are past their lifespan
 					remove_chunk(*pArchetype, *pChunk);
-					core::swap_erase(m_chunksToDel, i);
+					remove_chunk_from_delete_queue(i);
 				}
 			}
 
@@ -43816,6 +43850,7 @@ namespace gaia {
 				chunk.start_dying();
 
 				m_chunksToDel.push_back({&archetype, &chunk});
+				chunk.delete_queue_index((uint32_t)m_chunksToDel.size() - 1);
 			}
 
 			void try_enqueue_archetype_for_deletion(Archetype& archetype) {
@@ -44467,14 +44502,8 @@ namespace gaia {
 
 					// If the chunk was already dying we need to remove it from the delete list
 					// because we can delete it right away.
-					// TODO: Instead of searching for it we could store a delete index in the chunk
-					//       header. This way the lookup is O(1) instead of O(N) and it will help
-					//       with edge-cases (tons of chunks removed at the same time).
-					if (pChunk->dying()) {
-						const auto idx = core::get_index(m_chunksToDel, {&archetype, pChunk});
-						if (idx != BadIndex)
-							core::swap_erase(m_chunksToDel, idx);
-					}
+					if (pChunk->queued_for_deletion())
+						remove_chunk_from_delete_queue(pChunk->delete_queue_index());
 
 					remove_chunk(archetype, *pChunk);
 				}

@@ -1191,16 +1191,6 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
 			}
 
-			GAIA_NODISCARD const GroupData* find_group_data(GroupId groupId) const {
-				const auto cnt = m_state.archetypeGroupData.size();
-				GAIA_FOR(cnt) {
-					if (m_state.archetypeGroupData[i].groupId == groupId)
-						return &m_state.archetypeGroupData[i];
-				}
-
-				return nullptr;
-			}
-
 			//! Returns cached group bounds for the currently selected group filter.
 			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
 			GAIA_NODISCARD const GroupData* selected_group_data() const {
@@ -1208,15 +1198,19 @@ namespace gaia {
 					return nullptr;
 
 				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != m_plan.ctx.data.groupIdSet) {
-					const auto* pGroupData = find_group_data(m_plan.ctx.data.groupIdSet);
-					if (pGroupData == nullptr) {
-						m_state.selectedGroupData = {};
-						m_state.selectedGroupDataValid = false;
-						return nullptr;
+					const auto cnt = m_state.archetypeGroupData.size();
+					GAIA_FOR(cnt) {
+						if (m_state.archetypeGroupData[i].groupId != m_plan.ctx.data.groupIdSet)
+							continue;
+
+						m_state.selectedGroupData = m_state.archetypeGroupData[i];
+						m_state.selectedGroupDataValid = true;
+						return &m_state.selectedGroupData;
 					}
 
-					m_state.selectedGroupData = *pGroupData;
-					m_state.selectedGroupDataValid = true;
+					m_state.selectedGroupData = {};
+					m_state.selectedGroupDataValid = false;
+					return nullptr;
 				}
 
 				return &m_state.selectedGroupData;

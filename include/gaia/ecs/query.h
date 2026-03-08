@@ -1375,7 +1375,6 @@ namespace gaia {
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto& chunks = pArchetype->chunks();
-
 							uint32_t chunkOffset = 0;
 							uint32_t itemsLeft = chunks.size();
 							while (itemsLeft > 0) {

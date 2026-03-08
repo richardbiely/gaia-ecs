@@ -67,6 +67,8 @@ namespace gaia {
 			const ComponentCache* cc;
 			//! Chunk index in its archetype list
 			uint32_t index;
+			//! Index in World's chunk-delete queue. BadIndex when not queued for deletion.
+			uint32_t deleteQueueIndex;
 			//! Total number of entities in the chunk.
 			uint16_t count;
 			//! Number of enabled entities in the chunk.
@@ -107,7 +109,8 @@ namespace gaia {
 			ChunkHeader(
 					const World& wld, const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint8_t genEntitiesCnt,
 					uint32_t& version):
-					world(&wld), cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap),
+					world(&wld), cc(&compCache), index(chunkIndex), deleteQueueIndex(BadIndex), count(0), countEnabled(0),
+					capacity(cap),
 					//
 					rowFirstEnabledEntity(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
 					hasAnyCustomUniDtor(0), lifespanCountdown(0), dead(0), unused(0),
