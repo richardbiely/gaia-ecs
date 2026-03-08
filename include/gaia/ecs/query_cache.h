@@ -57,6 +57,9 @@ namespace gaia {
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
+			//! Structural queries without positive selector ids (for example pure NOT queries).
+			//! They still need eager archetype-create updates, but there is no concrete id to route them through.
+			cnt::darray<QueryHandle> m_broadCreateQueries;
 			//! Archetype -> cached queries whose current result cache contains it
 			cnt::map<ArchetypeIdLookupKey, cnt::darray<QueryHandle>> m_archetypeToQuery;
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
@@ -96,6 +99,7 @@ namespace gaia {
 				m_queryArr.clear();
 				m_entityToQuery.clear();
 				m_entityToCreateQuery.clear();
+				m_broadCreateQueries.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
 				m_createQueryHandleScratch.clear();
@@ -297,6 +301,8 @@ namespace gaia {
 				if (hasAnyPair)
 					append_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
 
+				append_broad_create_query_handles(handles);
+
 				for (const auto handle: handles) {
 					auto* pInfo = try_get(handle);
 					if (pInfo == nullptr || pInfo->refs() == 0)
@@ -381,6 +387,15 @@ namespace gaia {
 				return (flags & (QueryCtx::QueryFlags::HasSourceTerms | QueryCtx::QueryFlags::HasVariableTerms)) == 0;
 			}
 
+			GAIA_NODISCARD static bool has_create_selector_term(const QueryCtx& ctx) {
+				for (const auto& term: ctx.data.terms_view()) {
+					if (is_create_selector_term(term))
+						return true;
+				}
+
+				return false;
+			}
+
 			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToCreateQuery.find(entityKey);
@@ -409,9 +424,13 @@ namespace gaia {
 				if (!is_structural_create_query(ctx))
 					return;
 
+				if (!has_create_selector_term(ctx)) {
+					add_broad_create_query(handle);
+					return;
+				}
+
 				// Only queries with a positive structural selector term are tracked here.
-				// Broad structural queries such as pure NOT/ANY still rely on the normal
-				// read-time incremental refresh path until they get a dedicated index.
+				// Structural queries without such selectors are tracked separately in m_broadCreateQueries.
 				for (const auto& term: ctx.data.terms_view()) {
 					if (!is_create_selector_term(term))
 						continue;
@@ -423,6 +442,11 @@ namespace gaia {
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				if (!is_structural_create_query(ctx))
 					return;
+
+				if (!has_create_selector_term(ctx)) {
+					del_broad_create_query(handle);
+					return;
+				}
 
 				for (const auto& term: ctx.data.terms_view()) {
 					if (!is_create_selector_term(term))
@@ -468,6 +492,24 @@ namespace gaia {
 
 				stamp = m_createQueryHandleStamp;
 				return true;
+			}
+
+			void add_broad_create_query(QueryHandle handle) {
+				if (!core::has(m_broadCreateQueries, handle))
+					m_broadCreateQueries.push_back(handle);
+			}
+
+			void del_broad_create_query(QueryHandle handle) {
+				core::swap_erase(m_broadCreateQueries, core::get_index(m_broadCreateQueries, handle));
+			}
+
+			void append_broad_create_query_handles(cnt::darray<QueryHandle>& handles) {
+				// Broad structural queries have no concrete selector id we can key by, so archetype creation fans out
+				// through this compact list instead of forcing those queries onto a later full refresh path.
+				for (const auto handle: m_broadCreateQueries) {
+					if (mark_create_query_handle(handle))
+						handles.push_back(handle);
+				}
 			}
 
 			void add_archetype_query_pair(const Archetype* pArchetype, QueryHandle handle) {

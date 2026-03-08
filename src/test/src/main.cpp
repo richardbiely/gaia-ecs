@@ -10116,6 +10116,42 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached broad NOT query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto excluded = wld.add();
+	auto q = wld.query().no(excluded);
+	auto qUncached = wld.query<false>().no(excluded);
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
+	CHECK(q.count() == qUncached.count());
+}
+
+TEST_CASE("Query - cached broad NOT query ignores non-matching archetypes") {
+	TestWorld twld;
+
+	auto excluded = wld.add();
+	auto q = wld.query().no(excluded);
+	auto qUncached = wld.query<false>().no(excluded);
+	auto& info = q.fetch();
+	q.match_all(info);
+	const auto archetypeCntBefore = info.cache_archetype_view().size();
+	const auto entityCntBefore = qUncached.count();
+
+	auto e = wld.add();
+	wld.add(e, excluded);
+
+	CHECK(info.cache_archetype_view().size() == archetypeCntBefore);
+	CHECK(q.count() == entityCntBefore);
+	CHECK(q.count() == qUncached.count());
+}
+
 TEST_CASE("Query - cached structural query picks up new matching archetype after warm match") {
 	TestWorld twld;
 
