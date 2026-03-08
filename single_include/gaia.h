@@ -35858,6 +35858,17 @@ namespace gaia {
 		};
 
 		class QueryCache {
+		public:
+			enum class ChangeKind : uint8_t {
+				// Query membership may have changed due to structural world changes.
+				Structural,
+				// Only dynamic/source-driven results may have changed.
+				DynamicResult,
+				// Full query cache invalidation.
+				All,
+			};
+
+		private:
 			struct TrackedArchetypes {
 				cnt::darray<const Archetype*> archetypes;
 				uint32_t syncedRevision = 0;
@@ -36029,7 +36040,7 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
-			void invalidate_queries_for_entity(EntityLookupKey entityKey, QueryInfo::InvalidationKind kind) {
+			void invalidate_queries_for_entity(EntityLookupKey entityKey, ChangeKind changeKind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
 					return;
@@ -36037,7 +36048,7 @@ namespace gaia {
 				const auto& handles = it->second;
 				for (const auto& handle: handles) {
 					auto& info = get(handle);
-					info.invalidate(kind);
+					info.invalidate(select_invalidation_kind(info, changeKind));
 					info.ctx().refresh();
 				}
 			}
@@ -36131,6 +36142,26 @@ namespace gaia {
 			}
 
 		private:
+			static QueryInfo::InvalidationKind select_invalidation_kind(const QueryInfo& info, ChangeKind changeKind) {
+				switch (changeKind) {
+					case ChangeKind::DynamicResult:
+						return QueryInfo::InvalidationKind::Result;
+					case ChangeKind::All:
+						return QueryInfo::InvalidationKind::All;
+					case ChangeKind::Structural:
+						// Structural changes invalidate seed caches for structural queries.
+						// Dynamic queries reuse structural compilation state and only need their
+						// final result refreshed on the next read.
+						return info.ctx().data.deps.has(QueryCtx::DependencyHasSourceTerms) ||
+													 info.ctx().data.deps.has(QueryCtx::DependencyHasVariableTerms)
+											 ? QueryInfo::InvalidationKind::Result
+											 : QueryInfo::InvalidationKind::Seed;
+				}
+
+				GAIA_ASSERT(false);
+				return QueryInfo::InvalidationKind::All;
+			}
+
 			//! Adds an entity to the <entity, query> map
 			//! \param entity Entity getting added
 			//! \param handle Query handle
@@ -44951,6 +44982,10 @@ namespace gaia {
 				serId = QueryIdBad;
 			}
 
+			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
+				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
+			}
+
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -44968,8 +45003,7 @@ namespace gaia {
 				auto e = is_pair.second();
 				as_up_trav<false>(e, [&](Entity target) {
 					// Invalidate all queries that contain  everything in our path.
-					m_queryCache.invalidate_queries_for_entity(
-							EntityLookupKey(Pair{Is, target}), QueryInfo::InvalidationKind::Seed);
+					invalidate_queries_for_structural_entity(EntityLookupKey(Pair{Is, target}));
 				});
 			}
 

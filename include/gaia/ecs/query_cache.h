@@ -45,6 +45,17 @@ namespace gaia {
 		};
 
 		class QueryCache {
+		public:
+			enum class ChangeKind : uint8_t {
+				// Query membership may have changed due to structural world changes.
+				Structural,
+				// Only dynamic/source-driven results may have changed.
+				DynamicResult,
+				// Full query cache invalidation.
+				All,
+			};
+
+		private:
 			struct TrackedArchetypes {
 				cnt::darray<const Archetype*> archetypes;
 				uint32_t syncedRevision = 0;
@@ -216,7 +227,7 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
-			void invalidate_queries_for_entity(EntityLookupKey entityKey, QueryInfo::InvalidationKind kind) {
+			void invalidate_queries_for_entity(EntityLookupKey entityKey, ChangeKind changeKind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
 					return;
@@ -224,7 +235,7 @@ namespace gaia {
 				const auto& handles = it->second;
 				for (const auto& handle: handles) {
 					auto& info = get(handle);
-					info.invalidate(kind);
+					info.invalidate(select_invalidation_kind(info, changeKind));
 					info.ctx().refresh();
 				}
 			}
@@ -318,6 +329,26 @@ namespace gaia {
 			}
 
 		private:
+			static QueryInfo::InvalidationKind select_invalidation_kind(const QueryInfo& info, ChangeKind changeKind) {
+				switch (changeKind) {
+					case ChangeKind::DynamicResult:
+						return QueryInfo::InvalidationKind::Result;
+					case ChangeKind::All:
+						return QueryInfo::InvalidationKind::All;
+					case ChangeKind::Structural:
+						// Structural changes invalidate seed caches for structural queries.
+						// Dynamic queries reuse structural compilation state and only need their
+						// final result refreshed on the next read.
+						return info.ctx().data.deps.has(QueryCtx::DependencyHasSourceTerms) ||
+													 info.ctx().data.deps.has(QueryCtx::DependencyHasVariableTerms)
+											 ? QueryInfo::InvalidationKind::Result
+											 : QueryInfo::InvalidationKind::Seed;
+				}
+
+				GAIA_ASSERT(false);
+				return QueryInfo::InvalidationKind::All;
+			}
+
 			//! Adds an entity to the <entity, query> map
 			//! \param entity Entity getting added
 			//! \param handle Query handle

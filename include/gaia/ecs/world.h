@@ -5609,6 +5609,10 @@ namespace gaia {
 				serId = QueryIdBad;
 			}
 
+			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
+				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
+			}
+
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -5626,8 +5630,7 @@ namespace gaia {
 				auto e = is_pair.second();
 				as_up_trav<false>(e, [&](Entity target) {
 					// Invalidate all queries that contain  everything in our path.
-					m_queryCache.invalidate_queries_for_entity(
-							EntityLookupKey(Pair{Is, target}), QueryInfo::InvalidationKind::Seed);
+					invalidate_queries_for_structural_entity(EntityLookupKey(Pair{Is, target}));
 				});
 			}
 
