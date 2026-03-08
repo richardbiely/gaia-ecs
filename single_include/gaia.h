@@ -34908,6 +34908,10 @@ namespace gaia {
 				cnt::darray<SortData> archetypeSortData;
 				//! Group data used by cache
 				cnt::darray<GroupData> archetypeGroupData;
+				//! Cached range for the currently selected group id.
+				mutable GroupData selectedGroupData{};
+				//! True when selectedGroupData matches the active group filter.
+				mutable bool selectedGroupDataValid = false;
 				//! World version at which the sorted cache slices were last rebuilt.
 				//! Unlike worldVersion, this is only updated after a real sort refresh.
 				uint32_t sortVersion{};
@@ -34945,6 +34949,8 @@ namespace gaia {
 					archetypeSortData = {};
 					archetypeCacheData = {};
 					archetypeGroupData = {};
+					selectedGroupData = {};
+					selectedGroupDataValid = false;
 					sortVersion = 0;
 				}
 
@@ -35827,7 +35833,7 @@ namespace gaia {
 			void sort_cache_groups() {
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
 					return;
-				m_plan.ctx.data.flags ^= QueryCtx::QueryFlags::SortGroups;
+				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortGroups;
 
 				struct sort_cond {
 					bool operator()(const ArchetypeCacheData& a, const ArchetypeCacheData& b) const {
@@ -35849,6 +35855,7 @@ namespace gaia {
 					m_state.archetypeCacheData[left] = m_state.archetypeCacheData[right];
 					m_state.archetypeCacheData[right] = tmp;
 				});
+				m_state.selectedGroupDataValid = false;
 			}
 
 			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
@@ -35895,6 +35902,8 @@ namespace gaia {
 
 				if (m_state.archetypeSet.contains(pArchetype))
 					return;
+
+				m_state.selectedGroupDataValid = false;
 
 				const GroupId groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 
@@ -35979,6 +35988,37 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
 			}
 
+			GAIA_NODISCARD const GroupData* find_group_data(GroupId groupId) const {
+				const auto cnt = m_state.archetypeGroupData.size();
+				GAIA_FOR(cnt) {
+					if (m_state.archetypeGroupData[i].groupId == groupId)
+						return &m_state.archetypeGroupData[i];
+				}
+
+				return nullptr;
+			}
+
+			//! Returns cached group bounds for the currently selected group filter.
+			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
+			GAIA_NODISCARD const GroupData* selected_group_data() const {
+				if (m_plan.ctx.data.groupBy == EntityBad || m_plan.ctx.data.groupIdSet == 0)
+					return nullptr;
+
+				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != m_plan.ctx.data.groupIdSet) {
+					const auto* pGroupData = find_group_data(m_plan.ctx.data.groupIdSet);
+					if (pGroupData == nullptr) {
+						m_state.selectedGroupData = {};
+						m_state.selectedGroupDataValid = false;
+						return nullptr;
+					}
+
+					m_state.selectedGroupData = *pGroupData;
+					m_state.selectedGroupDataValid = true;
+				}
+
+				return &m_state.selectedGroupData;
+			}
+
 			GAIA_NODISCARD bool has_same_result_membership_as_seed_cache() const {
 				if (m_state.archetypeSet.size() != m_state.seedArchetypeSet.size())
 					return false;
@@ -36019,6 +36059,8 @@ namespace gaia {
 
 				// Update the group data if possible
 				if (m_plan.ctx.data.groupBy != EntityBad) {
+					m_state.selectedGroupDataValid = false;
+
 					const auto groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 					const auto grpIdx = core::get_index_if_unsafe(m_state.archetypeGroupData, [&](const GroupData& group) {
 						return group.groupId == groupId;
@@ -38503,22 +38545,16 @@ namespace gaia {
 							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
-						// TODO: Cache the indices so we don't have to iterate. In situations with many
-						//       groups this could save a bit of performance.
-						auto group_data_view = queryInfo.group_data_view();
-						const auto cnt = group_data_view.size();
-						GAIA_FOR(cnt) {
-							if (group_data_view[i].groupId != queryInfo.ctx().data.groupIdSet)
-								continue;
-
-							const auto idxFrom = group_data_view[i].idxFirst;
-							const auto idxTo = group_data_view[i].idxLast + 1;
-							if constexpr (ExecType != QueryExecType::Default)
-								run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
-							else
-								run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+						const auto* pGroupData = queryInfo.selected_group_data();
+						if (pGroupData == nullptr)
 							return;
-						}
+
+						const auto idxFrom = pGroupData->idxFirst;
+						const auto idxTo = pGroupData->idxLast + 1;
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+						else
+							run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					}
 				}
 

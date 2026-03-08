@@ -1238,6 +1238,36 @@ void BM_QueryCache_Sorted_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks warm reads for a grouped query with a stable group_id selection.
+//! The selected group range should be cached instead of scanning all group entries on every read.
+void BM_QueryCache_Grouped_WarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	const auto likes = w.add();
+	const auto apple = w.add();
+	const auto carrot = w.add();
+	const auto salad = w.add();
+
+	const ecs::Entity targets[] = {apple, carrot, salad};
+	static constexpr uint32_t TargetCount = 3;
+	const auto cnt = entities.size();
+	GAIA_FOR(cnt) {
+		w.add(entities[i], ecs::Pair(likes, targets[i % TargetCount]));
+	}
+
+	auto q = w.query().all<Position>().group_by(likes).group_id(carrot);
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -2827,6 +2857,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("sorted warm read 10K");
+		PICOBENCH_REG(BM_QueryCache_Grouped_WarmRead)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("grouped warm read 10K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");

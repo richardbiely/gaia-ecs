@@ -1674,22 +1674,16 @@ namespace gaia {
 							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
-						// TODO: Cache the indices so we don't have to iterate. In situations with many
-						//       groups this could save a bit of performance.
-						auto group_data_view = queryInfo.group_data_view();
-						const auto cnt = group_data_view.size();
-						GAIA_FOR(cnt) {
-							if (group_data_view[i].groupId != queryInfo.ctx().data.groupIdSet)
-								continue;
-
-							const auto idxFrom = group_data_view[i].idxFirst;
-							const auto idxTo = group_data_view[i].idxLast + 1;
-							if constexpr (ExecType != QueryExecType::Default)
-								run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
-							else
-								run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+						const auto* pGroupData = queryInfo.selected_group_data();
+						if (pGroupData == nullptr)
 							return;
-						}
+
+						const auto idxFrom = pGroupData->idxFirst;
+						const auto idxTo = pGroupData->idxLast + 1;
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+						else
+							run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					}
 				}
 
