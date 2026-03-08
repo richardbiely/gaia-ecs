@@ -10116,6 +10116,34 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - public cache mode and policy classification") {
+	TestWorld twld;
+
+	auto source = wld.add();
+	auto rel = wld.add();
+
+	auto qCachedImmediate = wld.query().all<Position>();
+	auto qCachedLazy = wld.query().no<Position>();
+	auto qCachedDynamic = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
+	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
+	auto qUncachedImmediate = wld.query<false>().all<Position>();
+
+	CHECK(qCachedImmediate.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qCachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
+
+	CHECK(qCachedLazy.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qCachedLazy.cache_policy() == ecs::QueryCachePolicy::Lazy);
+
+	CHECK(qCachedDynamic.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qCachedDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
+
+	CHECK(qCachedVar.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qCachedVar.cache_policy() == ecs::QueryCachePolicy::Dynamic);
+
+	CHECK(qUncachedImmediate.cache_mode() == ecs::QueryCacheMode::Private);
+	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
+}
+
 TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
 	TestWorld twld;
 

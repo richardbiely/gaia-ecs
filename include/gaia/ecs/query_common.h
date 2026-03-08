@@ -360,10 +360,10 @@ namespace gaia {
 			};
 
 			enum class CachePolicy : uint8_t {
-				// Structural query with a positive selector term. Safe to update eagerly on archetype creation.
-				EagerStructural,
+				// Structural query with a positive selector term. Safe to update immediately on archetype creation.
+				Immediate,
 				// Structural query that stays cached but refreshes lazily on the next read.
-				LazyStructural,
+				Lazy,
 				// Query with source or variable terms. Cached state is repaired on demand.
 				Dynamic,
 			};
@@ -417,7 +417,7 @@ namespace gaia {
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
 				//! Cache maintenance policy derived from query shape.
-				CachePolicy cachePolicy = CachePolicy::LazyStructural;
+				CachePolicy cachePolicy = CachePolicy::Lazy;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -530,9 +530,9 @@ namespace gaia {
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
 					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
-						data.cachePolicy = CachePolicy::EagerStructural;
+						data.cachePolicy = CachePolicy::Immediate;
 					else
-						data.cachePolicy = CachePolicy::LazyStructural;
+						data.cachePolicy = CachePolicy::Lazy;
 
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);

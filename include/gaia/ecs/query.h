@@ -45,6 +45,15 @@ namespace gaia {
 			Default = Serial,
 		};
 
+		enum class QueryCacheMode : uint8_t {
+			// Query uses the world's shared QueryCache and shared QueryInfo state.
+			Shared,
+			// Query owns a private QueryInfo and does not participate in shared cache propagation.
+			Private,
+		};
+
+		using QueryCachePolicy = QueryCtx::CachePolicy;
+
 		namespace detail {
 			//! Query command types
 			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP };
@@ -603,6 +612,16 @@ namespace gaia {
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					queryInfo.ensure_matches_one(archetype, targetEntities);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				GAIA_NODISCARD static constexpr QueryCacheMode cache_mode() {
+					return UseCaching ? QueryCacheMode::Shared : QueryCacheMode::Private;
+				}
+
+				GAIA_NODISCARD QueryCachePolicy cache_policy() {
+					return fetch().cache_policy();
 				}
 
 				//--------------------------------------------------------------------------------

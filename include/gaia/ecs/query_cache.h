@@ -401,7 +401,7 @@ namespace gaia {
 			}
 
 			void add_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
 				// Only structural queries with a positive selector term are tracked here.
@@ -415,7 +415,7 @@ namespace gaia {
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
 				for (const auto& term: ctx.data.terms_view()) {

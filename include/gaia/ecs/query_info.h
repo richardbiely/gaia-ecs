@@ -180,10 +180,6 @@ namespace gaia {
 				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
 			}
 
-			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
-				return m_plan.ctx.data.cachePolicy;
-			}
-
 			template <typename TType>
 			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOpKind op, bool isReadWrite) const {
 				using T = core::raw_t<TType>;
@@ -337,9 +333,13 @@ namespace gaia {
 				return m_state.worldVersion;
 			}
 
+			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
+				return m_plan.ctx.data.cachePolicy;
+			}
+
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only eagerly maintained structural queries participate in archetype-create propagation.
-				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::EagerStructural &&
+				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
 							 !m_state.needs_refresh();
 			}
 

@@ -29747,10 +29747,10 @@ namespace gaia {
 			};
 
 			enum class CachePolicy : uint8_t {
-				// Structural query with a positive selector term. Safe to update eagerly on archetype creation.
-				EagerStructural,
+				// Structural query with a positive selector term. Safe to update immediately on archetype creation.
+				Immediate,
 				// Structural query that stays cached but refreshes lazily on the next read.
-				LazyStructural,
+				Lazy,
 				// Query with source or variable terms. Cached state is repaired on demand.
 				Dynamic,
 			};
@@ -29804,7 +29804,7 @@ namespace gaia {
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
 				//! Cache maintenance policy derived from query shape.
-				CachePolicy cachePolicy = CachePolicy::LazyStructural;
+				CachePolicy cachePolicy = CachePolicy::Lazy;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -29917,9 +29917,9 @@ namespace gaia {
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
 					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
-						data.cachePolicy = CachePolicy::EagerStructural;
+						data.cachePolicy = CachePolicy::Immediate;
 					else
-						data.cachePolicy = CachePolicy::LazyStructural;
+						data.cachePolicy = CachePolicy::Lazy;
 
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
@@ -34796,10 +34796,6 @@ namespace gaia {
 				return m_plan.ctx.data.cachePolicy == QueryCtx::CachePolicy::Dynamic;
 			}
 
-			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
-				return m_plan.ctx.data.cachePolicy;
-			}
-
 			template <typename TType>
 			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOpKind op, bool isReadWrite) const {
 				using T = core::raw_t<TType>;
@@ -34953,9 +34949,13 @@ namespace gaia {
 				return m_state.worldVersion;
 			}
 
+			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
+				return m_plan.ctx.data.cachePolicy;
+			}
+
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only eagerly maintained structural queries participate in archetype-create propagation.
-				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::EagerStructural &&
+				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
 							 !m_state.needs_refresh();
 			}
 
@@ -36107,7 +36107,7 @@ namespace gaia {
 			}
 
 			void add_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
 				// Only structural queries with a positive selector term are tracked here.
@@ -36121,7 +36121,7 @@ namespace gaia {
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
-				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::EagerStructural)
+				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
 				for (const auto& term: ctx.data.terms_view()) {
@@ -36239,6 +36239,15 @@ namespace gaia {
 			// Default execution type
 			Default = Serial,
 		};
+
+		enum class QueryCacheMode : uint8_t {
+			// Query uses the world's shared QueryCache and shared QueryInfo state.
+			Shared,
+			// Query owns a private QueryInfo and does not participate in shared cache propagation.
+			Private,
+		};
+
+		using QueryCachePolicy = QueryCtx::CachePolicy;
 
 		namespace detail {
 			//! Query command types
@@ -36798,6 +36807,16 @@ namespace gaia {
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					queryInfo.ensure_matches_one(archetype, targetEntities);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				GAIA_NODISCARD static constexpr QueryCacheMode cache_mode() {
+					return UseCaching ? QueryCacheMode::Shared : QueryCacheMode::Private;
+				}
+
+				GAIA_NODISCARD QueryCachePolicy cache_policy() {
+					return fetch().cache_policy();
 				}
 
 				//--------------------------------------------------------------------------------
