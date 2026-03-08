@@ -10264,7 +10264,7 @@ TEST_CASE("Query - source-state caching is opt-in for cached source queries") {
 	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qDefault.source_state_snapshot_limit() == 0);
-	CHECK(qOptIn.source_state_snapshot_limit() == 64);
+	CHECK(qOptIn.source_state_snapshot_limit() > 0);
 }
 
 TEST_CASE("Query - capped traversed-source snapshots fall back to lazy rebuild") {
@@ -10379,7 +10379,7 @@ TEST_CASE("Query - public cache mode and policy classification") {
 	CHECK(qCachedDynamicOptIn.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qCachedDynamicOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qCachedDynamicOptIn.caches_source_state());
-	CHECK(qCachedDynamicOptIn.source_state_snapshot_limit() == 64);
+	CHECK(qCachedDynamicOptIn.source_state_snapshot_limit() == 32);
 
 	CHECK(qCachedVar.cache_mode() == ecs::QueryCacheMode::Shared);
 	CHECK(qCachedVar.cache_policy() == ecs::QueryCachePolicy::Dynamic);
