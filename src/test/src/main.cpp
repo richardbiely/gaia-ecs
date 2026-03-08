@@ -10144,6 +10144,45 @@ TEST_CASE("Query - public cache mode and policy classification") {
 	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 }
 
+TEST_CASE("Query - public cache kind construction") {
+	TestWorld twld;
+
+	ecs::Query::SilenceInvalidCacheKindAssertions = true;
+
+	auto source = wld.add();
+
+	auto qDefault = wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>();
+	auto qAuto = wld.query().cache_kind(ecs::QueryCacheKind::Auto).no<Position>();
+	auto qAll = wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>();
+	auto qAllFail = wld.query().cache_kind(ecs::QueryCacheKind::All).no<Position>();
+	auto qDynamic =
+			wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>(ecs::QueryTermOptions{}.src(source));
+
+	CHECK(qDefault.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qDefault.valid());
+	CHECK(qDefault.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Immediate);
+
+	CHECK(qAuto.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(qAuto.valid());
+	CHECK(qAuto.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qAuto.cache_policy() == ecs::QueryCachePolicy::Lazy);
+
+	CHECK(qAll.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(qAll.valid());
+	CHECK(qAll.cache_mode() == ecs::QueryCacheMode::Shared);
+	CHECK(qAll.cache_policy() == ecs::QueryCachePolicy::Immediate);
+
+	CHECK(qAllFail.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(!qAllFail.valid());
+	CHECK(qAllFail.count() == 0);
+
+	CHECK(qDynamic.valid());
+	CHECK(qDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
+
+	ecs::Query::SilenceInvalidCacheKindAssertions = false;
+}
+
 TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
 	TestWorld twld;
 

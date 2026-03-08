@@ -52,6 +52,15 @@ namespace gaia {
 			Private,
 		};
 
+		enum class QueryCacheKind : uint8_t {
+			// Use the default shared-cache policy.
+			Default,
+			// Use shared cached query state with automatic policy selection from query shape.
+			Auto,
+			// Use shared cached query state and keep the requested kind explicit for diagnostics/API symmetry.
+			All
+		};
+
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 
 		namespace detail {
@@ -441,6 +450,8 @@ namespace gaia {
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
+				//! User-requested cache-kind restriction.
+				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -550,6 +561,8 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			public:
+				static inline bool SilenceInvalidCacheKindAssertions = false;
+
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
@@ -603,6 +616,12 @@ namespace gaia {
 				}
 
 				void match_all(QueryInfo& queryInfo) {
+					if (!validate_cache_kind(queryInfo.ctx())) {
+						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid cache_kind selected for a query");
+						queryInfo.reset();
+						return;
+					}
+
 					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
 					if constexpr (UseCaching) {
 						m_storage.m_queryCache->sync_archetype_cache(
@@ -624,8 +643,39 @@ namespace gaia {
 					return fetch().cache_policy();
 				}
 
+				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
+					if (m_cacheKind == cacheKind)
+						return *this;
+
+					invalidate_each_bfs_cache();
+					m_cacheKind = cacheKind;
+					if constexpr (UseCaching)
+						m_storage.invalidate();
+					else
+						m_storage.reset();
+
+					return *this;
+				}
+
+				GAIA_NODISCARD QueryCacheKind cache_kind() const {
+					return m_cacheKind;
+				}
+
+				GAIA_NODISCARD bool valid() {
+					return validate_cache_kind(fetch().ctx());
+				}
+
 				//--------------------------------------------------------------------------------
 			private:
+				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
+					if (m_cacheKind == QueryCacheKind::Auto)
+						return UseCaching;
+					if (m_cacheKind == QueryCacheKind::All)
+						return UseCaching && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+
+					return true;
+				}
+
 				GAIA_NODISCARD EachBfsData* each_bfs_data() {
 					return m_eachBfsData.get();
 				}
