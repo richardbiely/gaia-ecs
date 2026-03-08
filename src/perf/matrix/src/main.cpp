@@ -806,6 +806,17 @@ void create_structural_cache_queries(
 	}
 }
 
+//! Seeds unrelated archetypes so cache maintenance runs against a world that already has many layouts.
+void create_unrelated_archetypes(ecs::World& w, uint32_t archetypeCnt) {
+	GAIA_FOR(archetypeCnt) {
+		auto tag = w.add();
+		auto e = w.add();
+		auto eb = w.build(e);
+		eb.add(tag);
+		eb.commit();
+	}
+}
+
 //! Benchmarks immediate structural cache maintenance when one new archetype fans out to many cached selectors.
 void BM_QueryCache_Create_Fanout(picobench::state& state) {
 	const uint32_t queryCnt = (uint32_t)state.user_data();
@@ -832,6 +843,42 @@ void BM_QueryCache_Create_Fanout(picobench::state& state) {
 	}
 }
 
+//! Benchmarks immediate structural cache maintenance in worlds that already contain many unrelated archetypes.
+template <uint32_t QueryCnt>
+void BM_QueryCache_Create_Fanout_Scaled(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> tags;
+		cnt::darray<ecs::Query> queries;
+		create_structural_cache_queries(w, tags, queries, QueryCnt);
+		create_unrelated_archetypes(w, archetypeCnt);
+
+		state.start_timer();
+
+		auto e = w.add();
+		auto eb = w.build(e);
+		for (const auto tag: tags)
+			eb.add(tag);
+		eb.commit();
+
+		state.stop_timer();
+		dont_optimize(queries.back().count());
+	}
+}
+
+void BM_QueryCache_Create_Fanout_Scaled_31(picobench::state& state) {
+	BM_QueryCache_Create_Fanout_Scaled<31>(state);
+}
+
+void BM_QueryCache_Create_Fanout_Scaled_31_4K(picobench::state& state) {
+	BM_QueryCache_Create_Fanout_Scaled<31>(state);
+}
+
 struct SourceChain {
 	ecs::Entity root = ecs::EntityBad;
 	ecs::Entity leaf = ecs::EntityBad;
@@ -853,10 +900,9 @@ SourceChain create_parent_chain(ecs::World& w, uint32_t depth) {
 }
 
 //! Benchmarks warm reads for a traversed source query, with traversed-source snapshot caching optional.
-template <bool CacheSourceState>
+template <bool CacheSourceState, uint32_t SourceDepth>
 void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
-	constexpr uint32_t SourceDepth = 16;
 
 	cnt::darray<ecs::Entity> entities;
 	entities.reserve(n);
@@ -962,11 +1008,19 @@ void BM_QueryCache_DirectSource_WarmRead_SourceState(picobench::state& state) {
 }
 
 void BM_QueryCache_SourceTraversal_WarmRead_Lazy(picobench::state& state) {
-	BM_QueryCache_SourceTraversal_WarmRead<false>(state);
+	BM_QueryCache_SourceTraversal_WarmRead<false, 16>(state);
 }
 
 void BM_QueryCache_SourceTraversal_WarmRead_Snapshotted(picobench::state& state) {
-	BM_QueryCache_SourceTraversal_WarmRead<true>(state);
+	BM_QueryCache_SourceTraversal_WarmRead<true, 16>(state);
+}
+
+void BM_QueryCache_SourceTraversal_WarmRead_SmallClosure(picobench::state& state) {
+	BM_QueryCache_SourceTraversal_WarmRead<true, 4>(state);
+}
+
+void BM_QueryCache_SourceTraversal_WarmRead_LargeClosure(picobench::state& state) {
+	BM_QueryCache_SourceTraversal_WarmRead<true, 64>(state);
 }
 
 //! Benchmarks warm reads for a relation-versioned dynamic query with a bound variable.
@@ -998,6 +1052,43 @@ void BM_QueryCache_DynamicRelation_WarmRead(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks repeated structural invalidation and cache refresh while entities churn between existing archetypes.
+void BM_QueryCache_Invalidate_Churn(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<true, true, false, false, false>(w, entities, n);
+
+	for (uint32_t i = 0; i < entities.size(); ++i) {
+		if ((i & 1U) == 0U)
+			w.add<Frozen>(entities[i], {true});
+	}
+
+	auto qImmediate = w.query().all<Position&>().all<Velocity&>();
+	auto qLazy = w.query().all<Position&>().all<Velocity&>().no<Frozen>();
+	auto qBroadLazy = w.query().no<Frozen>();
+	dont_optimize(qImmediate.count());
+	dont_optimize(qLazy.count());
+	dont_optimize(qBroadLazy.count());
+
+	uint32_t cursor = 0U;
+	for (auto _: state) {
+		(void)_;
+
+		const auto e = entities[cursor % n];
+		if (w.has<Frozen>(e))
+			w.del<Frozen>(e);
+		else
+			w.add<Frozen>(e, {true});
+
+		dont_optimize(qImmediate.count());
+		dont_optimize(qLazy.count());
+		dont_optimize(qBroadLazy.count());
+		++cursor;
 	}
 }
 
@@ -2526,6 +2617,14 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_SUITE_REG("Query cache maintenance");
 		PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(16).label("create fanout 16");
 		PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(24).label("create fanout 24");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_Scaled_31)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("create fanout 31q 1K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_Scaled_31_4K)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("create fanout 31q 4K arch");
 		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_Default)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
@@ -2550,10 +2649,22 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("traversed source snapshotted");
+		PICOBENCH_REG(BM_QueryCache_SourceTraversal_WarmRead_SmallClosure)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("traversed source snap small");
+		PICOBENCH_REG(BM_QueryCache_SourceTraversal_WarmRead_LargeClosure)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("traversed source snap large");
 		PICOBENCH_REG(BM_QueryCache_DynamicRelation_WarmRead)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("dynamic relation warm");
+		PICOBENCH_REG(BM_QueryCache_Invalidate_Churn)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("invalidate churn 100K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");
