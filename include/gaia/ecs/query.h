@@ -452,6 +452,8 @@ namespace gaia {
 				cnt::darray<ChunkBatch> m_batches;
 				//! User-requested cache-kind restriction.
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
+				//! Opt-in for source-state snapshot caching on reusable dynamic source queries.
+				bool m_cacheSourceState = false;
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -640,6 +642,22 @@ namespace gaia {
 
 				GAIA_NODISCARD QueryCachePolicy cache_policy() {
 					return fetch().cache_policy();
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				QueryImpl& cache_source_state(bool enabled = true) {
+					if (m_cacheSourceState == enabled)
+						return *this;
+
+					invalidate_each_bfs_cache();
+					m_cacheSourceState = enabled;
+					m_storage.invalidate();
+					return *this;
+				}
+
+				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
+				GAIA_NODISCARD bool caches_source_state() const {
+					return m_cacheSourceState;
 				}
 
 				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
@@ -1054,6 +1072,7 @@ namespace gaia {
 
 					// Calculate the lookup hash from the provided context
 					if constexpr (UseCaching) {
+						ctx.data.cacheSourceState = m_cacheSourceState;
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
@@ -1086,6 +1105,9 @@ namespace gaia {
 							return;
 						CommandBufferRead[id](serBuffer, ctx);
 					}
+
+					if constexpr (UseCaching)
+						ctx.data.cacheSourceState = m_cacheSourceState;
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();

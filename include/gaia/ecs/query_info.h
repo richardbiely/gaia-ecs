@@ -225,8 +225,8 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				// Safe subset only. Direct concrete source entities without traversal.
-				return deps.can_reuse_source_cache();
+				// Source-state snapshots are opt-in. Even for the safe subset, keep the default path conservative.
+				return m_plan.ctx.data.cacheSourceState && deps.can_reuse_source_cache();
 			}
 
 			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
