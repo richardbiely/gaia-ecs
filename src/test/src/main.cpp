@@ -10210,6 +10210,46 @@ TEST_CASE("Query - cached direct-source query keeps warm reads stable until sour
 	CHECK(q.count() == 0);
 }
 
+TEST_CASE("Query - cached traversed-source query keeps warm reads stable until traversal state changes") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto parent = wld.add();
+	auto scene = wld.add();
+	wld.child(scene, parent);
+	wld.child(parent, root);
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav_parent());
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revEmpty = info.reverse_index_revision();
+	CHECK(q.count() == 0);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revEmpty);
+	CHECK(q.count() == 0);
+
+	wld.add<Acceleration>(parent, {1, 2, 3});
+	q.match_all(info);
+	const auto revParent = info.reverse_index_revision();
+	CHECK(revParent != revEmpty);
+	CHECK(q.count() == 1);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revParent);
+	CHECK(q.count() == 1);
+
+	wld.del<Acceleration>(parent);
+	wld.add<Acceleration>(root, {4, 5, 6});
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() != revParent);
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - dependency metadata classification") {
 	TestWorld twld;
 

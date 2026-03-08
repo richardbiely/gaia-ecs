@@ -59,6 +59,19 @@ namespace gaia {
 				bool needsSorting;
 			};
 
+			struct SourceLookupSnapshotItem {
+				Entity entity = EntityBad;
+				ArchetypeId archetypeId = 0;
+
+				GAIA_NODISCARD bool operator==(const SourceLookupSnapshotItem& other) const {
+					return entity == other.entity && archetypeId == other.archetypeId;
+				}
+
+				GAIA_NODISCARD bool operator!=(const SourceLookupSnapshotItem& other) const {
+					return !operator==(other);
+				}
+			};
+
 		public:
 			enum class InvalidationKind : uint8_t {
 				//! Only the final result cache is stale. Structural seed matches remain valid and can be reused.
@@ -102,8 +115,10 @@ namespace gaia {
 				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
-				//! Last seen archetype ids for tracked concrete source entities.
-				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
+				//! Last seen concrete source lookup closure for reusable source queries.
+				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshot;
+				//! Scratch buffer reused while comparing source lookup closures on warm reads.
+				cnt::darray<SourceLookupSnapshotItem> sourceLookupSnapshotScratch;
 				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				uint8_t varBindingMask = 0;
@@ -242,18 +257,47 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_source_entities_changed() const {
-				const auto sourceEntities = m_plan.ctx.data.deps.source_entities_view();
-				const auto cnt = (uint32_t)sourceEntities.size();
+			template <typename Func>
+			void each_reusable_source_lookup_entity(Func&& func) const {
+				const auto terms = m_plan.ctx.data.terms_view();
+				const auto cnt = (uint32_t)terms.size();
 				GAIA_FOR(cnt) {
-					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+					const auto& term = terms[i];
+					if (term.src == EntityBad || is_variable(term.src))
+						continue;
+
+					vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
+						func(source);
+						return false;
+					});
+				}
+			}
+
+			void build_dynamic_source_lookup_snapshot(cnt::darray<SourceLookupSnapshotItem>& items) const {
+				items.clear();
+				each_reusable_source_lookup_entity([&](Entity source) {
+					items.push_back({source, world_entity_archetype_id(*world(), source)});
+				});
+			}
+
+			GAIA_NODISCARD bool dynamic_source_entities_changed() {
+				if (!m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms))
+					return false;
+
+				build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
+				if (m_state.sourceLookupSnapshotScratch.size() != m_state.sourceLookupSnapshot.size())
+					return true;
+
+				const auto cnt = (uint32_t)m_state.sourceLookupSnapshot.size();
+				GAIA_FOR(cnt) {
+					if (m_state.sourceLookupSnapshotScratch[i] != m_state.sourceLookupSnapshot[i])
 						return true;
 				}
 
 				return false;
 			}
 
-			GAIA_NODISCARD bool dynamic_inputs_changed() const {
+			GAIA_NODISCARD bool dynamic_inputs_changed() {
 				if (!can_reuse_dynamic_cache())
 					return false;
 
@@ -270,10 +314,10 @@ namespace gaia {
 				GAIA_FOR(cnt)
 				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
 
-				const auto sourceEntities = m_plan.ctx.data.deps.source_entities_view();
-				const auto sourceCnt = (uint32_t)sourceEntities.size();
-				GAIA_FOR(sourceCnt)
-				m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
+				if (m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms)) {
+					build_dynamic_source_lookup_snapshot(m_state.sourceLookupSnapshotScratch);
+					m_state.sourceLookupSnapshot = m_state.sourceLookupSnapshotScratch;
+				}
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
 				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;

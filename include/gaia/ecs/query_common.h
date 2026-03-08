@@ -442,7 +442,7 @@ namespace gaia {
 					}
 
 					GAIA_NODISCARD bool can_reuse_source_cache() const {
-						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt && !has(DependencyHasTraversalTerms);
+						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
 
 					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
