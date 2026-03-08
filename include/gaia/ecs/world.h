@@ -3014,6 +3014,7 @@ namespace gaia {
 			}
 
 			friend GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+			friend GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
 
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
 			//! \param entity Entity
@@ -6019,6 +6020,10 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_relation_version(const World& world, Entity relation) {
 			return world.relation_version(relation);
+		}
+
+		inline ArchetypeId world_entity_archetype_id(const World& world, Entity entity) {
+			return world.fetch(entity).pArchetype->id();
 		}
 
 		inline ObserverBuilder World::observer() {

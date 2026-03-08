@@ -10179,6 +10179,37 @@ TEST_CASE("Query - cached dynamic query keeps warm reads stable until inputs cha
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached direct-source query keeps warm reads stable until source changes") {
+	TestWorld twld;
+
+	auto source = wld.add();
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+
+	q.match_all(info);
+	const auto revEmpty = info.reverse_index_revision();
+	CHECK(q.count() == 0);
+
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() == revEmpty);
+	CHECK(q.count() == 0);
+
+	wld.add<Acceleration>(source, {1, 2, 3});
+	q.match_all(info);
+	const auto revFilled = info.reverse_index_revision();
+	CHECK(revFilled != revEmpty);
+	CHECK(q.count() == 1);
+	CHECK(info.reverse_index_revision() == revFilled);
+
+	wld.del<Acceleration>(source);
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() != revFilled);
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - dependency metadata classification") {
 	TestWorld twld;
 
@@ -10203,6 +10234,8 @@ TEST_CASE("Query - dependency metadata classification") {
 	CHECK(depsSource.has(ecs::QueryCtx::DependencyHasSourceTerms));
 	CHECK(!depsSource.has(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsSource.create_selectors_view().empty());
+	CHECK(depsSource.source_entities_view().size() == 1);
+	CHECK(core::has(depsSource.source_entities_view(), source));
 
 	auto qVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	const auto& depsVar = qVar.fetch().ctx().data.deps;
@@ -10215,6 +10248,7 @@ TEST_CASE("Query - dependency metadata classification") {
 	auto qTrav = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	const auto& depsTrav = qTrav.fetch().ctx().data.deps;
 	CHECK(depsTrav.has(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(depsTrav.has(ecs::QueryCtx::DependencyHasTraversalTerms));
 	CHECK(depsTrav.relations_view().size() == 1);
 	CHECK(core::has(depsTrav.relations_view(), rel));
 

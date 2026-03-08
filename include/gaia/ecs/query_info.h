@@ -102,6 +102,8 @@ namespace gaia {
 				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
+				//! Last seen archetype ids for tracked concrete source entities.
+				cnt::sarray<ArchetypeId, MAX_ITEMS_IN_QUERY> sourceEntityArchetypeIds;
 				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				uint8_t varBindingMask = 0;
@@ -172,6 +174,9 @@ namespace gaia {
 			enum QueryCmdType : uint8_t { ALL, OR, NOT };
 
 			void reset_matching_cache() {
+				if (!m_state.archetypeCache.empty())
+					mark_result_cache_membership_changed();
+
 				m_state.reset();
 
 				auto& ctxData = m_plan.ctx.data;
@@ -198,9 +203,15 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool can_reuse_dynamic_cache() const {
-				// Source-based dynamic queries can change due to source entity state that is not yet tracked
-				// through dedicated version metadata. Keep them on the conservative rebuild path for now.
-				return has_dynamic_terms() && !m_plan.ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms);
+				if (!has_dynamic_terms())
+					return false;
+
+				const auto& deps = m_plan.ctx.data.deps;
+				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+					return true;
+
+				// Safe subset only. Direct concrete source entities without traversal.
+				return deps.can_reuse_source_cache();
 			}
 
 			GAIA_NODISCARD bool dynamic_relation_versions_changed() const {
@@ -231,11 +242,23 @@ namespace gaia {
 				return false;
 			}
 
+			GAIA_NODISCARD bool dynamic_source_entities_changed() const {
+				const auto sourceEntities = m_plan.ctx.data.deps.source_entities_view();
+				const auto cnt = (uint32_t)sourceEntities.size();
+				GAIA_FOR(cnt) {
+					if (m_state.sourceEntityArchetypeIds[i] != world_entity_archetype_id(*world(), sourceEntities[i]))
+						return true;
+				}
+
+				return false;
+			}
+
 			GAIA_NODISCARD bool dynamic_inputs_changed() const {
 				if (!can_reuse_dynamic_cache())
 					return false;
 
-				return dynamic_relation_versions_changed() || dynamic_var_bindings_changed();
+				return dynamic_relation_versions_changed() || dynamic_source_entities_changed() ||
+							 dynamic_var_bindings_changed();
 			}
 
 			void snapshot_dynamic_inputs() {
@@ -246,6 +269,11 @@ namespace gaia {
 				const auto cnt = (uint32_t)relations.size();
 				GAIA_FOR(cnt)
 				m_state.relationVersions[i] = world_relation_version(*world(), relations[i]);
+
+				const auto sourceEntities = m_plan.ctx.data.deps.source_entities_view();
+				const auto sourceCnt = (uint32_t)sourceEntities.size();
+				GAIA_FOR(sourceCnt)
+				m_state.sourceEntityArchetypeIds[i] = world_entity_archetype_id(*world(), sourceEntities[i]);
 
 				m_state.varBindings = m_plan.ctx.data.varBindings;
 				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;

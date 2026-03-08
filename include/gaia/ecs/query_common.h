@@ -21,6 +21,7 @@ namespace gaia {
 		class World;
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_relation_version(const World& world, Entity relation);
+		GAIA_NODISCARD ArchetypeId world_entity_archetype_id(const World& world, Entity entity);
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;
@@ -369,7 +370,7 @@ namespace gaia {
 				Dynamic,
 			};
 
-			enum DependencyFlags : uint8_t {
+			enum DependencyFlags : uint16_t {
 				DependencyNone = 0x00,
 				DependencyHasSourceTerms = 0x01,
 				DependencyHasVariableTerms = 0x02,
@@ -379,6 +380,7 @@ namespace gaia {
 				DependencyHasWildcardTerms = 0x20,
 				DependencyHasSort = 0x40,
 				DependencyHasGroup = 0x80,
+				DependencyHasTraversalTerms = 0x100,
 			};
 
 			struct Data {
@@ -386,15 +388,20 @@ namespace gaia {
 					QueryEntityArray createSelectors;
 					QueryEntityArray exclusions;
 					QueryEntityArray relations;
+					QueryEntityArray sourceEntities;
 					uint8_t createSelectorCnt = 0;
 					uint8_t exclusionCnt = 0;
 					uint8_t relationCnt = 0;
+					uint8_t sourceEntityCnt = 0;
+					uint8_t sourceTermCnt = 0;
 					DependencyFlags flags = DependencyNone;
 
 					void clear() {
 						createSelectorCnt = 0;
 						exclusionCnt = 0;
 						relationCnt = 0;
+						sourceEntityCnt = 0;
+						sourceTermCnt = 0;
 						flags = DependencyNone;
 					}
 
@@ -410,6 +417,10 @@ namespace gaia {
 						return {relations.data(), relationCnt};
 					}
 
+					GAIA_NODISCARD std::span<const Entity> source_entities_view() const {
+						return {sourceEntities.data(), sourceEntityCnt};
+					}
+
 					void add(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
 					}
@@ -420,6 +431,18 @@ namespace gaia {
 
 						GAIA_ASSERT(relationCnt < MAX_ITEMS_IN_QUERY);
 						relations[relationCnt++] = relation;
+					}
+
+					void add_source_entity(Entity entity) {
+						if (entity == EntityBad || core::has(source_entities_view(), entity))
+							return;
+
+						GAIA_ASSERT(sourceEntityCnt < MAX_ITEMS_IN_QUERY);
+						sourceEntities[sourceEntityCnt++] = entity;
+					}
+
+					GAIA_NODISCARD bool can_reuse_source_cache() const {
+						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt && !has(DependencyHasTraversalTerms);
 					}
 
 					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
@@ -513,9 +536,12 @@ namespace gaia {
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
 				const auto relationCnt_old = data.deps.relationCnt;
+				const auto sourceEntityCnt_old = data.deps.sourceEntityCnt;
+				const auto sourceTermCnt_old = data.deps.sourceTermCnt;
 				auto createSelectors_old = data.deps.createSelectors;
 				auto exclusions_old = data.deps.exclusions;
 				auto relations_old = data.deps.relations;
+				auto sourceEntities_old = data.deps.sourceEntities;
 
 				// Update masks
 				{
@@ -544,11 +570,16 @@ namespace gaia {
 								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
 						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 							data.deps.add_relation(entity_from_id(*w, id.id()));
-						if (term.entTrav != EntityBad)
+						if (term.entTrav != EntityBad) {
 							data.deps.add_relation(term.entTrav);
+							data.deps.add(DependencyHasTraversalTerms);
+						}
 						if (term.src != EntityBad) {
 							hasSourceTerms = true;
 							data.deps.add(DependencyHasSourceTerms);
+							++data.deps.sourceTermCnt;
+							if (!is_variable(term.src))
+								data.deps.add_source_entity(term.src);
 						}
 
 						if (term_has_variables(term)) {
@@ -645,8 +676,10 @@ namespace gaia {
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
-						relationCnt_old != data.deps.relationCnt || createSelectors_old != data.deps.createSelectors ||
-						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations)
+						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
+						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
+						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations ||
+						sourceEntities_old != data.deps.sourceEntities)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
