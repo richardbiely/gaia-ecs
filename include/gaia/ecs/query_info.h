@@ -539,6 +539,12 @@ namespace gaia {
 				invalidate(InvalidationKind::Result);
 			}
 
+			//! Marks the cached sorted slices dirty without invalidating query membership.
+			void invalidate_sort() {
+				if (m_plan.ctx.data.sortByFunc != nullptr)
+					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+			}
+
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
 					std::span<const Archetype*> allArchetypes) {

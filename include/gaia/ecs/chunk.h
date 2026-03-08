@@ -26,6 +26,9 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
+
 		class GAIA_API Chunk final {
 		public:
 			using EntityArray = cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS>;
@@ -1529,6 +1532,9 @@ namespace gaia {
 				versions[0] = m_header.worldVersion;
 				// Do +1 because index 0 is reserved for the entity version number.
 				versions[compIdx + 1] = m_header.worldVersion;
+				// Sorted queries keyed by this component can invalidate their cached order eagerly.
+				world_invalidate_sorted_queries_for_entity(
+						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
 			}
 
 			//! Update the version of all components

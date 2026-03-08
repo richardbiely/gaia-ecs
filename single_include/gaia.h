@@ -26593,6 +26593,9 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
+
 		class GAIA_API Chunk final {
 		public:
 			using EntityArray = cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS>;
@@ -28096,6 +28099,9 @@ namespace gaia {
 				versions[0] = m_header.worldVersion;
 				// Do +1 because index 0 is reserved for the entity version number.
 				versions[compIdx + 1] = m_header.worldVersion;
+				// Sorted queries keyed by this component can invalidate their cached order eagerly.
+				world_invalidate_sorted_queries_for_entity(
+						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
 			}
 
 			//! Update the version of all components
@@ -35322,6 +35328,12 @@ namespace gaia {
 				invalidate(InvalidationKind::Result);
 			}
 
+			//! Marks the cached sorted slices dirty without invalidating query membership.
+			void invalidate_sort() {
+				if (m_plan.ctx.data.sortByFunc != nullptr)
+					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
+			}
+
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
 					std::span<const Archetype*> allArchetypes) {
@@ -36267,6 +36279,8 @@ namespace gaia {
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
 			//! Relation entity -> queries with relation/traversal dependencies on it.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_relationToQuery;
+			//! Sort key entity -> cached sorted queries that need their sorted slices refreshed after writes.
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_sortEntityToQuery;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
@@ -36308,6 +36322,7 @@ namespace gaia {
 				m_queryArr.clear();
 				m_entityToQuery.clear();
 				m_relationToQuery.clear();
+				m_sortEntityToQuery.clear();
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
@@ -36379,6 +36394,7 @@ namespace gaia {
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
 				add_rel_to_query_pairs(info.ctx(), handle);
+				add_sort_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -36406,6 +36422,7 @@ namespace gaia {
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
 				del_rel_to_query_pairs(pInfo->ctx(), handle);
+				del_sort_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -36449,6 +36466,20 @@ namespace gaia {
 					auto& info = get(handle);
 					// Relation changes affect dynamic freshness, not the query definition itself.
 					info.invalidate(select_invalidation_kind(info, changeKind));
+				}
+			}
+
+			void invalidate_sorted_queries_for_entity(Entity entity) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end())
+					return;
+
+				for (const auto handle: it->second) {
+					auto* pInfo = try_get(handle);
+					if (pInfo == nullptr || pInfo->refs() == 0)
+						continue;
+
+					pInfo->invalidate_sort();
 				}
 			}
 
@@ -36621,6 +36652,43 @@ namespace gaia {
 				auto& handles = it->second;
 				if (!core::has(handles, handle))
 					handles.push_back(handle);
+			}
+
+			void add_sort_to_query_pair(Entity entity, QueryHandle handle) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end()) {
+					m_sortEntityToQuery.try_emplace(EntityLookupKey(entity), cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_sort_to_query_pair(Entity entity, QueryHandle handle) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_sortEntityToQuery.erase(it);
+			}
+
+			void add_sort_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr || ctx.data.sortBy == EntityBad)
+					return;
+
+				add_sort_to_query_pair(ctx.data.sortBy, handle);
+			}
+
+			void del_sort_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr || ctx.data.sortBy == EntityBad)
+					return;
+
+				del_sort_to_query_pair(ctx.data.sortBy, handle);
 			}
 
 			void del_create_to_query_pair(Entity entity, QueryHandle handle) {
@@ -45551,6 +45619,10 @@ namespace gaia {
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
+			void invalidate_sorted_queries_for_entity(Entity entity) {
+				m_queryCache.invalidate_sorted_queries_for_entity(entity);
+			}
+
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -47647,6 +47719,10 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
+			world.invalidate_sorted_queries_for_entity(entity);
 		}
 	} // namespace ecs
 } // namespace gaia

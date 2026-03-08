@@ -5649,6 +5649,10 @@ namespace gaia {
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
+			void invalidate_sorted_queries_for_entity(Entity entity) {
+				m_queryCache.invalidate_sorted_queries_for_entity(entity);
+			}
+
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -6042,6 +6046,10 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
+			world.invalidate_sorted_queries_for_entity(entity);
 		}
 	} // namespace ecs
 } // namespace gaia

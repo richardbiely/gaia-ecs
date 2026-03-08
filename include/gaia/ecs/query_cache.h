@@ -73,6 +73,8 @@ namespace gaia {
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
 			//! Relation entity -> queries with relation/traversal dependencies on it.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_relationToQuery;
+			//! Sort key entity -> cached sorted queries that need their sorted slices refreshed after writes.
+			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_sortEntityToQuery;
 			//! Positive structural term -> cached queries that may match a newly created archetype containing that id.
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToCreateQuery;
 			//! Archetype -> cached queries whose current result cache contains it
@@ -114,6 +116,7 @@ namespace gaia {
 				m_queryArr.clear();
 				m_entityToQuery.clear();
 				m_relationToQuery.clear();
+				m_sortEntityToQuery.clear();
 				m_entityToCreateQuery.clear();
 				m_archetypeToQuery.clear();
 				m_queryToArchetype.clear();
@@ -185,6 +188,7 @@ namespace gaia {
 				// Add the entity->query pair
 				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
 				add_rel_to_query_pairs(info.ctx(), handle);
+				add_sort_to_query_pairs(info.ctx(), handle);
 				add_create_to_query_pairs(info.ctx(), handle);
 
 				return info;
@@ -212,6 +216,7 @@ namespace gaia {
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
 				del_rel_to_query_pairs(pInfo->ctx(), handle);
+				del_sort_to_query_pairs(pInfo->ctx(), handle);
 				del_create_to_query_pairs(pInfo->ctx(), handle);
 				m_queryArr.free(handle);
 
@@ -255,6 +260,20 @@ namespace gaia {
 					auto& info = get(handle);
 					// Relation changes affect dynamic freshness, not the query definition itself.
 					info.invalidate(select_invalidation_kind(info, changeKind));
+				}
+			}
+
+			void invalidate_sorted_queries_for_entity(Entity entity) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end())
+					return;
+
+				for (const auto handle: it->second) {
+					auto* pInfo = try_get(handle);
+					if (pInfo == nullptr || pInfo->refs() == 0)
+						continue;
+
+					pInfo->invalidate_sort();
 				}
 			}
 
@@ -427,6 +446,43 @@ namespace gaia {
 				auto& handles = it->second;
 				if (!core::has(handles, handle))
 					handles.push_back(handle);
+			}
+
+			void add_sort_to_query_pair(Entity entity, QueryHandle handle) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end()) {
+					m_sortEntityToQuery.try_emplace(EntityLookupKey(entity), cnt::darray<QueryHandle>{handle});
+					return;
+				}
+
+				auto& handles = it->second;
+				if (!core::has(handles, handle))
+					handles.push_back(handle);
+			}
+
+			void del_sort_to_query_pair(Entity entity, QueryHandle handle) {
+				auto it = m_sortEntityToQuery.find(EntityLookupKey(entity));
+				if (it == m_sortEntityToQuery.end())
+					return;
+
+				auto& handles = it->second;
+				core::swap_erase(handles, core::get_index(handles, handle));
+				if (handles.empty())
+					m_sortEntityToQuery.erase(it);
+			}
+
+			void add_sort_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr || ctx.data.sortBy == EntityBad)
+					return;
+
+				add_sort_to_query_pair(ctx.data.sortBy, handle);
+			}
+
+			void del_sort_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
+				if (ctx.data.sortByFunc == nullptr || ctx.data.sortBy == EntityBad)
+					return;
+
+				del_sort_to_query_pair(ctx.data.sortBy, handle);
 			}
 
 			void del_create_to_query_pair(Entity entity, QueryHandle handle) {
