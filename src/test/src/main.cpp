@@ -10139,6 +10139,54 @@ TEST_CASE("Query - cached query reverse-index revision changes only on membershi
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
+TEST_CASE("Query - dependency metadata classification") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto source = wld.add();
+
+	auto qStructural = wld.query().all<Position>().or_<Scale>().no<Acceleration>().any<Rotation>();
+	const auto& depsStructural = qStructural.fetch().ctx().data.deps;
+	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasNegativeTerms));
+	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasAnyTerms));
+	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasVariableTerms));
+	CHECK(depsStructural.create_selectors_view().size() == 2);
+	CHECK(depsStructural.exclusions_view().size() == 1);
+	CHECK(core::has(depsStructural.create_selectors_view(), wld.get<Position>()));
+	CHECK(core::has(depsStructural.create_selectors_view(), wld.get<Scale>()));
+	CHECK(core::has(depsStructural.exclusions_view(), wld.get<Acceleration>()));
+
+	auto qSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
+	const auto& depsSource = qSource.fetch().ctx().data.deps;
+	CHECK(depsSource.has(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(!depsSource.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsSource.create_selectors_view().empty());
+
+	auto qVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
+	const auto& depsVar = qVar.fetch().ctx().data.deps;
+	CHECK(depsVar.has(ecs::QueryCtx::DependencyHasVariableTerms));
+	CHECK(!depsVar.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsVar.create_selectors_view().empty());
+
+	auto qSorted = wld.query().all<Position>().sort_by<Position>(
+			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+	CHECK(qSorted.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasSort));
+
+	auto eats = wld.add();
+	auto qGrouped = wld.query().all<Position>().group_by(eats);
+	CHECK(qGrouped.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasGroup));
+}
+
 TEST_CASE("Query - public cache mode and policy classification") {
 	TestWorld twld;
 

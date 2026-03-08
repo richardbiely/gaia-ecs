@@ -29755,7 +29755,49 @@ namespace gaia {
 				Dynamic,
 			};
 
+			enum DependencyFlags : uint8_t {
+				DependencyNone = 0x00,
+				DependencyHasSourceTerms = 0x01,
+				DependencyHasVariableTerms = 0x02,
+				DependencyHasPositiveTerms = 0x04,
+				DependencyHasNegativeTerms = 0x08,
+				DependencyHasAnyTerms = 0x10,
+				DependencyHasWildcardTerms = 0x20,
+				DependencyHasSort = 0x40,
+				DependencyHasGroup = 0x80,
+			};
+
 			struct Data {
+				struct Dependencies {
+					QueryEntityArray createSelectors;
+					QueryEntityArray exclusions;
+					uint8_t createSelectorCnt = 0;
+					uint8_t exclusionCnt = 0;
+					DependencyFlags flags = DependencyNone;
+
+					void clear() {
+						createSelectorCnt = 0;
+						exclusionCnt = 0;
+						flags = DependencyNone;
+					}
+
+					GAIA_NODISCARD std::span<const Entity> create_selectors_view() const {
+						return {createSelectors.data(), createSelectorCnt};
+					}
+
+					GAIA_NODISCARD std::span<const Entity> exclusions_view() const {
+						return {exclusions.data(), exclusionCnt};
+					}
+
+					void add(DependencyFlags dependency) {
+						flags = (DependencyFlags)(flags | dependency);
+					}
+
+					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
+						return (flags & dependency) != 0;
+					}
+				};
+
 				//! Array of queried ids
 				QueryEntityArray _ids;
 				//! Array of terms
@@ -29803,6 +29845,8 @@ namespace gaia {
 				cnt::sarray<Entity, 8> varBindings;
 				//! Bitmask of runtime variable bindings.
 				uint8_t varBindingMask = 0;
+				//! Explicit dependency metadata derived from query shape.
+				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
 				CachePolicy cachePolicy = CachePolicy::Lazy;
 
@@ -29836,6 +29880,11 @@ namespace gaia {
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
+				const auto dependencyFlags_old = data.deps.flags;
+				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
+				const auto exclusionCnt_old = data.deps.exclusionCnt;
+				auto createSelectors_old = data.deps.createSelectors;
+				auto exclusions_old = data.deps.exclusions;
 
 				// Update masks
 				{
@@ -29847,15 +29896,23 @@ namespace gaia {
 					bool hasCreateSelector = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
+					data.deps.clear();
+					if (data.sortByFunc != nullptr)
+						data.deps.add(DependencyHasSort);
+					if (data.groupBy != EntityBad)
+						data.deps.add(DependencyHasGroup);
 
 					auto terms = data.terms_view();
 					const auto cnt = (uint32_t)terms.size();
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
+							data.deps.add(DependencyHasWildcardTerms);
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
+							data.deps.add(DependencyHasVariableTerms);
 							isComplex = true;
 							continue;
 						}
@@ -29864,6 +29921,7 @@ namespace gaia {
 						// They should not affect archetype-level query masks.
 						if (term.src != EntityBad) {
 							hasSourceTerms = true;
+							data.deps.add(DependencyHasSourceTerms);
 							continue;
 						}
 
@@ -29871,7 +29929,16 @@ namespace gaia {
 						if (term.op != QueryOpKind::Any)
 							idsNoSrc[idsNoSrcCnt++] = id;
 
-						hasCreateSelector |= term.op == QueryOpKind::All || term.op == QueryOpKind::Or;
+						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
+							hasCreateSelector = true;
+							data.deps.add(DependencyHasPositiveTerms);
+							data.deps.createSelectors[data.deps.createSelectorCnt++] = id;
+						} else if (term.op == QueryOpKind::Not) {
+							data.deps.add(DependencyHasNegativeTerms);
+							data.deps.exclusions[data.deps.exclusionCnt++] = id;
+						} else if (term.op == QueryOpKind::Any) {
+							data.deps.add(DependencyHasAnyTerms);
+						}
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
@@ -29936,7 +30003,10 @@ namespace gaia {
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
-						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) || cachePolicy_old != data.cachePolicy)
+						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
+						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
+						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
+						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -36110,11 +36180,6 @@ namespace gaia {
 				}
 			}
 
-			static bool is_create_selector_term(const QueryTerm& term) {
-				return term.src == EntityBad && !term_has_variables(term) &&
-							 (term.op == QueryOpKind::All || term.op == QueryOpKind::Or);
-			}
-
 			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToCreateQuery.find(entityKey);
@@ -36143,26 +36208,19 @@ namespace gaia {
 				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
-				// Only structural queries with a positive selector term are tracked here.
-				// This keeps eager create-time propagation narrow and leaves awkward cases to lazy repair.
-				for (const auto& term: ctx.data.terms_view()) {
-					if (!is_create_selector_term(term))
-						continue;
-
-					add_create_to_query_pair(term.id, handle);
-				}
+				// Only structural queries with positive selector dependencies are tracked here.
+				// Dependency metadata is refreshed together with cache policy classification so
+				// create-time propagation can consume it without re-deriving query shape here.
+				for (const auto entity: ctx.data.deps.create_selectors_view())
+					add_create_to_query_pair(entity, handle);
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
-				for (const auto& term: ctx.data.terms_view()) {
-					if (!is_create_selector_term(term))
-						continue;
-
-					del_create_to_query_pair(term.id, handle);
-				}
+				for (const auto entity: ctx.data.deps.create_selectors_view())
+					del_create_to_query_pair(entity, handle);
 			}
 
 			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {

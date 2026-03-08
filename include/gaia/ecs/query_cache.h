@@ -367,11 +367,6 @@ namespace gaia {
 				}
 			}
 
-			static bool is_create_selector_term(const QueryTerm& term) {
-				return term.src == EntityBad && !term_has_variables(term) &&
-							 (term.op == QueryOpKind::All || term.op == QueryOpKind::Or);
-			}
-
 			void add_create_to_query_pair(Entity entity, QueryHandle handle) {
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToCreateQuery.find(entityKey);
@@ -400,26 +395,19 @@ namespace gaia {
 				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
-				// Only structural queries with a positive selector term are tracked here.
-				// This keeps eager create-time propagation narrow and leaves awkward cases to lazy repair.
-				for (const auto& term: ctx.data.terms_view()) {
-					if (!is_create_selector_term(term))
-						continue;
-
-					add_create_to_query_pair(term.id, handle);
-				}
+				// Only structural queries with positive selector dependencies are tracked here.
+				// Dependency metadata is refreshed together with cache policy classification so
+				// create-time propagation can consume it without re-deriving query shape here.
+				for (const auto entity: ctx.data.deps.create_selectors_view())
+					add_create_to_query_pair(entity, handle);
 			}
 
 			void del_create_to_query_pairs(const QueryCtx& ctx, QueryHandle handle) {
 				if (ctx.data.cachePolicy != QueryCtx::CachePolicy::Immediate)
 					return;
 
-				for (const auto& term: ctx.data.terms_view()) {
-					if (!is_create_selector_term(term))
-						continue;
-
-					del_create_to_query_pair(term.id, handle);
-				}
+				for (const auto entity: ctx.data.deps.create_selectors_view())
+					del_create_to_query_pair(entity, handle);
 			}
 
 			void append_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
