@@ -806,7 +806,7 @@ void create_structural_cache_queries(
 	}
 }
 
-//! Benchmarks eager structural cache maintenance when one new archetype fans out to many cached selectors.
+//! Benchmarks immediate structural cache maintenance when one new archetype fans out to many cached selectors.
 void BM_QueryCache_Create_Fanout(picobench::state& state) {
 	const uint32_t queryCnt = (uint32_t)state.user_data();
 

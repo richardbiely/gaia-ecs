@@ -10807,7 +10807,7 @@ TEST_CASE("Query - cached grouped query refreshes lazily after archetype creatio
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - uncached query state is not eagerly updated by shared cache propagation") {
+TEST_CASE("Query - uncached query state is not immediately updated by shared cache propagation") {
 	TestWorld twld;
 
 	auto qCached = wld.query().all<Position>();
