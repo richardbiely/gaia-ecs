@@ -981,6 +981,17 @@ ecs::Query qDownUnlimited = w.query()
   .all(level, ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
 ```
 
+If you know a traversed source closure is small and stable, you can opt into traversed-source snapshots explicitly:
+
+```cpp
+ecs::Query qTravCached = w.query()
+  .all<Position>()
+  .all(level, ecs::QueryTermOptions{}.src(scene).trav())
+  .cache_src_trav(16);
+```
+
+This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.
+
 ### Query variables
 
 Dynamic parameters (query variables) are supported via `Var0..Var7` in the API and `$name` in expression queries.
@@ -1205,6 +1216,8 @@ From the implementation standpoint, uncached queries are the same as ordinary qu
 
 On the other hand, if you design your queries carefully and they are all different, uncached queries are actually a bit faster to create and match. Creation is faster because there is no hash to compute for the query and matching is faster because no query cache lookups are involved.
 
+Prefer uncached queries for one-shot work or for query shapes that are unlikely to repeat. Prefer cached queries when the same query shape is going to be reused across frames or systems.
+
 Uncached queries are created via `World::query<false>`.
 
 ```cpp
@@ -1253,6 +1266,24 @@ q2 = w.query(); // Last reference to cache query is destroyed. The cache is clea
 ```
 
 Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via World::query have a valid state.
+#### Query cache behavior
+
+Cached queries share compiled query state internally, so creating the same query multiple times does not rebuild the whole matching pipeline every time. Query caching is split into 3 layers:
+
+* immediate cache - for plain structural queries that can be kept in sync immediately
+* lazy cache - for structural queries that stay cached, but rebuild on demand after relevant world changes
+* dynamic cache - for queries with dynamic inputs such as relations, variables, or source lookups
+
+Direct source lookups such as `src(entity)` are reused automatically for cached queries. Traversed source lookups such as `src(entity).trav()` are more expensive and stay opt-in via `cache_src_trav(...)`.
+
+Recommendations:
+
+* Use `ecs::Query` for most queries.
+* Use `ecs::QueryUncached` for one-shot or highly specialized queries that are unlikely to be reused.
+* Use `QueryCacheKind::Default` as the general-purpose choice (default behavior). 
+* Use `QueryCacheKind::Auto` when you want only engine-derived cache behavior and want explicit traversed-source snapshots rejected.
+* Use `QueryCacheKind::All` only when query creation must fail unless the query can stay on the immediate structural cache layer.
+* Use `cache_src_trav(...)` only for traversed-source queries with small, stable source closures. Large traversed closures are often better left on the default lazy path.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.

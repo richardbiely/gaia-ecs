@@ -36777,6 +36777,7 @@ namespace gaia {
 
 		enum class QueryCacheKind : uint8_t {
 			// Use the engine's default cache behavior.
+			// Recommended for most queries.
 			// Allows all automatic cache layers:
 			// - immediate structural cache
 			// - lazy structural cache
@@ -36784,6 +36785,7 @@ namespace gaia {
 			// Explicit traversed-source snapshot opt-ins are also allowed.
 			Default,
 			// Restrict the query to automatically derived cache layers only.
+			// Use this when the engine should decide the cache behavior on its own.
 			// Allows:
 			// - immediate structural cache
 			// - lazy structural cache
@@ -36791,6 +36793,8 @@ namespace gaia {
 			// Rejects explicit traversed-source snapshot opt-ins.
 			Auto,
 			// Require a fully immediate structural cache.
+			// Use this only when query creation must fail unless the query can stay
+			// on the immediate structural cache layer.
 			// Allows only the immediate structural cache layer.
 			// Query creation fails for lazy, dynamic, or explicit traversed-source snapshot layers.
 			All
@@ -37380,6 +37384,11 @@ namespace gaia {
 				}
 
 				//! Enables traversed-source snapshot reuse and caps the cached source closure size.
+				//! This only matters for queries using traversed sources (for example src(...).trav()).
+				//! For queries without source traversal the value is normalized away, so it does not
+				//! affect shared cache identity.
+				//! Use this only when traversed source closures stay small and stable enough for
+				//! snapshot reuse to be cheaper than rebuilding them on demand.
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_src_trav(uint16_t maxItems) {
 					if (m_cacheSrcTrav == maxItems)
@@ -37396,7 +37405,8 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Returns the traversed-source snapshot cap. 0 disables explicit traversed-source caching.
+				//! Returns the traversed-source snapshot cap.
+				//! 0 disables explicit traversed-source snapshot caching.
 				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD uint16_t cache_src_trav() const {
 					return m_cacheSrcTrav;
