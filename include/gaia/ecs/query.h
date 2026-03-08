@@ -699,9 +699,10 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			private:
-				//! Returns true when the query requests source-state snapshots beyond the default automatic cache layers.
-				GAIA_NODISCARD bool uses_manual_source_state_cache() const {
-					return m_cacheSourceStateMaxItems != 0;
+				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
+				GAIA_NODISCARD bool uses_manual_source_state_cache(const QueryCtx& ctx) const {
+					return m_cacheSourceStateMaxItems != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
+								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
 				}
 
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
@@ -710,9 +711,9 @@ namespace gaia {
 						return true;
 
 					if (m_cacheKind == QueryCacheKind::Auto)
-						return !uses_manual_source_state_cache();
+						return !uses_manual_source_state_cache(ctx);
 					if (m_cacheKind == QueryCacheKind::All)
-						return !uses_manual_source_state_cache() && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
+						return !uses_manual_source_state_cache(ctx) && ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 
 					return true;
 				}

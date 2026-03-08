@@ -10183,7 +10183,7 @@ TEST_CASE("Query - cached direct-source query keeps warm reads stable until sour
 	TestWorld twld;
 
 	auto source = wld.add();
-	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
 	auto& info = q.fetch();
 
 	auto e = wld.add();
@@ -10216,7 +10216,7 @@ TEST_CASE("Query - cached direct-source query ignores unrelated archetype change
 	auto source = wld.add();
 	wld.add<Acceleration>(source, {1, 2, 3});
 
-	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
 	auto& info = q.fetch();
 
 	auto matched = wld.add();
@@ -10241,7 +10241,7 @@ TEST_CASE("Query - cached direct-source query sees deleted source entities") {
 	auto source = wld.add();
 	wld.add<Acceleration>(source, {1, 2, 3});
 
-	auto q = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
 	auto& info = q.fetch();
 
 	auto matched = wld.add();
@@ -10329,13 +10329,15 @@ TEST_CASE("Query - cached traversed-source query ignores unrelated archetype cha
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - source-state caching is opt-in for cached source queries") {
+TEST_CASE("Query - source-state caching is opt-in for cached traversed-source queries") {
 	TestWorld twld;
 
 	auto source = wld.add();
+	auto rel = wld.add();
 
-	auto qDefault = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
-	auto qOptIn = wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto qDefault = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	auto qOptIn =
+			wld.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source).trav(rel));
 
 	CHECK(!qDefault.caches_source_state());
 	CHECK(qOptIn.caches_source_state());
@@ -10440,7 +10442,8 @@ TEST_CASE("Query - public cache mode and policy classification") {
 	auto qCachedImmediate = wld.query().all<Position>();
 	auto qCachedLazy = wld.query().no<Position>();
 	auto qCachedDynamic = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
-	auto qCachedDynamicOptIn = wld.query().cache_source_state().all<Position>(ecs::QueryTermOptions{}.src(source));
+	auto qCachedDynamicOptIn =
+			wld.query().cache_source_state().all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	auto qUncachedImmediate = wld.query<false>().all<Position>();
 
@@ -10472,17 +10475,18 @@ TEST_CASE("Query - public cache kind construction") {
 	ecs::Query::SilenceInvalidCacheKindAssertions = true;
 
 	auto source = wld.add();
+	auto rel = wld.add();
 
 	auto qDefault = wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>();
 	auto qDefaultSourceState = wld.query()
 																 .cache_kind(ecs::QueryCacheKind::Default)
 																 .cache_source_state()
-																 .all<Position>(ecs::QueryTermOptions{}.src(source));
+																 .all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qAuto = wld.query().cache_kind(ecs::QueryCacheKind::Auto).no<Position>();
 	auto qAutoSourceState = wld.query()
 															.cache_kind(ecs::QueryCacheKind::Auto)
 															.cache_source_state()
-															.all<Position>(ecs::QueryTermOptions{}.src(source));
+															.all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qAll = wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>();
 	auto qAllFail = wld.query().cache_kind(ecs::QueryCacheKind::All).no<Position>();
 	auto qAllDynamic =

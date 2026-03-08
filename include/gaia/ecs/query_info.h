@@ -231,8 +231,14 @@ namespace gaia {
 				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
-				// Source-state caching is opt-in and only applies to the reusable concrete-source subset.
-				return m_plan.ctx.data.cacheSourceStateMaxItems != 0 && deps.can_reuse_source_cache();
+				if (!deps.can_reuse_source_cache())
+					return false;
+
+				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
+				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+					return true;
+
+				return m_plan.ctx.data.cacheSourceStateMaxItems != 0;
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.

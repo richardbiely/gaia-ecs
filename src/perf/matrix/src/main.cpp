@@ -883,6 +883,79 @@ void BM_QueryCache_SourceTraversal_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks warm reads for a direct concrete-source query, with explicit source-state opt-in optional.
+//! Direct-source reuse is automatic, so the opt-in path measures redundant API usage overhead only.
+template <bool CacheSourceState>
+void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	ecs::World w;
+	auto source = w.add();
+	w.add<Acceleration>(source, {1, 2, 3});
+
+	GAIA_FOR(n) {
+		auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+	}
+
+	auto q = CacheSourceState //
+							 ? w.query().cache_source_state().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+							 : w.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks warm reads for a query with no source terms, with source-state caching toggled.
+template <bool CacheSourceState>
+void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	ecs::World w;
+	GAIA_FOR(n) {
+		auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		w.add<Acceleration>(e, {1, 2, 3});
+	}
+
+	auto q = CacheSourceState //
+							 ? w.query().cache_source_state().all<Position>().all<Acceleration>()
+							 : w.query().all<Position>().all<Acceleration>();
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
+void BM_QueryCache_NoSource_WarmRead_Default(picobench::state& state) {
+	BM_QueryCache_NoSource_WarmRead<false>(state);
+}
+
+void BM_QueryCache_NoSource_WarmRead_SourceState(picobench::state& state) {
+	BM_QueryCache_NoSource_WarmRead<true>(state);
+}
+
+void BM_QueryCache_DirectSource_WarmRead_Default(picobench::state& state) {
+	BM_QueryCache_DirectSource_WarmRead<false>(state);
+}
+
+void BM_QueryCache_DirectSource_WarmRead_SourceState(picobench::state& state) {
+	BM_QueryCache_DirectSource_WarmRead<true>(state);
+}
+
 void BM_QueryCache_SourceTraversal_WarmRead_Lazy(picobench::state& state) {
 	BM_QueryCache_SourceTraversal_WarmRead<false>(state);
 }
@@ -2448,6 +2521,22 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_SUITE_REG("Query cache maintenance");
 		PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(16).label("create fanout 16");
 		PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(24).label("create fanout 24");
+		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_Default)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("no source default");
+		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_SourceState)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("no source source-state");
+		PICOBENCH_REG(BM_QueryCache_DirectSource_WarmRead_Default)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("direct source default");
+		PICOBENCH_REG(BM_QueryCache_DirectSource_WarmRead_SourceState)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("direct source source-state");
 		PICOBENCH_REG(BM_QueryCache_SourceTraversal_WarmRead_Lazy)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
