@@ -1218,6 +1218,13 @@ namespace gaia {
 					bool needsBind = false;
 				};
 
+				struct RawMatchToken {
+					uint32_t matchId = 0;
+					uint8_t bindVarIdx = 0xff;
+					bool concrete = false;
+					bool needsBind = false;
+				};
+
 				GAIA_NODISCARD inline ResolvedPairToken resolve_pair_query_token(Entity queryToken, const VarBindings& vars) {
 					ResolvedPairToken out{};
 					out.token = queryToken;
@@ -1242,6 +1249,67 @@ namespace gaia {
 					out.matchValue = queryToken;
 					out.concrete = true;
 					return out;
+				}
+
+				//! Resolves a pair-side token into a raw-id matcher for fast count probes.
+				//! This avoids repeated `entity_from_id(...)` work when we only need a bounded match count.
+				GAIA_NODISCARD inline RawMatchToken resolve_raw_pair_match_token(Entity queryToken, const VarBindings& vars) {
+					RawMatchToken out{};
+
+					if (queryToken == EntityBad || queryToken.id() == All.id())
+						return out;
+
+					if (is_var_entity(queryToken)) {
+						out.bindVarIdx = (uint8_t)var_index(queryToken);
+						if ((vars.mask & (uint8_t(1) << out.bindVarIdx)) == 0) {
+							out.needsBind = true;
+							return out;
+						}
+
+						out.matchId = vars.values[out.bindVarIdx].id();
+						out.concrete = out.matchId != All.id();
+						return out;
+					}
+
+					out.matchId = queryToken.id();
+					out.concrete = true;
+					return out;
+				}
+
+				GAIA_NODISCARD inline uint32_t count_pair_id_matches_limited(
+						const World& w, const Archetype& archetype, Entity queryId, const VarBindings& varsIn, uint32_t limit) {
+					GAIA_ASSERT(limit > 0);
+					GAIA_ASSERT(queryId.pair());
+
+					const auto queryRel = entity_from_id(w, queryId.id());
+					const auto queryTgt = entity_from_id(w, queryId.gen());
+					if (queryRel == EntityBad || queryTgt == EntityBad)
+						return 0;
+
+					const auto rel = resolve_raw_pair_match_token(queryRel, varsIn);
+					const auto tgt = resolve_raw_pair_match_token(queryTgt, varsIn);
+					const bool sameUnboundVar = rel.needsBind && tgt.needsBind && rel.bindVarIdx == tgt.bindVarIdx;
+
+					uint32_t count = 0;
+					auto archetypeIds = archetype.ids_view();
+					const auto cnt = (uint32_t)archetypeIds.size();
+					GAIA_FOR(cnt) {
+						const auto idInArchetype = archetypeIds[i];
+						if (!idInArchetype.pair())
+							continue;
+						if (rel.concrete && idInArchetype.id() != rel.matchId)
+							continue;
+						if (tgt.concrete && idInArchetype.gen() != tgt.matchId)
+							continue;
+						if (sameUnboundVar && idInArchetype.id() != idInArchetype.gen())
+							continue;
+
+						++count;
+						if (count >= limit)
+							break;
+					}
+
+					return count;
 				}
 
 				template <typename Func>
@@ -1373,6 +1441,9 @@ namespace gaia {
 
 					if ((uint8_t)(termOp.varMask & ~varsIn.mask) == 0)
 						return term_has_match_bound(w, archetype, termOp, varsIn) ? 1u : 0u;
+
+					if (termOp.term.src == EntityBad && termOp.term.id.pair())
+						return count_pair_id_matches_limited(w, archetype, termOp.term.id, varsIn, limit);
 
 					uint32_t count = 0;
 					(void)each_term_match(w, archetype, termOp, varsIn, [&](const VarBindings&) {
