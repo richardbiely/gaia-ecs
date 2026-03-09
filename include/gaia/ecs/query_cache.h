@@ -669,7 +669,8 @@ namespace gaia {
 				auto& tracked = trackedIt->second.archetypes;
 
 				// Eager archetype registration and later full cache sync should agree on the same edge set.
-				// Be tolerant here so duplicated registrations cannot corrupt reverse-index teardown on CI-only paths.
+				// Be tolerant here so duplicated registrations cannot corrupt reverse-index teardown when the
+				// registration sequence temporarily leaves the reverse index out of sync.
 				if (!inserted && core::has(tracked, pArchetype)) {
 					trackedIt->second.syncedRevision = syncedRevision;
 					return;
