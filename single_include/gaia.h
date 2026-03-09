@@ -23413,10 +23413,12 @@ namespace gaia {
 		void as_targets_trav(const World& world, Entity relation, Func func);
 		template <typename Func>
 		bool as_targets_trav_if(const World& world, Entity relation, Func func);
+		const cnt::darray<Entity>& targets_trav_cache(const World& world, Entity relation, Entity source);
 		template <typename Func>
 		void sources(const World& world, Entity relation, Entity target, Func func);
 		template <typename Func>
 		void sources_if(const World& world, Entity relation, Entity target, Func func);
+		const cnt::darray<Entity>& sources_bfs_trav_cache(const World& world, Entity relation, Entity rootTarget);
 		template <typename Func>
 		void sources_bfs(const World& world, Entity relation, Entity rootTarget, Func func);
 		template <typename Func>
@@ -31978,6 +31980,7 @@ namespace gaia {
 					bool initialized = false;
 					bool selfEmitted = false;
 					Entity upSource = EntityBad;
+					std::span<const Entity> cachedSources{};
 					cnt::darray<Entity> queue;
 					cnt::darray<uint32_t> levels;
 					cnt::darray<Entity> children;
@@ -31991,6 +31994,7 @@ namespace gaia {
 						initialized = false;
 						selfEmitted = false;
 						upSource = EntityBad;
+						cachedSources = {};
 						queue.clear();
 						levels.clear();
 						children.clear();
@@ -32004,7 +32008,7 @@ namespace gaia {
 
 				template <typename Func>
 				GAIA_NODISCARD inline bool
-				each_lookup_source(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+				each_lookup_src(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					SourceLookupCursor cursor{};
 					Entity source = EntityBad;
 					while (next_lookup_src_cursor(w, opcode, term, sourceEntity, cursor, source)) {
@@ -32017,8 +32021,8 @@ namespace gaia {
 
 				template <typename Func>
 				GAIA_NODISCARD inline bool
-				each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
-					return each_lookup_source(w, src_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
+				each_lookup_src(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					return each_lookup_src(w, src_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
 				}
 
 				GAIA_NODISCARD inline bool next_lookup_src_cursor_up(
@@ -32127,6 +32131,58 @@ namespace gaia {
 						const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor,
 						Entity& outSource) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+					const bool unlimitedTraversal =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited && term.entTrav != EntityBad;
+
+					if (unlimitedTraversal &&
+							(opcode == EOpcode::Src_Up || opcode == EOpcode::Src_Down || opcode == EOpcode::Src_UpDown)) {
+						if (!valid(w, sourceEntity))
+							return false;
+
+						if (!cursor.initialized)
+							cursor.initialized = true;
+
+						if (includeSelf && !cursor.selfEmitted) {
+							cursor.selfEmitted = true;
+							outSource = sourceEntity;
+							return true;
+						}
+
+						const auto adv_cached_src = [&](std::span<const Entity> cachedSources) {
+							if (cursor.cachedSources.data() != cachedSources.data() ||
+									cursor.cachedSources.size() != cachedSources.size()) {
+								cursor.cachedSources = cachedSources;
+								cursor.queueIdx = 0;
+							}
+
+							if (cursor.queueIdx < cursor.cachedSources.size()) {
+								outSource = cursor.cachedSources[cursor.queueIdx++];
+								return true;
+							}
+
+							return false;
+						};
+
+						if (opcode == EOpcode::Src_Up) {
+							return adv_cached_src(targets_trav_cache(w, term.entTrav, sourceEntity));
+						}
+
+						if (opcode == EOpcode::Src_Down) {
+							return adv_cached_src(sources_bfs_trav_cache(w, term.entTrav, sourceEntity));
+						}
+
+						if (cursor.phase == 0) {
+							if (adv_cached_src(targets_trav_cache(w, term.entTrav, sourceEntity)))
+								return true;
+
+							cursor.phase = 1;
+							cursor.cachedSources = {};
+							cursor.queueIdx = 0;
+						}
+
+						return adv_cached_src(sources_bfs_trav_cache(w, term.entTrav, sourceEntity));
+					}
+
 					switch (opcode) {
 						case EOpcode::Src_Never:
 							return false;
@@ -32166,7 +32222,7 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					return each_lookup_source(w, opcode, term, term.src, match_src_entity);
+					return each_lookup_src(w, opcode, term, term.src, match_src_entity);
 				}
 
 				GAIA_NODISCARD inline bool match_src_term(const World& w, const QueryTerm& term) {
@@ -32486,12 +32542,12 @@ namespace gaia {
 					GAIA_ASSERT(!var_is_bound(varsIn, termOp.term.src));
 					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_Self);
 
-					const auto advance_matches = [&](std::span<const Archetype*> sourceArchetypes) {
+					const auto adv_matches = [&](std::span<const Archetype*> sourceArchetypes, bool idsPreFiltered) {
 						for (; cursor.sourceArchetypeIdx < sourceArchetypes.size(); ++cursor.sourceArchetypeIdx) {
 							const auto* pSrcArchetype = sourceArchetypes[cursor.sourceArchetypeIdx];
 							if (pSrcArchetype == nullptr)
 								continue;
-							if (!match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
+							if (!idsPreFiltered && !match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
 								continue;
 
 							const auto& chunks = pSrcArchetype->chunks();
@@ -32524,9 +32580,9 @@ namespace gaia {
 					if (!ctx.archetypeLookup.empty()) {
 						const auto sourceArchetypes =
 								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
-						if (advance_matches(sourceArchetypes))
+						if (adv_matches(sourceArchetypes, true))
 							return true;
-					} else if (advance_matches(ctx.allArchetypes))
+					} else if (adv_matches(ctx.allArchetypes, false))
 						return true;
 
 					return false;
@@ -32542,12 +32598,12 @@ namespace gaia {
 							inverseOpcode == EOpcode::Src_Up || inverseOpcode == EOpcode::Src_Down ||
 							inverseOpcode == EOpcode::Src_UpDown);
 
-					const auto advance_matches = [&](std::span<const Archetype*> sourceArchetypes) {
+					const auto adv_matches = [&](std::span<const Archetype*> sourceArchetypes, bool idsPreFiltered) {
 						for (; cursor.sourceArchetypeIdx < sourceArchetypes.size(); ++cursor.sourceArchetypeIdx) {
 							const auto* pSrcArchetype = sourceArchetypes[cursor.sourceArchetypeIdx];
 							if (pSrcArchetype == nullptr)
 								continue;
-							if (!match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
+							if (!idsPreFiltered && !match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
 								continue;
 
 							const auto& chunks = pSrcArchetype->chunks();
@@ -32590,9 +32646,9 @@ namespace gaia {
 					if (!ctx.archetypeLookup.empty()) {
 						const auto sourceArchetypes =
 								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
-						if (advance_matches(sourceArchetypes))
+						if (adv_matches(sourceArchetypes, true))
 							return true;
-					} else if (advance_matches(ctx.allArchetypes))
+					} else if (adv_matches(ctx.allArchetypes, false))
 						return true;
 
 					return false;
@@ -32662,7 +32718,7 @@ namespace gaia {
 						sourceEntity = vars.values[var_index(sourceEntity)];
 					}
 
-					return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					return each_lookup_src(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 						auto* pSrcArchetype = archetype_from_entity(w, source);
 						if (pSrcArchetype == nullptr)
 							return false;
@@ -32751,8 +32807,8 @@ namespace gaia {
 						const VarBindings& varsIn, Func&& func) {
 					const auto& term = termOp.term;
 					auto&& matchFunc = GAIA_FWD(func);
-					auto each_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					auto each_on_src = [&](Entity sourceEntity, const VarBindings& vars) {
+						return each_lookup_src(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype == nullptr)
 								return false;
@@ -32769,10 +32825,10 @@ namespace gaia {
 							return false;
 
 						const auto source = varsIn.values[var_index(term.src)];
-						return each_on_source(source, varsIn);
+						return each_on_src(source, varsIn);
 					}
 
-					return each_on_source(term.src, varsIn);
+					return each_on_src(term.src, varsIn);
 				}
 
 				template <typename OpKind, MatchingStyle Style>
@@ -33679,8 +33735,8 @@ namespace gaia {
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src) ||
 									 op.opcode == EOpcode::Var_Term_All_Src_Bind;
 					};
-					const auto advance_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
-																														 VarBindings nextVars) {
+					const auto adv_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
+																												 VarBindings nextVars) {
 						const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
 						state.vars = nextVars;
 						switch (op.opcode) {
@@ -33734,7 +33790,7 @@ namespace gaia {
 						}
 
 						stack.push_back(GAIA_MOV(frame));
-						advance_after_search_term_success(state, op, nextVars);
+						adv_after_search_term_success(state, op, nextVars);
 						return true;
 					};
 					const auto backtrack = [&](SearchProgramState& state,
@@ -33753,7 +33809,7 @@ namespace gaia {
 								}
 
 								state = frame.state;
-								advance_after_search_term_success(state, op, nextVars);
+								adv_after_search_term_success(state, op, nextVars);
 								return true;
 							}
 
@@ -33976,7 +34032,7 @@ namespace gaia {
 								break;
 							case EOpcode::Var_Term_All_Check:
 								if (term_has_match(*ctx.pWorld, archetype, search_program_term_op(op), state.vars))
-									advance_after_search_term_success(state, op, state.vars);
+									adv_after_search_term_success(state, op, state.vars);
 								else {
 									handle_search_term_exhausted(state, op);
 									if (state.pc == BacktrackPC && !backtrack(state, stack))
@@ -33999,7 +34055,7 @@ namespace gaia {
 								const bool bindsNewVars = (uint8_t)(termOp.varMask & ~state.vars.mask) != 0;
 								if (!bindsNewVars) {
 									if (term_has_match(*ctx.pWorld, archetype, termOp, state.vars))
-										advance_after_search_term_success(state, op, state.vars);
+										adv_after_search_term_success(state, op, state.vars);
 									else {
 										if (op.opcode == EOpcode::Var_Term_Or_Check || op.opcode == EOpcode::Var_Term_Or_Bind)
 											state.pendingFinalOrMask =
@@ -35147,7 +35203,7 @@ namespace gaia {
 					if (term.src == EntityBad || is_variable(term.src))
 						continue;
 
-					(void)vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
+					(void)vm::detail::each_lookup_src(*world(), term, term.src, [&](Entity source) {
 						return func(source);
 					});
 				}
@@ -35741,7 +35797,7 @@ namespace gaia {
 				// while (any_chunk_has_entities) {
 				// 	find_chunk_with_smallest_next_element();
 				// 	yield(entity_from_that_chunk);
-				// 	advance_cursor_for_that_chunk();
+				// 	adv_cursor_for_that_chunk();
 				// }
 				// This produces a globally sorted view without modifying actual data. It's a balance between
 				// performance and memory usage. We could also sort the data in-place across all chunks, but that
@@ -40455,6 +40511,9 @@ namespace gaia {
 			//!   rabbit -> {herbivore}
 			//!   hare -> {herbivore}
 			PairMap m_entityToAsTargets;
+			//! Lazily built transitive closure for m_entityToAsTargets.
+			//! Cleared whenever an `Is` edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_entityToAsTargetsTravCache;
 			//! Map of [entity; Is relationship relations]
 			//!   w.as(herbivore, animal);
 			//!   w.as(rabbit, herbivore);
@@ -40466,6 +40525,12 @@ namespace gaia {
 			//! Lazily built transitive closure for m_entityToAsRelations.
 			//! Cleared whenever an `Is` edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_entityToAsRelationsTravCache;
+			//! Lazily built ancestor chains for unlimited source traversal.
+			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_targetsTravCache;
+			//! Lazily built breadth-first descendant closures for unlimited source traversal.
+			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
 			//! Map of relation -> targets
 			PairMap m_relToTgt;
 			//! Map of target -> relations
@@ -40474,7 +40539,7 @@ namespace gaia {
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
 			//! Entries are created lazily on first snapshot to avoid any global per-entity tax.
-			mutable cnt::map<EntityLookupKey, uint32_t> m_sourceEntityVersions;
+			mutable cnt::map<EntityLookupKey, uint32_t> m_srcEntityVersions;
 
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
@@ -41221,6 +41286,8 @@ namespace gaia {
 						auto relation = m_world.get(entity.id());
 						m_world.touch_rel_version(relation);
 						m_world.invalidate_queries_for_rel(relation);
+						m_world.m_targetsTravCache = {};
+						m_world.m_srcBfsTravCache = {};
 					}
 
 					try_set_flags(entity, true);
@@ -41235,6 +41302,7 @@ namespace gaia {
 						// m_entity -> {..., e}
 						auto& entity_to_e = m_world.m_entityToAsTargets[entityKey];
 						entity_to_e.insert(eKey);
+						m_world.m_entityToAsTargetsTravCache = {};
 						// e -> {..., m_entity}
 						auto& e_to_entity = m_world.m_entityToAsRelations[eKey];
 						e_to_entity.insert(entityKey);
@@ -41274,6 +41342,8 @@ namespace gaia {
 						auto relation = m_world.get(entity.id());
 						m_world.touch_rel_version(relation);
 						m_world.invalidate_queries_for_rel(relation);
+						m_world.m_targetsTravCache = {};
+						m_world.m_srcBfsTravCache = {};
 					}
 
 					try_set_flags(entity, false);
@@ -41301,6 +41371,7 @@ namespace gaia {
 							if (set.empty())
 								m_world.m_entityToAsTargets.erase(it);
 						}
+						m_world.m_entityToAsTargetsTravCache = {};
 
 						// e -> {..., m_entity}
 						{
@@ -42576,6 +42647,113 @@ namespace gaia {
 				return cache;
 			}
 
+			//! Returns the cached transitive `Is` targets for a relation entity.
+			//! The cache is rebuilt lazily and cleared whenever an `Is` edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& as_targets_trav_cache(Entity relation) const {
+				const auto key = EntityLookupKey(relation);
+				const auto itCache = m_entityToAsTargetsTravCache.find(key);
+				if (itCache != m_entityToAsTargetsTravCache.end())
+					return itCache->second;
+
+				auto& cache = m_entityToAsTargetsTravCache[key];
+				const auto it = m_entityToAsTargets.find(key);
+				if (it == m_entityToAsTargets.end())
+					return cache;
+
+				//! Small inline traversal stack for the common shallow inheritance case.
+				cnt::darray_ext<EntityLookupKey, 16> stack;
+				stack.reserve((uint32_t)it->second.size());
+				for (auto target: it->second)
+					stack.push_back(target);
+
+				while (!stack.empty()) {
+					const auto targetKey = stack.back();
+					stack.pop_back();
+
+					const auto target = targetKey.entity();
+					cache.push_back(target);
+
+					const auto itChild = m_entityToAsTargets.find(targetKey);
+					if (itChild == m_entityToAsTargets.end())
+						continue;
+
+					for (auto childTarget: itChild->second)
+						stack.push_back(childTarget);
+				}
+
+				return cache;
+			}
+
+			//! Returns the cached unlimited upward traversal chain for `(relation, source)`.
+			//! The cache excludes the source entity itself and is cleared whenever a pair edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& targets_trav_cache(Entity relation, Entity source) const {
+				const auto key = EntityLookupKey(Pair(relation, source));
+				const auto itCache = m_targetsTravCache.find(key);
+				if (itCache != m_targetsTravCache.end())
+					return itCache->second;
+
+				auto& cache = m_targetsTravCache[key];
+				if (!valid(relation) || !valid(source))
+					return cache;
+
+				auto curr = source;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+
+					cache.push_back(next);
+					curr = next;
+				}
+
+				return cache;
+			}
+
+			//! Returns the cached unlimited breadth-first descendant traversal for `(relation, rootTarget)`.
+			//! The cache excludes the root target itself and is cleared whenever a pair edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& sources_bfs_trav_cache(Entity relation, Entity rootTarget) const {
+				const auto key = EntityLookupKey(Pair(relation, rootTarget));
+				const auto itCache = m_srcBfsTravCache.find(key);
+				if (itCache != m_srcBfsTravCache.end())
+					return itCache->second;
+
+				auto& cache = m_srcBfsTravCache[key];
+				if (!valid(relation) || !valid(rootTarget))
+					return cache;
+
+				cnt::darray<Entity> queue;
+				queue.push_back(rootTarget);
+
+				cnt::set<EntityLookupKey> visited;
+				visited.insert(EntityLookupKey(rootTarget));
+
+				for (uint32_t i = 0; i < queue.size(); ++i) {
+					const auto currTarget = queue[i];
+
+					cnt::darray<Entity> children;
+					sources(relation, currTarget, [&](Entity source) {
+						const auto keySource = EntityLookupKey(source);
+						const auto ins = visited.insert(keySource);
+						if (!ins.second)
+							return;
+
+						children.push_back(source);
+					});
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (auto child: children) {
+						cache.push_back(child);
+						queue.push_back(child);
+					}
+				}
+
+				return cache;
+			}
+
 			template <typename Func>
 			void as_relations_trav(Entity target, Func func) const {
 				GAIA_ASSERT(valid(target));
@@ -42895,15 +43073,9 @@ namespace gaia {
 				if (!valid(relation))
 					return;
 
-				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
-				if (it == m_entityToAsTargets.end())
-					return;
-
-				const auto& set = it->second;
-				for (auto target: set) {
-					func(target.entity());
-					as_targets_trav(target.entity(), func);
-				}
+				const auto& targets = as_targets_trav_cache(relation);
+				for (auto target: targets)
+					func(target);
 			}
 
 			template <typename Func>
@@ -42912,17 +43084,10 @@ namespace gaia {
 				if (!valid(relation))
 					return false;
 
-				const auto it = m_entityToAsTargets.find(EntityLookupKey(relation));
-				if (it == m_entityToAsTargets.end())
-					return false;
-
-				const auto& set = it->second;
-				for (auto target: set) {
-					if (func(target.entity()))
+				const auto& targets = as_targets_trav_cache(relation);
+				for (auto target: targets)
+					if (func(target))
 						return true;
-					if (as_targets_trav(target.entity(), func))
-						return true;
-				}
 
 				return false;
 			}
@@ -43088,8 +43253,8 @@ namespace gaia {
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
 			void update_src_entity_version(Entity entity) {
 				const auto key = EntityLookupKey(entity);
-				const auto it = m_sourceEntityVersions.find(key);
-				if (it == m_sourceEntityVersions.end())
+				const auto it = m_srcEntityVersions.find(key);
+				if (it == m_srcEntityVersions.end())
 					return;
 
 				update_version(it->second);
@@ -43097,7 +43262,7 @@ namespace gaia {
 
 			//! Removes sparse source-version state for an entity that is being destroyed.
 			void remove_src_entity_version(Entity entity) {
-				m_sourceEntityVersions.erase(EntityLookupKey(entity));
+				m_srcEntityVersions.erase(EntityLookupKey(entity));
 			}
 
 			//! Sets maximal lifespan of an archetype @a entity belongs to.
@@ -43221,10 +43386,13 @@ namespace gaia {
 					m_entityToAsRelations = {};
 					m_entityToAsRelationsTravCache = {};
 					m_entityToAsTargets = {};
+					m_entityToAsTargetsTravCache = {};
+					m_targetsTravCache = {};
+					m_srcBfsTravCache = {};
 					m_tgtToRel = {};
 					m_relToTgt = {};
 					m_relationVersions = {};
-					m_sourceEntityVersions = {};
+					m_srcEntityVersions = {};
 
 					m_archetypes = {};
 					m_archetypesById = {};
@@ -45968,6 +46136,11 @@ namespace gaia {
 			return world.as_targets_trav_if(relation, func);
 		}
 
+		GAIA_NODISCARD inline const cnt::darray<Entity>&
+		targets_trav_cache(const World& world, Entity relation, Entity source) {
+			return world.targets_trav_cache(relation, source);
+		}
+
 		template <typename Func>
 		inline void sources(const World& world, Entity relation, Entity target, Func func) {
 			world.sources(relation, target, func);
@@ -45976,6 +46149,11 @@ namespace gaia {
 		template <typename Func>
 		inline void sources_if(const World& world, Entity relation, Entity target, Func func) {
 			world.sources_if(relation, target, func);
+		}
+
+		GAIA_NODISCARD inline const cnt::darray<Entity>&
+		sources_bfs_trav_cache(const World& world, Entity relation, Entity rootTarget) {
+			return world.sources_bfs_trav_cache(relation, rootTarget);
 		}
 
 		template <typename Func>
@@ -47890,11 +48068,11 @@ namespace gaia {
 				return 0;
 
 			const auto key = EntityLookupKey(entity);
-			auto it = world.m_sourceEntityVersions.find(key);
-			if (it != world.m_sourceEntityVersions.end())
+			auto it = world.m_srcEntityVersions.find(key);
+			if (it != world.m_srcEntityVersions.end())
 				return it->second;
 
-			it = world.m_sourceEntityVersions.try_emplace(key, 1).first;
+			it = world.m_srcEntityVersions.try_emplace(key, 1).first;
 			return it->second;
 		}
 

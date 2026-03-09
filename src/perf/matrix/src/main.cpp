@@ -1363,6 +1363,45 @@ void BM_QueryMatch_IsChain_32(picobench::state& state) {
 	BM_QueryMatch_IsChain<32>(state);
 }
 
+//! Benchmarks transitive target traversal over `Is` targets.
+template <uint32_t ChainDepth>
+void BM_World_AsTargetsTrav(picobench::state& state) {
+	ecs::World w;
+
+	cnt::sarray<ecs::Entity, ChainDepth> chain{};
+	GAIA_FOR(ChainDepth) {
+		chain[i] = w.add();
+		if (i == 0)
+			continue;
+		w.add(chain[i], ecs::Pair(ecs::Is, chain[i - 1]));
+	}
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		w.as_targets_trav(chain[ChainDepth - 1], [&](ecs::Entity target) {
+			sum += target.id();
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_World_AsTargetsTrav_2(picobench::state& state) {
+	BM_World_AsTargetsTrav<2>(state);
+}
+
+void BM_World_AsTargetsTrav_4(picobench::state& state) {
+	BM_World_AsTargetsTrav<4>(state);
+}
+
+void BM_World_AsTargetsTrav_8(picobench::state& state) {
+	BM_World_AsTargetsTrav<8>(state);
+}
+
+void BM_World_AsTargetsTrav_32(picobench::state& state) {
+	BM_World_AsTargetsTrav<32>(state);
+}
+
 //! Benchmarks repeated creation, emptying, and GC of chunk-heavy archetypes.
 //! This exercises World's deferred chunk-delete queue maintenance.
 void BM_World_ChunkDeleteQueue_GC(picobench::state& state) {
@@ -3024,6 +3063,12 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("var source (unbound)");
+
+		PICOBENCH_SUITE_REG("Traversal helpers");
+		PICOBENCH_REG(BM_World_AsTargetsTrav_2).PICO_SETTINGS_FOCUS().label("as_targets_trav d2");
+		PICOBENCH_REG(BM_World_AsTargetsTrav_4).PICO_SETTINGS_FOCUS().label("as_targets_trav d4");
+		PICOBENCH_REG(BM_World_AsTargetsTrav_8).PICO_SETTINGS_FOCUS().label("as_targets_trav d8");
+		PICOBENCH_REG(BM_World_AsTargetsTrav_32).PICO_SETTINGS_FOCUS().label("as_targets_trav d32");
 
 		PICOBENCH_SUITE_REG("Query cache maintenance");
 		PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(16).label("create fanout 16");

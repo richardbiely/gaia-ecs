@@ -325,7 +325,7 @@ namespace gaia {
 					if (term.src == EntityBad || is_variable(term.src))
 						continue;
 
-					(void)vm::detail::each_lookup_source(*world(), term, term.src, [&](Entity source) {
+					(void)vm::detail::each_lookup_src(*world(), term, term.src, [&](Entity source) {
 						return func(source);
 					});
 				}
@@ -919,7 +919,7 @@ namespace gaia {
 				// while (any_chunk_has_entities) {
 				// 	find_chunk_with_smallest_next_element();
 				// 	yield(entity_from_that_chunk);
-				// 	advance_cursor_for_that_chunk();
+				// 	adv_cursor_for_that_chunk();
 				// }
 				// This produces a globally sorted view without modifying actual data. It's a balance between
 				// performance and memory usage. We could also sort the data in-place across all chunks, but that

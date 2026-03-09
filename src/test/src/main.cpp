@@ -7802,6 +7802,24 @@ TEST_CASE("Relationship source traversal") {
 		CHECK(stopped);
 		CHECK(visited == 4);
 	}
+
+	{
+		auto f = wld.add();
+		wld.add(f, {rel, c});
+
+		cnt::darr<ecs::Entity> bfs;
+		wld.sources_bfs(rel, root, [&bfs](ecs::Entity source) {
+			bfs.push_back(source);
+		});
+
+		CHECK(bfs.size() == 6);
+		CHECK(bfs[0] == a);
+		CHECK(bfs[1] == b);
+		CHECK(bfs[2] == c);
+		CHECK(bfs[3] == d);
+		CHECK(bfs[4] == e);
+		CHECK(bfs[5] == f);
+	}
 }
 
 TEST_CASE("Child hierarchy traversal") {

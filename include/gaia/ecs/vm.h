@@ -913,6 +913,7 @@ namespace gaia {
 					bool initialized = false;
 					bool selfEmitted = false;
 					Entity upSource = EntityBad;
+					std::span<const Entity> cachedSources{};
 					cnt::darray<Entity> queue;
 					cnt::darray<uint32_t> levels;
 					cnt::darray<Entity> children;
@@ -926,6 +927,7 @@ namespace gaia {
 						initialized = false;
 						selfEmitted = false;
 						upSource = EntityBad;
+						cachedSources = {};
 						queue.clear();
 						levels.clear();
 						children.clear();
@@ -939,7 +941,7 @@ namespace gaia {
 
 				template <typename Func>
 				GAIA_NODISCARD inline bool
-				each_lookup_source(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+				each_lookup_src(const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, Func&& func) {
 					SourceLookupCursor cursor{};
 					Entity source = EntityBad;
 					while (next_lookup_src_cursor(w, opcode, term, sourceEntity, cursor, source)) {
@@ -952,8 +954,8 @@ namespace gaia {
 
 				template <typename Func>
 				GAIA_NODISCARD inline bool
-				each_lookup_source(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
-					return each_lookup_source(w, src_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
+				each_lookup_src(const World& w, const QueryTerm& term, Entity sourceEntity, Func&& func) {
+					return each_lookup_src(w, src_opcode_from_term(term), term, sourceEntity, GAIA_FWD(func));
 				}
 
 				GAIA_NODISCARD inline bool next_lookup_src_cursor_up(
@@ -1062,6 +1064,58 @@ namespace gaia {
 						const World& w, EOpcode opcode, const QueryTerm& term, Entity sourceEntity, SourceLookupCursor& cursor,
 						Entity& outSource) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
+					const bool unlimitedTraversal =
+							term.travDepth == QueryTermOptions::TravDepthUnlimited && term.entTrav != EntityBad;
+
+					if (unlimitedTraversal &&
+							(opcode == EOpcode::Src_Up || opcode == EOpcode::Src_Down || opcode == EOpcode::Src_UpDown)) {
+						if (!valid(w, sourceEntity))
+							return false;
+
+						if (!cursor.initialized)
+							cursor.initialized = true;
+
+						if (includeSelf && !cursor.selfEmitted) {
+							cursor.selfEmitted = true;
+							outSource = sourceEntity;
+							return true;
+						}
+
+						const auto adv_cached_src = [&](std::span<const Entity> cachedSources) {
+							if (cursor.cachedSources.data() != cachedSources.data() ||
+									cursor.cachedSources.size() != cachedSources.size()) {
+								cursor.cachedSources = cachedSources;
+								cursor.queueIdx = 0;
+							}
+
+							if (cursor.queueIdx < cursor.cachedSources.size()) {
+								outSource = cursor.cachedSources[cursor.queueIdx++];
+								return true;
+							}
+
+							return false;
+						};
+
+						if (opcode == EOpcode::Src_Up) {
+							return adv_cached_src(targets_trav_cache(w, term.entTrav, sourceEntity));
+						}
+
+						if (opcode == EOpcode::Src_Down) {
+							return adv_cached_src(sources_bfs_trav_cache(w, term.entTrav, sourceEntity));
+						}
+
+						if (cursor.phase == 0) {
+							if (adv_cached_src(targets_trav_cache(w, term.entTrav, sourceEntity)))
+								return true;
+
+							cursor.phase = 1;
+							cursor.cachedSources = {};
+							cursor.queueIdx = 0;
+						}
+
+						return adv_cached_src(sources_bfs_trav_cache(w, term.entTrav, sourceEntity));
+					}
+
 					switch (opcode) {
 						case EOpcode::Src_Never:
 							return false;
@@ -1101,7 +1155,7 @@ namespace gaia {
 						return match_single_id_on_archetype(w, *pArchetype, term.id);
 					};
 
-					return each_lookup_source(w, opcode, term, term.src, match_src_entity);
+					return each_lookup_src(w, opcode, term, term.src, match_src_entity);
 				}
 
 				GAIA_NODISCARD inline bool match_src_term(const World& w, const QueryTerm& term) {
@@ -1421,12 +1475,12 @@ namespace gaia {
 					GAIA_ASSERT(!var_is_bound(varsIn, termOp.term.src));
 					GAIA_ASSERT(termOp.sourceOpcode == EOpcode::Src_Self);
 
-					const auto advance_matches = [&](std::span<const Archetype*> sourceArchetypes) {
+					const auto adv_matches = [&](std::span<const Archetype*> sourceArchetypes, bool idsPreFiltered) {
 						for (; cursor.sourceArchetypeIdx < sourceArchetypes.size(); ++cursor.sourceArchetypeIdx) {
 							const auto* pSrcArchetype = sourceArchetypes[cursor.sourceArchetypeIdx];
 							if (pSrcArchetype == nullptr)
 								continue;
-							if (!match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
+							if (!idsPreFiltered && !match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
 								continue;
 
 							const auto& chunks = pSrcArchetype->chunks();
@@ -1459,9 +1513,9 @@ namespace gaia {
 					if (!ctx.archetypeLookup.empty()) {
 						const auto sourceArchetypes =
 								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
-						if (advance_matches(sourceArchetypes))
+						if (adv_matches(sourceArchetypes, true))
 							return true;
-					} else if (advance_matches(ctx.allArchetypes))
+					} else if (adv_matches(ctx.allArchetypes, false))
 						return true;
 
 					return false;
@@ -1477,12 +1531,12 @@ namespace gaia {
 							inverseOpcode == EOpcode::Src_Up || inverseOpcode == EOpcode::Src_Down ||
 							inverseOpcode == EOpcode::Src_UpDown);
 
-					const auto advance_matches = [&](std::span<const Archetype*> sourceArchetypes) {
+					const auto adv_matches = [&](std::span<const Archetype*> sourceArchetypes, bool idsPreFiltered) {
 						for (; cursor.sourceArchetypeIdx < sourceArchetypes.size(); ++cursor.sourceArchetypeIdx) {
 							const auto* pSrcArchetype = sourceArchetypes[cursor.sourceArchetypeIdx];
 							if (pSrcArchetype == nullptr)
 								continue;
-							if (!match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
+							if (!idsPreFiltered && !match_single_id_on_archetype(*ctx.pWorld, *pSrcArchetype, termOp.term.id))
 								continue;
 
 							const auto& chunks = pSrcArchetype->chunks();
@@ -1525,9 +1579,9 @@ namespace gaia {
 					if (!ctx.archetypeLookup.empty()) {
 						const auto sourceArchetypes =
 								ctx.archetypeLookup.fetch(ctx.allArchetypes, termOp.term.id, EntityLookupKey(termOp.term.id));
-						if (advance_matches(sourceArchetypes))
+						if (adv_matches(sourceArchetypes, true))
 							return true;
-					} else if (advance_matches(ctx.allArchetypes))
+					} else if (adv_matches(ctx.allArchetypes, false))
 						return true;
 
 					return false;
@@ -1597,7 +1651,7 @@ namespace gaia {
 						sourceEntity = vars.values[var_index(sourceEntity)];
 					}
 
-					return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					return each_lookup_src(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 						auto* pSrcArchetype = archetype_from_entity(w, source);
 						if (pSrcArchetype == nullptr)
 							return false;
@@ -1686,8 +1740,8 @@ namespace gaia {
 						const VarBindings& varsIn, Func&& func) {
 					const auto& term = termOp.term;
 					auto&& matchFunc = GAIA_FWD(func);
-					auto each_on_source = [&](Entity sourceEntity, const VarBindings& vars) {
-						return each_lookup_source(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
+					auto each_on_src = [&](Entity sourceEntity, const VarBindings& vars) {
+						return each_lookup_src(w, termOp.sourceOpcode, term, sourceEntity, [&](Entity source) {
 							auto* pSrcArchetype = archetype_from_entity(w, source);
 							if (pSrcArchetype == nullptr)
 								return false;
@@ -1704,10 +1758,10 @@ namespace gaia {
 							return false;
 
 						const auto source = varsIn.values[var_index(term.src)];
-						return each_on_source(source, varsIn);
+						return each_on_src(source, varsIn);
 					}
 
-					return each_on_source(term.src, varsIn);
+					return each_on_src(term.src, varsIn);
 				}
 
 				template <typename OpKind, MatchingStyle Style>
@@ -2614,8 +2668,8 @@ namespace gaia {
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src) ||
 									 op.opcode == EOpcode::Var_Term_All_Src_Bind;
 					};
-					const auto advance_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
-																														 VarBindings nextVars) {
+					const auto adv_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
+																												 VarBindings nextVars) {
 						const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
 						state.vars = nextVars;
 						switch (op.opcode) {
@@ -2669,7 +2723,7 @@ namespace gaia {
 						}
 
 						stack.push_back(GAIA_MOV(frame));
-						advance_after_search_term_success(state, op, nextVars);
+						adv_after_search_term_success(state, op, nextVars);
 						return true;
 					};
 					const auto backtrack = [&](SearchProgramState& state,
@@ -2688,7 +2742,7 @@ namespace gaia {
 								}
 
 								state = frame.state;
-								advance_after_search_term_success(state, op, nextVars);
+								adv_after_search_term_success(state, op, nextVars);
 								return true;
 							}
 
@@ -2911,7 +2965,7 @@ namespace gaia {
 								break;
 							case EOpcode::Var_Term_All_Check:
 								if (term_has_match(*ctx.pWorld, archetype, search_program_term_op(op), state.vars))
-									advance_after_search_term_success(state, op, state.vars);
+									adv_after_search_term_success(state, op, state.vars);
 								else {
 									handle_search_term_exhausted(state, op);
 									if (state.pc == BacktrackPC && !backtrack(state, stack))
@@ -2934,7 +2988,7 @@ namespace gaia {
 								const bool bindsNewVars = (uint8_t)(termOp.varMask & ~state.vars.mask) != 0;
 								if (!bindsNewVars) {
 									if (term_has_match(*ctx.pWorld, archetype, termOp, state.vars))
-										advance_after_search_term_success(state, op, state.vars);
+										adv_after_search_term_success(state, op, state.vars);
 									else {
 										if (op.opcode == EOpcode::Var_Term_Or_Check || op.opcode == EOpcode::Var_Term_Or_Bind)
 											state.pendingFinalOrMask =
