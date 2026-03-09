@@ -13301,6 +13301,29 @@ TEST_CASE("Observer - simple") {
 	}
 }
 
+TEST_CASE("EntityBuilder single-step graph rebuild tolerates stale del edges") {
+	TestWorld twld;
+
+	auto A = wld.add();
+	auto B = wld.add();
+	auto C = wld.add();
+
+	auto e = wld.add();
+	wld.add(e, A);
+	wld.add(e, B);
+	wld.add(e, C);
+	wld.del(A);
+
+	for (int i = 0; i < 2000; ++i) {
+		auto x = wld.add();
+		wld.add(x, B);
+		wld.add(x, C);
+		wld.del(x, B);
+		wld.del(x);
+		wld.update();
+	}
+}
+
 TEST_CASE("EntityBuilder batching keeps later single-step archetype moves valid") {
 	TestWorld twld;
 
