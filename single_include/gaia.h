@@ -33735,6 +33735,38 @@ namespace gaia {
 						return !is_var_entity(termOp.term.src) || var_is_bound(vars, termOp.term.src) ||
 									 op.opcode == EOpcode::Var_Term_All_Src_Bind;
 					};
+
+					const auto can_binding_satisfy_pending_or = [&](const SearchProgramState& state,
+																													const VarBindings& nextVars) {
+						if (state.orMatched || search.orCount == 0 || state.pendingOrMask == 0)
+							return true;
+
+						bool hasDeferredOr = false;
+						for (uint32_t localIdx = 0; localIdx < search.orCount; ++localIdx) {
+							const auto bit = (uint16_t)(uint16_t(1) << localIdx);
+							if ((state.pendingOrMask & bit) == 0)
+								continue;
+
+							const auto bindPc = (uint32_t)search.orBegin + localIdx;
+							const auto& bindOp = programOps[bindPc];
+							const auto& termOp = search_program_term_op(bindOp);
+							const auto missingMaskBefore = (uint8_t)(termOp.varMask & ~state.vars.mask);
+							const auto missingMaskAfter = (uint8_t)(termOp.varMask & ~nextVars.mask);
+							if (missingMaskAfter != 0) {
+								hasDeferredOr = true;
+								continue;
+							}
+
+							if (missingMaskBefore == 0 && (state.pendingFinalOrMask & bit) == 0)
+								continue;
+
+							if (term_has_match(*ctx.pWorld, archetype, termOp, nextVars))
+								return true;
+						}
+
+						return hasDeferredOr;
+					};
+
 					const auto adv_after_search_term_success = [&](SearchProgramState& state, const detail::CompiledOp& op,
 																												 VarBindings nextVars) {
 						const auto bit = (uint16_t)(uint16_t(1) << state.termOpIdx);
@@ -33766,23 +33798,29 @@ namespace gaia {
 								break;
 						}
 					};
+
 					const auto handle_search_term_exhausted = [&](SearchProgramState& state, const detail::CompiledOp& op) {
 						if (op.opcode == EOpcode::Var_Term_Any_Check || op.opcode == EOpcode::Var_Term_Any_Bind) {
 							state.pendingAnyMask = (uint16_t)(state.pendingAnyMask & ~(uint16_t(1) << state.termOpIdx));
 						}
 						state.pc = op.pc_fail;
 					};
+
 					const auto try_enter_search_term = [&](SearchProgramState& state,
 																								 cnt::sarray_ext<SearchBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack) {
 						const auto& op = programOps[state.pc];
 						const auto& termOp = search_program_term_op(op);
-						VarBindings nextVars{};
 						SearchBacktrackFrame frame{};
 						frame.state = state;
 						frame.varsBase = state.vars;
 
-						if (!detail::next_term_match_cursor(ctx, archetype, termOp, frame.varsBase, frame.cursor, nextVars))
-							return false;
+						VarBindings nextVars{};
+						for (;;) {
+							if (!detail::next_term_match_cursor(ctx, archetype, termOp, frame.varsBase, frame.cursor, nextVars))
+								return false;
+							if (can_binding_satisfy_pending_or(state, nextVars))
+								break;
+						}
 
 						if (op.opcode == EOpcode::Var_Term_Any_Check || op.opcode == EOpcode::Var_Term_Any_Bind) {
 							frame.state.anyMatched = true;
@@ -33793,6 +33831,7 @@ namespace gaia {
 						adv_after_search_term_success(state, op, nextVars);
 						return true;
 					};
+
 					const auto backtrack = [&](SearchProgramState& state,
 																		 cnt::sarray_ext<SearchBacktrackFrame, MAX_ITEMS_IN_QUERY>& stack) {
 						while (!stack.empty()) {
