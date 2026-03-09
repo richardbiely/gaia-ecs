@@ -3279,6 +3279,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match all-only 2var src-gated (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnly_Unbound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("match all-only 2var src-gated (unbound 1 arch)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnly_Unbound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(8)
+				.label("match all-only 2var src-gated (unbound 8 arch)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnlyCoupled_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
@@ -3287,6 +3295,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match all-only coupled (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnlyCoupled_Unbound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("match all-only coupled (unbound 1 arch)");
+		PICOBENCH_REG(BM_QueryMatch_Variable_AllOnlyCoupled_Unbound)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(8)
+				.label("match all-only coupled (unbound 8 arch)");
 		PICOBENCH_REG(BM_QueryMatch_Variable_GenericSourceBacktrack_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
