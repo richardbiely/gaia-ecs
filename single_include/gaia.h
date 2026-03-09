@@ -36276,18 +36276,16 @@ namespace gaia {
 			}
 
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
-				bool removed = false;
 				const auto it = m_state.archetypeSet.find(pArchetype);
-				if (it != m_state.archetypeSet.end()) {
-					m_state.archetypeSet.erase(it);
-					removed = true;
-				}
+				if (it == m_state.archetypeSet.end())
+					return false;
+
+				m_state.archetypeSet.erase(it);
 
 				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
 				if (archetypeIdx == BadIndex)
-					return removed;
-
-				removed = true;
+					return true;
 
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
@@ -36326,16 +36324,16 @@ namespace gaia {
 			}
 
 			bool del_archetype_from_seed_cache(const Archetype* pArchetype) {
-				bool removed = false;
 				const auto it = m_state.seedArchetypeSet.find(pArchetype);
-				if (it != m_state.seedArchetypeSet.end()) {
-					m_state.seedArchetypeSet.erase(it);
-					removed = true;
-				}
+				if (it == m_state.seedArchetypeSet.end())
+					return false;
+
+				m_state.seedArchetypeSet.erase(it);
 
 				const auto archetypeIdx = core::get_index(m_state.seedArchetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
 				if (archetypeIdx == BadIndex)
-					return removed;
+					return true;
 
 				core::swap_erase(m_state.seedArchetypeCache, archetypeIdx);
 				core::swap_erase(m_state.seedArchetypeCacheData, archetypeIdx);
@@ -36792,47 +36790,26 @@ namespace gaia {
 			void remove_archetype_from_queries(Archetype* pArchetype) {
 				const auto archetypeKey = ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash());
 				auto it = m_archetypeToQuery.find(archetypeKey);
-				if (it != m_archetypeToQuery.end()) {
-					const auto handles = it->second;
-					for (const auto handle: handles) {
-						auto* pInfo = try_get(handle);
-						if (pInfo != nullptr && pInfo->refs() != 0)
-							pInfo->remove(pArchetype);
+				if (it == m_archetypeToQuery.end())
+					return;
 
-						auto trackedIt = m_queryToArchetype.find(QueryHandleLookupKey(handle));
-						if (trackedIt == m_queryToArchetype.end())
-							continue;
+				const auto handles = it->second;
+				for (const auto handle: handles) {
+					auto* pInfo = try_get(handle);
+					if (pInfo != nullptr && pInfo->refs() != 0)
+						pInfo->remove(pArchetype);
 
-						remove_archetype_from_tracked_queries(trackedIt->second.archetypes, pArchetype);
-						if (trackedIt->second.archetypes.empty())
-							m_queryToArchetype.erase(trackedIt);
-					}
-
-					m_archetypeToQuery.erase(it);
-				}
-
-				// Archetype deletion is rare, so finish with a scrub pass. This guarantees a dead archetype
-				// cannot survive in cached query state even if an earlier eager-registration/sync sequence left
-				// the reverse index partially out of sync.
-				for (auto trackedIt = m_queryToArchetype.begin(); trackedIt != m_queryToArchetype.end();) {
-					remove_archetype_from_tracked_queries(trackedIt->second.archetypes, pArchetype);
-					if (trackedIt->second.archetypes.empty()) {
-						trackedIt = m_queryToArchetype.erase(trackedIt);
-						continue;
-					}
-
-					++trackedIt;
-				}
-
-				// The final authority on cached membership is QueryInfo itself, not the reverse index.
-				// Scrub every live cached query before the archetype is destroyed so stale reverse-index
-				// edges cannot leave dead archetype pointers behind in query state.
-				for (auto& info: m_queryArr) {
-					if (info.refs() == 0)
+					auto trackedIt = m_queryToArchetype.find(QueryHandleLookupKey(handle));
+					if (trackedIt == m_queryToArchetype.end())
 						continue;
 
-					info.remove(pArchetype);
+					auto& tracked = trackedIt->second.archetypes;
+					core::swap_erase(tracked, core::get_index(tracked, pArchetype));
+					if (trackedIt->second.archetypes.empty())
+						m_queryToArchetype.erase(trackedIt);
 				}
+
+				m_archetypeToQuery.erase(it);
 			}
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
@@ -37095,9 +37072,7 @@ namespace gaia {
 
 				auto& handles = it->second;
 				const auto idx = core::get_index(handles, handle);
-				if (idx == BadIndex)
-					return;
-
+				GAIA_ASSERT(idx != BadIndex);
 				core::swap_erase(handles, idx);
 				if (handles.empty())
 					m_archetypeToQuery.erase(it);
@@ -37115,34 +37090,13 @@ namespace gaia {
 				m_queryToArchetype.erase(it);
 			}
 
-			//! Removes all occurrences of an archetype pointer from a tracked reverse-index list.
-			//! Duplicate edges are not expected, but this keeps teardown robust when archetype-create
-			//! eager updates and later full sync disagree on the exact registration sequence.
-			GAIA_NODISCARD bool remove_archetype_from_tracked_queries(
-					cnt::darray<const Archetype*>& tracked, const Archetype* pArchetype) {
-				bool removed = false;
-				for (;;) {
-					const auto idx = core::get_index(tracked, pArchetype);
-					if (idx == BadIndex)
-						return removed;
-
-					core::swap_erase(tracked, idx);
-					removed = true;
-				}
-			}
-
 			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype, uint32_t syncedRevision) {
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
 				auto& tracked = trackedIt->second.archetypes;
 
-				// Eager archetype registration and later full cache sync should agree on the same edge set.
-				// Be tolerant here so duplicated registrations cannot corrupt reverse-index teardown when the
-				// registration sequence temporarily leaves the reverse index out of sync.
-				if (!inserted && core::has(tracked, pArchetype)) {
-					trackedIt->second.syncedRevision = syncedRevision;
-					return;
-				}
-
+				// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,
+				// so reverse-index registration can append directly instead of re-scanning tracked archetypes.
+				GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));
 				tracked.push_back(pArchetype);
 				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);
@@ -44566,6 +44520,53 @@ namespace gaia {
 				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
 				if (idx != BadIndex)
 					core::swap_erase_unsafe(archetypes, idx);
+
+				if (archetypes.empty())
+					m_entityToArchetypeMap.erase(it);
+			}
+
+			//! Deletes a known archetype from the <entity, archetype> map.
+			//! Used when unregistering an archetype from the world.
+			void del_entity_archetype_pair(Entity entity, Archetype* pArchetypeToRemove) {
+				GAIA_ASSERT(entity != Pair(All, All));
+				GAIA_ASSERT(pArchetypeToRemove != nullptr);
+
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				auto& archetypes = it->second;
+				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
+				if (idx != BadIndex)
+					core::swap_erase_unsafe(archetypes, idx);
+
+				if (archetypes.empty())
+					m_entityToArchetypeMap.erase(it);
+			}
+
+			//! Deletes a known archetype from all of its entity and wildcard-pair lookup buckets.
+			void del_archetype_entity_pairs(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				for (const auto entity: pArchetype->ids_view()) {
+					del_entity_archetype_pair(entity, pArchetype);
+
+					if (!entity.pair())
+						continue;
+
+					// Archetype unregistration can run while the pair's relation or target entity is already
+					// invalid. Rebuild wildcard pair lookup keys from the stored entity records instead of
+					// calling get(), which asserts on invalidated ids.
+					GAIA_ASSERT(entity.id() < m_recs.entities.size());
+					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
+					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
+
+					// (*, tgt)
+					del_entity_query_pair(Pair(All, second), pArchetype);
+					// (src, *)
+					del_entity_query_pair(Pair(first, All), pArchetype);
+				}
 			}
 
 			//! Deletes an archetype from the <entity, archetype> map
@@ -44576,8 +44577,12 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					const auto first = get(entity.id());
-					const auto second = get(entity.gen());
+					// Pair cleanup can run after the relation or target entity was already invalidated.
+					// Rebuild wildcard pair keys from the stored entity records instead of calling get().
+					GAIA_ASSERT(entity.id() < m_recs.entities.size());
+					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
+					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
 
 					if (pArchetype != nullptr) {
 						// (*, tgt)
@@ -44665,6 +44670,11 @@ namespace gaia {
 
 				// Make sure the archetype was registered already
 				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
+
+				// Query rematching uses the entity -> archetype lookup map as an input. Remove this
+				// archetype from all of its lookup buckets before destroying it so dead archetype
+				// pointers cannot be reintroduced into cached query state during the next rematch.
+				del_archetype_entity_pairs(pArchetype);
 
 				// Break graph connections
 				{
@@ -45676,8 +45686,12 @@ namespace gaia {
 						m_recs.pairs.erase(it);
 
 						// Update pairs
-						auto rel = get(entity.id());
-						auto tgt = get(entity.gen());
+						// The relation or target entity may already be invalid at this point. Rebuild the
+						// lookup keys from the stored entity records instead of calling get().
+						GAIA_ASSERT(entity.id() < m_recs.entities.size());
+						GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+						auto rel = EntityContainer::handle(m_recs.entities[entity.id()]);
+						auto tgt = EntityContainer::handle(m_recs.entities[entity.gen()]);
 
 						delPair(m_relToTgt, rel, tgt);
 						delPair(m_relToTgt, All, tgt);

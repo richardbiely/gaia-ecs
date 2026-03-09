@@ -4263,6 +4263,53 @@ namespace gaia {
 				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
 				if (idx != BadIndex)
 					core::swap_erase_unsafe(archetypes, idx);
+
+				if (archetypes.empty())
+					m_entityToArchetypeMap.erase(it);
+			}
+
+			//! Deletes a known archetype from the <entity, archetype> map.
+			//! Used when unregistering an archetype from the world.
+			void del_entity_archetype_pair(Entity entity, Archetype* pArchetypeToRemove) {
+				GAIA_ASSERT(entity != Pair(All, All));
+				GAIA_ASSERT(pArchetypeToRemove != nullptr);
+
+				auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				auto& archetypes = it->second;
+				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
+				if (idx != BadIndex)
+					core::swap_erase_unsafe(archetypes, idx);
+
+				if (archetypes.empty())
+					m_entityToArchetypeMap.erase(it);
+			}
+
+			//! Deletes a known archetype from all of its entity and wildcard-pair lookup buckets.
+			void del_archetype_entity_pairs(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				for (const auto entity: pArchetype->ids_view()) {
+					del_entity_archetype_pair(entity, pArchetype);
+
+					if (!entity.pair())
+						continue;
+
+					// Archetype unregistration can run while the pair's relation or target entity is already
+					// invalid. Rebuild wildcard pair lookup keys from the stored entity records instead of
+					// calling get(), which asserts on invalidated ids.
+					GAIA_ASSERT(entity.id() < m_recs.entities.size());
+					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
+					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
+
+					// (*, tgt)
+					del_entity_query_pair(Pair(All, second), pArchetype);
+					// (src, *)
+					del_entity_query_pair(Pair(first, All), pArchetype);
+				}
 			}
 
 			//! Deletes an archetype from the <entity, archetype> map
@@ -4273,8 +4320,12 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					const auto first = get(entity.id());
-					const auto second = get(entity.gen());
+					// Pair cleanup can run after the relation or target entity was already invalidated.
+					// Rebuild wildcard pair keys from the stored entity records instead of calling get().
+					GAIA_ASSERT(entity.id() < m_recs.entities.size());
+					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
+					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
 
 					if (pArchetype != nullptr) {
 						// (*, tgt)
@@ -4362,6 +4413,11 @@ namespace gaia {
 
 				// Make sure the archetype was registered already
 				GAIA_ASSERT(pArchetype->list_idx() != BadIndex);
+
+				// Query rematching uses the entity -> archetype lookup map as an input. Remove this
+				// archetype from all of its lookup buckets before destroying it so dead archetype
+				// pointers cannot be reintroduced into cached query state during the next rematch.
+				del_archetype_entity_pairs(pArchetype);
 
 				// Break graph connections
 				{
@@ -5373,8 +5429,12 @@ namespace gaia {
 						m_recs.pairs.erase(it);
 
 						// Update pairs
-						auto rel = get(entity.id());
-						auto tgt = get(entity.gen());
+						// The relation or target entity may already be invalid at this point. Rebuild the
+						// lookup keys from the stored entity records instead of calling get().
+						GAIA_ASSERT(entity.id() < m_recs.entities.size());
+						GAIA_ASSERT(entity.gen() < m_recs.entities.size());
+						auto rel = EntityContainer::handle(m_recs.entities[entity.id()]);
+						auto tgt = EntityContainer::handle(m_recs.entities[entity.gen()]);
 
 						delPair(m_relToTgt, rel, tgt);
 						delPair(m_relToTgt, All, tgt);

@@ -1267,18 +1267,16 @@ namespace gaia {
 			}
 
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
-				bool removed = false;
 				const auto it = m_state.archetypeSet.find(pArchetype);
-				if (it != m_state.archetypeSet.end()) {
-					m_state.archetypeSet.erase(it);
-					removed = true;
-				}
+				if (it == m_state.archetypeSet.end())
+					return false;
+
+				m_state.archetypeSet.erase(it);
 
 				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
 				if (archetypeIdx == BadIndex)
-					return removed;
-
-				removed = true;
+					return true;
 
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
@@ -1317,16 +1315,16 @@ namespace gaia {
 			}
 
 			bool del_archetype_from_seed_cache(const Archetype* pArchetype) {
-				bool removed = false;
 				const auto it = m_state.seedArchetypeSet.find(pArchetype);
-				if (it != m_state.seedArchetypeSet.end()) {
-					m_state.seedArchetypeSet.erase(it);
-					removed = true;
-				}
+				if (it == m_state.seedArchetypeSet.end())
+					return false;
+
+				m_state.seedArchetypeSet.erase(it);
 
 				const auto archetypeIdx = core::get_index(m_state.seedArchetypeCache, pArchetype);
+				GAIA_ASSERT(archetypeIdx != BadIndex);
 				if (archetypeIdx == BadIndex)
-					return removed;
+					return true;
 
 				core::swap_erase(m_state.seedArchetypeCache, archetypeIdx);
 				core::swap_erase(m_state.seedArchetypeCacheData, archetypeIdx);
