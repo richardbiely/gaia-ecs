@@ -889,6 +889,11 @@ namespace gaia {
 					return match_res_as<OpOr>(w, archetype, EntitySpan{ids, 1});
 				}
 
+				GAIA_NODISCARD inline bool match_single_id_on_archetype_exact(const Archetype& archetype, Entity id) {
+					const Entity ids[1] = {id};
+					return match_res<OpOr>(archetype, EntitySpan{ids, 1});
+				}
+
 				GAIA_NODISCARD inline EOpcode src_opcode_from_term(const QueryTerm& term) {
 					const bool includeSelf = query_trav_has(term.travKind, QueryTravKind::Self);
 					const bool includeUp = query_trav_has(term.travKind, QueryTravKind::Up) && term.entTrav != EntityBad;

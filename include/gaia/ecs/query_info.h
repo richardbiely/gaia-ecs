@@ -633,6 +633,17 @@ namespace gaia {
 							 !m_state.needs_refresh();
 			}
 
+			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
+			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
+				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectAllTerms;
+			}
+
+			//! Returns whether direct create-time matching needs Is-aware id checks.
+			GAIA_NODISCARD bool direct_create_archetype_match_uses_is() const {
+				const auto& ctxData = m_plan.ctx.data;
+				return (ctxData.as_mask_0 + ctxData.as_mask_1) != 0;
+			}
+
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				return m_plan.ctx == other;
 			}
@@ -862,6 +873,22 @@ namespace gaia {
 					return false;
 
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
+				if (can_use_direct_create_archetype_match()) {
+					const bool usesIs = direct_create_archetype_match_uses_is();
+					for (const auto& term: ctxData.terms_view()) {
+						const bool matched = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
+																				: vm::detail::match_single_id_on_archetype_exact(archetype, term.id);
+						if (!matched)
+							return false;
+					}
+					if (hadMatchBefore)
+						return false;
+
+					add_archetype_to_seed_cache(&archetype);
+					add_archetype_to_cache(&archetype, true);
+					return true;
+				}
+
 				SingleArchetypeLookup entityToArchetypeMap;
 				auto addLookup = [&](Entity key) {
 					entityToArchetypeMap.push_back(EntityLookupKey(key));

@@ -788,19 +788,27 @@ void BM_Query_Variable_Source_Unbound(picobench::state& state) {
 	BM_Query_Variable_Source<false>(state);
 }
 
-//! Builds many distinct immediate cached queries, all of which should match the same new archetype.
+//! Builds many distinct immediate cached structural queries, all of which should match the same new archetype.
+template <uint32_t TermsPerQuery = 1>
 void create_structural_cache_queries(
 		ecs::World& w, cnt::darray<ecs::Entity>& tags, cnt::darray<ecs::Query>& queries, uint32_t queryCnt) {
+	static_assert(TermsPerQuery > 0);
+
 	tags.clear();
 	queries.clear();
-	tags.reserve(queryCnt);
+	tags.reserve(queryCnt * TermsPerQuery);
 	queries.reserve(queryCnt);
 
-	GAIA_FOR(queryCnt) {
-		const auto tag = w.add();
-		tags.push_back(tag);
+	GAIA_FOR(queryCnt * TermsPerQuery) {
+		tags.push_back(w.add());
+	}
 
-		auto q = w.query().all(tag);
+	GAIA_FOR(queryCnt) {
+		auto q = w.query();
+		GAIA_FOR_(TermsPerQuery, j) {
+			const auto tag = tags[i * TermsPerQuery + j];
+			q.all(tag);
+		}
 		dont_optimize(q.count());
 		queries.push_back(GAIA_MOV(q));
 	}
@@ -841,6 +849,45 @@ void BM_QueryCache_Create_Fanout(picobench::state& state) {
 		state.stop_timer();
 		dont_optimize(queries.back().count());
 	}
+}
+
+template <uint32_t TermsPerQuery, uint32_t QueryCnt>
+void BM_QueryCache_Create_Fanout_Multi(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> tags;
+		cnt::darray<ecs::Query> queries;
+		create_structural_cache_queries<TermsPerQuery>(w, tags, queries, QueryCnt);
+		create_unrelated_archetypes(w, archetypeCnt);
+
+		state.start_timer();
+
+		auto e = w.add();
+		auto eb = w.build(e);
+		for (const auto tag: tags)
+			eb.add(tag);
+		eb.commit();
+
+		state.stop_timer();
+		dont_optimize(queries.back().count());
+	}
+}
+
+void BM_QueryCache_Create_Fanout_15q_2t(picobench::state& state) {
+	BM_QueryCache_Create_Fanout_Multi<2, 15>(state);
+}
+
+void BM_QueryCache_Create_Fanout_7q_4t(picobench::state& state) {
+	BM_QueryCache_Create_Fanout_Multi<4, 7>(state);
+}
+
+void BM_QueryCache_Create_Fanout_3q_8t(picobench::state& state) {
+	BM_QueryCache_Create_Fanout_Multi<8, 3>(state);
 }
 
 //! Benchmarks immediate structural cache maintenance in worlds that already contain many unrelated archetypes.
@@ -3081,6 +3128,30 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(4096)
 				.label("create fanout 31q 4K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_15q_2t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("create fanout 15q 2t 1K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_15q_2t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("create fanout 15q 2t 4K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_7q_4t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("create fanout 7q 4t 1K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_7q_4t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("create fanout 7q 4t 4K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_3q_8t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("create fanout 3q 8t 1K arch");
+		PICOBENCH_REG(BM_QueryCache_Create_Fanout_3q_8t)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(4096)
+				.label("create fanout 3q 8t 4K arch");
 		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_Default)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)

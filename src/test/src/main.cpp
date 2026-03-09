@@ -10151,6 +10151,22 @@ TEST_CASE("Query - cached OR query sees matches added after creation") {
 	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 1);
 }
 
+TEST_CASE("Query - cached OR query eagerly tracks secondary selector archetypes") {
+	TestWorld twld;
+
+	auto tagA = wld.add();
+	auto tagB = wld.add();
+	auto q = wld.query().or_(tagA).or_(tagB);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add(e, tagB);
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") {
 	TestWorld twld;
 
@@ -10166,6 +10182,63 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	wld.add<Acceleration>(e, {4, 5, 6});
 	CHECK(info.cache_archetype_view().size() == 1);
 	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached single-term structural query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	const auto tag = wld.add();
+	auto q = wld.query().all(tag);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add(e, tag);
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached four-term structural query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	const auto tagA = wld.add();
+	const auto tagB = wld.add();
+	const auto tagC = wld.add();
+	const auto tagD = wld.add();
+
+	auto q = wld.query().all(tagA).all(tagB).all(tagC).all(tagD);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+
+	auto e = wld.add();
+	wld.add(e, tagA);
+	wld.add(e, tagB);
+	wld.add(e, tagC);
+	CHECK(info.cache_archetype_view().empty());
+
+	wld.add(e, tagD);
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached Is query sees inherited archetypes after refresh") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+
+	auto q = wld.query().all(ecs::Pair(ecs::Is, animal));
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	const auto wolf = wld.add();
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+	CHECK(q.count() == 2);
+	CHECK(info.cache_archetype_view().size() == 2);
 }
 
 TEST_CASE("Query - cached query reverse-index revision changes only on membership changes") {

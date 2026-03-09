@@ -371,6 +371,13 @@ namespace gaia {
 				Dynamic,
 			};
 
+			enum class CreateArchetypeMatchKind : uint8_t {
+				// Use the normal one-archetype VM path.
+				Vm,
+				// Match a small immediate ALL-term structural query directly on the archetype.
+				DirectAllTerms,
+			};
+
 			enum DependencyFlags : uint16_t {
 				DependencyNone = 0x00,
 				DependencyHasSourceTerms = 0x01,
@@ -504,6 +511,8 @@ namespace gaia {
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
 				CachePolicy cachePolicy = CachePolicy::Lazy;
+				//! Create-time archetype matcher derived from query shape.
+				CreateArchetypeMatchKind createArchetypeMatchKind = CreateArchetypeMatchKind::Vm;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -535,6 +544,7 @@ namespace gaia {
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
+				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -554,6 +564,7 @@ namespace gaia {
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
 					bool hasCreateSelector = false;
+					bool canDirectCreateArchetypeMatch = true;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 					data.deps.clear();
@@ -567,6 +578,7 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						canDirectCreateArchetypeMatch &= term.op == QueryOpKind::All && term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
@@ -661,6 +673,10 @@ namespace gaia {
 					else
 						data.cachePolicy = CachePolicy::Lazy;
 
+					data.createArchetypeMatchKind = data.cachePolicy == CachePolicy::Immediate && canDirectCreateArchetypeMatch
+																							? CreateArchetypeMatchKind::DirectAllTerms
+																							: CreateArchetypeMatchKind::Vm;
+
 					// Traversed-source snapshot caching is only effective for traversed source terms.
 					if (!data.deps.has(DependencyHasSourceTerms) || !data.deps.has(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
@@ -681,12 +697,12 @@ namespace gaia {
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
-						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
-						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
-						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
-						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
-						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations ||
-						sourceEntities_old != data.deps.sourceEntities)
+						cachePolicy_old != data.cachePolicy || createArchetypeMatchKind_old != data.createArchetypeMatchKind ||
+						dependencyFlags_old != data.deps.flags || createSelectorCnt_old != data.deps.createSelectorCnt ||
+						exclusionCnt_old != data.deps.exclusionCnt || relationCnt_old != data.deps.relationCnt ||
+						sourceEntityCnt_old != data.deps.sourceEntityCnt || sourceTermCnt_old != data.deps.sourceTermCnt ||
+						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions ||
+						relations_old != data.deps.relations || sourceEntities_old != data.deps.sourceEntities)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 

@@ -29812,6 +29812,13 @@ namespace gaia {
 				Dynamic,
 			};
 
+			enum class CreateArchetypeMatchKind : uint8_t {
+				// Use the normal one-archetype VM path.
+				Vm,
+				// Match a small immediate ALL-term structural query directly on the archetype.
+				DirectAllTerms,
+			};
+
 			enum DependencyFlags : uint16_t {
 				DependencyNone = 0x00,
 				DependencyHasSourceTerms = 0x01,
@@ -29945,6 +29952,8 @@ namespace gaia {
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
 				CachePolicy cachePolicy = CachePolicy::Lazy;
+				//! Create-time archetype matcher derived from query shape.
+				CreateArchetypeMatchKind createArchetypeMatchKind = CreateArchetypeMatchKind::Vm;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {_ids.data(), idsCnt};
@@ -29976,6 +29985,7 @@ namespace gaia {
 				const auto hasSourceTerms_old = data.flags & QueryFlags::HasSourceTerms;
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
+				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -29995,6 +30005,7 @@ namespace gaia {
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
 					bool hasCreateSelector = false;
+					bool canDirectCreateArchetypeMatch = true;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 					data.deps.clear();
@@ -30008,6 +30019,7 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						canDirectCreateArchetypeMatch &= term.op == QueryOpKind::All && term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
@@ -30102,6 +30114,10 @@ namespace gaia {
 					else
 						data.cachePolicy = CachePolicy::Lazy;
 
+					data.createArchetypeMatchKind = data.cachePolicy == CachePolicy::Immediate && canDirectCreateArchetypeMatch
+																							? CreateArchetypeMatchKind::DirectAllTerms
+																							: CreateArchetypeMatchKind::Vm;
+
 					// Traversed-source snapshot caching is only effective for traversed source terms.
 					if (!data.deps.has(DependencyHasSourceTerms) || !data.deps.has(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
@@ -30122,12 +30138,12 @@ namespace gaia {
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
-						cachePolicy_old != data.cachePolicy || dependencyFlags_old != data.deps.flags ||
-						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
-						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
-						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
-						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations ||
-						sourceEntities_old != data.deps.sourceEntities)
+						cachePolicy_old != data.cachePolicy || createArchetypeMatchKind_old != data.createArchetypeMatchKind ||
+						dependencyFlags_old != data.deps.flags || createSelectorCnt_old != data.deps.createSelectorCnt ||
+						exclusionCnt_old != data.deps.exclusionCnt || relationCnt_old != data.deps.relationCnt ||
+						sourceEntityCnt_old != data.deps.sourceEntityCnt || sourceTermCnt_old != data.deps.sourceTermCnt ||
+						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions ||
+						relations_old != data.deps.relations || sourceEntities_old != data.deps.sourceEntities)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -31954,6 +31970,11 @@ namespace gaia {
 				GAIA_NODISCARD inline bool match_single_id_on_archetype(const World& w, const Archetype& archetype, Entity id) {
 					const Entity ids[1] = {id};
 					return match_res_as<OpOr>(w, archetype, EntitySpan{ids, 1});
+				}
+
+				GAIA_NODISCARD inline bool match_single_id_on_archetype_exact(const Archetype& archetype, Entity id) {
+					const Entity ids[1] = {id};
+					return match_res<OpOr>(archetype, EntitySpan{ids, 1});
 				}
 
 				GAIA_NODISCARD inline EOpcode src_opcode_from_term(const QueryTerm& term) {
@@ -35621,6 +35642,17 @@ namespace gaia {
 							 !m_state.needs_refresh();
 			}
 
+			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
+			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
+				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectAllTerms;
+			}
+
+			//! Returns whether direct create-time matching needs Is-aware id checks.
+			GAIA_NODISCARD bool direct_create_archetype_match_uses_is() const {
+				const auto& ctxData = m_plan.ctx.data;
+				return (ctxData.as_mask_0 + ctxData.as_mask_1) != 0;
+			}
+
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				return m_plan.ctx == other;
 			}
@@ -35850,6 +35882,22 @@ namespace gaia {
 					return false;
 
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
+				if (can_use_direct_create_archetype_match()) {
+					const bool usesIs = direct_create_archetype_match_uses_is();
+					for (const auto& term: ctxData.terms_view()) {
+						const bool matched = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
+																				: vm::detail::match_single_id_on_archetype_exact(archetype, term.id);
+						if (!matched)
+							return false;
+					}
+					if (hadMatchBefore)
+						return false;
+
+					add_archetype_to_seed_cache(&archetype);
+					add_archetype_to_cache(&archetype, true);
+					return true;
+				}
+
 				SingleArchetypeLookup entityToArchetypeMap;
 				auto addLookup = [&](Entity key) {
 					entityToArchetypeMap.push_back(EntityLookupKey(key));
