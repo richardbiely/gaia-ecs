@@ -890,6 +890,30 @@ void BM_QueryCache_Create_Fanout_3q_8t(picobench::state& state) {
 	BM_QueryCache_Create_Fanout_Multi<8, 3>(state);
 }
 
+//! Benchmarks batched builder archetype resolution where only the final archetype matters.
+void BM_EntityBuilder_BatchAdd_4(picobench::state& state) {
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		const auto tagA = w.add();
+		const auto tagB = w.add();
+		const auto tagC = w.add();
+		const auto tagD = w.add();
+
+		state.start_timer();
+
+		auto e = w.add();
+		auto builder = w.build(e);
+		builder.add(tagA).add(tagB).add(tagC).add(tagD);
+		builder.commit();
+
+		state.stop_timer();
+		dont_optimize(w.has(e, tagD));
+	}
+}
+
 //! Benchmarks immediate structural cache maintenance in worlds that already contain many unrelated archetypes.
 template <uint32_t QueryCnt>
 void BM_QueryCache_Create_Fanout_Scaled(picobench::state& state) {
@@ -3152,6 +3176,9 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(4096)
 				.label("create fanout 3q 8t 4K arch");
+		PICOBENCH_REG(BM_EntityBuilder_BatchAdd_4)
+				.PICO_SETTINGS_FOCUS()
+				.label("builder batch add 4");
 		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_Default)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)

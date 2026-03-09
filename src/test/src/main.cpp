@@ -13301,6 +13301,29 @@ TEST_CASE("Observer - simple") {
 	}
 }
 
+TEST_CASE("EntityBuilder batching keeps later single-step archetype moves valid") {
+	TestWorld twld;
+
+	const auto tagA = wld.add();
+	const auto tagB = wld.add();
+	const auto eBatch = wld.add();
+
+	{
+		auto builder = wld.build(eBatch);
+		builder.add(tagA).add(tagB);
+		builder.commit();
+	}
+
+	CHECK(wld.has(eBatch, tagA));
+	CHECK(wld.has(eBatch, tagB));
+
+	const auto eSingle = wld.add();
+	wld.add(eSingle, tagA);
+	wld.add(eSingle, tagB);
+	CHECK(wld.has(eSingle, tagA));
+	CHECK(wld.has(eSingle, tagB));
+}
+
 TEST_CASE("Observer - copy_ext payload") {
 	TestWorld twld;
 

@@ -40867,6 +40867,12 @@ namespace gaia {
 				EntityNameLookupKey m_targetNameKey;
 				//! Source entity
 				Entity m_entity;
+				//! Entity describing a single-step graph transition recorded during builder use.
+				Entity m_graphEdgeEntity = EntityBad;
+				//! Number of archetype-changing builder operations since the last commit.
+				uint8_t m_graphEdgeOpCount = 0;
+				//! Whether the recorded single-step transition is an add or delete move.
+				bool m_graphEdgeIsAdd = false;
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 				static constexpr uint32_t MAX_TERMS = 32;
@@ -40905,8 +40911,10 @@ namespace gaia {
 				//! \warning Once called, the object is returned to its default state (as if no add/remove was ever called).
 				void commit() {
 					// No requests to change the archetype were made
-					if (m_pArchetype == nullptr)
+					if (m_pArchetype == nullptr) {
+						reset_graph_edge_tracking();
 						return;
+					}
 
 					// Change in archetype detected
 					if (m_pArchetypeSrc != m_pArchetype) {
@@ -40918,6 +40926,15 @@ namespace gaia {
 
 						// Now that we have the final archetype move the entity to it
 						m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
+
+						// Batched builder operations resolve intermediate archetypes without touching the
+						// graph. Recreate the cached edge only for the single-step case.
+						if (m_graphEdgeOpCount == 1 && m_graphEdgeEntity != EntityBad) {
+							if (m_graphEdgeIsAdd)
+								m_pArchetypeSrc->build_graph_edges(m_pArchetype, m_graphEdgeEntity);
+							else
+								m_pArchetype->build_graph_edges(m_pArchetypeSrc, m_graphEdgeEntity);
+						}
 
 						// Update the entity string pointer if necessary
 						if (m_targetNameKey.str() != nullptr) {
@@ -40954,6 +40971,7 @@ namespace gaia {
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
 					m_targetNameKey = {};
+					reset_graph_edge_tracking();
 				}
 
 				//! Assigns a @a name to entity. Ignored if used with pair.
@@ -41474,7 +41492,8 @@ namespace gaia {
 						m_world.invalidate_queries_for_entity({Is, e});
 					}
 
-					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity);
+					m_pArchetype = m_world.foc_archetype_add(m_pArchetype, entity, false);
+					note_graph_edge(entity, true);
 
 					if constexpr (!IsBootstrap) {
 						handle_DependsOn(entity, true);
@@ -41546,7 +41565,8 @@ namespace gaia {
 						m_world.m_entityToAsRelationsTravCache = {};
 					}
 
-					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity);
+					m_pArchetype = m_world.foc_archetype_del(m_pArchetype, entity, false);
+					note_graph_edge(entity, false);
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
 					tl_del_comps.push_back(entity);
@@ -41565,6 +41585,18 @@ namespace gaia {
 						return;
 
 					handle_add<false>(entity);
+				}
+
+				void note_graph_edge(Entity entity, bool isAdd) {
+					++m_graphEdgeOpCount;
+					m_graphEdgeEntity = entity;
+					m_graphEdgeIsAdd = isAdd;
+				}
+
+				void reset_graph_edge_tracking() {
+					m_graphEdgeEntity = EntityBad;
+					m_graphEdgeOpCount = 0;
+					m_graphEdgeIsAdd = false;
 				}
 
 				void add_inter_init(Entity entity) {
@@ -41957,7 +41989,7 @@ namespace gaia {
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
 				if (pDstArchetype->has<EntityDesc>()) {
-					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc), true);
 
 					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
@@ -41993,7 +42025,7 @@ namespace gaia {
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
 				if (pDstArchetype->has<EntityDesc>()) {
-					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc), true);
 
 					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
@@ -42033,7 +42065,7 @@ namespace gaia {
 
 				auto* pDstArchetype = ec.pArchetype;
 				if (pDstArchetype->has<EntityDesc>()) {
-					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc), true);
 
 					// Entities array might get reallocated after m_recs.entities.alloc
 					// so instead of fetching the container again we simply cache the row
@@ -44671,8 +44703,9 @@ namespace gaia {
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
 			//! \param entity Entity we want to add.
+			//! \param updateGraph Updates the archetype graph if true.
 			//! \return Archetype pointer.
-			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity) {
+			GAIA_NODISCARD Archetype* foc_archetype_add(Archetype* pArchetypeLeft, Entity entity, bool updateGraph) {
 				// Check if the component is found when following the "add" edges
 				bool edgeNeedsRebuild = false;
 				{
@@ -44712,7 +44745,7 @@ namespace gaia {
 					edgeNeedsRebuild = true;
 				}
 
-				if (edgeNeedsRebuild)
+				if (edgeNeedsRebuild && updateGraph)
 					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
 
 				return pArchetypeRight;
@@ -44722,8 +44755,9 @@ namespace gaia {
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeRight Archetype we originate from.
 			//! \param entity Component we want to remove.
+			//! \param updateGraph Updates the archetype graph if true.
 			//! \return Pointer to archetype.
-			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity) {
+			GAIA_NODISCARD Archetype* foc_archetype_del(Archetype* pArchetypeRight, Entity entity, bool updateGraph) {
 				// Check if the component is found when following the "del" edges
 				bool edgeNeedsRebuild = false;
 				{
@@ -44766,7 +44800,7 @@ namespace gaia {
 					edgeNeedsRebuild = true;
 				}
 
-				if (edgeNeedsRebuild)
+				if (edgeNeedsRebuild && updateGraph)
 					pArchetype->build_graph_edges(pArchetypeRight, entity);
 
 				return pArchetype;
@@ -45075,7 +45109,7 @@ namespace gaia {
 					if (id != entity)
 						continue;
 
-					return foc_archetype_del(pArchetype, id);
+					return foc_archetype_del(pArchetype, id, true);
 				}
 
 				return nullptr;
@@ -45094,7 +45128,7 @@ namespace gaia {
 					if (!id.pair() || id.gen() != entity.gen())
 						continue;
 
-					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					pDstArchetype = foc_archetype_del(pDstArchetype, id, true);
 				}
 
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
@@ -45113,7 +45147,7 @@ namespace gaia {
 					if (!id.pair() || id.id() != entity.id())
 						continue;
 
-					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					pDstArchetype = foc_archetype_del(pDstArchetype, id, true);
 				}
 
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
@@ -45133,7 +45167,7 @@ namespace gaia {
 					if (!id.pair())
 						continue;
 
-					pDstArchetype = foc_archetype_del(pDstArchetype, id);
+					pDstArchetype = foc_archetype_del(pDstArchetype, id, true);
 					found = true;
 				}
 
