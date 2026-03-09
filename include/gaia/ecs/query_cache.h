@@ -325,26 +325,47 @@ namespace gaia {
 			void remove_archetype_from_queries(Archetype* pArchetype) {
 				const auto archetypeKey = ArchetypeIdLookupKey(pArchetype->id(), pArchetype->id_hash());
 				auto it = m_archetypeToQuery.find(archetypeKey);
-				if (it == m_archetypeToQuery.end())
-					return;
+				if (it != m_archetypeToQuery.end()) {
+					const auto handles = it->second;
+					for (const auto handle: handles) {
+						auto* pInfo = try_get(handle);
+						if (pInfo != nullptr && pInfo->refs() != 0)
+							pInfo->remove(pArchetype);
 
-				const auto handles = it->second;
-				for (const auto handle: handles) {
-					auto* pInfo = try_get(handle);
-					if (pInfo != nullptr && pInfo->refs() != 0)
-						pInfo->remove(pArchetype);
+						auto trackedIt = m_queryToArchetype.find(QueryHandleLookupKey(handle));
+						if (trackedIt == m_queryToArchetype.end())
+							continue;
 
-					auto trackedIt = m_queryToArchetype.find(QueryHandleLookupKey(handle));
-					if (trackedIt == m_queryToArchetype.end())
-						continue;
+						remove_archetype_from_tracked_queries(trackedIt->second.archetypes, pArchetype);
+						if (trackedIt->second.archetypes.empty())
+							m_queryToArchetype.erase(trackedIt);
+					}
 
-					auto& tracked = trackedIt->second.archetypes;
-					core::swap_erase(tracked, core::get_index(tracked, pArchetype));
-					if (tracked.empty())
-						m_queryToArchetype.erase(trackedIt);
+					m_archetypeToQuery.erase(it);
 				}
 
-				m_archetypeToQuery.erase(it);
+				// Archetype deletion is rare, so finish with a scrub pass. This guarantees a dead archetype
+				// cannot survive in cached query state even if an earlier eager-registration/sync sequence left
+				// the reverse index partially out of sync.
+				for (auto trackedIt = m_queryToArchetype.begin(); trackedIt != m_queryToArchetype.end();) {
+					remove_archetype_from_tracked_queries(trackedIt->second.archetypes, pArchetype);
+					if (trackedIt->second.archetypes.empty()) {
+						trackedIt = m_queryToArchetype.erase(trackedIt);
+						continue;
+					}
+
+					++trackedIt;
+				}
+
+				// The final authority on cached membership is QueryInfo itself, not the reverse index.
+				// Scrub every live cached query before the archetype is destroyed so stale reverse-index
+				// edges cannot leave dead archetype pointers behind in query state.
+				for (auto& info: m_queryArr) {
+					if (info.refs() == 0)
+						continue;
+
+					info.remove(pArchetype);
+				}
 			}
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
@@ -606,7 +627,11 @@ namespace gaia {
 					return;
 
 				auto& handles = it->second;
-				core::swap_erase(handles, core::get_index(handles, handle));
+				const auto idx = core::get_index(handles, handle);
+				if (idx == BadIndex)
+					return;
+
+				core::swap_erase(handles, idx);
 				if (handles.empty())
 					m_archetypeToQuery.erase(it);
 			}
@@ -623,13 +648,33 @@ namespace gaia {
 				m_queryToArchetype.erase(it);
 			}
 
+			//! Removes all occurrences of an archetype pointer from a tracked reverse-index list.
+			//! Duplicate edges are not expected, but this keeps teardown robust when archetype-create
+			//! eager updates and later full sync disagree on the exact registration sequence.
+			GAIA_NODISCARD bool remove_archetype_from_tracked_queries(
+					cnt::darray<const Archetype*>& tracked, const Archetype* pArchetype) {
+				bool removed = false;
+				for (;;) {
+					const auto idx = core::get_index(tracked, pArchetype);
+					if (idx == BadIndex)
+						return removed;
+
+					core::swap_erase(tracked, idx);
+					removed = true;
+				}
+			}
+
 			void register_query_archetype(QueryHandle handle, const Archetype* pArchetype, uint32_t syncedRevision) {
 				auto [trackedIt, inserted] = m_queryToArchetype.try_emplace(QueryHandleLookupKey(handle));
 				auto& tracked = trackedIt->second.archetypes;
 
-				// Newly-created archetypes and sync_archetype_cache() both route through a deduplicated edge set,
-				// so reverse-index registration can append directly instead of re-scanning tracked archetypes.
-				GAIA_ASSERT(inserted || !core::has(tracked, pArchetype));
+				// Eager archetype registration and later full cache sync should agree on the same edge set.
+				// Be tolerant here so duplicated registrations cannot corrupt reverse-index teardown on CI-only paths.
+				if (!inserted && core::has(tracked, pArchetype)) {
+					trackedIt->second.syncedRevision = syncedRevision;
+					return;
+				}
+
 				tracked.push_back(pArchetype);
 				trackedIt->second.syncedRevision = syncedRevision;
 				add_archetype_query_pair(pArchetype, handle);

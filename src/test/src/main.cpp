@@ -11083,6 +11083,43 @@ TEST_CASE("Query - cached query destruction unregisters archetype reverse index"
 	CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 0);
 }
 
+TEST_CASE("Query - cached reverse index stays stable across repeated eager add gc and destruction") {
+	TestWorld twld;
+	for (int i = 0; i < 256; ++i) {
+		auto e0 = wld.add();
+		wld.add<Position>(e0, {1, 0, 0});
+		wld.add<Something>(e0, {false});
+
+		{
+			auto q = wld.query().all<Position>().all<Something>();
+			auto& info = q.fetch();
+
+			CHECK(q.count() == 1);
+			CHECK(info.cache_archetype_view().size() == 1);
+
+			auto e1 = wld.add();
+			wld.add<Position>(e1, {2, 0, 0});
+			wld.add<Something>(e1, {true});
+			wld.add<Acceleration>(e1, {1, 0, 0});
+
+			CHECK(info.cache_archetype_view().size() == 2);
+
+			wld.del<Something>(e1);
+			twld.update();
+
+			CHECK(q.count() == 1);
+			CHECK(info.cache_archetype_view().size() == 1);
+		}
+
+		CHECK(wld.query().all<Position>().all<Something>().count() == 1);
+
+		wld.del(e0);
+		twld.update();
+
+		CHECK(wld.query().all<Position>().all<Something>().count() == 0);
+	}
+}
+
 TEST_CASE("add_n") {
 	TestWorld twld;
 
