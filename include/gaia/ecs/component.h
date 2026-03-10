@@ -31,13 +31,6 @@ namespace gaia {
 		// Component storage
 		//----------------------------------------------------------------------
 
-		enum class DataStorageType : uint32_t {
-			Table, //< Data stored in a table
-			Sparse, //< Data stored in a sparse set
-
-			Count = 2
-		};
-
 #ifndef GAIA_STORAGE
 	#define GAIA_STORAGE(storage_name)                                                                                   \
 		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name

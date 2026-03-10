@@ -350,7 +350,7 @@ namespace gaia {
 				auto as_comp = [&](Entity entity) {
 					const auto* pDesc = cc.find(entity);
 					return pDesc == nullptr //
-										 ? Component(IdentifierIdBad, 0, 0, 0) //
+										 ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table) //
 										 : pDesc->comp;
 				};
 

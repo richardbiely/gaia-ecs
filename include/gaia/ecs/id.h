@@ -18,6 +18,15 @@ namespace gaia {
 		inline constexpr Identifier EntityCompMask = IdentifierBad << 1;
 		inline constexpr IdentifierId IdentifierIdBad = (IdentifierId)-1;
 
+		enum class DataStorageType : uint32_t {
+			//! Data stored in a table
+			Table,
+			//! Data stored in a sparse set
+			Sparse,
+
+			Count = 2
+		};
+
 		// ------------------------------------------------------------------------------------
 		// Component
 		// ------------------------------------------------------------------------------------
@@ -39,8 +48,10 @@ namespace gaia {
 				IdentifierData size : MaxComponentSize_Bits;
 				//! Component alignment
 				IdentifierData alig : MaxAlignment_Bits;
+				//! Component storage kind. 0 = table, 1 = sparse.
+				IdentifierData storage : 1;
 				//! Unused part
-				IdentifierData unused : 5;
+				IdentifierData unused : 4;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -51,11 +62,12 @@ namespace gaia {
 
 			Component() noexcept = default;
 
-			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) noexcept {
+			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig, DataStorageType storage) noexcept {
 				data.id = id;
 				data.soa = soa;
 				data.size = size;
 				data.alig = alig;
+				data.storage = (IdentifierData)storage;
 				data.unused = 0;
 			}
 
@@ -73,6 +85,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto alig() const noexcept {
 				return (uint32_t)data.alig;
+			}
+
+			GAIA_NODISCARD constexpr DataStorageType storage_type() const noexcept {
+				return (DataStorageType)data.storage;
 			}
 
 			GAIA_NODISCARD constexpr auto value() const noexcept {

@@ -23555,6 +23555,15 @@ namespace gaia {
 		inline constexpr Identifier EntityCompMask = IdentifierBad << 1;
 		inline constexpr IdentifierId IdentifierIdBad = (IdentifierId)-1;
 
+		enum class DataStorageType : uint32_t {
+			//! Data stored in a table
+			Table,
+			//! Data stored in a sparse set
+			Sparse,
+
+			Count = 2
+		};
+
 		// ------------------------------------------------------------------------------------
 		// Component
 		// ------------------------------------------------------------------------------------
@@ -23576,8 +23585,10 @@ namespace gaia {
 				IdentifierData size : MaxComponentSize_Bits;
 				//! Component alignment
 				IdentifierData alig : MaxAlignment_Bits;
+				//! Component storage kind. 0 = table, 1 = sparse.
+				IdentifierData storage : 1;
 				//! Unused part
-				IdentifierData unused : 5;
+				IdentifierData unused : 4;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -23588,11 +23599,12 @@ namespace gaia {
 
 			Component() noexcept = default;
 
-			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) noexcept {
+			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig, DataStorageType storage) noexcept {
 				data.id = id;
 				data.soa = soa;
 				data.size = size;
 				data.alig = alig;
+				data.storage = (IdentifierData)storage;
 				data.unused = 0;
 			}
 
@@ -23610,6 +23622,10 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto alig() const noexcept {
 				return (uint32_t)data.alig;
+			}
+
+			GAIA_NODISCARD constexpr DataStorageType storage_type() const noexcept {
+				return (DataStorageType)data.storage;
 			}
 
 			GAIA_NODISCARD constexpr auto value() const noexcept {
@@ -24136,13 +24152,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 		// Component storage
 		//----------------------------------------------------------------------
-
-		enum class DataStorageType : uint32_t {
-			Table, //< Data stored in a table
-			Sparse, //< Data stored in a sparse set
-
-			Count = 2
-		};
 
 #ifndef GAIA_STORAGE
 	#define GAIA_STORAGE(storage_name)                                                                                   \
@@ -25634,7 +25643,9 @@ namespace gaia {
 						// size in bytes
 						componentSize,
 						// alignment
-						detail::ComponentDesc<T>::alig());
+						detail::ComponentDesc<T>::alig(),
+						// storage type
+						storage_type_v<T>);
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
 
 				auto ct_name = detail::ComponentDesc<T>::name();
@@ -25691,10 +25702,11 @@ namespace gaia {
 
 			GAIA_NODISCARD static ComponentCacheItem* create(
 					Entity entity, uint32_t compDescId, const char* nameStr, uint32_t nameLen, uint32_t size, uint32_t alig,
-					uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {}, FuncCtor* funcCtor = nullptr,
-					FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr, FuncDtor* funcDtor = nullptr,
-					FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr, FuncSwap* funcSwap = nullptr,
-					FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr, FuncLoad* funcLoad = nullptr) {
+					DataStorageType storageType, uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {},
+					FuncCtor* funcCtor = nullptr, FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr,
+					FuncDtor* funcDtor = nullptr, FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr,
+					FuncSwap* funcSwap = nullptr, FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr,
+					FuncLoad* funcLoad = nullptr) {
 				GAIA_ASSERT(nameStr != nullptr && nameLen > 0 && nameLen < MaxNameLength);
 				GAIA_ASSERT(size < Component::MaxComponentSizeInBytes);
 				GAIA_ASSERT(alig > 0 && alig < Component::MaxAlignment);
@@ -25703,7 +25715,7 @@ namespace gaia {
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(compDescId, soa, size, alig);
+				cci->comp = Component(compDescId, soa, size, alig, storageType);
 				cci->hashLookup =
 						hashLookup.hash != 0 ? hashLookup : ComponentLookupHash{core::calculate_hash64(nameStr, nameLen)};
 
@@ -25874,12 +25886,13 @@ namespace gaia {
 			//! \param size Component size in bytes.
 			//! \param alig Component alignment in bytes.
 			//! \param soa Number of SoA items (0 for AoS).
+			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
-			add(Entity entity, const char* name, uint32_t len, uint32_t size, uint32_t alig = 1, uint32_t soa = 0,
-					const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+			add(Entity entity, const char* name, uint32_t len, uint32_t size, DataStorageType storageType, uint32_t alig = 1,
+					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
@@ -25898,8 +25911,8 @@ namespace gaia {
 				}
 				m_nextRuntimeCompDescId = compDescId + 1;
 
-				const auto* pItem =
-						ComponentCacheItem::create(entity, compDescId, name, l, size, alig, soa, pSoaSizes, hashLookup);
+				const auto* pItem = ComponentCacheItem::create(
+						entity, compDescId, name, l, size, alig, storageType, soa, pSoaSizes, hashLookup);
 				if (compDescId < FastComponentCacheSize) {
 					if (compDescId >= m_itemArr.size())
 						m_itemArr.resize(compDescId + 1U);
@@ -28604,7 +28617,7 @@ namespace gaia {
 				auto as_comp = [&](Entity entity) {
 					const auto* pDesc = cc.find(entity);
 					return pDesc == nullptr //
-										 ? Component(IdentifierIdBad, 0, 0, 0) //
+										 ? Component(IdentifierIdBad, 0, 0, 0, DataStorageType::Table) //
 										 : pDesc->comp;
 				};
 
@@ -40346,8 +40359,8 @@ namespace gaia {
 				cnt::darray<uint32_t> srcToTgtIdx;
 				//! Number of active source bindings in srcToTgt.
 				uint32_t srcToTgtCnt = 0;
-				//! Reverse target-to-sources index used for traversal and wildcard operations.
-				EntityArrayMap tgtToSrc;
+				//! Direct target-entity-id indexed source buckets used for traversal and wildcard operations.
+				cnt::darray<cnt::darray<Entity>> tgtToSrc;
 			};
 
 			//----------------------------------------------------------------------
@@ -40902,22 +40915,41 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD static Entity exclusive_adjunct_target(
-					const ExclusiveAdjunctStore& store, Entity source) {
+			static void ensure_exclusive_adjunct_tgt_capacity(ExclusiveAdjunctStore& store, Entity target) {
+				const auto required = (uint32_t)target.id() + 1;
+				if (store.tgtToSrc.size() >= required)
+					return;
+
+				const auto oldSize = (uint32_t)store.tgtToSrc.size();
+				auto newSize = oldSize == 0 ? 16U : oldSize;
+				while (newSize < required)
+					newSize *= 2U;
+
+				store.tgtToSrc.resize(newSize);
+			}
+
+			GAIA_NODISCARD static Entity exclusive_adjunct_target(const ExclusiveAdjunctStore& store, Entity source) {
 				if (source.id() >= store.srcToTgt.size())
 					return EntityBad;
 
 				return store.srcToTgt[source.id()];
 			}
 
-			static void del_exclusive_adjunct_target_source(
-					ExclusiveAdjunctStore& store, Entity target, Entity source) {
-				const auto itTgt = store.tgtToSrc.find(EntityLookupKey(target));
-				GAIA_ASSERT(itTgt != store.tgtToSrc.end());
-				if (itTgt == store.tgtToSrc.end())
+			GAIA_NODISCARD static const cnt::darray<Entity>*
+			exclusive_adjunct_sources(const ExclusiveAdjunctStore& store, Entity target) {
+				if (target.id() >= store.tgtToSrc.size())
+					return nullptr;
+
+				const auto& sources = store.tgtToSrc[target.id()];
+				return sources.empty() ? nullptr : &sources;
+			}
+
+			static void del_exclusive_adjunct_target_source(ExclusiveAdjunctStore& store, Entity target, Entity source) {
+				GAIA_ASSERT(target.id() < store.tgtToSrc.size());
+				if (target.id() >= store.tgtToSrc.size())
 					return;
 
-				auto& sources = itTgt->second;
+				auto& sources = store.tgtToSrc[target.id()];
 				const auto idx = source.id() < store.srcToTgtIdx.size() ? store.srcToTgtIdx[source.id()] : BadIndex;
 				GAIA_ASSERT(idx != BadIndex && idx < sources.size());
 				if (idx == BadIndex || idx >= sources.size())
@@ -40932,8 +40964,6 @@ namespace gaia {
 				}
 
 				sources.pop_back();
-				if (sources.empty())
-					store.tgtToSrc.erase(itTgt);
 			}
 
 			void exclusive_adjunct_track_src_relation(Entity source, Entity relation) {
@@ -40960,7 +40990,6 @@ namespace gaia {
 
 				auto& store = exclusive_adjunct_store_mut(relation);
 				ensure_exclusive_adjunct_src_capacity(store, source);
-				const auto tgtKey = EntityLookupKey(target);
 				const auto oldTarget = store.srcToTgt[source.id()];
 				if (oldTarget != EntityBad) {
 					if (oldTarget == target)
@@ -40972,7 +41001,8 @@ namespace gaia {
 					exclusive_adjunct_track_src_relation(source, relation);
 				}
 
-				auto& sources = store.tgtToSrc[tgtKey];
+				ensure_exclusive_adjunct_tgt_capacity(store, target);
+				auto& sources = store.tgtToSrc[target.id()];
 				store.srcToTgt[source.id()] = target;
 				store.srcToTgtIdx[source.id()] = (uint32_t)sources.size();
 				sources.push_back(source);
@@ -40997,7 +41027,7 @@ namespace gaia {
 				--store.srcToTgtCnt;
 
 				exclusive_adjunct_untrack_src_relation(source, relation);
-				if (store.srcToTgtCnt == 0 && store.tgtToSrc.empty())
+				if (store.srcToTgtCnt == 0)
 					m_exclusiveAdjunctByRel.erase(itStore);
 
 				return true;
@@ -41090,7 +41120,7 @@ namespace gaia {
 			//! Checks whether any non-fragmenting exclusive relation targeting @a target uses the given OnDeleteTarget rule.
 			GAIA_NODISCARD bool has_exclusive_adjunct_target_cond(Entity target, Pair cond) const {
 				for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-					if (store.tgtToSrc.find(EntityLookupKey(target)) == store.tgtToSrc.end())
+					if (exclusive_adjunct_sources(store, target) == nullptr)
 						continue;
 
 					if (has(relKey.entity(), cond))
@@ -42161,6 +42191,7 @@ namespace gaia {
 			//! Creates a new runtime component if not found already.
 			//! \param name Component name.
 			//! \param size Component size in bytes.
+			//! \param storageType Data storage type.
 			//! \param alig Component alignment in bytes.
 			//! \param soa Number of SoA items (0 for AoS).
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
@@ -42168,8 +42199,9 @@ namespace gaia {
 			//! \param kind Entity kind (Gen by default, Uni supported).
 			//! \return Component cache item of the component.
 			GAIA_NODISCARD const ComponentCacheItem&
-			add(const char* name, uint32_t size, uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr,
-					ComponentLookupHash hashLookup = {}, EntityKind kind = EntityKind::EK_Gen) {
+			add(const char* name, uint32_t size, DataStorageType storageType, uint32_t alig = 1, uint32_t soa = 0,
+					const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {},
+					EntityKind kind = EntityKind::EK_Gen) {
 				GAIA_ASSERT(name != nullptr);
 
 				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
@@ -42179,7 +42211,7 @@ namespace gaia {
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
-				const auto& item = comp_cache_mut().add(entity, name, len, size, alig, soa, pSoaSizes, hashLookup);
+				const auto& item = comp_cache_mut().add(entity, name, len, size, storageType, alig, soa, pSoaSizes, hashLookup);
 				{
 					auto& ec = m_recs.entities[item.entity.id()];
 					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
@@ -43481,11 +43513,11 @@ namespace gaia {
 					if (pStore == nullptr)
 						return;
 
-					const auto itTgt = pStore->tgtToSrc.find(EntityLookupKey(target));
-					if (itTgt == pStore->tgtToSrc.end())
+					const auto* pSources = exclusive_adjunct_sources(*pStore, target);
+					if (pSources == nullptr)
 						return;
 
-					for (auto source: itTgt->second) {
+					for (auto source: *pSources) {
 						if (!valid(source))
 							continue;
 
@@ -43530,11 +43562,11 @@ namespace gaia {
 					if (pStore == nullptr)
 						return;
 
-					const auto itTgt = pStore->tgtToSrc.find(EntityLookupKey(target));
-					if (itTgt == pStore->tgtToSrc.end())
+					const auto* pSources = exclusive_adjunct_sources(*pStore, target);
+					if (pSources == nullptr)
 						return;
 
-					for (auto source: itTgt->second) {
+					for (auto source: *pSources) {
 						if (!valid(source))
 							continue;
 
@@ -45773,7 +45805,7 @@ namespace gaia {
 					} else {
 						const auto target = get(entity.gen());
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-							if (store.tgtToSrc.find(EntityLookupKey(target)) == store.tgtToSrc.end())
+							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							req_del_adjunct_pair(relKey.entity(), target);
@@ -45883,7 +45915,7 @@ namespace gaia {
 					} else {
 						const auto target = get(entity.gen());
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-							if (store.tgtToSrc.find(EntityLookupKey(target)) == store.tgtToSrc.end())
+							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);
@@ -45958,7 +45990,7 @@ namespace gaia {
 					} else {
 						const auto target = get(entity.gen());
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-							if (store.tgtToSrc.find(EntityLookupKey(target)) == store.tgtToSrc.end())
+							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);

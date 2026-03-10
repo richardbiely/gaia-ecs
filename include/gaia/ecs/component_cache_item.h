@@ -328,7 +328,9 @@ namespace gaia {
 						// size in bytes
 						componentSize,
 						// alignment
-						detail::ComponentDesc<T>::alig());
+						detail::ComponentDesc<T>::alig(),
+						// storage type
+						storage_type_v<T>);
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
 
 				auto ct_name = detail::ComponentDesc<T>::name();
@@ -385,10 +387,11 @@ namespace gaia {
 
 			GAIA_NODISCARD static ComponentCacheItem* create(
 					Entity entity, uint32_t compDescId, const char* nameStr, uint32_t nameLen, uint32_t size, uint32_t alig,
-					uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {}, FuncCtor* funcCtor = nullptr,
-					FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr, FuncDtor* funcDtor = nullptr,
-					FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr, FuncSwap* funcSwap = nullptr,
-					FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr, FuncLoad* funcLoad = nullptr) {
+					DataStorageType storageType, uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {},
+					FuncCtor* funcCtor = nullptr, FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr,
+					FuncDtor* funcDtor = nullptr, FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr,
+					FuncSwap* funcSwap = nullptr, FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr,
+					FuncLoad* funcLoad = nullptr) {
 				GAIA_ASSERT(nameStr != nullptr && nameLen > 0 && nameLen < MaxNameLength);
 				GAIA_ASSERT(size < Component::MaxComponentSizeInBytes);
 				GAIA_ASSERT(alig > 0 && alig < Component::MaxAlignment);
@@ -397,7 +400,7 @@ namespace gaia {
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(compDescId, soa, size, alig);
+				cci->comp = Component(compDescId, soa, size, alig, storageType);
 				cci->hashLookup =
 						hashLookup.hash != 0 ? hashLookup : ComponentLookupHash{core::calculate_hash64(nameStr, nameLen)};
 

@@ -13800,6 +13800,14 @@ TEST_CASE("Component cache") {
 		comp_cache_verify<const Position&>(wld, item);
 		comp_cache_verify<Position*>(wld, item);
 	}
+
+	{
+		TestWorld twld;
+		const auto& dense = wld.add<Position>();
+		const auto& sparse = wld.add<PositionSparse>();
+		CHECK(dense.comp.storage_type() == ecs::DataStorageType::Table);
+		CHECK(sparse.comp.storage_type() == ecs::DataStorageType::Sparse);
+	}
 }
 
 TEST_CASE("Component cache - runtime registration") {
@@ -13809,7 +13817,12 @@ TEST_CASE("Component cache - runtime registration") {
 
 		constexpr const char* RuntimeCompName = "Runtime_Component_Basic";
 		const auto entity = wld.add();
-		const auto& item = cc.add(entity, RuntimeCompName, 0, (uint32_t)sizeof(Position), (uint32_t)alignof(Position));
+		const auto& item = cc.add(
+				entity, RuntimeCompName, 0, //
+				(uint32_t)sizeof(Position), //
+				ecs::DataStorageType::Table, //
+				(uint32_t)alignof(Position) //
+		);
 
 		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
 		CHECK(item.entity == entity);
@@ -13833,13 +13846,14 @@ TEST_CASE("Component cache - runtime registration") {
 		auto& cc = wld.comp_cache_mut();
 		constexpr const char* RuntimeCompName = "Runtime_Component_Duplicate";
 		const auto entityA = wld.add();
-		const auto& original = cc.add(entityA, RuntimeCompName, 0, 16, 4);
+		const auto& original = cc.add(entityA, RuntimeCompName, 0, 16, ecs::DataStorageType::Table, 4);
 		const auto originalHash = original.hashLookup.hash;
 
 		constexpr uint8_t SoaSizes[] = {1, 2, 4};
 		const ecs::ComponentLookupHash customHash{0x123456789abcdef0ull};
 		const auto entityB = wld.add(ecs::EntityKind::EK_Uni);
-		const auto& duplicate = cc.add(entityB, RuntimeCompName, 0, 64, 8, 3, SoaSizes, customHash);
+		const auto& duplicate =
+				cc.add(entityB, RuntimeCompName, 0, 64, ecs::DataStorageType::Table, 8, 3, SoaSizes, customHash);
 
 		CHECK(&duplicate == &original);
 		CHECK(duplicate.entity == original.entity);
@@ -13862,7 +13876,7 @@ TEST_CASE("Component cache - runtime registration") {
 		const ecs::ComponentLookupHash customHash{0x00f00d00baadf00dull};
 		const auto entity = wld.add(ecs::EntityKind::EK_Uni);
 
-		const auto& item = cc.add(entity, RuntimeCompName, 0, 32, 8, 3, SoaSizes, customHash);
+		const auto& item = cc.add(entity, RuntimeCompName, 0, 32, ecs::DataStorageType::Table, 8, 3, SoaSizes, customHash);
 
 		CHECK(item.entity == entity);
 		CHECK(item.entity.kind() == ecs::EntityKind::EK_Uni);
@@ -13895,7 +13909,7 @@ TEST_CASE("Component cache - runtime registration") {
 		auto& cc = wld.comp_cache_mut();
 
 		const auto entity = wld.add();
-		(void)cc.add(entity, "Runtime_Component_Schema", 0, 24, 8);
+		(void)cc.add(entity, "Runtime_Component_Schema", 0, 24, ecs::DataStorageType::Table, 8);
 		auto& item = cc.get(entity);
 
 		CHECK_FALSE(item.has_fields());
@@ -13946,9 +13960,9 @@ TEST_CASE("Component cache - runtime registration") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
-		const auto& a = cc.add(wld.add(), "Runtime_Component_A", 0, 1, 1);
-		const auto& b = cc.add(wld.add(), "Runtime_Component_B", 0, 2, 1);
-		const auto& c = cc.add(wld.add(), "Runtime_Component_C", 0, 3, 1);
+		const auto& a = cc.add(wld.add(), "Runtime_Component_A", 0, 1, ecs::DataStorageType::Table, 1);
+		const auto& b = cc.add(wld.add(), "Runtime_Component_B", 0, 2, ecs::DataStorageType::Table, 1);
+		const auto& c = cc.add(wld.add(), "Runtime_Component_C", 0, 3, ecs::DataStorageType::Table, 1);
 
 		CHECK(a.comp.id() >= 0x80000000u);
 		CHECK(b.comp.id() == a.comp.id() + 1);
@@ -14479,7 +14493,8 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json", 0, (uint32_t)sizeof(JsonRuntimeComp), (uint32_t)alignof(JsonRuntimeComp));
+				entity, "Runtime_Component_Json", 0, (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRuntimeComp));
 		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
@@ -14525,7 +14540,8 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Nested", 0, (uint32_t)sizeof(TransformLike), (uint32_t)alignof(TransformLike));
+				entity, "Runtime_Component_Json_Nested", 0, (uint32_t)sizeof(TransformLike), ecs::DataStorageType::Table,
+				(uint32_t)alignof(TransformLike));
 		auto& item = cc.get(entity);
 
 		TransformLike layout{};
@@ -14580,7 +14596,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Arrays", 0, (uint32_t)sizeof(RuntimeArraysComp),
+				entity, "Runtime_Component_Json_Arrays", 0, (uint32_t)sizeof(RuntimeArraysComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(RuntimeArraysComp));
 		auto& item = cc.get(entity);
 
@@ -14638,7 +14654,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)cc.add(entity, "Runtime_Component_Json_Unsupported", 0, 4, 4);
+		(void)cc.add(entity, "Runtime_Component_Json_Unsupported", 0, 4, ecs::DataStorageType::Table, 4);
 		auto& item = cc.get(entity);
 
 		CHECK(item.set_field("blob", 0, ser::serialization_type_id::trivial_wrapper, 0, 4));
@@ -14654,7 +14670,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)cc.add(entity, "Runtime_Component_Json_Oob", 0, 4, 4);
+		(void)cc.add(entity, "Runtime_Component_Json_Oob", 0, 4, ecs::DataStorageType::Table, 4);
 		auto& item = cc.get(entity);
 
 		CHECK(item.set_field("too_far", 0, ser::serialization_type_id::u32, 8, 4));
@@ -14671,7 +14687,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Read", 0, (uint32_t)sizeof(JsonRuntimeComp),
+				entity, "Runtime_Component_Json_Read", 0, (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRuntimeComp));
 		auto& item = cc.get(entity);
 
@@ -14720,7 +14736,8 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Raw_Read", 0, (uint32_t)sizeof(JsonRawComp), (uint32_t)alignof(JsonRawComp));
+				entity, "Runtime_Component_Json_Raw_Read", 0, (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
 		item.clear_fields();
 
@@ -14761,7 +14778,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		const auto entity = wld.add();
 		(void)cc.add(
 				entity, "Runtime_Component_Json_Unknown_Fields", 0, (uint32_t)sizeof(JsonRuntimeComp),
-				(uint32_t)alignof(JsonRuntimeComp));
+				ecs::DataStorageType::Table, (uint32_t)alignof(JsonRuntimeComp));
 		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
@@ -14794,7 +14811,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Bad_Type", 0, (uint32_t)sizeof(JsonRuntimeComp),
+				entity, "Runtime_Component_Json_Bad_Type", 0, (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRuntimeComp));
 		auto& item = cc.get(entity);
 
@@ -14814,7 +14831,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Null_Field", 0, (uint32_t)sizeof(JsonRuntimeComp),
+				entity, "Runtime_Component_Json_Null_Field", 0, (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRuntimeComp));
 		auto& item = cc.get(entity);
 
@@ -14843,7 +14860,8 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Ints", 0, (uint32_t)sizeof(JsonIntsComp), (uint32_t)alignof(JsonIntsComp));
+				entity, "Runtime_Component_Json_Ints", 0, (uint32_t)sizeof(JsonIntsComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonIntsComp));
 		auto& item = cc.get(entity);
 
 		JsonIntsComp layout{};
@@ -14875,7 +14893,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		const auto entity = wld.add();
 		(void)cc.add(
 				entity, "Runtime_Component_Json_String_Truncate", 0, (uint32_t)sizeof(JsonNameComp),
-				(uint32_t)alignof(JsonNameComp));
+				ecs::DataStorageType::Table, (uint32_t)alignof(JsonNameComp));
 		auto& item = cc.get(entity);
 
 		JsonNameComp layout{};
@@ -14900,7 +14918,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Raw_Malformed", 0, (uint32_t)sizeof(JsonRawComp),
+				entity, "Runtime_Component_Json_Raw_Malformed", 0, (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
 		item.clear_fields();
@@ -14929,7 +14947,8 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_No_Data", 0, (uint32_t)sizeof(JsonRawComp), (uint32_t)alignof(JsonRawComp));
+				entity, "Runtime_Component_Json_No_Data", 0, (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
 		item.clear_fields();
 
@@ -14950,7 +14969,7 @@ TEST_CASE("Serialization - json runtime schema") {
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
 		(void)cc.add(
-				entity, "Runtime_Component_Json_Diagnostics", 0, (uint32_t)sizeof(JsonDiagComp),
+				entity, "Runtime_Component_Json_Diagnostics", 0, (uint32_t)sizeof(JsonDiagComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonDiagComp));
 		auto& item = cc.get(entity);
 

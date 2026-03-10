@@ -142,12 +142,13 @@ namespace gaia {
 			//! \param size Component size in bytes.
 			//! \param alig Component alignment in bytes.
 			//! \param soa Number of SoA items (0 for AoS).
+			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
-			add(Entity entity, const char* name, uint32_t len, uint32_t size, uint32_t alig = 1, uint32_t soa = 0,
-					const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+			add(Entity entity, const char* name, uint32_t len, uint32_t size, DataStorageType storageType, uint32_t alig = 1,
+					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
@@ -166,8 +167,8 @@ namespace gaia {
 				}
 				m_nextRuntimeCompDescId = compDescId + 1;
 
-				const auto* pItem =
-						ComponentCacheItem::create(entity, compDescId, name, l, size, alig, soa, pSoaSizes, hashLookup);
+				const auto* pItem = ComponentCacheItem::create(
+						entity, compDescId, name, l, size, alig, storageType, soa, pSoaSizes, hashLookup);
 				if (compDescId < FastComponentCacheSize) {
 					if (compDescId >= m_itemArr.size())
 						m_itemArr.resize(compDescId + 1U);
