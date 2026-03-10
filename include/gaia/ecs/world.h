@@ -7460,6 +7460,18 @@ namespace gaia {
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
 		}
+
+		template <typename T>
+		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+				return world.template set<Arg>(entity);
+			else
+				return world.template get<Arg>(entity);
+		}
+
 	} // namespace ecs
 } // namespace gaia
 

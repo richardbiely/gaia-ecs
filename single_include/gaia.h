@@ -29531,6 +29531,8 @@ namespace gaia {
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -37662,6 +37664,7 @@ namespace gaia {
 				struct DirectQueryScratch {
 					cnt::darray<const Archetype*> archetypes;
 					cnt::darray<Entity> entities;
+					cnt::darray<Entity> termEntities;
 					cnt::darray<Entity> bucketEntities;
 					cnt::darray<uint32_t> counts;
 					uint32_t seenVersion = 1;
@@ -39101,6 +39104,12 @@ namespace gaia {
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						GAIA_PROF_SCOPE(query_func);
+						each_direct_inter<Iter>(queryInfo, func, InputArgs{});
+						return;
+					}
+
 					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
 						run_query_on_chunk(queryInfo, it, func, InputArgs{});
@@ -39336,9 +39345,9 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						scratch.entities.clear();
-						world_collect_direct_term_entities(world, term.id, scratch.entities);
-						for (const auto entity: scratch.entities) {
+						scratch.termEntities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.termEntities);
+						for (const auto entity: scratch.termEntities) {
 							if (!match_direct_entity_constraints<TIter>(world, entity))
 								continue;
 
@@ -39377,9 +39386,9 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						scratch.entities.clear();
-						world_collect_direct_term_entities(world, term.id, scratch.entities);
-						for (const auto entity: scratch.entities) {
+						scratch.termEntities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.termEntities);
+						for (const auto entity: scratch.termEntities) {
 							if (!match_direct_entity_constraints<TIter>(world, entity))
 								continue;
 
@@ -39450,9 +39459,9 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						scratch.entities.clear();
-						world_collect_direct_term_entities(world, term.id, scratch.entities);
-						for (const auto entity: scratch.entities) {
+						scratch.termEntities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.termEntities);
+						for (const auto entity: scratch.termEntities) {
 							const auto entityId = (uint32_t)entity.id();
 							ensure_direct_query_count_capacity(scratch, entityId);
 
@@ -39640,9 +39649,59 @@ namespace gaia {
 					return cnt;
 				}
 
+				//! Resolves one typed each()/arr() argument from a directly seeded entity.
+				template <typename T>
+				GAIA_NODISCARD static decltype(auto) direct_entity_arg(World& world, Entity entity) {
+					return world_direct_entity_arg<T>(world, entity);
+				}
+
+				//! Runs a typed each() callback over directly seeded entities.
+				template <typename TIter, typename Func, typename... T>
+				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
+					auto& world = *queryInfo.world();
+					auto& scratch = direct_query_scratch();
+					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+
+					for (const auto entity: scratch.entities) {
+						if (!match_direct_entity_constraints<TIter>(world, entity))
+							continue;
+						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+							continue;
+
+						if constexpr (sizeof...(T) > 0)
+							func(direct_entity_arg<T>(world, entity)...);
+						else
+							func();
+					}
+				}
+
 				template <bool UseFilters, typename TIter, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
+					if constexpr (!UseFilters) {
+						if (can_use_direct_entity_seed_eval(queryInfo)) {
+							auto& world = *queryInfo.world();
+							auto& scratch = direct_query_scratch();
+							const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+
+							for (const auto entity: scratch.entities) {
+								if (!match_direct_entity_constraints<TIter>(world, entity))
+									continue;
+								if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+									continue;
+
+								if constexpr (std::is_same_v<ContainerItemType, Entity>)
+									outArray.push_back(entity);
+								else {
+									auto tmp = world_direct_entity_arg<ContainerItemType>(world, entity);
+									outArray.push_back(tmp);
+								}
+							}
+
+							return;
+						}
+					}
+
 					TIter it;
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
@@ -50094,6 +50153,18 @@ namespace gaia {
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
 		}
+
+		template <typename T>
+		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+				return world.template set<Arg>(entity);
+			else
+				return world.template get<Arg>(entity);
+		}
+
 	} // namespace ecs
 } // namespace gaia
 

@@ -28,6 +28,8 @@ namespace gaia {
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
