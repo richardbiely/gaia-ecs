@@ -16807,10 +16807,9 @@ namespace gaia {
 					if (m_pSparse == nullptr)
 						return;
 
-					GAIA_ASSERT(m_cnt > 0);
-
 					// Destruct active items
-					dtr_active_data();
+					if (m_cnt != 0)
+						dtr_active_data();
 
 					// Release allocated memory
 					mem::AllocHelper::free("SparsePage", m_pSparse);
@@ -16934,6 +16933,10 @@ namespace gaia {
 				}
 
 				GAIA_CLANG_WARNING_POP()
+
+				GAIA_NODISCARD bool allocated() const noexcept {
+					return m_pSparse != nullptr;
+				}
 
 				void add() {
 					ensure();
@@ -17189,6 +17192,10 @@ namespace gaia {
 
 				GAIA_CLANG_WARNING_POP()
 
+				GAIA_NODISCARD bool allocated() const noexcept {
+					return m_pSparse != nullptr;
+				}
+
 				void add() {
 					ensure();
 					++m_cnt;
@@ -17328,7 +17335,14 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {
-				m_dense.resize(m_cnt + 1);
+				const auto required = m_cnt + 1;
+				if (required > m_dense.capacity()) {
+					auto cap = m_dense.capacity() == 0 ? size_type(16) : m_dense.capacity();
+					while (cap < required)
+						cap *= 2;
+					m_dense.reserve(cap);
+				}
+				m_dense.resize(required);
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
@@ -17655,7 +17669,14 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {
-				m_dense.resize(m_cnt + 1);
+				const auto required = m_cnt + 1;
+				if (required > m_dense.capacity()) {
+					auto cap = m_dense.capacity() == 0 ? size_type(16) : m_dense.capacity();
+					while (cap < required)
+						cap *= 2;
+					m_dense.reserve(cap);
+				}
+				m_dense.resize(required);
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
@@ -17729,7 +17750,11 @@ namespace gaia {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto id = m_pages[pid].get_id(did);
+				const auto& page = m_pages[pid];
+				if (!page.allocated())
+					return false;
+
+				const auto id = page.get_id(did);
 				return id != detail::InvalidDenseId;
 			}
 
@@ -17876,6 +17901,7 @@ namespace gaia {
 	} // namespace cnt
 
 } // namespace gaia
+
 /*** End of inlined file: sparse_storage.h ***/
 
 
@@ -27966,6 +27992,23 @@ namespace gaia {
 				return comp_inter<T>(row);
 			}
 
+			//! Returns the value stored in the generic component @a type on @a row in the chunk.
+			//! \tparam T Component or pair
+			//! \param row Row of entity in the chunk
+			//! \param type Component/entity/pair
+			//! \warning It is expected the component is present. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
+				static_assert(
+						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+
+				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
+				GAIA_ASSERT(row < m_header.count);
+
+				(void)type;
+				return comp_inter<T>(row);
+			}
+
 			//! Returns the value stored in the unique component @a T.
 			//! \tparam T Component or pair
 			//! \warning It is expected the unique component @a T is present. Undefined behavior otherwise.
@@ -30998,9 +31041,25 @@ namespace gaia {
 				else
 					return m_pChunk->template get<T>();
 			}
+
+			//! Returns the value stored in the component associated with @a type on entity.
+			//! \tparam T Component
+			//! \param type Entity associated with the component type
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(Entity type) const {
+				verify_comp<T>();
+
+				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+					return m_pChunk->template get<T>(m_row, type);
+				else {
+					(void)type;
+					return m_pChunk->template get<T>();
+				}
+			}
 		};
 	} // namespace ecs
 } // namespace gaia
+
 /*** End of inlined file: component_getter.h ***/
 
 
@@ -40326,6 +40385,20 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		template <typename T>
+		struct SparseComponentRecord;
+	}
+
+	namespace cnt {
+		template <typename T>
+		struct to_sparse_id<ecs::SparseComponentRecord<T>> {
+			static sparse_id get(const ecs::SparseComponentRecord<T>& item) noexcept {
+				return (sparse_id)item.entity.id();
+			}
+		};
+	} // namespace cnt
+
+	namespace ecs {
 #if GAIA_SYSTEMS_ENABLED
 		class SystemBuilder;
 #endif
@@ -40333,6 +40406,12 @@ namespace gaia {
 		class ObserverBuilder;
 #endif
 		class World;
+
+		template <typename T>
+		struct SparseComponentRecord {
+			Entity entity;
+			T value{};
+		};
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -40362,6 +40441,76 @@ namespace gaia {
 				//! Direct target-entity-id indexed source buckets used for traversal and wildcard operations.
 				cnt::darray<cnt::darray<Entity>> tgtToSrc;
 			};
+
+			struct SparseComponentStoreErased {
+				void* pStore = nullptr;
+				void (*func_del)(void*, Entity) = nullptr;
+				bool (*func_has)(const void*, Entity) = nullptr;
+				void (*func_clear_store)(void*) = nullptr;
+				void (*func_del_store)(void*) = nullptr;
+			};
+
+			template <typename T>
+			struct SparseComponentStore final {
+				cnt::sparse_storage<SparseComponentRecord<T>> data;
+
+				static cnt::sparse_id sid(Entity entity) {
+					return (cnt::sparse_id)entity.id();
+				}
+
+				T& add(Entity entity) {
+					const auto sparseId = sid(entity);
+					if (data.has(sparseId))
+						return data[sparseId].value;
+
+					auto& item = data.add(SparseComponentRecord<T>{entity});
+					return item.value;
+				}
+
+				T& mut(Entity entity) {
+					GAIA_ASSERT(data.has(sid(entity)));
+					return data[sid(entity)].value;
+				}
+
+				const T& get(Entity entity) const {
+					GAIA_ASSERT(data.has(sid(entity)));
+					return data[sid(entity)].value;
+				}
+
+				void del_entity(Entity entity) {
+					const auto sparseId = sid(entity);
+					if (!data.empty() && data.has(sparseId))
+						data.del(sparseId);
+				}
+
+				bool has(Entity entity) const {
+					if (data.empty())
+						return false;
+					return data.has(sid(entity));
+				}
+
+				void clear_store() {
+					data.clear();
+				}
+			};
+
+			template <typename T>
+			static SparseComponentStoreErased make_sparse_component_store_erased(SparseComponentStore<T>* pStore) {
+				return {
+						pStore,
+						[](void* pStoreRaw, Entity entity) {
+							static_cast<SparseComponentStore<T>*>(pStoreRaw)->del_entity(entity);
+						},
+						[](const void* pStoreRaw, Entity entity) {
+							return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
+						},
+						[](void* pStoreRaw) {
+							static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
+						},
+						[](void* pStoreRaw) {
+							delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
+						}};
+			}
 
 			//----------------------------------------------------------------------
 
@@ -40737,6 +40886,8 @@ namespace gaia {
 			cnt::map<EntityLookupKey, ExclusiveAdjunctStore> m_exclusiveAdjunctByRel;
 			//! Source entity -> non-fragmenting exclusive relations present on that source.
 			EntityArrayMap m_srcToExclusiveAdjunctRel;
+			//! Non-fragmenting sparse component stores keyed by the component entity.
+			cnt::map<EntityLookupKey, SparseComponentStoreErased> m_sparseComponentsByComp;
 			//! Relation-local structural version used for dependency ordering caches.
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
@@ -40883,6 +41034,91 @@ namespace gaia {
 				const auto& ec = fetch(relation);
 				return (ec.flags & EntityContainerFlags::IsExclusive) != 0 &&
 							 (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
+			GAIA_NODISCARD bool is_sparse_dont_fragment_component(Entity component) const {
+				if (!valid(component) || component.pair() || component.entity())
+					return false;
+
+				const auto& ec = fetch(component);
+				if ((ec.flags & EntityContainerFlags::IsDontFragment) == 0)
+					return false;
+
+				const auto* pItem = comp_cache().find(component);
+				return pItem != nullptr && pItem->comp.storage_type() == DataStorageType::Sparse;
+			}
+
+			//! Sparse non-fragmenting storage currently supports only plain generic components.
+			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
+			template <typename T>
+			GAIA_NODISCARD static constexpr bool supports_sparse_component() {
+				using U = typename actual_type_t<T>::Type;
+				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD bool can_use_sparse_component(Entity object) const {
+				if constexpr (!supports_sparse_component<T>())
+					return false;
+				else {
+					if (object.pair())
+						return false;
+
+					const auto* pItem = comp_cache().find(object);
+					if (pItem == nullptr || pItem->entity != object || !is_sparse_dont_fragment_component(object))
+						return false;
+
+					using U = typename actual_type_t<T>::Type;
+					return pItem->comp.size() == (uint32_t)sizeof(U) && pItem->comp.alig() == (uint32_t)alignof(U) &&
+								 pItem->comp.soa() == 0 && object.kind() == entity_kind_v<T>;
+				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD SparseComponentStore<T>* sparse_component_store(Entity component) {
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				if (it == m_sparseComponentsByComp.end())
+					return nullptr;
+
+				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD const SparseComponentStore<T>* sparse_component_store(Entity component) const {
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				if (it == m_sparseComponentsByComp.end())
+					return nullptr;
+
+				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD SparseComponentStore<T>& sparse_component_store_mut(Entity component) {
+				const auto key = EntityLookupKey(component);
+				const auto it = m_sparseComponentsByComp.find(key);
+				if (it != m_sparseComponentsByComp.end())
+					return *static_cast<SparseComponentStore<T>*>(it->second.pStore);
+
+				auto* pStore = new SparseComponentStore<T>();
+				m_sparseComponentsByComp.emplace(key, make_sparse_component_store_erased(pStore));
+				return *pStore;
+			}
+
+			void del_sparse_components(Entity entity) {
+				for (auto& [compKey, store]: m_sparseComponentsByComp) {
+					(void)compKey;
+					store.func_del(store.pStore, entity);
+				}
+			}
+
+			void del_sparse_component_store(Entity component) {
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				if (it == m_sparseComponentsByComp.end())
+					return;
+
+				it->second.func_clear_store(it->second.pStore);
+				it->second.func_del_store(it->second.pStore);
+				m_sparseComponentsByComp.erase(it);
 			}
 
 			GAIA_NODISCARD const ExclusiveAdjunctStore* exclusive_adjunct_store(Entity relation) const {
@@ -42228,6 +42464,13 @@ namespace gaia {
 			//! \param object Added entity
 			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void add(Entity entity, Entity object) {
+#if GAIA_ASSERT_ENABLED
+				if (!object.pair()) {
+					const auto* pItem = comp_cache().find(object);
+					if (pItem != nullptr && pItem->entity == object && is_sparse_dont_fragment_component(object))
+						GAIA_ASSERT2(false, "Sparse runtime components require an explicit typed value when added by entity id");
+				}
+#endif
 				EntityBuilder(*this, entity).add(object);
 			}
 
@@ -42247,6 +42490,15 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (supports_sparse_component<FT>()) {
+					if (is_sparse_dont_fragment_component(item.entity)) {
+						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+						return;
+					}
+				}
+
 				EntityBuilder(*this, entity).add<T>();
 			}
 
@@ -42260,6 +42512,15 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
+
+				if constexpr (supports_sparse_component<typename component_type_t<T>::TypeFull>()) {
+					using FT = typename component_type_t<T>::TypeFull;
+					if (can_use_sparse_component<FT>(object)) {
+						auto& data = sparse_component_store_mut<FT>(object).add(entity);
+						data = GAIA_FWD(value);
+						return;
+					}
+				}
 
 				EntityBuilder(*this, entity).add(object);
 
@@ -42549,6 +42810,13 @@ namespace gaia {
 			//! \param object Entity to delete
 			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
 			void del(Entity entity, Entity object) {
+				if (!object.pair()) {
+					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
+					if (itSparseStore != m_sparseComponentsByComp.end()) {
+						itSparseStore->second.func_del(itSparseStore->second.pStore, entity);
+						return;
+					}
+				}
 				EntityBuilder(*this, entity).del(object);
 			}
 
@@ -42570,6 +42838,16 @@ namespace gaia {
 			void del(Entity entity) {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
+
+				if constexpr (supports_sparse_component<FT>()) {
+					if (const auto* pItem = comp_cache().template find<FT>();
+							pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+						if (auto* pStore = sparse_component_store<FT>(pItem->entity); pStore != nullptr)
+							pStore->del_entity(entity);
+						return;
+					}
+				}
+
 				EntityBuilder(*this, entity).del<FT>();
 			}
 
@@ -42652,6 +42930,12 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
+				if constexpr (supports_sparse_component<T>()) {
+					const auto* pItem = comp_cache().template find<T>();
+					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity))
+						return;
+				}
+
 				auto& ec = m_recs.entities[entity.id()];
 				ec.pChunk->template modify<
 						T
@@ -42685,7 +42969,25 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) set(Entity entity) {
 				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (supports_sparse_component<FT>()) {
+					if (is_sparse_dont_fragment_component(item.entity))
+						return sparse_component_store_mut<FT>(item.entity).mut(entity);
+				}
 				return acc_mut(entity).mut<T>();
+			}
+
+			//! Sets the value of the component associated with @a object on @a entity.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component<FT>()) {
+					if (can_use_sparse_component<FT>(object))
+						return sparse_component_store_mut<FT>(object).mut(entity);
+				}
+				return acc_mut(entity).mut<T>(object);
 			}
 
 			//! Sets the value of the component @a T on @a entity without triggering a world version update.
@@ -42697,7 +42999,25 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (supports_sparse_component<FT>()) {
+					if (is_sparse_dont_fragment_component(item.entity))
+						return sparse_component_store_mut<FT>(item.entity).mut(entity);
+				}
 				return acc_mut(entity).smut<T>();
+			}
+
+			//! Sets the value of the component associated with @a object on @a entity without updating world version.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sset(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component<FT>()) {
+					if (can_use_sparse_component<FT>(object))
+						return sparse_component_store_mut<FT>(object).mut(entity);
+				}
+				return acc_mut(entity).smut<T>(object);
 			}
 
 			//----------------------------------------------------------------------
@@ -42711,7 +43031,14 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
 				static_assert(!is_pair<T>::value);
-				return acc_mut(entity).mut<T>();
+				return set<T>(entity);
+			}
+
+			//! Sets the value of the component associated with @a object on @a entity.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				return set<T>(entity, object);
 			}
 
 			//----------------------------------------------------------------------
@@ -42737,7 +43064,32 @@ namespace gaia {
 			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component<FT>()) {
+					const auto* pItem = comp_cache().template find<FT>();
+					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+						const auto* pStore = sparse_component_store<FT>(pItem->entity);
+						GAIA_ASSERT(pStore != nullptr);
+						return pStore->get(entity);
+					}
+				}
+
 				return acc(entity).get<T>();
+			}
+
+			//! Returns the value stored in the component associated with @a object on @a entity.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(Entity entity, Entity object) const {
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component<FT>()) {
+					if (can_use_sparse_component<FT>(object)) {
+						const auto* pStore = sparse_component_store<FT>(object);
+						GAIA_ASSERT(pStore != nullptr);
+						return pStore->get(entity);
+					}
+				}
+
+				return acc(entity).get<T>(object);
 			}
 
 			//----------------------------------------------------------------------
@@ -42817,6 +43169,11 @@ namespace gaia {
 
 				if (object.pair() && has_exclusive_adjunct_pair(entity, object))
 					return true;
+				if (!object.pair()) {
+					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
+					if (itSparseStore != m_sparseComponentsByComp.end())
+						return itSparseStore->second.func_has(itSparseStore->second.pStore, entity);
+				}
 
 				const auto* pArchetype = ec.pArchetype;
 
@@ -42881,6 +43238,15 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
+
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_sparse_component<FT>()) {
+					const auto* pItem = comp_cache().template find<FT>();
+					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+						const auto* pStore = sparse_component_store<FT>(pItem->entity);
+						return pStore != nullptr && pStore->has(entity);
+					}
+				}
 
 				const auto& ec = m_recs.entities[entity.id()];
 				if (is_req_del(ec))
@@ -44038,6 +44404,12 @@ namespace gaia {
 					m_relToTgt = {};
 					m_exclusiveAdjunctByRel = {};
 					m_srcToExclusiveAdjunctRel = {};
+					for (auto& [compKey, store]: m_sparseComponentsByComp) {
+						(void)compKey;
+						store.func_clear_store(store.pStore);
+						store.func_del_store(store.pStore);
+					}
+					m_sparseComponentsByComp = {};
 					m_relationVersions = {};
 					m_srcEntityVersions = {};
 
@@ -45177,7 +45549,7 @@ namespace gaia {
 				}
 			}
 
-			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity delEntity) {
+			static void verify_del(const World& world, Archetype& archetype, Entity entity, Entity func_del) {
 				// Make sure the world is not locked
 				if (world.locked()) {
 					GAIA_ASSERT2(false, "Trying to delete an entity while the world is locked");
@@ -45187,10 +45559,10 @@ namespace gaia {
 				}
 
 				// Make sure the entity is present on the archetype
-				if GAIA_UNLIKELY (!archetype.has(delEntity)) {
+				if GAIA_UNLIKELY (!archetype.has(func_del)) {
 					GAIA_ASSERT2(false, "Trying to remove an entity which wasn't added");
 					GAIA_LOG_W("Trying to del an entity from entity [%u:%u] but it was never added", entity.id(), entity.gen());
-					print_archetype_entities(world, archetype, delEntity, false);
+					print_archetype_entities(world, archetype, func_del, false);
 					return;
 				}
 			}
@@ -46305,10 +46677,14 @@ namespace gaia {
 					// Update the container record
 					auto& ec = m_recs.entities.free(entity);
 
+					// Remove all outgoing non-fragmenting sparse components from this entity.
+					del_sparse_components(entity);
 					// Remove all outgoing non-fragmenting exclusive relations from this source entity.
 					del_exclusive_adjunct_source(entity);
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
 					del_exclusive_adjunct_relation(entity);
+					// If the deleted entity is itself a non-fragmenting sparse component, drop its store.
+					del_sparse_component_store(entity);
 
 					// If this is a singleton entity its archetype needs to be deleted
 					if ((ec.flags & EntityContainerFlags::IsSingleton) != 0)

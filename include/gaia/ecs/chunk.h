@@ -1375,6 +1375,23 @@ namespace gaia {
 				return comp_inter<T>(row);
 			}
 
+			//! Returns the value stored in the generic component @a type on @a row in the chunk.
+			//! \tparam T Component or pair
+			//! \param row Row of entity in the chunk
+			//! \param type Component/entity/pair
+			//! \warning It is expected the component is present. Undefined behavior otherwise.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
+				static_assert(
+						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+
+				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
+				GAIA_ASSERT(row < m_header.count);
+
+				(void)type;
+				return comp_inter<T>(row);
+			}
+
 			//! Returns the value stored in the unique component @a T.
 			//! \tparam T Component or pair
 			//! \warning It is expected the unique component @a T is present. Undefined behavior otherwise.

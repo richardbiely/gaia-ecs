@@ -16777,6 +16777,79 @@ TEST_CASE("Parent - breadth-first traversal uses adjunct relation") {
 	CHECK(traversed[1] == leaf);
 }
 
+TEST_CASE("Sparse DontFragment component uses adjunct storage") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<PositionSparse>(e);
+	CHECK(wld.has<PositionSparse>(e));
+	CHECK(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	auto& pos = wld.set<PositionSparse>(e);
+	pos = {1.0f, 2.0f, 3.0f};
+
+	const auto& posConst = wld.get<PositionSparse>(e);
+	CHECK(posConst.x == doctest::Approx(1.0f));
+	CHECK(posConst.y == doctest::Approx(2.0f));
+	CHECK(posConst.z == doctest::Approx(3.0f));
+
+	wld.del<PositionSparse>(e);
+	CHECK_FALSE(wld.has<PositionSparse>(e));
+	CHECK_FALSE(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Sparse DontFragment component supports runtime object add with value") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	wld.add(e, compItem.entity, PositionSparse{4.0f, 5.0f, 6.0f});
+
+	CHECK(wld.has<PositionSparse>(e));
+	CHECK(wld.has(e, compItem.entity));
+
+	const auto& pos = wld.get<PositionSparse>(e);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
+}
+
+TEST_CASE("Sparse DontFragment runtime-registered component supports typed object access") {
+	TestWorld twld;
+
+	const auto& runtimeComp = wld.add(
+			"Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse, (uint32_t)alignof(Position));
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, runtimeComp.entity, Position{7.0f, 8.0f, 9.0f});
+	CHECK(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	auto& posMut = wld.set<Position>(e, runtimeComp.entity);
+	posMut = {10.0f, 11.0f, 12.0f};
+
+	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
+	CHECK(pos.x == doctest::Approx(10.0f));
+	CHECK(pos.y == doctest::Approx(11.0f));
+	CHECK(pos.z == doctest::Approx(12.0f));
+
+	wld.del(e, runtimeComp.entity);
+	CHECK_FALSE(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
 	util::set_log_func(util::detail::log_cached);

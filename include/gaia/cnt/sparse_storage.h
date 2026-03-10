@@ -473,10 +473,9 @@ namespace gaia {
 					if (m_pSparse == nullptr)
 						return;
 
-					GAIA_ASSERT(m_cnt > 0);
-
 					// Destruct active items
-					dtr_active_data();
+					if (m_cnt != 0)
+						dtr_active_data();
 
 					// Release allocated memory
 					mem::AllocHelper::free("SparsePage", m_pSparse);
@@ -600,6 +599,10 @@ namespace gaia {
 				}
 
 				GAIA_CLANG_WARNING_POP()
+
+				GAIA_NODISCARD bool allocated() const noexcept {
+					return m_pSparse != nullptr;
+				}
 
 				void add() {
 					ensure();
@@ -855,6 +858,10 @@ namespace gaia {
 
 				GAIA_CLANG_WARNING_POP()
 
+				GAIA_NODISCARD bool allocated() const noexcept {
+					return m_pSparse != nullptr;
+				}
+
 				void add() {
 					ensure();
 					++m_cnt;
@@ -994,7 +1001,14 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {
-				m_dense.resize(m_cnt + 1);
+				const auto required = m_cnt + 1;
+				if (required > m_dense.capacity()) {
+					auto cap = m_dense.capacity() == 0 ? size_type(16) : m_dense.capacity();
+					while (cap < required)
+						cap *= 2;
+					m_dense.reserve(cap);
+				}
+				m_dense.resize(required);
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
@@ -1321,7 +1335,14 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {
-				m_dense.resize(m_cnt + 1);
+				const auto required = m_cnt + 1;
+				if (required > m_dense.capacity()) {
+					auto cap = m_dense.capacity() == 0 ? size_type(16) : m_dense.capacity();
+					while (cap < required)
+						cap *= 2;
+					m_dense.reserve(cap);
+				}
+				m_dense.resize(required);
 
 				// The sparse array has to be able to take any sparse index
 				if (pid >= m_pages.size())
@@ -1395,7 +1416,11 @@ namespace gaia {
 				if (pid >= m_pages.size())
 					return false;
 
-				const auto id = m_pages[pid].get_id(did);
+				const auto& page = m_pages[pid];
+				if (!page.allocated())
+					return false;
+
+				const auto id = page.get_id(did);
 				return id != detail::InvalidDenseId;
 			}
 
