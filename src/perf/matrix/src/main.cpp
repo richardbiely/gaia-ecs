@@ -3029,6 +3029,162 @@ void BM_MixedFrame_Churn(picobench::state& state) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Non-fragmenting Parent benchmarks
+////////////////////////////////////////////////////////////////////////////////
+
+template <bool UseParent>
+void add_hierarchy_edge(ecs::World& w, ecs::Entity entity, ecs::Entity parent) {
+	if constexpr (UseParent)
+		w.parent(entity, parent);
+	else
+		w.add(entity, ecs::Pair(ecs::ChildOf, parent));
+}
+
+template <bool UseParent>
+void create_hierarchy_tree(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+	entities.clear();
+	entities.reserve(count);
+
+	GAIA_FOR(count) {
+		const auto e = w.add();
+		entities.push_back(e);
+
+		if (i == 0)
+			continue;
+
+		const auto parentIdx = (i - 1U) / 4U;
+		add_hierarchy_edge<UseParent>(w, e, entities[parentIdx]);
+	}
+}
+
+template <bool UseParent>
+void BM_Hierarchy_Set(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		entities.reserve(n);
+
+		const auto root = w.add();
+		GAIA_FOR(n) {
+			const auto e = w.add();
+			entities.push_back(e);
+		}
+
+		state.start_timer();
+		for (auto e: entities)
+			add_hierarchy_edge<UseParent>(w, e, root);
+		state.stop_timer();
+	}
+}
+
+template <bool UseParent>
+void BM_Hierarchy_Bfs(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree<UseParent>(w, entities, n);
+
+	uint64_t visited = 0;
+	auto relation = UseParent ? ecs::Parent : ecs::ChildOf;
+
+	w.sources_bfs(relation, entities[0], [&](ecs::Entity) {
+		++visited;
+	});
+	visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		w.sources_bfs(relation, entities[0], [&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
+template <bool UseParent>
+void BM_Hierarchy_TargetWalk(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree<UseParent>(w, entities, n);
+
+	const auto relation = UseParent ? ecs::Parent : ecs::ChildOf;
+	const auto leaf = entities.back();
+	uint64_t steps = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		auto curr = leaf;
+		while (true) {
+			const auto parent = w.target(curr, relation);
+			if (parent == ecs::EntityBad)
+				break;
+
+			curr = parent;
+			++steps;
+		}
+	}
+
+	dont_optimize(steps);
+}
+
+template <bool UseParent>
+void BM_Hierarchy_Sources(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree<UseParent>(w, entities, n);
+
+	const auto relation = UseParent ? ecs::Parent : ecs::ChildOf;
+	uint64_t visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		w.sources(relation, entities[0], [&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
+template <bool UseParent>
+void BM_Hierarchy_DeleteTarget(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		entities.reserve(n);
+
+		const auto root = w.add();
+		GAIA_FOR(n) {
+			const auto e = w.add();
+			entities.push_back(e);
+			add_hierarchy_edge<UseParent>(w, e, root);
+		}
+
+		state.start_timer();
+		w.del(root);
+		w.update();
+		state.stop_timer();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Main
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -3116,6 +3272,8 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_ComponentRemove_Velocity).PICO_SETTINGS().user_data(NEntitiesMedium).label("remove velocity");
 		PICOBENCH_REG(BM_ComponentToggle_Frozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("toggle frozen");
 		PICOBENCH_REG(BM_ComponentSetGet_ByEntity).PICO_SETTINGS().user_data(NEntitiesMedium).label("set/get by entity");
+		PICOBENCH_REG(BM_Hierarchy_Set<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof set 10K");
+		PICOBENCH_REG(BM_Hierarchy_Set<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent set 10K");
 
 		PICOBENCH_SUITE_REG("Query hot path");
 		PICOBENCH_REG(BM_Query_ReadOnly_1Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("ro 1 comp");
@@ -3136,6 +3294,21 @@ int main(int argc, char* argv[]) {
 				.label("var source (unbound)");
 
 		PICOBENCH_SUITE_REG("Traversal helpers");
+		PICOBENCH_REG(BM_Hierarchy_TargetWalk<false>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("childof up-walk 10K");
+		PICOBENCH_REG(BM_Hierarchy_TargetWalk<true>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("parent up-walk 10K");
+		PICOBENCH_REG(BM_Hierarchy_Sources<false>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("childof sources 10K");
+		PICOBENCH_REG(BM_Hierarchy_Sources<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent sources 10K");
+		PICOBENCH_REG(BM_Hierarchy_Bfs<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof bfs 10K");
+		PICOBENCH_REG(BM_Hierarchy_Bfs<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent bfs 10K");
 		PICOBENCH_REG(BM_World_AsTargetsTrav_2).PICO_SETTINGS_FOCUS().label("as_targets_trav d2");
 		PICOBENCH_REG(BM_World_AsTargetsTrav_4).PICO_SETTINGS_FOCUS().label("as_targets_trav d4");
 		PICOBENCH_REG(BM_World_AsTargetsTrav_8).PICO_SETTINGS_FOCUS().label("as_targets_trav d8");
@@ -3176,9 +3349,7 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(4096)
 				.label("create fanout 3q 8t 4K arch");
-		PICOBENCH_REG(BM_EntityBuilder_BatchAdd_4)
-				.PICO_SETTINGS_FOCUS()
-				.label("builder batch add 4");
+		PICOBENCH_REG(BM_EntityBuilder_BatchAdd_4).PICO_SETTINGS_FOCUS().label("builder batch add 4");
 		PICOBENCH_REG(BM_QueryCache_NoSource_WarmRead_Default)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
@@ -3251,6 +3422,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1000)
 				.label("delete wildcard target 1K");
+		PICOBENCH_REG(BM_Hierarchy_DeleteTarget<false>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("childof delete target 10K");
+		PICOBENCH_REG(BM_Hierarchy_DeleteTarget<true>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("parent delete target 10K");
 
 		PICOBENCH_SUITE_REG("Fragmented archetypes");
 		PICOBENCH_REG(BM_Fragmented_Read).PICO_SETTINGS().label("read");

@@ -53,6 +53,7 @@ namespace gaia {
 			RefDecreased = 1 << 12, // GAIA_USE_SAFE_ENTITY
 			Load = 1 << 13, // EntityContainer is being loaded from a file
 			IsObserved = 1 << 14, // At least one observer is registered for this term.
+			IsDontFragment = 1 << 15,
 		};
 
 		struct EntityContainer: cnt::ilist_item_base {

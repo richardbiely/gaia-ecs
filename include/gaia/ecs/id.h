@@ -465,9 +465,11 @@ namespace gaia {
 		struct GAIA_API Requires_ {};
 		struct GAIA_API CantCombine_ {};
 		struct GAIA_API Exclusive_ {};
+		struct GAIA_API DontFragment_ {};
 		struct GAIA_API Acyclic_ {};
 		struct GAIA_API All_ {};
 		struct GAIA_API ChildOf_ {};
+		struct GAIA_API Parent_ {};
 		struct GAIA_API Is_ {};
 		struct GAIA_API Traversable_ {};
 		struct GAIA_API System_;
@@ -502,30 +504,33 @@ namespace gaia {
 		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DontFragment = Entity(11, 0, false, false, EntityKind::EK_Gen);
 		// Graph properties
-		inline Entity Acyclic = Entity(11, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(12, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(13, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		// Entity representing a logical/non-fragmenting hierarchy.
+		inline Entity Parent = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(16, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(19, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(20, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(25, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(28, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Always has to match the last internal entity
