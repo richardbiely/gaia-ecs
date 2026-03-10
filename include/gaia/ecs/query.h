@@ -412,7 +412,46 @@ namespace gaia {
 				using ChunkBatchArray = cnt::sarray_ext<ChunkBatch, ChunkBatchSize>;
 				using CmdFunc = void (*)(QuerySerBuffer& buffer, QueryCtx& ctx);
 
+				struct DirectQueryScratch {
+					cnt::darray<const Archetype*> archetypes;
+					cnt::darray<Entity> entities;
+					cnt::darray<Entity> bucketEntities;
+					cnt::darray<uint32_t> counts;
+					uint32_t seenVersion = 1;
+				};
+
 			private:
+				//! Returns the per-thread scratch storage used by the direct entity-seeded query fast path.
+				GAIA_NODISCARD static DirectQueryScratch& direct_query_scratch() {
+					static thread_local DirectQueryScratch scratch;
+					return scratch;
+				}
+
+				//! Grows the direct-query seen/count array so the given entity id can be addressed directly.
+				static void ensure_direct_query_count_capacity(DirectQueryScratch& scratch, uint32_t entityId) {
+					if (entityId < scratch.counts.size())
+						return;
+
+					const auto doubledSize = (uint32_t)scratch.counts.size() * 2U;
+					const auto minSize = doubledSize > 64U ? doubledSize : 64U;
+					const auto newSize = (entityId + 1U) > minSize ? (entityId + 1U) : minSize;
+					const auto oldSize = (uint32_t)scratch.counts.size();
+					scratch.counts.resize(newSize);
+					for (uint32_t i = oldSize; i < newSize; ++i)
+						scratch.counts[i] = 0;
+				}
+
+				//! Advances the scratch version used to deduplicate direct seeded entities without clearing on every call.
+				GAIA_NODISCARD static uint32_t next_direct_query_seen_version(DirectQueryScratch& scratch) {
+					update_version(scratch.seenVersion);
+					if (scratch.seenVersion == 0) {
+						scratch.seenVersion = 1;
+						core::fill(scratch.counts.begin(), scratch.counts.end(), 0);
+					}
+
+					return scratch.seenVersion;
+				}
+
 				static constexpr CmdFunc CommandBufferRead[] = {
 						// Add item
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
@@ -473,6 +512,7 @@ namespace gaia {
 				QueryCacheKind m_cacheKind = QueryCacheKind::Default;
 				//! Traversed-source closure size allowed for explicit snapshot reuse.
 				uint16_t m_cacheSrcTrav = 0;
+
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
 					//! Cached raw entity list for each_bfs.
@@ -1858,6 +1898,7 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Returns true when a direct term is backed by non-fragmenting storage and must be evaluated per entity.
 				GAIA_NODISCARD static bool is_adjunct_direct_term(const World& world, const QueryTerm& term) {
 					if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 						return false;
@@ -1867,6 +1908,7 @@ namespace gaia {
 								 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
 				}
 
+				//! Detects queries that can skip archetype seeding and start directly from entity-backed term indices.
 				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
 					if (!queryInfo.has_entity_filter_terms())
 						return false;
@@ -1890,12 +1932,30 @@ namespace gaia {
 					return hasPositiveTerm;
 				}
 
+				//! Detects the special direct OR/NOT shape that can be answered from a union of direct term entity sets.
+				GAIA_NODISCARD static bool has_only_direct_or_terms(const QueryInfo& queryInfo) {
+					bool hasOr = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+						if (term.op == QueryOpKind::Or) {
+							hasOr = true;
+							continue;
+						}
+						if (term.op != QueryOpKind::Not)
+							return false;
+					}
+
+					return hasOr;
+				}
+
 				struct DirectEntitySeedInfo {
 					Entity seededAllTerm = EntityBad;
 					bool seededFromAll = false;
 					bool seededFromOr = false;
 				};
 
+				//! Evaluates the remaining direct terms for a single seeded entity after the seed term itself was consumed.
 				GAIA_NODISCARD static bool match_direct_entity_terms(
 						const World& world, Entity entity, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
 					bool hasOrTerms = false;
@@ -1932,6 +1992,7 @@ namespace gaia {
 					return !hasOrTerms || anyOrMatched;
 				}
 
+				//! Applies iterator-specific entity state constraints to the direct seeded path.
 				template <typename TIter>
 				GAIA_NODISCARD static bool match_direct_entity_constraints(const World& world, Entity entity) {
 					if constexpr (std::is_same_v<TIter, Iter>)
@@ -1942,6 +2003,7 @@ namespace gaia {
 						return true;
 				}
 
+				//! Detects when a direct ALL seed can be counted by archetype buckets instead of per entity checks.
 				GAIA_NODISCARD static bool can_use_archetype_bucket_count(
 						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
 					if (!seedInfo.seededFromAll)
@@ -1961,36 +2023,36 @@ namespace gaia {
 					return true;
 				}
 
+				//! Groups seeded entities by archetype and counts whole buckets when only structural ALL/NOT terms remain.
 				template <typename TIter>
 				GAIA_NODISCARD static uint32_t count_direct_entity_seed_by_archetype(
 						const World& world, const QueryInfo& queryInfo, const cnt::darray<Entity>& seedEntities,
 						const DirectEntitySeedInfo& seedInfo) {
-					thread_local cnt::darray<const Archetype*> s_archetypes;
-					thread_local cnt::darray<Entity> s_representativeEntities;
-					thread_local cnt::darray<uint32_t> s_archetypeEntityCounts;
-					s_archetypes.clear();
-					s_representativeEntities.clear();
-					s_archetypeEntityCounts.clear();
+					auto& scratch = direct_query_scratch();
+
+					scratch.archetypes.clear();
+					scratch.bucketEntities.clear();
+					scratch.counts.clear();
 
 					for (const auto entity: seedEntities) {
 						if (!match_direct_entity_constraints<TIter>(world, entity))
 							continue;
 
 						const auto* pArchetype = world_entity_archetype(world, entity);
-						const auto idx = core::get_index(s_archetypes, pArchetype);
+						const auto idx = core::get_index(scratch.archetypes, pArchetype);
 						if (idx == BadIndex) {
-							s_archetypes.push_back(pArchetype);
-							s_representativeEntities.push_back(entity);
-							s_archetypeEntityCounts.push_back(1);
+							scratch.archetypes.push_back(pArchetype);
+							scratch.bucketEntities.push_back(entity);
+							scratch.counts.push_back(1);
 						} else {
-							++s_archetypeEntityCounts[idx];
+							++scratch.counts[idx];
 						}
 					}
 
 					uint32_t cnt = 0;
-					const auto archetypeCnt = (uint32_t)s_archetypes.size();
+					const auto archetypeCnt = (uint32_t)scratch.archetypes.size();
 					GAIA_FOR(archetypeCnt) {
-						const auto entity = s_representativeEntities[i];
+						const auto entity = scratch.bucketEntities[i];
 						bool matched = true;
 						for (const auto& term: queryInfo.ctx().data.terms_view()) {
 							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
@@ -2010,14 +2072,99 @@ namespace gaia {
 						}
 
 						if (matched)
-							cnt += s_archetypeEntityCounts[i];
+							cnt += scratch.counts[i];
 					}
 
 					return cnt;
 				}
 
+				//! Counts the union of direct OR term entity sets while deduplicating entities across terms.
+				template <typename TIter>
+				GAIA_NODISCARD static uint32_t count_direct_or_union(const World& world, const QueryInfo& queryInfo) {
+					auto& scratch = direct_query_scratch();
+					const auto seenVersion = next_direct_query_seen_version(scratch);
+
+					uint32_t cnt = 0;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op != QueryOpKind::Or)
+							continue;
+
+						scratch.entities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, entity))
+								continue;
+
+							const auto entityId = (uint32_t)entity.id();
+							ensure_direct_query_count_capacity(scratch, entityId);
+
+							if (scratch.counts[entityId] == seenVersion)
+								continue;
+							scratch.counts[entityId] = seenVersion;
+
+							bool rejected = false;
+							for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
+								if (notTerm.op != QueryOpKind::Not)
+									continue;
+								if (world_has_entity_term(world, entity, notTerm.id)) {
+									rejected = true;
+									break;
+								}
+							}
+
+							if (!rejected)
+								++cnt;
+						}
+					}
+
+					return cnt;
+				}
+
+				//! Returns whether any entity survives the direct OR union after applying NOT terms and iterator constraints.
+				template <typename TIter>
+				GAIA_NODISCARD static bool is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo) {
+					auto& scratch = direct_query_scratch();
+					const auto seenVersion = next_direct_query_seen_version(scratch);
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op != QueryOpKind::Or)
+							continue;
+
+						scratch.entities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, entity))
+								continue;
+
+							const auto entityId = (uint32_t)entity.id();
+							ensure_direct_query_count_capacity(scratch, entityId);
+
+							if (scratch.counts[entityId] == seenVersion)
+								continue;
+							scratch.counts[entityId] = seenVersion;
+
+							bool rejected = false;
+							for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
+								if (notTerm.op != QueryOpKind::Not)
+									continue;
+								if (world_has_entity_term(world, entity, notTerm.id)) {
+									rejected = true;
+									break;
+								}
+							}
+
+							if (!rejected)
+								return true;
+						}
+					}
+
+					return false;
+				}
+
+				//! Builds the best direct entity seed set from the smallest positive ALL term or the OR union fallback.
 				static DirectEntitySeedInfo
 				build_direct_entity_seed(const World& world, const QueryInfo& queryInfo, cnt::darray<Entity>& out) {
+					auto& scratch = direct_query_scratch();
 					out.clear();
 					DirectEntitySeedInfo seedInfo{};
 
@@ -2048,14 +2195,7 @@ namespace gaia {
 						return seedInfo;
 					}
 
-					thread_local cnt::darray<uint32_t> s_seenEntities;
-					thread_local uint32_t s_seenVersion = 1;
-					thread_local cnt::darray<Entity> s_tmpEntities;
-					update_version(s_seenVersion);
-					if (s_seenVersion == 0) {
-						s_seenVersion = 1;
-						core::fill(s_seenEntities.begin(), s_seenEntities.end(), 0);
-					}
+					const auto seenVersion = next_direct_query_seen_version(scratch);
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
@@ -2063,23 +2203,15 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						s_tmpEntities.clear();
-						world_collect_direct_term_entities(world, term.id, s_tmpEntities);
-						for (const auto entity: s_tmpEntities) {
+						scratch.entities.clear();
+						world_collect_direct_term_entities(world, term.id, scratch.entities);
+						for (const auto entity: scratch.entities) {
 							const auto entityId = (uint32_t)entity.id();
-							if (entityId >= s_seenEntities.size()) {
-								const auto doubledSize = (uint32_t)s_seenEntities.size() * 2U;
-								const auto minSize = doubledSize > 64U ? doubledSize : 64U;
-								const auto newSize = (entityId + 1U) > minSize ? (entityId + 1U) : minSize;
-								const auto oldSize = (uint32_t)s_seenEntities.size();
-								s_seenEntities.resize(newSize);
-								for (uint32_t j = oldSize; j < newSize; ++j)
-									s_seenEntities[j] = 0;
-							}
+							ensure_direct_query_count_capacity(scratch, entityId);
 
-							if (s_seenEntities[entityId] == s_seenVersion)
+							if (scratch.counts[entityId] == seenVersion)
 								continue;
-							s_seenEntities[entityId] = s_seenVersion;
+							scratch.counts[entityId] = seenVersion;
 							out.push_back(entity);
 						}
 					}
@@ -2088,14 +2220,18 @@ namespace gaia {
 					return seedInfo;
 				}
 
+				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					if constexpr (!UseFilters) {
 						if (can_use_direct_entity_seed_eval(queryInfo)) {
-							thread_local cnt::darray<Entity> s_seedEntities;
-							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, s_seedEntities);
+							auto& scratch = direct_query_scratch();
+							if (has_only_direct_or_terms(queryInfo))
+								return is_empty_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
 
-							for (const auto entity: s_seedEntities) {
+							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
+
+							for (const auto entity: scratch.entities) {
 								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
 									continue;
 								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
@@ -2142,6 +2278,7 @@ namespace gaia {
 					return true;
 				}
 
+				//! Evaluates the entity-level adjunct terms that are not represented by archetype membership.
 				GAIA_NODISCARD static bool match_entity_filters(const World& world, Entity entity, const QueryInfo& queryInfo) {
 					bool hasOrTerms = false;
 					bool anyOrMatched = false;
@@ -2182,19 +2319,23 @@ namespace gaia {
 					return !hasOrTerms || anyOrMatched;
 				}
 
+				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
 					if constexpr (!UseFilters) {
 						if (can_use_direct_entity_seed_eval(queryInfo)) {
-							thread_local cnt::darray<Entity> s_seedEntities;
-							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, s_seedEntities);
+							auto& scratch = direct_query_scratch();
+							if (has_only_direct_or_terms(queryInfo))
+								return count_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
+
+							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
 
 							if (can_use_archetype_bucket_count(*queryInfo.world(), queryInfo, seedInfo))
 								return count_direct_entity_seed_by_archetype<TIter>(
-										*queryInfo.world(), queryInfo, s_seedEntities, seedInfo);
+										*queryInfo.world(), queryInfo, scratch.entities, seedInfo);
 
 							uint32_t cnt = 0;
-							for (const auto entity: s_seedEntities) {
+							for (const auto entity: scratch.entities) {
 								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
 									continue;
 								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
