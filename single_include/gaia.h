@@ -39296,16 +39296,18 @@ namespace gaia {
 						return true;
 				}
 
-				//! Detects when a direct ALL seed can be counted by archetype buckets instead of per entity checks.
+				//! Detects when a direct seed can be counted by archetype buckets instead of per entity checks.
 				GAIA_NODISCARD static bool can_use_archetype_bucket_count(
 						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
-					if (!seedInfo.seededFromAll)
+					if (!seedInfo.seededFromAll && !seedInfo.seededFromOr)
 						return false;
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
-						if (term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
+						if (seedInfo.seededFromAll && term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
+							continue;
+						if (seedInfo.seededFromOr && term.op == QueryOpKind::Or)
 							continue;
 						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Not)
 							return false;
@@ -39345,25 +39347,7 @@ namespace gaia {
 					uint32_t cnt = 0;
 					const auto archetypeCnt = (uint32_t)scratch.archetypes.size();
 					GAIA_FOR(archetypeCnt) {
-						bool matched = true;
-						for (const auto& term: queryInfo.ctx().data.terms_view()) {
-							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-								continue;
-							if (term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
-								continue;
-
-							const bool present = world_has_entity_term(world, scratch.bucketEntities[i], term.id);
-							if (term.op == QueryOpKind::All && !present) {
-								matched = false;
-								break;
-							}
-							if (term.op == QueryOpKind::Not && present) {
-								matched = false;
-								break;
-							}
-						}
-
-						if (matched)
+						if (match_direct_entity_terms(world, scratch.bucketEntities[i], queryInfo, seedInfo))
 							cnt += scratch.counts[i];
 					}
 
