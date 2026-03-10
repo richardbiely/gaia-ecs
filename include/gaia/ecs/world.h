@@ -113,6 +113,7 @@ namespace gaia {
 				bool (*func_has)(const void*, Entity) = nullptr;
 				uint32_t (*func_count)(const void*) = nullptr;
 				void (*func_collect_entities)(const void*, cnt::darray<Entity>&) = nullptr;
+				bool (*func_for_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
 				void (*func_clear_store)(void*) = nullptr;
 				void (*func_del_store)(void*) = nullptr;
 			};
@@ -186,6 +187,13 @@ namespace gaia {
 						},
 						[](const void* pStoreRaw, cnt::darray<Entity>& out) {
 							static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
+						},
+						[](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
+							for (const auto& item: static_cast<const SparseComponentStore<T>*>(pStoreRaw)->data) {
+								if (!func(pCtx, item.entity))
+									return false;
+							}
+							return true;
 						},
 						[](void* pStoreRaw) {
 							static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
@@ -3739,6 +3747,67 @@ namespace gaia {
 						out.push_back(entities[i]);
 					}
 				}
+			}
+
+			//! Visits entities matching a direct term without materializing a temporary entity array first.
+			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
+				if (term == EntityBad)
+					return true;
+
+				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
+					const auto relation = entity_from_id(*this, term.id());
+					const auto* pStore = exclusive_adjunct_store(relation);
+					if (pStore == nullptr)
+						return true;
+
+					if (is_wildcard(term.gen())) {
+						const auto cnt = (uint32_t)pStore->srcToTgt.size();
+						GAIA_FOR(cnt) {
+							const auto target = pStore->srcToTgt[i];
+							if (target == EntityBad)
+								continue;
+							if (!func(ctx, EntityContainer::handle(m_recs.entities[i])))
+								return false;
+						}
+						return true;
+					}
+
+					const auto* pSources = exclusive_adjunct_sources(*pStore, entity_from_id(*this, term.gen()));
+					if (pSources == nullptr)
+						return true;
+
+					for (auto source: *pSources) {
+						if (!func(ctx, source))
+							return false;
+					}
+					return true;
+				}
+
+				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
+					if (it == m_sparseComponentsByComp.end())
+						return true;
+					return it->second.func_for_each_entity(it->second.pStore, ctx, func);
+				}
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
+				if (it == m_entityToArchetypeMap.end())
+					return true;
+
+				for (const auto* pArchetype: it->second) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							if (!func(ctx, entities[i]))
+								return false;
+						}
+					}
+				}
+
+				return true;
 			}
 
 			//! Traverses relationship sources in breadth-first order.
@@ -7451,6 +7520,11 @@ namespace gaia {
 
 		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities(term, out);
+		}
+
+		inline bool
+		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+			return world.for_each_direct_term_entity(term, ctx, func);
 		}
 
 		inline bool world_entity_enabled(const World& world, Entity entity) {

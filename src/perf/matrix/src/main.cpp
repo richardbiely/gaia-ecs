@@ -3287,6 +3287,45 @@ void BM_Query_DirectHierarchy_Or(picobench::state& state) {
 	dont_optimize(total);
 }
 
+template <bool UseParent>
+void BM_Query_DirectHierarchy_Or_Each(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto rootA = w.add();
+	const auto rootB = w.add();
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	GAIA_FOR(n) {
+		const auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i + 1U), (float)(i + 2U)});
+		if ((i & 1U) == 0)
+			add_hierarchy_edge<UseParent>(w, e, rootA);
+		else
+			add_hierarchy_edge<UseParent>(w, e, rootB);
+
+		if ((i % 4U) == 1U)
+			w.add<Acceleration>(e);
+	}
+
+	auto q = w.query().all<Position>().or_(ecs::Pair(UseParent ? ecs::Parent : ecs::ChildOf, rootA)).or_<Acceleration>();
+	uint64_t total = 0;
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		total += sum;
+	}
+
+	dont_optimize(total);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Sparse DontFragment component benchmarks
 ////////////////////////////////////////////////////////////////////////////////
@@ -3466,6 +3505,38 @@ void BM_Query_DirectSparse_Or(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 		total += q.count();
+	}
+
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_Query_DirectSparse_Or_Each(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) {
+		const auto e = entities[i];
+		w.add<Position>(e, {(float)i, (float)(i + 1U), (float)(i + 2U)});
+		if ((i & 1U) == 0)
+			w.add<PositionSparse>(e);
+		if ((i % 4U) == 1U)
+			w.add<Acceleration>(e);
+	}
+
+	auto q = w.query().all<Position>().or_<PositionSparse>().or_<Acceleration>();
+	uint64_t total = 0;
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		total += sum;
 	}
 
 	dont_optimize(total);
@@ -3689,6 +3760,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("parent query or 10K");
+		PICOBENCH_REG(BM_Query_DirectHierarchy_Or_Each<false>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("childof query or each 10K");
+		PICOBENCH_REG(BM_Query_DirectHierarchy_Or_Each<true>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("parent query or each 10K");
 		PICOBENCH_REG(BM_SparseComponent_Add<false>)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
@@ -3745,6 +3824,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("sparse dontfrag query or 10K");
+		PICOBENCH_REG(BM_Query_DirectSparse_Or_Each<false>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("sparse frag query or each 10K");
+		PICOBENCH_REG(BM_Query_DirectSparse_Or_Each<true>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("sparse dontfrag query or each 10K");
 		PICOBENCH_REG(BM_RuntimeSparseComponent_Add<true>)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)

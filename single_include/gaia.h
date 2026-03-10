@@ -29529,6 +29529,8 @@ namespace gaia {
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		GAIA_NODISCARD bool
+		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
@@ -39211,6 +39213,41 @@ namespace gaia {
 					bool seededFromOr = false;
 				};
 
+				//! Describes which direct term should seed direct non-fragmenting evaluation.
+				struct DirectEntitySeedPlan {
+					Entity bestAllTerm = EntityBad;
+					uint32_t bestAllTermCount = UINT32_MAX;
+					bool hasAllTerms = false;
+					bool hasOrTerms = false;
+					bool preferOrSeed = false;
+				};
+
+				//! Chooses the narrowest available seed for direct non-fragmenting evaluation.
+				GAIA_NODISCARD static DirectEntitySeedPlan
+				direct_entity_seed_plan(const World& world, const QueryInfo& queryInfo) {
+					DirectEntitySeedPlan plan;
+					uint32_t totalOrTermCount = 0;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (term.op == QueryOpKind::All) {
+							plan.hasAllTerms = true;
+							const auto cnt = world_count_direct_term_entities(world, term.id);
+							if (cnt < plan.bestAllTermCount) {
+								plan.bestAllTermCount = cnt;
+								plan.bestAllTerm = term.id;
+							}
+						} else if (term.op == QueryOpKind::Or) {
+							plan.hasOrTerms = true;
+							totalOrTermCount += world_count_direct_term_entities(world, term.id);
+						}
+					}
+
+					plan.preferOrSeed = plan.hasOrTerms && (!plan.hasAllTerms || totalOrTermCount < plan.bestAllTermCount);
+					return plan;
+				}
+
 				//! Evaluates the remaining direct terms for a single seeded entity after the seed term itself was consumed.
 				GAIA_NODISCARD static bool match_direct_entity_terms(
 						const World& world, Entity entity, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
@@ -39308,7 +39345,6 @@ namespace gaia {
 					uint32_t cnt = 0;
 					const auto archetypeCnt = (uint32_t)scratch.archetypes.size();
 					GAIA_FOR(archetypeCnt) {
-						const auto entity = scratch.bucketEntities[i];
 						bool matched = true;
 						for (const auto& term: queryInfo.ctx().data.terms_view()) {
 							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
@@ -39316,7 +39352,7 @@ namespace gaia {
 							if (term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
 								continue;
 
-							const bool present = world_has_entity_term(world, entity, term.id);
+							const bool present = world_has_entity_term(world, scratch.bucketEntities[i], term.id);
 							if (term.op == QueryOpKind::All && !present) {
 								matched = false;
 								break;
@@ -39339,38 +39375,40 @@ namespace gaia {
 				GAIA_NODISCARD static uint32_t count_direct_or_union(const World& world, const QueryInfo& queryInfo) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
+					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
 
 					uint32_t cnt = 0;
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						scratch.termEntities.clear();
-						world_collect_direct_term_entities(world, term.id, scratch.termEntities);
-						for (const auto entity: scratch.termEntities) {
+						for_each_direct_term_entity(world, term.id, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, entity))
-								continue;
+								return true;
 
 							const auto entityId = (uint32_t)entity.id();
 							ensure_direct_query_count_capacity(scratch, entityId);
 
 							if (scratch.counts[entityId] == seenVersion)
-								continue;
+								return true;
 							scratch.counts[entityId] = seenVersion;
 
 							bool rejected = false;
-							for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
-								if (notTerm.op != QueryOpKind::Not)
-									continue;
-								if (world_has_entity_term(world, entity, notTerm.id)) {
-									rejected = true;
-									break;
+							if (hasDirectNotTerms) {
+								for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
+									if (notTerm.op != QueryOpKind::Not)
+										continue;
+									if (world_has_entity_term(world, entity, notTerm.id)) {
+										rejected = true;
+										break;
+									}
 								}
 							}
 
 							if (!rejected)
 								++cnt;
-						}
+							return true;
+						});
 					}
 
 					return cnt;
@@ -39381,37 +39419,42 @@ namespace gaia {
 				GAIA_NODISCARD static bool is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
+					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						scratch.termEntities.clear();
-						world_collect_direct_term_entities(world, term.id, scratch.termEntities);
-						for (const auto entity: scratch.termEntities) {
+						const bool completed = for_each_direct_term_entity(world, term.id, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, entity))
-								continue;
+								return true;
 
 							const auto entityId = (uint32_t)entity.id();
 							ensure_direct_query_count_capacity(scratch, entityId);
 
 							if (scratch.counts[entityId] == seenVersion)
-								continue;
+								return true;
 							scratch.counts[entityId] = seenVersion;
 
 							bool rejected = false;
-							for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
-								if (notTerm.op != QueryOpKind::Not)
-									continue;
-								if (world_has_entity_term(world, entity, notTerm.id)) {
-									rejected = true;
-									break;
+							if (hasDirectNotTerms) {
+								for (const auto& notTerm: queryInfo.ctx().data.terms_view()) {
+									if (notTerm.op != QueryOpKind::Not)
+										continue;
+									if (world_has_entity_term(world, entity, notTerm.id)) {
+										rejected = true;
+										break;
+									}
 								}
 							}
 
 							if (!rejected)
-								return true;
-						}
+								return false;
+							return true;
+						});
+
+						if (!completed)
+							return true;
 					}
 
 					return false;
@@ -39423,30 +39466,13 @@ namespace gaia {
 					auto& scratch = direct_query_scratch();
 					out.clear();
 					DirectEntitySeedInfo seedInfo{};
+					const auto plan = direct_entity_seed_plan(world, queryInfo);
 
-					Entity bestAllTerm = EntityBad;
-					uint32_t bestAllTermCount = UINT32_MAX;
-					bool hasAllTerms = false;
-
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							continue;
-						if (term.op != QueryOpKind::All)
-							continue;
-
-						hasAllTerms = true;
-						const auto cnt = world_count_direct_term_entities(world, term.id);
-						if (cnt < bestAllTermCount) {
-							bestAllTermCount = cnt;
-							bestAllTerm = term.id;
-						}
-					}
-
-					if (hasAllTerms) {
-						if (bestAllTerm != EntityBad) {
-							world_collect_direct_term_entities(world, bestAllTerm, out);
+					if (plan.hasAllTerms && !plan.preferOrSeed) {
+						if (plan.bestAllTerm != EntityBad) {
+							world_collect_direct_term_entities(world, plan.bestAllTerm, out);
 							seedInfo.seededFromAll = true;
-							seedInfo.seededAllTerm = bestAllTerm;
+							seedInfo.seededAllTerm = plan.bestAllTerm;
 						}
 						return seedInfo;
 					}
@@ -39474,6 +39500,63 @@ namespace gaia {
 
 					seedInfo.seededFromOr = true;
 					return seedInfo;
+				}
+
+				//! Adapts a typed callback to the erased world_for_each_direct_term_entity visitor API.
+				template <typename Func>
+				GAIA_NODISCARD static bool for_each_direct_term_entity(const World& world, Entity term, Func&& func) {
+					struct Visitor {
+						Func& func;
+						static bool thunk(void* ctx, Entity entity) {
+							return static_cast<Visitor*>(ctx)->func(entity);
+						}
+					};
+
+					Visitor visitor{func};
+					return world_for_each_direct_term_entity(world, term, &visitor, &Visitor::thunk);
+				}
+
+				//! Returns true when direct OR evaluation still has direct NOT terms that must be checked per entity.
+				GAIA_NODISCARD static bool has_direct_not_terms(const QueryInfo& queryInfo) {
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (term.op == QueryOpKind::Not)
+							return true;
+					}
+
+					return false;
+				}
+
+				//! Visits the deduplicated OR union for direct-seeded queries without materializing an entity seed array first.
+				template <typename TIter, typename Func>
+				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Func&& func) {
+					auto& scratch = direct_query_scratch();
+					const auto seenVersion = next_direct_query_seen_version(scratch);
+					const DirectEntitySeedInfo seedInfo{.seededFromOr = true};
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op != QueryOpKind::Or)
+							continue;
+
+						for_each_direct_term_entity(world, term.id, [&](Entity entity) {
+							if (!match_direct_entity_constraints<TIter>(world, entity))
+								return true;
+
+							const auto entityId = (uint32_t)entity.id();
+							ensure_direct_query_count_capacity(scratch, entityId);
+
+							if (scratch.counts[entityId] == seenVersion)
+								return true;
+							scratch.counts[entityId] = seenVersion;
+
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								return true;
+
+							func(entity);
+							return true;
+						});
+					}
 				}
 
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
@@ -39659,6 +39742,18 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
+					const auto plan = direct_entity_seed_plan(world, queryInfo);
+
+					if (plan.preferOrSeed) {
+						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+							if constexpr (sizeof...(T) > 0)
+								func(direct_entity_arg<T>(world, entity)...);
+							else
+								func();
+						});
+						return;
+					}
+
 					auto& scratch = direct_query_scratch();
 					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
 
@@ -39681,6 +39776,19 @@ namespace gaia {
 					if constexpr (!UseFilters) {
 						if (can_use_direct_entity_seed_eval(queryInfo)) {
 							auto& world = *queryInfo.world();
+							const auto plan = direct_entity_seed_plan(world, queryInfo);
+							if (plan.preferOrSeed) {
+								for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+									if constexpr (std::is_same_v<ContainerItemType, Entity>)
+										outArray.push_back(entity);
+									else {
+										auto tmp = world_direct_entity_arg<ContainerItemType>(world, entity);
+										outArray.push_back(tmp);
+									}
+								});
+								return;
+							}
+
 							auto& scratch = direct_query_scratch();
 							const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
 
@@ -41093,6 +41201,7 @@ namespace gaia {
 				bool (*func_has)(const void*, Entity) = nullptr;
 				uint32_t (*func_count)(const void*) = nullptr;
 				void (*func_collect_entities)(const void*, cnt::darray<Entity>&) = nullptr;
+				bool (*func_for_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
 				void (*func_clear_store)(void*) = nullptr;
 				void (*func_del_store)(void*) = nullptr;
 			};
@@ -41166,6 +41275,13 @@ namespace gaia {
 						},
 						[](const void* pStoreRaw, cnt::darray<Entity>& out) {
 							static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
+						},
+						[](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
+							for (const auto& item: static_cast<const SparseComponentStore<T>*>(pStoreRaw)->data) {
+								if (!func(pCtx, item.entity))
+									return false;
+							}
+							return true;
 						},
 						[](void* pStoreRaw) {
 							static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
@@ -44719,6 +44835,67 @@ namespace gaia {
 						out.push_back(entities[i]);
 					}
 				}
+			}
+
+			//! Visits entities matching a direct term without materializing a temporary entity array first.
+			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
+				if (term == EntityBad)
+					return true;
+
+				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
+					const auto relation = entity_from_id(*this, term.id());
+					const auto* pStore = exclusive_adjunct_store(relation);
+					if (pStore == nullptr)
+						return true;
+
+					if (is_wildcard(term.gen())) {
+						const auto cnt = (uint32_t)pStore->srcToTgt.size();
+						GAIA_FOR(cnt) {
+							const auto target = pStore->srcToTgt[i];
+							if (target == EntityBad)
+								continue;
+							if (!func(ctx, EntityContainer::handle(m_recs.entities[i])))
+								return false;
+						}
+						return true;
+					}
+
+					const auto* pSources = exclusive_adjunct_sources(*pStore, entity_from_id(*this, term.gen()));
+					if (pSources == nullptr)
+						return true;
+
+					for (auto source: *pSources) {
+						if (!func(ctx, source))
+							return false;
+					}
+					return true;
+				}
+
+				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
+					if (it == m_sparseComponentsByComp.end())
+						return true;
+					return it->second.func_for_each_entity(it->second.pStore, ctx, func);
+				}
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
+				if (it == m_entityToArchetypeMap.end())
+					return true;
+
+				for (const auto* pArchetype: it->second) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							if (!func(ctx, entities[i]))
+								return false;
+						}
+					}
+				}
+
+				return true;
 			}
 
 			//! Traverses relationship sources in breadth-first order.
@@ -50144,6 +50321,11 @@ namespace gaia {
 
 		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities(term, out);
+		}
+
+		inline bool
+		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+			return world.for_each_direct_term_entity(term, ctx, func);
 		}
 
 		inline bool world_entity_enabled(const World& world, Entity entity) {

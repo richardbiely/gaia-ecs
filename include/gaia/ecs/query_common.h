@@ -26,6 +26,8 @@ namespace gaia {
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		GAIA_NODISCARD bool
+		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
