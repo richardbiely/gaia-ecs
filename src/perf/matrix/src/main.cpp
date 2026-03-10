@@ -3372,6 +3372,29 @@ void BM_RuntimeSparseComponent_Del(picobench::state& state) {
 	}
 }
 
+template <bool DontFragment>
+void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> entities;
+		ecs::Entity component = ecs::EntityBad;
+		setup_runtime_sparse_component_entities<DontFragment>(w, entities, n, component);
+
+		for (auto e: entities)
+			w.add(e, component, Position{1.0f, 2.0f, 3.0f});
+
+		state.start_timer();
+		for (auto e: entities)
+			w.del(e);
+		w.update();
+		state.stop_timer();
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Main
 ////////////////////////////////////////////////////////////////////////////////
@@ -3506,6 +3529,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("runtime sparse dontfrag del 10K");
+		PICOBENCH_REG(BM_RuntimeSparseComponent_DeleteEntity<true>)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("runtime sparse dontfrag del entity 10K");
 
 		PICOBENCH_SUITE_REG("Query hot path");
 		PICOBENCH_REG(BM_Query_ReadOnly_1Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("ro 1 comp");

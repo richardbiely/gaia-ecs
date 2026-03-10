@@ -16850,6 +16850,24 @@ TEST_CASE("Sparse DontFragment runtime-registered component supports typed objec
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity delete") {
+	TestWorld twld;
+
+	const auto& runtimeComp = wld.add(
+			"Runtime_Sparse_Position_Delete", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	wld.add(e, runtimeComp.entity, Position{1.0f, 2.0f, 3.0f});
+	CHECK(wld.has(e, runtimeComp.entity));
+
+	wld.del(e);
+	wld.update();
+
+	CHECK_FALSE(wld.has(e));
+}
+
 int main(int argc, char** argv) {
 	// Use custom logging. Just for code coverage.
 	util::set_log_func(util::detail::log_cached);
