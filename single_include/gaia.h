@@ -41262,33 +41262,34 @@ namespace gaia {
 
 			template <typename T>
 			static SparseComponentStoreErased make_sparse_component_store_erased(SparseComponentStore<T>* pStore) {
-				return {
-						pStore,
-						[](void* pStoreRaw, Entity entity) {
-							static_cast<SparseComponentStore<T>*>(pStoreRaw)->del_entity(entity);
-						},
-						[](const void* pStoreRaw, Entity entity) {
-							return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
-						},
-						[](const void* pStoreRaw) {
-							return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->count();
-						},
-						[](const void* pStoreRaw, cnt::darray<Entity>& out) {
-							static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
-						},
-						[](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-							for (const auto& item: static_cast<const SparseComponentStore<T>*>(pStoreRaw)->data) {
-								if (!func(pCtx, item.entity))
-									return false;
-							}
-							return true;
-						},
-						[](void* pStoreRaw) {
-							static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
-						},
-						[](void* pStoreRaw) {
-							delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
-						}};
+				SparseComponentStoreErased store{};
+				store.pStore = pStore;
+				store.func_del = [](void* pStoreRaw, Entity entity) {
+					static_cast<SparseComponentStore<T>*>(pStoreRaw)->del_entity(entity);
+				};
+				store.func_has = [](const void* pStoreRaw, Entity entity) {
+					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
+				};
+				store.func_count = [](const void* pStoreRaw) {
+					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->count();
+				};
+				store.func_collect_entities = [](const void* pStoreRaw, cnt::darray<Entity>& out) {
+					static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
+				};
+				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
+					for (const auto& item: static_cast<const SparseComponentStore<T>*>(pStoreRaw)->data) {
+						if (!func(pCtx, item.entity))
+							return false;
+					}
+					return true;
+				};
+				store.func_clear_store = [](void* pStoreRaw) {
+					static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
+				};
+				store.func_del_store = [](void* pStoreRaw) {
+					delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
+				};
+				return store;
 			}
 
 			//----------------------------------------------------------------------
