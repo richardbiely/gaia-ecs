@@ -3486,6 +3486,15 @@ namespace gaia {
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
 					const auto& world = *queryCtx.w;
+					const bool hasAdjunctTerms = data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+					auto isAdjunctDirectTerm = [&](const QueryTerm& term) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+
+						const auto id = term.id;
+						return (id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
+									 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+					};
 
 					QueryTermSpan terms = data.terms_view_mut();
 					QueryTermSpan terms_all = terms.subspan(0, data.firstOr);
@@ -3500,6 +3509,8 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
+							if (isAdjunctDirectTerm(p))
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_all_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3522,6 +3533,8 @@ namespace gaia {
 						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
+							if (p.src == EntityBad && hasAdjunctTerms)
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_or_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3543,6 +3556,8 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
+							if (isAdjunctDirectTerm(p))
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_not_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3844,7 +3859,8 @@ namespace gaia {
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
-					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms())) {
+					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms() ||
+																						queryCtx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms))) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Seed_All;
 						(void)add_op(GAIA_MOV(op));

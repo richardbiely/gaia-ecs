@@ -29524,6 +29524,13 @@ namespace gaia {
 		class World;
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
+		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
+		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
+		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
+		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
+		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -29892,6 +29899,7 @@ namespace gaia {
 				DependencyHasSort = 0x40,
 				DependencyHasGroup = 0x80,
 				DependencyHasTraversalTerms = 0x100,
+				DependencyHasAdjunctTerms = 0x200,
 			};
 
 			struct Data {
@@ -30068,6 +30076,7 @@ namespace gaia {
 					bool hasVariableTerms = false;
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
+					bool hasAdjunctTerms = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 					data.deps.clear();
@@ -30081,6 +30090,20 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						const bool isAdjunctTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
+								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
+						hasAdjunctTerms |= isAdjunctTerm;
+					}
+
+					GAIA_FOR(cnt) {
+						const auto& term = terms[i];
+						const auto id = term.id;
+						const bool isAdjunctTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
+								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &= term.op == QueryOpKind::All && term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
@@ -30103,6 +30126,18 @@ namespace gaia {
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
 							data.deps.add(DependencyHasVariableTerms);
+							isComplex = true;
+							continue;
+						}
+
+						if (isAdjunctTerm) {
+							data.deps.add(DependencyHasAdjunctTerms);
+							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
+								data.deps.add_rel(entity_from_id(*w, id.id()));
+							continue;
+						}
+
+						if (hasAdjunctTerms && term.op == QueryOpKind::Or) {
 							isComplex = true;
 							continue;
 						}
@@ -30171,7 +30206,7 @@ namespace gaia {
 
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
-					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
+					else if (!hasAdjunctTerms && data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
 						data.cachePolicy = CachePolicy::Immediate;
 					else
 						data.cachePolicy = CachePolicy::Lazy;
@@ -34647,6 +34682,15 @@ namespace gaia {
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
 					const auto& world = *queryCtx.w;
+					const bool hasAdjunctTerms = data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+					auto isAdjunctDirectTerm = [&](const QueryTerm& term) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+
+						const auto id = term.id;
+						return (id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
+									 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+					};
 
 					QueryTermSpan terms = data.terms_view_mut();
 					QueryTermSpan terms_all = terms.subspan(0, data.firstOr);
@@ -34661,6 +34705,8 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
+							if (isAdjunctDirectTerm(p))
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_all_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -34683,6 +34729,8 @@ namespace gaia {
 						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
+							if (p.src == EntityBad && hasAdjunctTerms)
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_or_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -34704,6 +34752,8 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
+							if (isAdjunctDirectTerm(p))
+								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_not_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -35005,7 +35055,8 @@ namespace gaia {
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
-					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms())) {
+					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms() ||
+																						queryCtx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms))) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Seed_All;
 						(void)add_op(GAIA_MOV(op));
@@ -36455,6 +36506,11 @@ namespace gaia {
 
 			GAIA_NODISCARD bool has_filters() const {
 				return m_plan.ctx.data.changedCnt > 0;
+			}
+
+			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
+			GAIA_NODISCARD bool has_entity_filter_terms() const {
+				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
 			template <typename... T>
@@ -38930,7 +38986,15 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					auto& queryInfo = fetch();
+					run_query_on_chunk(queryInfo, it, func, types);
+				}
+
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void run_query_on_chunk(
+						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					const auto cnt = it.size();
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
@@ -38944,12 +39008,32 @@ namespace gaia {
 						// Translates to:
 						//		GAIA_FOR(0, cnt) func(p[i], v[i]);
 
-						GAIA_FOR(cnt) {
-							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+						if (!hasEntityFilters) {
+							GAIA_FOR(cnt) {
+								func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+							}
+						} else {
+							const auto entities = it.template view<Entity>();
+							GAIA_FOR(cnt) {
+								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									continue;
+								func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+							}
 						}
 					} else {
 						// No functor parameters. Do an empty loop.
-						GAIA_FOR(cnt) func();
+						if (!hasEntityFilters) {
+							GAIA_FOR(cnt) {
+								func();
+							}
+						} else {
+							const auto entities = it.template view<Entity>();
+							GAIA_FOR(cnt) {
+								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									continue;
+								func();
+							}
+						}
 					}
 				}
 
@@ -38979,7 +39063,7 @@ namespace gaia {
 
 					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(it, func, InputArgs{});
+						run_query_on_chunk(queryInfo, it, func, InputArgs{});
 					});
 				}
 
@@ -39021,9 +39105,256 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				GAIA_NODISCARD static bool is_adjunct_direct_term(const World& world, const QueryTerm& term) {
+					if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						return false;
+
+					const auto id = term.id;
+					return (id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
+								 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+				}
+
+				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
+					if (!queryInfo.has_entity_filter_terms())
+						return false;
+
+					const auto& ctxData = queryInfo.ctx().data;
+					if (ctxData.sortByFunc != nullptr || ctxData.groupBy != EntityBad)
+						return false;
+
+					bool hasPositiveTerm = false;
+					for (const auto& term: ctxData.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+
+						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
+							return false;
+
+						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or)
+							hasPositiveTerm = true;
+					}
+
+					return hasPositiveTerm;
+				}
+
+				struct DirectEntitySeedInfo {
+					Entity seededAllTerm = EntityBad;
+					bool seededFromAll = false;
+					bool seededFromOr = false;
+				};
+
+				GAIA_NODISCARD static bool match_direct_entity_terms(
+						const World& world, Entity entity, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
+					bool hasOrTerms = false;
+					bool anyOrMatched = false;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (seedInfo.seededFromAll && term.op == QueryOpKind::All && term.id == seedInfo.seededAllTerm)
+							continue;
+						if (seedInfo.seededFromOr && term.op == QueryOpKind::Or)
+							continue;
+
+						const bool present = world_has_entity_term(world, entity, term.id);
+						switch (term.op) {
+							case QueryOpKind::All:
+								if (!present)
+									return false;
+								break;
+							case QueryOpKind::Or:
+								hasOrTerms = true;
+								anyOrMatched |= present;
+								break;
+							case QueryOpKind::Not:
+								if (present)
+									return false;
+								break;
+							case QueryOpKind::Any:
+							case QueryOpKind::Count:
+								break;
+						}
+					}
+
+					return !hasOrTerms || anyOrMatched;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD static bool match_direct_entity_constraints(const World& world, Entity entity) {
+					if constexpr (std::is_same_v<TIter, Iter>)
+						return world_entity_enabled(world, entity);
+					else if constexpr (std::is_same_v<TIter, IterDisabled>)
+						return !world_entity_enabled(world, entity);
+					else
+						return true;
+				}
+
+				GAIA_NODISCARD static bool can_use_archetype_bucket_count(
+						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
+					if (!seedInfo.seededFromAll)
+						return false;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+						if (term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
+							continue;
+						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Not)
+							return false;
+						if (is_adjunct_direct_term(world, term))
+							return false;
+					}
+
+					return true;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD static uint32_t count_direct_entity_seed_by_archetype(
+						const World& world, const QueryInfo& queryInfo, const cnt::darray<Entity>& seedEntities,
+						const DirectEntitySeedInfo& seedInfo) {
+					thread_local cnt::darray<const Archetype*> s_archetypes;
+					thread_local cnt::darray<Entity> s_representativeEntities;
+					thread_local cnt::darray<uint32_t> s_archetypeEntityCounts;
+					s_archetypes.clear();
+					s_representativeEntities.clear();
+					s_archetypeEntityCounts.clear();
+
+					for (const auto entity: seedEntities) {
+						if (!match_direct_entity_constraints<TIter>(world, entity))
+							continue;
+
+						const auto* pArchetype = world_entity_archetype(world, entity);
+						const auto idx = core::get_index(s_archetypes, pArchetype);
+						if (idx == BadIndex) {
+							s_archetypes.push_back(pArchetype);
+							s_representativeEntities.push_back(entity);
+							s_archetypeEntityCounts.push_back(1);
+						} else {
+							++s_archetypeEntityCounts[idx];
+						}
+					}
+
+					uint32_t cnt = 0;
+					const auto archetypeCnt = (uint32_t)s_archetypes.size();
+					GAIA_FOR(archetypeCnt) {
+						const auto entity = s_representativeEntities[i];
+						bool matched = true;
+						for (const auto& term: queryInfo.ctx().data.terms_view()) {
+							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+								continue;
+							if (term.id == seedInfo.seededAllTerm && term.op == QueryOpKind::All)
+								continue;
+
+							const bool present = world_has_entity_term(world, entity, term.id);
+							if (term.op == QueryOpKind::All && !present) {
+								matched = false;
+								break;
+							}
+							if (term.op == QueryOpKind::Not && present) {
+								matched = false;
+								break;
+							}
+						}
+
+						if (matched)
+							cnt += s_archetypeEntityCounts[i];
+					}
+
+					return cnt;
+				}
+
+				static DirectEntitySeedInfo
+				build_direct_entity_seed(const World& world, const QueryInfo& queryInfo, cnt::darray<Entity>& out) {
+					out.clear();
+					DirectEntitySeedInfo seedInfo{};
+
+					Entity bestAllTerm = EntityBad;
+					uint32_t bestAllTermCount = UINT32_MAX;
+					bool hasAllTerms = false;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (term.op != QueryOpKind::All)
+							continue;
+
+						hasAllTerms = true;
+						const auto cnt = world_count_direct_term_entities(world, term.id);
+						if (cnt < bestAllTermCount) {
+							bestAllTermCount = cnt;
+							bestAllTerm = term.id;
+						}
+					}
+
+					if (hasAllTerms) {
+						if (bestAllTerm != EntityBad) {
+							world_collect_direct_term_entities(world, bestAllTerm, out);
+							seedInfo.seededFromAll = true;
+							seedInfo.seededAllTerm = bestAllTerm;
+						}
+						return seedInfo;
+					}
+
+					thread_local cnt::darray<uint32_t> s_seenEntities;
+					thread_local uint32_t s_seenVersion = 1;
+					thread_local cnt::darray<Entity> s_tmpEntities;
+					update_version(s_seenVersion);
+					if (s_seenVersion == 0) {
+						s_seenVersion = 1;
+						core::fill(s_seenEntities.begin(), s_seenEntities.end(), 0);
+					}
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (term.op != QueryOpKind::Or)
+							continue;
+
+						s_tmpEntities.clear();
+						world_collect_direct_term_entities(world, term.id, s_tmpEntities);
+						for (const auto entity: s_tmpEntities) {
+							const auto entityId = (uint32_t)entity.id();
+							if (entityId >= s_seenEntities.size()) {
+								const auto doubledSize = (uint32_t)s_seenEntities.size() * 2U;
+								const auto minSize = doubledSize > 64U ? doubledSize : 64U;
+								const auto newSize = (entityId + 1U) > minSize ? (entityId + 1U) : minSize;
+								const auto oldSize = (uint32_t)s_seenEntities.size();
+								s_seenEntities.resize(newSize);
+								for (uint32_t j = oldSize; j < newSize; ++j)
+									s_seenEntities[j] = 0;
+							}
+
+							if (s_seenEntities[entityId] == s_seenVersion)
+								continue;
+							s_seenEntities[entityId] = s_seenVersion;
+							out.push_back(entity);
+						}
+					}
+
+					seedInfo.seededFromOr = true;
+					return seedInfo;
+				}
+
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
-					for (auto* pArchetype: queryInfo) {
+					if constexpr (!UseFilters) {
+						if (can_use_direct_entity_seed_eval(queryInfo)) {
+							thread_local cnt::darray<Entity> s_seedEntities;
+							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, s_seedEntities);
+
+							for (const auto entity: s_seedEntities) {
+								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
+									continue;
+								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
+									return false;
+							}
+
+							return true;
+						}
+					}
+
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					for (const auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -39037,9 +39368,18 @@ namespace gaia {
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
 							if constexpr (UseFilters)
-								return it.size() > 0 && match_filters(*pChunk, queryInfo);
-							else
+								if (it.size() == 0 || !match_filters(*pChunk, queryInfo))
+									return false;
+							if (!hasEntityFilters)
 								return it.size() > 0;
+
+							const auto entities = it.template view<Entity>();
+							const auto cnt = it.size();
+							GAIA_FOR(cnt) {
+								if (match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									return true;
+							}
+							return false;
 						});
 
 						if (isNotEmpty)
@@ -39049,13 +39389,75 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD static bool match_entity_filters(const World& world, Entity entity, const QueryInfo& queryInfo) {
+					bool hasOrTerms = false;
+					bool anyOrMatched = false;
+					const bool hasAdjunctTerms = queryInfo.has_entity_filter_terms();
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+
+						const auto id = term.id;
+						const bool isAdjunctTerm =
+								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
+								(!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+						const bool needsEntityFilter = isAdjunctTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
+						if (!needsEntityFilter)
+							continue;
+
+						const bool present = world_has_entity_term(world, entity, id);
+						switch (term.op) {
+							case QueryOpKind::All:
+								if (!present)
+									return false;
+								break;
+							case QueryOpKind::Or:
+								hasOrTerms = true;
+								anyOrMatched |= present;
+								break;
+							case QueryOpKind::Not:
+								if (present)
+									return false;
+								break;
+							case QueryOpKind::Any:
+							case QueryOpKind::Count:
+								break;
+						}
+					}
+
+					return !hasOrTerms || anyOrMatched;
+				}
+
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
+					if constexpr (!UseFilters) {
+						if (can_use_direct_entity_seed_eval(queryInfo)) {
+							thread_local cnt::darray<Entity> s_seedEntities;
+							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, s_seedEntities);
+
+							if (can_use_archetype_bucket_count(*queryInfo.world(), queryInfo, seedInfo))
+								return count_direct_entity_seed_by_archetype<TIter>(
+										*queryInfo.world(), queryInfo, s_seedEntities, seedInfo);
+
+							uint32_t cnt = 0;
+							for (const auto entity: s_seedEntities) {
+								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
+									continue;
+								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
+									++cnt;
+							}
+
+							return cnt;
+						}
+					}
+
 					uint32_t cnt = 0;
 					TIter it;
 					it.set_world(queryInfo.world());
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
-					for (auto* pArchetype: queryInfo) {
+					for (const auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
 							continue;
 
@@ -39080,6 +39482,15 @@ namespace gaia {
 									continue;
 							}
 
+							if (hasEntityFilters) {
+								const auto entities = it.template view<Entity>();
+								GAIA_FOR(entityCnt) {
+									if (match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+										++cnt;
+								}
+								continue;
+							}
+
 							// Entity count
 							cnt += entityCnt;
 						}
@@ -39093,6 +39504,7 @@ namespace gaia {
 					using ContainerItemType = typename ContainerOut::value_type;
 					TIter it;
 					it.set_world(queryInfo.world());
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (auto* pArchetype: queryInfo) {
 						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
@@ -39120,10 +39532,21 @@ namespace gaia {
 							}
 
 							const auto dataView = it.template view<ContainerItemType>();
-							GAIA_FOR(cnt) {
-								const auto idx = it.template acc_index<ContainerItemType>(i);
-								auto tmp = dataView[idx];
-								outArray.push_back(tmp);
+							if (!hasEntityFilters) {
+								GAIA_FOR(cnt) {
+									const auto idx = it.template acc_index<ContainerItemType>(i);
+									auto tmp = dataView[idx];
+									outArray.push_back(tmp);
+								}
+							} else {
+								const auto entities = it.template view<Entity>();
+								GAIA_FOR(cnt) {
+									if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+										continue;
+									const auto idx = it.template acc_index<ContainerItemType>(i);
+									auto tmp = dataView[idx];
+									outArray.push_back(tmp);
+								}
 							}
 						}
 					}
@@ -39877,6 +40300,17 @@ namespace gaia {
 				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						switch (constraints) {
+							case Constraints::EnabledOnly:
+								return empty_inter<false, Iter>(queryInfo);
+							case Constraints::DisabledOnly:
+								return empty_inter<false, IterDisabled>(queryInfo);
+							case Constraints::AcceptAll:
+								return empty_inter<false, IterAll>(queryInfo);
+						}
+					}
+
 					match_all(queryInfo);
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -39910,6 +40344,17 @@ namespace gaia {
 				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						switch (constraints) {
+							case Constraints::EnabledOnly:
+								return count_inter<false, Iter>(queryInfo);
+							case Constraints::DisabledOnly:
+								return count_inter<false, IterDisabled>(queryInfo);
+							case Constraints::AcceptAll:
+								return count_inter<false, IterAll>(queryInfo);
+						}
+					}
+
 					match_all(queryInfo);
 
 					uint32_t entCnt = 0;
@@ -39950,7 +40395,7 @@ namespace gaia {
 				//! \param constraints QueryImpl constraints
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
-					const auto entCnt = count();
+					const auto entCnt = count(constraints);
 					if (entCnt == 0)
 						return;
 
@@ -40446,6 +40891,8 @@ namespace gaia {
 				void* pStore = nullptr;
 				void (*func_del)(void*, Entity) = nullptr;
 				bool (*func_has)(const void*, Entity) = nullptr;
+				uint32_t (*func_count)(const void*) = nullptr;
+				void (*func_collect_entities)(const void*, cnt::darray<Entity>&) = nullptr;
 				void (*func_clear_store)(void*) = nullptr;
 				void (*func_del_store)(void*) = nullptr;
 			};
@@ -40489,6 +40936,16 @@ namespace gaia {
 					return data.has(sid(entity));
 				}
 
+				uint32_t count() const {
+					return (uint32_t)data.size();
+				}
+
+				void collect_entities(cnt::darray<Entity>& out) const {
+					out.reserve(out.size() + (uint32_t)data.size());
+					for (const auto& item: data)
+						out.push_back(item.entity);
+				}
+
 				void clear_store() {
 					data.clear();
 				}
@@ -40503,6 +40960,12 @@ namespace gaia {
 						},
 						[](const void* pStoreRaw, Entity entity) {
 							return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
+						},
+						[](const void* pStoreRaw) {
+							return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->count();
+						},
+						[](const void* pStoreRaw, cnt::darray<Entity>& out) {
+							static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
 						},
 						[](void* pStoreRaw) {
 							static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
@@ -43958,6 +44421,102 @@ namespace gaia {
 							if (!func(entities[i]))
 								return;
 						}
+					}
+				}
+			}
+
+			//! Counts entities matching a direct term using the narrowest available store/index.
+			//! This is used by direct non-fragmenting query fast paths to avoid world-wide row filtering.
+			GAIA_NODISCARD uint32_t count_direct_term_entities(Entity term) const {
+				if (term == EntityBad)
+					return 0;
+
+				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
+					const auto relation = entity_from_id(*this, term.id());
+					const auto* pStore = exclusive_adjunct_store(relation);
+					if (pStore == nullptr)
+						return 0;
+
+					if (is_wildcard(term.gen()))
+						return pStore->srcToTgtCnt;
+
+					const auto* pSources = exclusive_adjunct_sources(*pStore, entity_from_id(*this, term.gen()));
+					return pSources != nullptr ? (uint32_t)pSources->size() : 0;
+				}
+
+				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
+					return it != m_sparseComponentsByComp.end() ? it->second.func_count(it->second.pStore) : 0;
+				}
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
+				if (it == m_entityToArchetypeMap.end())
+					return 0;
+
+				uint32_t cnt = 0;
+				for (const auto* pArchetype: it->second) {
+					if (pArchetype->is_req_del())
+						continue;
+					for (const auto* pChunk: pArchetype->chunks())
+						cnt += pChunk->size();
+				}
+
+				return cnt;
+			}
+
+			//! Appends entities matching a direct term using the narrowest available store/index.
+			void collect_direct_term_entities(Entity term, cnt::darray<Entity>& out) const {
+				if (term == EntityBad)
+					return;
+
+				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
+					const auto relation = entity_from_id(*this, term.id());
+					const auto* pStore = exclusive_adjunct_store(relation);
+					if (pStore == nullptr)
+						return;
+
+					if (is_wildcard(term.gen())) {
+						out.reserve(out.size() + pStore->srcToTgtCnt);
+						const auto cnt = (uint32_t)pStore->srcToTgt.size();
+						GAIA_FOR(cnt) {
+							const auto target = pStore->srcToTgt[i];
+							if (target == EntityBad)
+								continue;
+							out.push_back(EntityContainer::handle(m_recs.entities[i]));
+						}
+						return;
+					}
+
+					const auto* pSources = exclusive_adjunct_sources(*pStore, entity_from_id(*this, term.gen()));
+					if (pSources == nullptr)
+						return;
+
+					out.reserve(out.size() + (uint32_t)pSources->size());
+					for (auto source: *pSources)
+						out.push_back(source);
+					return;
+				}
+
+				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
+					if (it != m_sparseComponentsByComp.end())
+						it->second.func_collect_entities(it->second.pStore, out);
+					return;
+				}
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				for (const auto* pArchetype: it->second) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						out.reserve(out.size() + (uint32_t)entities.size());
+						GAIA_EACH(entities)
+						out.push_back(entities[i]);
 					}
 				}
 			}
@@ -49365,6 +49924,34 @@ namespace gaia {
 
 		inline void world_invalidate_sorted_queries(World& world) {
 			world.invalidate_sorted_queries();
+		}
+
+		inline bool world_has_entity_term(const World& world, Entity entity, Entity term) {
+			return world.has(entity, term);
+		}
+
+		inline bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation) {
+			return world.is_exclusive_dont_fragment_relation(relation);
+		}
+
+		inline bool world_is_sparse_dont_fragment_component(const World& world, Entity component) {
+			return world.is_sparse_dont_fragment_component(component);
+		}
+
+		inline uint32_t world_count_direct_term_entities(const World& world, Entity term) {
+			return world.count_direct_term_entities(term);
+		}
+
+		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
+			world.collect_direct_term_entities(term, out);
+		}
+
+		inline bool world_entity_enabled(const World& world, Entity entity) {
+			return world.enabled(entity);
+		}
+
+		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
+			return world.fetch(entity).pArchetype;
 		}
 	} // namespace ecs
 } // namespace gaia

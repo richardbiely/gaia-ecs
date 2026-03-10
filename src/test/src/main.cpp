@@ -16777,6 +16777,37 @@ TEST_CASE("Parent - breadth-first traversal uses adjunct relation") {
 	CHECK(traversed[1] == leaf);
 }
 
+TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
+	TestWorld twld;
+
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+
+	wld.add<Position>(eA);
+	wld.add<Position>(eB);
+	wld.add<Position>(eC);
+	wld.add<Scale>(eC);
+
+	wld.parent(eA, rootA);
+	wld.parent(eB, rootB);
+
+	auto qAll = wld.query().all<Position>().all(ecs::Pair(ecs::Parent, rootA));
+	CHECK(qAll.count() == 1);
+	expect_exact_entities(qAll, {eA});
+	CHECK(!qAll.empty());
+
+	auto qNo = wld.query().all<Position>().no(ecs::Pair(ecs::Parent, rootA));
+	CHECK(qNo.count() == 2);
+	expect_exact_entities(qNo, {eB, eC});
+
+	auto qOr = wld.query().or_(ecs::Pair(ecs::Parent, rootA)).or_<Scale>();
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {eA, eC});
+}
+
 TEST_CASE("Sparse DontFragment component uses adjunct storage") {
 	TestWorld twld;
 
@@ -16821,6 +16852,36 @@ TEST_CASE("Sparse DontFragment component supports runtime object add with value"
 	CHECK(pos.x == doctest::Approx(4.0f));
 	CHECK(pos.y == doctest::Approx(5.0f));
 	CHECK(pos.z == doctest::Approx(6.0f));
+}
+
+TEST_CASE("Sparse DontFragment component direct query terms are evaluated as entity filters") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+
+	wld.add<Position>(eA);
+	wld.add<Position>(eB);
+	wld.add<Position>(eC);
+	wld.add<Scale>(eC);
+
+	wld.add<PositionSparse>(eA);
+
+	auto qAll = wld.query().all<Position>().all<PositionSparse>();
+	CHECK(qAll.count() == 1);
+	expect_exact_entities(qAll, {eA});
+
+	auto qNo = wld.query().all<Position>().no<PositionSparse>();
+	CHECK(qNo.count() == 2);
+	expect_exact_entities(qNo, {eB, eC});
+
+	auto qOr = wld.query().or_<PositionSparse>().or_<Scale>();
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {eA, eC});
 }
 
 TEST_CASE("Sparse DontFragment runtime-registered component supports typed object access") {

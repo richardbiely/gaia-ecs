@@ -21,6 +21,13 @@ namespace gaia {
 		class World;
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
+		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
+		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
+		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
+		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
+		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -389,6 +396,7 @@ namespace gaia {
 				DependencyHasSort = 0x40,
 				DependencyHasGroup = 0x80,
 				DependencyHasTraversalTerms = 0x100,
+				DependencyHasAdjunctTerms = 0x200,
 			};
 
 			struct Data {
@@ -565,6 +573,7 @@ namespace gaia {
 					bool hasVariableTerms = false;
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
+					bool hasAdjunctTerms = false;
 					QueryEntityArray idsNoSrc;
 					uint32_t idsNoSrcCnt = 0;
 					data.deps.clear();
@@ -578,6 +587,20 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						const bool isAdjunctTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
+								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
+						hasAdjunctTerms |= isAdjunctTerm;
+					}
+
+					GAIA_FOR(cnt) {
+						const auto& term = terms[i];
+						const auto id = term.id;
+						const bool isAdjunctTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
+								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &= term.op == QueryOpKind::All && term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
@@ -600,6 +623,18 @@ namespace gaia {
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
 							data.deps.add(DependencyHasVariableTerms);
+							isComplex = true;
+							continue;
+						}
+
+						if (isAdjunctTerm) {
+							data.deps.add(DependencyHasAdjunctTerms);
+							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
+								data.deps.add_rel(entity_from_id(*w, id.id()));
+							continue;
+						}
+
+						if (hasAdjunctTerms && term.op == QueryOpKind::Or) {
 							isComplex = true;
 							continue;
 						}
@@ -668,7 +703,7 @@ namespace gaia {
 
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
-					else if (data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
+					else if (!hasAdjunctTerms && data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
 						data.cachePolicy = CachePolicy::Immediate;
 					else
 						data.cachePolicy = CachePolicy::Lazy;

@@ -1370,6 +1370,11 @@ namespace gaia {
 				return m_plan.ctx.data.changedCnt > 0;
 			}
 
+			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
+			GAIA_NODISCARD bool has_entity_filter_terms() const {
+				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+			}
+
 			template <typename... T>
 			GAIA_NODISCARD bool has_any() const {
 				return (has_inter<T>(QueryOpKind::Any) || ...);
