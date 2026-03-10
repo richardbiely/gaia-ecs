@@ -85,6 +85,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Targets](#targets)
     * [Relations](#relations)
     * [Cleanup rules](#cleanup-rules)
+    * [Hierarchies](#hierarchies)
   * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
     * [Command Merging rules](#command-merging-rules)
@@ -325,6 +326,80 @@ When adding components following restrictions apply:
 * Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storage types are introduced this restriction won't apply to them.
 * [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
 * Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
+
+#### Non-fragmenting and sparse components
+By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
+
+Gaia-ECS also supports non-fragmenting storage for sparse components and selected relationships.
+
+There are two separate choices here:
+
+- `GAIA_STORAGE(Sparse)`
+  - the component uses sparse storage
+- `ecs::DontFragment`
+  - adding or removing that component does not move the entity between archetypes
+
+What sparse storage means in practice:
+- the component is stored in a separate sparse store, not as a dense archetype column
+- looking it up by entity is natural and cheap
+- adding and removing it is usually much cheaper than moving an entity between archetypes
+- iterating it is usually less cache-friendly than iterating a normal fragmenting component in a chunk
+
+You usually use them together:
+- `Sparse` keeps the component cheap to add and remove
+- `DontFragment` keeps that churn out of archetypes
+
+Think of it like this:
+- regular fragmenting component = best for dense iteration
+- sparse non-fragmenting component = best for optional, state-like, frequently changing data
+
+To use a non-fragmenting sparse component:
+
+```cpp
+struct Cooldown {
+  // Cooldown will use sparse-storage
+  GAIA_STORAGE(Sparse);
+  float value = 0.0f;
+};
+
+ecs::World w;
+const auto& cooldown = w.add<Cooldown>();
+// Keep this component out of archetype identity.
+w.add(cooldown.entity, ecs::DontFragment);
+
+auto e = w.add();
+w.add<Cooldown>(e);
+w.set<Cooldown>(e).value = 1.5f;
+```
+
+When to use non-fragmenting sparse components:
+- the component is optional
+- the component is added and removed often
+- the component behaves more like state than core identity
+- you want to avoid creating many archetypes that differ only by that component
+
+When not to use them:
+- the component is present on most entities
+- the component is hot in tight iteration loops
+- you want the fastest possible structural query execution
+
+Tradeoff summary:
+- `Sparse + DontFragment` is typically much faster for per-entity add/remove
+- normal fragmenting components are still better for dense iteration
+- whole-entity cleanup is not necessarily faster, because sparse side storage still needs to be cleaned up
+
+Good examples:
+- cooldowns
+- temporary status effects
+- optional markers that change often
+- editor/runtime state that should not reshape archetypes
+
+Less suitable examples:
+- `Position`
+- `Velocity`
+- data that exists on most entities and is read every frame
+
+Use non-fragmenting sparse components for volatile or optional data. Keep core simulation data fragmenting unless profiling says otherwise.
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
@@ -1980,7 +2055,11 @@ w.add(rabbit, bomb_exploding_on_del);
 w.del(bomb_exploding_on_del); 
 ```
 
-A core entity `ChildOf` can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
+### Hierarchies
+
+Two different hierarchy styles are supported: `ChildOf` and `Parent`. If you are not sure which one to use, start with `Parent`.
+
+`ChildOf` entity can be used to express a physical hierarchy. It uses the (OnDeleteTarget, Delete) relationship so if the parent is deleted, all its children are deleted as well.
 
 ```cpp
 ecs::Entity parent = w.add();
@@ -1992,6 +2071,55 @@ w.add(child2, ecs::Pair(ecs::ChildOf, parent));
 // Deleting parent deletes child1 and child2 as well.
 w.del(parent); 
 ```
+
+Properties of `ChildOf`:
+- fragmenting hierarchy
+- part of archetype identity
+- good when parenthood is part of the entity's physical or structural identity
+- adding/removing it can fragment archetypes when many entities differ only by parent
+
+Use `ChildOf` only when you explicitly want physical ownership / structural hierarchy semantics:
+- parent deletion should own child lifetime
+- hierarchy membership should be part of archetype identity
+- the hierarchy is part of the entity's structural shape, not just organization
+- relatively shallow physical hierarchies where structural matching is the main priority
+
+For deep hierarchies, `Parent` is usually the better starting point. Its traversal path scales better and it avoids creating many archetypes that differ only by parent. `ChildOf` is still useful there if you explicitly need structural ownership semantics, but it is no longer the default recommendation.
+
+```cpp
+ecs::Entity root = w.add();
+ecs::Entity child = w.add();
+
+// Physical hierarchy. Fragmenting.
+w.add(child, ecs::Pair(ecs::ChildOf, root));
+
+ecs::Entity logicalRoot = w.add();
+ecs::Entity logicalChild = w.add();
+
+// Logical hierarchy. Non-fragmenting.
+w.add(logicalChild, ecs::Pair(ecs::Parent, logicalRoot));
+```
+
+Properites of `Parent`:
+- non-fragmenting hierarchy
+- stored outside archetypes
+- good for logical or organizational hierarchies where reducing archetype churn matters more than pure structural query speed
+- breadth-first traversal is typically better than `ChildOf`, but direct query terms over `Parent` are still less archetype-friendly than `ChildOf`
+
+Use `Parent` for:
+- prefab ownership
+- UI trees
+- editor hierarchies
+- logical grouping
+- cases where "same entity, different parent" should not create different archetypes
+- deep hierarchies where traversal cost and archetype fragmentation matter more than purely structural matching
+
+Pros and cons:
+
+| Hierarchy | Pros | Cons | Recommended use |
+|---|---|---|---|
+| `ChildOf` | Best when parenthood is part of structural identity and ownership | More archetype fragmentation, less suitable for deep or highly dynamic hierarchies | Physical/world hierarchy |
+| `Parent` | Better default for logical hierarchies, lower fragmentation, better suited to deep hierarchies | Less purely structural in query execution | Logical/editor/prefab/UI hierarchy |
 
 
 ## Unique components
