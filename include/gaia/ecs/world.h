@@ -85,6 +85,8 @@ namespace gaia {
 			friend CommandBufferMT;
 			friend void lock(World&);
 			friend void unlock(World&);
+			friend QueryMatchScratch& query_match_scratch_acquire(World&);
+			friend void query_match_scratch_release(World&);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -575,6 +577,11 @@ namespace gaia {
 			ComponentCache m_compCache;
 			//! Cache of queries
 			QueryCache m_queryCache;
+			//! Reentrant per-world scratch frames reused by QueryInfo while matching archetypes.
+			//! Each active match() acquires one frame so nested queries don't clobber outer scratch.
+			cnt::darray<QueryMatchScratch*> m_queryMatchScratchStack;
+			//! Number of currently acquired scratch frames.
+			uint32_t m_queryMatchScratchDepth = 0;
 			//! A map of [Query*, Buffer].
 			//! Contains serialization buffers used by queries during their initialization.
 			//! Kept here because it's only necessary for query initialization and would just
@@ -4488,6 +4495,10 @@ namespace gaia {
 				{
 					m_entityToArchetypeMap = {};
 					m_queryCache.clear();
+					for (auto* pScratch: m_queryMatchScratchStack)
+						delete pScratch;
+					m_queryMatchScratchStack = {};
+					m_queryMatchScratchDepth = 0;
 				}
 
 				// Clear entity names
@@ -7705,6 +7716,21 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline QueryMatchScratch& query_match_scratch_acquire(World& world) {
+			if (world.m_queryMatchScratchDepth == world.m_queryMatchScratchStack.size())
+				world.m_queryMatchScratchStack.push_back(new QueryMatchScratch());
+
+			auto& scratch = *world.m_queryMatchScratchStack[world.m_queryMatchScratchDepth++];
+			scratch.clear_temporary_matches();
+			return scratch;
+		}
+
+		inline void query_match_scratch_release(World& world) {
+			GAIA_ASSERT(world.m_queryMatchScratchDepth > 0);
+			auto& scratch = *world.m_queryMatchScratchStack[--world.m_queryMatchScratchDepth];
+			scratch.clear_temporary_matches();
 		}
 
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {

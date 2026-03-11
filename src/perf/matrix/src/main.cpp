@@ -1441,6 +1441,113 @@ void BM_QueryMatch_IsChain_32(picobench::state& state) {
 	BM_QueryMatch_IsChain<32>(state);
 }
 
+template <uint32_t ChainDepth>
+ecs::Entity create_is_fanout_fixture(ecs::World& w, uint32_t branches, bool attachPositionToLeavesOnly) {
+	const auto root = w.add();
+	GAIA_FOR(branches) {
+		auto curr = root;
+		for (uint32_t j = 0; j < ChainDepth; ++j) {
+			const auto next = w.add();
+			w.add(next, ecs::Pair(ecs::Is, curr));
+			if (!attachPositionToLeavesOnly || j + 1U == ChainDepth)
+				w.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+			curr = next;
+		}
+	}
+	return root;
+}
+
+template <uint32_t ChainDepth, bool Direct>
+void BM_Query_IsEach(picobench::state& state) {
+	const uint32_t branches = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
+	auto q = Direct ? w.query().all<Position>().is(root, ecs::QueryTermOptions{}.direct())
+									: w.query().all<Position>().is(root);
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		dont_optimize(sum);
+	}
+}
+
+template <uint32_t ChainDepth, bool Direct>
+void BM_System_Is(picobench::state& state) {
+	const uint32_t branches = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, false);
+	uint64_t sink = 0;
+
+	if constexpr (Direct) {
+		w.system()
+				.name("is_direct")
+				.all<Position>()
+				.is(root, ecs::QueryTermOptions{}.direct())
+				.mode(ecs::QueryExecType::Default)
+				.on_each([&sink](const Position& p) {
+					sink += (uint64_t)(p.x + p.y + p.z);
+				});
+	} else {
+		w.system()
+				.name("is_semantic")
+				.all<Position>()
+				.is(root)
+				.mode(ecs::QueryExecType::Default)
+				.on_each([&sink](const Position& p) {
+					sink += (uint64_t)(p.x + p.y + p.z);
+				});
+	}
+
+	for (uint32_t i = 0; i < 4; ++i)
+		w.update();
+
+	for (auto _: state) {
+		(void)_;
+		w.update();
+	}
+
+	dont_optimize(sink);
+}
+
+void BM_Query_IsEach_Semantic_D2(picobench::state& state) {
+	BM_Query_IsEach<2, false>(state);
+}
+
+void BM_Query_IsEach_Direct_D2(picobench::state& state) {
+	BM_Query_IsEach<2, true>(state);
+}
+
+void BM_Query_IsEach_Semantic_D8(picobench::state& state) {
+	BM_Query_IsEach<8, false>(state);
+}
+
+void BM_Query_IsEach_Direct_D8(picobench::state& state) {
+	BM_Query_IsEach<8, true>(state);
+}
+
+void BM_System_Is_Semantic_D2(picobench::state& state) {
+	BM_System_Is<2, false>(state);
+}
+
+void BM_System_Is_Direct_D2(picobench::state& state) {
+	BM_System_Is<2, true>(state);
+}
+
+void BM_System_Is_Semantic_D8(picobench::state& state) {
+	BM_System_Is<8, false>(state);
+}
+
+void BM_System_Is_Direct_D8(picobench::state& state) {
+	BM_System_Is<8, true>(state);
+}
+
 //! Benchmarks transitive target traversal over `Is` targets.
 template <uint32_t ChainDepth>
 void BM_World_AsTargetsTrav(picobench::state& state) {
@@ -3918,6 +4025,10 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_QueryMatch_IsChain_4).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d4");
 		PICOBENCH_REG(BM_QueryMatch_IsChain_8).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d8");
 		PICOBENCH_REG(BM_QueryMatch_IsChain_32).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d32");
+		PICOBENCH_REG(BM_Query_IsEach_Semantic_D2).PICO_SETTINGS_FOCUS().user_data(1024).label("query is each semantic d2");
+		PICOBENCH_REG(BM_Query_IsEach_Direct_D2).PICO_SETTINGS_FOCUS().user_data(1024).label("query is each direct d2");
+		PICOBENCH_REG(BM_Query_IsEach_Semantic_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("query is each semantic d8");
+		PICOBENCH_REG(BM_Query_IsEach_Direct_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("query is each direct d8");
 		PICOBENCH_REG(BM_Query_Variable_Source_Bound)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
@@ -4330,6 +4441,10 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_SUITE_REG("Systems (single-thread)");
 		PICOBENCH_REG(BM_SystemFrame_Serial_2).PICO_SETTINGS().user_data(NEntitiesMedium).label("serial, 2 systems");
 		PICOBENCH_REG(BM_SystemFrame_Serial_5).PICO_SETTINGS().user_data(NEntitiesMedium).label("serial, 5 systems");
+		PICOBENCH_REG(BM_System_Is_Semantic_D2).PICO_SETTINGS_FOCUS().user_data(1024).label("is semantic d2");
+		PICOBENCH_REG(BM_System_Is_Direct_D2).PICO_SETTINGS_FOCUS().user_data(1024).label("is direct d2");
+		PICOBENCH_REG(BM_System_Is_Semantic_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("is semantic d8");
+		PICOBENCH_REG(BM_System_Is_Direct_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("is direct d8");
 
 		PICOBENCH_SUITE_REG("Mixed frame");
 		PICOBENCH_REG(BM_MixedFrame_Churn).PICO_SETTINGS().user_data(NEntitiesFew).label("10K");

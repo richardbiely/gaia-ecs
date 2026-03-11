@@ -30,6 +30,24 @@ namespace gaia {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
+		struct QueryMatchScratch {
+			//! Temporary deduplicated set of archetypes matched during the current VM run.
+			cnt::set<const Archetype*> matchesSet;
+			//! Ordered list of matched archetypes emitted by the VM for the current run.
+			cnt::darr<const Archetype*> matchesArr;
+			//! O(1) dedup table keyed by world-local archetype ids.
+			cnt::sparse_storage<ArchetypeMatchStamp> matchStamps;
+
+			void clear_temporary_matches() {
+				matchesSet.clear();
+				matchesArr.clear();
+				matchStamps.clear();
+			}
+		};
+
+		GAIA_NODISCARD QueryMatchScratch& query_match_scratch_acquire(World& world);
+		void query_match_scratch_release(World& world);
+
 		struct QueryInfoCreationCtx {
 			QueryCtx* pQueryCtx;
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
@@ -652,38 +670,17 @@ namespace gaia {
 				return m_plan.ctx != other;
 			}
 
-			// Global temporary buffers for collecting archetypes that match a query.
-			// TODO: This means queries have to run from the main thread.
-			//       We could make these thread_local but that does not work on all platforms. Replace with per-world cachce.
-			static inline cnt::set<const Archetype*> s_tmpArchetypeMatchesSet;
-			static inline cnt::darr<const Archetype*> s_tmpArchetypeMatchesArr;
-			static inline cnt::sparse_storage<ArchetypeMatchStamp> s_tmpArchetypeMatchStamps;
-			static inline uint32_t s_tmpArchetypeMatchVersion = 0;
-
-			static uint32_t next_archetype_match_version() {
-				++s_tmpArchetypeMatchVersion;
-				if (s_tmpArchetypeMatchVersion != 0)
-					return s_tmpArchetypeMatchVersion;
-
-				// Overflow: drop stamps so the version value can be reused safely.
-				s_tmpArchetypeMatchStamps.clear();
-				s_tmpArchetypeMatchVersion = 1;
-				return s_tmpArchetypeMatchVersion;
-			}
-
 			struct CleanUpTmpArchetypeMatches {
-				CleanUpTmpArchetypeMatches() = default;
+				World& world;
+
+				explicit CleanUpTmpArchetypeMatches(World& world): world(world) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
 
 				~CleanUpTmpArchetypeMatches() {
-					// When the scope ends, we clear the arrays.
-					// Note, no memory is released. Allocated capacity remains unchanged
-					// because we do not want to kill time with allocating memory all the time.
-					s_tmpArchetypeMatchesSet.clear();
-					s_tmpArchetypeMatchesArr.clear();
+					query_match_scratch_release(world);
 				}
 			};
 
@@ -701,7 +698,9 @@ namespace gaia {
 					std::span<const Archetype*> allArchetypes,
 					// last matched archetype id
 					ArchetypeId archetypeLastId) {
-				CleanUpTmpArchetypeMatches autoCleanup;
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w);
 
 				auto& ctxData = m_plan.ctx.data;
 
@@ -749,10 +748,12 @@ namespace gaia {
 				// ctx.targetEntities = {};
 				ctx.allArchetypes = allArchetypes;
 				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap);
-				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
-				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
-				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesVersion = next_archetype_match_version();
+				ctx.pMatchesArr = &matchScratch.matchesArr;
+				ctx.pMatchesSet = &matchScratch.matchesSet;
+				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
+				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
+				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
+				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
@@ -790,7 +791,9 @@ namespace gaia {
 			//! \param targetEntities Entities related to the matched archetype
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
-				CleanUpTmpArchetypeMatches autoCleanup;
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w);
 
 				auto& ctxData = m_plan.ctx.data;
 
@@ -822,10 +825,12 @@ namespace gaia {
 				const auto* pArchetype = &archetype;
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
 				ctx.archetypeLookup = {};
-				ctx.pMatchesArr = &s_tmpArchetypeMatchesArr;
-				ctx.pMatchesSet = &s_tmpArchetypeMatchesSet;
-				ctx.pMatchesStampByArchetypeId = &s_tmpArchetypeMatchStamps;
-				ctx.matchesVersion = next_archetype_match_version();
+				ctx.pMatchesArr = &matchScratch.matchesArr;
+				ctx.pMatchesSet = &matchScratch.matchesSet;
+				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
+				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
+				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
+				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;

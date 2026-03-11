@@ -13565,6 +13565,80 @@ TEST_CASE("System - DependsOn is respected for semantic Is queries") {
 	CHECK(directObservedX == doctest::Approx(11.0f));
 }
 
+TEST_CASE("System - nested same-world Is query does not corrupt matcher scratch") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	wld.add<Position>(animal, {1, 0, 0});
+	wld.add<Position>(mammal, {2, 0, 0});
+	wld.add<Position>(rabbit, {3, 0, 0});
+
+	uint32_t outerHits = 0;
+	uint32_t nestedHits = 0;
+	float nestedSum = 0.0f;
+
+	wld.system().all<Position>().on_each([&](const Position&) {
+		++outerHits;
+
+		auto qNested = wld.query().all<Position>().is(animal);
+		qNested.each([&](const Position& pos) {
+			++nestedHits;
+			nestedSum += pos.x;
+		});
+	});
+
+	wld.update();
+
+	CHECK(outerHits == 3);
+	CHECK(nestedHits == 9);
+	CHECK(nestedSum == doctest::Approx(18.0f));
+}
+
+TEST_CASE("System - deep semantic Is survives prior direct Is rematch in another world") {
+	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
+		auto root = world.add();
+		for (uint32_t i = 0; i < branches; ++i) {
+			auto curr = root;
+			for (uint32_t j = 0; j < depth; ++j) {
+				auto next = world.add();
+				world.add(next, ecs::Pair(ecs::Is, curr));
+				world.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+				curr = next;
+			}
+		}
+		return root;
+	};
+
+	{
+		TestWorld twld;
+		auto root = make_is_fanout(wld, 1024, 8);
+		auto q = wld.query().all<Position>().is(root, ecs::QueryTermOptions{}.direct());
+		auto& qi = q.fetch();
+		q.match_all(qi);
+		CHECK(qi.cache_archetype_view().size() == 1);
+	}
+
+	{
+		TestWorld twld;
+		auto root = make_is_fanout(wld, 1024, 8);
+		uint64_t sum = 0;
+
+		wld.system().all<Position>().is(root).on_each([&](const Position& pos) {
+			sum += (uint64_t)(pos.x + pos.y + pos.z);
+		});
+
+		wld.update();
+
+		CHECK(sum == 8437760ULL);
+	}
+}
+
 TEST_CASE("System - deep hierarchy skips disabled subtrees while preserving local enabled bits") {
 	TestWorld twld;
 
