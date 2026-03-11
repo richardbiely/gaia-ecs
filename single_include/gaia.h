@@ -40366,6 +40366,12 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				QueryImpl& is(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
+					return all(Pair(Is, entity), options);
+				}
+
+				//------------------------------------------------
+
 				QueryImpl& all(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::All, entity, options);
 					return *this;

@@ -10284,14 +10284,30 @@ TEST_CASE("Query - direct Is query matches only direct stored edges") {
 	wld.add(mammal, ecs::Pair(ecs::Is, animal));
 	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
 
-	ecs::QueryTermOptions directOpts;
-	directOpts.direct();
-	auto q = wld.query().all(ecs::Pair(ecs::Is, animal), directOpts);
+	auto q = wld.query().all(ecs::Pair(ecs::Is, animal), ecs::QueryTermOptions{}.direct());
 	auto& info = q.fetch();
 	q.match_all(info);
 	CHECK(q.count() == 1);
 	expect_exact_entities(q, {mammal});
 	CHECK(info.cache_archetype_view().size() == 1);
+}
+
+TEST_CASE("Query - is sugar matches semantic and direct Is terms") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+
+	auto qSemantic = wld.query().is(animal);
+	CHECK(qSemantic.count() == 3);
+	expect_exact_entities(qSemantic, {animal, mammal, wolf});
+
+	auto qDirect = wld.query().is(animal, ecs::QueryTermOptions{}.direct());
+	CHECK(qDirect.count() == 1);
+	expect_exact_entities(qDirect, {mammal});
 }
 
 TEST_CASE("Query - cached direct Is query ignores transitive descendants") {

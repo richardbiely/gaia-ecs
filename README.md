@@ -1997,6 +1997,22 @@ q2.each([](ecs::Entity entity) {
 });
 ```
 
+There is also a shorter version available:
+
+```cpp
+// Iterate everything that is animal
+ecs::Query q = w.query().is(animal);
+q.each([](ecs::Entity entity) {
+  // entity = animal, rabbit
+});
+
+// Iterate everything that is animal but skip the "animal" itself
+ecs::Query q2 = w.query().is(animal).no(animal);
+q2.each([](ecs::Entity entity) {
+  // entity = rabbit
+});
+```
+
 If you need only the exact stored edge, use the direct form instead of semantic matching.
 
 ```cpp
@@ -2010,7 +2026,7 @@ ecs::QueryTermOptions directOpts;
 directOpts.direct();
 
 // Match only entities with a directly stored Pair(Is, animal)
-ecs::Query q3 = w.query().all(Pair(ecs::Is, animal), directOpts);
+ecs::Query q3 = w.query().is(animal, directOpts);
 q3.each([](ecs::Entity entity) {
   // entity = rabbit
 });
