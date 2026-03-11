@@ -54,6 +54,10 @@ namespace gaia {
 		void as_targets_trav(const World& world, Entity relation, Func func);
 		template <typename Func>
 		bool as_targets_trav_if(const World& world, Entity relation, Func func);
+		template <typename Func>
+		void targets_trav(const World& world, Entity relation, Entity source, Func func);
+		template <typename Func>
+		bool targets_trav_if(const World& world, Entity relation, Entity source, Func func);
 		const cnt::darray<Entity>& targets_trav_cache(const World& world, Entity relation, Entity source);
 		template <typename Func>
 		void sources(const World& world, Entity relation, Entity target, Func func);

@@ -3681,11 +3681,33 @@ namespace gaia {
 					auto& bfsData = ensure_each_bfs_data();
 					auto& world = *m_storage.world();
 					const uint32_t relationVersion = world.rel_version(relation);
+					const uint32_t worldVersion = world.world_version();
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
+					const bool needsTraversalBarrierState = constraints == Constraints::EnabledOnly && world.valid(relation);
+					auto survives_disabled_barrier = [&](Entity entity) {
+						if (!needsTraversalBarrierState)
+							return true;
+
+						auto curr = entity;
+						constexpr uint32_t MaxTraversalDepth = 2048;
+						GAIA_FOR(MaxTraversalDepth) {
+							const auto next = world.target(curr, relation);
+							if (next == EntityBad || next == curr)
+								break;
+							if (!world.enabled(next))
+								return false;
+							curr = next;
+						}
+
+						return true;
+					};
+
 					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion && !queryInfo.has_filters()) {
+							bfsData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
+							!queryInfo.has_filters()) {
 						auto& chunks = bfsData.scratchChunks;
 						chunks.clear();
 
@@ -3727,8 +3749,24 @@ namespace gaia {
 					if (entities.empty())
 						return;
 
+					if (needsTraversalBarrierState) {
+						uint32_t writeIdx = 0;
+						const auto cnt = (uint32_t)entities.size();
+						GAIA_FOR(cnt) {
+							const auto entity = entities[i];
+							if (!survives_disabled_barrier(entity))
+								continue;
+							entities[writeIdx++] = entity;
+						}
+						entities.resize(writeIdx);
+						if (entities.empty())
+							return;
+					}
+
 					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion && entities.size() == bfsData.cachedInput.size()) {
+							bfsData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
+							entities.size() == bfsData.cachedInput.size()) {
 						bool sameInput = true;
 						for (uint32_t i = 0; i < (uint32_t)entities.size(); ++i) {
 							if (entities[i] != bfsData.cachedInput[i]) {

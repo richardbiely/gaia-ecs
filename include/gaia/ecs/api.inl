@@ -89,6 +89,16 @@ namespace gaia {
 			return world.as_targets_trav_if(relation, func);
 		}
 
+		template <typename Func>
+		inline void targets_trav(const World& world, Entity relation, Entity source, Func func) {
+			world.targets_trav(relation, source, func);
+		}
+
+		template <typename Func>
+		inline bool targets_trav_if(const World& world, Entity relation, Entity source, Func func) {
+			return world.targets_trav_if(relation, source, func);
+		}
+
 		GAIA_NODISCARD inline const cnt::darray<Entity>&
 		targets_trav_cache(const World& world, Entity relation, Entity source) {
 			return world.targets_trav_cache(relation, source);

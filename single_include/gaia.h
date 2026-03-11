@@ -23439,6 +23439,10 @@ namespace gaia {
 		void as_targets_trav(const World& world, Entity relation, Func func);
 		template <typename Func>
 		bool as_targets_trav_if(const World& world, Entity relation, Func func);
+		template <typename Func>
+		void targets_trav(const World& world, Entity relation, Entity source, Func func);
+		template <typename Func>
+		bool targets_trav_if(const World& world, Entity relation, Entity source, Func func);
 		const cnt::darray<Entity>& targets_trav_cache(const World& world, Entity relation, Entity source);
 		template <typename Func>
 		void sources(const World& world, Entity relation, Entity target, Func func);
@@ -40964,11 +40968,33 @@ namespace gaia {
 					auto& bfsData = ensure_each_bfs_data();
 					auto& world = *m_storage.world();
 					const uint32_t relationVersion = world.rel_version(relation);
+					const uint32_t worldVersion = world.world_version();
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
+					const bool needsTraversalBarrierState = constraints == Constraints::EnabledOnly && world.valid(relation);
+					auto survives_disabled_barrier = [&](Entity entity) {
+						if (!needsTraversalBarrierState)
+							return true;
+
+						auto curr = entity;
+						constexpr uint32_t MaxTraversalDepth = 2048;
+						GAIA_FOR(MaxTraversalDepth) {
+							const auto next = world.target(curr, relation);
+							if (next == EntityBad || next == curr)
+								break;
+							if (!world.enabled(next))
+								return false;
+							curr = next;
+						}
+
+						return true;
+					};
+
 					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion && !queryInfo.has_filters()) {
+							bfsData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
+							!queryInfo.has_filters()) {
 						auto& chunks = bfsData.scratchChunks;
 						chunks.clear();
 
@@ -41010,8 +41036,24 @@ namespace gaia {
 					if (entities.empty())
 						return;
 
+					if (needsTraversalBarrierState) {
+						uint32_t writeIdx = 0;
+						const auto cnt = (uint32_t)entities.size();
+						GAIA_FOR(cnt) {
+							const auto entity = entities[i];
+							if (!survives_disabled_barrier(entity))
+								continue;
+							entities[writeIdx++] = entity;
+						}
+						entities.resize(writeIdx);
+						if (entities.empty())
+							return;
+					}
+
 					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion && entities.size() == bfsData.cachedInput.size()) {
+							bfsData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
+							entities.size() == bfsData.cachedInput.size()) {
 						bool sameInput = true;
 						for (uint32_t i = 0; i < (uint32_t)entities.size(); ++i) {
 							if (entities[i] != bfsData.cachedInput[i]) {
@@ -44720,6 +44762,54 @@ namespace gaia {
 				return cache;
 			}
 
+			//! Traverses relationship targets upwards starting from @a source.
+			//! Disabled entities act as traversal barriers and are not yielded.
+			template <typename Func>
+			void targets_trav(Entity relation, Entity source, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(source))
+					return;
+
+				auto curr = source;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					if (!enabled(next))
+						break;
+
+					func(next);
+					curr = next;
+				}
+			}
+
+			//! Traverses relationship targets upwards starting from @a source.
+			//! Disabled entities act as traversal barriers and are not yielded.
+			//! \return True if traversal was stopped by @a func, false otherwise.
+			template <typename Func>
+			GAIA_NODISCARD bool targets_trav_if(Entity relation, Entity source, Func func) const {
+				GAIA_ASSERT(valid(relation));
+				if (!valid(relation) || !valid(source))
+					return false;
+
+				auto curr = source;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					if (!enabled(next))
+						break;
+
+					if (!func(next))
+						return true;
+					curr = next;
+				}
+
+				return false;
+			}
+
 			//! Returns the cached unlimited breadth-first descendant traversal for `(relation, rootTarget)`.
 			//! The cache excludes the root target itself and is cleared whenever a pair edge changes.
 			GAIA_NODISCARD const cnt::darray<Entity>& sources_bfs_trav_cache(Entity relation, Entity rootTarget) const {
@@ -45277,6 +45367,8 @@ namespace gaia {
 					});
 
 					for (auto child: children) {
+						if (!enabled(child))
+							continue;
 						func(child);
 						queue.push_back(child);
 					}
@@ -45320,6 +45412,8 @@ namespace gaia {
 					});
 
 					for (auto child: children) {
+						if (!enabled(child))
+							continue;
 						if (func(child))
 							return true;
 
@@ -45452,7 +45546,7 @@ namespace gaia {
 
 			//! Checks if an entity is enabled.
 			//! \param ec Entity container of the entity
-			//! \return True it the entity is enabled. False otherwise.
+			//! \return True if the entity is enabled. False otherwise.
 			GAIA_NODISCARD bool enabled(const EntityContainer& ec) const {
 				const bool entityStateInContainer = !ec.data.dis;
 #if GAIA_ASSERT_ENABLED
@@ -45471,6 +45565,30 @@ namespace gaia {
 
 				const auto& ec = m_recs.entities[entity.id()];
 				return enabled(ec);
+			}
+
+			//! Checks whether an entity is enabled together with all of its ancestors reachable through @a relation.
+			//! This keeps direct enabled state separate from hierarchy-aware gating.
+			GAIA_NODISCARD bool enabled_hierarchy(Entity entity, Entity relation) const {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(relation));
+				if (!valid(entity) || !valid(relation))
+					return false;
+				if (!enabled(entity))
+					return false;
+
+				auto curr = entity;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					if (!enabled(next))
+						return false;
+					curr = next;
+				}
+
+				return true;
 			}
 
 			//----------------------------------------------------------------------
@@ -48718,6 +48836,16 @@ namespace gaia {
 			return world.as_targets_trav_if(relation, func);
 		}
 
+		template <typename Func>
+		inline void targets_trav(const World& world, Entity relation, Entity source, Func func) {
+			world.targets_trav(relation, source, func);
+		}
+
+		template <typename Func>
+		inline bool targets_trav_if(const World& world, Entity relation, Entity source, Func func) {
+			return world.targets_trav_if(relation, source, func);
+		}
+
 		GAIA_NODISCARD inline const cnt::darray<Entity>&
 		targets_trav_cache(const World& world, Entity relation, Entity source) {
 			return world.targets_trav_cache(relation, source);
@@ -50607,6 +50735,8 @@ namespace gaia {
 		inline void World::systems_run() {
 			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
 				if (!valid(systemEntity) || !has(systemEntity, System))
+					return;
+				if (!enabled_hierarchy(systemEntity, ChildOf))
 					return;
 
 				auto ss = acc_mut(systemEntity);

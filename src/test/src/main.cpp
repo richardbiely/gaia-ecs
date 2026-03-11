@@ -7892,6 +7892,52 @@ TEST_CASE("Child hierarchy traversal") {
 		CHECK(bfs[2] == c00);
 		CHECK(bfs[3] == c10);
 	}
+
+	{
+		wld.enable(c0, false);
+
+		cnt::darr<ecs::Entity> bfs;
+		wld.children_bfs(root, [&bfs](ecs::Entity child) {
+			bfs.push_back(child);
+		});
+
+		CHECK(bfs.size() == 2);
+		CHECK(bfs[0] == c1);
+		CHECK(bfs[1] == c10);
+	}
+}
+
+TEST_CASE("Upward traversal stops at disabled ancestors") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto parent = wld.add();
+	auto child = wld.add();
+
+	wld.child(parent, root);
+	wld.child(child, parent);
+
+	{
+		cnt::darr<ecs::Entity> up;
+		wld.targets_trav(ecs::ChildOf, child, [&up](ecs::Entity entity) {
+			up.push_back(entity);
+		});
+
+		CHECK(up.size() == 2);
+		CHECK(up[0] == parent);
+		CHECK(up[1] == root);
+	}
+
+	wld.enable(parent, false);
+
+	{
+		cnt::darr<ecs::Entity> up;
+		wld.targets_trav(ecs::ChildOf, child, [&up](ecs::Entity entity) {
+			up.push_back(entity);
+		});
+
+		CHECK(up.empty());
+	}
 }
 
 TEST_CASE("Query entity each bfs") {
@@ -7952,6 +7998,56 @@ TEST_CASE("Query entity each bfs") {
 	CHECK(ents[1] == a);
 	CHECK(ents[2] == c);
 	CHECK(ents[3] == b);
+}
+
+TEST_CASE("Query entity each bfs prunes disabled ancestor barriers") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto child = wld.add();
+	auto grandChild = wld.add();
+
+	wld.child(child, root);
+	wld.child(grandChild, child);
+
+	wld.add<Position>(child, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	auto q = wld.query().all<Position>();
+
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.size() == 2);
+		CHECK(ents[0] == child);
+		CHECK(ents[1] == grandChild);
+	}
+
+	// Disable a non-matching parent/root. The subtree should be pruned even though the
+	// query input set of Position entities would otherwise stay the same.
+	wld.enable(root, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+	}
+
+	wld.enable(root, true);
+	wld.enable(child, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+	}
 }
 
 template <typename TQuery>
@@ -13390,6 +13486,203 @@ TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
 	CHECK(semanticX == doctest::Approx(7.0f));
 	CHECK(directHits == 1);
 	CHECK(directX == doctest::Approx(1.0f));
+}
+
+TEST_CASE("System - Iter is query preserves term-indexed component access") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add<Position>(mammal, {1, 0, 0});
+	wld.add<Position>(rabbit, {2, 0, 0});
+
+	float semanticX = 0.0f;
+	float directX = 0.0f;
+
+	auto sysSemantic = wld.system().is(animal).all<Position>().on_each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>(1);
+		GAIA_EACH(it) {
+			semanticX += posView[i].x;
+		}
+	});
+
+	auto sysDirect =
+			wld.system().is(animal, ecs::QueryTermOptions{}.direct()).all<Position>().on_each([&](ecs::Iter& it) {
+				auto posView = it.view<Position>(1);
+				GAIA_EACH(it) {
+					directX += posView[i].x;
+				}
+			});
+
+	sysSemantic.exec();
+	sysDirect.exec();
+
+	CHECK(semanticX == doctest::Approx(7.0f));
+	CHECK(directX == doctest::Approx(1.0f));
+}
+
+TEST_CASE("System - DependsOn is respected for semantic Is queries") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add<Position>(mammal, {1, 0, 0});
+	wld.add<Position>(rabbit, {2, 0, 0});
+
+	uint32_t semanticHits = 0;
+	bool directRanTooEarly = false;
+	float directObservedX = 0.0f;
+
+	auto sysSemantic = wld.system().is(animal).all<Position&>().on_each([&](Position& pos) {
+		++semanticHits;
+		pos.x += 10.0f;
+	});
+
+	auto sysDirect =
+			wld.system().is(animal, ecs::QueryTermOptions{}.direct()).all<Position>().on_each([&](const Position& pos) {
+				if (semanticHits != 3)
+					directRanTooEarly = true;
+				directObservedX += pos.x;
+			});
+
+	wld.add(sysDirect.entity(), {ecs::DependsOn, sysSemantic.entity()});
+	wld.update();
+
+	CHECK_FALSE(directRanTooEarly);
+	CHECK(semanticHits == 3);
+	CHECK(directObservedX == doctest::Approx(11.0f));
+}
+
+TEST_CASE("System - deep hierarchy skips disabled subtrees while preserving local enabled bits") {
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto grpA = wld.add();
+	const auto subGrpA1 = wld.add();
+	const auto subGrpA2 = wld.add();
+	const auto grpB = wld.add();
+	const auto subGrpB = wld.add();
+	const auto grpC = wld.add();
+	const auto subGrpC = wld.add();
+
+	wld.child(subGrpA1, grpA);
+	wld.child(subGrpA2, grpA);
+	wld.child(subGrpB, grpB);
+	wld.child(subGrpC, grpC);
+
+	uint32_t hits[9] = {};
+
+	auto make_sys = [&](uint32_t idx, ecs::Entity parent) {
+		auto sys = wld.system().all<Position>().on_each([&, idx](Position) {
+			++hits[idx];
+		});
+		wld.child(sys.entity(), parent);
+		return sys.entity();
+	};
+
+	const auto sys1 = make_sys(0, subGrpA1);
+	const auto sys2 = make_sys(1, subGrpA1);
+	const auto sys3 = make_sys(2, subGrpA1);
+	const auto sys4 = make_sys(3, subGrpA2);
+	const auto sys5A = make_sys(4, subGrpA2);
+	const auto sys5B = make_sys(5, subGrpB);
+	const auto sys6 = make_sys(6, subGrpB);
+	const auto sys10 = make_sys(7, subGrpC);
+	const auto sys11 = make_sys(8, subGrpC);
+
+	auto clear_hits = [&]() {
+		GAIA_FOR(9) {
+			hits[i] = 0;
+		}
+	};
+
+	auto check_hits = [&](const bool expected[9]) {
+		GAIA_FOR(9) {
+			CHECK(hits[i] == (expected[i] ? 1u : 0u));
+		}
+	};
+
+	const bool allEnabled[9] = {true, true, true, true, true, true, true, true, true};
+	const bool subGrpA1Disabled[9] = {false, false, false, true, true, true, true, true, true};
+	const bool subGrpCDisabled[9] = {true, true, true, true, true, true, true, false, false};
+	const bool grpCDisabled[9] = {true, true, true, true, true, true, true, false, false};
+	const bool sys10Disabled[9] = {true, true, true, true, true, true, true, false, true};
+	const bool grpADisabled[9] = {false, false, false, false, false, true, true, true, true};
+
+	clear_hits();
+	wld.update();
+	check_hits(allEnabled);
+
+	wld.enable(subGrpA1, false);
+	CHECK_FALSE(wld.enabled(subGrpA1));
+	CHECK(wld.enabled(sys1));
+	CHECK(wld.enabled(sys2));
+	CHECK(wld.enabled(sys3));
+	clear_hits();
+	wld.update();
+	check_hits(subGrpA1Disabled);
+
+	wld.enable(subGrpA1, true);
+	wld.enable(subGrpC, false);
+	CHECK_FALSE(wld.enabled(subGrpC));
+	CHECK(wld.enabled(sys10));
+	CHECK(wld.enabled(sys11));
+	clear_hits();
+	wld.update();
+	check_hits(subGrpCDisabled);
+
+	wld.enable(subGrpC, true);
+	wld.enable(grpC, false);
+	CHECK_FALSE(wld.enabled(grpC));
+	CHECK(wld.enabled(subGrpC));
+	CHECK(wld.enabled(sys10));
+	CHECK(wld.enabled(sys11));
+	clear_hits();
+	wld.update();
+	check_hits(grpCDisabled);
+
+	wld.enable(grpC, true);
+	wld.enable(sys10, false);
+	CHECK_FALSE(wld.enabled(sys10));
+	CHECK(wld.enabled(sys11));
+	clear_hits();
+	wld.update();
+	check_hits(sys10Disabled);
+
+	wld.enable(sys10, true);
+	wld.enable(grpA, false);
+	CHECK_FALSE(wld.enabled(grpA));
+	CHECK(wld.enabled(subGrpA1));
+	CHECK(wld.enabled(subGrpA2));
+	CHECK(wld.enabled(sys1));
+	CHECK(wld.enabled(sys4));
+	clear_hits();
+	wld.update();
+	check_hits(grpADisabled);
+
+	(void)sys1;
+	(void)sys2;
+	(void)sys3;
+	(void)sys4;
+	(void)sys5A;
+	(void)sys5B;
+	(void)sys6;
+	(void)sys10;
+	(void)sys11;
 }
 
 #endif

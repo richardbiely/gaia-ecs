@@ -1997,7 +1997,7 @@ q2.each([](ecs::Entity entity) {
 });
 ```
 
-`w.query().is(X)` is just just a convenience shortcut for `w.query().all(Pair(ecs::Is, X))`.
+`w.query().is(X)` is just a convenience shortcut for `w.query().all(Pair(ecs::Is, X))`.
 
 If you need only the exact stored edge, use the direct form instead of semantic matching.
 
