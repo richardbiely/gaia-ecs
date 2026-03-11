@@ -1971,11 +1971,17 @@ w.as(rabbit, animal);
 
 // Check if an entity is inheriting from something
 bool animal_is_animal = w.is(animal, animal); // true
-bool rabbit_is_animal = w.is(rabit, animal); // true
+bool rabbit_is_animal = w.is(rabbit, animal); // true
 bool wall_is_animal = w.is(wall, animal); // false
 ```
 
-The Is relation ship can be very helpful when used in queries. Querying `Pair(Is, X)` matches `X` itself and every entity inheriting from it (there is no need to attach `X` to itself first).
+The stored `Pair(Is, X)` edge is direct. The higher-level matching APIs interpret it semantically, except when you explicitly use the direct query/lookup forms. In practice:
+
+- `w.is(entity, animal)` answers inheritance semantics
+- `w.has(entity, ecs::Pair(ecs::Is, animal))` answers inheritance semantics
+- querying `Pair(Is, animal)` matches `animal` itself and all descendants
+- `w.has_direct(entity, ecs::Pair(ecs::Is, animal))` checks only the exact stored edge
+- querying `Pair(Is, animal)` with `ecs::QueryTermOptions{}.direct()` checks only the exact stored edge
 
 ```cpp
 // Iterate everything that is animal
@@ -1987,6 +1993,25 @@ q.each([](ecs::Entity entity) {
 // Iterate everything that is animal but skip the "animal" itself
 ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(animal);
 q2.each([](ecs::Entity entity) {
+  // entity = rabbit
+});
+```
+
+If you need only the exact stored edge, use the direct form instead of semantic matching.
+
+```cpp
+// Direct membership: only true if rabbit directly stores Pair(Is, animal)
+bool rabbit_has_direct_animal = w.has_direct(rabbit, ecs::Pair(ecs::Is, animal)); // true
+
+// Semantic membership: also true for transitive descendants
+bool rabbit_has_animal = w.has(rabbit, ecs::Pair(ecs::Is, animal)); // true
+
+ecs::QueryTermOptions directOpts;
+directOpts.direct();
+
+// Match only entities with a directly stored Pair(Is, animal)
+ecs::Query q3 = w.query().all(Pair(ecs::Is, animal), directOpts);
+q3.each([](ecs::Entity entity) {
   // entity = rabbit
 });
 ```

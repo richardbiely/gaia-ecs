@@ -102,14 +102,14 @@ namespace gaia {
 			void reg_typed_term(ObserverRuntimeData& data) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-				m_world.observers().add(m_world, term, m_entity);
+				m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
 			}
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-				m_world.observers().add(m_world, term, m_entity);
+				m_world.observers().add(m_world, term, m_entity, options.matchKind);
 			}
 
 		public:
@@ -136,9 +136,10 @@ namespace gaia {
 				options.travKind = item.travKind;
 				options.travDepth = item.travDepth;
 				options.access = item.access;
+				options.matchKind = item.matchKind;
 
 				data.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
-				m_world.observers().add(m_world, item.id, m_entity);
+				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
 				return *this;
 			}
 
@@ -149,7 +150,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.all(entity, options);
 				data.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
-				m_world.observers().add(m_world, entity, m_entity);
+				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
 
@@ -158,7 +159,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.any(entity, options);
 				data.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
-				m_world.observers().add(m_world, entity, m_entity);
+				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
 
@@ -167,7 +168,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
 				data.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
-				m_world.observers().add(m_world, entity, m_entity);
+				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
 
@@ -176,7 +177,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.no(entity, options);
 				data.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
-				m_world.observers().add(m_world, entity, m_entity);
+				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
 

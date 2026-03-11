@@ -22,12 +22,17 @@ namespace gaia {
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
+		GAIA_NODISCARD uint32_t world_count_direct_term_entities_direct(const World& world, Entity term);
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out);
 		GAIA_NODISCARD bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
+		GAIA_NODISCARD bool
+		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
@@ -47,6 +52,8 @@ namespace gaia {
 		enum class QueryOpKind : uint8_t { All, Or, Not, Any, Count };
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
+		//! Term match semantics.
+		enum class QueryMatchKind : uint8_t { Semantic, Direct };
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
 		//! Source traversal filter used for source lookups.
@@ -190,6 +197,8 @@ namespace gaia {
 			//! Maximum number of traversal steps.
 			//! 0 means unlimited traversal depth (bounded internally).
 			uint8_t travDepth = TravDepthUnlimited;
+			//! Match semantics for terms with special meaning, such as `Pair(Is, X)`.
+			QueryMatchKind matchKind = QueryMatchKind::Semantic;
 		};
 
 		//! Additional options for query terms.
@@ -210,6 +219,8 @@ namespace gaia {
 			//! Access mode for the term.
 			//! When None, typed query terms infer read/write access from template mutability.
 			QueryAccess access = QueryAccess::None;
+			//! Match semantics for terms with special meaning, such as `Pair(Is, X)`.
+			QueryMatchKind matchKind = QueryMatchKind::Semantic;
 
 			QueryTermOptions& src(Entity source) {
 				entSrc = source;
@@ -291,6 +302,11 @@ namespace gaia {
 				access = QueryAccess::Write;
 				return *this;
 			}
+
+			QueryTermOptions& direct() {
+				matchKind = QueryMatchKind::Direct;
+				return *this;
+			}
 		};
 
 		//! Internal representation of QueryInput
@@ -305,6 +321,8 @@ namespace gaia {
 			QueryTravKind travKind;
 			//! Maximum number of traversal steps.
 			uint8_t travDepth;
+			//! Match semantics for this term.
+			QueryMatchKind matchKind;
 			//! Archetype of the src entity
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
@@ -312,7 +330,7 @@ namespace gaia {
 
 			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && entTrav == other.entTrav && travKind == other.travKind &&
-							 travDepth == other.travDepth && op == other.op;
+							 travDepth == other.travDepth && matchKind == other.matchKind && op == other.op;
 			}
 			bool operator!=(const QueryTerm& other) const {
 				return !operator==(other);
@@ -592,8 +610,9 @@ namespace gaia {
 						const auto& term = terms[i];
 						const auto id = term.id;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
-																				!term_has_variables(term) && id.pair() && id.id() == Is.id() &&
-																				!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen());
+																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
+																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
+																				!is_variable((EntityId)id.gen());
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -605,8 +624,9 @@ namespace gaia {
 						const auto& term = terms[i];
 						const auto id = term.id;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
-																				!term_has_variables(term) && id.pair() && id.id() == Is.id() &&
-																				!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen());
+																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
+																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
+																				!is_variable((EntityId)id.gen());
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -672,9 +692,11 @@ namespace gaia {
 
 						// Build the Is mask.
 						// We will use it to identify entities with an Is relationship quickly.
+						const bool allowSemanticIs = !(
+								term.matchKind == QueryMatchKind::Direct && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()));
 						if (!id.pair()) {
 							const auto j = (uint32_t)i; // data.remapping[i];
-							const auto has_as = (uint32_t)is_base(*w, id);
+							const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, id) : 0U;
 							as_mask_0 |= (has_as << j);
 						} else {
 							const bool idIsWildcard = is_wildcard(id.id());
@@ -684,14 +706,14 @@ namespace gaia {
 							if (!idIsWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*w, id.id());
-								const auto has_as = (uint32_t)is_base(*w, e);
+								const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, e) : 0U;
 								as_mask_0 |= (has_as << j);
 							}
 
 							if (!isGenWildcard) {
 								const auto j = (uint32_t)i; // data.remapping[i];
 								const auto e = entity_from_id(*w, id.gen());
-								const auto has_as = (uint32_t)is_base(*w, e);
+								const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, e) : 0U;
 								as_mask_1 |= (has_as << j);
 							}
 						}
@@ -841,7 +863,10 @@ namespace gaia {
 				if (lhs.travKind != rhs.travKind)
 					return (uint8_t)lhs.travKind < (uint8_t)rhs.travKind;
 
-				return lhs.travDepth < rhs.travDepth;
+				if (lhs.travDepth != rhs.travDepth)
+					return lhs.travDepth < rhs.travDepth;
+
+				return (uint8_t)lhs.matchKind < (uint8_t)rhs.matchKind;
 			}
 		};
 
@@ -961,6 +986,7 @@ namespace gaia {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.travKind);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.travDepth);
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
 				}
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);

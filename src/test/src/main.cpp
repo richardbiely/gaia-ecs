@@ -4615,6 +4615,9 @@ TEST_CASE("Inheritance (Is)") {
 	CHECK_FALSE(wld.has(animal, animal));
 	CHECK_FALSE(wld.has(herbivore, herbivore));
 	CHECK_FALSE(wld.has(carnivore, carnivore));
+	CHECK_FALSE(wld.has_direct(animal, ecs::Pair(ecs::Is, animal)));
+	CHECK_FALSE(wld.has_direct(herbivore, ecs::Pair(ecs::Is, herbivore)));
+	CHECK_FALSE(wld.has_direct(carnivore, ecs::Pair(ecs::Is, carnivore)));
 
 	CHECK(wld.is(carnivore, animal));
 	CHECK(wld.is(herbivore, animal));
@@ -4636,12 +4639,29 @@ TEST_CASE("Inheritance (Is)") {
 	CHECK(wld.has(animal, ecs::Pair(ecs::Is, animal)));
 	CHECK(wld.has(herbivore, ecs::Pair(ecs::Is, herbivore)));
 	CHECK(wld.has(carnivore, ecs::Pair(ecs::Is, carnivore)));
+	CHECK(wld.has_direct(carnivore, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has_direct(herbivore, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has_direct(rabbit, ecs::Pair(ecs::Is, herbivore)));
+	CHECK_FALSE(wld.has_direct(rabbit, ecs::Pair(ecs::Is, animal)));
+	CHECK_FALSE(wld.has_direct(wolf, ecs::Pair(ecs::Is, animal)));
 
 	CHECK_FALSE(wld.is(animal, herbivore));
 	CHECK_FALSE(wld.is(animal, carnivore));
 	CHECK_FALSE(wld.is(wolf, herbivore));
 	CHECK_FALSE(wld.is(rabbit, carnivore));
 	CHECK_FALSE(wld.is(hare, carnivore));
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+	auto qDirectAnimal = wld.query<false>().all(ecs::Pair(ecs::Is, animal), directOpts);
+	CHECK(qDirectAnimal.count() == 2);
+	cnt::darr<ecs::Entity> directAnimalEntities;
+	qDirectAnimal.each([&](ecs::Entity entity) {
+		directAnimalEntities.push_back(entity);
+	});
+	CHECK(directAnimalEntities.size() == 2);
+	CHECK(core::has(directAnimalEntities, herbivore));
+	CHECK(core::has(directAnimalEntities, carnivore));
 
 	{
 		uint32_t i = 0;
@@ -10255,6 +10275,104 @@ TEST_CASE("Query - cached Is query sees inherited archetypes after refresh") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
+TEST_CASE("Query - direct Is query matches only direct stored edges") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+	auto q = wld.query().all(ecs::Pair(ecs::Is, animal), directOpts);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {mammal});
+	CHECK(info.cache_archetype_view().size() == 1);
+}
+
+TEST_CASE("Query - cached direct Is query ignores transitive descendants") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+
+	auto q = wld.query().all(ecs::Pair(ecs::Is, animal), directOpts);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	const auto wolf = wld.add();
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	const auto reptile = wld.add();
+	wld.add(reptile, ecs::Pair(ecs::Is, animal));
+	CHECK(q.count() == 2);
+	expect_exact_entities(q, {mammal, reptile});
+	CHECK(info.cache_archetype_view().size() == 1);
+}
+
+TEST_CASE("Query - mixed semantic and direct Is terms") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto herbivore = wld.add();
+	const auto carnivore = wld.add();
+	const auto rabbit = wld.add();
+	const auto hare = wld.add();
+	const auto wolf = wld.add();
+
+	wld.as(herbivore, animal);
+	wld.as(carnivore, animal);
+	wld.as(rabbit, herbivore);
+	wld.as(hare, herbivore);
+	wld.as(wolf, carnivore);
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+
+	auto qDirectHerbivoreChildren =
+			wld.query<false>().all(ecs::Pair(ecs::Is, animal)).all(ecs::Pair(ecs::Is, herbivore), directOpts);
+	CHECK(qDirectHerbivoreChildren.count() == 2);
+	expect_exact_entities(qDirectHerbivoreChildren, {rabbit, hare});
+
+	auto qExcludeDirectHerbivoreChildren =
+			wld.query<false>().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore), directOpts);
+	CHECK(qExcludeDirectHerbivoreChildren.count() == 4);
+	expect_exact_entities(qExcludeDirectHerbivoreChildren, {animal, herbivore, carnivore, wolf});
+}
+
+TEST_CASE("Query - direct Is QueryInput item matches only direct stored edges") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+
+	ecs::QueryInput item{};
+	item.op = ecs::QueryOpKind::All;
+	item.access = ecs::QueryAccess::None;
+	item.id = ecs::Pair(ecs::Is, animal);
+	item.matchKind = ecs::QueryMatchKind::Direct;
+
+	auto q = wld.query();
+	q.add(item);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {mammal});
+}
+
 TEST_CASE("Query - cached query reverse-index revision changes only on membership changes") {
 	TestWorld twld;
 
@@ -13580,6 +13698,81 @@ TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
 	CHECK(observed.size() == 2);
 	if (observed.size() >= 2)
 		CHECK(observed[1] == wolf);
+}
+
+TEST_CASE("Observer - direct Is pair matches only direct stored edges") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+
+	int hits = 0;
+	cnt::darr<ecs::Entity> observed;
+	const auto observerIs = wld.observer()
+															.event(ecs::ObserverEvent::OnAdd)
+															.all(ecs::Pair(ecs::Is, animal), directOpts)
+															.on_each([&](ecs::Iter& it) {
+																auto entities = it.view<ecs::Entity>();
+																GAIA_EACH(it) {
+																	++hits;
+																	observed.push_back(entities[i]);
+																}
+															})
+															.entity();
+	(void)observerIs;
+
+	wld.as(mammal, animal);
+	CHECK(hits == 1);
+	CHECK(observed.size() == 1);
+	if (!observed.empty())
+		CHECK(observed[0] == mammal);
+
+	wld.as(wolf, mammal);
+	CHECK(hits == 1);
+	CHECK(observed.size() == 1);
+}
+
+TEST_CASE("Observer - direct Is pair via QueryInput matches only direct stored edges") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+
+	ecs::QueryInput item{};
+	item.op = ecs::QueryOpKind::All;
+	item.access = ecs::QueryAccess::None;
+	item.id = ecs::Pair(ecs::Is, animal);
+	item.matchKind = ecs::QueryMatchKind::Direct;
+
+	int hits = 0;
+	cnt::darr<ecs::Entity> observed;
+	const auto observerIs = wld.observer()
+															.event(ecs::ObserverEvent::OnAdd)
+															.add(item)
+															.on_each([&](ecs::Iter& it) {
+																auto entities = it.view<ecs::Entity>();
+																GAIA_EACH(it) {
+																	++hits;
+																	observed.push_back(entities[i]);
+																}
+															})
+															.entity();
+	(void)observerIs;
+
+	wld.as(mammal, animal);
+	CHECK(hits == 1);
+	CHECK(observed.size() == 1);
+	if (!observed.empty())
+		CHECK(observed[0] == mammal);
+
+	wld.as(wolf, mammal);
+	CHECK(hits == 1);
+	CHECK(observed.size() == 1);
 }
 
 TEST_CASE("Observer - add(QueryInput) registration and fast path") {
