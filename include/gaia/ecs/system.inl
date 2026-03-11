@@ -19,12 +19,12 @@ namespace gaia {
 	#endif
 
 		struct System_ {
-			using TSystemIterFunc = std::function<void(Iter&)>;
+			using TSystemExecFunc = std::function<void(Query&, QueryExecType)>;
 
 			//! Entity identifying the system
 			Entity entity = EntityBad;
 			//! Called every time system is allowed to tick
-			TSystemIterFunc on_each_func;
+			TSystemExecFunc on_each_func;
 			//! Query associated with the system
 			Query query;
 			//! Execution type
@@ -47,7 +47,6 @@ namespace gaia {
 
 			void exec() {
 				auto& queryInfo = query.fetch();
-				query.match_all(queryInfo);
 
 	#if GAIA_PROFILER_CPU
 				const char* pName = entity_name(*queryInfo.world(), entity);
@@ -55,7 +54,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
-				query.each(on_each_func, execType);
+				on_each_func(query, execType);
 			}
 
 			//! Returns the job handle associated with the system
@@ -310,32 +309,19 @@ namespace gaia {
 				validate();
 
 				auto& ctx = data();
-				if constexpr (std::is_invocable_v<Func, Iter&>) {
-					ctx.on_each_func = [func](Iter& it) {
-						func(it);
-					};
-				} else {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
+				using InputArgs = decltype(core::func_args(&Func::operator()));
 
 	#if GAIA_ASSERT_ENABLED
-					// Make sure we only use components specified in the query.
-					// Constness is respected. Therefore, if a type is const when registered to query,
-					// it has to be const (or immutable) also in each().
-					auto& queryInfo = ctx.query.fetch();
-					ctx.query.match_all(queryInfo);
-					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+				// Make sure we only use components specified in the query.
+				// Constness is respected. Therefore, if a type is const when registered to query,
+				// it has to be const (or immutable) also in each().
+				auto& queryInfo = ctx.query.fetch();
+				GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [e = m_entity, func](Iter& it) {
-						// NOTE: We can't directly use data().query here because the function relies
-						//       on SystemBuilder to be present at all times. If it goes out of scope
-						//       the only option left is having a copy of the world pointer and entity.
-						//       They are then used to get to the query stored inside System_.
-						auto ss = it.world()->acc_mut(e);
-						auto& sys = ss.smut<System_>();
-						sys.query.run_query_on_chunk(it, func, InputArgs{});
-					};
-				}
+				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+					query.each(func, execType);
+				};
 
 				return (SystemBuilder&)*this;
 			}
