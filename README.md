@@ -1975,29 +1975,13 @@ bool rabbit_is_animal = w.is(rabbit, animal); // true
 bool wall_is_animal = w.is(wall, animal); // false
 ```
 
-The stored `Pair(Is, X)` edge is direct. The higher-level matching APIs interpret it semantically, except when you explicitly use the direct query/lookup forms. In practice:
+The stored `Pair(Is, X)` edge is direct. Higher-level matching APIs interpret it semantically unless you explicitly ask for the direct form. In practice:
 
 - `w.is(entity, animal)` answers inheritance semantics
 - `w.has(entity, ecs::Pair(ecs::Is, animal))` answers inheritance semantics
-- querying `Pair(Is, animal)` matches `animal` itself and all descendants
+- `w.query().is(animal)` matches `animal` itself and all descendants
 - `w.has_direct(entity, ecs::Pair(ecs::Is, animal))` checks only the exact stored edge
-- querying `Pair(Is, animal)` with `ecs::QueryTermOptions{}.direct()` checks only the exact stored edge
-
-```cpp
-// Iterate everything that is animal
-ecs::Query q = w.query().all(Pair(ecs::Is, animal));
-q.each([](ecs::Entity entity) {
-  // entity = animal, rabbit
-});
-
-// Iterate everything that is animal but skip the "animal" itself
-ecs::Query q2 = w.query().all(Pair(ecs::Is, animal)).no(animal);
-q2.each([](ecs::Entity entity) {
-  // entity = rabbit
-});
-```
-
-There is also a shorter version available:
+- `w.query().is(animal, ecs::QueryTermOptions{}.direct())` checks only the exact stored edge
 
 ```cpp
 // Iterate everything that is animal
@@ -2012,6 +1996,8 @@ q2.each([](ecs::Entity entity) {
   // entity = rabbit
 });
 ```
+
+`w.query().is(X)` is just just a convenience shortcut for `w.query().all(Pair(ecs::Is, X))`.
 
 If you need only the exact stored edge, use the direct form instead of semantic matching.
 

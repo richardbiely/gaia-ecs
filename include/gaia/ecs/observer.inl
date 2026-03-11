@@ -145,6 +145,12 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			ObserverBuilder& is(Entity entity, const QueryTermOptions& options = {}) {
+				return all(Pair(Is, entity), options);
+			}
+
+			//------------------------------------------------
+
 			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				auto& data = runtime_data();

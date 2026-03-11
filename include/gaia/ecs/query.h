@@ -1897,16 +1897,31 @@ namespace gaia {
 					match_all(queryInfo);
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+							GAIA_PROF_SCOPE(query_func);
+							each_direct_iter_inter<IterAll>(queryInfo, func);
+							return;
+						}
 						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
 							GAIA_PROF_SCOPE(query_func);
 							func(it);
 						});
 					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+							GAIA_PROF_SCOPE(query_func);
+							each_direct_iter_inter<Iter>(queryInfo, func);
+							return;
+						}
 						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 							GAIA_PROF_SCOPE(query_func);
 							func(it);
 						});
 					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+							GAIA_PROF_SCOPE(query_func);
+							each_direct_iter_inter<IterDisabled>(queryInfo, func);
+							return;
+						}
 						run_query_on_chunks<ExecType, IterDisabled>(queryInfo, [&](IterDisabled& it) {
 							GAIA_PROF_SCOPE(query_func);
 							func(it);
@@ -2587,6 +2602,60 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD static decltype(auto) direct_entity_arg(World& world, Entity entity) {
 					return world_direct_entity_arg<T>(world, entity);
+				}
+
+				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
+				template <typename TIter, typename Func>
+				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
+					auto& world = *queryInfo.world();
+
+					auto exec_entity = [&](Entity entity) {
+						const auto& ec = ::gaia::ecs::fetch(world, entity);
+						GAIA_ASSERT(ec.pArchetype != nullptr);
+						GAIA_ASSERT(ec.pChunk != nullptr);
+						GAIA_ASSERT(ec.row < ec.pChunk->size());
+
+						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+							indices[i] = 0xFF;
+						}
+
+						const auto queryIds = queryInfo.ctx().data.ids_view();
+						const auto& remapping = queryInfo.ctx().data._remapping;
+						const auto queryIdCnt = (uint32_t)queryIds.size();
+						GAIA_FOR(queryIdCnt) {
+							const auto idxBeforeRemapping = remapping[i];
+							const auto queryId = queryIds[idxBeforeRemapping];
+							const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+							indices[i] = (uint8_t)compIdx;
+						}
+
+						TIter it;
+						it.set_world(&world);
+						it.set_archetype(ec.pArchetype);
+						it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+						it.set_group_id(0);
+						it.set_remapping_indices(indices);
+						func(it);
+					};
+
+					const auto plan = direct_entity_seed_plan(world, queryInfo);
+					if (plan.preferOrSeed) {
+						for_each_direct_or_union<TIter>(world, queryInfo, exec_entity);
+						return;
+					}
+
+					auto& scratch = direct_query_scratch();
+					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+
+					for (const auto entity: scratch.entities) {
+						if (!match_direct_entity_constraints<TIter>(world, entity))
+							continue;
+						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+							continue;
+
+						exec_entity(entity);
+					}
 				}
 
 				//! Runs a typed each() callback over directly seeded entities.

@@ -13325,6 +13325,73 @@ TEST_CASE("System - exec mode") {
 	CHECK(cntChunks0 == cntChunks1);
 }
 
+TEST_CASE("System - is sugar matches semantic and direct Is terms") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	uint32_t semanticHits = 0;
+	uint32_t directHits = 0;
+
+	auto sysSemantic = wld.system().is(animal).on_each([&](ecs::Iter& it) {
+		semanticHits += it.size();
+	});
+
+	auto sysDirect = wld.system().is(animal, ecs::QueryTermOptions{}.direct()).on_each([&](ecs::Iter& it) {
+		directHits += it.size();
+	});
+
+	sysSemantic.exec();
+	sysDirect.exec();
+
+	CHECK(semanticHits == 3);
+	CHECK(directHits == 1);
+}
+
+TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add<Position>(mammal, {1, 0, 0});
+	wld.add<Position>(rabbit, {2, 0, 0});
+
+	uint32_t semanticHits = 0;
+	float semanticX = 0.0f;
+	uint32_t directHits = 0;
+	float directX = 0.0f;
+
+	auto sysSemantic = wld.system().is(animal).all<Position>().on_each([&](const Position& pos) {
+		++semanticHits;
+		semanticX += pos.x;
+	});
+
+	auto sysDirect =
+			wld.system().is(animal, ecs::QueryTermOptions{}.direct()).all<Position>().on_each([&](const Position& pos) {
+				++directHits;
+				directX += pos.x;
+			});
+
+	sysSemantic.exec();
+	sysDirect.exec();
+
+	CHECK(semanticHits == 3);
+	CHECK(semanticX == doctest::Approx(7.0f));
+	CHECK(directHits == 1);
+	CHECK(directX == doctest::Approx(1.0f));
+}
+
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
@@ -13789,6 +13856,43 @@ TEST_CASE("Observer - direct Is pair via QueryInput matches only direct stored e
 	wld.as(wolf, mammal);
 	CHECK(hits == 1);
 	CHECK(observed.size() == 1);
+}
+
+TEST_CASE("Observer - is sugar matches semantic and direct Is terms") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+
+	int semanticHits = 0;
+	const auto obsSemantic = wld.observer()
+															 .event(ecs::ObserverEvent::OnAdd)
+															 .is(animal)
+															 .on_each([&](ecs::Iter&) {
+																 ++semanticHits;
+															 })
+															 .entity();
+
+	int directHits = 0;
+	const auto obsDirect = wld.observer()
+														 .event(ecs::ObserverEvent::OnAdd)
+														 .is(animal, ecs::QueryTermOptions{}.direct())
+														 .on_each([&](ecs::Iter&) {
+															 ++directHits;
+														 })
+														 .entity();
+
+	wld.as(mammal, animal);
+	CHECK(semanticHits == 1);
+	CHECK(directHits == 1);
+
+	wld.as(wolf, mammal);
+	CHECK(semanticHits == 2);
+	CHECK(directHits == 1);
+
+	(void)obsSemantic;
+	(void)obsDirect;
 }
 
 TEST_CASE("Observer - add(QueryInput) registration and fast path") {

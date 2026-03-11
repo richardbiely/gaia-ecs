@@ -55,20 +55,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
-				switch (execType) {
-					case QueryExecType::Parallel:
-						query.run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, on_each_func);
-						break;
-					case QueryExecType::ParallelPerf:
-						query.run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, on_each_func);
-						break;
-					case QueryExecType::ParallelEff:
-						query.run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, on_each_func);
-						break;
-					default:
-						query.run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, on_each_func);
-						break;
-				}
+				query.each(on_each_func, execType);
 			}
 
 			//! Returns the job handle associated with the system
@@ -126,6 +113,12 @@ namespace gaia {
 				validate();
 				data().query.add(item);
 				return *this;
+			}
+
+			//------------------------------------------------
+
+			SystemBuilder& is(Entity entity, const QueryTermOptions& options = {}) {
+				return all(Pair(Is, entity), options);
 			}
 
 			//------------------------------------------------
