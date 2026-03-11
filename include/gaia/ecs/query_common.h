@@ -591,16 +591,22 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
+																				!term_has_variables(term) && id.pair() && id.id() == Is.id() &&
+																				!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen());
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
-						hasAdjunctTerms |= isAdjunctTerm;
+						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm;
 					}
 
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
+																				!term_has_variables(term) && id.pair() && id.id() == Is.id() &&
+																				!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen());
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -631,7 +637,7 @@ namespace gaia {
 							continue;
 						}
 
-						if (isAdjunctTerm) {
+						if (isAdjunctTerm || isDirectIsTerm) {
 							data.deps.add(DependencyHasAdjunctTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));

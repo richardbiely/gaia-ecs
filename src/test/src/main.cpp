@@ -4612,11 +4612,20 @@ TEST_CASE("Inheritance (Is)") {
 	wld.as(hare, herbivore);
 	wld.as(wolf, carnivore);
 
+	CHECK_FALSE(wld.has(animal, animal));
+	CHECK_FALSE(wld.has(herbivore, herbivore));
+	CHECK_FALSE(wld.has(carnivore, carnivore));
+
 	CHECK(wld.is(carnivore, animal));
 	CHECK(wld.is(herbivore, animal));
 	CHECK(wld.is(rabbit, animal));
 	CHECK(wld.is(hare, animal));
 	CHECK(wld.is(wolf, animal));
+	CHECK(wld.has(carnivore, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(herbivore, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(rabbit, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(hare, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(wolf, ecs::Pair(ecs::Is, animal)));
 	CHECK(wld.is(rabbit, herbivore));
 	CHECK(wld.is(hare, herbivore));
 	CHECK(wld.is(wolf, carnivore));
@@ -4624,6 +4633,9 @@ TEST_CASE("Inheritance (Is)") {
 	CHECK(wld.is(animal, animal));
 	CHECK(wld.is(herbivore, herbivore));
 	CHECK(wld.is(carnivore, carnivore));
+	CHECK(wld.has(animal, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(herbivore, ecs::Pair(ecs::Is, herbivore)));
+	CHECK(wld.has(carnivore, ecs::Pair(ecs::Is, carnivore)));
 
 	CHECK_FALSE(wld.is(animal, herbivore));
 	CHECK_FALSE(wld.is(animal, carnivore));
@@ -4658,12 +4670,13 @@ TEST_CASE("Inheritance (Is)") {
 		uint32_t i = 0;
 		ecs::Query q = wld.query().all(ecs::Pair(ecs::Is, animal)).no(herbivore);
 		q.each([&](ecs::Entity entity) {
-			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == wolf || entity == carnivore;
+			const bool isOK = entity == animal || entity == hare || entity == rabbit || entity == wolf ||
+												entity == carnivore || entity == herbivore;
 			CHECK(isOK);
 
 			++i;
 		});
-		CHECK(i == 5);
+		CHECK(i == 6);
 	}
 	{
 		uint32_t i = 0;
@@ -10233,12 +10246,13 @@ TEST_CASE("Query - cached Is query sees inherited archetypes after refresh") {
 	auto q = wld.query().all(ecs::Pair(ecs::Is, animal));
 	auto& info = q.fetch();
 	q.match_all(info);
-	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 2);
 
 	const auto wolf = wld.add();
 	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
-	CHECK(q.count() == 2);
-	CHECK(info.cache_archetype_view().size() == 2);
+	CHECK(q.count() == 3);
+	CHECK(info.cache_archetype_view().empty());
 }
 
 TEST_CASE("Query - cached query reverse-index revision changes only on membership changes") {

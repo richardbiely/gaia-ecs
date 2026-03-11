@@ -1966,8 +1966,7 @@ ecs::Entity wall = w.add();
 
 // Make rabbit an animal.
 // This is an equivalent of:
-// 1) w.add(animal, animal) <-- makes sure animal has a separate archetype which can be matched
-// 2) w.add(rabbit, ecs::Pair(ecs::Is, animal)) <-- forms the relationship
+// w.add(rabbit, ecs::Pair(ecs::Is, animal)) <-- forms the relationship
 w.as(rabbit, animal);
 
 // Check if an entity is inheriting from something
@@ -1976,7 +1975,7 @@ bool rabbit_is_animal = w.is(rabit, animal); // true
 bool wall_is_animal = w.is(wall, animal); // false
 ```
 
-The Is relation ship can be very helpful when used in queries. However, before this feature can be properly utilized, one needs to make sure the entity in the Is relationship is treated as a type (has a separate archetype).
+The Is relation ship can be very helpful when used in queries. Querying `Pair(Is, X)` matches `X` itself and every entity inheriting from it (there is no need to attach `X` to itself first).
 
 ```cpp
 // Iterate everything that is animal

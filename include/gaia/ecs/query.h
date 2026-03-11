@@ -2361,10 +2361,13 @@ namespace gaia {
 							continue;
 
 						const auto id = term.id;
+						const bool isDirectIsTerm =
+								id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) && !is_variable((EntityId)id.gen());
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
 								(!id.pair() && world_is_sparse_dont_fragment_component(world, id));
-						const bool needsEntityFilter = isAdjunctTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
+						const bool needsEntityFilter =
+								isAdjunctTerm || isDirectIsTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
 							continue;
 
