@@ -751,8 +751,6 @@ namespace gaia {
 				ctx.pMatchesArr = &matchScratch.matchesArr;
 				ctx.pMatchesSet = &matchScratch.matchesSet;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
-				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
-				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
 				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
@@ -828,8 +826,6 @@ namespace gaia {
 				ctx.pMatchesArr = &matchScratch.matchesArr;
 				ctx.pMatchesSet = &matchScratch.matchesSet;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
-				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
-				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
 				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;

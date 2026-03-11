@@ -13600,6 +13600,98 @@ TEST_CASE("System - nested same-world Is query does not corrupt matcher scratch"
 	CHECK(nestedSum == doctest::Approx(18.0f));
 }
 
+TEST_CASE("System - deep semantic Is direct exec") {
+	TestWorld twld;
+
+	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
+		auto root = world.add();
+		for (uint32_t i = 0; i < branches; ++i) {
+			auto curr = root;
+			for (uint32_t j = 0; j < depth; ++j) {
+				auto next = world.add();
+				world.add(next, ecs::Pair(ecs::Is, curr));
+				world.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+				curr = next;
+			}
+		}
+		return root;
+	};
+
+	auto root = make_is_fanout(wld, 1024, 8);
+	uint64_t sum = 0;
+
+	auto sys = wld.system().all<Position>().is(root).on_each([&](const Position& pos) {
+		sum += (uint64_t)(pos.x + pos.y + pos.z);
+	});
+
+	sys.exec();
+
+	CHECK(sum == 8437760ULL);
+}
+
+TEST_CASE("System - deep semantic Is direct exec survives prior systems query each") {
+	TestWorld twld;
+
+	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
+		auto root = world.add();
+		for (uint32_t i = 0; i < branches; ++i) {
+			auto curr = root;
+			for (uint32_t j = 0; j < depth; ++j) {
+				auto next = world.add();
+				world.add(next, ecs::Pair(ecs::Is, curr));
+				world.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+				curr = next;
+			}
+		}
+		return root;
+	};
+
+	auto root = make_is_fanout(wld, 1024, 8);
+	uint64_t sum = 0;
+
+	auto sys = wld.system().all<Position>().is(root).on_each([&](const Position& pos) {
+		sum += (uint64_t)(pos.x + pos.y + pos.z);
+	});
+
+	wld.query().all(ecs::System).each([&](ecs::Entity) {});
+	sys.exec();
+
+	CHECK(sum == 8437760ULL);
+}
+
+TEST_CASE("Query - deep semantic Is survives prior systems query each") {
+	TestWorld twld;
+
+	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
+		auto root = world.add();
+		for (uint32_t i = 0; i < branches; ++i) {
+			auto curr = root;
+			for (uint32_t j = 0; j < depth; ++j) {
+				auto next = world.add();
+				world.add(next, ecs::Pair(ecs::Is, curr));
+				world.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+				curr = next;
+			}
+		}
+		return root;
+	};
+
+	auto root = make_is_fanout(wld, 1024, 8);
+	uint64_t sum = 0;
+
+	auto sys = wld.system().all<Position>().is(root).on_each([&](const Position&) {});
+	(void)sys;
+
+	wld.query().all(ecs::System).each([&](ecs::Entity) {});
+
+	auto q = wld.query().all<Position>().is(root);
+	q.each([&](const Position& pos) {
+		sum += (uint64_t)(pos.x + pos.y + pos.z);
+	});
+
+	CHECK(sum == 8437760ULL);
+}
+
 TEST_CASE("System - deep semantic Is survives prior direct Is rematch in another world") {
 	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
 		auto root = world.add();

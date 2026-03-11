@@ -35929,8 +35929,6 @@ namespace gaia {
 				ctx.pMatchesArr = &matchScratch.matchesArr;
 				ctx.pMatchesSet = &matchScratch.matchesSet;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
-				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
-				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
 				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
@@ -36006,8 +36004,6 @@ namespace gaia {
 				ctx.pMatchesArr = &matchScratch.matchesArr;
 				ctx.pMatchesSet = &matchScratch.matchesSet;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
-				// Per-world scratch is still scoped to a single match() call. Reusing stamp state
-				// across calls is not safe yet, so the scratch is fully cleared by autoCleanup.
 				ctx.matchesVersion = 1;
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
@@ -42025,6 +42021,8 @@ namespace gaia {
 			CommandBufferMT* m_pCmdBufferMT;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
+			//! Scratch ordered-system list reused by systems_run() to avoid per-frame allocations.
+			cnt::darray<Entity> m_orderedSystemsScratch;
 
 			//! Local set of entities to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
@@ -50735,16 +50733,21 @@ namespace gaia {
 		}
 
 		inline void World::systems_run() {
+			m_orderedSystemsScratch.clear();
 			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
+				m_orderedSystemsScratch.push_back(systemEntity);
+			});
+
+			for (auto systemEntity: m_orderedSystemsScratch) {
 				if (!valid(systemEntity) || !has(systemEntity, System))
-					return;
+					continue;
 				if (!enabled_hierarchy(systemEntity, ChildOf))
-					return;
+					continue;
 
 				auto ss = acc_mut(systemEntity);
 				auto& sys = ss.smut<ecs::System_>();
 				sys.exec();
-			});
+			}
 		}
 
 		inline SystemBuilder World::system() {
