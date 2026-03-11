@@ -482,6 +482,9 @@ namespace gaia {
 
 				inline uint32_t handle_last_archetype_match(
 						QueryArchetypeCacheIndexMap* pCont, EntityLookupKey entityKey, uint32_t srcArchetypeCnt) {
+					if (pCont == nullptr)
+						return 0;
+
 					const auto cache_it = pCont->find(entityKey);
 					uint32_t lastMatchedIdx = 0;
 					if (cache_it == pCont->end())

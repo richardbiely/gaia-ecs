@@ -13731,6 +13731,42 @@ TEST_CASE("System - deep semantic Is survives prior direct Is rematch in another
 	}
 }
 
+TEST_CASE("Observer - deep semantic Is matches_any survives prior systems query each") {
+	TestWorld twld;
+
+	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth, cnt::darr<ecs::Entity>& leaves) {
+		auto root = world.add();
+		for (uint32_t i = 0; i < branches; ++i) {
+			auto curr = root;
+			for (uint32_t j = 0; j < depth; ++j) {
+				auto next = world.add();
+				world.add(next, ecs::Pair(ecs::Is, curr));
+				world.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+				curr = next;
+			}
+			leaves.push_back(curr);
+		}
+		return root;
+	};
+
+	cnt::darr<ecs::Entity> leaves;
+	auto root = make_is_fanout(wld, 512, 8, leaves);
+	auto observerEntity = wld.observer().event(ecs::ObserverEvent::OnAdd).is(root).on_each([](ecs::Iter&) {}).entity();
+
+	wld.query().all(ecs::System).each([&](ecs::Entity) {});
+
+	auto& observerData = wld.observers().data(observerEntity);
+	auto& observerQueryInfo = observerData.query.fetch();
+
+	uint32_t matches = 0;
+	for (const auto leaf: leaves) {
+		const auto& ec = wld.fetch(leaf);
+		matches += (uint32_t)observerData.query.matches_any(observerQueryInfo, *ec.pArchetype, ecs::EntitySpan{&leaf, 1});
+	}
+
+	CHECK(matches == leaves.size());
+}
+
 TEST_CASE("System - deep hierarchy skips disabled subtrees while preserving local enabled bits") {
 	TestWorld twld;
 
