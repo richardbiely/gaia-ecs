@@ -315,8 +315,14 @@ namespace gaia {
 				// Make sure we only use components specified in the query.
 				// Constness is respected. Therefore, if a type is const when registered to query,
 				// it has to be const (or immutable) also in each().
-				auto& queryInfo = ctx.query.fetch();
-				GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+				if constexpr (
+						!std::is_invocable_v<Func, IterAll&> && //
+						!std::is_invocable_v<Func, Iter&> && //
+						!std::is_invocable_v<Func, IterDisabled&> //
+				) {
+					auto& queryInfo = ctx.query.fetch();
+					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+				}
 	#endif
 
 				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
