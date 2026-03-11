@@ -13543,6 +13543,45 @@ TEST_CASE("Observer - fast path") {
 	(void)observerPairRuntime;
 }
 
+TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+
+	int hits = 0;
+	cnt::darr<ecs::Entity> observed;
+	const auto observerIs = wld.observer()
+															.event(ecs::ObserverEvent::OnAdd)
+															.all(ecs::Pair(ecs::Is, animal))
+															.on_each([&](ecs::Iter& it) {
+																auto entities = it.view<ecs::Entity>();
+																GAIA_EACH(it) {
+																	++hits;
+																	observed.push_back(entities[i]);
+																}
+															})
+															.entity();
+	(void)observerIs;
+
+	wld.as(mammal, animal);
+	CHECK(hits == 1);
+	CHECK(observed.size() == 1);
+	if (!observed.empty())
+		CHECK(observed[0] == mammal);
+
+	wld.as(wolf, mammal);
+	auto& observerIsData = wld.observers().data(observerIs);
+	auto& observerQueryInfo = observerIsData.query.fetch();
+	const auto& wolfEc = wld.fetch(wolf);
+	CHECK(observerIsData.query.matches_any(observerQueryInfo, *wolfEc.pArchetype, ecs::EntitySpan{&wolf, 1}));
+	CHECK(hits == 2);
+	CHECK(observed.size() == 2);
+	if (observed.size() >= 2)
+		CHECK(observed[1] == wolf);
+}
+
 TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 	TestWorld twld;
 

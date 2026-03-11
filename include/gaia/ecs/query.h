@@ -694,6 +694,16 @@ namespace gaia {
 					queryInfo.ensure_matches_one(archetype, targetEntities);
 				}
 
+				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+					if (!validate_cache_kind(queryInfo.ctx())) {
+						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid cache_kind selected for a query");
+						queryInfo.reset();
+						return false;
+					}
+
+					return matches_target_entities(queryInfo, archetype, targetEntities);
+				}
+
 				//--------------------------------------------------------------------------------
 
 				GAIA_NODISCARD static constexpr QueryCacheMode cache_mode() {
@@ -1939,6 +1949,23 @@ namespace gaia {
 					return hasPositiveTerm;
 				}
 
+				//! Detects queries whose terms can be evaluated directly against concrete target entities.
+				GAIA_NODISCARD static bool can_use_direct_target_eval(const QueryInfo& queryInfo) {
+					bool hasPositiveTerm = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+
+						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
+							return false;
+
+						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or)
+							hasPositiveTerm = true;
+					}
+
+					return hasPositiveTerm;
+				}
+
 				//! Detects the special direct OR/NOT shape that can be answered from a union of direct term entity sets.
 				GAIA_NODISCARD static bool has_only_direct_or_terms(const QueryInfo& queryInfo) {
 					bool hasOr = false;
@@ -2392,6 +2419,52 @@ namespace gaia {
 					}
 
 					return !hasOrTerms || anyOrMatched;
+				}
+
+				//! Checks whether any of the provided target entities matches the query semantics.
+				GAIA_NODISCARD static bool
+				matches_target_entities(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+					if (targetEntities.empty())
+						return false;
+
+					const auto& world = *queryInfo.world();
+
+					if (can_use_direct_target_eval(queryInfo)) {
+						const DirectEntitySeedInfo seedInfo{};
+						for (const auto entity: targetEntities) {
+							if (!match_direct_entity_constraints<Iter>(world, entity))
+								continue;
+							if (match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								return true;
+						}
+
+						return false;
+					}
+
+					queryInfo.ensure_matches_one(archetype, targetEntities);
+
+					bool archetypeMatched = false;
+					for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
+						if (pMatchedArchetype != &archetype)
+							continue;
+						archetypeMatched = true;
+						break;
+					}
+
+					if (!archetypeMatched)
+						return false;
+
+					if (!queryInfo.has_entity_filter_terms())
+						return true;
+
+					for (const auto entity: targetEntities) {
+						if (!match_direct_entity_constraints<Iter>(world, entity))
+							continue;
+						if (match_entity_filters(world, entity, queryInfo))
+							return true;
+					}
+
+					return false;
 				}
 
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.

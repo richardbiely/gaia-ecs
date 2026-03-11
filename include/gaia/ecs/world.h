@@ -216,6 +216,10 @@ namespace gaia {
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
 				//! Component to OnDel observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del;
+				//! Semantic `Is` target to OnAdd observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add_is;
+				//! Semantic `Is` target to OnDel observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del_is;
 				//! Monotonically increasing stamp used for O(1) deduplication.
 				uint64_t m_current_match_stamp = 0;
 
@@ -234,6 +238,10 @@ namespace gaia {
 
 					const auto it = world.m_recs.pairs.find(EntityLookupKey(term));
 					return it != world.m_recs.pairs.end() && world.valid(it->second, term);
+				}
+
+				GAIA_NODISCARD static bool is_semantic_is_term(Entity term) {
+					return term.pair() && term.id() == Is.id() && !is_wildcard(term.gen());
 				}
 
 				void mark_term_observed(World& world, Entity term, bool observed) {
@@ -263,6 +271,71 @@ namespace gaia {
 						map.emplace(entityKey, cnt::darray<Entity>{observer});
 					else
 						it->second.push_back(observer);
+				}
+
+				template <typename TObserverMap>
+				void collect_observers_for_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+					const auto it = map.find(EntityLookupKey(term));
+					if (it == map.end())
+						return;
+
+					for (auto observer: it->second) {
+						if (!world.valid(observer))
+							continue;
+						const auto& ec = world.fetch(observer);
+						if (!world.enabled(ec))
+							continue;
+
+						const auto compIdx = ec.pChunk->comp_idx(Observer);
+						auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+						if (obsHdr.lastMatchStamp == matchStamp)
+							continue;
+						obsHdr.lastMatchStamp = matchStamp;
+
+						auto* pObs = data_try(observer);
+						if (pObs == nullptr)
+							continue;
+						m_relevant_observers_tmp.push_back(pObs);
+					}
+				}
+
+				template <typename TObserverMap>
+				void
+				collect_observers_for_is_target(World& world, const TObserverMap& map, Entity target, uint64_t matchStamp) {
+					collect_observers_for_term(world, map, target, matchStamp);
+				}
+
+				template <typename TObserverMap>
+				GAIA_NODISCARD bool
+				has_semantic_is_observers_for_event_terms(World& world, const TObserverMap& map, EntitySpan terms) const {
+					for (auto term: terms) {
+						if (!is_semantic_is_term(term))
+							continue;
+
+						const auto target = world.get(term.gen());
+						if (!world.valid(target))
+							continue;
+
+						if (map.find(EntityLookupKey(target)) != map.end())
+							return true;
+
+						for (auto inheritedTarget: world.as_targets_trav_cache(target)) {
+							if (map.find(EntityLookupKey(inheritedTarget)) != map.end())
+								return true;
+						}
+					}
+
+					return false;
+				}
+
+				template <typename TObserverMap>
+				void collect_observers_for_event_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+					if (!is_semantic_is_term(term)) {
+						if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) == 0)
+							return;
+						collect_observers_for_term(world, map, term, matchStamp);
+						return;
+					}
 				}
 
 			public:
@@ -319,9 +392,13 @@ namespace gaia {
 					switch (obs.event) {
 						case ObserverEvent::OnAdd:
 							add_observer_to_map(m_observer_map_add, term, observer);
+							if (is_semantic_is_term(term))
+								add_observer_to_map(m_observer_map_add_is, world.get(term.gen()), observer);
 							break;
 						case ObserverEvent::OnDel:
 							add_observer_to_map(m_observer_map_del, term, observer);
+							if (is_semantic_is_term(term))
+								add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
 							break;
 						case ObserverEvent::OnSet:
 							// OnSet observers are not triggered via OnAdd/OnDel hooks.
@@ -341,6 +418,11 @@ namespace gaia {
 					const auto erasedData = m_observer_data.erase(termKey);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
+					if (is_semantic_is_term(term)) {
+						const auto isKey = EntityLookupKey(w.get(term.gen()));
+						m_observer_map_add_is.erase(isKey);
+						m_observer_map_del_is.erase(isKey);
+					}
 					if ((erasedOnAdd != 0 || erasedOnDel != 0) && can_mark_term_observed(w, term))
 						mark_term_observed(w, term, false);
 
@@ -372,6 +454,8 @@ namespace gaia {
 					};
 					remove_observer_from_map(m_observer_map_add);
 					remove_observer_from_map(m_observer_map_del);
+					remove_observer_from_map(m_observer_map_add_is);
+					remove_observer_from_map(m_observer_map_del_is);
 				}
 
 				//! Called when components are added to an entity.
@@ -380,36 +464,23 @@ namespace gaia {
 				//! \param ents_added Span of entities added to the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
-					if (!archetype.has_observed_terms())
+					if (!archetype.has_observed_terms() &&
+							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added))
 						return;
 
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_added) {
-						if ((world.fetch(comp).flags & EntityContainerFlags::IsObserved) == 0)
+						collect_observers_for_event_term(world, m_observer_map_add, comp, matchStamp);
+						if (!is_semantic_is_term(comp))
 							continue;
 
-						const auto it = m_observer_map_add.find(EntityLookupKey(comp));
-						if (it == m_observer_map_add.end())
+						const auto target = world.get(comp.gen());
+						if (!world.valid(target))
 							continue;
 
-						for (auto observer: it->second) {
-							if (!world.valid(observer))
-								continue;
-							const auto& ec = world.fetch(observer);
-							if (!world.enabled(ec))
-								continue;
-
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obsHdr.lastMatchStamp == matchStamp)
-								continue;
-							obsHdr.lastMatchStamp = matchStamp;
-
-							auto* pObs = data_try(observer);
-							if (pObs == nullptr)
-								continue;
-							m_relevant_observers_tmp.push_back(pObs);
-						}
+						collect_observers_for_is_target(world, m_observer_map_add_is, target, matchStamp);
+						for (auto inheritedTarget: world.as_targets_trav_cache(target))
+							collect_observers_for_is_target(world, m_observer_map_add_is, inheritedTarget, matchStamp);
 					}
 
 					// Fire OnAdd for observers that started matching
@@ -425,13 +496,7 @@ namespace gaia {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
 							auto& queryInfo = obs.query.fetch();
-							obs.query.match_one(queryInfo, archetype, targets);
-							for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
-								if (pMatchedArchetype != &archetype)
-									continue;
-								matches = true;
-								break;
-							}
+							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
 						if (matches) {
@@ -457,31 +522,17 @@ namespace gaia {
 					// Gather the list of components to match
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_removed) {
-						if ((world.fetch(comp).flags & EntityContainerFlags::IsObserved) == 0)
+						collect_observers_for_event_term(world, m_observer_map_del, comp, matchStamp);
+						if (!is_semantic_is_term(comp))
 							continue;
 
-						const auto it = m_observer_map_del.find(EntityLookupKey(comp));
-						if (it == m_observer_map_del.end())
+						const auto target = world.get(comp.gen());
+						if (!world.valid(target))
 							continue;
 
-						for (auto observer: it->second) {
-							if (!world.valid(observer))
-								continue;
-							const auto& ec = world.fetch(observer);
-							if (!world.enabled(ec))
-								continue;
-
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obsHdr.lastMatchStamp == matchStamp)
-								continue;
-							obsHdr.lastMatchStamp = matchStamp;
-
-							auto* pObs = data_try(observer);
-							if (pObs == nullptr)
-								continue;
-							m_relevant_observers_tmp.push_back(pObs);
-						}
+						collect_observers_for_is_target(world, m_observer_map_del_is, target, matchStamp);
+						for (auto inheritedTarget: world.as_targets_trav_cache(target))
+							collect_observers_for_is_target(world, m_observer_map_del_is, inheritedTarget, matchStamp);
 					}
 
 					// Fire OnDel for observers that no longer match
@@ -497,13 +548,7 @@ namespace gaia {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
 							auto& queryInfo = obs.query.fetch();
-							obs.query.match_one(queryInfo, archetype, targets);
-							for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
-								if (pMatchedArchetype != &archetype)
-									continue;
-								matches = true;
-								break;
-							}
+							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
 						if (matches) {
