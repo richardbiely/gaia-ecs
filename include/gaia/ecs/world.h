@@ -86,7 +86,7 @@ namespace gaia {
 			friend void lock(World&);
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
-			friend void query_match_scratch_release(World&);
+			friend void query_match_scratch_release(World&, bool);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -7734,10 +7734,13 @@ namespace gaia {
 			return scratch;
 		}
 
-		inline void query_match_scratch_release(World& world) {
+		inline void query_match_scratch_release(World& world, bool keepStamps) {
 			GAIA_ASSERT(world.m_queryMatchScratchDepth > 0);
 			auto& scratch = *world.m_queryMatchScratchStack[--world.m_queryMatchScratchDepth];
-			scratch.clear_temporary_matches();
+			if (keepStamps)
+				scratch.clear_temporary_matches_keep_stamps();
+			else
+				scratch.clear_temporary_matches();
 		}
 
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {

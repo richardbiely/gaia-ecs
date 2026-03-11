@@ -37,16 +37,38 @@ namespace gaia {
 			cnt::darr<const Archetype*> matchesArr;
 			//! O(1) dedup table keyed by world-local archetype ids.
 			cnt::sparse_storage<ArchetypeMatchStamp> matchStamps;
+			//! Monotonic dedup stamp used when the same scratch frame is reused by later full match() calls.
+			uint32_t matchVersion = 0;
 
 			void clear_temporary_matches() {
 				matchesSet.clear();
 				matchesArr.clear();
 				matchStamps.clear();
 			}
+
+			void clear_temporary_matches_keep_stamps() {
+				matchesSet.clear();
+				matchesArr.clear();
+			}
+
+			void reset_stamps() {
+				matchStamps.clear();
+				matchVersion = 0;
+			}
+
+			GAIA_NODISCARD uint32_t next_match_version() {
+				++matchVersion;
+				if (matchVersion != 0)
+					return matchVersion;
+
+				reset_stamps();
+				matchVersion = 1;
+				return matchVersion;
+			}
 		};
 
 		GAIA_NODISCARD QueryMatchScratch& query_match_scratch_acquire(World& world);
-		void query_match_scratch_release(World& world);
+		void query_match_scratch_release(World& world, bool keepStamps);
 
 		struct QueryInfoCreationCtx {
 			QueryCtx* pQueryCtx;
@@ -672,15 +694,16 @@ namespace gaia {
 
 			struct CleanUpTmpArchetypeMatches {
 				World& world;
+				bool keepStamps;
 
-				explicit CleanUpTmpArchetypeMatches(World& world): world(world) {}
+				explicit CleanUpTmpArchetypeMatches(World& world, bool keepStamps): world(world), keepStamps(keepStamps) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches& operator=(CleanUpTmpArchetypeMatches&&) = delete;
 
 				~CleanUpTmpArchetypeMatches() {
-					query_match_scratch_release(world);
+					query_match_scratch_release(world, keepStamps);
 				}
 			};
 
@@ -700,7 +723,7 @@ namespace gaia {
 					ArchetypeId archetypeLastId) {
 				auto& w = *world();
 				auto& matchScratch = query_match_scratch_acquire(w);
-				CleanUpTmpArchetypeMatches autoCleanup(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				auto& ctxData = m_plan.ctx.data;
 
@@ -751,7 +774,7 @@ namespace gaia {
 				ctx.pMatchesArr = &matchScratch.matchesArr;
 				ctx.pMatchesSet = &matchScratch.matchesSet;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
-				ctx.matchesVersion = 1;
+				ctx.matchesVersion = matchScratch.next_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
 				ctx.pLastMatchedArchetypeIdx_Or = &ctxData.lastMatchedArchetypeIdx_Or;
 				ctx.pLastMatchedArchetypeIdx_Not = &ctxData.lastMatchedArchetypeIdx_Not;
@@ -791,7 +814,9 @@ namespace gaia {
 			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
 				auto& w = *world();
 				auto& matchScratch = query_match_scratch_acquire(w);
-				CleanUpTmpArchetypeMatches autoCleanup(w);
+				// Incremental single-archetype matching does not yet support persistent stamp reuse safely.
+				matchScratch.reset_stamps();
+				CleanUpTmpArchetypeMatches autoCleanup(w, false);
 
 				auto& ctxData = m_plan.ctx.data;
 
