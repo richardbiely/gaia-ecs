@@ -24,7 +24,7 @@ You get complex queries with relationship traversal, per-component AoS/SoA layou
 
 ***Highlights:***
 * Clean, safe API — no boilerplate, no footguns
-* Archetype/chunk storage for cache-friendly iteration
+* Two storage strategies — archetype/chunk for cache-friendly iteration, sparse for low-cost frequent modification 
 * Expressive queries: [relationships](#relationships), wildcards, hierarchy traversal (DFS/BFS), variables
 * Per-component [AoS or SoA data layout](#data-layouts) with minimal code changes
 * Integrated [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
@@ -140,11 +140,13 @@ The three building blocks are:
 A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.
 
 ## Implementation
-**Gaia-ECS** is an archetype-based ECS. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
+**Gaia-ECS** is a hybrid ECS combining archetype-based and sparse storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Components that change frequently or require pointer stability can instead opt into sparse storage, where they live outside archetypes entirely and never move in memory.
 
 Each archetype is made up of chunks: fixed-size blocks of memory sized so that a full chunk fits in L1 cache on most CPUs. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.
 
-The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing components requires moving data between archetypes — mitigated here by an archetype graph and support for batched component changes.
+The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing components requires moving data between archetypes — mitigated here by an archetype graph, support for batched component changes,
+
+For components that are added and removed frequently, or where pointer stability is required, Gaia-ECS also supports sparse storage. Opting a component into sparse storage stores it outside the chunk layout in a packed array or sparse set. Components in sparse storage never move in memory, so add/remove operations are fast and do not trigger archetype migrations.
 
 Queries are compiled into bytecode and executed by an internal virtual machine, ensuring only the complexity your query actually needs is paid for.
 
