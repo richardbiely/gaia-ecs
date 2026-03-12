@@ -45025,6 +45025,49 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD bool copy_owned_id_from_entity(Entity srcEntity, Entity dstEntity, Entity object) {
+				GAIA_ASSERT(valid(srcEntity));
+				GAIA_ASSERT(valid(dstEntity));
+				GAIA_ASSERT(object.pair() || valid(object));
+
+				if (has_direct(dstEntity, object))
+					return false;
+
+				if (!object.pair()) {
+					const auto* pItem = comp_cache().find(object);
+					if (pItem != nullptr && pItem->entity == object) {
+						if (is_sparse_dont_fragment_component(object)) {
+							const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
+							if (itSparseStore == m_sparseComponentsByComp.end())
+								return false;
+
+							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
+							return itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity);
+						}
+
+						if (pItem->comp.size() != 0U) {
+							add(dstEntity, object);
+
+							const auto& ecDst = fetch(dstEntity);
+							const auto& ecSrc = fetch(srcEntity);
+							const auto compIdxDst = ecDst.pChunk->comp_idx(object);
+							const auto compIdxSrc = ecSrc.pChunk->comp_idx(object);
+							GAIA_ASSERT(compIdxDst != BadIndex && compIdxSrc != BadIndex);
+
+							const auto idxDst = uint16_t(ecDst.row * (1U - (uint32_t)object.kind()));
+							const auto idxSrc = uint16_t(ecSrc.row * (1U - (uint32_t)object.kind()));
+							void* pDst = ecDst.pChunk->comp_ptr_mut(compIdxDst);
+							const void* pSrc = ecSrc.pChunk->comp_ptr(compIdxSrc);
+							pItem->copy(pDst, pSrc, idxDst, idxSrc, ecDst.pChunk->capacity(), ecSrc.pChunk->capacity());
+							return true;
+						}
+					}
+				}
+
+				add(dstEntity, object);
+				return true;
+			}
+
 			GAIA_NODISCARD Archetype* instantiate_prefab_dst_archetype(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -45282,6 +45325,81 @@ namespace gaia {
 					build_prefab_instantiate_plan(childPrefab, nodeIdx, plan);
 			}
 
+			GAIA_NODISCARD bool instance_has_prefab_child(Entity parentInstance, Entity childPrefab) const {
+				bool found = false;
+				sources(Parent, parentInstance, [&](Entity child) {
+					if (found)
+						return;
+					if (has_direct(child, Pair(Is, childPrefab)))
+						found = true;
+				});
+				return found;
+			}
+
+			uint32_t propagate_prefab_instance(
+					Entity prefabEntity, Entity instance, const PrefabInstantiatePlanNode& node, EntitySpan prefabChildren) {
+				uint32_t changes = 0;
+
+				const auto isPair = Pair(Is, prefabEntity);
+				for (const auto id: node.pDstArchetype->ids_view()) {
+					if (id == isPair || has_direct(instance, id))
+						continue;
+					if (copy_owned_id_from_entity(prefabEntity, instance, id))
+						++changes;
+				}
+
+				for (const auto comp: node.copiedSparseIds) {
+					if (has_direct(instance, comp))
+						continue;
+					if (copy_owned_id_from_entity(prefabEntity, instance, comp))
+						++changes;
+				}
+
+				for (const auto childPrefab: prefabChildren) {
+					if (instance_has_prefab_child(instance, childPrefab))
+						continue;
+					(void)instantiate(childPrefab, instance);
+					++changes;
+				}
+
+				return changes;
+			}
+
+			uint32_t propagate_prefab_inter(Entity prefabEntity, cnt::set<EntityLookupKey>& visited) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+
+				if (!has_direct(prefabEntity, Prefab))
+					return 0;
+
+				const auto ins = visited.insert(EntityLookupKey(prefabEntity));
+				if (!ins.second)
+					return 0;
+
+				PrefabInstantiatePlanNode node{};
+				node.prefab = prefabEntity;
+				node.pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
+				collect_prefab_copied_sparse_ids(prefabEntity, node.copiedSparseIds);
+				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
+				collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
+
+				cnt::darray_ext<Entity, 16> prefabChildren;
+				gather_sorted_prefab_children(prefabEntity, prefabChildren);
+
+				uint32_t changes = 0;
+				const auto& descendants = as_relations_trav_cache(prefabEntity);
+				for (const auto entity: descendants) {
+					if (has_direct(entity, Prefab))
+						continue;
+					changes += propagate_prefab_instance(prefabEntity, entity, node, EntitySpan{prefabChildren});
+				}
+
+				for (const auto childPrefab: prefabChildren)
+					changes += propagate_prefab_inter(childPrefab, visited);
+
+				return changes;
+			}
+
 			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
 			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
 				const auto instance = instantiate_prefab_node_inter(prefabEntity, parentInstance);
@@ -45431,6 +45549,17 @@ namespace gaia {
 						func(roots[rootIdx]);
 					}
 				}
+			}
+
+			//! Propagates additive prefab changes to existing non-prefab instances.
+			//! Missing copied ids are added to existing instances and missing prefab children are spawned.
+			//! Existing owned instance data is left intact.
+			GAIA_NODISCARD uint32_t sync(Entity prefabEntity) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+
+				cnt::set<EntityLookupKey> visited;
+				return propagate_prefab_inter(prefabEntity, visited);
 			}
 
 			//----------------------------------------------------------------------

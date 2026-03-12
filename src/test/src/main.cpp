@@ -11344,6 +11344,82 @@ TEST_CASE("Prefab - instantiate_n with zero count does nothing") {
 	CHECK(q.count() == 0);
 }
 
+TEST_CASE("Prefab - sync adds missing copied data to existing instances") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto instance = wld.instantiate(prefab);
+
+	wld.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+
+	CHECK_FALSE(wld.has<Position>(instance));
+
+	const auto changes = wld.sync(prefab);
+	CHECK(changes == 1);
+	CHECK(wld.has_direct(instance, wld.add<Position>().entity));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(1.0f));
+	CHECK(wld.get<Position>(instance).y == doctest::Approx(2.0f));
+	CHECK(wld.get<Position>(instance).z == doctest::Approx(3.0f));
+}
+
+TEST_CASE("Prefab - sync spawns missing prefab children on existing instances") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto rootInstance = wld.instantiate(rootPrefab);
+	const auto childPrefab = wld.prefab();
+
+	wld.add<Position>(childPrefab, {2.0f, 0.0f, 0.0f});
+	wld.parent(childPrefab, rootPrefab);
+
+	CHECK_FALSE(wld.has(rootInstance, ecs::Pair(ecs::Parent, rootPrefab)));
+
+	const auto changes = wld.sync(rootPrefab);
+	CHECK(changes == 1);
+
+	cnt::darray<ecs::Entity> childInstances;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity child) {
+		if (wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)))
+			childInstances.push_back(child);
+	});
+
+	CHECK(childInstances.size() == 1);
+	CHECK(wld.get<Position>(childInstances[0]).x == doctest::Approx(2.0f));
+
+	const auto changesAgain = wld.sync(rootPrefab);
+	CHECK(changesAgain == 0);
+}
+
+TEST_CASE("Prefab - sync recurses into existing child instances") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	wld.parent(childPrefab, rootPrefab);
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	ecs::Entity childInstance = ecs::EntityBad;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity child) {
+		if (wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)))
+			childInstance = child;
+	});
+	CHECK(childInstance != ecs::EntityBad);
+	if (childInstance == ecs::EntityBad)
+		return;
+
+	wld.add<Scale>(childPrefab, {1.0f, 0.5f, 0.25f});
+
+	CHECK_FALSE(wld.has<Scale>(childInstance));
+
+	const auto changes = wld.sync(rootPrefab);
+	CHECK(changes == 1);
+	CHECK(wld.has_direct(childInstance, wld.add<Scale>().entity));
+	CHECK(wld.get<Scale>(childInstance).x == doctest::Approx(1.0f));
+	CHECK(wld.get<Scale>(childInstance).y == doctest::Approx(0.5f));
+	CHECK(wld.get<Scale>(childInstance).z == doctest::Approx(0.25f));
+}
+
 TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
 	TestWorld twld;
 

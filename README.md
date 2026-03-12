@@ -2186,6 +2186,15 @@ The typed and id-based forms also work for sparse prefab data. That includes run
 
 Observers use the same matching rules. Instantiating a prefab can therefore trigger observers for inherited ids when the new instance matches the observer query semantically.
 
+To propagate additive prefab edits to existing non-prefab instances, use:
+
+```cpp
+uint32_t changes = w.sync(prefab);
+```
+
+This adds missing copied ids to existing instances and spawns missing prefab children under existing instances.
+It does not overwrite already owned instance data and it does not remove existing children.
+
 ### Cleanup rules
 When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.
 
