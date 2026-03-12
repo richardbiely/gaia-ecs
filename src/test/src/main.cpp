@@ -10406,6 +10406,43 @@ TEST_CASE("Query - is sugar matches semantic and direct Is terms") {
 	expect_exact_entities(qDirect, {mammal});
 }
 
+TEST_CASE("Query - Iter is query preserves component access") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add<Position>(mammal, {1, 0, 0});
+	wld.add<Position>(rabbit, {2, 0, 0});
+
+	float semanticX = 0.0f;
+	float directX = 0.0f;
+
+	auto qSemantic = wld.query().all<Position>().is(animal);
+	qSemantic.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			semanticX += posView[i].x;
+		}
+	});
+
+	auto qDirect = wld.query().all<Position>().is(animal, ecs::QueryTermOptions{}.direct());
+	qDirect.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			directX += posView[i].x;
+		}
+	});
+
+	CHECK(semanticX == doctest::Approx(7.0f));
+	CHECK(directX == doctest::Approx(1.0f));
+}
+
 TEST_CASE("Query - cached direct Is query ignores transitive descendants") {
 	TestWorld twld;
 
