@@ -9623,6 +9623,35 @@ TEST_CASE("Entity name - copy") {
 	}
 }
 
+TEST_CASE("Copy preserves sparse component data") {
+	TestWorld twld;
+
+	const auto src = wld.add();
+	wld.add<PositionSparse>(src, {1.0f, 2.0f, 3.0f});
+
+	const auto dst = wld.copy(src);
+	CHECK(wld.has<PositionSparse>(dst));
+	{
+		const auto& pos = wld.get<PositionSparse>(dst);
+		CHECK(pos.x == doctest::Approx(1.0f));
+		CHECK(pos.y == doctest::Approx(2.0f));
+		CHECK(pos.z == doctest::Approx(3.0f));
+	}
+
+	cnt::darr<ecs::Entity> ents;
+	wld.copy_n(src, 8, [&](ecs::Entity entity) {
+		ents.push_back(entity);
+	});
+	CHECK(ents.size() == 8);
+	for (const auto entity: ents) {
+		CHECK(wld.has<PositionSparse>(entity));
+		const auto& pos = wld.get<PositionSparse>(entity);
+		CHECK(pos.x == doctest::Approx(1.0f));
+		CHECK(pos.y == doctest::Approx(2.0f));
+		CHECK(pos.z == doctest::Approx(3.0f));
+	}
+}
+
 TEST_CASE("Entity name - hierarchy") {
 	TestWorld twld;
 
@@ -14947,6 +14976,46 @@ TEST_CASE("Observer - copy_ext payload") {
 	CHECK(acc.x == 44.0f);
 	CHECK(acc.y == 55.0f);
 	CHECK(acc.z == 66.0f);
+}
+
+TEST_CASE("Observer - copy_ext sparse payload") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	uint32_t iterSize = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	PositionSparse pos{};
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<PositionSparse>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 iterSize = it.size();
+												 auto entityView = it.view<ecs::Entity>();
+												 observedEntity = entityView[0];
+												 auto posView = it.view<PositionSparse>();
+												 pos = posView[0];
+											 })
+											 .entity();
+	(void)obs;
+
+	const auto src = wld.add();
+	wld.add<PositionSparse>(src, {7.0f, 8.0f, 9.0f});
+
+	hits = 0;
+	iterSize = 0;
+	observedEntity = ecs::EntityBad;
+	pos = {};
+
+	const auto dst = wld.copy_ext(src);
+
+	CHECK(hits == 1);
+	CHECK(iterSize == 1);
+	CHECK(observedEntity == dst);
+	CHECK(pos.x == 7.0f);
+	CHECK(pos.y == 8.0f);
+	CHECK(pos.z == 9.0f);
 }
 
 TEST_CASE("Observer - fast path") {

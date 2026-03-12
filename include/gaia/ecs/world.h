@@ -2532,6 +2532,10 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
+				copy_sparse_entity_data(srcEntity, dstEntity, [](Entity) {
+					return true;
+				});
+
 				return dstEntity;
 			}
 
@@ -2568,7 +2572,20 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				m_observers.on_add(*this, *pDstArchetype, pDstArchetype->ids_view(), EntitySpan{&dstEntity, 1});
+				cnt::darray<Entity> addedIds;
+				addedIds.reserve((uint32_t)pDstArchetype->ids_view().size() + (uint32_t)m_sparseComponentsByComp.size());
+				for (const auto id: pDstArchetype->ids_view())
+					addedIds.push_back(id);
+
+				copy_sparse_entity_data(
+						srcEntity, dstEntity,
+						[](Entity) {
+							return true;
+						},
+						&addedIds);
+
+				m_observers.on_add(
+						*this, *pDstArchetype, EntitySpan{addedIds.data(), addedIds.size()}, EntitySpan{&dstEntity, 1});
 
 				return dstEntity;
 			}
@@ -2599,6 +2616,23 @@ namespace gaia {
 				if (policy == DontInherit || policy == Inherit)
 					return false;
 				return true;
+			}
+
+			template <typename Func>
+			void copy_sparse_entity_data(
+					Entity srcEntity, Entity dstEntity, Func&& shouldCopy, cnt::darray<Entity>* pAddedIds = nullptr) {
+				for (auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto comp = compKey.entity();
+					if (!store.func_has(store.pStore, srcEntity) || !shouldCopy(comp))
+						continue;
+
+					GAIA_ASSERT(store.func_copy_entity != nullptr);
+					if (!store.func_copy_entity(store.pStore, dstEntity, srcEntity))
+						continue;
+
+					if (pAddedIds != nullptr)
+						pAddedIds->push_back(comp);
+				}
 			}
 
 			GAIA_NODISCARD bool override_inter(Entity entity, Entity object) {
@@ -2696,17 +2730,12 @@ namespace gaia {
 				for (const auto id: pDstArchetype->ids_view())
 					addedIds.push_back(id);
 
-				for (auto& [compKey, store]: m_sparseComponentsByComp) {
-					const auto comp = compKey.entity();
-					if (!store.func_has(store.pStore, prefabEntity) || !instantiate_copies_id(comp))
-						continue;
-
-					GAIA_ASSERT(store.func_copy_entity != nullptr);
-					if (!store.func_copy_entity(store.pStore, instance, prefabEntity))
-						continue;
-
-					addedIds.push_back(comp);
-				}
+				copy_sparse_entity_data(
+						prefabEntity, instance,
+						[&](Entity comp) {
+							return instantiate_copies_id(comp);
+						},
+						&addedIds);
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
@@ -2882,6 +2911,9 @@ namespace gaia {
 #endif
 
 							Chunk::copy_foreign_entity_data(pSrcChunk, srcRow, pDstChunk, ecNew.row);
+							copy_sparse_entity_data(entity, entityNew, [](Entity) {
+								return true;
+							});
 						}
 
 						// Call functors
@@ -2928,6 +2960,10 @@ namespace gaia {
 							auto entityExpected = pDstChunk->entity_view()[ecNew.row];
 							GAIA_ASSERT(entityExpected == entityNew);
 #endif
+
+							copy_sparse_entity_data(entity, entityNew, [](Entity) {
+								return true;
+							});
 						}
 
 						// New entities were added, try updating the free chunk index

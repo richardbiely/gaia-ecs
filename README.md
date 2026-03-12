@@ -712,6 +712,7 @@ w.copy_n(e, 1000, [](ecs::CopyIter& it) {
   }
 });
 ```
+
 ### Entity lifespan
 
 Every entity in the world is reference counted. When an entity is created, the value of this counter is 1. When `ecs::World::del` is called the value of this counter is decremented. When it reaches zero, the entity is deleted. However, the lifetime of entities can be extended. Calling `ecs::World::del` any number of times on the same entity is safe because the reference counter is decremented only on the first attempt. Any further attempts are ignored.
