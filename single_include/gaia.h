@@ -45336,7 +45336,7 @@ namespace gaia {
 				return found;
 			}
 
-			uint32_t propagate_prefab_instance(
+			uint32_t sync_prefab_instance(
 					Entity prefabEntity, Entity instance, const PrefabInstantiatePlanNode& node, EntitySpan prefabChildren) {
 				uint32_t changes = 0;
 
@@ -45365,7 +45365,7 @@ namespace gaia {
 				return changes;
 			}
 
-			uint32_t propagate_prefab_inter(Entity prefabEntity, cnt::set<EntityLookupKey>& visited) {
+			uint32_t sync_prefab_inter(Entity prefabEntity, cnt::set<EntityLookupKey>& visited) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 
@@ -45391,11 +45391,11 @@ namespace gaia {
 				for (const auto entity: descendants) {
 					if (has_direct(entity, Prefab))
 						continue;
-					changes += propagate_prefab_instance(prefabEntity, entity, node, EntitySpan{prefabChildren});
+					changes += sync_prefab_instance(prefabEntity, entity, node, EntitySpan{prefabChildren});
 				}
 
 				for (const auto childPrefab: prefabChildren)
-					changes += propagate_prefab_inter(childPrefab, visited);
+					changes += sync_prefab_inter(childPrefab, visited);
 
 				return changes;
 			}
@@ -45559,7 +45559,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(prefabEntity));
 
 				cnt::set<EntityLookupKey> visited;
-				return propagate_prefab_inter(prefabEntity, visited);
+				return sync_prefab_inter(prefabEntity, visited);
 			}
 
 			//----------------------------------------------------------------------
