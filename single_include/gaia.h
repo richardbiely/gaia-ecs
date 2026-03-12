@@ -39232,6 +39232,23 @@ namespace gaia {
 					}
 				}
 
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					const auto cnt = it.size();
+
+					if constexpr (sizeof...(T) > 0) {
+						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
+						GAIA_FOR(cnt) {
+							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+						}
+					} else {
+						GAIA_FOR(cnt) {
+							func();
+						}
+					}
+				}
+
 				//------------------------------------------------
 
 				template <QueryExecType ExecType, typename Func>
@@ -39454,6 +39471,11 @@ namespace gaia {
 					bool preferOrSeed = false;
 				};
 
+				struct DirectEntitySeedEvalPlan {
+					const QueryTerm* pSingleAllTerm = nullptr;
+					bool alwaysMatch = false;
+				};
+
 				//! Chooses the narrowest available seed for direct non-fragmenting evaluation.
 				GAIA_NODISCARD static DirectEntitySeedPlan
 				direct_entity_seed_plan(const World& world, const QueryInfo& queryInfo) {
@@ -39533,6 +39555,31 @@ namespace gaia {
 					return nullptr;
 				}
 
+				GAIA_NODISCARD static DirectEntitySeedEvalPlan
+				direct_all_seed_eval_plan(const QueryInfo& queryInfo, const DirectEntitySeedInfo& seedInfo) {
+					DirectEntitySeedEvalPlan plan{};
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return {};
+						if (seedInfo.seededFromAll && term.op == QueryOpKind::All && term.id == seedInfo.seededAllTerm &&
+								term.matchKind == seedInfo.seededAllMatchKind)
+							continue;
+
+						if (term.op == QueryOpKind::All) {
+							if (plan.pSingleAllTerm != nullptr)
+								return {};
+							plan.pSingleAllTerm = &term;
+							continue;
+						}
+
+						return {};
+					}
+
+					plan.alwaysMatch = plan.pSingleAllTerm == nullptr;
+					return plan;
+				}
+
 				template <typename TIter, typename Func>
 				GAIA_NODISCARD static bool for_each_direct_all_seed(
 						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
@@ -39545,10 +39592,19 @@ namespace gaia {
 					seedInfo.seededAllTerm = pSeedTerm->id;
 					seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 					seedInfo.seededFromAll = true;
+					const auto evalPlan = direct_all_seed_eval_plan(queryInfo, seedInfo);
 
 					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
 						if (!match_direct_entity_constraints<TIter>(world, entity))
 							return true;
+
+						if (evalPlan.alwaysMatch)
+							return func(entity);
+						if (evalPlan.pSingleAllTerm != nullptr) {
+							if (!match_entity_term(world, entity, *evalPlan.pSingleAllTerm))
+								return true;
+							return func(entity);
+						}
 						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 							return true;
 
@@ -40031,38 +40087,44 @@ namespace gaia {
 					return world_direct_entity_arg<T>(world, entity);
 				}
 
+				template <typename TIter>
+				static void init_direct_entity_iter(
+						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices) {
+					const auto& ec = ::gaia::ecs::fetch(world, entity);
+					GAIA_ASSERT(ec.pArchetype != nullptr);
+					GAIA_ASSERT(ec.pChunk != nullptr);
+					GAIA_ASSERT(ec.row < ec.pChunk->size());
+
+					GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+						pIndices[i] = 0xFF;
+					}
+
+					const auto queryIds = queryInfo.ctx().data.ids_view();
+					const auto& remapping = queryInfo.ctx().data._remapping;
+					const auto queryIdCnt = (uint32_t)queryIds.size();
+					GAIA_FOR(queryIdCnt) {
+						const auto idxBeforeRemapping = remapping[i];
+						const auto queryId = queryIds[idxBeforeRemapping];
+						const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+						pIndices[i] = (uint8_t)compIdx;
+					}
+
+					it.set_world(&world);
+					it.set_archetype(ec.pArchetype);
+					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+					it.set_group_id(0);
+					it.set_remapping_indices(pIndices);
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
 					auto& world = *queryInfo.world();
 
 					auto exec_entity = [&](Entity entity) {
-						const auto& ec = ::gaia::ecs::fetch(world, entity);
-						GAIA_ASSERT(ec.pArchetype != nullptr);
-						GAIA_ASSERT(ec.pChunk != nullptr);
-						GAIA_ASSERT(ec.row < ec.pChunk->size());
-
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
-						GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
-							indices[i] = 0xFF;
-						}
-
-						const auto queryIds = queryInfo.ctx().data.ids_view();
-						const auto& remapping = queryInfo.ctx().data._remapping;
-						const auto queryIdCnt = (uint32_t)queryIds.size();
-						GAIA_FOR(queryIdCnt) {
-							const auto idxBeforeRemapping = remapping[i];
-							const auto queryId = queryIds[idxBeforeRemapping];
-							const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-							indices[i] = (uint8_t)compIdx;
-						}
-
 						TIter it;
-						it.set_world(&world);
-						it.set_archetype(ec.pArchetype);
-						it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
-						it.set_group_id(0);
-						it.set_remapping_indices(indices);
+						init_direct_entity_iter(queryInfo, world, entity, it, indices);
 						func(it);
 					};
 
@@ -40084,21 +40146,23 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 
+					auto exec_entity = [&](Entity entity) {
+						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						TIter it;
+						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					};
+
 					if (plan.preferOrSeed) {
 						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
-							if constexpr (sizeof...(T) > 0)
-								func(direct_entity_arg<T>(world, entity)...);
-							else
-								func();
+							exec_entity(entity);
+							return true;
 						});
 						return;
 					}
 
 					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
-						if constexpr (sizeof...(T) > 0)
-							func(direct_entity_arg<T>(world, entity)...);
-						else
-							func();
+						exec_entity(entity);
 						return true;
 					});
 				}
