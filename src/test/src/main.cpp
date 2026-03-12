@@ -15621,6 +15621,38 @@ TEST_CASE("Observer - inherited prefab data matches on instantiate") {
 	(void)observer;
 }
 
+TEST_CASE("Observer - inherited prefab data matches on instantiate_n") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefab, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	cnt::darray<ecs::Entity> instances;
+	wld.instantiate_n(prefab, 5, [&](ecs::Entity instance) {
+		instances.push_back(instance);
+	});
+
+	CHECK(hits == 5);
+	CHECK(instances.size() == 5);
+	for (const auto instance: instances) {
+		CHECK(wld.has(instance, position));
+		CHECK_FALSE(wld.has_direct(instance, position));
+	}
+
+	(void)observer;
+}
+
 TEST_CASE("Observer - prefab sparse override data matches on instantiate") {
 	TestWorld twld;
 
@@ -15640,6 +15672,34 @@ TEST_CASE("Observer - prefab sparse override data matches on instantiate") {
 
 	CHECK(hits == 1);
 	CHECK(wld.has<PositionSparse>(instance));
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sparse override data matches on instantiate_n") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<PositionSparse>(prefab, {4, 0, 0});
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	cnt::darray<ecs::Entity> instances;
+	wld.instantiate_n(prefab, 5, [&](ecs::Entity instance) {
+		instances.push_back(instance);
+	});
+
+	CHECK(hits == 5);
+	CHECK(instances.size() == 5);
+	for (const auto instance: instances)
+		CHECK(wld.has<PositionSparse>(instance));
+
 	(void)observer;
 }
 
