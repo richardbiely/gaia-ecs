@@ -44603,6 +44603,11 @@ namespace gaia {
 				uint16_t count = 0;
 			};
 
+			struct PrefabInstantiatePlanNode {
+				Entity prefab = EntityBad;
+				uint32_t parentIdx = BadIndex;
+			};
+
 			template <typename Func>
 			void invoke_copy_batch_callback(
 					Func& func, Archetype* pDstArchetype, Chunk* pDstChunk, uint32_t originalChunkSize, uint32_t toCreate) {
@@ -44753,6 +44758,19 @@ namespace gaia {
 				return true;
 			}
 
+			template <typename T>
+			void gather_sorted_prefab_children(Entity prefabEntity, T& outChildren) {
+				sources(Parent, prefabEntity, [&](Entity childPrefab) {
+					if (!has_direct(childPrefab, Prefab))
+						return;
+					outChildren.push_back(childPrefab);
+				});
+
+				core::sort(outChildren, [](Entity left, Entity right) {
+					return left.id() < right.id();
+				});
+			}
+
 			template <typename Func>
 			uint32_t
 			copy_sparse_entity_data(Entity srcEntity, Entity dstEntity, Func&& shouldCopy, Entity* pCopiedIds = nullptr) {
@@ -44848,8 +44866,7 @@ namespace gaia {
 				return true;
 			}
 
-			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
-			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
+			GAIA_NODISCARD Entity instantiate_prefab_node_inter(Entity prefabEntity, Entity parentInstance) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
@@ -44945,16 +44962,27 @@ namespace gaia {
 				if (parentInstance != EntityBad)
 					parent(instance, parentInstance);
 
-				cnt::darray<Entity> prefabChildren;
-				sources(Parent, prefabEntity, [&](Entity childPrefab) {
-					if (!has_direct(childPrefab, Prefab))
-						return;
-					prefabChildren.push_back(childPrefab);
-				});
+				return instance;
+			}
 
-				core::sort(prefabChildren, [](Entity left, Entity right) {
-					return left.id() < right.id();
-				});
+			template <typename T>
+			void build_prefab_instantiate_plan(Entity prefabEntity, uint32_t parentIdx, T& plan) {
+				const auto nodeIdx = (uint32_t)plan.size();
+				plan.push_back(PrefabInstantiatePlanNode{prefabEntity, parentIdx});
+
+				cnt::darray_ext<Entity, 16> prefabChildren;
+				gather_sorted_prefab_children(prefabEntity, prefabChildren);
+
+				for (const auto childPrefab: prefabChildren)
+					build_prefab_instantiate_plan(childPrefab, nodeIdx, plan);
+			}
+
+			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
+			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
+				const auto instance = instantiate_prefab_node_inter(prefabEntity, parentInstance);
+
+				cnt::darray_ext<Entity, 16> prefabChildren;
+				gather_sorted_prefab_children(prefabEntity, prefabChildren);
 
 				for (const auto childPrefab: prefabChildren)
 					(void)instantiate_inter(childPrefab, instance);
@@ -45050,18 +45078,38 @@ namespace gaia {
 					return;
 				}
 
+				cnt::darray_ext<PrefabInstantiatePlanNode, 16> plan;
+				cnt::darray_ext<Entity, 16> spawned;
+
 				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
 					CopyIterGroupState group;
+					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
+					spawned.resize((uint32_t)plan.size());
 
-					GAIA_FOR(count) {
-						const auto instance = instantiate_inter(prefabEntity, parentInstance);
+					GAIA_FOR_(count, rootIdx) {
+						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
+							const auto parent =
+									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
+							spawned[planIdx] = instantiate_prefab_node_inter(plan[planIdx].prefab, parent);
+						}
+
+						const auto instance = spawned[0];
 						push_copy_iter_group(func, group, instance);
 					}
 
 					flush_copy_iter_group(func, group);
 				} else {
-					GAIA_FOR(count) {
-						const auto instance = instantiate_inter(prefabEntity, parentInstance);
+					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
+					spawned.resize((uint32_t)plan.size());
+
+					GAIA_FOR_(count, rootIdx) {
+						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
+							const auto parent =
+									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
+							spawned[planIdx] = instantiate_prefab_node_inter(plan[planIdx].prefab, parent);
+						}
+
+						const auto instance = spawned[0];
 						func(instance);
 					}
 				}

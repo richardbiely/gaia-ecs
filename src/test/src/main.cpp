@@ -11174,6 +11174,47 @@ TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {
 	CHECK(childCount == 3);
 }
 
+TEST_CASE("Prefab - instantiate_n recurses nested prefab children") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.parent(leafPrefab, childPrefab);
+
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	cnt::darray<ecs::Entity> roots;
+	wld.instantiate_n(rootPrefab, 2, [&](ecs::Entity instance) {
+		roots.push_back(instance);
+	});
+
+	CHECK(roots.size() == 2);
+
+	uint32_t childCount = 0;
+	uint32_t leafCount = 0;
+	for (const auto rootInstance: roots) {
+		wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+
+			wld.sources(ecs::Parent, child, [&](ecs::Entity leaf) {
+				++leafCount;
+				CHECK(wld.has_direct(leaf, ecs::Pair(ecs::Is, leafPrefab)));
+				CHECK(wld.get<Position>(leaf).x == doctest::Approx(3.0f));
+			});
+		});
+	}
+
+	CHECK(childCount == 2);
+	CHECK(leafCount == 2);
+}
+
 TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
 	TestWorld twld;
 
