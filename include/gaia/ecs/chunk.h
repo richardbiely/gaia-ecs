@@ -784,6 +784,39 @@ namespace gaia {
 				}
 			}
 
+			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in the same-archetype chunk.
+			//! \param pSrcChunk Source chunk
+			//! \param srcRow Row in source chunk
+			//! \param pDstChunk Destination chunk
+			//! \param dstRow First destination row in destination chunk
+			//! \param dstCount Number of destination rows to copy into
+			static void copy_entity_data_n_same_chunk(
+					Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow, uint32_t dstCount) {
+				GAIA_PROF_SCOPE(Chunk::copy_entity_data_n_same_chunk);
+
+				GAIA_ASSERT(pSrcChunk != nullptr);
+				GAIA_ASSERT(pDstChunk != nullptr);
+				GAIA_ASSERT(srcRow < pSrcChunk->size());
+				GAIA_ASSERT(dstRow + dstCount <= pDstChunk->size());
+				GAIA_ASSERT(pSrcChunk->ids_view().size() == pDstChunk->ids_view().size());
+
+				auto srcRecs = pSrcChunk->comp_rec_view();
+
+				// Copy generic component data from the reference entity to all newly allocated rows.
+				// Unique components do not change place in the chunk so there is no need to move them.
+				GAIA_FOR(pSrcChunk->m_header.genEntities) {
+					const auto& rec = srcRecs[i];
+					if (rec.comp.size() == 0U)
+						continue;
+
+					const auto* pSrc = (const void*)pSrcChunk->comp_ptr(i);
+					GAIA_FOR_(dstCount, rowOffset) {
+						auto* pDst = (void*)pDstChunk->comp_ptr_mut(i);
+						rec.pItem->copy(pDst, pSrc, dstRow + rowOffset, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
+					}
+				}
+			}
+
 			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
 			//! \param entity Entity to move
 			//! \param row Entity's row within its chunk

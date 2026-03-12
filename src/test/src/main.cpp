@@ -15116,6 +15116,32 @@ TEST_CASE("Observer - copy_ext_n sparse payload") {
 	CHECK(observedEntities.size() == N);
 }
 
+TEST_CASE("copy_ext_n strips names and preserves sparse data") {
+	TestWorld twld;
+
+	const auto src = wld.add();
+	wld.name(src, "copy-ext-n-source");
+	wld.add<PositionSparse>(src, {3.0f, 4.0f, 5.0f});
+
+	cnt::darr<ecs::Entity> copied;
+	wld.copy_ext_n(src, 8, [&](ecs::Entity entity) {
+		copied.push_back(entity);
+	});
+
+	CHECK(copied.size() == 8);
+	CHECK(wld.get("copy-ext-n-source") == src);
+	CHECK(strcmp(wld.name(src), "copy-ext-n-source") == 0);
+
+	for (const auto entity: copied) {
+		CHECK(wld.name(entity) == nullptr);
+		CHECK(wld.has<PositionSparse>(entity));
+		const auto& pos = wld.get<PositionSparse>(entity);
+		CHECK(pos.x == doctest::Approx(3.0f));
+		CHECK(pos.y == doctest::Approx(4.0f));
+		CHECK(pos.z == doctest::Approx(5.0f));
+	}
+}
+
 TEST_CASE("Observer - fast path") {
 	TestWorld twld;
 

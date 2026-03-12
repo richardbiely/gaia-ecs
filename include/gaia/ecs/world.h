@@ -2550,146 +2550,7 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(valid(entity));
-
-				auto& ec = m_recs.entities[entity.id()];
-
-				GAIA_ASSERT(ec.pChunk != nullptr);
-				GAIA_ASSERT(ec.pArchetype != nullptr);
-
-				auto* pSrcChunk = ec.pChunk;
-
-				auto* pDstArchetype = ec.pArchetype;
-				if (pDstArchetype->has<EntityDesc>()) {
-					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
-
-					// Entities array might get reallocated after m_recs.entities.alloc
-					// so instead of fetching the container again we simply cache the row
-					// of our source entity.
-					const auto srcRow = ec.row;
-
-					EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
-
-					uint32_t left = count;
-					do {
-						auto* pDstChunk = pDstArchetype->foc_free_chunk();
-						const uint32_t originalChunkSize = pDstChunk->size();
-						const uint32_t freeSlotsInChunk = pDstChunk->capacity() - originalChunkSize;
-						const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
-
-						GAIA_FOR(toCreate) {
-							const auto entityNew = m_recs.entities.alloc(&ctx);
-							auto& ecNew = m_recs.entities[entityNew.id()];
-							store_entity(ecNew, entityNew, pDstArchetype, pDstChunk);
-
-#if GAIA_ASSERT_ENABLED
-							GAIA_ASSERT(ecNew.pChunk == pDstChunk);
-							auto entityExpected = pDstChunk->entity_view()[ecNew.row];
-							GAIA_ASSERT(entityExpected == entityNew);
-#endif
-
-							Chunk::copy_foreign_entity_data(pSrcChunk, srcRow, pDstChunk, ecNew.row);
-							copy_sparse_entity_data(entity, entityNew, [](Entity) {
-								return true;
-							});
-						}
-
-						// Call functors
-						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-							CopyIter it;
-							it.set_world(this);
-							it.set_archetype(pDstArchetype);
-							it.set_chunk(pDstChunk);
-							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
-							func(it);
-						} else {
-							auto entities = pDstChunk->entity_view();
-							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
-						}
-
-						pDstChunk->update_versions();
-
-						left -= toCreate;
-					} while (left > 0);
-				} else {
-					pDstArchetype = ec.pArchetype;
-
-					// Entities array might get reallocated after m_recs.entities.alloc
-					// so instead of fetching the container again we simply cache the row
-					// of our source entity.
-					const auto srcRow = ec.row;
-
-					EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
-
-					uint32_t left = count;
-					do {
-						auto* pDstChunk = pDstArchetype->foc_free_chunk();
-						const uint32_t originalChunkSize = pDstChunk->size();
-						const uint32_t freeSlotsInChunk = pDstChunk->capacity() - originalChunkSize;
-						const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
-
-						GAIA_FOR(toCreate) {
-							const auto entityNew = m_recs.entities.alloc(&ctx);
-							auto& ecNew = m_recs.entities[entityNew.id()];
-							store_entity(ecNew, entityNew, pDstArchetype, pDstChunk);
-
-#if GAIA_ASSERT_ENABLED
-							GAIA_ASSERT(ecNew.pChunk == pDstChunk);
-							auto entityExpected = pDstChunk->entity_view()[ecNew.row];
-							GAIA_ASSERT(entityExpected == entityNew);
-#endif
-
-							copy_sparse_entity_data(entity, entityNew, [](Entity) {
-								return true;
-							});
-						}
-
-						// New entities were added, try updating the free chunk index
-						pDstArchetype->try_update_free_chunk_idx();
-
-						// Call constructors for the generic components on the newly added entity if necessary
-						pDstChunk->call_gen_ctors(originalChunkSize, toCreate);
-
-						// Copy data
-						{
-							GAIA_PROF_SCOPE(World::copy_n_entity_data);
-
-							auto srcRecs = pSrcChunk->comp_rec_view();
-
-							// Copy generic component data from reference entity to our new entity
-							GAIA_FOR(pSrcChunk->size_generic()) {
-								const auto& rec = srcRecs[i];
-								if (rec.comp.size() == 0U)
-									continue;
-
-								const auto* pSrc = (const void*)pSrcChunk->comp_ptr(i);
-								GAIA_FOR_(toCreate, rowOffset) {
-									auto* pDst = (void*)pDstChunk->comp_ptr_mut(i);
-									rec.pItem->copy(
-											pDst, pSrc, originalChunkSize + rowOffset, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
-								}
-							}
-						}
-
-						// Call functors
-						if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-							CopyIter it;
-							it.set_world(this);
-							it.set_archetype(pDstArchetype);
-							it.set_chunk(pDstChunk);
-							it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
-							func(it);
-						} else {
-							auto entities = pDstChunk->entity_view();
-							GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
-						}
-
-						pDstChunk->update_versions();
-
-						left -= toCreate;
-					} while (left > 0);
-				}
+				copy_n_inter(entity, count, func, nullptr);
 			}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -2752,6 +2613,30 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
+				cnt::darray<Entity> addedIds;
+				copy_n_inter(entity, count, func, &addedIds);
+			}
+#endif
+
+		private:
+			template <typename Func>
+			void invoke_copy_batch_callback(
+					Func& func, Archetype* pDstArchetype, Chunk* pDstChunk, uint32_t originalChunkSize, uint32_t toCreate) {
+				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+					CopyIter it;
+					it.set_world(this);
+					it.set_archetype(pDstArchetype);
+					it.set_chunk(pDstChunk);
+					it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
+					func(it);
+				} else {
+					auto entities = pDstChunk->entity_view();
+					GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
+				}
+			}
+
+			template <typename Func>
+			void copy_n_inter(Entity entity, uint32_t count, Func& func, cnt::darray<Entity>* pAddedIds) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 
@@ -2762,12 +2647,12 @@ namespace gaia {
 
 				auto* pSrcChunk = ec.pChunk;
 				auto* pDstArchetype = ec.pArchetype;
-
-				if (pDstArchetype->has<EntityDesc>())
+				const auto hasEntityDesc = pDstArchetype->has<EntityDesc>();
+				if (hasEntityDesc)
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 
-				cnt::darray<Entity> addedIds;
-				copy_added_ids(entity, *pDstArchetype, addedIds);
+				if (pAddedIds != nullptr)
+					copy_added_ids(entity, *pDstArchetype, *pAddedIds);
 
 				// Entities array might get reallocated after m_recs.entities.alloc
 				// so instead of fetching the container again we simply cache the row
@@ -2788,16 +2673,14 @@ namespace gaia {
 						auto& ecNew = m_recs.entities[entityNew.id()];
 						store_entity(ecNew, entityNew, pDstArchetype, pDstChunk);
 
-	#if GAIA_ASSERT_ENABLED
+#if GAIA_ASSERT_ENABLED
 						GAIA_ASSERT(ecNew.pChunk == pDstChunk);
 						auto entityExpected = pDstChunk->entity_view()[ecNew.row];
 						GAIA_ASSERT(entityExpected == entityNew);
-	#endif
+#endif
 
-						if (ec.pArchetype->has<EntityDesc>()) {
+						if (hasEntityDesc) {
 							Chunk::copy_foreign_entity_data(pSrcChunk, srcRow, pDstChunk, ecNew.row);
-						} else {
-							Chunk::copy_entity_data(entity, entityNew, m_recs);
 						}
 
 						copy_sparse_entity_data(entity, entityNew, [](Entity) {
@@ -2806,30 +2689,33 @@ namespace gaia {
 					}
 
 					pDstArchetype->try_update_free_chunk_idx();
+
+					if (!hasEntityDesc) {
+						pDstChunk->call_gen_ctors(originalChunkSize, toCreate);
+
+						{
+							GAIA_PROF_SCOPE(World::copy_n_entity_data);
+							Chunk::copy_entity_data_n_same_chunk(pSrcChunk, srcRow, pDstChunk, originalChunkSize, toCreate);
+						}
+					}
+
 					pDstChunk->update_versions();
 
-					auto entities = pDstChunk->entity_view();
-					m_observers.on_add(
-							*this, *pDstArchetype, EntitySpan{addedIds.data(), addedIds.size()},
-							EntitySpan{entities.data() + originalChunkSize, toCreate});
-
-					if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-						CopyIter it;
-						it.set_world(this);
-						it.set_archetype(pDstArchetype);
-						it.set_chunk(pDstChunk);
-						it.set_range((uint16_t)originalChunkSize, (uint16_t)toCreate);
-						func(it);
-					} else {
-						GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
+#if GAIA_OBSERVERS_ENABLED
+					if (pAddedIds != nullptr) {
+						auto entities = pDstChunk->entity_view();
+						m_observers.on_add(
+								*this, *pDstArchetype, EntitySpan{pAddedIds->data(), pAddedIds->size()},
+								EntitySpan{entities.data() + originalChunkSize, toCreate});
 					}
+#endif
+
+					invoke_copy_batch_callback(func, pDstArchetype, pDstChunk, originalChunkSize, toCreate);
 
 					left -= toCreate;
 				} while (left > 0);
 			}
-#endif
 
-		private:
 			GAIA_NODISCARD bool id_uses_inherit_policy(Entity id) const {
 				return !is_wildcard(id) && valid(id) && target(id, OnInstantiate) == Inherit;
 			}
