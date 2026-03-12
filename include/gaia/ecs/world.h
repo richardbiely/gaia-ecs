@@ -2661,6 +2661,7 @@ namespace gaia {
 			struct PrefabInstantiatePlanNode {
 				Entity prefab = EntityBad;
 				uint32_t parentIdx = BadIndex;
+				Archetype* pDstArchetype = nullptr;
 			};
 
 			template <typename Func>
@@ -2963,17 +2964,16 @@ namespace gaia {
 				return true;
 			}
 
-			GAIA_NODISCARD Entity instantiate_prefab_node_inter(Entity prefabEntity, Entity parentInstance) {
+			GAIA_NODISCARD Archetype* instantiate_prefab_dst_archetype(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
-					return copy(prefabEntity);
+					return fetch(prefabEntity).pArchetype;
 
 				auto& ecSrc = m_recs.entities[prefabEntity.id()];
 				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
-				GAIA_ASSERT(ecSrc.pChunk != nullptr);
 
 				auto* pDstArchetype = ecSrc.pArchetype;
 				if (pDstArchetype->has<EntityDesc>())
@@ -2994,6 +2994,20 @@ namespace gaia {
 				const auto isPair = Pair(Is, prefabEntity);
 				assign_pair(isPair, *m_pEntityArchetype);
 				pDstArchetype = foc_archetype_add(pDstArchetype, isPair);
+
+				return pDstArchetype;
+			}
+
+			GAIA_NODISCARD Entity
+			instantiate_prefab_node_inter(Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
+				GAIA_ASSERT(pDstArchetype != nullptr);
+
+				auto& ecSrc = m_recs.entities[prefabEntity.id()];
+				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
+				GAIA_ASSERT(ecSrc.pChunk != nullptr);
 
 				EntityContainerCtx ctx{true, false, prefabEntity.kind()};
 				const auto instance = m_recs.entities.alloc(&ctx);
@@ -3062,10 +3076,16 @@ namespace gaia {
 				return instance;
 			}
 
+			GAIA_NODISCARD Entity instantiate_prefab_node_inter(Entity prefabEntity, Entity parentInstance) {
+				return instantiate_prefab_node_inter(
+						prefabEntity, instantiate_prefab_dst_archetype(prefabEntity), parentInstance);
+			}
+
 			template <typename T>
 			void build_prefab_instantiate_plan(Entity prefabEntity, uint32_t parentIdx, T& plan) {
 				const auto nodeIdx = (uint32_t)plan.size();
-				plan.push_back(PrefabInstantiatePlanNode{prefabEntity, parentIdx});
+				plan.push_back(
+						PrefabInstantiatePlanNode{prefabEntity, parentIdx, instantiate_prefab_dst_archetype(prefabEntity)});
 
 				cnt::darray_ext<Entity, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
@@ -3171,7 +3191,8 @@ namespace gaia {
 						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
 							const auto parent =
 									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] = instantiate_prefab_node_inter(plan[planIdx].prefab, parent);
+							spawned[planIdx] =
+									instantiate_prefab_node_inter(plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent);
 						}
 
 						const auto instance = spawned[0];
@@ -3187,7 +3208,8 @@ namespace gaia {
 						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
 							const auto parent =
 									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] = instantiate_prefab_node_inter(plan[planIdx].prefab, parent);
+							spawned[planIdx] =
+									instantiate_prefab_node_inter(plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent);
 						}
 
 						const auto instance = spawned[0];

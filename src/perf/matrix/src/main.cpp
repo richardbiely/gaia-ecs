@@ -542,6 +542,28 @@ void BM_EntityInstantiateN_ParentedFallback_4Comp(picobench::state& state) {
 	}
 }
 
+void BM_EntityInstantiateN_Prefab_4Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto prefab = w.prefab();
+		w.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+		w.add<Velocity>(prefab, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(prefab, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(prefab, {100, 100});
+
+		state.start_timer();
+
+		w.instantiate_n(prefab, n);
+
+		state.stop_timer();
+	}
+}
+
 void BM_EntityDestroy_Empty(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
@@ -4066,6 +4088,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("instantiate_n parented fallback, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_4Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("instantiate_n prefab, 100K");
 		PICOBENCH_REG(BM_EntityDestroy_Empty).PICO_SETTINGS().user_data(NEntitiesMedium).label("destroy empty");
 		PICOBENCH_REG(BM_EntityDestroy_4Comp).PICO_SETTINGS().user_data(NEntitiesFew).label("destroy 4comp");
 
