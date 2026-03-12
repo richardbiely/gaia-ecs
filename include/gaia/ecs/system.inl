@@ -46,7 +46,7 @@ namespace gaia {
 			}
 
 			void exec() {
-				auto& queryInfo = query.fetch();
+				[[maybe_unused]] auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
 				const char* pName = entity_name(*queryInfo.world(), entity);

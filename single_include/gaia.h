@@ -20117,8 +20117,8 @@ namespace gaia {
 				if (clamped != d)
 					ok = false;
 
-				constexpr auto minVal = (double)std::numeric_limits<TInt>::lowest();
-				constexpr auto maxVal = (double)std::numeric_limits<TInt>::max();
+				constexpr auto minVal = (double)(std::numeric_limits<TInt>::lowest)();
+				constexpr auto maxVal = (double)(std::numeric_limits<TInt>::max)();
 				if (clamped < minVal) {
 					clamped = minVal;
 					ok = false;
@@ -37036,19 +37036,21 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return m_plan.ctx.data.changedCnt > 0;
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.changedCnt > 0;
 			}
 
 			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
 			GAIA_NODISCARD bool has_entity_filter_terms() const {
-				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.deps.has(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
-				const auto& data = m_plan.ctx.data;
-				return (data.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
-							 (data.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
+				const auto& ctxData = m_plan.ctx.data;
+				return (ctxData.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
+							 (ctxData.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
 			}
 
 			template <typename... T>
@@ -38602,21 +38604,20 @@ namespace gaia {
 
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
-					if constexpr (!UseCaching)
-						return true;
+					if constexpr (UseCaching) {
+						if (m_cacheKind == QueryCacheKind::Auto) {
+							const bool usesImmediateLayer = uses_im_cache(ctx);
+							const bool usesLazyLayer = uses_lazy_cache(ctx);
+							const bool usesDynamicLayer = uses_dyn_cache(ctx);
+							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+							return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
+						}
 
-					if (m_cacheKind == QueryCacheKind::Auto) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesLazyLayer = uses_lazy_cache(ctx);
-						const bool usesDynamicLayer = uses_dyn_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
-					}
-
-					if (m_cacheKind == QueryCacheKind::All) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return usesImmediateLayer && !usesExplicitSrcTravLayer;
+						if (m_cacheKind == QueryCacheKind::All) {
+							const bool usesImmediateLayer = uses_im_cache(ctx);
+							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+							return usesImmediateLayer && !usesExplicitSrcTravLayer;
+						}
 					}
 
 					return true;
@@ -40283,7 +40284,8 @@ namespace gaia {
 				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Func&& func) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
-					const DirectEntitySeedInfo seedInfo{.seededFromOr = true};
+					DirectEntitySeedInfo seedInfo{};
+					seedInfo.seededFromOr = true;
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.op != QueryOpKind::Or)
@@ -51023,7 +51025,7 @@ namespace gaia {
 			}
 
 			void exec() {
-				auto& queryInfo = query.fetch();
+				[[maybe_unused]] auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
 				const char* pName = entity_name(*queryInfo.world(), entity);

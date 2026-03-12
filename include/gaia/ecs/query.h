@@ -817,21 +817,20 @@ namespace gaia {
 
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
-					if constexpr (!UseCaching)
-						return true;
+					if constexpr (UseCaching) {
+						if (m_cacheKind == QueryCacheKind::Auto) {
+							const bool usesImmediateLayer = uses_im_cache(ctx);
+							const bool usesLazyLayer = uses_lazy_cache(ctx);
+							const bool usesDynamicLayer = uses_dyn_cache(ctx);
+							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+							return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
+						}
 
-					if (m_cacheKind == QueryCacheKind::Auto) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesLazyLayer = uses_lazy_cache(ctx);
-						const bool usesDynamicLayer = uses_dyn_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
-					}
-
-					if (m_cacheKind == QueryCacheKind::All) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return usesImmediateLayer && !usesExplicitSrcTravLayer;
+						if (m_cacheKind == QueryCacheKind::All) {
+							const bool usesImmediateLayer = uses_im_cache(ctx);
+							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+							return usesImmediateLayer && !usesExplicitSrcTravLayer;
+						}
 					}
 
 					return true;
@@ -2498,7 +2497,8 @@ namespace gaia {
 				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Func&& func) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
-					const DirectEntitySeedInfo seedInfo{.seededFromOr = true};
+					DirectEntitySeedInfo seedInfo{};
+					seedInfo.seededFromOr = true;
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.op != QueryOpKind::Or)

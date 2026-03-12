@@ -1390,19 +1390,21 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return m_plan.ctx.data.changedCnt > 0;
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.changedCnt > 0;
 			}
 
 			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
 			GAIA_NODISCARD bool has_entity_filter_terms() const {
-				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.deps.has(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
-				const auto& data = m_plan.ctx.data;
-				return (data.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
-							 (data.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
+				const auto& ctxData = m_plan.ctx.data;
+				return (ctxData.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
+							 (ctxData.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
 			}
 
 			template <typename... T>

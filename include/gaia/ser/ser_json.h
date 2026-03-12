@@ -559,8 +559,8 @@ namespace gaia {
 				if (clamped != d)
 					ok = false;
 
-				constexpr auto minVal = (double)std::numeric_limits<TInt>::lowest();
-				constexpr auto maxVal = (double)std::numeric_limits<TInt>::max();
+				constexpr auto minVal = (double)(std::numeric_limits<TInt>::lowest)();
+				constexpr auto maxVal = (double)(std::numeric_limits<TInt>::max)();
 				if (clamped < minVal) {
 					clamped = minVal;
 					ok = false;
