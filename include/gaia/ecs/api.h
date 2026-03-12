@@ -43,6 +43,8 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 		// Traversal API
 

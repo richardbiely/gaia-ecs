@@ -10438,6 +10438,336 @@ TEST_CASE("Query - prefabs are excluded by default and can be matched explicitly
 	expect_exact_entities(qPrefabOnly, {prefabAnimal, prefabRabbit});
 }
 
+TEST_CASE("Prefab - instantiate creates a non-prefab instance with copied data") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto prefabAnimal = wld.prefab();
+	wld.as(prefabAnimal, animal);
+	wld.add<Position>(prefabAnimal, {7, 0, 0});
+
+	int positionHits = 0;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.on_each([&](ecs::Iter&) {
+				++positionHits;
+			})
+			.entity();
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+	CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabAnimal)));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.has(instance, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.get<Position>(instance).x == 7.0f);
+	CHECK(positionHits == 1);
+
+	auto qDefault = wld.query().is(prefabAnimal);
+	CHECK(qDefault.count() == 1);
+	expect_exact_entities(qDefault, {instance});
+
+	auto qPrefab = wld.query().is(prefabAnimal).match_prefab();
+	CHECK(qPrefab.count() == 2);
+	expect_exact_entities(qPrefab, {prefabAnimal, instance});
+}
+
+TEST_CASE("Prefab - instantiate does not copy the prefab name") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	wld.name(prefabAnimal, "prefab_animal");
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK(wld.name(prefabAnimal) != nullptr);
+	CHECK(strcmp(wld.name(prefabAnimal), "prefab_animal") == 0);
+	CHECK(wld.name(instance) == nullptr);
+}
+
+TEST_CASE("Prefab - instantiate respects DontInherit policy") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {7, 0, 0});
+	wld.add<Scale>(prefabAnimal, {3, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has<Position>(instance));
+	CHECK(wld.has<Scale>(instance));
+	CHECK(wld.get<Scale>(instance).x == 3.0f);
+	CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabAnimal)));
+}
+
+TEST_CASE("Prefab - explicit Override policy still copies data") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {9, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Override));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK(wld.has<Position>(instance));
+	CHECK(wld.get<Position>(instance).x == 9.0f);
+}
+
+TEST_CASE("Prefab - Inherit policy resolves through the prefab until overridden locally") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, position));
+	CHECK(wld.has<Position>(instance));
+	CHECK(wld.get<Position>(instance).x == 5.0f);
+
+	wld.add<Position>(instance, {8, 0, 0});
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == 8.0f);
+}
+
+TEST_CASE("Prefab - inherited component queries see instances and materialize local overrides on write") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	auto qRead = wld.query().all<Position>();
+	CHECK(qRead.count() == 1);
+	expect_exact_entities(qRead, {instance});
+
+	float xRead = 0.0f;
+	qRead.each([&](const Position& pos) {
+		xRead += pos.x;
+	});
+	CHECK(xRead == doctest::Approx(5.0f));
+
+	auto qWrite = wld.query().all<Position&>();
+	qWrite.each([&](Position& pos) {
+		pos.x += 3.0f;
+	});
+
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(8.0f));
+	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - inherited writable query updates multiple instances from a stable snapshot") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instanceA = wld.instantiate(prefabAnimal);
+	const auto instanceB = wld.instantiate(prefabAnimal);
+
+	uint32_t hits = 0;
+	auto qWrite = wld.query().all<Position&>();
+	qWrite.each([&](Position& pos) {
+		++hits;
+		pos.x += 2.0f;
+	});
+
+	CHECK(hits == 2);
+	CHECK(wld.has_direct(instanceA, position));
+	CHECK(wld.has_direct(instanceB, position));
+	CHECK(wld.get<Position>(instanceA).x == doctest::Approx(7.0f));
+	CHECK(wld.get<Position>(instanceB).x == doctest::Approx(7.0f));
+	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - inherited Iter query term access resolves and writes overrides locally") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	auto qRead = wld.query().all<Position>();
+	float xRead = 0.0f;
+	qRead.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>(1);
+		GAIA_EACH(it) {
+			xRead += posView[i].x;
+		}
+	});
+	CHECK(xRead == doctest::Approx(5.0f));
+
+	auto qWrite = wld.query().all<Position&>();
+	qWrite.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut<Position>(1);
+		GAIA_EACH(it) {
+			posView[i].x += 4.0f;
+		}
+	});
+
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(9.0f));
+	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - inherited Iter SoA query term access resolves and writes overrides locally") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<PositionSoA>().entity;
+	wld.add<PositionSoA>(prefabAnimal, {5, 6, 7});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	auto qRead = wld.query().all<PositionSoA>();
+	float xRead = 0.0f;
+	float yRead = 0.0f;
+	qRead.each([&](ecs::Iter& it) {
+		auto posView = it.view<PositionSoA>(1);
+		auto xs = posView.template get<0>();
+		auto ys = posView.template get<1>();
+		GAIA_EACH(it) {
+			xRead += xs[i];
+			yRead += ys[i];
+		}
+	});
+	CHECK(xRead == doctest::Approx(5.0f));
+	CHECK(yRead == doctest::Approx(6.0f));
+
+	auto qWrite = wld.query().all<PositionSoA&>();
+	qWrite.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut<PositionSoA>(1);
+		auto xs = posView.template set<0>();
+		auto ys = posView.template set<1>();
+		GAIA_EACH(it) {
+			xs[i] = xs[i] + 3.0f;
+			ys[i] = ys[i] + 4.0f;
+		}
+	});
+
+	CHECK(wld.has_direct(instance, position));
+	const auto pos = wld.get<PositionSoA>(instance);
+	CHECK(pos.x == doctest::Approx(8.0f));
+	CHECK(pos.y == doctest::Approx(10.0f));
+	CHECK(pos.z == doctest::Approx(7.0f));
+
+	const auto prefabPos = wld.get<PositionSoA>(prefabAnimal);
+	CHECK(prefabPos.x == doctest::Approx(5.0f));
+	CHECK(prefabPos.y == doctest::Approx(6.0f));
+	CHECK(prefabPos.z == doctest::Approx(7.0f));
+}
+
+TEST_CASE("Prefab - instantiate recurses Parent-owned prefab children") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.parent(leafPrefab, childPrefab);
+
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	auto q = wld.query().all<Position>().match_prefab();
+	cnt::darray<ecs::Entity> entities;
+	q.arr(entities);
+
+	ecs::Entity childInstance = ecs::EntityBad;
+	ecs::Entity leafInstance = ecs::EntityBad;
+	for (const auto entity: entities) {
+		if (entity == rootPrefab || entity == childPrefab || entity == leafPrefab || entity == rootInstance)
+			continue;
+		if (wld.has_direct(entity, ecs::Pair(ecs::Is, childPrefab)))
+			childInstance = entity;
+		else if (wld.has_direct(entity, ecs::Pair(ecs::Is, leafPrefab)))
+			leafInstance = entity;
+	}
+
+	CHECK(childInstance != ecs::EntityBad);
+	CHECK(leafInstance != ecs::EntityBad);
+
+	CHECK(wld.has_direct(rootInstance, ecs::Pair(ecs::Is, rootPrefab)));
+	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
+	CHECK(wld.has_direct(leafInstance, ecs::Pair(ecs::Is, leafPrefab)));
+
+	CHECK(wld.has(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+	CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
+
+	CHECK_FALSE(wld.has_direct(rootInstance, ecs::Prefab));
+	CHECK_FALSE(wld.has_direct(childInstance, ecs::Prefab));
+	CHECK_FALSE(wld.has_direct(leafInstance, ecs::Prefab));
+
+	CHECK(wld.get<Position>(rootInstance).x == 1.0f);
+	CHECK(wld.get<Position>(childInstance).x == 2.0f);
+	CHECK(wld.get<Position>(leafInstance).x == 3.0f);
+}
+
+TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto plainChild = wld.add();
+
+	wld.parent(plainChild, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(plainChild, {2, 0, 0});
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	uint32_t childCount = 0;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity) {
+		++childCount;
+	});
+
+	CHECK(childCount == 0);
+	CHECK(wld.get<Position>(rootInstance).x == doctest::Approx(1.0f));
+}
+
+TEST_CASE("Prefab - child instantiation respects DontInherit policy") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Scale>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	ecs::Entity childInstance = ecs::EntityBad;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity entity) {
+		childInstance = entity;
+	});
+
+	CHECK(childInstance != ecs::EntityBad);
+	CHECK_FALSE(wld.has<Position>(childInstance));
+	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
+}
+
 TEST_CASE("Query - Iter is query preserves component access") {
 	TestWorld twld;
 
@@ -13544,6 +13874,112 @@ TEST_CASE("System - prefabs are excluded by default and can be matched explicitl
 	CHECK(prefabHits == 2);
 }
 
+TEST_CASE("System - inherited prefab component query sees instances and writes override locally") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefab, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	auto sys = wld.system().all<Position&>().on_each([&](Position& pos) {
+		++hits;
+		pos.x += 2.0f;
+	});
+
+	sys.exec();
+
+	CHECK(hits == 1);
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(6.0f));
+	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
+}
+
+TEST_CASE("System - inherited prefab Iter query preserves term-indexed access") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefab, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefab);
+
+	float xRead = 0.0f;
+	auto sysRead = wld.system().all<Position>().on_each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>(1);
+		GAIA_EACH(it) {
+			xRead += posView[i].x;
+		}
+	});
+	sysRead.exec();
+
+	auto sysWrite = wld.system().all<Position&>().on_each([&](ecs::Iter& it) {
+		auto posView = it.view_mut<Position>(1);
+		GAIA_EACH(it) {
+			posView[i].x += 3.0f;
+		}
+	});
+	sysWrite.exec();
+
+	CHECK(xRead == doctest::Approx(4.0f));
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(7.0f));
+	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
+}
+
+TEST_CASE("System - inherited prefab Iter SoA query preserves term-indexed access") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<PositionSoA>().entity;
+	wld.add<PositionSoA>(prefab, {4, 5, 6});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefab);
+
+	float xRead = 0.0f;
+	float zRead = 0.0f;
+	auto sysRead = wld.system().all<PositionSoA>().on_each([&](ecs::Iter& it) {
+		auto posView = it.view<PositionSoA>(1);
+		auto xs = posView.template get<0>();
+		auto zs = posView.template get<2>();
+		GAIA_EACH(it) {
+			xRead += xs[i];
+			zRead += zs[i];
+		}
+	});
+	sysRead.exec();
+
+	auto sysWrite = wld.system().all<PositionSoA&>().on_each([&](ecs::Iter& it) {
+		auto posView = it.view_mut<PositionSoA>(1);
+		auto xs = posView.template set<0>();
+		auto zs = posView.template set<2>();
+		GAIA_EACH(it) {
+			xs[i] = xs[i] + 2.0f;
+			zs[i] = zs[i] + 3.0f;
+		}
+	});
+	sysWrite.exec();
+
+	CHECK(xRead == doctest::Approx(4.0f));
+	CHECK(zRead == doctest::Approx(6.0f));
+
+	CHECK(wld.has_direct(instance, position));
+	const auto pos = wld.get<PositionSoA>(instance);
+	CHECK(pos.x == doctest::Approx(6.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(9.0f));
+
+	const auto prefabPos = wld.get<PositionSoA>(prefab);
+	CHECK(prefabPos.x == doctest::Approx(4.0f));
+	CHECK(prefabPos.y == doctest::Approx(5.0f));
+	CHECK(prefabPos.z == doctest::Approx(6.0f));
+}
+
 TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
 	TestWorld twld;
 
@@ -14518,6 +14954,32 @@ TEST_CASE("Observer - prefabs are excluded by default and can be matched explici
 
 	(void)obsDefault;
 	(void)obsMatchPrefab;
+}
+
+TEST_CASE("Observer - inherited prefab data matches on instantiate") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefab, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	const auto instance = wld.instantiate(prefab);
+
+	CHECK(hits == 1);
+	CHECK(wld.has(instance, position));
+	CHECK_FALSE(wld.has_direct(instance, position));
+
+	(void)observer;
 }
 
 TEST_CASE("Observer - add(QueryInput) registration and fast path") {

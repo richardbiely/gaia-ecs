@@ -23428,6 +23428,8 @@ namespace gaia {
 		const char* entity_name(const World& world, Entity entity);
 		const char* entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 		// Traversal API
 
@@ -24055,6 +24057,10 @@ namespace gaia {
 		struct GAIA_API Parent_ {};
 		struct GAIA_API Is_ {};
 		struct GAIA_API Prefab_ {};
+		struct GAIA_API OnInstantiate_ {};
+		struct GAIA_API Override_ {};
+		struct GAIA_API Inherit_ {};
+		struct GAIA_API DontInherit_ {};
 		struct GAIA_API Traversable_ {};
 		struct GAIA_API System_;
 		struct GAIA_API DependsOn_ {};
@@ -24103,20 +24109,25 @@ namespace gaia {
 		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Template entity excluded from queries by default unless explicitly requested.
 		inline Entity Prefab = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		// Prefab instantiation policy relation and values.
+		inline Entity OnInstantiate = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Override = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Inherit = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DontInherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(24, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(25, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(25, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(26, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(28, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(29, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(29, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(30, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(31, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(32, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(33, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Always has to match the last internal entity
@@ -29533,6 +29544,7 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_term_uses_inherit_policy(const World& world, Entity term);
 		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
@@ -29548,6 +29560,8 @@ namespace gaia {
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_query_entity_arg(World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -30130,11 +30144,15 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
+						const bool isInheritedTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
-						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm;
+						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
 					}
 
 					GAIA_FOR(cnt) {
@@ -30144,6 +30162,10 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
+						const bool isInheritedTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -30174,7 +30196,7 @@ namespace gaia {
 							continue;
 						}
 
-						if (isAdjunctTerm || isDirectIsTerm) {
+						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.add(DependencyHasAdjunctTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));
@@ -30575,6 +30597,171 @@ namespace gaia {
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		namespace detail {
+			template <typename U>
+			struct SoATermRowWriteProxy {
+				Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				Entity entity = EntityBad;
+				Entity id = EntityBad;
+				uint32_t idx = 0;
+
+				GAIA_NODISCARD operator U() const {
+					if (pChunk != nullptr)
+						return pChunk->template view<U>()[idx];
+
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+				}
+
+				SoATermRowWriteProxy& operator=(const U& value) {
+					if (pChunk != nullptr)
+						pChunk->template sview_mut<U>()[idx] = value;
+					else
+						world_query_entity_arg_by_id<U&>(*pWorld, entity, id) = value;
+					return *this;
+				}
+			};
+
+			template <typename U, size_t Item>
+			struct SoATermFieldReadProxy {
+				using view_policy = mem::auto_view_policy_get<U>;
+				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::const_value_type;
+
+				const Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				Entity entity = EntityBad;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD value_type operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pChunk != nullptr)
+						return pChunk->template view<U>().template get<Item>()[idxBase + idx];
+
+					const U value = world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+					return std::get<Item>(meta::struct_to_tuple(value));
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			template <typename U, size_t Item>
+			struct SoATermFieldWriteProxy {
+				using view_policy = mem::auto_view_policy_set<U>;
+				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::value_type;
+
+				Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				Entity entity = EntityBad;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+
+				struct ElementProxy {
+					Chunk* pChunk = nullptr;
+					World* pWorld = nullptr;
+					Entity entity = EntityBad;
+					Entity id = EntityBad;
+					uint32_t idx = 0;
+
+					GAIA_NODISCARD operator value_type() const {
+						if (pChunk != nullptr)
+							return pChunk->template view<U>().template get<Item>()[idx];
+
+						const U value = world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+						return std::get<Item>(meta::struct_to_tuple(value));
+					}
+
+					ElementProxy& operator=(const value_type& value) {
+						if (pChunk != nullptr) {
+							pChunk->template sview_mut<U>().template set<Item>()[idx] = value;
+							return *this;
+						}
+
+						auto data = world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+						auto tuple = meta::struct_to_tuple(data);
+						std::get<Item>(tuple) = value;
+						world_query_entity_arg_by_id<U&>(*pWorld, entity, id) = meta::tuple_to_struct<U>(GAIA_MOV(tuple));
+						return *this;
+					}
+				};
+
+				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					return ElementProxy{pChunk, pWorld, entity, id, idxBase + (uint32_t)idx};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			template <typename U>
+			struct SoATermViewGet {
+				const Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				Entity entity = EntityBad;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD U operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pChunk != nullptr)
+						return pChunk->template view<U>()[idxBase + idx];
+
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+				}
+
+				template <size_t Item>
+				GAIA_NODISCARD auto get() const {
+					return SoATermFieldReadProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			template <typename U>
+			struct SoATermViewSet {
+				Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				Entity entity = EntityBad;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD auto operator[](size_t idx) {
+					GAIA_ASSERT(idx < cnt);
+					return SoATermRowWriteProxy<U>{pChunk, pWorld, entity, id, idxBase + (uint32_t)idx};
+				}
+
+				GAIA_NODISCARD U operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pChunk != nullptr)
+						return pChunk->template view<U>()[idxBase + idx];
+
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+				}
+
+				template <size_t Item>
+				GAIA_NODISCARD auto get() const {
+					return SoATermFieldReadProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+				}
+
+				template <size_t Item>
+				GAIA_NODISCARD auto set() {
+					return SoATermFieldWriteProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
 			template <Constraints IterConstraint>
 			class ChunkIterImpl {
 			protected:
@@ -30588,6 +30775,8 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIdxMapping = nullptr;
+				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
+				const Entity* m_pTermIdMapping = nullptr;
 				//! Row of the first entity we iterate from
 				uint16_t m_from;
 				//! Row of the last entity we iterate to
@@ -30669,6 +30858,10 @@ namespace gaia {
 					m_pCompIdxMapping = pCompIndicesMapping;
 				}
 
+				void set_term_ids(const Entity* pTermIds) {
+					m_pTermIdMapping = pTermIds;
+				}
+
 				void set_group_id(GroupId groupId) {
 					m_groupId = groupId;
 				}
@@ -30700,13 +30893,32 @@ namespace gaia {
 				GAIA_NODISCARD auto view(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
-					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_raw<T>(pData, m_pChunk->capacity());
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							return SoATermViewGet<U>{nullptr, world(), entity, id, 0, 1};
+						}
+
+						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
+						return SoATermViewGet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							const auto& data = world_query_entity_arg_by_id<const U&>(*world(), entity, id);
+							return m_pChunk->view_raw<T>((const void*)&data, 1);
+						}
+						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
+
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
 						return m_pChunk->view_raw<T>(pData, to() - from());
 					}
@@ -30725,15 +30937,37 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
-					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
-
-					m_pChunk->update_world_version(compIdx);
-
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
+							return SoATermViewSet<U>{ec.pChunk, world(), EntityBad, EntityBad, ec.row, 1};
+						}
+
+						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
+						m_pChunk->update_world_version(compIdx);
+						return SoATermViewSet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							return m_pChunk->view_mut_raw<T>((void*)&data, 1);
+						}
+						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
+
+						m_pChunk->update_world_version(compIdx);
+
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
 						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
@@ -30753,13 +30987,34 @@ namespace gaia {
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
-					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx);
-						return m_pChunk->view_mut_raw<T>(pData, m_pChunk->capacity());
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
+							return SoATermViewSet<U>{ec.pChunk, world(), EntityBad, EntityBad, ec.row, 1};
+						}
+
+						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
+						return SoATermViewSet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
+						const auto compIdx = m_pCompIdxMapping[termIdx];
+						if (compIdx == 0xFF) {
+							GAIA_ASSERT(m_pTermIdMapping != nullptr);
+							GAIA_ASSERT(size() == 1);
+
+							const auto entity = m_pChunk->entity_view()[from()];
+							const auto id = m_pTermIdMapping[termIdx];
+							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							return m_pChunk->view_mut_raw<T>((void*)&data, 1);
+						}
+						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
+
 						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
 						return m_pChunk->view_mut_raw<T>(pData, to() - from());
 					}
@@ -39409,23 +39664,31 @@ namespace gaia {
 								 !is_variable((EntityId)id.gen());
 				}
 
+				//! Returns true when a term uses semantic inherited-id matching rather than direct storage matching.
+				GAIA_NODISCARD static bool uses_inherited_id_matching(const World& world, const QueryTerm& term) {
+					const auto id = term.id;
+					return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
+								 !term_has_variables(term) && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								 (!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(world, id);
+				}
+
 				//! Evaluates term presence for a concrete entity using either direct or semantic semantics.
 				GAIA_NODISCARD static bool match_entity_term(const World& world, Entity entity, const QueryTerm& term) {
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_has_entity_term(world, entity, term.id);
 
 					return world_has_entity_term_direct(world, entity, term.id);
 				}
 
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_count_direct_term_entities(world, term.id);
 
 					return world_count_direct_term_entities_direct(world, term.id);
 				}
 
 				static void collect_direct_term_entities(const World& world, const QueryTerm& term, cnt::darray<Entity>& out) {
-					if (uses_semantic_is_matching(term)) {
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term)) {
 						world_collect_direct_term_entities(world, term.id, out);
 						return;
 					}
@@ -39443,7 +39706,7 @@ namespace gaia {
 					};
 
 					Visitor visitor{func};
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_for_each_direct_term_entity(world, term.id, &visitor, &Visitor::thunk);
 
 					return world_for_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
@@ -39701,6 +39964,8 @@ namespace gaia {
 						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Not)
 							return false;
 						if (is_adjunct_direct_term(world, term))
+							return false;
+						if (uses_inherited_id_matching(world, term))
 							return false;
 					}
 
@@ -39993,11 +40258,12 @@ namespace gaia {
 
 						const auto id = term.id;
 						const bool isDirectIsTerm = uses_semantic_is_matching(term);
+						const bool isInheritedTerm = uses_inherited_id_matching(world, term);
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
 								(!id.pair() && world_is_sparse_dont_fragment_component(world, id));
 						const bool needsEntityFilter =
-								isAdjunctTerm || isDirectIsTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
+								isAdjunctTerm || isDirectIsTerm || isInheritedTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
 							continue;
 
@@ -40145,7 +40411,8 @@ namespace gaia {
 
 				template <typename TIter>
 				static void init_direct_entity_iter(
-						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices) {
+						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices,
+						Entity* pTermIds) {
 					const auto& ec = ::gaia::ecs::fetch(world, entity);
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
@@ -40153,6 +40420,7 @@ namespace gaia {
 
 					GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
 						pIndices[i] = 0xFF;
+						pTermIds[i] = EntityBad;
 					}
 
 					const auto queryIds = queryInfo.ctx().data.ids_view();
@@ -40163,6 +40431,7 @@ namespace gaia {
 						const auto queryId = queryIds[idxBeforeRemapping];
 						const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
 						pIndices[i] = (uint8_t)compIdx;
+						pTermIds[i] = queryId;
 					}
 
 					//! Build a one-row iterator so direct-seeded execution can reuse the normal
@@ -40172,21 +40441,39 @@ namespace gaia {
 					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 					it.set_group_id(0);
 					it.set_remapping_indices(pIndices);
+					it.set_term_ids(pTermIds);
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
 					auto& world = *queryInfo.world();
+					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
 
 					auto exec_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
-						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						func(it);
 					};
 
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
+					if (hasWriteTerms) {
+						auto& scratch = direct_query_scratch();
+						// Writable callbacks may add local overrides and reshuffle direct-term indices,
+						// so direct-seeded execution must iterate a stable snapshot.
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+							exec_entity(entity);
+						}
+						return;
+					}
+
 					if (plan.preferOrSeed) {
 						for_each_direct_or_union<TIter>(world, queryInfo, exec_entity);
 						return;
@@ -40203,14 +40490,45 @@ namespace gaia {
 				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
+					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					bool hasInheritedTerms = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (uses_inherited_id_matching(world, term)) {
+							hasInheritedTerms = true;
+							break;
+						}
+					}
 
 					auto exec_entity = [&](Entity entity) {
+						if constexpr (sizeof...(T) > 0) {
+							if (hasInheritedTerms) {
+								func(world_query_entity_arg<T>(world, entity)...);
+								return;
+							}
+						}
+
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
-						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						// Entity filters already ran in the seed walker, so invoke the inner loop directly.
 						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
 					};
+
+					if (hasWriteTerms) {
+						auto& scratch = direct_query_scratch();
+						// Writable callbacks may add local overrides and reshuffle direct-term indices,
+						// so direct-seeded execution must iterate a stable snapshot.
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+							exec_entity(entity);
+						}
+						return;
+					}
 
 					if (plan.preferOrSeed) {
 						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
@@ -41913,6 +42231,65 @@ namespace gaia {
 					return false;
 				}
 
+				template <typename Func>
+				static void for_each_inherited_observer_term(World& world, Entity baseEntity, Func&& func) {
+					auto collect_terms = [&](Entity entity) {
+						if (!world.valid(entity))
+							return;
+
+						const auto& ec = world.fetch(entity);
+						if (ec.pArchetype == nullptr)
+							return;
+
+						for (const auto id: ec.pArchetype->ids_view()) {
+							if (id.pair() || is_wildcard(id) || !world.valid(id))
+								continue;
+							if (world.target(id, OnInstantiate) != Inherit)
+								continue;
+
+							func(id);
+						}
+					};
+
+					collect_terms(baseEntity);
+					for (const auto inheritedBase: world.as_targets_trav_cache(baseEntity))
+						collect_terms(inheritedBase);
+				}
+
+				template <typename TObserverMap>
+				GAIA_NODISCARD bool
+				has_inherited_observers_for_event_terms(World& world, const TObserverMap& map, EntitySpan terms) const {
+					for (auto term: terms) {
+						if (!is_semantic_is_term(term))
+							continue;
+
+						const auto target = world.get(term.gen());
+						if (!world.valid(target))
+							continue;
+
+						bool found = false;
+						for_each_inherited_observer_term(world, target, [&](Entity inheritedId) {
+							if (found)
+								return;
+							const auto it = map.find(EntityLookupKey(inheritedId));
+							found = it != map.end() && !it->second.empty();
+						});
+
+						if (found)
+							return true;
+					}
+
+					return false;
+				}
+
+				template <typename TObserverMap>
+				void collect_observers_for_inherited_terms(
+						World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp) {
+					for_each_inherited_observer_term(world, baseEntity, [&](Entity inheritedId) {
+						collect_observers_for_event_term(world, map, inheritedId, matchStamp);
+					});
+				}
+
 				template <typename TObserverMap>
 				void collect_observers_for_event_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
 					if (!is_semantic_is_term(term)) {
@@ -42050,7 +42427,8 @@ namespace gaia {
 				//! \param targets Span on entities for which the observers triggers
 				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
 					if (!archetype.has_observed_terms() &&
-							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added))
+							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added) &&
+							!has_inherited_observers_for_event_terms(world, m_observer_map_add, ents_added))
 						return;
 
 					const bool archetypeIsPrefab = archetype.has(Prefab);
@@ -42067,6 +42445,7 @@ namespace gaia {
 						collect_observers_for_is_target(world, m_observer_map_add_is, target, matchStamp);
 						for (auto inheritedTarget: world.as_targets_trav_cache(target))
 							collect_observers_for_is_target(world, m_observer_map_add_is, inheritedTarget, matchStamp);
+						collect_observers_for_inherited_terms(world, m_observer_map_add, target, matchStamp);
 					}
 
 					// Fire OnAdd for observers that started matching
@@ -42113,6 +42492,11 @@ namespace gaia {
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					// Gather the list of components to match
 					const bool archetypeIsPrefab = archetype.has(Prefab);
+					if (!archetype.has_observed_terms() &&
+							!has_semantic_is_observers_for_event_terms(world, m_observer_map_del_is, ents_removed) &&
+							!has_inherited_observers_for_event_terms(world, m_observer_map_del, ents_removed))
+						return;
+
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_removed) {
 						collect_observers_for_event_term(world, m_observer_map_del, comp, matchStamp);
@@ -42126,6 +42510,7 @@ namespace gaia {
 						collect_observers_for_is_target(world, m_observer_map_del_is, target, matchStamp);
 						for (auto inheritedTarget: world.as_targets_trav_cache(target))
 							collect_observers_for_is_target(world, m_observer_map_del_is, inheritedTarget, matchStamp);
+						collect_observers_for_inherited_terms(world, m_observer_map_del, target, matchStamp);
 					}
 
 					// Fire OnDel for observers that no longer match
@@ -44000,6 +44385,147 @@ namespace gaia {
 			}
 #endif
 
+		private:
+			GAIA_NODISCARD bool id_uses_inherit_policy(Entity id) const {
+				return !is_wildcard(id) && valid(id) && target(id, OnInstantiate) == Inherit;
+			}
+
+			GAIA_NODISCARD Entity inherited_id_owner(Entity entity, Entity id) const {
+				if (!id_uses_inherit_policy(id))
+					return EntityBad;
+
+				const auto& targets = as_targets_trav_cache(entity);
+				for (const auto target: targets) {
+					if (has_inter(target, id, false))
+						return target;
+				}
+
+				return EntityBad;
+			}
+
+			GAIA_NODISCARD bool instantiate_copies_id(Entity id) const {
+				const auto policy = target(id, OnInstantiate);
+				if (policy == EntityBad || policy == Override)
+					return true;
+				if (policy == DontInherit || policy == Inherit)
+					return false;
+				return true;
+			}
+
+			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
+			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
+
+				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
+					return copy(prefabEntity);
+
+				auto& ecSrc = m_recs.entities[prefabEntity.id()];
+				GAIA_ASSERT(ecSrc.pArchetype != nullptr);
+				GAIA_ASSERT(ecSrc.pChunk != nullptr);
+
+				auto* pDstArchetype = ecSrc.pArchetype;
+				if (pDstArchetype->has<EntityDesc>())
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+				if (pDstArchetype->has(Prefab))
+					pDstArchetype = foc_archetype_del(pDstArchetype, Prefab);
+
+				for (const auto id: ecSrc.pArchetype->ids_view()) {
+					if (id.pair() && id.id() == Is.id()) {
+						pDstArchetype = foc_archetype_del(pDstArchetype, id);
+						continue;
+					}
+
+					if (!instantiate_copies_id(id))
+						pDstArchetype = foc_archetype_del(pDstArchetype, id);
+				}
+
+				const auto isPair = Pair(Is, prefabEntity);
+				assign_pair(isPair, *m_pEntityArchetype);
+				pDstArchetype = foc_archetype_add(pDstArchetype, isPair);
+
+				EntityContainerCtx ctx{true, false, prefabEntity.kind()};
+				const auto instance = m_recs.entities.alloc(&ctx);
+				auto& ecDst = m_recs.entities[instance.id()];
+				auto* pDstChunk = pDstArchetype->foc_free_chunk();
+				store_entity(ecDst, instance, pDstArchetype, pDstChunk);
+				pDstArchetype->try_update_free_chunk_idx();
+				Chunk::copy_foreign_entity_data(ecSrc.pChunk, ecSrc.row, pDstChunk, ecDst.row);
+				pDstChunk->update_versions();
+
+				ecDst.flags |= EntityContainerFlags::HasAliasOf;
+
+				touch_rel_version(Is);
+				invalidate_queries_for_rel(Is);
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+
+				const auto instanceKey = EntityLookupKey(instance);
+				const auto prefabKey = EntityLookupKey(prefabEntity);
+				m_entityToAsTargets[instanceKey].insert(prefabKey);
+				m_entityToAsTargetsTravCache = {};
+				m_entityToAsRelations[prefabKey].insert(instanceKey);
+				m_entityToAsRelationsTravCache = {};
+				invalidate_queries_for_entity({Is, prefabEntity});
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				lock();
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				for (const auto id: pDstArchetype->ids_view()) {
+					if (!id.comp())
+						continue;
+
+					const auto& item = comp_cache().get(id);
+					const auto& hooks = ComponentCache::hooks(item);
+					if (hooks.func_add != nullptr)
+						hooks.func_add(*this, item, instance);
+				}
+	#endif
+
+	#if GAIA_OBSERVERS_ENABLED
+				m_observers.on_add(*this, *pDstArchetype, pDstArchetype->ids_view(), EntitySpan{&instance, 1});
+	#endif
+
+				unlock();
+#endif
+
+				if (parentInstance != EntityBad)
+					parent(instance, parentInstance);
+
+				cnt::darray<Entity> prefabChildren;
+				sources(Parent, prefabEntity, [&](Entity childPrefab) {
+					if (!has_direct(childPrefab, Prefab))
+						return;
+					prefabChildren.push_back(childPrefab);
+				});
+
+				core::sort(prefabChildren, [](Entity left, Entity right) {
+					return left.id() < right.id();
+				});
+
+				for (const auto childPrefab: prefabChildren)
+					(void)instantiate_inter(childPrefab, instance);
+
+				return instance;
+			}
+
+		public:
+			//! Instantiates a prefab as a normal entity.
+			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
+			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
+			GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
+
+				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
+					return copy(prefabEntity);
+
+				return instantiate_inter(prefabEntity, EntityBad);
+			}
+
 			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
@@ -44418,16 +44944,36 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity) const {
 				using FT = typename component_type_t<T>::TypeFull;
+				const auto compEntity = [&]() {
+					if constexpr (is_pair<FT>::value) {
+						const auto rel = comp_cache().template get<typename FT::rel>().entity;
+						const auto tgt = comp_cache().template get<typename FT::tgt>().entity;
+						return (Entity)Pair(rel, tgt);
+					} else {
+						return comp_cache().template get<FT>().entity;
+					}
+				}();
 				if constexpr (supports_sparse_component<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
 					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
 						const auto* pStore = sparse_component_store<FT>(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
-						return pStore->get(entity);
+						if (pStore->has(entity))
+							return pStore->get(entity);
+
+						const auto inheritedOwner = inherited_id_owner(entity, compEntity);
+						GAIA_ASSERT(inheritedOwner != EntityBad);
+						return pStore->get(inheritedOwner);
 					}
 				}
 
-				return acc(entity).get<T>();
+				const auto& ec = m_recs.entities[entity.id()];
+				if (ec.pArchetype->has(compEntity))
+					return acc(entity).template get<T>();
+
+				const auto inheritedOwner = inherited_id_owner(entity, compEntity);
+				GAIA_ASSERT(inheritedOwner != EntityBad);
+				return acc(inheritedOwner).template get<T>();
 			}
 
 			//! Returns the value stored in the component associated with @a object on @a entity.
@@ -44438,11 +44984,22 @@ namespace gaia {
 					if (can_use_sparse_component<FT>(object)) {
 						const auto* pStore = sparse_component_store<FT>(object);
 						GAIA_ASSERT(pStore != nullptr);
-						return pStore->get(entity);
+						if (pStore->has(entity))
+							return pStore->get(entity);
+
+						const auto inheritedOwner = inherited_id_owner(entity, object);
+						GAIA_ASSERT(inheritedOwner != EntityBad);
+						return pStore->get(inheritedOwner);
 					}
 				}
 
-				return acc(entity).get<T>(object);
+				const auto& ec = m_recs.entities[entity.id()];
+				if (ec.pArchetype->has(object))
+					return acc(entity).template get<T>(object);
+
+				const auto inheritedOwner = inherited_id_owner(entity, object);
+				GAIA_ASSERT(inheritedOwner != EntityBad);
+				return acc(inheritedOwner).template get<T>(object);
 			}
 
 			//----------------------------------------------------------------------
@@ -44543,7 +45100,8 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 					if (itSparseStore != m_sparseComponentsByComp.end())
-						return itSparseStore->second.func_has(itSparseStore->second.pStore, entity);
+						return itSparseStore->second.func_has(itSparseStore->second.pStore, entity) ||
+									 (allowSemanticIs && inherited_id_owner(entity, object) != EntityBad);
 				}
 
 				const auto* pArchetype = ec.pArchetype;
@@ -44592,7 +45150,10 @@ namespace gaia {
 					}
 				}
 
-				return pArchetype->has(object);
+				if (pArchetype->has(object))
+					return true;
+
+				return allowSemanticIs && inherited_id_owner(entity, object) != EntityBad;
 			}
 
 		public:
@@ -44617,11 +45178,20 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using FT = typename component_type_t<T>::TypeFull;
+				const auto compEntity = [&]() {
+					if constexpr (is_pair<FT>::value) {
+						const auto rel = comp_cache().template get<typename FT::rel>().entity;
+						const auto tgt = comp_cache().template get<typename FT::tgt>().entity;
+						return (Entity)Pair(rel, tgt);
+					} else {
+						return comp_cache().template get<FT>().entity;
+					}
+				}();
 				if constexpr (supports_sparse_component<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
 					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
 						const auto* pStore = sparse_component_store<FT>(pItem->entity);
-						return pStore != nullptr && pStore->has(entity);
+						return pStore != nullptr && (pStore->has(entity) || inherited_id_owner(entity, compEntity) != EntityBad);
 					}
 				}
 
@@ -44629,7 +45199,7 @@ namespace gaia {
 				if (is_req_del(ec))
 					return false;
 
-				return ec.pArchetype->has<T>();
+				return ec.pArchetype->has(compEntity) || inherited_id_owner(entity, compEntity) != EntityBad;
 			}
 
 			//----------------------------------------------------------------------
@@ -45388,6 +45958,46 @@ namespace gaia {
 			}
 
 		private:
+			template <typename Func>
+			GAIA_NODISCARD bool for_each_inherited_term_entity(Entity term, Func&& func) const {
+				cnt::set<EntityLookupKey> seen;
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(term));
+				if (it == m_entityToArchetypeMap.end())
+					return true;
+
+				for (const auto* pArchetype: it->second) {
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							const auto entity = entities[i];
+							const auto entityKey = EntityLookupKey(entity);
+							if (seen.contains(entityKey))
+								continue;
+							seen.insert(entityKey);
+
+							if (!func(entity))
+								return false;
+
+							const auto& descendants = as_relations_trav_cache(entity);
+							for (const auto descendant: descendants) {
+								const auto descendantKey = EntityLookupKey(descendant);
+								if (seen.contains(descendantKey))
+									continue;
+								seen.insert(descendantKey);
+
+								if (!func(descendant))
+									return false;
+							}
+						}
+					}
+				}
+
+				return true;
+			}
+
 			//! Counts entities matching a direct term using the narrowest available store/index.
 			//! This is used by direct non-fragmenting query fast paths to avoid world-wide row filtering.
 			GAIA_NODISCARD uint32_t count_direct_term_entities_inter(Entity term, bool allowSemanticIs) const {
@@ -45400,6 +46010,15 @@ namespace gaia {
 						return 0;
 
 					return (uint32_t)as_relations_trav_cache(target).size() + 1;
+				}
+
+				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
+					uint32_t cnt = 0;
+					(void)for_each_inherited_term_entity(term, [&](Entity) {
+						++cnt;
+						return true;
+					});
+					return cnt;
 				}
 
 				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
@@ -45450,6 +46069,14 @@ namespace gaia {
 					out.reserve(out.size() + (uint32_t)relations.size());
 					for (auto relation: relations)
 						out.push_back(relation);
+					return;
+				}
+
+				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
+					(void)for_each_inherited_term_entity(term, [&](Entity entity) {
+						out.push_back(entity);
+						return true;
+					});
 					return;
 				}
 
@@ -45525,6 +46152,12 @@ namespace gaia {
 							return false;
 					}
 					return true;
+				}
+
+				if (allowSemanticIs && !is_wildcard(term) && valid(term) && target(term, OnInstantiate) == Inherit) {
+					return for_each_inherited_term_entity(term, [&](Entity entity) {
+						return func(ctx, entity);
+					});
 				}
 
 				if (term.pair() && is_exclusive_dont_fragment_relation(entity_from_id(*this, term.id()))) {
@@ -49992,6 +50625,10 @@ namespace gaia {
 				(void)reg_core_entity<Parent_>(Parent);
 				(void)reg_core_entity<Is_>(Is);
 				(void)reg_core_entity<Prefab_>(Prefab);
+				(void)reg_core_entity<OnInstantiate_>(OnInstantiate);
+				(void)reg_core_entity<Override_>(Override);
+				(void)reg_core_entity<Inherit_>(Inherit);
+				(void)reg_core_entity<DontInherit_>(DontInherit);
 				(void)reg_core_entity<System_>(System);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
 				(void)reg_core_entity<Observer_>(Observer);
@@ -50081,6 +50718,21 @@ namespace gaia {
 						.add(Acyclic)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Prefab) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, OnInstantiate) //
+						.add(Core)
+						.add(Acyclic)
+						.add(Exclusive)
+						.add(DontFragment)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Override) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Inherit) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, DontInherit) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 
@@ -51086,6 +51738,10 @@ namespace gaia {
 			return world.has(entity, term);
 		}
 
+		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
+			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
+		}
+
 		inline bool world_has_entity_term_direct(const World& world, Entity entity, Entity term) {
 			return world.has_direct(entity, term);
 		}
@@ -51146,6 +51802,46 @@ namespace gaia {
 				return world.template set<Arg>(entity);
 			else
 				return world.template get<Arg>(entity);
+		}
+
+		template <typename T>
+		inline Entity world_query_arg_id(World& world) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			using FT = typename component_type_t<Arg>::TypeFull;
+			if constexpr (is_pair<FT>::value) {
+				const auto rel = comp_cache(world).template get<typename FT::rel>().entity;
+				const auto tgt = comp_cache(world).template get<typename FT::tgt>().entity;
+				return (Entity)Pair(rel, tgt);
+			} else
+				return comp_cache(world).template get<FT>().entity;
+		}
+
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg(World& world, Entity entity) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			else {
+				const auto id = world_query_arg_id<Arg>(world);
+				return world_query_entity_arg_by_id<T>(world, entity, id);
+			}
+		}
+
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+				if (!world.has_direct(entity, termId) && world.has(entity, termId)) {
+					Arg inheritedValue = world.template get<Arg>(entity, termId);
+					world.add(entity, termId, Arg(inheritedValue));
+				}
+
+				return world.acc_mut(entity).template mut<Arg>(termId);
+			} else
+				return world.template get<Arg>(entity, termId);
 		}
 
 	} // namespace ecs

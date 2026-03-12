@@ -23,6 +23,7 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_term_uses_inherit_policy(const World& world, Entity term);
 		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
@@ -38,6 +39,8 @@ namespace gaia {
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) world_query_entity_arg(World& world, Entity entity);
 		//! Returns the per-entity archetype version used for targeted source-query freshness checks.
 		GAIA_NODISCARD uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
@@ -620,11 +623,15 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
+						const bool isInheritedTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
-						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm;
+						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
 					}
 
 					GAIA_FOR(cnt) {
@@ -634,6 +641,10 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
+						const bool isInheritedTerm =
+								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -664,7 +675,7 @@ namespace gaia {
 							continue;
 						}
 
-						if (isAdjunctTerm || isDirectIsTerm) {
+						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.add(DependencyHasAdjunctTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));

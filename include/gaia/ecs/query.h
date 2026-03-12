@@ -1996,23 +1996,31 @@ namespace gaia {
 								 !is_variable((EntityId)id.gen());
 				}
 
+				//! Returns true when a term uses semantic inherited-id matching rather than direct storage matching.
+				GAIA_NODISCARD static bool uses_inherited_id_matching(const World& world, const QueryTerm& term) {
+					const auto id = term.id;
+					return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
+								 !term_has_variables(term) && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								 (!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(world, id);
+				}
+
 				//! Evaluates term presence for a concrete entity using either direct or semantic semantics.
 				GAIA_NODISCARD static bool match_entity_term(const World& world, Entity entity, const QueryTerm& term) {
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_has_entity_term(world, entity, term.id);
 
 					return world_has_entity_term_direct(world, entity, term.id);
 				}
 
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_count_direct_term_entities(world, term.id);
 
 					return world_count_direct_term_entities_direct(world, term.id);
 				}
 
 				static void collect_direct_term_entities(const World& world, const QueryTerm& term, cnt::darray<Entity>& out) {
-					if (uses_semantic_is_matching(term)) {
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term)) {
 						world_collect_direct_term_entities(world, term.id, out);
 						return;
 					}
@@ -2030,7 +2038,7 @@ namespace gaia {
 					};
 
 					Visitor visitor{func};
-					if (uses_semantic_is_matching(term))
+					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_for_each_direct_term_entity(world, term.id, &visitor, &Visitor::thunk);
 
 					return world_for_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
@@ -2288,6 +2296,8 @@ namespace gaia {
 						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Not)
 							return false;
 						if (is_adjunct_direct_term(world, term))
+							return false;
+						if (uses_inherited_id_matching(world, term))
 							return false;
 					}
 
@@ -2580,11 +2590,12 @@ namespace gaia {
 
 						const auto id = term.id;
 						const bool isDirectIsTerm = uses_semantic_is_matching(term);
+						const bool isInheritedTerm = uses_inherited_id_matching(world, term);
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
 								(!id.pair() && world_is_sparse_dont_fragment_component(world, id));
 						const bool needsEntityFilter =
-								isAdjunctTerm || isDirectIsTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
+								isAdjunctTerm || isDirectIsTerm || isInheritedTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
 							continue;
 
@@ -2732,7 +2743,8 @@ namespace gaia {
 
 				template <typename TIter>
 				static void init_direct_entity_iter(
-						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices) {
+						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices,
+						Entity* pTermIds) {
 					const auto& ec = ::gaia::ecs::fetch(world, entity);
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
@@ -2740,6 +2752,7 @@ namespace gaia {
 
 					GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
 						pIndices[i] = 0xFF;
+						pTermIds[i] = EntityBad;
 					}
 
 					const auto queryIds = queryInfo.ctx().data.ids_view();
@@ -2750,6 +2763,7 @@ namespace gaia {
 						const auto queryId = queryIds[idxBeforeRemapping];
 						const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
 						pIndices[i] = (uint8_t)compIdx;
+						pTermIds[i] = queryId;
 					}
 
 					//! Build a one-row iterator so direct-seeded execution can reuse the normal
@@ -2759,21 +2773,39 @@ namespace gaia {
 					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 					it.set_group_id(0);
 					it.set_remapping_indices(pIndices);
+					it.set_term_ids(pTermIds);
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
 					auto& world = *queryInfo.world();
+					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
 
 					auto exec_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
-						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						func(it);
 					};
 
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
+					if (hasWriteTerms) {
+						auto& scratch = direct_query_scratch();
+						// Writable callbacks may add local overrides and reshuffle direct-term indices,
+						// so direct-seeded execution must iterate a stable snapshot.
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+							exec_entity(entity);
+						}
+						return;
+					}
+
 					if (plan.preferOrSeed) {
 						for_each_direct_or_union<TIter>(world, queryInfo, exec_entity);
 						return;
@@ -2790,14 +2822,45 @@ namespace gaia {
 				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
+					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					bool hasInheritedTerms = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (uses_inherited_id_matching(world, term)) {
+							hasInheritedTerms = true;
+							break;
+						}
+					}
 
 					auto exec_entity = [&](Entity entity) {
+						if constexpr (sizeof...(T) > 0) {
+							if (hasInheritedTerms) {
+								func(world_query_entity_arg<T>(world, entity)...);
+								return;
+							}
+						}
+
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
-						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						// Entity filters already ran in the seed walker, so invoke the inner loop directly.
 						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
 					};
+
+					if (hasWriteTerms) {
+						auto& scratch = direct_query_scratch();
+						// Writable callbacks may add local overrides and reshuffle direct-term indices,
+						// so direct-seeded execution must iterate a stable snapshot.
+						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+						for (const auto entity: scratch.entities) {
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+								continue;
+							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+								continue;
+							exec_entity(entity);
+						}
+						return;
+					}
 
 					if (plan.preferOrSeed) {
 						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {

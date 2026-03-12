@@ -2070,6 +2070,46 @@ q3.each([](ecs::Entity entity) {
 
 You can create prefabs either with `w.prefab()` or by marking an existing entity through `w.build(entity).prefab()`.
 
+To instantiate a prefab as a normal entity:
+
+```cpp
+ecs::Entity instance = w.instantiate(prefab);
+
+// The instance is not a prefab itself.
+bool isPrefab = w.has_direct(instance, ecs::Prefab); // false
+
+// The instance directly inherits from the prefab.
+bool directInstance = w.has_direct(instance, ecs::Pair(ecs::Is, prefab)); // true
+```
+
+Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
+* `ecs::Prefab` is not copied to the instance
+* `EntityDesc` is not copied, so prefab names stay unique
+* the instance gets a direct `Pair(ecs::Is, prefab)` edge instead of copying the prefab's direct `Is` edges
+* direct `Parent`-owned prefab children are instantiated recursively under the new parent instance
+
+Only children that are themselves tagged with `ecs::Prefab` are instantiated recursively. Plain `Parent` children under a prefab are ignored.
+
+Prefab instantiation policies are configured on the copied id itself with `Pair(ecs::OnInstantiate, policy)`:
+
+```cpp
+ecs::Entity position = w.add<Position>().entity;
+w.add(position, ecs::Pair(ecs::OnInstantiate, ecs::DontInherit));
+```
+
+Currently supported policies:
+* `ecs::Override` - default behavior, copy the prefab-owned id onto the instance
+* `ecs::Inherit` - do not copy the id, resolve `has`/`get` through the prefab chain until the instance overrides it locally
+* `ecs::DontInherit` - skip the id during instantiation and do not resolve it through the prefab chain
+
+Typed queries and typed systems also resolve inherited prefab data and materialize a local override on first mutable access.
+
+`ecs::Iter` term-indexed component access also resolves inherited prefab data and materializes a local override on first mutable access.
+
+This applies to both AoS and SoA component layouts. Mutable inherited query access always turns into a local override on the instance before the write is applied, so the prefab source data stays unchanged.
+
+Observers use the same matching rules. Instantiating a prefab can therefore trigger observers for inherited ids when the new instance matches the observer query semantically.
+
 ### Cleanup rules
 When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.
 
