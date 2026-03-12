@@ -10517,6 +10517,27 @@ TEST_CASE("Prefab - explicit Override policy still copies data") {
 	CHECK(wld.get<Position>(instance).x == 9.0f);
 }
 
+TEST_CASE("Prefab - explicit Override policy copies sparse data") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<PositionSparse>().entity;
+	wld.add<PositionSparse>(prefabAnimal, {9, 1, 2});
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK(wld.has_direct(instance, position));
+	const auto pos = wld.get<PositionSparse>(instance);
+	CHECK(pos.x == doctest::Approx(9.0f));
+	CHECK(pos.y == doctest::Approx(1.0f));
+	CHECK(pos.z == doctest::Approx(2.0f));
+
+	const auto prefabPos = wld.get<PositionSparse>(prefabAnimal);
+	CHECK(prefabPos.x == doctest::Approx(9.0f));
+	CHECK(prefabPos.y == doctest::Approx(1.0f));
+	CHECK(prefabPos.z == doctest::Approx(2.0f));
+}
+
 TEST_CASE("Prefab - Inherit policy resolves through the prefab until overridden locally") {
 	TestWorld twld;
 
@@ -10534,6 +10555,41 @@ TEST_CASE("Prefab - Inherit policy resolves through the prefab until overridden 
 	wld.add<Position>(instance, {8, 0, 0});
 	CHECK(wld.has_direct(instance, position));
 	CHECK(wld.get<Position>(instance).x == 8.0f);
+}
+
+TEST_CASE("Prefab - explicit override materializes inherited ownership") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, position));
+	CHECK(wld.override<Position>(instance));
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(5.0f));
+	CHECK_FALSE(wld.override<Position>(instance));
+	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - explicit override supports inherited tags") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto tag = wld.add();
+	wld.add(prefabAnimal, tag);
+	wld.add(tag, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, tag));
+	CHECK(wld.has(instance, tag));
+	CHECK(wld.override(instance, tag));
+	CHECK(wld.has_direct(instance, tag));
+	CHECK_FALSE(wld.override(instance, tag));
 }
 
 TEST_CASE("Prefab - inherited component queries see instances and materialize local overrides on write") {
@@ -10564,6 +10620,36 @@ TEST_CASE("Prefab - inherited component queries see instances and materialize lo
 	CHECK(wld.has_direct(instance, position));
 	CHECK(wld.get<Position>(instance).x == doctest::Approx(8.0f));
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - inherited sparse component queries see instances and materialize local overrides on write") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<PositionSparse>().entity;
+	wld.add<PositionSparse>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	auto qRead = wld.query().all<PositionSparse>();
+	CHECK(qRead.count() == 1);
+	expect_exact_entities(qRead, {instance});
+
+	float xRead = 0.0f;
+	qRead.each([&](const PositionSparse& pos) {
+		xRead += pos.x;
+	});
+	CHECK(xRead == doctest::Approx(5.0f));
+
+	auto qWrite = wld.query().all<PositionSparse&>();
+	qWrite.each([&](PositionSparse& pos) {
+		pos.x += 3.0f;
+	});
+
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<PositionSparse>(instance).x == doctest::Approx(8.0f));
+	CHECK(wld.get<PositionSparse>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
 TEST_CASE("Prefab - inherited writable query updates multiple instances from a stable snapshot") {
@@ -10671,6 +10757,73 @@ TEST_CASE("Prefab - inherited Iter SoA query term access resolves and writes ove
 	CHECK(prefabPos.x == doctest::Approx(5.0f));
 	CHECK(prefabPos.y == doctest::Approx(6.0f));
 	CHECK(prefabPos.z == doctest::Approx(7.0f));
+}
+
+TEST_CASE("Prefab - explicit override supports inherited SoA components") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<PositionSoA>().entity;
+	wld.add<PositionSoA>(prefabAnimal, {5, 6, 7});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, position));
+	CHECK(wld.override<PositionSoA>(instance));
+	CHECK(wld.has_direct(instance, position));
+
+	const auto pos = wld.get<PositionSoA>(instance);
+	CHECK(pos.x == doctest::Approx(5.0f));
+	CHECK(pos.y == doctest::Approx(6.0f));
+	CHECK(pos.z == doctest::Approx(7.0f));
+	CHECK_FALSE(wld.override<PositionSoA>(instance));
+}
+
+TEST_CASE("Prefab - explicit override supports inherited sparse components") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<PositionSparse>().entity;
+	wld.add<PositionSparse>(prefabAnimal, {5, 6, 7});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, position));
+	CHECK(wld.override<PositionSparse>(instance));
+	CHECK(wld.has_direct(instance, position));
+
+	const auto pos = wld.get<PositionSparse>(instance);
+	CHECK(pos.x == doctest::Approx(5.0f));
+	CHECK(pos.y == doctest::Approx(6.0f));
+	CHECK(pos.z == doctest::Approx(7.0f));
+	CHECK_FALSE(wld.override<PositionSparse>(instance));
+}
+
+TEST_CASE("Prefab - explicit override by id supports inherited runtime sparse components") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto& runtimeComp = wld.add(
+			"Runtime_Sparse_Prefab_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+	wld.add(prefabAnimal, runtimeComp.entity, Position{2, 3, 4});
+	wld.add(runtimeComp.entity, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefabAnimal);
+
+	CHECK_FALSE(wld.has_direct(instance, runtimeComp.entity));
+	CHECK(wld.has(instance, runtimeComp.entity));
+	CHECK(wld.override(instance, runtimeComp.entity));
+	CHECK(wld.has_direct(instance, runtimeComp.entity));
+	CHECK_FALSE(wld.override(instance, runtimeComp.entity));
+
+	const auto& pos = wld.get<Position>(instance, runtimeComp.entity);
+	CHECK(pos.x == doctest::Approx(2.0f));
+	CHECK(pos.y == doctest::Approx(3.0f));
+	CHECK(pos.z == doctest::Approx(4.0f));
 }
 
 TEST_CASE("Prefab - instantiate recurses Parent-owned prefab children") {
@@ -13898,6 +14051,30 @@ TEST_CASE("System - inherited prefab component query sees instances and writes o
 	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
 }
 
+TEST_CASE("System - inherited prefab sparse component query sees instances and writes override locally") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<PositionSparse>().entity;
+	wld.add<PositionSparse>(prefab, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	auto sys = wld.system().all<PositionSparse&>().on_each([&](PositionSparse& pos) {
+		++hits;
+		pos.x += 2.0f;
+	});
+
+	sys.exec();
+
+	CHECK(hits == 1);
+	CHECK(wld.has_direct(instance, position));
+	CHECK(wld.get<PositionSparse>(instance).x == doctest::Approx(6.0f));
+	CHECK(wld.get<PositionSparse>(prefab).x == doctest::Approx(4.0f));
+}
+
 TEST_CASE("System - inherited prefab Iter query preserves term-indexed access") {
 	TestWorld twld;
 
@@ -14979,6 +15156,28 @@ TEST_CASE("Observer - inherited prefab data matches on instantiate") {
 	CHECK(wld.has(instance, position));
 	CHECK_FALSE(wld.has_direct(instance, position));
 
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sparse override data matches on instantiate") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<PositionSparse>(prefab, {4, 0, 0});
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	const auto instance = wld.instantiate(prefab);
+
+	CHECK(hits == 1);
+	CHECK(wld.has<PositionSparse>(instance));
 	(void)observer;
 }
 

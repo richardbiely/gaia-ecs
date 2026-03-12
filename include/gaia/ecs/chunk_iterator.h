@@ -112,6 +112,30 @@ namespace gaia {
 						world_query_entity_arg_by_id<U&>(*pWorld, entity, id) = meta::tuple_to_struct<U>(GAIA_MOV(tuple));
 						return *this;
 					}
+
+					template <typename V>
+					ElementProxy& operator+=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current + GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator-=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current - GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator*=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current * GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator/=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current / GAIA_FWD(value));
+					}
 				};
 
 				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {

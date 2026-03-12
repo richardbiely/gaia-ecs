@@ -2106,7 +2106,21 @@ Typed queries and typed systems also resolve inherited prefab data and materiali
 
 `ecs::Iter` term-indexed component access also resolves inherited prefab data and materializes a local override on first mutable access.
 
-This applies to both AoS and SoA component layouts. Mutable inherited query access always turns into a local override on the instance before the write is applied, so the prefab source data stays unchanged.
+This applies to table, sparse, AoS and SoA component layouts. Mutable inherited query access always turns into a local override on the instance before the write is applied, so the prefab source data stays unchanged.
+
+If you want to take ownership explicitly without going through a write side effect, use `override`:
+
+```cpp
+ecs::Entity instance = w.instantiate(prefab);
+
+bool changed = w.override<Position>(instance);
+// or:
+bool changedById = w.override(instance, positionEntity);
+```
+
+`override` returns `true` only when it actually materialized a new local copy. If the instance already owns the id, or there is no inherited source to copy from, it returns `false`.
+
+The typed and id-based forms also work for sparse prefab data. That includes runtime-registered sparse ids when the store already has typed data attached to the prefab source.
 
 Observers use the same matching rules. Instantiating a prefab can therefore trigger observers for inherited ids when the new instance matches the observer query semantically.
 

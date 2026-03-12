@@ -30686,6 +30686,30 @@ namespace gaia {
 						world_query_entity_arg_by_id<U&>(*pWorld, entity, id) = meta::tuple_to_struct<U>(GAIA_MOV(tuple));
 						return *this;
 					}
+
+					template <typename V>
+					ElementProxy& operator+=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current + GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator-=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current - GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator*=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current * GAIA_FWD(value));
+					}
+
+					template <typename V>
+					ElementProxy& operator/=(V&& value) {
+						const value_type current = operator value_type();
+						return operator=(current / GAIA_FWD(value));
+					}
 				};
 
 				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {
@@ -42012,6 +42036,7 @@ namespace gaia {
 				void* pStore = nullptr;
 				void (*func_del)(void*, Entity) = nullptr;
 				bool (*func_has)(const void*, Entity) = nullptr;
+				bool (*func_copy_entity)(void*, Entity, Entity) = nullptr;
 				uint32_t (*func_count)(const void*) = nullptr;
 				void (*func_collect_entities)(const void*, cnt::darray<Entity>&) = nullptr;
 				bool (*func_for_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
@@ -42082,6 +42107,15 @@ namespace gaia {
 				};
 				store.func_has = [](const void* pStoreRaw, Entity entity) {
 					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
+				};
+				store.func_copy_entity = [](void* pStoreRaw, Entity dstEntity, Entity srcEntity) {
+					auto* pStore = static_cast<SparseComponentStore<T>*>(pStoreRaw);
+					if (!pStore->has(srcEntity))
+						return false;
+
+					auto& dst = pStore->add(dstEntity);
+					dst = pStore->get(srcEntity);
+					return true;
 				};
 				store.func_count = [](const void* pStoreRaw) {
 					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->count();
@@ -42200,6 +42234,17 @@ namespace gaia {
 							continue;
 						m_relevant_observers_tmp.push_back(pObs);
 					}
+				}
+
+				template <typename TObserverMap>
+				GAIA_NODISCARD bool has_observers_for_event_terms(const TObserverMap& map, EntitySpan terms) const {
+					for (auto term: terms) {
+						const auto it = map.find(EntityLookupKey(term));
+						if (it != map.end() && !it->second.empty())
+							return true;
+					}
+
+					return false;
 				}
 
 				template <typename TObserverMap>
@@ -42426,7 +42471,7 @@ namespace gaia {
 				//! \param ents_added Span of entities added to the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
-					if (!archetype.has_observed_terms() &&
+					if (!archetype.has_observed_terms() && !has_observers_for_event_terms(m_observer_map_add, ents_added) &&
 							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added) &&
 							!has_inherited_observers_for_event_terms(world, m_observer_map_add, ents_added))
 						return;
@@ -42492,7 +42537,7 @@ namespace gaia {
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					// Gather the list of components to match
 					const bool archetypeIsPrefab = archetype.has(Prefab);
-					if (!archetype.has_observed_terms() &&
+					if (!archetype.has_observed_terms() && !has_observers_for_event_terms(m_observer_map_del, ents_removed) &&
 							!has_semantic_is_observers_for_event_terms(world, m_observer_map_del_is, ents_removed) &&
 							!has_inherited_observers_for_event_terms(world, m_observer_map_del, ents_removed))
 						return;
@@ -44289,6 +44334,73 @@ namespace gaia {
 				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
 			}
 
+			//! Materializes an inherited id as directly owned storage on @a entity.
+			//! \return True when a local override was created. False if nothing changed.
+			GAIA_NODISCARD bool override(Entity entity, Entity object) {
+				return override_inter(entity, object);
+			}
+
+			//! Materializes an inherited pair as directly owned storage on @a entity.
+			//! \return True when a local override was created. False if nothing changed.
+			GAIA_NODISCARD bool override(Entity entity, Pair pair) {
+				return override_inter(entity, (Entity)pair);
+			}
+
+			//! Materializes an inherited typed component as directly owned storage on @a entity.
+			//! \return True when a local override was created. False if nothing changed.
+			template <typename T>
+			GAIA_NODISCARD bool override(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+
+				if constexpr (supports_sparse_component<FT>()) {
+					if (is_sparse_dont_fragment_component(item.entity)) {
+						if (has_direct(entity, item.entity))
+							return false;
+
+						const auto inheritedOwner = inherited_id_owner(entity, item.entity);
+						if (inheritedOwner == EntityBad)
+							return false;
+
+						auto* pStore = sparse_component_store<FT>(item.entity);
+						GAIA_ASSERT(pStore != nullptr);
+						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
+						data = pStore->get(inheritedOwner);
+						return true;
+					}
+				}
+
+				return override_inter(entity, item.entity);
+			}
+
+			//! Materializes an inherited typed component associated with @a object on @a entity.
+			//! \return True when a local override was created. False if nothing changed.
+			template <typename T>
+			GAIA_NODISCARD bool override(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+
+				if constexpr (supports_sparse_component<FT>()) {
+					if (can_use_sparse_component<FT>(object)) {
+						if (has_direct(entity, object))
+							return false;
+
+						const auto inheritedOwner = inherited_id_owner(entity, object);
+						if (inheritedOwner == EntityBad)
+							return false;
+
+						auto* pStore = sparse_component_store<FT>(object);
+						GAIA_ASSERT(pStore != nullptr);
+						auto& data = sparse_component_store_mut<FT>(object).add(entity);
+						data = pStore->get(inheritedOwner);
+						return true;
+					}
+				}
+
+				return override_inter(entity, object);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Removes any component or entity attached to @a entity.
@@ -44412,6 +44524,52 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD bool override_inter(Entity entity, Entity object) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(object.pair() || valid(object));
+
+				if (has_direct(entity, object))
+					return false;
+
+				const auto inheritedOwner = inherited_id_owner(entity, object);
+				if (inheritedOwner == EntityBad)
+					return false;
+
+				if (!object.pair()) {
+					const auto* pItem = comp_cache().find(object);
+					if (pItem != nullptr && pItem->entity == object) {
+						if (is_sparse_dont_fragment_component(object)) {
+							const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
+							if (itSparseStore == m_sparseComponentsByComp.end())
+								return false;
+
+							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
+							return itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, entity, inheritedOwner);
+						}
+
+						if (pItem->comp.size() != 0U) {
+							add(entity, object);
+
+							const auto& ecDst = fetch(entity);
+							const auto& ecSrc = fetch(inheritedOwner);
+							const auto compIdxDst = ecDst.pChunk->comp_idx(object);
+							const auto compIdxSrc = ecSrc.pChunk->comp_idx(object);
+							GAIA_ASSERT(compIdxDst != BadIndex && compIdxSrc != BadIndex);
+
+							const auto idxDst = uint16_t(ecDst.row * (1U - (uint32_t)object.kind()));
+							const auto idxSrc = uint16_t(ecSrc.row * (1U - (uint32_t)object.kind()));
+							void* pDst = ecDst.pChunk->comp_ptr_mut(compIdxDst);
+							const void* pSrc = ecSrc.pChunk->comp_ptr(compIdxSrc);
+							pItem->copy(pDst, pSrc, idxDst, idxSrc, ecDst.pChunk->capacity(), ecSrc.pChunk->capacity());
+							return true;
+						}
+					}
+				}
+
+				add(entity, object);
+				return true;
+			}
+
 			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
 			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
 				GAIA_ASSERT(!prefabEntity.pair());
@@ -44456,6 +44614,23 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
+				cnt::darray<Entity> addedIds;
+				addedIds.reserve((uint32_t)pDstArchetype->ids_view().size() + (uint32_t)m_sparseComponentsByComp.size());
+				for (const auto id: pDstArchetype->ids_view())
+					addedIds.push_back(id);
+
+				for (auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto comp = compKey.entity();
+					if (!store.func_has(store.pStore, prefabEntity) || !instantiate_copies_id(comp))
+						continue;
+
+					GAIA_ASSERT(store.func_copy_entity != nullptr);
+					if (!store.func_copy_entity(store.pStore, instance, prefabEntity))
+						continue;
+
+					addedIds.push_back(comp);
+				}
+
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
@@ -44473,7 +44648,7 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				for (const auto id: pDstArchetype->ids_view()) {
+				for (const auto id: addedIds) {
 					if (!id.comp())
 						continue;
 
@@ -44485,7 +44660,8 @@ namespace gaia {
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
-				m_observers.on_add(*this, *pDstArchetype, pDstArchetype->ids_view(), EntitySpan{&instance, 1});
+				m_observers.on_add(
+						*this, *pDstArchetype, EntitySpan{addedIds.data(), addedIds.size()}, EntitySpan{&instance, 1});
 	#endif
 
 				unlock();
@@ -45180,13 +45356,22 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto compEntity = [&]() {
 					if constexpr (is_pair<FT>::value) {
-						const auto rel = comp_cache().template get<typename FT::rel>().entity;
-						const auto tgt = comp_cache().template get<typename FT::tgt>().entity;
+						const auto* pRel = comp_cache().template find<typename FT::rel>();
+						const auto* pTgt = comp_cache().template find<typename FT::tgt>();
+						if (pRel == nullptr || pTgt == nullptr)
+							return EntityBad;
+
+						const auto rel = pRel->entity;
+						const auto tgt = pTgt->entity;
 						return (Entity)Pair(rel, tgt);
 					} else {
-						return comp_cache().template get<FT>().entity;
+						const auto* pItem = comp_cache().template find<FT>();
+						return pItem != nullptr ? pItem->entity : EntityBad;
 					}
 				}();
+				if (compEntity == EntityBad)
+					return false;
+
 				if constexpr (supports_sparse_component<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
 					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
@@ -51835,8 +52020,10 @@ namespace gaia {
 			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
 			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
 				if (!world.has_direct(entity, termId) && world.has(entity, termId)) {
-					Arg inheritedValue = world.template get<Arg>(entity, termId);
-					world.add(entity, termId, Arg(inheritedValue));
+					if constexpr (is_pair<Arg>::value)
+						(void)world.override(entity, termId);
+					else
+						(void)world.template override<Arg>(entity, termId);
 				}
 
 				return world.acc_mut(entity).template mut<Arg>(termId);
