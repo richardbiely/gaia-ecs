@@ -2795,6 +2795,42 @@ namespace gaia {
 				return instantiate_inter(prefabEntity, parentInstance);
 			}
 
+			//! Instantiates @a count copies of a prefab as normal entities.
+			void instantiate_n(Entity prefabEntity, uint32_t count) {
+				instantiate_n(prefabEntity, EntityBad, count, func_void_with_entity);
+			}
+
+			//! Instantiates @a count copies of a prefab as normal entities.
+			template <typename Func>
+			void instantiate_n(Entity prefabEntity, uint32_t count, Func func) {
+				instantiate_n(prefabEntity, EntityBad, count, func);
+			}
+
+			//! Instantiates @a count copies of a prefab as normal entities parented under @a parentInstance.
+			void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count) {
+				instantiate_n(prefabEntity, parentInstance, count, func_void_with_entity);
+			}
+
+			//! Instantiates @a count copies of a prefab as normal entities parented under @a parentInstance.
+			//! The callback is invoked for each spawned root instance.
+			template <typename Func>
+			void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count, Func func) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
+				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
+
+				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab)) {
+					copy_n(prefabEntity, count, func);
+					return;
+				}
+
+				GAIA_FOR(count) {
+					const auto instance = instantiate_inter(prefabEntity, parentInstance);
+					func(instance);
+				}
+			}
+
 			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make

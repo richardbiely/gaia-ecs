@@ -2089,6 +2089,13 @@ ecs::Entity scene = w.add();
 ecs::Entity instance = w.instantiate(prefab, scene);
 ```
 
+Or spawn multiple root instances at once:
+
+```cpp
+w.instantiate_n(prefab, 10);
+w.instantiate_n(prefab, scene, 10);
+```
+
 Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
 * `ecs::Prefab` is not copied to the instance
 * `EntityDesc` is not copied, so prefab names stay unique

@@ -10917,6 +10917,59 @@ TEST_CASE("Prefab - instantiate can parent the spawned subtree under an existing
 	CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
 }
 
+TEST_CASE("Prefab - instantiate_n spawns multiple prefab instances") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	wld.add<Position>(prefabAnimal, {1, 2, 3});
+
+	cnt::darray<ecs::Entity> roots;
+	wld.instantiate_n(prefabAnimal, 4, [&](ecs::Entity instance) {
+		roots.push_back(instance);
+	});
+
+	CHECK(roots.size() == 4);
+	for (const auto instance: roots) {
+		CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+		CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabAnimal)));
+		CHECK(wld.get<Position>(instance).x == doctest::Approx(1.0f));
+		CHECK(wld.get<Position>(instance).y == doctest::Approx(2.0f));
+		CHECK(wld.get<Position>(instance).z == doctest::Approx(3.0f));
+	}
+}
+
+TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	cnt::darray<ecs::Entity> rootInstances;
+	wld.instantiate_n(rootPrefab, scene, 3, [&](ecs::Entity instance) {
+		rootInstances.push_back(instance);
+	});
+
+	CHECK(rootInstances.size() == 3);
+
+	uint32_t childCount = 0;
+	for (const auto instance: rootInstances) {
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+		wld.sources(ecs::Parent, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::Parent, instance)));
+			CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+		});
+	}
+
+	CHECK(childCount == 3);
+}
+
 TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
 	TestWorld twld;
 
