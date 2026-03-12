@@ -44978,29 +44978,30 @@ namespace gaia {
 
 				const auto archetypeIds = pDstArchetype->ids_view();
 				const auto archetypeIdCount = (uint32_t)archetypeIds.size();
-				const auto sparseIdCount = copied_sparse_id_count(prefabEntity, [&](Entity comp) {
-					return instantiate_copies_id(comp);
-				});
 				EntitySpan addedIds = archetypeIds;
-				Entity* pAddedIdsOwned = nullptr;
-				if (sparseIdCount != 0U) {
-					const auto addedIdCount = archetypeIdCount + sparseIdCount;
-					pAddedIdsOwned = (Entity*)alloca(sizeof(Entity) * addedIdCount);
-					write_archetype_ids(*pDstArchetype, pAddedIdsOwned);
-					const auto sparseIdsWritten = copy_sparse_entity_data(
-							prefabEntity, instance,
-							[&](Entity comp) {
-								return instantiate_copies_id(comp);
-							},
-							pAddedIdsOwned + archetypeIdCount);
-					GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
-					addedIds = EntitySpan{pAddedIdsOwned, addedIdCount};
-				} else {
-					(void)copy_sparse_entity_data(
-							prefabEntity, instance,
-							[&](Entity comp) {
-								return instantiate_copies_id(comp);
-							});
+				if (!m_sparseComponentsByComp.empty()) {
+					const auto sparseIdCount = copied_sparse_id_count(prefabEntity, [&](Entity comp) {
+						return instantiate_copies_id(comp);
+					});
+					if (sparseIdCount != 0U) {
+						const auto addedIdCount = archetypeIdCount + sparseIdCount;
+						auto* pAddedIdsOwned = (Entity*)alloca(sizeof(Entity) * addedIdCount);
+						write_archetype_ids(*pDstArchetype, pAddedIdsOwned);
+						const auto sparseIdsWritten = copy_sparse_entity_data(
+								prefabEntity, instance,
+								[&](Entity comp) {
+									return instantiate_copies_id(comp);
+								},
+								pAddedIdsOwned + archetypeIdCount);
+						GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
+						addedIds = EntitySpan{pAddedIdsOwned, addedIdCount};
+					} else {
+						(void)copy_sparse_entity_data(
+								prefabEntity, instance,
+								[&](Entity comp) {
+									return instantiate_copies_id(comp);
+								});
+					}
 				}
 
 				touch_rel_version(Is);
