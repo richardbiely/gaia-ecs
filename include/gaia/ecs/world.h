@@ -3020,20 +3020,32 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
-				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
+				const auto archetypeIds = pDstArchetype->ids_view();
+				const auto archetypeIdCount = (uint32_t)archetypeIds.size();
 				const auto sparseIdCount = copied_sparse_id_count(prefabEntity, [&](Entity comp) {
 					return instantiate_copies_id(comp);
 				});
-				const auto addedIdCount = archetypeIdCount + sparseIdCount;
-				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
-				write_archetype_ids(*pDstArchetype, pAddedIds);
-				const auto sparseIdsWritten = copy_sparse_entity_data(
-						prefabEntity, instance,
-						[&](Entity comp) {
-							return instantiate_copies_id(comp);
-						},
-						pAddedIds + archetypeIdCount);
-				GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
+				EntitySpan addedIds = archetypeIds;
+				Entity* pAddedIdsOwned = nullptr;
+				if (sparseIdCount != 0U) {
+					const auto addedIdCount = archetypeIdCount + sparseIdCount;
+					pAddedIdsOwned = (Entity*)alloca(sizeof(Entity) * addedIdCount);
+					write_archetype_ids(*pDstArchetype, pAddedIdsOwned);
+					const auto sparseIdsWritten = copy_sparse_entity_data(
+							prefabEntity, instance,
+							[&](Entity comp) {
+								return instantiate_copies_id(comp);
+							},
+							pAddedIdsOwned + archetypeIdCount);
+					GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
+					addedIds = EntitySpan{pAddedIdsOwned, addedIdCount};
+				} else {
+					(void)copy_sparse_entity_data(
+							prefabEntity, instance,
+							[&](Entity comp) {
+								return instantiate_copies_id(comp);
+							});
+				}
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
@@ -3052,7 +3064,7 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				for (const auto id: EntitySpan{pAddedIds, addedIdCount}) {
+				for (const auto id: addedIds) {
 					if (!id.comp())
 						continue;
 
@@ -3064,7 +3076,7 @@ namespace gaia {
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
-				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&instance, 1});
+				m_observers.on_add(*this, *pDstArchetype, addedIds, EntitySpan{&instance, 1});
 	#endif
 
 				unlock();

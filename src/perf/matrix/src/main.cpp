@@ -564,6 +564,89 @@ void BM_EntityInstantiateN_Prefab_4Comp(picobench::state& state) {
 	}
 }
 
+void BM_EntityInstantiateN_Prefab_1Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto prefab = w.prefab();
+		w.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+
+		state.start_timer();
+
+		w.instantiate_n(prefab, n);
+
+		state.stop_timer();
+	}
+}
+
+void BM_EntityInstantiateN_Prefab_8Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto prefab = w.prefab();
+		w.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+		w.add<Velocity>(prefab, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(prefab, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(prefab, {100, 100});
+		w.add<Damage>(prefab, {5});
+		w.add<Mass>(prefab, {1.5f});
+		w.add<Team>(prefab, {2});
+		w.add<AIState>(prefab, {3});
+
+		state.start_timer();
+
+		w.instantiate_n(prefab, n);
+
+		state.stop_timer();
+	}
+}
+
+void BM_EntityInstantiateN_Prefab_Subtree_4Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto root = w.prefab();
+		const auto child = w.prefab();
+		const auto leaf = w.prefab();
+
+		w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+		w.add<Velocity>(root, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(root, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(root, {100, 100});
+
+		w.add<Position>(child, {4.0f, 5.0f, 6.0f});
+		w.add<Velocity>(child, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(child, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(child, {90, 100});
+
+		w.add<Position>(leaf, {7.0f, 8.0f, 9.0f});
+		w.add<Velocity>(leaf, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(leaf, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(leaf, {80, 100});
+
+		w.parent(child, root);
+		w.parent(leaf, child);
+
+		state.start_timer();
+
+		w.instantiate_n(root, n);
+
+		state.stop_timer();
+	}
+}
+
 void BM_EntityDestroy_Empty(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
@@ -4088,10 +4171,22 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("instantiate_n parented fallback, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_1Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("instantiate_n prefab 1comp, 100K");
 		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_4Comp)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("instantiate_n prefab, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_8Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("instantiate_n prefab 8comp, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_Subtree_4Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesFew)
+				.label("instantiate_n prefab subtree, 10K");
 		PICOBENCH_REG(BM_EntityDestroy_Empty).PICO_SETTINGS().user_data(NEntitiesMedium).label("destroy empty");
 		PICOBENCH_REG(BM_EntityDestroy_4Comp).PICO_SETTINGS().user_data(NEntitiesFew).label("destroy 4comp");
 
