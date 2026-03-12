@@ -519,6 +519,22 @@ ecs::Entity e1 = w.copy(e);
 // Triggers the observer for e2 because a new entity was created that is a copy of "e", and has both Position and Velocity added.
 ecs::Entity e2 = w.copy_ext(e);
 
+// Creates 1000 observer-visible copies of "e".
+w.copy_ext_n(e, 1000);
+w.copy_ext_n(e, 1000, [](ecs::Entity newEntity) {
+  // Do something with the new entity
+  // ...
+});
+w.copy_ext_n(e, 1000, [](ecs::CopyIter& it) {
+  auto entityView = it.view<ecs::Entity>();
+  // You can also access the view of components attached to the copied entities
+  auto someView = it.view<SomeComponent>();
+  GAIA_EACH(it) {
+    // Do something with the new entities
+    // ...
+  }
+});
+
 // Prepare a new entity "e3".
 ecs::Entity e3 = w.add();
 // We want to add Position and Velocity to "e3". Our observer won't triggered yet because changes are not committed.
@@ -705,6 +721,18 @@ w.copy_n(e, 1000, [](Entity newEntity) {
 w.copy_n(e, 1000, [](ecs::CopyIter& it) {
   auto entityView = it.view<ecs::Entity>();
   // You can also access the view of components attached to the entity
+  auto someView = it.view<SomeComponent>();
+  GAIA_EACH(it) {
+    // Do something with the new entities
+    // ...
+  }
+});
+
+// Same as copy_n, but observers are notified for the copied ids and entities.
+w.copy_ext_n(e, 1000);
+w.copy_ext_n(e, 1000, [](ecs::CopyIter& it) {
+  auto entityView = it.view<ecs::Entity>();
+  // You can also access the view of components attached to the copied entities
   auto someView = it.view<SomeComponent>();
   GAIA_EACH(it) {
     // Do something with the new entities

@@ -15018,6 +15018,104 @@ TEST_CASE("Observer - copy_ext sparse payload") {
 	CHECK(pos.z == 9.0f);
 }
 
+TEST_CASE("Observer - copy_ext_n payload") {
+	TestWorld twld;
+
+	constexpr uint32_t N = 1536;
+	const auto src = wld.add();
+	wld.add<Position>(src, {1.0f, 2.0f, 3.0f});
+	wld.add<Acceleration>(src, {4.0f, 5.0f, 6.0f});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	cnt::darr<ecs::Entity> observedEntities;
+	observedEntities.reserve(N);
+	Position pos{};
+	Acceleration acc{};
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<Position>()
+											 .all<Acceleration>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 seen += it.size();
+												 auto entityView = it.view<ecs::Entity>();
+												 auto posView = it.view<Position>();
+												 auto accView = it.view<Acceleration>();
+												 GAIA_EACH(it) {
+													 observedEntities.push_back(entityView[i]);
+													 pos = posView[i];
+													 acc = accView[i];
+													 CHECK(pos.x == 1.0f);
+													 CHECK(pos.y == 2.0f);
+													 CHECK(pos.z == 3.0f);
+													 CHECK(acc.x == 4.0f);
+													 CHECK(acc.y == 5.0f);
+													 CHECK(acc.z == 6.0f);
+												 }
+											 })
+											 .entity();
+	(void)obs;
+
+	uint32_t callbackSeen = 0;
+	wld.copy_ext_n(src, N, [&](ecs::CopyIter& it) {
+		callbackSeen += it.size();
+	});
+
+	CHECK(hits >= 1);
+	CHECK(seen == N);
+	CHECK(callbackSeen == N);
+	CHECK(observedEntities.size() == N);
+}
+
+TEST_CASE("Observer - copy_ext_n sparse payload") {
+	TestWorld twld;
+
+	constexpr uint32_t N = 1536;
+	const auto src = wld.add();
+	wld.add<PositionSparse>(src, {7.0f, 8.0f, 9.0f});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	cnt::darr<ecs::Entity> observedEntities;
+	observedEntities.reserve(N);
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<PositionSparse>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 seen += it.size();
+												 auto entityView = it.view<ecs::Entity>();
+												 auto posView = it.view<PositionSparse>();
+												 GAIA_EACH(it) {
+													 observedEntities.push_back(entityView[i]);
+													 const auto pos = posView[i];
+													 CHECK(pos.x == 7.0f);
+													 CHECK(pos.y == 8.0f);
+													 CHECK(pos.z == 9.0f);
+												 }
+											 })
+											 .entity();
+	(void)obs;
+
+	uint32_t callbackSeen = 0;
+	wld.copy_ext_n(src, N, [&](ecs::Entity entity) {
+		++callbackSeen;
+		CHECK(wld.has<PositionSparse>(entity));
+		const auto& pos = wld.get<PositionSparse>(entity);
+		CHECK(pos.x == 7.0f);
+		CHECK(pos.y == 8.0f);
+		CHECK(pos.z == 9.0f);
+	});
+
+	CHECK(hits >= 1);
+	CHECK(seen == N);
+	CHECK(callbackSeen == N);
+	CHECK(observedEntities.size() == N);
+}
+
 TEST_CASE("Observer - fast path") {
 	TestWorld twld;
 
