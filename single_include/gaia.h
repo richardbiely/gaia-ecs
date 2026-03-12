@@ -42413,6 +42413,17 @@ namespace gaia {
 					return *pData;
 				}
 
+				void try_mark_term_observed(World& world, Entity term) {
+					if (!can_mark_term_observed(world, term))
+						return;
+					if (!has_observers_for_term(term))
+						return;
+					if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) != 0)
+						return;
+
+					mark_term_observed(world, term, true);
+				}
+
 				//! Registers a new term to the observer registry and links an observer with it.
 				//! \param world World the observer is triggered for
 				//! \param term Term to add to @a observer
@@ -44655,10 +44666,46 @@ namespace gaia {
 				group.count = 1;
 			}
 
+			void prepare_parent_batch(Entity parentEntity) {
+				GAIA_ASSERT(valid(parentEntity));
+
+				const auto parentPair = Pair(Parent, parentEntity);
+				assign_pair(parentPair, *m_pEntityArchetype);
+
+				touch_rel_version(Parent);
+				invalidate_queries_for_rel(Parent);
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+
+				auto& ecParent = fetch(parentEntity);
+				EntityBuilder::set_flag(ecParent.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
+			}
+
+			void parent_batch(
+					Entity parentEntity, Archetype& archetype, Chunk& chunk, uint32_t originalChunkSize, uint32_t toCreate) {
+				GAIA_ASSERT(valid(parentEntity));
+
+				if (toCreate == 0)
+					return;
+
+				auto entities = chunk.entity_view();
+				GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+					exclusive_adjunct_set(entities[rowIdx], Parent, parentEntity);
+				}
+
+#if GAIA_OBSERVERS_ENABLED
+				const Entity parentPair = Pair(Parent, parentEntity);
+				m_observers.on_add(
+						*this, archetype, EntitySpan{&parentPair, 1}, EntitySpan{entities.data() + originalChunkSize, toCreate});
+#endif
+			}
+
 			template <typename Func>
-			void copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds) {
+			void
+			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
 
 				auto& ec = m_recs.entities[entity.id()];
 
@@ -44670,6 +44717,9 @@ namespace gaia {
 				const auto hasEntityDesc = pDstArchetype->has<EntityDesc>();
 				if (hasEntityDesc)
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+
+				if (parentInstance != EntityBad)
+					prepare_parent_batch(parentInstance);
 
 				// Entities array might get reallocated after m_recs.entities.alloc
 				// so instead of fetching the container again we simply cache the row
@@ -44725,6 +44775,9 @@ namespace gaia {
 								*this, *pDstArchetype, addedIds, EntitySpan{entities.data() + originalChunkSize, toCreate});
 					}
 #endif
+
+					if (parentInstance != EntityBad)
+						parent_batch(parentInstance, *pDstArchetype, *pDstChunk, originalChunkSize, toCreate);
 
 					invoke_copy_batch_callback(func, pDstArchetype, pDstChunk, originalChunkSize, toCreate);
 
@@ -45058,23 +45111,7 @@ namespace gaia {
 						return;
 					}
 
-					if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-						CopyIterGroupState group;
-
-						GAIA_FOR(count) {
-							const auto instance = copy(prefabEntity);
-							parent(instance, parentInstance);
-							push_copy_iter_group(func, group, instance);
-						}
-
-						flush_copy_iter_group(func, group);
-					} else {
-						GAIA_FOR(count) {
-							const auto instance = copy(prefabEntity);
-							parent(instance, parentInstance);
-							func(instance);
-						}
-					}
+					copy_n_inter(prefabEntity, count, func, EntitySpan{}, parentInstance);
 					return;
 				}
 
@@ -49860,6 +49897,10 @@ namespace gaia {
 				addPair(m_relToTgt, All, tgt);
 				addPair(m_tgtToRel, tgt, rel);
 				addPair(m_tgtToRel, All, rel);
+
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.try_mark_term_observed(*this, entity);
+#endif
 			}
 
 			//! Creates a new entity of a given archetype.

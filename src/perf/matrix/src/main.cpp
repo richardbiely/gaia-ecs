@@ -519,6 +519,29 @@ void BM_EntityCopyN_4Comp(picobench::state& state) {
 	}
 }
 
+void BM_EntityInstantiateN_ParentedFallback_4Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto scene = w.add();
+		auto seed = w.add();
+		w.add<Position>(seed, {1.0f, 2.0f, 3.0f});
+		w.add<Velocity>(seed, {1.0f, 0.5f, 0.25f});
+		w.add<Acceleration>(seed, {0.0f, -0.01f, 0.0f});
+		w.add<Health>(seed, {100, 100});
+
+		state.start_timer();
+
+		w.instantiate_n(seed, scene, n);
+
+		state.stop_timer();
+	}
+}
+
 void BM_EntityDestroy_Empty(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
@@ -4039,6 +4062,10 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_EntityCreate_4Comp_OneByOne).PICO_SETTINGS().user_data(NEntitiesFew).label("4comp, one-by-one");
 		PICOBENCH_REG(BM_EntityCreate_4Comp_Builder).PICO_SETTINGS().user_data(NEntitiesFew).label("4comp, builder");
 		PICOBENCH_REG(BM_EntityCopyN_4Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("copy_n, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_ParentedFallback_4Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("instantiate_n parented fallback, 100K");
 		PICOBENCH_REG(BM_EntityDestroy_Empty).PICO_SETTINGS().user_data(NEntitiesMedium).label("destroy empty");
 		PICOBENCH_REG(BM_EntityDestroy_4Comp).PICO_SETTINGS().user_data(NEntitiesFew).label("destroy 4comp");
 

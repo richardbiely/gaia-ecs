@@ -11041,6 +11041,61 @@ TEST_CASE("Instantiate_n - non-prefab parented fallback supports CopyIter callba
 	}
 }
 
+TEST_CASE("Instantiate_n - non-prefab parented fallback uses entity callbacks after parenting") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto animal = wld.add();
+	wld.add<Position>(animal, {7, 8, 9});
+
+	uint32_t seen = 0;
+	cnt::darray<ecs::Entity> roots;
+	roots.reserve(5);
+	wld.instantiate_n(animal, scene, 5, [&](ecs::Entity instance) {
+		++seen;
+		roots.push_back(instance);
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+		const auto& pos = wld.get<Position>(instance);
+		CHECK(pos.x == doctest::Approx(7.0f));
+		CHECK(pos.y == doctest::Approx(8.0f));
+		CHECK(pos.z == doctest::Approx(9.0f));
+	});
+
+	CHECK(seen == 5);
+	CHECK(roots.size() == 5);
+	for (const auto instance: roots)
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+}
+
+TEST_CASE("Observer - instantiate_n non-prefab parented fallback matches Parent pair") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto animal = wld.add();
+	wld.add<Position>(animal, {7, 8, 9});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	auto obs =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all(ecs::Pair(ecs::Parent, scene)).on_each([&](ecs::Iter& it) {
+				++hits;
+				seen += it.size();
+
+				auto entityView = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					CHECK(wld.has(entityView[i], ecs::Pair(ecs::Parent, scene)));
+				}
+			});
+	(void)obs;
+
+	wld.instantiate_n(animal, scene, 5, [&](ecs::Entity instance) {
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+	});
+
+	CHECK(hits >= 1);
+	CHECK(seen == 5);
+}
+
 TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots") {
 	TestWorld twld;
 
