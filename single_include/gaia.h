@@ -31315,12 +31315,9 @@ namespace gaia {
 				ArchetypeLookupView archetypeLookup;
 				//! Array of all archetypes in the world
 				std::span<const Archetype*> allArchetypes;
-				//! Set of already matched archetypes. Reset before each exec().
-				cnt::set<const Archetype*>* pMatchesSet;
 				//! Array of already matches archetypes. Reset before each exec().
 				cnt::darr<const Archetype*>* pMatchesArr;
-				//! Optional per-archetype stamp table for O(1) dedup in hot loops.
-				//! If null, matching falls back to pMatchesSet-based dedup.
+				//! Per-archetype stamp table for O(1) dedup in hot loops.
 				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
 				//! Current dedup version used with pMatchesStampByArchetypeId.
 				uint32_t matchesVersion;
@@ -33284,8 +33281,6 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-					if (ctx.pMatchesSet != nullptr)
-						ctx.pMatchesSet->clear();
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches
@@ -35207,8 +35202,6 @@ namespace gaia {
 		};
 
 		struct QueryMatchScratch {
-			//! Temporary deduplicated set of archetypes matched during the current VM run.
-			cnt::set<const Archetype*> matchesSet;
 			//! Ordered list of matched archetypes emitted by the VM for the current run.
 			cnt::darr<const Archetype*> matchesArr;
 			//! O(1) dedup table keyed by world-local archetype ids.
@@ -35217,14 +35210,12 @@ namespace gaia {
 			uint32_t matchVersion = 0;
 
 			void clear_temporary_matches() {
-				matchesSet.clear();
 				matchesArr.clear();
 				matchStamps.clear();
 				matchVersion = 0;
 			}
 
 			void clear_temporary_matches_keep_stamps() {
-				matchesSet.clear();
 				matchesArr.clear();
 			}
 
@@ -35949,7 +35940,6 @@ namespace gaia {
 				ctx.allArchetypes = allArchetypes;
 				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap);
 				ctx.pMatchesArr = &matchScratch.matchesArr;
-				ctx.pMatchesSet = nullptr;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
 				ctx.matchesVersion = matchScratch.next_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
@@ -36024,7 +36014,6 @@ namespace gaia {
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
 				ctx.archetypeLookup = {};
 				ctx.pMatchesArr = &matchScratch.matchesArr;
-				ctx.pMatchesSet = nullptr;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
 				ctx.matchesVersion = matchScratch.next_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = nullptr;

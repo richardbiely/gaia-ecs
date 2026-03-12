@@ -79,12 +79,9 @@ namespace gaia {
 				ArchetypeLookupView archetypeLookup;
 				//! Array of all archetypes in the world
 				std::span<const Archetype*> allArchetypes;
-				//! Set of already matched archetypes. Reset before each exec().
-				cnt::set<const Archetype*>* pMatchesSet;
 				//! Array of already matches archetypes. Reset before each exec().
 				cnt::darr<const Archetype*>* pMatchesArr;
-				//! Optional per-archetype stamp table for O(1) dedup in hot loops.
-				//! If null, matching falls back to pMatchesSet-based dedup.
+				//! Per-archetype stamp table for O(1) dedup in hot loops.
 				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
 				//! Current dedup version used with pMatchesStampByArchetypeId.
 				uint32_t matchesVersion;
@@ -2048,8 +2045,6 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-					if (ctx.pMatchesSet != nullptr)
-						ctx.pMatchesSet->clear();
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches

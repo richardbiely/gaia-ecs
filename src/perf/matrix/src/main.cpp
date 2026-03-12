@@ -1,5 +1,3 @@
-// Broader ECS benchmark matrix inspired by https://github.com/SanderMertens/ecs_benchmark.
-
 #define PICOBENCH_IMPLEMENT
 #include <picobench/picobench.hpp>
 #include <string_view>
