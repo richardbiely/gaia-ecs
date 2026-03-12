@@ -7003,21 +7003,9 @@ namespace gaia {
 						return true;
 				}
 
-				const auto& ec = m_recs.entities[entity.id()];
-				const auto* pArchetype = ec.pArchetype;
-
-				// Early exit if there are no Is relationship pairs on the archetype
-				if (pArchetype->pairs_is() == 0)
-					return false;
-
-				for (uint32_t i = 0; i < pArchetype->pairs_is(); ++i) {
-					auto e = pArchetype->entity_from_pairs_as_idx(i);
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+				const auto& targets = as_targets_trav_cache(entity);
+				for (auto target: targets) {
 					if (target == entityBase)
-						return true;
-
-					if (is_inter<CheckIn>(target, entityBase))
 						return true;
 				}
 

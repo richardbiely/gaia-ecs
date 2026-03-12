@@ -1568,15 +1568,23 @@ void BM_System_Is_Direct_D8(picobench::state& state) {
 	BM_System_Is<8, true>(state);
 }
 
-template <uint32_t ChainDepth>
-void BM_Observer_IsMatchesAny_Semantic(picobench::state& state) {
+template <uint32_t ChainDepth, bool Direct>
+void BM_Observer_IsMatchesAny(picobench::state& state) {
 	const uint32_t branches = (uint32_t)state.user_data();
 
 	ecs::World w;
 	cnt::darray<ecs::Entity> leaves;
 	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, true, leaves);
-	const auto observerEntity =
-			w.observer().event(ecs::ObserverEvent::OnAdd).is(root).on_each([](ecs::Iter&) {}).entity();
+	const auto observerEntity = Direct ? w.observer() //
+																					 .event(ecs::ObserverEvent::OnAdd)
+																					 .is(root, ecs::QueryTermOptions{}.direct())
+																					 .on_each([](ecs::Iter&) {})
+																					 .entity()
+																		 : w.observer() //
+																					 .event(ecs::ObserverEvent::OnAdd)
+																					 .is(root)
+																					 .on_each([](ecs::Iter&) {})
+																					 .entity();
 
 	auto& observerData = w.observers().data(observerEntity);
 	auto& observerQueryInfo = observerData.query.fetch();
@@ -1594,8 +1602,20 @@ void BM_Observer_IsMatchesAny_Semantic(picobench::state& state) {
 	}
 }
 
+void BM_Observer_IsMatchesAny_Semantic_D2(picobench::state& state) {
+	BM_Observer_IsMatchesAny<2, false>(state);
+}
+
+void BM_Observer_IsMatchesAny_Direct_D2(picobench::state& state) {
+	BM_Observer_IsMatchesAny<2, true>(state);
+}
+
 void BM_Observer_IsMatchesAny_Semantic_D8(picobench::state& state) {
-	BM_Observer_IsMatchesAny_Semantic<8>(state);
+	BM_Observer_IsMatchesAny<8, false>(state);
+}
+
+void BM_Observer_IsMatchesAny_Direct_D8(picobench::state& state) {
+	BM_Observer_IsMatchesAny<8, true>(state);
 }
 
 //! Benchmarks transitive target traversal over `Is` targets.
@@ -4477,10 +4497,22 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_OBS()
 				.user_data(NObserverEntities)
 				.label("on_del, 50 obs, 8 terms");
+		PICOBENCH_REG(BM_Observer_IsMatchesAny_Semantic_D2)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("observer is matches_any semantic d2");
+		PICOBENCH_REG(BM_Observer_IsMatchesAny_Direct_D2)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("observer is matches_any direct d2");
 		PICOBENCH_REG(BM_Observer_IsMatchesAny_Semantic_D8)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1024)
 				.label("observer is matches_any semantic d8");
+		PICOBENCH_REG(BM_Observer_IsMatchesAny_Direct_D8)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("observer is matches_any direct d8");
 
 		PICOBENCH_SUITE_REG("Systems (single-thread)");
 		PICOBENCH_REG(BM_SystemFrame_Serial_2).PICO_SETTINGS().user_data(NEntitiesMedium).label("serial, 2 systems");
