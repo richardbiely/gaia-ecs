@@ -44920,7 +44920,6 @@ namespace gaia {
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
-				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
 					return copy(prefabEntity);
@@ -44936,10 +44935,12 @@ namespace gaia {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(valid(parentInstance));
-				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 
-				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
-					return copy(prefabEntity);
+				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab)) {
+					const auto instance = copy(prefabEntity);
+					parent(instance, parentInstance);
+					return instance;
+				}
 
 				return instantiate_inter(prefabEntity, parentInstance);
 			}
@@ -44973,10 +44974,59 @@ namespace gaia {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
-				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab)) {
-					copy_n(prefabEntity, count, func);
+					if (parentInstance == EntityBad) {
+						copy_n(prefabEntity, count, func);
+						return;
+					}
+
+					if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+						Archetype* pGroupArchetype = nullptr;
+						Chunk* pGroupChunk = nullptr;
+						uint16_t groupStartRow = 0;
+						uint16_t groupCount = 0;
+
+						auto flushGroup = [&]() {
+							if (groupCount == 0)
+								return;
+
+							CopyIter it;
+							it.set_world(this);
+							it.set_archetype(pGroupArchetype);
+							it.set_chunk(pGroupChunk);
+							it.set_range(groupStartRow, groupCount);
+							func(it);
+							groupCount = 0;
+						};
+
+						GAIA_FOR(count) {
+							const auto instance = copy(prefabEntity);
+							parent(instance, parentInstance);
+							const auto& ec = fetch(instance);
+
+							if (groupCount != 0 && ec.pArchetype == pGroupArchetype && ec.pChunk == pGroupChunk &&
+									ec.row == uint16_t(groupStartRow + groupCount)) {
+								++groupCount;
+								continue;
+							}
+
+							flushGroup();
+
+							pGroupArchetype = ec.pArchetype;
+							pGroupChunk = ec.pChunk;
+							groupStartRow = ec.row;
+							groupCount = 1;
+						}
+
+						flushGroup();
+					} else {
+						GAIA_FOR(count) {
+							const auto instance = copy(prefabEntity);
+							parent(instance, parentInstance);
+							func(instance);
+						}
+					}
 					return;
 				}
 

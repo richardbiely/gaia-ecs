@@ -2146,6 +2146,10 @@ Instantiation keeps the prefab relationship but intentionally strips prefab-only
 * `instantiate(prefab, parent)` attaches `Pair(ecs::Parent, parent)` to the new root instance
 * direct `Parent`-owned prefab children are instantiated recursively under the new parent instance
 
+If the source entity is not tagged with `ecs::Prefab`, `instantiate(...)` falls back to `copy(...)`
+and `instantiate_n(...)` falls back to `copy_n(...)`. The parented overloads still attach the
+requested `ecs::Parent` relationship in that fallback path.
+
 Only children that are themselves tagged with `ecs::Prefab` are instantiated recursively. Plain `Parent` children under a prefab are ignored.
 
 Prefab instantiation policies are configured on the copied id itself with `Pair(ecs::OnInstantiate, policy)`:

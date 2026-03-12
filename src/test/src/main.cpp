@@ -10946,6 +10946,26 @@ TEST_CASE("Prefab - instantiate can parent the spawned subtree under an existing
 	CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
 }
 
+TEST_CASE("Instantiate - non-prefab parented fallback behaves like copy plus parent") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto animal = wld.add();
+	wld.name(animal, "animal");
+	wld.add<Position>(animal, {4, 5, 6});
+
+	const auto instance = wld.instantiate(animal, scene);
+
+	CHECK(instance != animal);
+	CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+	CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, animal)));
+	CHECK(wld.name(instance) == nullptr);
+	CHECK(wld.get<Position>(instance).x == doctest::Approx(4.0f));
+	CHECK(wld.get<Position>(instance).y == doctest::Approx(5.0f));
+	CHECK(wld.get<Position>(instance).z == doctest::Approx(6.0f));
+}
+
 TEST_CASE("Prefab - instantiate_n spawns multiple prefab instances") {
 	TestWorld twld;
 
@@ -10983,6 +11003,42 @@ TEST_CASE("Prefab - instantiate_n does not copy prefab names") {
 	CHECK(strcmp(wld.name(prefabAnimal), "prefab_animal_bulk") == 0);
 	for (const auto instance: roots)
 		CHECK(wld.name(instance) == nullptr);
+}
+
+TEST_CASE("Instantiate_n - non-prefab parented fallback supports CopyIter callbacks") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto animal = wld.add();
+	wld.add<Position>(animal, {1, 2, 3});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	cnt::darray<ecs::Entity> roots;
+	roots.reserve(6);
+	wld.instantiate_n(animal, scene, 6, [&](ecs::CopyIter& it) {
+		++hits;
+		seen += it.size();
+
+		auto entityView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			roots.push_back(entityView[i]);
+			CHECK(wld.has(entityView[i], ecs::Pair(ecs::Parent, scene)));
+			CHECK(posView[i].x == doctest::Approx(1.0f));
+			CHECK(posView[i].y == doctest::Approx(2.0f));
+			CHECK(posView[i].z == doctest::Approx(3.0f));
+		}
+	});
+
+	CHECK(hits >= 1);
+	CHECK(seen == 6);
+	CHECK(roots.size() == 6);
+	for (const auto instance: roots) {
+		CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+		CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, animal)));
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+	}
 }
 
 TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots") {
