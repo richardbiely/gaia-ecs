@@ -3,8 +3,6 @@
 
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/ilist.h"
-#include "gaia/cnt/set.h"
-#include "gaia/cnt/sparse_storage.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
@@ -15,6 +13,7 @@
 #include "gaia/ecs/component_cache.h"
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_common.h"
+#include "gaia/ecs/query_match_stamps.h"
 #include "gaia/ecs/vm.h"
 #include "gaia/mem/mem_utils.h"
 
@@ -33,9 +32,12 @@ namespace gaia {
 		struct QueryMatchScratch {
 			//! Ordered list of matched archetypes emitted by the VM for the current run.
 			cnt::darr<const Archetype*> matchesArr;
-			//! O(1) dedup table keyed by world-local archetype ids.
-			cnt::sparse_storage<ArchetypeMatchStamp> matchStamps;
-			//! Monotonic dedup stamp used when the same scratch frame is reused by later full match() calls.
+			//! Paged O(1) dedup table keyed by world-local archetype ids.
+			//! Pages stay allocated on the scratch frame so repeated matches do not churn
+			//! heap memory when archetype ids revisit the same ranges.
+			ArchetypeMatchStamps matchStamps;
+			//! Monotonic dedup stamp used when the same scratch frame is reused by later
+			//! full match() calls without clearing stamp pages.
 			uint32_t matchVersion = 0;
 
 			void clear_temporary_matches() {
@@ -45,6 +47,8 @@ namespace gaia {
 			}
 
 			void clear_temporary_matches_keep_stamps() {
+				//! Full match() can reuse prior stamp pages and advance matchVersion instead
+				//! of zeroing the whole table again.
 				matchesArr.clear();
 			}
 

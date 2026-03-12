@@ -9,7 +9,6 @@
 #include "gaia/cnt/sarray.h"
 #include "gaia/cnt/sarray_ext.h"
 #include "gaia/cnt/set.h"
-#include "gaia/cnt/sparse_storage.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
@@ -18,6 +17,7 @@
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_mask.h"
+#include "gaia/ecs/query_match_stamps.h"
 #include "gaia/ser/ser_binary.h"
 #include "gaia/util/str.h"
 
@@ -27,20 +27,7 @@ namespace gaia {
 		// Key + (X, id) + (id, X) wildcards
 		using SingleArchetypeLookup = cnt::sarray_ext<EntityLookupKey, ChunkHeader::MAX_COMPONENTS * 3>;
 
-		struct ArchetypeMatchStamp {
-			cnt::sparse_id id = 0;
-			uint32_t version = 0;
-		};
 	} // namespace ecs
-
-	namespace cnt {
-		template <>
-		struct to_sparse_id<ecs::ArchetypeMatchStamp> {
-			static sparse_id get(const ecs::ArchetypeMatchStamp& item) noexcept {
-				return item.id;
-			}
-		};
-	} // namespace cnt
 
 	namespace ecs {
 		namespace vm {
@@ -82,7 +69,7 @@ namespace gaia {
 				//! Array of already matches archetypes. Reset before each exec().
 				cnt::darr<const Archetype*>* pMatchesArr;
 				//! Per-archetype stamp table for O(1) dedup in hot loops.
-				cnt::sparse_storage<ecs::ArchetypeMatchStamp>* pMatchesStampByArchetypeId;
+				ArchetypeMatchStamps* pMatchesStampByArchetypeId;
 				//! Current dedup version used with pMatchesStampByArchetypeId.
 				uint32_t matchesVersion;
 				//! Idx of the last matched archetype against the ALL opcode
@@ -553,26 +540,19 @@ namespace gaia {
 					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					const auto& stamps = *ctx.pMatchesStampByArchetypeId;
-					const auto sid = (cnt::sparse_id)pArchetype->id();
+					const auto sid = (uint32_t)pArchetype->id();
 					if (!stamps.has(sid))
 						return false;
 
-					return stamps[sid].version == ctx.matchesVersion;
+					return stamps.get(sid) == ctx.matchesVersion;
 				}
 
 				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
 					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					auto& stamps = *ctx.pMatchesStampByArchetypeId;
-					const auto sid = (cnt::sparse_id)pArchetype->id();
-					if (stamps.has(sid))
-						stamps.set(sid).version = ctx.matchesVersion;
-					else {
-						ecs::ArchetypeMatchStamp stamp{};
-						stamp.id = sid;
-						stamp.version = ctx.matchesVersion;
-						stamps.add(stamp);
-					}
+					const auto sid = (uint32_t)pArchetype->id();
+					stamps.set(sid, ctx.matchesVersion);
 
 					ctx.pMatchesArr->emplace_back(pArchetype);
 				}
