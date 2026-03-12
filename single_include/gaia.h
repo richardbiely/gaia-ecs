@@ -27452,6 +27452,66 @@ namespace gaia {
 				}
 			}
 
+			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in a foreign chunk.
+			//! \param pSrcChunk Source chunk
+			//! \param srcRow Row in source chunk
+			//! \param pDstChunk Destination chunk
+			//! \param dstRow First destination row in destination chunk
+			//! \param dstCount Number of destination rows to copy into
+			static void copy_foreign_entity_data_n(
+					Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow, uint32_t dstCount) {
+				GAIA_PROF_SCOPE(Chunk::copy_foreign_entity_data_n);
+
+				GAIA_ASSERT(pSrcChunk != nullptr);
+				GAIA_ASSERT(pDstChunk != nullptr);
+				GAIA_ASSERT(srcRow < pSrcChunk->size());
+				GAIA_ASSERT(dstRow + dstCount <= pDstChunk->size());
+
+				auto srcIds = pSrcChunk->ids_view();
+				auto dstIds = pDstChunk->ids_view();
+				auto dstRecs = pDstChunk->comp_rec_view();
+
+				uint32_t i = 0;
+				uint32_t j = 0;
+				while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+					const auto oldId = srcIds[i];
+					const auto newId = dstIds[j];
+
+					if (oldId == newId) {
+						const auto& rec = dstRecs[j];
+						if (rec.comp.size() != 0U) {
+							auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
+							GAIA_FOR_(dstCount, rowOffset) {
+								rec.pItem->ctor_copy(
+										pDst, pSrc, dstRow + rowOffset, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
+							}
+						}
+
+						++i;
+						++j;
+					} else if (SortComponentCond{}.operator()(oldId, newId)) {
+						++i;
+					} else {
+						const auto& rec = dstRecs[j];
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+							rec.pItem->func_ctor(pDst, dstCount);
+						}
+
+						++j;
+					}
+				}
+
+				for (; j < pDstChunk->m_header.genEntities; ++j) {
+					const auto& rec = dstRecs[j];
+					if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+						auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+						rec.pItem->func_ctor(pDst, dstCount);
+					}
+				}
+			}
+
 			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
 			//! \param entity Entity to move
 			//! \param row Entity's row within its chunk
@@ -44618,6 +44678,9 @@ namespace gaia {
 				Entity prefab = EntityBad;
 				uint32_t parentIdx = BadIndex;
 				Archetype* pDstArchetype = nullptr;
+				cnt::darray_ext<Entity, 16> copiedSparseIds;
+				cnt::darray_ext<Entity, 16> addedIds;
+				cnt::darray_ext<Entity, 16> addHookIds;
 			};
 
 			template <typename Func>
@@ -44721,6 +44784,9 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
+
+				if (count == 0U)
+					return;
 
 				auto& ec = m_recs.entities[entity.id()];
 
@@ -44860,6 +44926,29 @@ namespace gaia {
 				return copiedCnt;
 			}
 
+			uint32_t copy_sparse_entity_data(
+					Entity srcEntity, Entity dstEntity, EntitySpan copiedSparseIds, Entity* pCopiedIds = nullptr) {
+				uint32_t copiedCnt = 0;
+				for (const auto comp: copiedSparseIds) {
+					auto it = m_sparseComponentsByComp.find(EntityLookupKey(comp));
+					GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+
+					auto& store = it->second;
+					if (!store.func_has(store.pStore, srcEntity))
+						continue;
+
+					GAIA_ASSERT(store.func_copy_entity != nullptr);
+					if (!store.func_copy_entity(store.pStore, dstEntity, srcEntity))
+						continue;
+
+					if (pCopiedIds != nullptr)
+						pCopiedIds[copiedCnt] = comp;
+					++copiedCnt;
+				}
+
+				return copiedCnt;
+			}
+
 			void write_archetype_ids(const Archetype& dstArchetype, Entity* pDst) const {
 				for (const auto id: dstArchetype.ids_view())
 					*pDst++ = id;
@@ -44968,8 +45057,46 @@ namespace gaia {
 				return pDstArchetype;
 			}
 
-			GAIA_NODISCARD Entity
-			instantiate_prefab_node_inter(Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance) {
+			template <typename T>
+			void collect_prefab_copied_sparse_ids(Entity prefabEntity, T& outCopiedSparseIds) {
+				outCopiedSparseIds.clear();
+				if (m_sparseComponentsByComp.empty())
+					return;
+
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto comp = compKey.entity();
+					if (!store.func_has(store.pStore, prefabEntity) || !instantiate_copies_id(comp))
+						continue;
+					outCopiedSparseIds.push_back(comp);
+				}
+			}
+
+			template <typename T>
+			void collect_prefab_added_ids(Archetype* pDstArchetype, EntitySpan copiedSparseIds, T& outAddedIds) {
+				outAddedIds.clear();
+				for (const auto id: pDstArchetype->ids_view())
+					outAddedIds.push_back(id);
+
+				for (const auto comp: copiedSparseIds)
+					outAddedIds.push_back(comp);
+			}
+
+			template <typename T>
+			void collect_prefab_add_hook_ids(EntitySpan addedIds, T& outHookIds) {
+				outHookIds.clear();
+				for (const auto id: addedIds) {
+					if (!id.comp())
+						continue;
+
+					const auto& item = comp_cache().get(id);
+					if (ComponentCache::hooks(item).func_add != nullptr)
+						outHookIds.push_back(id);
+				}
+			}
+
+			GAIA_NODISCARD Entity instantiate_prefab_node_inter(
+					Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance, EntitySpan addedIds,
+					EntitySpan addHookIds) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
@@ -44990,31 +45117,8 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
-				const auto archetypeIds = pDstArchetype->ids_view();
-				const auto archetypeIdCount = (uint32_t)archetypeIds.size();
-				EntitySpan addedIds = archetypeIds;
-				if (!m_sparseComponentsByComp.empty()) {
-					const auto sparseIdCount = copied_sparse_id_count(prefabEntity, [&](Entity comp) {
-						return instantiate_copies_id(comp);
-					});
-					if (sparseIdCount != 0U) {
-						const auto addedIdCount = archetypeIdCount + sparseIdCount;
-						auto* pAddedIdsOwned = (Entity*)alloca(sizeof(Entity) * addedIdCount);
-						write_archetype_ids(*pDstArchetype, pAddedIdsOwned);
-						const auto sparseIdsWritten = copy_sparse_entity_data(
-								prefabEntity, instance,
-								[&](Entity comp) {
-									return instantiate_copies_id(comp);
-								},
-								pAddedIdsOwned + archetypeIdCount);
-						GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
-						addedIds = EntitySpan{pAddedIdsOwned, addedIdCount};
-					} else {
-						(void)copy_sparse_entity_data(prefabEntity, instance, [&](Entity comp) {
-							return instantiate_copies_id(comp);
-						});
-					}
-				}
+				(void)copy_sparse_entity_data(
+						prefabEntity, instance, addedIds.subspan((uint32_t)pDstArchetype->ids_view().size()));
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
@@ -45033,14 +45137,11 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				for (const auto id: addedIds) {
-					if (!id.comp())
-						continue;
-
+				for (const auto id: addHookIds) {
 					const auto& item = comp_cache().get(id);
 					const auto& hooks = ComponentCache::hooks(item);
-					if (hooks.func_add != nullptr)
-						hooks.func_add(*this, item, instance);
+					GAIA_ASSERT(hooks.func_add != nullptr);
+					hooks.func_add(*this, item, instance);
 				}
 	#endif
 
@@ -45058,15 +45159,119 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD Entity instantiate_prefab_node_inter(Entity prefabEntity, Entity parentInstance) {
+				auto* pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
+				cnt::darray_ext<Entity, 16> copiedSparseIds;
+				cnt::darray_ext<Entity, 16> addedIds;
+				cnt::darray_ext<Entity, 16> addHookIds;
+				collect_prefab_copied_sparse_ids(prefabEntity, copiedSparseIds);
+				collect_prefab_added_ids(pDstArchetype, EntitySpan{copiedSparseIds}, addedIds);
+				collect_prefab_add_hook_ids(EntitySpan{addedIds}, addHookIds);
 				return instantiate_prefab_node_inter(
-						prefabEntity, instantiate_prefab_dst_archetype(prefabEntity), parentInstance);
+						prefabEntity, pDstArchetype, parentInstance, EntitySpan{addedIds}, EntitySpan{addHookIds});
+			}
+
+			template <typename Func>
+			void instantiate_prefab_n_inter(
+					const PrefabInstantiatePlanNode& node, Entity parentInstance, uint32_t count, Func& func) {
+				GAIA_ASSERT(node.prefab != EntityBad);
+				GAIA_ASSERT(node.pDstArchetype != nullptr);
+
+				if (count == 0U)
+					return;
+
+				auto& ecSrc = m_recs.entities[node.prefab.id()];
+				GAIA_ASSERT(ecSrc.pChunk != nullptr);
+
+				if (parentInstance != EntityBad)
+					prepare_parent_batch(parentInstance);
+
+				const auto srcRow = ecSrc.row;
+				auto* pSrcChunk = ecSrc.pChunk;
+				auto* pDstArchetype = node.pDstArchetype;
+				const auto prefabKey = EntityLookupKey(node.prefab);
+				EntityContainerCtx ctx{true, false, node.prefab.kind()};
+
+				uint32_t left = count;
+				do {
+					auto* pDstChunk = pDstArchetype->foc_free_chunk();
+					const uint32_t originalChunkSize = pDstChunk->size();
+					const uint32_t freeSlotsInChunk = pDstChunk->capacity() - originalChunkSize;
+					const uint32_t toCreate = core::get_min(freeSlotsInChunk, left);
+
+					GAIA_FOR_(toCreate, rowOffset) {
+						const auto instance = m_recs.entities.alloc(&ctx);
+						auto& ecDst = m_recs.entities[instance.id()];
+						store_entity(ecDst, instance, pDstArchetype, pDstChunk);
+						ecDst.flags |= EntityContainerFlags::HasAliasOf;
+
+						(void)copy_sparse_entity_data(node.prefab, instance, EntitySpan{node.copiedSparseIds});
+					}
+
+					pDstArchetype->try_update_free_chunk_idx();
+					Chunk::copy_foreign_entity_data_n(pSrcChunk, srcRow, pDstChunk, originalChunkSize, toCreate);
+					pDstChunk->update_versions();
+
+					touch_rel_version(Is);
+					invalidate_queries_for_rel(Is);
+					m_targetsTravCache = {};
+					m_srcBfsTravCache = {};
+
+					auto entities = pDstChunk->entity_view();
+					auto& asRelations = m_entityToAsRelations[prefabKey];
+					GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+						const auto instance = entities[rowIdx];
+						m_entityToAsTargets[EntityLookupKey(instance)].insert(prefabKey);
+						asRelations.insert(EntityLookupKey(instance));
+					}
+					m_entityToAsTargetsTravCache = {};
+					m_entityToAsRelationsTravCache = {};
+					invalidate_queries_for_entity({Is, node.prefab});
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+					lock();
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+					for (const auto id: node.addHookIds) {
+						const auto& item = comp_cache().get(id);
+						const auto& hooks = ComponentCache::hooks(item);
+						GAIA_ASSERT(hooks.func_add != nullptr);
+
+						GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+							hooks.func_add(*this, item, entities[rowIdx]);
+						}
+					}
+	#endif
+
+	#if GAIA_OBSERVERS_ENABLED
+					m_observers.on_add(
+							*this, *pDstArchetype, EntitySpan{node.addedIds},
+							EntitySpan{entities.data() + originalChunkSize, toCreate});
+	#endif
+
+					unlock();
+#endif
+
+					if (parentInstance != EntityBad)
+						parent_batch(parentInstance, *pDstArchetype, *pDstChunk, originalChunkSize, toCreate);
+
+					invoke_copy_batch_callback(func, pDstArchetype, pDstChunk, originalChunkSize, toCreate);
+
+					left -= toCreate;
+				} while (left > 0);
 			}
 
 			template <typename T>
 			void build_prefab_instantiate_plan(Entity prefabEntity, uint32_t parentIdx, T& plan) {
+				PrefabInstantiatePlanNode node{};
+				node.prefab = prefabEntity;
+				node.parentIdx = parentIdx;
+				node.pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
+				collect_prefab_copied_sparse_ids(prefabEntity, node.copiedSparseIds);
+				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
+				collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
+
 				const auto nodeIdx = (uint32_t)plan.size();
-				plan.push_back(
-						PrefabInstantiatePlanNode{prefabEntity, parentIdx, instantiate_prefab_dst_archetype(prefabEntity)});
+				plan.push_back(GAIA_MOV(node));
 
 				cnt::darray_ext<Entity, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
@@ -45150,6 +45355,9 @@ namespace gaia {
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
 
+				if (count == 0U)
+					return;
+
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab)) {
 					if (parentInstance == EntityBad) {
 						copy_n(prefabEntity, count, func);
@@ -45164,37 +45372,61 @@ namespace gaia {
 				cnt::darray_ext<Entity, 16> spawned;
 
 				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-					CopyIterGroupState group;
 					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
+					if (plan.size() == 1) {
+						instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
+						return;
+					}
+
+					CopyIterGroupState group;
+					cnt::darray<Entity> roots;
+					roots.reserve(count);
+					auto collectRoot = [&](Entity instance) {
+						roots.push_back(instance);
+					};
+					instantiate_prefab_n_inter(plan[0], parentInstance, count, collectRoot);
+
 					spawned.resize((uint32_t)plan.size());
 
 					GAIA_FOR_(count, rootIdx) {
-						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
-							const auto parent =
-									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] =
-									instantiate_prefab_node_inter(plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent);
+						spawned[0] = roots[rootIdx];
+						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
+							const auto parent = spawned[plan[planIdx].parentIdx];
+							spawned[planIdx] = instantiate_prefab_node_inter(
+									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].addedIds},
+									EntitySpan{plan[planIdx].addHookIds});
 						}
 
-						const auto instance = spawned[0];
-						push_copy_iter_group(func, group, instance);
+						push_copy_iter_group(func, group, roots[rootIdx]);
 					}
 
 					flush_copy_iter_group(func, group);
 				} else {
 					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
+					if (plan.size() == 1) {
+						instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
+						return;
+					}
+
+					cnt::darray<Entity> roots;
+					roots.reserve(count);
+					auto collectRoot = [&](Entity instance) {
+						roots.push_back(instance);
+					};
+					instantiate_prefab_n_inter(plan[0], parentInstance, count, collectRoot);
+
 					spawned.resize((uint32_t)plan.size());
 
 					GAIA_FOR_(count, rootIdx) {
-						GAIA_FOR2_(0, (uint32_t)plan.size(), planIdx) {
-							const auto parent =
-									plan[planIdx].parentIdx == BadIndex ? parentInstance : spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] =
-									instantiate_prefab_node_inter(plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent);
+						spawned[0] = roots[rootIdx];
+						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
+							const auto parent = spawned[plan[planIdx].parentIdx];
+							spawned[planIdx] = instantiate_prefab_node_inter(
+									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].addedIds},
+									EntitySpan{plan[planIdx].addHookIds});
 						}
 
-						const auto instance = spawned[0];
-						func(instance);
+						func(roots[rootIdx]);
 					}
 				}
 			}

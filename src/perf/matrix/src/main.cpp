@@ -609,6 +609,25 @@ void BM_EntityInstantiateN_Prefab_8Comp(picobench::state& state) {
 	}
 }
 
+void BM_EntityInstantiateN_Prefab_Sparse_1Comp(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+
+		const auto prefab = w.prefab();
+		w.add<PositionSparse>(prefab, {1.0f, 2.0f, 3.0f});
+
+		state.start_timer();
+
+		w.instantiate_n(prefab, n);
+
+		state.stop_timer();
+	}
+}
+
 void BM_EntityInstantiateN_Prefab_Subtree_4Comp(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
@@ -4183,6 +4202,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("instantiate_n prefab 8comp, 100K");
+		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_Sparse_1Comp)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("instantiate_n prefab sparse 1comp, 100K");
 		PICOBENCH_REG(BM_EntityInstantiateN_Prefab_Subtree_4Comp)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesFew)

@@ -817,6 +817,66 @@ namespace gaia {
 				}
 			}
 
+			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in a foreign chunk.
+			//! \param pSrcChunk Source chunk
+			//! \param srcRow Row in source chunk
+			//! \param pDstChunk Destination chunk
+			//! \param dstRow First destination row in destination chunk
+			//! \param dstCount Number of destination rows to copy into
+			static void copy_foreign_entity_data_n(
+					Chunk* pSrcChunk, uint32_t srcRow, Chunk* pDstChunk, uint32_t dstRow, uint32_t dstCount) {
+				GAIA_PROF_SCOPE(Chunk::copy_foreign_entity_data_n);
+
+				GAIA_ASSERT(pSrcChunk != nullptr);
+				GAIA_ASSERT(pDstChunk != nullptr);
+				GAIA_ASSERT(srcRow < pSrcChunk->size());
+				GAIA_ASSERT(dstRow + dstCount <= pDstChunk->size());
+
+				auto srcIds = pSrcChunk->ids_view();
+				auto dstIds = pDstChunk->ids_view();
+				auto dstRecs = pDstChunk->comp_rec_view();
+
+				uint32_t i = 0;
+				uint32_t j = 0;
+				while (i < pSrcChunk->m_header.genEntities && j < pDstChunk->m_header.genEntities) {
+					const auto oldId = srcIds[i];
+					const auto newId = dstIds[j];
+
+					if (oldId == newId) {
+						const auto& rec = dstRecs[j];
+						if (rec.comp.size() != 0U) {
+							auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
+							GAIA_FOR_(dstCount, rowOffset) {
+								rec.pItem->ctor_copy(
+										pDst, pSrc, dstRow + rowOffset, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
+							}
+						}
+
+						++i;
+						++j;
+					} else if (SortComponentCond{}.operator()(oldId, newId)) {
+						++i;
+					} else {
+						const auto& rec = dstRecs[j];
+						if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+							rec.pItem->func_ctor(pDst, dstCount);
+						}
+
+						++j;
+					}
+				}
+
+				for (; j < pDstChunk->m_header.genEntities; ++j) {
+					const auto& rec = dstRecs[j];
+					if (rec.pItem != nullptr && rec.pItem->func_ctor != nullptr) {
+						auto* pDst = (void*)pDstChunk->comp_ptr_mut(j, dstRow);
+						rec.pItem->func_ctor(pDst, dstCount);
+					}
+				}
+			}
+
 			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
 			//! \param entity Entity to move
 			//! \param row Entity's row within its chunk

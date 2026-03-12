@@ -9652,6 +9652,28 @@ TEST_CASE("Copy preserves sparse component data") {
 	}
 }
 
+TEST_CASE("Copy_n with zero count does nothing") {
+	TestWorld twld;
+
+	const auto src = wld.add();
+	wld.add<Position>(src, {1.0f, 2.0f, 3.0f});
+
+	uint32_t entityHits = 0;
+	wld.copy_n(src, 0, [&](ecs::Entity) {
+		++entityHits;
+	});
+	CHECK(entityHits == 0);
+
+	uint32_t iterHits = 0;
+	wld.copy_n(src, 0, [&](ecs::CopyIter& it) {
+		iterHits += it.size();
+	});
+	CHECK(iterHits == 0);
+
+	auto q = wld.query().all<Position>();
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Entity name - hierarchy") {
 	TestWorld twld;
 
@@ -11297,6 +11319,29 @@ TEST_CASE("Prefab - instantiate_n recurses nested prefab children") {
 
 	CHECK(childCount == 2);
 	CHECK(leafCount == 2);
+}
+
+TEST_CASE("Prefab - instantiate_n with zero count does nothing") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto prefabAnimal = wld.prefab();
+	wld.add<Position>(prefabAnimal, {1.0f, 2.0f, 3.0f});
+
+	uint32_t entityHits = 0;
+	wld.instantiate_n(prefabAnimal, 0, [&](ecs::Entity) {
+		++entityHits;
+	});
+	CHECK(entityHits == 0);
+
+	uint32_t iterHits = 0;
+	wld.instantiate_n(prefabAnimal, scene, 0, [&](ecs::CopyIter& it) {
+		iterHits += it.size();
+	});
+	CHECK(iterHits == 0);
+
+	auto q = wld.query().all<Position>();
+	CHECK(q.count() == 0);
 }
 
 TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
