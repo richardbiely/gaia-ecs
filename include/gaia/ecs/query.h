@@ -2083,7 +2083,10 @@ namespace gaia {
 				};
 
 				struct DirectEntitySeedEvalPlan {
+					//! Fast path for the common `ALL + direct/semantic Is` shape:
+					//! after consuming the seed term, only one more `ALL` term remains.
 					const QueryTerm* pSingleAllTerm = nullptr;
+					//! No remaining terms after consuming the seed.
 					bool alwaysMatch = false;
 				};
 
@@ -2205,6 +2208,8 @@ namespace gaia {
 					seedInfo.seededFromAll = true;
 					const auto evalPlan = direct_all_seed_eval_plan(queryInfo, seedInfo);
 
+					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
+					// entity array for the common `all<T>().is(base)` shape.
 					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
 						if (!match_direct_entity_constraints<TIter>(world, entity))
 							return true;
@@ -2714,6 +2719,8 @@ namespace gaia {
 						pIndices[i] = (uint8_t)compIdx;
 					}
 
+					//! Build a one-row iterator so direct-seeded execution can reuse the normal
+					//! chunk-view access path instead of per-entity world.get()/set() calls.
 					it.set_world(&world);
 					it.set_archetype(ec.pArchetype);
 					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
@@ -2755,6 +2762,7 @@ namespace gaia {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
 						init_direct_entity_iter(queryInfo, world, entity, it, indices);
+						// Entity filters already ran in the seed walker, so invoke the inner loop directly.
 						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
 					};
 
