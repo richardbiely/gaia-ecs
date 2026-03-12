@@ -39439,6 +39439,7 @@ namespace gaia {
 
 				struct DirectEntitySeedInfo {
 					Entity seededAllTerm = EntityBad;
+					QueryMatchKind seededAllMatchKind = QueryMatchKind::Semantic;
 					bool seededFromAll = false;
 					bool seededFromOr = false;
 				};
@@ -39447,6 +39448,7 @@ namespace gaia {
 				struct DirectEntitySeedPlan {
 					Entity bestAllTerm = EntityBad;
 					uint32_t bestAllTermCount = UINT32_MAX;
+					QueryMatchKind bestAllTermMatchKind = QueryMatchKind::Semantic;
 					bool hasAllTerms = false;
 					bool hasOrTerms = false;
 					bool preferOrSeed = false;
@@ -39467,6 +39469,7 @@ namespace gaia {
 							if (cnt < plan.bestAllTermCount) {
 								plan.bestAllTermCount = cnt;
 								plan.bestAllTerm = term.id;
+								plan.bestAllTermMatchKind = term.matchKind;
 							}
 						} else if (term.op == QueryOpKind::Or) {
 							plan.hasOrTerms = true;
@@ -39487,7 +39490,8 @@ namespace gaia {
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							continue;
-						if (seedInfo.seededFromAll && term.op == QueryOpKind::All && term.id == seedInfo.seededAllTerm)
+						if (seedInfo.seededFromAll && term.op == QueryOpKind::All && term.id == seedInfo.seededAllTerm &&
+								term.matchKind == seedInfo.seededAllMatchKind)
 							continue;
 						if (seedInfo.seededFromOr && term.op == QueryOpKind::Or)
 							continue;
@@ -39513,6 +39517,43 @@ namespace gaia {
 					}
 
 					return !hasOrTerms || anyOrMatched;
+				}
+
+				GAIA_NODISCARD static const QueryTerm*
+				find_direct_all_seed_term(const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan) {
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							continue;
+						if (term.op != QueryOpKind::All || term.id != plan.bestAllTerm ||
+								term.matchKind != plan.bestAllTermMatchKind)
+							continue;
+						return &term;
+					}
+
+					return nullptr;
+				}
+
+				template <typename TIter, typename Func>
+				GAIA_NODISCARD static bool for_each_direct_all_seed(
+						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
+					const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
+					GAIA_ASSERT(pSeedTerm != nullptr);
+					if (pSeedTerm == nullptr)
+						return true;
+
+					DirectEntitySeedInfo seedInfo{};
+					seedInfo.seededAllTerm = pSeedTerm->id;
+					seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
+					seedInfo.seededFromAll = true;
+
+					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
+						if (!match_direct_entity_constraints<TIter>(world, entity))
+							return true;
+						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+							return true;
+
+						return func(entity);
+					});
 				}
 
 				//! Applies iterator-specific entity state constraints to the direct seeded path.
@@ -39687,9 +39728,11 @@ namespace gaia {
 							for (const auto& term: queryInfo.ctx().data.terms_view()) {
 								if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 									continue;
-								if (term.op != QueryOpKind::All || term.id != plan.bestAllTerm)
+								if (term.op != QueryOpKind::All || term.id != plan.bestAllTerm ||
+										term.matchKind != plan.bestAllTermMatchKind)
 									continue;
 								collect_direct_term_entities(world, term, out);
+								seedInfo.seededAllMatchKind = term.matchKind;
 								break;
 							}
 							seedInfo.seededFromAll = true;
@@ -39771,20 +39814,16 @@ namespace gaia {
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
 					if constexpr (!UseFilters) {
 						if (can_use_direct_entity_seed_eval(queryInfo)) {
-							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
 								return is_empty_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
 
-							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
-
-							for (const auto entity: scratch.entities) {
-								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
-									continue;
-								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
-									return false;
-							}
-
-							return true;
+							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
+							bool empty = true;
+							(void)for_each_direct_all_seed<TIter>(*queryInfo.world(), queryInfo, plan, [&](Entity) {
+								empty = false;
+								return false;
+							});
+							return empty;
 						}
 					}
 
@@ -39922,6 +39961,7 @@ namespace gaia {
 							if (has_only_direct_or_terms(queryInfo))
 								return count_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
 
+							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
 							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
 
 							if (can_use_archetype_bucket_count(*queryInfo.world(), queryInfo, seedInfo))
@@ -39929,12 +39969,10 @@ namespace gaia {
 										*queryInfo.world(), queryInfo, scratch.entities, seedInfo);
 
 							uint32_t cnt = 0;
-							for (const auto entity: scratch.entities) {
-								if (!match_direct_entity_constraints<TIter>(*queryInfo.world(), entity))
-									continue;
-								if (match_direct_entity_terms(*queryInfo.world(), entity, queryInfo, seedInfo))
-									++cnt;
-							}
+							(void)for_each_direct_all_seed<TIter>(*queryInfo.world(), queryInfo, plan, [&](Entity) {
+								++cnt;
+								return true;
+							});
 
 							return cnt;
 						}
@@ -40034,17 +40072,10 @@ namespace gaia {
 						return;
 					}
 
-					auto& scratch = direct_query_scratch();
-					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
-
-					for (const auto entity: scratch.entities) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
-							continue;
-						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
-							continue;
-
+					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
 						exec_entity(entity);
-					}
+						return true;
+					});
 				}
 
 				//! Runs a typed each() callback over directly seeded entities.
@@ -40063,20 +40094,13 @@ namespace gaia {
 						return;
 					}
 
-					auto& scratch = direct_query_scratch();
-					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
-
-					for (const auto entity: scratch.entities) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
-							continue;
-						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
-							continue;
-
+					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
 						if constexpr (sizeof...(T) > 0)
 							func(direct_entity_arg<T>(world, entity)...);
 						else
 							func();
-					}
+						return true;
+					});
 				}
 
 				template <bool UseFilters, typename TIter, typename ContainerOut>
@@ -40098,22 +40122,15 @@ namespace gaia {
 								return;
 							}
 
-							auto& scratch = direct_query_scratch();
-							const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
-
-							for (const auto entity: scratch.entities) {
-								if (!match_direct_entity_constraints<TIter>(world, entity))
-									continue;
-								if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
-									continue;
-
+							(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
 								if constexpr (std::is_same_v<ContainerItemType, Entity>)
 									outArray.push_back(entity);
 								else {
 									auto tmp = world_direct_entity_arg<ContainerItemType>(world, entity);
 									outArray.push_back(tmp);
 								}
-							}
+								return true;
+							});
 
 							return;
 						}
