@@ -2963,13 +2963,19 @@ namespace gaia {
 			}
 
 			//! Instantiates @a count copies of a prefab as normal entities.
-			void instantiate_n(Entity prefabEntity, uint32_t count) {
-				instantiate_n(prefabEntity, EntityBad, count, func_void_with_entity);
-			}
-
-			//! Instantiates @a count copies of a prefab as normal entities.
-			template <typename Func>
-			void instantiate_n(Entity prefabEntity, uint32_t count, Func func) {
+			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
+			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
+			//! and attaches Pair(Parent, parentInstance) to the new root instance.
+			//! \param prefabEntity Prefab entity to clone
+			//! \param count Number of clones to make
+			//! \param func Functor executed every time a copy is created.
+			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
+			//! \warning It is expected @a prefabEntity is valid entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on @a prefabEntity, it is not copied because names are
+			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			template <typename Func = TFunc_Void_With_Entity>
+			void instantiate_n(Entity prefabEntity, uint32_t count, Func func = func_void_with_entity) {
 				instantiate_n(prefabEntity, EntityBad, count, func);
 			}
 
@@ -2993,38 +2999,43 @@ namespace gaia {
 				}
 
 				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-					cnt::darray<Entity> instances;
-					instances.reserve(count);
+					Archetype* pGroupArchetype = nullptr;
+					Chunk* pGroupChunk = nullptr;
+					uint16_t groupStartRow = 0;
+					uint16_t groupCount = 0;
 
-					GAIA_FOR(count) instances.push_back(instantiate_inter(prefabEntity, parentInstance));
-
-					uint32_t groupBegin = 0;
-					while (groupBegin < instances.size()) {
-						const auto& ecBegin = fetch(instances[groupBegin]);
-						auto* pArchetype = ecBegin.pArchetype;
-						auto* pChunk = ecBegin.pChunk;
-						const auto startRow = ecBegin.row;
-
-						uint32_t groupEnd = groupBegin + 1;
-						uint32_t nextRow = startRow + 1;
-						while (groupEnd < instances.size()) {
-							const auto& ec = fetch(instances[groupEnd]);
-							if (ec.pArchetype != pArchetype || ec.pChunk != pChunk || ec.row != nextRow)
-								break;
-
-							++groupEnd;
-							++nextRow;
-						}
+					auto flushGroup = [&]() {
+						if (groupCount == 0)
+							return;
 
 						CopyIter it;
 						it.set_world(this);
-						it.set_archetype(pArchetype);
-						it.set_chunk(pChunk);
-						it.set_range((uint16_t)startRow, (uint16_t)(groupEnd - groupBegin));
+						it.set_archetype(pGroupArchetype);
+						it.set_chunk(pGroupChunk);
+						it.set_range(groupStartRow, groupCount);
 						func(it);
+						groupCount = 0;
+					};
 
-						groupBegin = groupEnd;
+					GAIA_FOR(count) {
+						const auto instance = instantiate_inter(prefabEntity, parentInstance);
+						const auto& ec = fetch(instance);
+
+						if (groupCount != 0 && ec.pArchetype == pGroupArchetype && ec.pChunk == pGroupChunk &&
+								ec.row == uint16_t(groupStartRow + groupCount)) {
+							++groupCount;
+							continue;
+						}
+
+						flushGroup();
+
+						pGroupArchetype = ec.pArchetype;
+						pGroupChunk = ec.pChunk;
+						groupStartRow = ec.row;
+						groupCount = 1;
 					}
+
+					flushGroup();
 				} else {
 					GAIA_FOR(count) {
 						const auto instance = instantiate_inter(prefabEntity, parentInstance);
