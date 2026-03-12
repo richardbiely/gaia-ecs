@@ -2692,12 +2692,6 @@ namespace gaia {
 					return cnt;
 				}
 
-				//! Resolves one typed each()/arr() argument from a directly seeded entity.
-				template <typename T>
-				GAIA_NODISCARD static decltype(auto) direct_entity_arg(World& world, Entity entity) {
-					return world_direct_entity_arg<T>(world, entity);
-				}
-
 				template <typename TIter>
 				static void init_direct_entity_iter(
 						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices) {
