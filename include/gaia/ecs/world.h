@@ -2586,20 +2586,20 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				const auto addedIdCount = copied_id_count(srcEntity, *pDstArchetype, [](Entity) {
+				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
+				const auto sparseIdCount = copied_sparse_id_count(srcEntity, [](Entity) {
 					return true;
 				});
+				const auto addedIdCount = archetypeIdCount + sparseIdCount;
 				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
-				write_copied_ids(
-						srcEntity, *pDstArchetype,
+				write_archetype_ids(*pDstArchetype, pAddedIds);
+				const auto sparseIdsWritten = copy_sparse_entity_data(
+						srcEntity, dstEntity,
 						[](Entity) {
 							return true;
 						},
-						pAddedIds);
-
-				copy_sparse_entity_data(srcEntity, dstEntity, [](Entity) {
-					return true;
-				});
+						pAddedIds + archetypeIdCount);
+				GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
 
 				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
 
@@ -2622,16 +2622,19 @@ namespace gaia {
 				if (pDstArchetype->has<EntityDesc>())
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 
-				const auto addedIdCount = copied_id_count(entity, *pDstArchetype, [](Entity) {
+				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
+				const auto sparseIdCount = copied_sparse_id_count(entity, [](Entity) {
 					return true;
 				});
+				const auto addedIdCount = archetypeIdCount + sparseIdCount;
 				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
-				write_copied_ids(
-						entity, *pDstArchetype,
+				write_archetype_ids(*pDstArchetype, pAddedIds);
+				write_copied_sparse_ids(
+						entity,
 						[](Entity) {
 							return true;
 						},
-						pAddedIds);
+						pAddedIds + archetypeIdCount);
 				copy_n_inter(entity, count, func, EntitySpan{pAddedIds, addedIdCount});
 			}
 #endif
@@ -2795,7 +2798,9 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void copy_sparse_entity_data(Entity srcEntity, Entity dstEntity, Func&& shouldCopy) {
+			uint32_t
+			copy_sparse_entity_data(Entity srcEntity, Entity dstEntity, Func&& shouldCopy, Entity* pCopiedIds = nullptr) {
+				uint32_t copiedCnt = 0;
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
 					if (!store.func_has(store.pStore, srcEntity) || !shouldCopy(comp))
@@ -2804,13 +2809,23 @@ namespace gaia {
 					GAIA_ASSERT(store.func_copy_entity != nullptr);
 					if (!store.func_copy_entity(store.pStore, dstEntity, srcEntity))
 						continue;
+
+					if (pCopiedIds != nullptr)
+						pCopiedIds[copiedCnt] = comp;
+					++copiedCnt;
 				}
+
+				return copiedCnt;
+			}
+
+			void write_archetype_ids(const Archetype& dstArchetype, Entity* pDst) const {
+				for (const auto id: dstArchetype.ids_view())
+					*pDst++ = id;
 			}
 
 			template <typename Func>
-			GAIA_NODISCARD uint32_t
-			copied_id_count(Entity srcEntity, const Archetype& dstArchetype, Func&& shouldCopySparse) const {
-				uint32_t count = (uint32_t)dstArchetype.ids_view().size();
+			GAIA_NODISCARD uint32_t copied_sparse_id_count(Entity srcEntity, Func&& shouldCopySparse) const {
+				uint32_t count = 0;
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
 					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
@@ -2822,11 +2837,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void
-			write_copied_ids(Entity srcEntity, const Archetype& dstArchetype, Func&& shouldCopySparse, Entity* pDst) const {
-				for (const auto id: dstArchetype.ids_view())
-					*pDst++ = id;
-
+			void write_copied_sparse_ids(Entity srcEntity, Func&& shouldCopySparse, Entity* pDst) const {
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
 					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
@@ -2925,20 +2936,20 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
-				const auto addedIdCount = copied_id_count(prefabEntity, *pDstArchetype, [&](Entity comp) {
+				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
+				const auto sparseIdCount = copied_sparse_id_count(prefabEntity, [&](Entity comp) {
 					return instantiate_copies_id(comp);
 				});
+				const auto addedIdCount = archetypeIdCount + sparseIdCount;
 				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
-				write_copied_ids(
-						prefabEntity, *pDstArchetype,
+				write_archetype_ids(*pDstArchetype, pAddedIds);
+				const auto sparseIdsWritten = copy_sparse_entity_data(
+						prefabEntity, instance,
 						[&](Entity comp) {
 							return instantiate_copies_id(comp);
 						},
-						pAddedIds);
-
-				copy_sparse_entity_data(prefabEntity, instance, [&](Entity comp) {
-					return instantiate_copies_id(comp);
-				});
+						pAddedIds + archetypeIdCount);
+				GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
