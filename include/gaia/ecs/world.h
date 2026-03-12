@@ -2550,7 +2550,7 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				copy_n_inter(entity, count, func, nullptr);
+				copy_n_inter(entity, count, func, EntitySpan{});
 			}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -2586,18 +2586,22 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				cnt::darray<Entity> addedIds;
-				copy_added_ids(srcEntity, *pDstArchetype, addedIds);
-
-				copy_sparse_entity_data(
-						srcEntity, dstEntity,
+				const auto addedIdCount = copied_id_count(srcEntity, *pDstArchetype, [](Entity) {
+					return true;
+				});
+				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
+				write_copied_ids(
+						srcEntity, *pDstArchetype,
 						[](Entity) {
 							return true;
 						},
-						&addedIds);
+						pAddedIds);
 
-				m_observers.on_add(
-						*this, *pDstArchetype, EntitySpan{addedIds.data(), addedIds.size()}, EntitySpan{&dstEntity, 1});
+				copy_sparse_entity_data(srcEntity, dstEntity, [](Entity) {
+					return true;
+				});
+
+				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
 
 				return dstEntity;
 			}
@@ -2613,8 +2617,22 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-				cnt::darray<Entity> addedIds;
-				copy_n_inter(entity, count, func, &addedIds);
+				auto& ec = m_recs.entities[entity.id()];
+				auto* pDstArchetype = ec.pArchetype;
+				if (pDstArchetype->has<EntityDesc>())
+					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
+
+				const auto addedIdCount = copied_id_count(entity, *pDstArchetype, [](Entity) {
+					return true;
+				});
+				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
+				write_copied_ids(
+						entity, *pDstArchetype,
+						[](Entity) {
+							return true;
+						},
+						pAddedIds);
+				copy_n_inter(entity, count, func, EntitySpan{pAddedIds, addedIdCount});
 			}
 #endif
 
@@ -2636,7 +2654,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void copy_n_inter(Entity entity, uint32_t count, Func& func, cnt::darray<Entity>* pAddedIds) {
+			void copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 
@@ -2650,9 +2668,6 @@ namespace gaia {
 				const auto hasEntityDesc = pDstArchetype->has<EntityDesc>();
 				if (hasEntityDesc)
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
-
-				if (pAddedIds != nullptr)
-					copy_added_ids(entity, *pDstArchetype, *pAddedIds);
 
 				// Entities array might get reallocated after m_recs.entities.alloc
 				// so instead of fetching the container again we simply cache the row
@@ -2702,11 +2717,10 @@ namespace gaia {
 					pDstChunk->update_versions();
 
 #if GAIA_OBSERVERS_ENABLED
-					if (pAddedIds != nullptr) {
+					if (!addedIds.empty()) {
 						auto entities = pDstChunk->entity_view();
 						m_observers.on_add(
-								*this, *pDstArchetype, EntitySpan{pAddedIds->data(), pAddedIds->size()},
-								EntitySpan{entities.data() + originalChunkSize, toCreate});
+								*this, *pDstArchetype, addedIds, EntitySpan{entities.data() + originalChunkSize, toCreate});
 					}
 #endif
 
@@ -2743,8 +2757,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void copy_sparse_entity_data(
-					Entity srcEntity, Entity dstEntity, Func&& shouldCopy, cnt::darray<Entity>* pAddedIds = nullptr) {
+			void copy_sparse_entity_data(Entity srcEntity, Entity dstEntity, Func&& shouldCopy) {
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
 					if (!store.func_has(store.pStore, srcEntity) || !shouldCopy(comp))
@@ -2753,23 +2766,34 @@ namespace gaia {
 					GAIA_ASSERT(store.func_copy_entity != nullptr);
 					if (!store.func_copy_entity(store.pStore, dstEntity, srcEntity))
 						continue;
-
-					if (pAddedIds != nullptr)
-						pAddedIds->push_back(comp);
 				}
 			}
 
 			template <typename Func>
-			void copy_added_ids(Entity srcEntity, const Archetype& dstArchetype, Func&& addedIds) {
-				addedIds.reserve((uint32_t)dstArchetype.ids_view().size() + (uint32_t)m_sparseComponentsByComp.size());
+			GAIA_NODISCARD uint32_t
+			copied_id_count(Entity srcEntity, const Archetype& dstArchetype, Func&& shouldCopySparse) const {
+				uint32_t count = (uint32_t)dstArchetype.ids_view().size();
+				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
+					const auto comp = compKey.entity();
+					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
+						continue;
+					++count;
+				}
+
+				return count;
+			}
+
+			template <typename Func>
+			void
+			write_copied_ids(Entity srcEntity, const Archetype& dstArchetype, Func&& shouldCopySparse, Entity* pDst) const {
 				for (const auto id: dstArchetype.ids_view())
-					addedIds.push_back(id);
+					*pDst++ = id;
 
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
-					if (!store.func_has(store.pStore, srcEntity))
+					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
 						continue;
-					addedIds.push_back(comp);
+					*pDst++ = comp;
 				}
 			}
 
@@ -2863,17 +2887,20 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
-				cnt::darray<Entity> addedIds;
-				addedIds.reserve((uint32_t)pDstArchetype->ids_view().size() + (uint32_t)m_sparseComponentsByComp.size());
-				for (const auto id: pDstArchetype->ids_view())
-					addedIds.push_back(id);
-
-				copy_sparse_entity_data(
-						prefabEntity, instance,
+				const auto addedIdCount = copied_id_count(prefabEntity, *pDstArchetype, [&](Entity comp) {
+					return instantiate_copies_id(comp);
+				});
+				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
+				write_copied_ids(
+						prefabEntity, *pDstArchetype,
 						[&](Entity comp) {
 							return instantiate_copies_id(comp);
 						},
-						&addedIds);
+						pAddedIds);
+
+				copy_sparse_entity_data(prefabEntity, instance, [&](Entity comp) {
+					return instantiate_copies_id(comp);
+				});
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
@@ -2892,7 +2919,7 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				for (const auto id: addedIds) {
+				for (const auto id: EntitySpan{pAddedIds, addedIdCount}) {
 					if (!id.comp())
 						continue;
 
@@ -2904,8 +2931,7 @@ namespace gaia {
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
-				m_observers.on_add(
-						*this, *pDstArchetype, EntitySpan{addedIds.data(), addedIds.size()}, EntitySpan{&instance, 1});
+				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&instance, 1});
 	#endif
 
 				unlock();
