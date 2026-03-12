@@ -2123,6 +2123,15 @@ Or spawn multiple root instances at once:
 ```cpp
 w.instantiate_n(prefab, 10);
 w.instantiate_n(prefab, scene, 10);
+w.instantiate_n(prefab, 10, [](ecs::CopyIter& it) {
+  auto entityView = it.view<ecs::Entity>();
+  // You can also access the copied root-instance components in batches
+  auto posView = it.view<Position>();
+  GAIA_EACH(it) {
+    // Do something with the spawned root instances
+    // ...
+  }
+});
 ```
 
 Both `instantiate(...)` and `instantiate_n(...)` follows the same rules:

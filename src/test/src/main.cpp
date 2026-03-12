@@ -10985,6 +10985,39 @@ TEST_CASE("Prefab - instantiate_n does not copy prefab names") {
 		CHECK(wld.name(instance) == nullptr);
 }
 
+TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	wld.add<Position>(prefabAnimal, {1, 2, 3});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	cnt::darray<ecs::Entity> roots;
+	roots.reserve(8);
+	wld.instantiate_n(prefabAnimal, 8, [&](ecs::CopyIter& it) {
+		++hits;
+		seen += it.size();
+
+		auto entityView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			roots.push_back(entityView[i]);
+			CHECK(posView[i].x == doctest::Approx(1.0f));
+			CHECK(posView[i].y == doctest::Approx(2.0f));
+			CHECK(posView[i].z == doctest::Approx(3.0f));
+		}
+	});
+
+	CHECK(hits >= 1);
+	CHECK(seen == 8);
+	CHECK(roots.size() == 8);
+	for (const auto instance: roots) {
+		CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
+		CHECK(wld.has_direct(instance, ecs::Pair(ecs::Is, prefabAnimal)));
+	}
+}
+
 TEST_CASE("Prefab - instantiate_n inherited component queries materialize independent local overrides") {
 	TestWorld twld;
 
@@ -11012,6 +11045,45 @@ TEST_CASE("Prefab - instantiate_n inherited component queries materialize indepe
 		CHECK(wld.get<Position>(instance).x == doctest::Approx(7.0f));
 	}
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Prefab - instantiate_n parented roots support CopyIter callbacks") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	uint32_t rootCount = 0;
+	cnt::darray<ecs::Entity> roots;
+	roots.reserve(4);
+	wld.instantiate_n(rootPrefab, scene, 4, [&](ecs::CopyIter& it) {
+		rootCount += it.size();
+		auto entityView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			roots.push_back(entityView[i]);
+			CHECK(posView[i].x == doctest::Approx(1.0f));
+			CHECK(wld.has(entityView[i], ecs::Pair(ecs::Parent, scene)));
+		}
+	});
+
+	CHECK(rootCount == 4);
+	CHECK(roots.size() == 4);
+
+	uint32_t childCount = 0;
+	for (const auto instance: roots) {
+		wld.sources(ecs::Parent, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::Parent, instance)));
+		});
+	}
+	CHECK(childCount == 4);
 }
 
 TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {

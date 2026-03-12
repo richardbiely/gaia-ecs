@@ -44948,9 +44948,44 @@ namespace gaia {
 					return;
 				}
 
-				GAIA_FOR(count) {
-					const auto instance = instantiate_inter(prefabEntity, parentInstance);
-					func(instance);
+				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
+					cnt::darray<Entity> instances;
+					instances.reserve(count);
+
+					GAIA_FOR(count) instances.push_back(instantiate_inter(prefabEntity, parentInstance));
+
+					uint32_t groupBegin = 0;
+					while (groupBegin < instances.size()) {
+						const auto& ecBegin = fetch(instances[groupBegin]);
+						auto* pArchetype = ecBegin.pArchetype;
+						auto* pChunk = ecBegin.pChunk;
+						const auto startRow = ecBegin.row;
+
+						uint32_t groupEnd = groupBegin + 1;
+						uint32_t nextRow = startRow + 1;
+						while (groupEnd < instances.size()) {
+							const auto& ec = fetch(instances[groupEnd]);
+							if (ec.pArchetype != pArchetype || ec.pChunk != pChunk || ec.row != nextRow)
+								break;
+
+							++groupEnd;
+							++nextRow;
+						}
+
+						CopyIter it;
+						it.set_world(this);
+						it.set_archetype(pArchetype);
+						it.set_chunk(pChunk);
+						it.set_range((uint16_t)startRow, (uint16_t)(groupEnd - groupBegin));
+						func(it);
+
+						groupBegin = groupEnd;
+					}
+				} else {
+					GAIA_FOR(count) {
+						const auto instance = instantiate_inter(prefabEntity, parentInstance);
+						func(instance);
+					}
 				}
 			}
 
