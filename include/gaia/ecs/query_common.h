@@ -34,6 +34,7 @@ namespace gaia {
 		GAIA_NODISCARD bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
+		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
@@ -389,6 +390,10 @@ namespace gaia {
 				HasSourceTerms = 0x10,
 				// Query contains variable-based lookup terms
 				HasVariableTerms = 0x20,
+				// Include entities tagged with Prefab even when the query does not mention Prefab explicitly.
+				MatchPrefab = 0x40,
+				// Query mentions Prefab explicitly and therefore must not auto-exclude it.
+				HasPrefabTerms = 0x80,
 			};
 
 			enum class CachePolicy : uint8_t {
@@ -593,6 +598,7 @@ namespace gaia {
 					bool isComplex = false;
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
+					bool hasPrefabTerms = false;
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasAdjunctTerms = false;
@@ -609,6 +615,7 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						hasPrefabTerms |= id == Prefab;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
@@ -722,6 +729,10 @@ namespace gaia {
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
+					if (hasPrefabTerms)
+						data.flags |= QueryCtx::QueryFlags::HasPrefabTerms;
+					else
+						data.flags &= ~QueryCtx::QueryFlags::HasPrefabTerms;
 
 					if (hasSourceTerms)
 						data.flags |= QueryCtx::QueryFlags::HasSourceTerms;
@@ -991,6 +1002,9 @@ namespace gaia {
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
+
+				const bool matchPrefab = (ctxData.flags & QueryCtx::QueryFlags::MatchPrefab) != 0;
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
 
 				hashLookup = hash;
 			}

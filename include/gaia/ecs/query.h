@@ -84,7 +84,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP, MATCH_PREFAB };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -215,6 +215,15 @@ namespace gaia {
 				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupIdSet = groupId;
+				}
+			};
+
+			struct QueryCmd_MatchPrefab {
+				static constexpr QueryCmdType Id = QueryCmdType::MATCH_PREFAB;
+				static constexpr bool InvalidatesHash = true;
+
+				void exec(QueryCtx& ctx) const {
+					ctx.data.flags |= QueryCtx::QueryFlags::MatchPrefab;
 				}
 			};
 
@@ -481,6 +490,12 @@ namespace gaia {
 						// SetGroupId
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_SetGroupId cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// MatchPrefab
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_MatchPrefab cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						} //
@@ -755,6 +770,12 @@ namespace gaia {
 					else
 						m_storage.reset();
 
+					return *this;
+				}
+
+				QueryImpl& match_prefab() {
+					QueryCmd_MatchPrefab cmd{};
+					add_cmd(cmd);
 					return *this;
 				}
 
@@ -1307,9 +1328,17 @@ namespace gaia {
 					return chunk.changed(queryInfo.world_version());
 				}
 
-				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
-					// Archetypes requested for deletion are skipped for processing
-					return !archetype.is_req_del();
+				GAIA_NODISCARD bool can_process_archetype(const QueryInfo& queryInfo, const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing.
+					if (archetype.is_req_del())
+						return false;
+
+					// Prefabs are excluded from query results by default unless the query opted in
+					// explicitly or it mentions Prefab directly.
+					if (!queryInfo.matches_prefab_entities() && archetype.has(Prefab))
+						return false;
+
+					return true;
 				}
 
 				//--------------------------------------------------------------------------------
@@ -1423,7 +1452,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1508,7 +1537,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1569,7 +1598,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1638,7 +1667,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						const auto& data = dataView[i];
@@ -1652,7 +1681,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1758,7 +1787,7 @@ namespace gaia {
 						auto cache_view = queryInfo.cache_archetype_view();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2211,7 +2240,7 @@ namespace gaia {
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
 					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
+						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 							return true;
 
 						if (evalPlan.alwaysMatch)
@@ -2230,7 +2259,11 @@ namespace gaia {
 
 				//! Applies iterator-specific entity state constraints to the direct seeded path.
 				template <typename TIter>
-				GAIA_NODISCARD static bool match_direct_entity_constraints(const World& world, Entity entity) {
+				GAIA_NODISCARD static bool
+				match_direct_entity_constraints(const World& world, const QueryInfo& queryInfo, Entity entity) {
+					if (!queryInfo.matches_prefab_entities() && world_entity_prefab(world, entity))
+						return false;
+
 					if constexpr (std::is_same_v<TIter, Iter>)
 						return world_entity_enabled(world, entity);
 					else if constexpr (std::is_same_v<TIter, IterDisabled>)
@@ -2273,7 +2306,7 @@ namespace gaia {
 					scratch.counts.clear();
 
 					for (const auto entity: seedEntities) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
+						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 							continue;
 
 						const auto* pArchetype = world_entity_archetype(world, entity);
@@ -2310,7 +2343,7 @@ namespace gaia {
 							continue;
 
 						for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -2353,7 +2386,7 @@ namespace gaia {
 							continue;
 
 						const bool completed = for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -2462,7 +2495,7 @@ namespace gaia {
 							continue;
 
 						for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -2501,7 +2534,7 @@ namespace gaia {
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					for (const auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
@@ -2589,7 +2622,7 @@ namespace gaia {
 					if (can_use_direct_target_eval(queryInfo)) {
 						const DirectEntitySeedInfo seedInfo{};
 						for (const auto entity: targetEntities) {
-							if (!match_direct_entity_constraints<Iter>(world, entity))
+							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
 								continue;
 							if (match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 								return true;
@@ -2615,7 +2648,7 @@ namespace gaia {
 						return true;
 
 					for (const auto entity: targetEntities) {
-						if (!match_direct_entity_constraints<Iter>(world, entity))
+						if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
 							continue;
 						if (match_entity_filters(world, entity, queryInfo))
 							return true;
@@ -2656,7 +2689,7 @@ namespace gaia {
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (const auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
@@ -2818,7 +2851,7 @@ namespace gaia {
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
@@ -3796,7 +3829,7 @@ namespace gaia {
 
 						bool chunkChanged = false;
 						for (auto* pArchetype: queryInfo) {
-							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+							if (pArchetype == nullptr || !can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							for (const auto* pChunk: pArchetype->chunks()) {
@@ -4010,7 +4043,7 @@ namespace gaia {
 						auto& chunks = bfsData.scratchChunks;
 						chunks.clear();
 						for (auto* pArchetype: queryInfo) {
-							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+							if (pArchetype == nullptr || !can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							for (const auto* pChunk: pArchetype->chunks()) {

@@ -10406,6 +10406,38 @@ TEST_CASE("Query - is sugar matches semantic and direct Is terms") {
 	expect_exact_entities(qDirect, {mammal});
 }
 
+TEST_CASE("Query - prefabs are excluded by default and can be matched explicitly") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto prefabRabbit = wld.add();
+	wld.build(prefabRabbit).prefab();
+	const auto rabbit = wld.add();
+
+	wld.as(prefabRabbit, prefabAnimal);
+	wld.as(rabbit, prefabAnimal);
+
+	wld.add<Position>(prefabAnimal, {1, 0, 0});
+	wld.add<Position>(prefabRabbit, {2, 0, 0});
+	wld.add<Position>(rabbit, {3, 0, 0});
+
+	CHECK(wld.has_direct(prefabAnimal, ecs::Prefab));
+	CHECK(wld.has_direct(prefabRabbit, ecs::Prefab));
+	CHECK_FALSE(wld.has_direct(rabbit, ecs::Prefab));
+
+	auto qDefault = wld.query().all<Position>().is(prefabAnimal);
+	CHECK(qDefault.count() == 1);
+	expect_exact_entities(qDefault, {rabbit});
+
+	auto qMatchPrefab = wld.query().all<Position>().is(prefabAnimal).match_prefab();
+	CHECK(qMatchPrefab.count() == 3);
+	expect_exact_entities(qMatchPrefab, {prefabAnimal, prefabRabbit, rabbit});
+
+	auto qPrefabOnly = wld.query().all(ecs::Prefab);
+	CHECK(qPrefabOnly.count() == 2);
+	expect_exact_entities(qPrefabOnly, {prefabAnimal, prefabRabbit});
+}
+
 TEST_CASE("Query - Iter is query preserves component access") {
 	TestWorld twld;
 
@@ -13486,6 +13518,32 @@ TEST_CASE("System - is sugar matches semantic and direct Is terms") {
 	CHECK(directHits == 1);
 }
 
+TEST_CASE("System - prefabs are excluded by default and can be matched explicitly") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto entity = wld.add();
+
+	wld.add<Position>(prefab, {1, 0, 0});
+	wld.add<Position>(entity, {2, 0, 0});
+
+	uint32_t defaultHits = 0;
+	uint32_t prefabHits = 0;
+
+	auto sysDefault = wld.system().all<Position>().on_each([&](ecs::Iter& it) {
+		defaultHits += it.size();
+	});
+	auto sysMatchPrefab = wld.system().all<Position>().match_prefab().on_each([&](ecs::Iter& it) {
+		prefabHits += it.size();
+	});
+
+	sysDefault.exec();
+	sysMatchPrefab.exec();
+
+	CHECK(defaultHits == 1);
+	CHECK(prefabHits == 2);
+}
+
 TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
 	TestWorld twld;
 
@@ -14427,6 +14485,41 @@ TEST_CASE("Observer - is sugar matches semantic and direct Is terms") {
 	(void)obsDirect;
 }
 
+TEST_CASE("Observer - prefabs are excluded by default and can be matched explicitly") {
+	TestWorld twld;
+
+	uint32_t defaultHits = 0;
+	const auto obsDefault = wld.observer()
+															.event(ecs::ObserverEvent::OnAdd)
+															.all<Position>()
+															.on_each([&](ecs::Iter&) {
+																++defaultHits;
+															})
+															.entity();
+
+	uint32_t prefabHits = 0;
+	const auto obsMatchPrefab = wld.observer()
+																	.event(ecs::ObserverEvent::OnAdd)
+																	.all<Position>()
+																	.match_prefab()
+																	.on_each([&](ecs::Iter&) {
+																		++prefabHits;
+																	})
+																	.entity();
+
+	const auto prefab = wld.prefab();
+	const auto entity = wld.add();
+
+	wld.add<Position>(prefab, {1, 0, 0});
+	wld.add<Position>(entity, {2, 0, 0});
+
+	CHECK(defaultHits == 1);
+	CHECK(prefabHits == 2);
+
+	(void)obsDefault;
+	(void)obsMatchPrefab;
+}
+
 TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 	TestWorld twld;
 
@@ -14437,7 +14530,7 @@ TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 	simpleItem.access = ecs::QueryAccess::Read;
 	simpleItem.id = positionTerm;
 
-	int hits = 0;
+	uint32_t hits = 0;
 	const auto observerSimple = wld.observer()
 																	.event(ecs::ObserverEvent::OnAdd)
 																	.add(simpleItem)
@@ -14469,8 +14562,8 @@ TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 TEST_CASE("Observer - single negative fast path runtime") {
 	TestWorld twld;
 
-	int onAddHits = 0;
-	int onDelHits = 0;
+	uint32_t onAddHits = 0;
+	uint32_t onDelHits = 0;
 
 	const auto observerOnAddNoPos = wld.observer()
 																			.event(ecs::ObserverEvent::OnAdd)
@@ -14874,7 +14967,7 @@ TEST_CASE("Component cache - runtime registration") {
 
 #if GAIA_ENABLE_HOOKS
 
-static thread_local int hook_trigger_cnt = 0;
+static thread_local uint32_t hook_trigger_cnt = 0;
 
 TEST_CASE("Hooks") {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS

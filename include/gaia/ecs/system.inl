@@ -146,6 +146,12 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& match_prefab() {
+				validate();
+				data().query.match_prefab();
+				return *this;
+			}
+
 			SystemBuilder& changed(Entity entity) {
 				validate();
 				data().query.changed(entity);

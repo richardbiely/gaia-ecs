@@ -84,6 +84,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Entity inheritance](#entity-inheritance)
     * [Targets](#targets)
     * [Relations](#relations)
+    * [Prefabs](#prefabs)
     * [Cleanup rules](#cleanup-rules)
     * [Hierarchies](#hierarchies)
   * [Unique components](#unique-components)
@@ -2035,6 +2036,39 @@ Age age_hare = w.get<Age>(hare);
 w.set<Age>(hare, {20});
 Age age_animal = w.get<Age>(animal); // age_animal.value is still equal to 10
 ```
+
+### Prefabs
+Prefabs are entities tagged with `ecs::Prefab`. They are excluded from queries by default unless the query mentions `Prefab` explicitly or opts in with `match_prefab()`.
+
+```cpp
+ecs::World w;
+ecs::Entity prefab = w.prefab();
+ecs::Entity instance = w.add();
+
+w.add<Position>(prefab, {1, 0, 0});
+w.as(instance, prefab);
+w.add<Position>(instance, {2, 0, 0});
+
+// Default queries skip prefab entities.
+ecs::Query q = w.query().all<Position>().is(prefab);
+q.each([](ecs::Entity entity) {
+  // entity = instance
+});
+
+// Match prefab entities explicitly.
+ecs::Query q2 = w.query().all<Position>().is(prefab).match_prefab();
+q2.each([](ecs::Entity entity) {
+  // entity = prefab, instance
+});
+
+// Or query prefabs directly.
+ecs::Query q3 = w.query().all(ecs::Prefab);
+q3.each([](ecs::Entity entity) {
+  // entity = prefab
+});
+```
+
+You can create prefabs either with `w.prefab()` or by marking an existing entity through `w.build(entity).prefab()`.
 
 ### Cleanup rules
 When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.

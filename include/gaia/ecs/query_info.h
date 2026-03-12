@@ -1398,6 +1398,13 @@ namespace gaia {
 				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
+			//! Returns true when prefab-tagged entities should participate in query results.
+			GAIA_NODISCARD bool matches_prefab_entities() const {
+				const auto& data = m_plan.ctx.data;
+				return (data.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
+							 (data.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
+			}
+
 			template <typename... T>
 			GAIA_NODISCARD bool has_any() const {
 				return (has_inter<T>(QueryOpKind::Any) || ...);

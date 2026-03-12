@@ -24054,6 +24054,7 @@ namespace gaia {
 		struct GAIA_API ChildOf_ {};
 		struct GAIA_API Parent_ {};
 		struct GAIA_API Is_ {};
+		struct GAIA_API Prefab_ {};
 		struct GAIA_API Traversable_ {};
 		struct GAIA_API System_;
 		struct GAIA_API DependsOn_ {};
@@ -24100,20 +24101,22 @@ namespace gaia {
 		inline Entity Parent = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
 		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		// Template entity excluded from queries by default unless explicitly requested.
+		inline Entity Prefab = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(20, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(21, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(25, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(26, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(29, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Always has to match the last internal entity
@@ -29541,6 +29544,7 @@ namespace gaia {
 		GAIA_NODISCARD bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
+		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
@@ -29896,6 +29900,10 @@ namespace gaia {
 				HasSourceTerms = 0x10,
 				// Query contains variable-based lookup terms
 				HasVariableTerms = 0x20,
+				// Include entities tagged with Prefab even when the query does not mention Prefab explicitly.
+				MatchPrefab = 0x40,
+				// Query mentions Prefab explicitly and therefore must not auto-exclude it.
+				HasPrefabTerms = 0x80,
 			};
 
 			enum class CachePolicy : uint8_t {
@@ -30100,6 +30108,7 @@ namespace gaia {
 					bool isComplex = false;
 					bool hasSourceTerms = false;
 					bool hasVariableTerms = false;
+					bool hasPrefabTerms = false;
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasAdjunctTerms = false;
@@ -30116,6 +30125,7 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						hasPrefabTerms |= id == Prefab;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
 																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
@@ -30229,6 +30239,10 @@ namespace gaia {
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
+					if (hasPrefabTerms)
+						data.flags |= QueryCtx::QueryFlags::HasPrefabTerms;
+					else
+						data.flags &= ~QueryCtx::QueryFlags::HasPrefabTerms;
 
 					if (hasSourceTerms)
 						data.flags |= QueryCtx::QueryFlags::HasSourceTerms;
@@ -30498,6 +30512,9 @@ namespace gaia {
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
+
+				const bool matchPrefab = (ctxData.flags & QueryCtx::QueryFlags::MatchPrefab) != 0;
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
 
 				hashLookup = hash;
 			}
@@ -36655,6 +36672,13 @@ namespace gaia {
 				return m_plan.ctx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
+			//! Returns true when prefab-tagged entities should participate in query results.
+			GAIA_NODISCARD bool matches_prefab_entities() const {
+				const auto& data = m_plan.ctx.data;
+				return (data.flags & QueryCtx::QueryFlags::MatchPrefab) != 0 ||
+							 (data.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
+			}
+
 			template <typename... T>
 			GAIA_NODISCARD bool has_any() const {
 				return (has_inter<T>(QueryOpKind::Any) || ...);
@@ -37473,7 +37497,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP, MATCH_PREFAB };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -37604,6 +37628,15 @@ namespace gaia {
 				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupIdSet = groupId;
+				}
+			};
+
+			struct QueryCmd_MatchPrefab {
+				static constexpr QueryCmdType Id = QueryCmdType::MATCH_PREFAB;
+				static constexpr bool InvalidatesHash = true;
+
+				void exec(QueryCtx& ctx) const {
+					ctx.data.flags |= QueryCtx::QueryFlags::MatchPrefab;
 				}
 			};
 
@@ -37870,6 +37903,12 @@ namespace gaia {
 						// SetGroupId
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_SetGroupId cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// MatchPrefab
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_MatchPrefab cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						} //
@@ -38144,6 +38183,12 @@ namespace gaia {
 					else
 						m_storage.reset();
 
+					return *this;
+				}
+
+				QueryImpl& match_prefab() {
+					QueryCmd_MatchPrefab cmd{};
+					add_cmd(cmd);
 					return *this;
 				}
 
@@ -38696,9 +38741,17 @@ namespace gaia {
 					return chunk.changed(queryInfo.world_version());
 				}
 
-				GAIA_NODISCARD bool can_process_archetype(const Archetype& archetype) const {
-					// Archetypes requested for deletion are skipped for processing
-					return !archetype.is_req_del();
+				GAIA_NODISCARD bool can_process_archetype(const QueryInfo& queryInfo, const Archetype& archetype) const {
+					// Archetypes requested for deletion are skipped for processing.
+					if (archetype.is_req_del())
+						return false;
+
+					// Prefabs are excluded from query results by default unless the query opted in
+					// explicitly or it mentions Prefab directly.
+					if (!queryInfo.matches_prefab_entities() && archetype.has(Prefab))
+						return false;
+
+					return true;
 				}
 
 				//--------------------------------------------------------------------------------
@@ -38812,7 +38865,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -38897,7 +38950,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -38958,7 +39011,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -39027,7 +39080,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						const auto& data = dataView[i];
@@ -39041,7 +39094,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -39147,7 +39200,7 @@ namespace gaia {
 						auto cache_view = queryInfo.cache_archetype_view();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
-							if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -39600,7 +39653,7 @@ namespace gaia {
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
 					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
+						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 							return true;
 
 						if (evalPlan.alwaysMatch)
@@ -39619,7 +39672,11 @@ namespace gaia {
 
 				//! Applies iterator-specific entity state constraints to the direct seeded path.
 				template <typename TIter>
-				GAIA_NODISCARD static bool match_direct_entity_constraints(const World& world, Entity entity) {
+				GAIA_NODISCARD static bool
+				match_direct_entity_constraints(const World& world, const QueryInfo& queryInfo, Entity entity) {
+					if (!queryInfo.matches_prefab_entities() && world_entity_prefab(world, entity))
+						return false;
+
 					if constexpr (std::is_same_v<TIter, Iter>)
 						return world_entity_enabled(world, entity);
 					else if constexpr (std::is_same_v<TIter, IterDisabled>)
@@ -39662,7 +39719,7 @@ namespace gaia {
 					scratch.counts.clear();
 
 					for (const auto entity: seedEntities) {
-						if (!match_direct_entity_constraints<TIter>(world, entity))
+						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 							continue;
 
 						const auto* pArchetype = world_entity_archetype(world, entity);
@@ -39699,7 +39756,7 @@ namespace gaia {
 							continue;
 
 						for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -39742,7 +39799,7 @@ namespace gaia {
 							continue;
 
 						const bool completed = for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -39851,7 +39908,7 @@ namespace gaia {
 							continue;
 
 						for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, entity))
+							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -39890,7 +39947,7 @@ namespace gaia {
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					for (const auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
@@ -39978,7 +40035,7 @@ namespace gaia {
 					if (can_use_direct_target_eval(queryInfo)) {
 						const DirectEntitySeedInfo seedInfo{};
 						for (const auto entity: targetEntities) {
-							if (!match_direct_entity_constraints<Iter>(world, entity))
+							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
 								continue;
 							if (match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 								return true;
@@ -40004,7 +40061,7 @@ namespace gaia {
 						return true;
 
 					for (const auto entity: targetEntities) {
-						if (!match_direct_entity_constraints<Iter>(world, entity))
+						if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
 							continue;
 						if (match_entity_filters(world, entity, queryInfo))
 							return true;
@@ -40045,7 +40102,7 @@ namespace gaia {
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (const auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
@@ -40207,7 +40264,7 @@ namespace gaia {
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(*pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
@@ -41185,7 +41242,7 @@ namespace gaia {
 
 						bool chunkChanged = false;
 						for (auto* pArchetype: queryInfo) {
-							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+							if (pArchetype == nullptr || !can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							for (const auto* pChunk: pArchetype->chunks()) {
@@ -41399,7 +41456,7 @@ namespace gaia {
 						auto& chunks = bfsData.scratchChunks;
 						chunks.clear();
 						for (auto* pArchetype: queryInfo) {
-							if (pArchetype == nullptr || !can_process_archetype(*pArchetype))
+							if (pArchetype == nullptr || !can_process_archetype(queryInfo, *pArchetype))
 								continue;
 
 							for (const auto* pChunk: pArchetype->chunks()) {
@@ -41996,6 +42053,7 @@ namespace gaia {
 							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added))
 						return;
 
+					const bool archetypeIsPrefab = archetype.has(Prefab);
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_added) {
 						collect_observers_for_event_term(world, m_observer_map_add, comp, matchStamp);
@@ -42014,6 +42072,12 @@ namespace gaia {
 					// Fire OnAdd for observers that started matching
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
+						QueryInfo* pQueryInfo = nullptr;
+						if (archetypeIsPrefab) {
+							pQueryInfo = &obs.query.fetch();
+							if (!pQueryInfo->matches_prefab_entities())
+								continue;
+						}
 
 						bool matches = false;
 						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
@@ -42023,7 +42087,7 @@ namespace gaia {
 						else {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
-							auto& queryInfo = obs.query.fetch();
+							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
 							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
@@ -42048,6 +42112,7 @@ namespace gaia {
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					// Gather the list of components to match
+					const bool archetypeIsPrefab = archetype.has(Prefab);
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_removed) {
 						collect_observers_for_event_term(world, m_observer_map_del, comp, matchStamp);
@@ -42066,6 +42131,12 @@ namespace gaia {
 					// Fire OnDel for observers that no longer match
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
+						QueryInfo* pQueryInfo = nullptr;
+						if (archetypeIsPrefab) {
+							pQueryInfo = &obs.query.fetch();
+							if (!pQueryInfo->matches_prefab_entities())
+								continue;
+						}
 
 						bool matches = false;
 						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
@@ -42075,7 +42146,7 @@ namespace gaia {
 						else {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
-							auto& queryInfo = obs.query.fetch();
+							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
 							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
@@ -42872,6 +42943,11 @@ namespace gaia {
 					return add(Pair(Is, entityBase));
 				}
 
+				//! Marks the entity as a prefab.
+				EntityBuilder& prefab() {
+					return add(Prefab);
+				}
+
 				//! Check if @a entity inherits from @a entityBase
 				//! \param entity Source entity
 				//! \param entityBase Base entity
@@ -43640,6 +43716,13 @@ namespace gaia {
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
+			}
+
+			//! Creates a new prefab entity.
+			GAIA_NODISCARD Entity prefab(EntityKind kind = EntityKind::EK_Gen) {
+				const auto entity = add(kind);
+				add(entity, Prefab);
+				return entity;
 			}
 
 			//! Creates @a count new empty entities
@@ -49319,6 +49402,12 @@ namespace gaia {
 				return *this;
 			}
 
+			ObserverBuilder& match_prefab() {
+				validate();
+				runtime_data().query.match_prefab();
+				return *this;
+			}
+
 			template <typename T>
 			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
@@ -49629,6 +49718,12 @@ namespace gaia {
 				return *this;
 			}
 
+			SystemBuilder& match_prefab() {
+				validate();
+				data().query.match_prefab();
+				return *this;
+			}
+
 			SystemBuilder& changed(Entity entity) {
 				validate();
 				data().query.changed(entity);
@@ -49896,6 +49991,7 @@ namespace gaia {
 				(void)reg_core_entity<ChildOf_>(ChildOf);
 				(void)reg_core_entity<Parent_>(Parent);
 				(void)reg_core_entity<Is_>(Is);
+				(void)reg_core_entity<Prefab_>(Prefab);
 				(void)reg_core_entity<System_>(System);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
 				(void)reg_core_entity<Observer_>(Observer);
@@ -49983,6 +50079,9 @@ namespace gaia {
 				EntityBuilder(*this, Is) //
 						.add(Core)
 						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Prefab) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 
 				EntityBuilder(*this, System) //
@@ -51027,6 +51126,11 @@ namespace gaia {
 
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
+		}
+
+		inline bool world_entity_prefab(const World& world, Entity entity) {
+			const auto& ec = world.fetch(entity);
+			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {

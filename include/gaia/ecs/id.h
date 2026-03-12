@@ -487,6 +487,7 @@ namespace gaia {
 		struct GAIA_API ChildOf_ {};
 		struct GAIA_API Parent_ {};
 		struct GAIA_API Is_ {};
+		struct GAIA_API Prefab_ {};
 		struct GAIA_API Traversable_ {};
 		struct GAIA_API System_;
 		struct GAIA_API DependsOn_ {};
@@ -533,20 +534,22 @@ namespace gaia {
 		inline Entity Parent = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
 		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		// Template entity excluded from queries by default unless explicitly requested.
+		inline Entity Prefab = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(18, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(19, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(20, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(21, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(22, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(24, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(25, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(26, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(23, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(26, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(29, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Always has to match the last internal entity

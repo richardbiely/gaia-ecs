@@ -472,6 +472,7 @@ namespace gaia {
 							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added))
 						return;
 
+					const bool archetypeIsPrefab = archetype.has(Prefab);
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_added) {
 						collect_observers_for_event_term(world, m_observer_map_add, comp, matchStamp);
@@ -490,6 +491,12 @@ namespace gaia {
 					// Fire OnAdd for observers that started matching
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
+						QueryInfo* pQueryInfo = nullptr;
+						if (archetypeIsPrefab) {
+							pQueryInfo = &obs.query.fetch();
+							if (!pQueryInfo->matches_prefab_entities())
+								continue;
+						}
 
 						bool matches = false;
 						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
@@ -499,7 +506,7 @@ namespace gaia {
 						else {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
-							auto& queryInfo = obs.query.fetch();
+							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
 							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
@@ -524,6 +531,7 @@ namespace gaia {
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					// Gather the list of components to match
+					const bool archetypeIsPrefab = archetype.has(Prefab);
 					const auto matchStamp = ++m_current_match_stamp;
 					for (auto comp: ents_removed) {
 						collect_observers_for_event_term(world, m_observer_map_del, comp, matchStamp);
@@ -542,6 +550,12 @@ namespace gaia {
 					// Fire OnDel for observers that no longer match
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
+						QueryInfo* pQueryInfo = nullptr;
+						if (archetypeIsPrefab) {
+							pQueryInfo = &obs.query.fetch();
+							if (!pQueryInfo->matches_prefab_entities())
+								continue;
+						}
 
 						bool matches = false;
 						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
@@ -551,7 +565,7 @@ namespace gaia {
 						else {
 							// Entity still matches at this point, but won't after removal completes.
 							// Trigger the event for each matching observer.
-							auto& queryInfo = obs.query.fetch();
+							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
 							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
 
@@ -1348,6 +1362,11 @@ namespace gaia {
 					return add(Pair(Is, entityBase));
 				}
 
+				//! Marks the entity as a prefab.
+				EntityBuilder& prefab() {
+					return add(Prefab);
+				}
+
 				//! Check if @a entity inherits from @a entityBase
 				//! \param entity Source entity
 				//! \param entityBase Base entity
@@ -2116,6 +2135,13 @@ namespace gaia {
 			//! \return New entity
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
+			}
+
+			//! Creates a new prefab entity.
+			GAIA_NODISCARD Entity prefab(EntityKind kind = EntityKind::EK_Gen) {
+				const auto entity = add(kind);
+				add(entity, Prefab);
+				return entity;
 			}
 
 			//! Creates @a count new empty entities
@@ -7470,6 +7496,7 @@ namespace gaia {
 				(void)reg_core_entity<ChildOf_>(ChildOf);
 				(void)reg_core_entity<Parent_>(Parent);
 				(void)reg_core_entity<Is_>(Is);
+				(void)reg_core_entity<Prefab_>(Prefab);
 				(void)reg_core_entity<System_>(System);
 				(void)reg_core_entity<DependsOn_>(DependsOn);
 				(void)reg_core_entity<Observer_>(Observer);
@@ -7557,6 +7584,9 @@ namespace gaia {
 				EntityBuilder(*this, Is) //
 						.add(Core)
 						.add(Acyclic)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Prefab) //
+						.add(Core)
 						.add(Pair(OnDelete, Error));
 
 				EntityBuilder(*this, System) //
@@ -7788,6 +7818,11 @@ namespace gaia {
 
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
+		}
+
+		inline bool world_entity_prefab(const World& world, Entity entity) {
+			const auto& ec = world.fetch(entity);
+			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {

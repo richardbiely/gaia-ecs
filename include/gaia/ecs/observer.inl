@@ -187,6 +187,12 @@ namespace gaia {
 				return *this;
 			}
 
+			ObserverBuilder& match_prefab() {
+				validate();
+				runtime_data().query.match_prefab();
+				return *this;
+			}
+
 			template <typename T>
 			ObserverBuilder& all(const QueryTermOptions& options) {
 				validate();
