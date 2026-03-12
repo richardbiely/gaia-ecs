@@ -2779,6 +2779,22 @@ namespace gaia {
 				return instantiate_inter(prefabEntity, EntityBad);
 			}
 
+			//! Instantiates a prefab as a normal entity parented under @a parentInstance.
+			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
+			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
+			//! and attaches Pair(Parent, parentInstance) to the new root instance.
+			GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
+				GAIA_ASSERT(!prefabEntity.pair());
+				GAIA_ASSERT(valid(prefabEntity));
+				GAIA_ASSERT(valid(parentInstance));
+				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
+
+				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab))
+					return copy(prefabEntity);
+
+				return instantiate_inter(prefabEntity, parentInstance);
+			}
+
 			//! Creates @a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make

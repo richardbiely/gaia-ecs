@@ -10876,6 +10876,47 @@ TEST_CASE("Prefab - instantiate recurses Parent-owned prefab children") {
 	CHECK(wld.get<Position>(leafInstance).x == 3.0f);
 }
 
+TEST_CASE("Prefab - instantiate can parent the spawned subtree under an existing entity") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.parent(leafPrefab, childPrefab);
+
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	const auto rootInstance = wld.instantiate(rootPrefab, scene);
+
+	auto q = wld.query().all<Position>().match_prefab();
+	cnt::darray<ecs::Entity> entities;
+	q.arr(entities);
+
+	ecs::Entity childInstance = ecs::EntityBad;
+	ecs::Entity leafInstance = ecs::EntityBad;
+	for (const auto entity: entities) {
+		if (entity == rootPrefab || entity == childPrefab || entity == leafPrefab || entity == rootInstance)
+			continue;
+		if (wld.has_direct(entity, ecs::Pair(ecs::Is, childPrefab)))
+			childInstance = entity;
+		else if (wld.has_direct(entity, ecs::Pair(ecs::Is, leafPrefab)))
+			leafInstance = entity;
+	}
+
+	CHECK(rootInstance != ecs::EntityBad);
+	CHECK(childInstance != ecs::EntityBad);
+	CHECK(leafInstance != ecs::EntityBad);
+
+	CHECK(wld.has(rootInstance, ecs::Pair(ecs::Parent, scene)));
+	CHECK(wld.has(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+	CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
+}
+
 TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
 	TestWorld twld;
 

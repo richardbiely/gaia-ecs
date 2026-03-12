@@ -2082,10 +2082,18 @@ bool isPrefab = w.has_direct(instance, ecs::Prefab); // false
 bool directInstance = w.has_direct(instance, ecs::Pair(ecs::Is, prefab)); // true
 ```
 
+You can also instantiate the prefab under an existing parent:
+
+```cpp
+ecs::Entity scene = w.add();
+ecs::Entity instance = w.instantiate(prefab, scene);
+```
+
 Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
 * `ecs::Prefab` is not copied to the instance
 * `EntityDesc` is not copied, so prefab names stay unique
 * the instance gets a direct `Pair(ecs::Is, prefab)` edge instead of copying the prefab's direct `Is` edges
+* `instantiate(prefab, parent)` attaches `Pair(ecs::Parent, parent)` to the new root instance
 * direct `Parent`-owned prefab children are instantiated recursively under the new parent instance
 
 Only children that are themselves tagged with `ecs::Prefab` are instantiated recursively. Plain `Parent` children under a prefab are ignored.
