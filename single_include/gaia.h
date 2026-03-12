@@ -31789,8 +31789,7 @@ namespace gaia {
 				};
 
 				GAIA_NODISCARD inline bool is_archetype_marked(const MatchingCtx& ctx, const Archetype* pArchetype) {
-					if (ctx.pMatchesStampByArchetypeId == nullptr)
-						return ctx.pMatchesSet->contains(pArchetype);
+					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					const auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
@@ -31801,11 +31800,7 @@ namespace gaia {
 				}
 
 				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
-					if (ctx.pMatchesStampByArchetypeId == nullptr) {
-						ctx.pMatchesSet->emplace(pArchetype);
-						ctx.pMatchesArr->emplace_back(pArchetype);
-						return;
-					}
+					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
@@ -31818,7 +31813,6 @@ namespace gaia {
 						stamps.add(stamp);
 					}
 
-					ctx.pMatchesSet->emplace(pArchetype);
 					ctx.pMatchesArr->emplace_back(pArchetype);
 				}
 
@@ -33290,7 +33284,8 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-					ctx.pMatchesSet->clear();
+					if (ctx.pMatchesSet != nullptr)
+						ctx.pMatchesSet->clear();
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches
@@ -35211,32 +35206,32 @@ namespace gaia {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
-			struct QueryMatchScratch {
-				//! Temporary deduplicated set of archetypes matched during the current VM run.
-				cnt::set<const Archetype*> matchesSet;
-				//! Ordered list of matched archetypes emitted by the VM for the current run.
-				cnt::darr<const Archetype*> matchesArr;
-				//! O(1) dedup table keyed by world-local archetype ids.
-				cnt::sparse_storage<ArchetypeMatchStamp> matchStamps;
-				//! Monotonic dedup stamp used when the same scratch frame is reused by later full match() calls.
-				uint32_t matchVersion = 0;
+		struct QueryMatchScratch {
+			//! Temporary deduplicated set of archetypes matched during the current VM run.
+			cnt::set<const Archetype*> matchesSet;
+			//! Ordered list of matched archetypes emitted by the VM for the current run.
+			cnt::darr<const Archetype*> matchesArr;
+			//! O(1) dedup table keyed by world-local archetype ids.
+			cnt::sparse_storage<ArchetypeMatchStamp> matchStamps;
+			//! Monotonic dedup stamp used when the same scratch frame is reused by later full match() calls.
+			uint32_t matchVersion = 0;
 
-				void clear_temporary_matches() {
-					matchesSet.clear();
-					matchesArr.clear();
-					matchStamps.clear();
-					matchVersion = 0;
-				}
+			void clear_temporary_matches() {
+				matchesSet.clear();
+				matchesArr.clear();
+				matchStamps.clear();
+				matchVersion = 0;
+			}
 
-				void clear_temporary_matches_keep_stamps() {
-					matchesSet.clear();
-					matchesArr.clear();
-				}
+			void clear_temporary_matches_keep_stamps() {
+				matchesSet.clear();
+				matchesArr.clear();
+			}
 
-				void reset_stamps() {
-					matchStamps.clear();
-					matchVersion = 0;
-				}
+			void reset_stamps() {
+				matchStamps.clear();
+				matchVersion = 0;
+			}
 
 			GAIA_NODISCARD uint32_t next_match_version() {
 				++matchVersion;
@@ -35954,7 +35949,7 @@ namespace gaia {
 				ctx.allArchetypes = allArchetypes;
 				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap);
 				ctx.pMatchesArr = &matchScratch.matchesArr;
-				ctx.pMatchesSet = &matchScratch.matchesSet;
+				ctx.pMatchesSet = nullptr;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
 				ctx.matchesVersion = matchScratch.next_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = &ctxData.lastMatchedArchetypeIdx_All;
@@ -36029,7 +36024,7 @@ namespace gaia {
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
 				ctx.archetypeLookup = {};
 				ctx.pMatchesArr = &matchScratch.matchesArr;
-				ctx.pMatchesSet = &matchScratch.matchesSet;
+				ctx.pMatchesSet = nullptr;
 				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
 				ctx.matchesVersion = matchScratch.next_match_version();
 				ctx.pLastMatchedArchetypeIdx_All = nullptr;

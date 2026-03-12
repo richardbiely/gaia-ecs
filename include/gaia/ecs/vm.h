@@ -553,8 +553,7 @@ namespace gaia {
 				};
 
 				GAIA_NODISCARD inline bool is_archetype_marked(const MatchingCtx& ctx, const Archetype* pArchetype) {
-					if (ctx.pMatchesStampByArchetypeId == nullptr)
-						return ctx.pMatchesSet->contains(pArchetype);
+					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					const auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
@@ -565,11 +564,7 @@ namespace gaia {
 				}
 
 				inline void mark_archetype_match(MatchingCtx& ctx, const Archetype* pArchetype) {
-					if (ctx.pMatchesStampByArchetypeId == nullptr) {
-						ctx.pMatchesSet->emplace(pArchetype);
-						ctx.pMatchesArr->emplace_back(pArchetype);
-						return;
-					}
+					GAIA_ASSERT(ctx.pMatchesStampByArchetypeId != nullptr);
 
 					auto& stamps = *ctx.pMatchesStampByArchetypeId;
 					const auto sid = (cnt::sparse_id)pArchetype->id();
@@ -582,7 +577,6 @@ namespace gaia {
 						stamps.add(stamp);
 					}
 
-					ctx.pMatchesSet->emplace(pArchetype);
 					ctx.pMatchesArr->emplace_back(pArchetype);
 				}
 
@@ -2054,7 +2048,8 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
-					ctx.pMatchesSet->clear();
+					if (ctx.pMatchesSet != nullptr)
+						ctx.pMatchesSet->clear();
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches

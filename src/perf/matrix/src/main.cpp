@@ -1,9 +1,16 @@
 // Broader ECS benchmark matrix inspired by https://github.com/SanderMertens/ecs_benchmark.
 
 #define PICOBENCH_IMPLEMENT
-#include <gaia.h>
 #include <picobench/picobench.hpp>
 #include <string_view>
+
+#define GAIA_ENABLE_HOOKS 1
+#define GAIA_ENABLE_SET_HOOKS 1
+#define GAIA_ENABLE_ADD_DEL_HOOKS 1
+#define GAIA_SYSTEMS_ENABLED 1
+#define GAIA_OBSERVERS_ENABLED 1
+#define GAIA_USE_SAFE_ENTITY 1
+#include <gaia.h>
 
 using namespace gaia;
 
@@ -76,7 +83,6 @@ struct SourceType0 {};
 struct SourceType1 {};
 struct SourceTypeOr {};
 
-#if GAIA_OBSERVERS_ENABLED
 struct ObsA {};
 struct ObsB {};
 struct ObsC {};
@@ -85,14 +91,11 @@ struct ObsE {};
 struct ObsF {};
 struct ObsG {};
 struct ObsH {};
-#endif
 
 static constexpr uint32_t NEntitiesFew = 10'000;
 static constexpr uint32_t NEntitiesMedium = 100'000;
 static constexpr uint32_t NEntitiesMany = 1'000'000;
-#if GAIA_OBSERVERS_ENABLED
 static constexpr uint32_t NObserverEntities = 10'000;
-#endif
 
 static constexpr float DeltaTime = 0.016f;
 
@@ -100,7 +103,6 @@ static constexpr float DeltaTime = 0.016f;
 // Data setup helpers
 ////////////////////////////////////////////////////////////////////////////////
 
-#if GAIA_OBSERVERS_ENABLED
 template <uint32_t TermCount>
 void observer_query_all(ecs::ObserverBuilder& observer) {
 	if constexpr (TermCount > 0)
@@ -236,7 +238,6 @@ void remove_observer_last_term(ecs::World& w, ecs::Entity e) {
 	if constexpr (TermCount == 8)
 		w.del<ObsH>(e);
 }
-#endif
 
 template <bool WithVelocity, bool WithAcceleration, bool WithHealth, bool WithDamage, bool WithFrozen>
 void create_linear_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
@@ -1457,6 +1458,27 @@ ecs::Entity create_is_fanout_fixture(ecs::World& w, uint32_t branches, bool atta
 	return root;
 }
 
+template <uint32_t ChainDepth>
+ecs::Entity create_is_fanout_fixture(
+		ecs::World& w, uint32_t branches, bool attachPositionToLeavesOnly, cnt::darray<ecs::Entity>& leaves) {
+	leaves.clear();
+	leaves.reserve(branches);
+
+	const auto root = w.add();
+	GAIA_FOR(branches) {
+		auto curr = root;
+		for (uint32_t j = 0; j < ChainDepth; ++j) {
+			const auto next = w.add();
+			w.add(next, ecs::Pair(ecs::Is, curr));
+			if (!attachPositionToLeavesOnly || j + 1U == ChainDepth)
+				w.add<Position>(next, {(float)i, (float)j, (float)(i + j)});
+			curr = next;
+		}
+		leaves.push_back(curr);
+	}
+	return root;
+}
+
 template <uint32_t ChainDepth, bool Direct>
 void BM_Query_IsEach(picobench::state& state) {
 	const uint32_t branches = (uint32_t)state.user_data();
@@ -1546,6 +1568,36 @@ void BM_System_Is_Semantic_D8(picobench::state& state) {
 
 void BM_System_Is_Direct_D8(picobench::state& state) {
 	BM_System_Is<8, true>(state);
+}
+
+template <uint32_t ChainDepth>
+void BM_Observer_IsMatchesAny_Semantic(picobench::state& state) {
+	const uint32_t branches = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> leaves;
+	const auto root = create_is_fanout_fixture<ChainDepth>(w, branches, true, leaves);
+	const auto observerEntity =
+			w.observer().event(ecs::ObserverEvent::OnAdd).is(root).on_each([](ecs::Iter&) {}).entity();
+
+	auto& observerData = w.observers().data(observerEntity);
+	auto& observerQueryInfo = observerData.query.fetch();
+	dont_optimize(observerEntity);
+
+	for (auto _: state) {
+		(void)_;
+
+		uint32_t hits = 0;
+		for (const auto leaf: leaves) {
+			const auto& ec = w.fetch(leaf);
+			hits += (uint32_t)observerData.query.matches_any(observerQueryInfo, *ec.pArchetype, ecs::EntitySpan{&leaf, 1});
+		}
+		dont_optimize(hits);
+	}
+}
+
+void BM_Observer_IsMatchesAny_Semantic_D8(picobench::state& state) {
+	BM_Observer_IsMatchesAny_Semantic<8>(state);
 }
 
 //! Benchmarks transitive target traversal over `Is` targets.
@@ -2914,7 +2966,6 @@ void BM_QueryBuild_Uncached_4(picobench::state& state) {
 // Observer benchmarks
 ////////////////////////////////////////////////////////////////////////////////
 
-#if GAIA_OBSERVERS_ENABLED
 template <uint32_t ObserverCount, uint32_t TermCount>
 void BM_Observer_OnAdd(picobench::state& state) {
 	static_assert(TermCount >= 1 && TermCount <= 8);
@@ -3044,7 +3095,6 @@ void BM_Observer_OnDel_50_4(picobench::state& state) {
 void BM_Observer_OnDel_50_8(picobench::state& state) {
 	BM_Observer_OnDel<50, 8>(state);
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // System frame benchmarks
@@ -3820,9 +3870,7 @@ void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
 #define PICO_SETTINGS() iterations({256}).samples(3)
 #define PICO_SETTINGS_HEAVY() iterations({64}).samples(3)
 #define PICO_SETTINGS_FOCUS() iterations({256}).samples(7)
-#if GAIA_OBSERVERS_ENABLED
-	#define PICO_SETTINGS_OBS() iterations({64}).samples(3)
-#endif
+#define PICO_SETTINGS_OBS() iterations({64}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
@@ -3864,12 +3912,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(NEntitiesMedium)
 				.label("query cache, traversed source snap");
-#if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_REG(BM_Observer_OnAdd_50_4)
 				.PICO_SETTINGS_OBS()
 				.user_data(NObserverEntities)
 				.label("on_add, 50 obs, 4 terms");
-#endif
 	} else if (sanitizerMode) {
 		PICOBENCH_SUITE_REG("Sanitizer picks");
 		PICOBENCH_REG(BM_EntityCreate_Empty_Add).PICO_SETTINGS_SANI().user_data(NEntitiesFew).label("create add");
@@ -3881,9 +3927,7 @@ int main(int argc, char* argv[]) {
 				.label("query cache, traversed source snap");
 		PICOBENCH_REG(BM_QueryBuild_Cached_4).PICO_SETTINGS_SANI().label("build cached");
 		PICOBENCH_REG(BM_SystemFrame_Serial_2).PICO_SETTINGS_SANI().user_data(NEntitiesFew).label("systems serial");
-#if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_REG(BM_Observer_OnAdd_10_1).PICO_SETTINGS_SANI().user_data(1000).label("on_add, 10 obs");
-#endif
 	} else {
 		PICOBENCH_SUITE_REG("Entity lifecycle");
 		PICOBENCH_REG(BM_EntityCreate_Empty_Add).PICO_SETTINGS().user_data(NEntitiesMedium).label("add, 100K");
@@ -4402,7 +4446,6 @@ int main(int argc, char* argv[]) {
 				.user_data(128)
 				.label("1var pair-mixed (unbound)");
 
-#if GAIA_OBSERVERS_ENABLED
 		PICOBENCH_SUITE_REG("Observers");
 		PICOBENCH_REG(BM_Observer_OnAdd_0_1).PICO_SETTINGS_OBS().user_data(NObserverEntities).label("on_add, 0 obs");
 		PICOBENCH_REG(BM_Observer_OnAdd_1_1).PICO_SETTINGS_OBS().user_data(NObserverEntities).label("on_add, 1 obs");
@@ -4436,7 +4479,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_OBS()
 				.user_data(NObserverEntities)
 				.label("on_del, 50 obs, 8 terms");
-#endif
+		PICOBENCH_REG(BM_Observer_IsMatchesAny_Semantic_D8)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1024)
+				.label("observer is matches_any semantic d8");
 
 		PICOBENCH_SUITE_REG("Systems (single-thread)");
 		PICOBENCH_REG(BM_SystemFrame_Serial_2).PICO_SETTINGS().user_data(NEntitiesMedium).label("serial, 2 systems");
