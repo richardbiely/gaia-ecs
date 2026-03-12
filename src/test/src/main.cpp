@@ -10967,6 +10967,53 @@ TEST_CASE("Prefab - instantiate_n spawns multiple prefab instances") {
 	}
 }
 
+TEST_CASE("Prefab - instantiate_n does not copy prefab names") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	wld.name(prefabAnimal, "prefab_animal_bulk");
+
+	cnt::darray<ecs::Entity> roots;
+	wld.instantiate_n(prefabAnimal, 5, [&](ecs::Entity instance) {
+		roots.push_back(instance);
+	});
+
+	CHECK(roots.size() == 5);
+	CHECK(wld.name(prefabAnimal) != nullptr);
+	CHECK(strcmp(wld.name(prefabAnimal), "prefab_animal_bulk") == 0);
+	for (const auto instance: roots)
+		CHECK(wld.name(instance) == nullptr);
+}
+
+TEST_CASE("Prefab - instantiate_n inherited component queries materialize independent local overrides") {
+	TestWorld twld;
+
+	const auto prefabAnimal = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(prefabAnimal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	cnt::darray<ecs::Entity> instances;
+	wld.instantiate_n(prefabAnimal, 4, [&](ecs::Entity instance) {
+		instances.push_back(instance);
+	});
+
+	CHECK(instances.size() == 4);
+
+	uint32_t hits = 0;
+	wld.query().all<Position&>().each([&](Position& pos) {
+		++hits;
+		pos.x += 2.0f;
+	});
+
+	CHECK(hits == 4);
+	for (const auto instance: instances) {
+		CHECK(wld.has_direct(instance, position));
+		CHECK(wld.get<Position>(instance).x == doctest::Approx(7.0f));
+	}
+	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
 TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {
 	TestWorld twld;
 

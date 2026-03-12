@@ -2125,6 +2125,11 @@ w.instantiate_n(prefab, 10);
 w.instantiate_n(prefab, scene, 10);
 ```
 
+Both `instantiate(...)` and `instantiate_n(...)` follows the same rules:
+- prefab names are not copied to spawned instances
+- `Override`, `Inherit`, and `DontInherit` are applied per spawned instance
+- recursively instantiated prefab children are attached under each spawned root
+
 Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
 * `ecs::Prefab` is not copied to the instance
 * `EntityDesc` is not copied, so prefab names stay unique
