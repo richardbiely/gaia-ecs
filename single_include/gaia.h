@@ -44593,6 +44593,13 @@ namespace gaia {
 #endif
 
 		private:
+			struct CopyIterGroupState {
+				Archetype* pArchetype = nullptr;
+				Chunk* pChunk = nullptr;
+				uint16_t startRow = 0;
+				uint16_t count = 0;
+			};
+
 			template <typename Func>
 			void invoke_copy_batch_callback(
 					Func& func, Archetype* pDstArchetype, Chunk* pDstChunk, uint32_t originalChunkSize, uint32_t toCreate) {
@@ -44607,6 +44614,37 @@ namespace gaia {
 					auto entities = pDstChunk->entity_view();
 					GAIA_FOR2(originalChunkSize, pDstChunk->size()) func(entities[i]);
 				}
+			}
+
+			template <typename Func>
+			void flush_copy_iter_group(Func& func, CopyIterGroupState& group) {
+				if (group.count == 0)
+					return;
+
+				CopyIter it;
+				it.set_world(this);
+				it.set_archetype(group.pArchetype);
+				it.set_chunk(group.pChunk);
+				it.set_range(group.startRow, group.count);
+				func(it);
+				group.count = 0;
+			}
+
+			template <typename Func>
+			void push_copy_iter_group(Func& func, CopyIterGroupState& group, Entity instance) {
+				const auto& ec = fetch(instance);
+
+				if (group.count != 0 && ec.pArchetype == group.pArchetype && ec.pChunk == group.pChunk &&
+						ec.row == uint16_t(group.startRow + group.count)) {
+					++group.count;
+					return;
+				}
+
+				flush_copy_iter_group(func, group);
+				group.pArchetype = ec.pArchetype;
+				group.pChunk = ec.pChunk;
+				group.startRow = ec.row;
+				group.count = 1;
 			}
 
 			template <typename Func>
@@ -44982,44 +45020,15 @@ namespace gaia {
 					}
 
 					if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-						Archetype* pGroupArchetype = nullptr;
-						Chunk* pGroupChunk = nullptr;
-						uint16_t groupStartRow = 0;
-						uint16_t groupCount = 0;
-
-						auto flushGroup = [&]() {
-							if (groupCount == 0)
-								return;
-
-							CopyIter it;
-							it.set_world(this);
-							it.set_archetype(pGroupArchetype);
-							it.set_chunk(pGroupChunk);
-							it.set_range(groupStartRow, groupCount);
-							func(it);
-							groupCount = 0;
-						};
+						CopyIterGroupState group;
 
 						GAIA_FOR(count) {
 							const auto instance = copy(prefabEntity);
 							parent(instance, parentInstance);
-							const auto& ec = fetch(instance);
-
-							if (groupCount != 0 && ec.pArchetype == pGroupArchetype && ec.pChunk == pGroupChunk &&
-									ec.row == uint16_t(groupStartRow + groupCount)) {
-								++groupCount;
-								continue;
-							}
-
-							flushGroup();
-
-							pGroupArchetype = ec.pArchetype;
-							pGroupChunk = ec.pChunk;
-							groupStartRow = ec.row;
-							groupCount = 1;
+							push_copy_iter_group(func, group, instance);
 						}
 
-						flushGroup();
+						flush_copy_iter_group(func, group);
 					} else {
 						GAIA_FOR(count) {
 							const auto instance = copy(prefabEntity);
@@ -45031,43 +45040,14 @@ namespace gaia {
 				}
 
 				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-					Archetype* pGroupArchetype = nullptr;
-					Chunk* pGroupChunk = nullptr;
-					uint16_t groupStartRow = 0;
-					uint16_t groupCount = 0;
-
-					auto flushGroup = [&]() {
-						if (groupCount == 0)
-							return;
-
-						CopyIter it;
-						it.set_world(this);
-						it.set_archetype(pGroupArchetype);
-						it.set_chunk(pGroupChunk);
-						it.set_range(groupStartRow, groupCount);
-						func(it);
-						groupCount = 0;
-					};
+					CopyIterGroupState group;
 
 					GAIA_FOR(count) {
 						const auto instance = instantiate_inter(prefabEntity, parentInstance);
-						const auto& ec = fetch(instance);
-
-						if (groupCount != 0 && ec.pArchetype == pGroupArchetype && ec.pChunk == pGroupChunk &&
-								ec.row == uint16_t(groupStartRow + groupCount)) {
-							++groupCount;
-							continue;
-						}
-
-						flushGroup();
-
-						pGroupArchetype = ec.pArchetype;
-						pGroupChunk = ec.pChunk;
-						groupStartRow = ec.row;
-						groupCount = 1;
+						push_copy_iter_group(func, group, instance);
 					}
 
-					flushGroup();
+					flush_copy_iter_group(func, group);
 				} else {
 					GAIA_FOR(count) {
 						const auto instance = instantiate_inter(prefabEntity, parentInstance);
