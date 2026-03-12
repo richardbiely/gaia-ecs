@@ -11096,6 +11096,35 @@ TEST_CASE("Observer - instantiate_n non-prefab parented fallback matches Parent 
 	CHECK(seen == 5);
 }
 
+TEST_CASE("Observer - parented prefab instantiate matches Parent pair") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {1, 2, 3});
+
+	uint32_t hits = 0;
+	uint32_t seen = 0;
+	auto obs = wld.observer() //
+								 .event(ecs::ObserverEvent::OnAdd) //
+								 .all(ecs::Pair(ecs::Parent, scene)) //
+								 .on_each([&](ecs::Iter& it) {
+									 ++hits;
+									 seen += it.size();
+
+									 auto entityView = it.view<ecs::Entity>();
+									 GAIA_EACH(it) {
+										 CHECK(wld.has(entityView[i], ecs::Pair(ecs::Parent, scene)));
+									 }
+								 });
+	(void)obs;
+
+	const auto instance = wld.instantiate(prefab, scene);
+	CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+	CHECK(hits == 1);
+	CHECK(seen == 1);
+}
+
 TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots") {
 	TestWorld twld;
 

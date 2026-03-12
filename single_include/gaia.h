@@ -44701,6 +44701,20 @@ namespace gaia {
 #endif
 			}
 
+			void parent_direct(Entity entity, Entity parentEntity) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(parentEntity));
+
+				prepare_parent_batch(parentEntity);
+				exclusive_adjunct_set(entity, Parent, parentEntity);
+
+#if GAIA_OBSERVERS_ENABLED
+				const Entity parentPair = Pair(Parent, parentEntity);
+				const auto& ec = fetch(entity);
+				m_observers.on_add(*this, *ec.pArchetype, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
+#endif
+			}
+
 			template <typename Func>
 			void
 			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
@@ -44996,11 +45010,9 @@ namespace gaia {
 						GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
 						addedIds = EntitySpan{pAddedIdsOwned, addedIdCount};
 					} else {
-						(void)copy_sparse_entity_data(
-								prefabEntity, instance,
-								[&](Entity comp) {
-									return instantiate_copies_id(comp);
-								});
+						(void)copy_sparse_entity_data(prefabEntity, instance, [&](Entity comp) {
+							return instantiate_copies_id(comp);
+						});
 					}
 				}
 
@@ -45040,7 +45052,7 @@ namespace gaia {
 #endif
 
 				if (parentInstance != EntityBad)
-					parent(instance, parentInstance);
+					parent_direct(instance, parentInstance);
 
 				return instance;
 			}
@@ -45101,7 +45113,7 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (!has_direct(prefabEntity, Prefab)) {
 					const auto instance = copy(prefabEntity);
-					parent(instance, parentInstance);
+					parent_direct(instance, parentInstance);
 					return instance;
 				}
 
