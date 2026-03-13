@@ -18,10 +18,31 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
+			auto& queryInfo = query.fetch();
+			const auto queryIds = queryInfo.ctx().data.ids_view();
+			const auto& remapping = queryInfo.ctx().data._remapping;
 			for (auto e: targets) {
 				const auto& ec = pWorld->fetch(e);
+				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+				Entity termIds[ChunkHeader::MAX_COMPONENTS];
+				GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+					indices[i] = 0xFF;
+					termIds[i] = EntityBad;
+				}
+
+				const auto queryIdCnt = (uint32_t)queryIds.size();
+				GAIA_FOR(queryIdCnt) {
+					const auto idxBeforeRemapping = remapping[i];
+					const auto queryId = queryIds[idxBeforeRemapping];
+					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+					indices[i] = (uint8_t)compIdx;
+					termIds[i] = queryId;
+				}
+
 				iter.set_archetype(ec.pArchetype);
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+				iter.set_remapping_indices(indices);
+				iter.set_term_ids(termIds);
 				on_each_func(iter);
 			}
 		}

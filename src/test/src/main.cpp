@@ -16167,6 +16167,7 @@ TEST_CASE("Observer - inherited prefab data matches on delete from prefab") {
 
 	uint32_t hits = 0;
 	ecs::Entity observed = ecs::EntityBad;
+	Position pos{};
 
 	const auto observer = wld.observer()
 														.event(ecs::ObserverEvent::OnDel)
@@ -16174,7 +16175,9 @@ TEST_CASE("Observer - inherited prefab data matches on delete from prefab") {
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
+															auto posView = it.view<Position>(0);
 															observed = entityView[0];
+															pos = posView[0];
 														})
 														.entity();
 
@@ -16182,6 +16185,9 @@ TEST_CASE("Observer - inherited prefab data matches on delete from prefab") {
 
 	CHECK(hits == 1);
 	CHECK(observed == instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
 	CHECK_FALSE(wld.has<Position>(instance));
 	CHECK(wld.sync(prefab) == 0);
 	CHECK(hits == 1);
@@ -16200,6 +16206,7 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 
 	uint32_t hits = 0;
 	ecs::Entity observed = ecs::EntityBad;
+	PositionSparse pos{};
 
 	const auto observer = wld.observer()
 														.event(ecs::ObserverEvent::OnDel)
@@ -16207,7 +16214,9 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
+															auto posView = it.view<PositionSparse>(0);
 															observed = entityView[0];
+															pos = posView[0];
 														})
 														.entity();
 
@@ -16215,6 +16224,9 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 
 	CHECK(hits == 1);
 	CHECK(observed == instance);
+	CHECK(pos.x == doctest::Approx(2.0f));
+	CHECK(pos.y == doctest::Approx(3.0f));
+	CHECK(pos.z == doctest::Approx(4.0f));
 	CHECK_FALSE(wld.has<PositionSparse>(instance));
 	CHECK(wld.sync(prefab) == 0);
 	CHECK(hits == 1);

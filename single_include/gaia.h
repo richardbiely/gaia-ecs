@@ -42760,7 +42760,7 @@ namespace gaia {
 
 						bool matches = false;
 						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
-							matches = false;
+							matches = true;
 						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
 							matches = true;
 						else {
@@ -43688,6 +43688,7 @@ namespace gaia {
 				//! \param newArchetype New archetype we belong to
 				void trigger_del_hooks(const Archetype& newArchetype) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+					m_world.notify_inherited_del_dependents(m_entity, std::span<Entity>{tl_del_comps});
 					m_world.lock();
 
 	#if GAIA_OBSERVERS_ENABLED
@@ -44895,6 +44896,79 @@ namespace gaia {
 #endif
 			}
 
+			void notify_del_single(Entity entity, Entity object) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				const auto& ec = fetch(entity);
+
+				lock();
+
+	#if GAIA_OBSERVERS_ENABLED
+				m_observers.on_del(*this, *ec.pArchetype, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+	#endif
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (object.comp()) {
+					const auto& item = comp_cache().get(object);
+					const auto& hooks = ComponentCache::hooks(item);
+					if (hooks.func_del != nullptr)
+						hooks.func_del(*this, item, entity);
+				}
+	#endif
+
+				unlock();
+#else
+				(void)entity;
+				(void)object;
+#endif
+			}
+
+			GAIA_NODISCARD bool has_semantic_match_without_source(
+					Entity entity, Entity object, Entity excludedSource, cnt::set<EntityLookupKey>& visited) const {
+				const auto inserted = visited.insert(EntityLookupKey(entity));
+				if (!inserted.second)
+					return false;
+
+				if (entity != excludedSource && has_direct(entity, object))
+					return true;
+
+				const auto it = m_entityToAsTargets.find(EntityLookupKey(entity));
+				if (it == m_entityToAsTargets.end())
+					return false;
+
+				for (const auto baseKey: it->second) {
+					if (has_semantic_match_without_source(baseKey.entity(), object, excludedSource, visited))
+						return true;
+				}
+
+				return false;
+			}
+
+			void notify_inherited_del_dependents(Entity source, Entity object) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				const auto& descendants = as_relations_trav_cache(source);
+				for (const auto descendant: descendants) {
+					if (descendant == source)
+						continue;
+					if (has_direct(descendant, object) || !has(descendant, object))
+						continue;
+
+					cnt::set<EntityLookupKey> visited;
+					if (has_semantic_match_without_source(descendant, object, source, visited))
+						continue;
+
+					notify_del_single(descendant, object);
+				}
+#else
+				(void)source;
+				(void)object;
+#endif
+			}
+
+			void notify_inherited_del_dependents(Entity source, EntitySpan removedObjects) {
+				for (const auto object: removedObjects)
+					notify_inherited_del_dependents(source, object);
+			}
+
 			template <typename Func>
 			void
 			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
@@ -45705,6 +45779,8 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 					if (itSparseStore != m_sparseComponentsByComp.end()) {
+						notify_inherited_del_dependents(entity, object);
+						notify_del_single(entity, object);
 						itSparseStore->second.func_del(itSparseStore->second.pStore, entity);
 						return;
 					}
@@ -45734,8 +45810,8 @@ namespace gaia {
 				if constexpr (supports_sparse_component<FT>()) {
 					if (const auto* pItem = comp_cache().template find<FT>();
 							pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
-						if (auto* pStore = sparse_component_store<FT>(pItem->entity); pStore != nullptr)
-							pStore->del_entity(entity);
+						if (sparse_component_store<FT>(pItem->entity) != nullptr)
+							del(entity, pItem->entity);
 						return;
 					}
 				}
@@ -50890,10 +50966,31 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
+			auto& queryInfo = query.fetch();
+			const auto queryIds = queryInfo.ctx().data.ids_view();
+			const auto& remapping = queryInfo.ctx().data._remapping;
 			for (auto e: targets) {
 				const auto& ec = pWorld->fetch(e);
+				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+				Entity termIds[ChunkHeader::MAX_COMPONENTS];
+				GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+					indices[i] = 0xFF;
+					termIds[i] = EntityBad;
+				}
+
+				const auto queryIdCnt = (uint32_t)queryIds.size();
+				GAIA_FOR(queryIdCnt) {
+					const auto idxBeforeRemapping = remapping[i];
+					const auto queryId = queryIds[idxBeforeRemapping];
+					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+					indices[i] = (uint8_t)compIdx;
+					termIds[i] = queryId;
+				}
+
 				iter.set_archetype(ec.pArchetype);
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+				iter.set_remapping_indices(indices);
+				iter.set_term_ids(termIds);
 				on_each_func(iter);
 			}
 		}
