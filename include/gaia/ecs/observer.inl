@@ -88,7 +88,9 @@ namespace gaia {
 				GAIA_FOR(queryIdCnt) {
 					const auto idxBeforeRemapping = remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
-					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+					auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
+					if (compIdx == BadIndex)
+						compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
 					indices[i] = (uint8_t)compIdx;
 					termIds[i] = queryId;
 				}
