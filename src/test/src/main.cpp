@@ -16234,6 +16234,37 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 	(void)observer;
 }
 
+TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<Position>(prefab, {9.0f, 8.0f, 7.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.no<Position>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del<Position>(prefab);
+
+	CHECK(hits == 1);
+	CHECK(observed == instance);
+	CHECK_FALSE(wld.has<Position>(instance));
+
+	(void)observer;
+}
+
 TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
 	TestWorld twld;
 
@@ -16266,6 +16297,46 @@ TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
 	CHECK(observedChild != ecs::EntityBad);
 	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::Parent, rootInstance)));
 	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::Is, childPrefab)));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sync child removal stays non-destructive and emits no OnDel") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	wld.parent(childPrefab, rootPrefab);
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	ecs::Entity childInstance = ecs::EntityBad;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity child) {
+		if (wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)))
+			childInstance = child;
+	});
+
+	CHECK(childInstance != ecs::EntityBad);
+	if (childInstance == ecs::EntityBad)
+		return;
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(ecs::Pair(ecs::Parent, rootInstance))
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del(childPrefab, ecs::Pair(ecs::Parent, rootPrefab));
+	CHECK(wld.sync(rootPrefab) == 0);
+
+	CHECK(hits == 0);
+	CHECK(observed == ecs::EntityBad);
+	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
 
 	(void)observer;
 }
@@ -16422,6 +16493,41 @@ TEST_CASE("Observer - single positive OnDel fast path runtime") {
 	wld.del<Position>(e);
 	CHECK(onDelHits == 1);
 	CHECK(observed == e);
+}
+
+TEST_CASE("Observer - fixed pair OnDel fast path runtime") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(pair)
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	const auto& data = wld.observers().data(observer);
+	CHECK(data.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+
+	const auto e = wld.add();
+	wld.add(e, pair);
+	hits = 0;
+	observed = ecs::EntityBad;
+
+	wld.del(e, pair);
+	CHECK(hits == 1);
+	CHECK(observed == e);
+
+	(void)observer;
 }
 
 #endif

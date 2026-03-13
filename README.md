@@ -2203,6 +2203,8 @@ By contrast, `sync(prefab)` is intentionally non-destructive for owned instance 
 - copied `ecs::Override` data already owned by an instance is kept
 - existing instantiated child entities are kept even if the source prefab child is later removed from the prefab tree
 
+Because that sync is non-destructive, those retained children do not emit `OnDel` during `sync(prefab)` either. `OnDel` is only emitted when an instance actually stops matching, such as when inherited prefab data is removed from the source and disappears semantically on the instance.
+
 ### Cleanup rules
 When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.
 
