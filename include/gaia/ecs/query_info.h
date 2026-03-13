@@ -1035,7 +1035,9 @@ namespace gaia {
 						auto entity = pChunk->entity_view()[cur.row];
 
 						if (m_plan.ctx.data.sortBy != ecs::EntityBad) {
-							const auto compIdx = pChunk->comp_idx(m_plan.ctx.data.sortBy);
+							auto compIdx = world_component_index_comp_idx(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.sortBy);
+							if (compIdx == BadIndex)
+								compIdx = pChunk->comp_idx(m_plan.ctx.data.sortBy);
 							pDataCurr = pChunk->comp_ptr(compIdx, cur.row);
 						} else
 							pDataCurr = &pChunk->entity_view()[cur.row];

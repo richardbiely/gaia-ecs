@@ -317,6 +317,68 @@ void create_fragmented_entities(ecs::World& w, uint32_t archetypes, uint32_t ent
 	}
 }
 
+void create_sorted_exact_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t archetypes, uint32_t totalCount) {
+	GAIA_ASSERT(archetypes > 0U);
+
+	entities.clear();
+	entities.reserve(totalCount);
+
+	const uint32_t entitiesPerArchetype = totalCount / archetypes;
+	const uint32_t remainder = totalCount % archetypes;
+
+	GAIA_FOR(archetypes) {
+		const uint32_t mask = i;
+		const uint32_t count = entitiesPerArchetype + (i < remainder ? 1U : 0U);
+		if (count == 0U)
+			continue;
+
+		auto e = w.add();
+		auto b = w.build(e);
+		b.add<Position>().add<Health>();
+
+		if ((mask & 1U) != 0U)
+			b.add<Velocity>();
+		if ((mask & 2U) != 0U)
+			b.add<Acceleration>();
+		if ((mask & 4U) != 0U)
+			b.add<Damage>();
+		if ((mask & 8U) != 0U)
+			b.add<Team>();
+		if ((mask & 16U) != 0U)
+			b.add<Frozen>();
+		if ((mask & 32U) != 0U)
+			b.add<Dirty>();
+
+		b.commit();
+
+		w.set<Position>(e) = {(float)(totalCount - entities.size()), (float)(mask % 41U), 0.0f};
+		w.set<Health>(e) = {100, 100};
+
+		if ((mask & 1U) != 0U)
+			w.set<Velocity>(e) = {1.0f, 0.1f, 0.05f};
+		if ((mask & 2U) != 0U)
+			w.set<Acceleration>(e) = {0.0f, -0.01f, 0.0f};
+		if ((mask & 4U) != 0U)
+			w.set<Damage>(e) = {(int32_t)(mask % 9U)};
+		if ((mask & 8U) != 0U)
+			w.set<Team>(e) = {mask % 4U};
+		if ((mask & 16U) != 0U)
+			w.set<Frozen>(e) = {(mask % 3U) == 0U};
+		if ((mask & 32U) != 0U)
+			w.set<Dirty>(e) = {(mask % 2U) == 0U};
+
+		entities.push_back(e);
+		if (count > 1U) {
+			w.copy_n(e, count - 1U, [&](ecs::Entity entity) {
+				entities.push_back(entity);
+				auto& pos = w.set<Position>(entity);
+				pos.x = (float)(totalCount - entities.size() + 1U);
+				pos.y = (float)(mask % 41U);
+			});
+		}
+	}
+}
+
 template <bool UseCachedQuery, uint32_t QueryComponents>
 auto create_query(ecs::World& w) {
 	auto q = w.query<UseCachedQuery>().template all<Position>();
@@ -1443,6 +1505,33 @@ void BM_QueryCache_Sorted_WarmRead(picobench::state& state) {
 	ecs::World w;
 	cnt::darray<ecs::Entity> entities;
 	create_linear_entities<true, false, true, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position>().all<Health>().sort_by<Position>(
+			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks steady-state warm reads for a cached sorted query spanning many matching archetypes.
+//! This isolates the exact sortBy remap path that now uses the component index for exact sort terms.
+void BM_QueryCache_Sorted_ExactMergeWarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_sorted_exact_entities(w, entities, 32U, n);
 
 	auto q = w.query().all<Position>().all<Health>().sort_by<Position>(
 			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
@@ -4606,6 +4695,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("sorted warm read 10K");
+		PICOBENCH_REG(BM_QueryCache_Sorted_ExactMergeWarmRead)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("sorted exact merge warm 10K");
 		PICOBENCH_REG(BM_QueryCache_Grouped_WarmRead)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
