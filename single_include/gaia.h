@@ -29712,6 +29712,8 @@ namespace gaia {
 		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
+		GAIA_NODISCARD uint32_t
+		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
@@ -42471,6 +42473,7 @@ namespace gaia {
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
 			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
+			friend uint32_t world_component_index_match_count(const World&, const Archetype&, Entity);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -53439,6 +53442,20 @@ namespace gaia {
 				return BadIndex;
 
 			return it->second[idx].compIdx;
+		}
+
+		inline uint32_t world_component_index_match_count(const World& world, const Archetype& archetype, Entity term) {
+			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
+			if (it == world.m_entityToArchetypeMap.end())
+				return 0;
+
+			const auto idx = core::get_index_if(it->second, [&](const auto& entry) {
+				return entry.matches(&archetype);
+			});
+			if (idx == BadIndex)
+				return 0;
+
+			return it->second[idx].matchCount;
 		}
 
 		template <typename T>

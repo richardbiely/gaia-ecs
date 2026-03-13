@@ -12694,6 +12694,62 @@ TEST_CASE("Query - cached relation wildcard query survives repeated pair additio
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Component index tracks exact and wildcard pair match counts") {
+	TestWorld twld;
+
+	const auto rel0 = wld.add();
+	const auto rel1 = wld.add();
+	const auto tgt0 = wld.add();
+	const auto tgt1 = wld.add();
+
+	const auto e = wld.add();
+	wld.add(e, ecs::Pair(rel0, tgt0));
+	wld.add(e, ecs::Pair(rel0, tgt1));
+	wld.add(e, ecs::Pair(rel1, tgt1));
+
+	const auto* pArchetype = wld.fetch(e).pArchetype;
+	CHECK(pArchetype != nullptr);
+	if (pArchetype == nullptr)
+		return;
+
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(rel0, tgt0)) == 1);
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(rel0, tgt1)) == 1);
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(rel1, tgt1)) == 1);
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(rel0, ecs::All)) == 2);
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(ecs::All, tgt1)) == 2);
+	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(ecs::All, ecs::All)) == 3);
+}
+
+TEST_CASE("Component index exact term entries follow add and delete archetype moves") {
+	TestWorld twld;
+
+	wld.add<Position>();
+	const auto game = wld.add();
+
+	const auto* pRootArchetype = wld.fetch(game).pArchetype;
+	CHECK(pRootArchetype != nullptr);
+	if (pRootArchetype == nullptr)
+		return;
+	CHECK(ecs::world_component_index_comp_idx(wld, *pRootArchetype, wld.get<Position>()) == BadIndex);
+	CHECK(ecs::world_component_index_match_count(wld, *pRootArchetype, wld.get<Position>()) == 0);
+
+	wld.add<Position>(game, {1, 2, 3});
+	const auto* pValueArchetype = wld.fetch(game).pArchetype;
+	CHECK(pValueArchetype != nullptr);
+	if (pValueArchetype == nullptr)
+		return;
+	CHECK(ecs::world_component_index_comp_idx(wld, *pValueArchetype, wld.get<Position>()) != BadIndex);
+	CHECK(ecs::world_component_index_match_count(wld, *pValueArchetype, wld.get<Position>()) == 1);
+
+	wld.del<Position>(game);
+	const auto* pRootAgain = wld.fetch(game).pArchetype;
+	CHECK(pRootAgain != nullptr);
+	if (pRootAgain == nullptr)
+		return;
+	CHECK(ecs::world_component_index_comp_idx(wld, *pRootAgain, wld.get<Position>()) == BadIndex);
+	CHECK(ecs::world_component_index_match_count(wld, *pRootAgain, wld.get<Position>()) == 0);
+}
+
 TEST_CASE("Query - exact owned term matcher fast path preserves inherited fallback") {
 	TestWorld twld;
 

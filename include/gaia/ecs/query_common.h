@@ -38,6 +38,8 @@ namespace gaia {
 		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
+		GAIA_NODISCARD uint32_t
+		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
