@@ -9315,6 +9315,16 @@ TEST_CASE("Del - cleanup rules") {
 		CHECK_FALSE(wld.has(child));
 		CHECK_FALSE(wld.has(parent));
 	}
+	SUBCASE("exclusive OnDeleteTarget delete via Parent") {
+		TestWorld twld;
+		auto parent = wld.add();
+		auto child = wld.add();
+		wld.parent(child, parent);
+
+		wld.del(parent);
+		CHECK_FALSE(wld.has(child));
+		CHECK_FALSE(wld.has(parent));
+	}
 }
 
 TEST_CASE("Entity name - entity only") {

@@ -7499,15 +7499,6 @@ namespace gaia {
 
 							req_del_adjunct_pair(relKey.entity(), target);
 						}
-
-						if (const auto* pRelations = relations(target)) {
-							for (auto relKey: *pRelations) {
-								const auto relation = relKey.entity();
-								if (!is_exclusive_dont_fragment_relation(relation))
-									continue;
-								req_del_adjunct_pair(relation, target);
-							}
-						}
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
 					if (const auto* pTargets = targets(entity)) {
@@ -7552,13 +7543,11 @@ namespace gaia {
 							req_del_adjunct_pair(relation, get(entity.gen()));
 					} else {
 						const auto target = get(entity.gen());
-						if (const auto* pRelations = relations(target)) {
-							for (auto relKey: *pRelations) {
-								const auto relation = relKey.entity();
-								if (!is_exclusive_dont_fragment_relation(relation))
-									continue;
-								req_del_adjunct_pair(relation, target);
-							}
+						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
+							if (exclusive_adjunct_sources(store, target) == nullptr)
+								continue;
+
+							req_del_adjunct_pair(relKey.entity(), target);
 						}
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
@@ -7608,15 +7597,6 @@ namespace gaia {
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);
-						}
-
-						if (const auto* pRelations = relations(target)) {
-							for (auto relKey: *pRelations) {
-								const auto relation = relKey.entity();
-								if (!is_exclusive_dont_fragment_relation(relation))
-									continue;
-								rem_adjunct_pair(relation, target);
-							}
 						}
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
@@ -7683,15 +7663,6 @@ namespace gaia {
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);
-						}
-
-						if (const auto* pRelations = relations(target)) {
-							for (auto relKey: *pRelations) {
-								const auto relation = relKey.entity();
-								if (!is_exclusive_dont_fragment_relation(relation))
-									continue;
-								rem_adjunct_pair(relation, target);
-							}
 						}
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
