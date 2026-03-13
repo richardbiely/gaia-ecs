@@ -7891,6 +7891,43 @@ TEST_CASE("Relationship wildcard source traversal") {
 	CHECK(visited == 1);
 }
 
+TEST_CASE("Relationship wildcard target traversal") {
+	TestWorld twld;
+
+	auto rel0 = wld.add();
+	auto rel1 = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add(a, {rel0, root});
+	wld.add(a, {rel1, b});
+	wld.add(a, {rel0, c});
+	wld.parent(a, root);
+
+	cnt::darr<ecs::Entity> direct;
+	wld.targets(a, ecs::All, [&direct](ecs::Entity target) {
+		direct.push_back(target);
+	});
+
+	CHECK(direct.size() == 3);
+	CHECK(core::has(direct, root));
+	CHECK(core::has(direct, b));
+	CHECK(core::has(direct, c));
+
+	const auto first = wld.target(a, ecs::All);
+	CHECK((first == root || first == b || first == c));
+
+	uint32_t visited = 0;
+	wld.targets_if(a, ecs::All, [&](ecs::Entity) {
+		++visited;
+		return false;
+	});
+	CHECK(visited == 1);
+}
+
 TEST_CASE("Child hierarchy traversal") {
 	TestWorld twld;
 

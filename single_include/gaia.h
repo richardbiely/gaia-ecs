@@ -43181,7 +43181,7 @@ namespace gaia {
 			ecs::Query m_systemsQuery;
 			//! Scratch ordered-system list reused by systems_run() to avoid per-frame allocations.
 			cnt::darray<Entity> m_orderedSystemsScratch;
-			//! Scratch entity-visit stamps reused by wildcard source traversal helpers.
+			//! Scratch entity-visit stamps reused by wildcard relationship traversal helpers.
 			mutable cnt::darray<uint64_t> m_entityVisitStamps;
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
 			mutable uint64_t m_entityVisitStamp = 0;
@@ -47130,8 +47130,23 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
 				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
+				if (relation != All && !valid(relation))
 					return EntityBad;
+
+				if (relation == All) {
+					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
+					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
+						for (auto relKey: itAdjunctRels->second) {
+							const auto* pStore = exclusive_adjunct_store(relKey);
+							if (pStore == nullptr)
+								continue;
+
+							const auto target = exclusive_adjunct_target(*pStore, entity);
+							if (target != EntityBad)
+								return target;
+						}
+					}
+				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto* pStore = exclusive_adjunct_store(relation);
@@ -47152,7 +47167,7 @@ namespace gaia {
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.id() != relation.id())
+					if (relation != All && e.id() != relation.id())
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
@@ -47171,13 +47186,36 @@ namespace gaia {
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
+				if (relation != All && !valid(relation))
 					return;
+
+				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
+				auto emit_target = [&](Entity target) {
+					if (relation == All && !try_mark_entity_visited(target, visitStamp))
+						return;
+
+					func(target);
+				};
+
+				if (relation == All) {
+					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
+					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
+						for (auto relKey: itAdjunctRels->second) {
+							const auto* pStore = exclusive_adjunct_store(relKey);
+							if (pStore == nullptr)
+								continue;
+
+							const auto target = exclusive_adjunct_target(*pStore, entity);
+							if (target != EntityBad)
+								emit_target(target);
+						}
+					}
+				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
-						func(target);
+						emit_target(target);
 					return;
 				}
 
@@ -47192,12 +47230,12 @@ namespace gaia {
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.id() != relation.id())
+					if (relation != All && e.id() != relation.id())
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					func(target);
+					emit_target(target);
 				}
 			}
 
@@ -47210,13 +47248,36 @@ namespace gaia {
 			template <typename Func>
 			void targets_if(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
-				if (!valid(relation))
+				if (relation != All && !valid(relation))
 					return;
+
+				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
+				auto emit_target = [&](Entity target) {
+					if (relation == All && !try_mark_entity_visited(target, visitStamp))
+						return true;
+
+					return func(target);
+				};
+
+				if (relation == All) {
+					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
+					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
+						for (auto relKey: itAdjunctRels->second) {
+							const auto* pStore = exclusive_adjunct_store(relKey);
+							if (pStore == nullptr)
+								continue;
+
+							const auto target = exclusive_adjunct_target(*pStore, entity);
+							if (target != EntityBad && !emit_target(target))
+								return;
+						}
+					}
+				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
-						(void)func(target);
+						(void)emit_target(target);
 					return;
 				}
 
@@ -47231,12 +47292,12 @@ namespace gaia {
 				for (auto e: ids) {
 					if (!e.pair())
 						continue;
-					if (e.id() != relation.id())
+					if (relation != All && e.id() != relation.id())
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					if (!func(target))
+					if (!emit_target(target))
 						return;
 				}
 			}
