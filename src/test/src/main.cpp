@@ -15481,6 +15481,66 @@ TEST_CASE("Observer - copy_ext payload") {
 	CHECK(acc.z == 66.0f);
 }
 
+TEST_CASE("Observer - add with value payload") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	Position pos{};
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<Position>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 auto entityView = it.view<ecs::Entity>();
+												 auto posView = it.view<Position>();
+												 observedEntity = entityView[0];
+												 pos = posView[0];
+											 })
+											 .entity();
+	(void)obs;
+
+	const auto e = wld.add();
+	wld.add(e, wld.add<Position>().entity, Position{3.0f, 4.0f, 5.0f});
+
+	CHECK(hits == 1);
+	CHECK(observedEntity == e);
+	CHECK(pos.x == doctest::Approx(3.0f));
+	CHECK(pos.y == doctest::Approx(4.0f));
+	CHECK(pos.z == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Observer - add sparse with value payload") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	PositionSparse pos{};
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all<PositionSparse>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 auto entityView = it.view<ecs::Entity>();
+												 auto posView = it.view<PositionSparse>();
+												 observedEntity = entityView[0];
+												 pos = posView[0];
+											 })
+											 .entity();
+	(void)obs;
+
+	const auto e = wld.add();
+	wld.add(e, wld.add<PositionSparse>().entity, PositionSparse{6.0f, 7.0f, 8.0f});
+
+	CHECK(hits == 1);
+	CHECK(observedEntity == e);
+	CHECK(pos.x == doctest::Approx(6.0f));
+	CHECK(pos.y == doctest::Approx(7.0f));
+	CHECK(pos.z == doctest::Approx(8.0f));
+}
+
 TEST_CASE("Observer - copy_ext sparse payload") {
 	TestWorld twld;
 
@@ -15977,6 +16037,121 @@ TEST_CASE("Observer - inherited prefab data matches on instantiate_n") {
 		CHECK(wld.has(instance, position));
 		CHECK_FALSE(wld.has_direct(instance, position));
 	}
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sync copied data matches existing instances") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+	Position pos{};
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															auto posView = it.view<Position>();
+															observed = entityView[0];
+															pos = posView[0];
+														})
+														.entity();
+
+	auto prefabBuilder = wld.build(prefab);
+	prefabBuilder.add<Position>();
+	prefabBuilder.commit();
+	wld.set<Position>(prefab) = {7.0f, 8.0f, 9.0f};
+
+	hits = 0;
+	observed = ecs::EntityBad;
+	pos = {};
+
+	CHECK(wld.sync(prefab) == 1);
+	CHECK(hits == 1);
+	CHECK(observed == instance);
+	CHECK(pos.x == doctest::Approx(7.0f));
+	CHECK(pos.y == doctest::Approx(8.0f));
+	CHECK(pos.z == doctest::Approx(9.0f));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sync sparse copied data matches existing instances") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+	PositionSparse pos{};
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															auto posView = it.view<PositionSparse>();
+															observed = entityView[0];
+															pos = posView[0];
+														})
+														.entity();
+
+	wld.add<PositionSparse>(prefab, {2.0f, 3.0f, 4.0f});
+
+	hits = 0;
+	observed = ecs::EntityBad;
+	pos = {};
+
+	CHECK(wld.sync(prefab) == 1);
+	CHECK(hits == 1);
+	CHECK(observed == instance);
+	CHECK(pos.x == doctest::Approx(2.0f));
+	CHECK(pos.y == doctest::Approx(3.0f));
+	CHECK(pos.z == doctest::Approx(4.0f));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto rootInstance = wld.instantiate(rootPrefab);
+	const auto childPrefab = wld.prefab();
+
+	uint32_t hits = 0;
+	ecs::Entity observedChild = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all(ecs::Pair(ecs::Parent, rootInstance))
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observedChild = entityView[0];
+														})
+														.entity();
+
+	auto childBuilder = wld.build(childPrefab);
+	childBuilder.add(ecs::Pair(ecs::Parent, rootPrefab));
+	childBuilder.commit();
+
+	hits = 0;
+	observedChild = ecs::EntityBad;
+
+	CHECK(wld.sync(rootPrefab) == 1);
+	CHECK(hits == 1);
+	CHECK(observedChild != ecs::EntityBad);
+	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::Parent, rootInstance)));
+	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::Is, childPrefab)));
 
 	(void)observer;
 }

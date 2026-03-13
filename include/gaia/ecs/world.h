@@ -2368,6 +2368,7 @@ namespace gaia {
 				if constexpr (supports_sparse_component<FT>()) {
 					if (is_sparse_dont_fragment_component(item.entity)) {
 						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+						notify_add_single(entity, item.entity);
 						return;
 					}
 				}
@@ -2391,16 +2392,20 @@ namespace gaia {
 					if (can_use_sparse_component<FT>(object)) {
 						auto& data = sparse_component_store_mut<FT>(object).add(entity);
 						data = GAIA_FWD(value);
+						notify_add_single(entity, object);
 						return;
 					}
 				}
 
-				EntityBuilder(*this, entity).add(object);
+				EntityBuilder eb(*this, entity);
+				eb.add_inter_init(object);
+				eb.commit();
 
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
+				notify_add_single(entity, object);
 			}
 
 			//! Attaches a new component @a T to @a entity. Also sets its value.
@@ -2762,6 +2767,32 @@ namespace gaia {
 #endif
 			}
 
+			void notify_add_single(Entity entity, Entity object) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				const auto& ec = fetch(entity);
+
+				lock();
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (object.comp()) {
+					const auto& item = comp_cache().get(object);
+					const auto& hooks = ComponentCache::hooks(item);
+					if (hooks.func_add != nullptr)
+						hooks.func_add(*this, item, entity);
+				}
+	#endif
+
+	#if GAIA_OBSERVERS_ENABLED
+				m_observers.on_add(*this, *ec.pArchetype, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+	#endif
+
+				unlock();
+#else
+				(void)entity;
+				(void)object;
+#endif
+			}
+
 			template <typename Func>
 			void
 			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
@@ -3024,11 +3055,16 @@ namespace gaia {
 								return false;
 
 							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
-							return itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity);
+							if (!itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity))
+								return false;
+							notify_add_single(dstEntity, object);
+							return true;
 						}
 
 						if (pItem->comp.size() != 0U) {
-							add(dstEntity, object);
+							EntityBuilder eb(*this, dstEntity);
+							eb.add_inter_init(object);
+							eb.commit();
 
 							const auto& ecDst = fetch(dstEntity);
 							const auto& ecSrc = fetch(srcEntity);
@@ -3041,6 +3077,7 @@ namespace gaia {
 							void* pDst = ecDst.pChunk->comp_ptr_mut(compIdxDst);
 							const void* pSrc = ecSrc.pChunk->comp_ptr(compIdxSrc);
 							pItem->copy(pDst, pSrc, idxDst, idxSrc, ecDst.pChunk->capacity(), ecSrc.pChunk->capacity());
+							notify_add_single(dstEntity, object);
 							return true;
 						}
 					}

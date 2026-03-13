@@ -2194,6 +2194,7 @@ uint32_t changes = w.sync(prefab);
 
 This adds missing copied ids to existing instances and spawns missing prefab children under existing instances.
 It does not overwrite already owned instance data and it does not remove existing children.
+When `sync(prefab)` materializes new copied ids or spawns new child instances, normal `OnAdd` observers fire for those additions.
 
 Inherited removals already take effect through normal semantic lookup, because `ecs::Inherit` data is not stored on the instance in the first place. Removing an inherited id from the prefab therefore makes existing instances stop resolving it.
 

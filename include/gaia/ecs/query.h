@@ -2127,6 +2127,35 @@ namespace gaia {
 				};
 
 				//! Chooses the narrowest available seed for direct non-fragmenting evaluation.
+				GAIA_NODISCARD static bool should_prefer_direct_seed_term(
+						const World& world, const QueryTerm& candidate, uint32_t candidateCount, const DirectEntitySeedPlan& plan) {
+					if (candidateCount < plan.bestAllTermCount)
+						return true;
+					if (candidateCount > plan.bestAllTermCount)
+						return false;
+					if (plan.bestAllTerm == EntityBad)
+						return true;
+
+					const bool candidateIsSemanticIs = uses_semantic_is_matching(candidate);
+					const bool bestIsSemanticIs = plan.bestAllTermMatchKind == QueryMatchKind::Semantic &&
+																				plan.bestAllTerm.pair() && plan.bestAllTerm.id() == Is.id() &&
+																				!is_wildcard(plan.bestAllTerm.gen()) &&
+																				!is_variable((EntityId)plan.bestAllTerm.gen());
+					if (candidateIsSemanticIs != bestIsSemanticIs)
+						return candidateIsSemanticIs;
+
+					const bool candidateUsesInherited = uses_inherited_id_matching(world, candidate);
+					const bool bestUsesInherited = plan.bestAllTermMatchKind == QueryMatchKind::Semantic &&
+																				 !is_wildcard(plan.bestAllTerm) &&
+																				 !is_variable((EntityId)plan.bestAllTerm.id()) &&
+																				 (!plan.bestAllTerm.pair() || !is_variable((EntityId)plan.bestAllTerm.gen())) &&
+																				 world_term_uses_inherit_policy(world, plan.bestAllTerm);
+					if (candidateUsesInherited != bestUsesInherited)
+						return !candidateUsesInherited;
+
+					return false;
+				}
+
 				GAIA_NODISCARD static DirectEntitySeedPlan
 				direct_entity_seed_plan(const World& world, const QueryInfo& queryInfo) {
 					DirectEntitySeedPlan plan;
@@ -2138,7 +2167,7 @@ namespace gaia {
 						if (term.op == QueryOpKind::All) {
 							plan.hasAllTerms = true;
 							const auto cnt = count_direct_term_entities(world, term);
-							if (cnt < plan.bestAllTermCount) {
+							if (should_prefer_direct_seed_term(world, term, cnt, plan)) {
 								plan.bestAllTermCount = cnt;
 								plan.bestAllTerm = term.id;
 								plan.bestAllTermMatchKind = term.matchKind;
@@ -2798,6 +2827,37 @@ namespace gaia {
 					it.set_term_ids(pTermIds);
 				}
 
+				template <typename T>
+				static Entity inherited_query_arg_id(World& world) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return EntityBad;
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value) {
+							const auto rel = comp_cache(world).template get<typename FT::rel>().entity;
+							const auto tgt = comp_cache(world).template get<typename FT::tgt>().entity;
+							return (Entity)Pair(rel, tgt);
+						} else
+							return comp_cache(world).template get<FT>().entity;
+					}
+				}
+
+				template <typename T>
+				static decltype(auto) inherited_query_entity_arg_by_id(World& world, Entity entity, Entity termId) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return entity;
+					else
+						return world_query_entity_arg_by_id<T>(world, entity, termId);
+				}
+
+				template <typename... T, typename Func, size_t... I>
+				static void invoke_inherited_query_args_by_id(
+						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
@@ -2845,6 +2905,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					Entity inheritedArgIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
 					bool hasInheritedTerms = false;
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (uses_inherited_id_matching(world, term)) {
@@ -2856,7 +2917,8 @@ namespace gaia {
 					auto exec_entity = [&](Entity entity) {
 						if constexpr (sizeof...(T) > 0) {
 							if (hasInheritedTerms) {
-								func(world_query_entity_arg<T>(world, entity)...);
+								invoke_inherited_query_args_by_id<T...>(
+										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
 								return;
 							}
 						}

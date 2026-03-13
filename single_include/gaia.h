@@ -39914,6 +39914,35 @@ namespace gaia {
 				};
 
 				//! Chooses the narrowest available seed for direct non-fragmenting evaluation.
+				GAIA_NODISCARD static bool should_prefer_direct_seed_term(
+						const World& world, const QueryTerm& candidate, uint32_t candidateCount, const DirectEntitySeedPlan& plan) {
+					if (candidateCount < plan.bestAllTermCount)
+						return true;
+					if (candidateCount > plan.bestAllTermCount)
+						return false;
+					if (plan.bestAllTerm == EntityBad)
+						return true;
+
+					const bool candidateIsSemanticIs = uses_semantic_is_matching(candidate);
+					const bool bestIsSemanticIs = plan.bestAllTermMatchKind == QueryMatchKind::Semantic &&
+																				plan.bestAllTerm.pair() && plan.bestAllTerm.id() == Is.id() &&
+																				!is_wildcard(plan.bestAllTerm.gen()) &&
+																				!is_variable((EntityId)plan.bestAllTerm.gen());
+					if (candidateIsSemanticIs != bestIsSemanticIs)
+						return candidateIsSemanticIs;
+
+					const bool candidateUsesInherited = uses_inherited_id_matching(world, candidate);
+					const bool bestUsesInherited = plan.bestAllTermMatchKind == QueryMatchKind::Semantic &&
+																				 !is_wildcard(plan.bestAllTerm) &&
+																				 !is_variable((EntityId)plan.bestAllTerm.id()) &&
+																				 (!plan.bestAllTerm.pair() || !is_variable((EntityId)plan.bestAllTerm.gen())) &&
+																				 world_term_uses_inherit_policy(world, plan.bestAllTerm);
+					if (candidateUsesInherited != bestUsesInherited)
+						return !candidateUsesInherited;
+
+					return false;
+				}
+
 				GAIA_NODISCARD static DirectEntitySeedPlan
 				direct_entity_seed_plan(const World& world, const QueryInfo& queryInfo) {
 					DirectEntitySeedPlan plan;
@@ -39925,7 +39954,7 @@ namespace gaia {
 						if (term.op == QueryOpKind::All) {
 							plan.hasAllTerms = true;
 							const auto cnt = count_direct_term_entities(world, term);
-							if (cnt < plan.bestAllTermCount) {
+							if (should_prefer_direct_seed_term(world, term, cnt, plan)) {
 								plan.bestAllTermCount = cnt;
 								plan.bestAllTerm = term.id;
 								plan.bestAllTermMatchKind = term.matchKind;
@@ -40030,6 +40059,16 @@ namespace gaia {
 					seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 					seedInfo.seededFromAll = true;
 					const auto evalPlan = direct_all_seed_eval_plan(queryInfo, seedInfo);
+					const Archetype* pLastSingleAllArchetype = nullptr;
+					bool lastSingleAllMatch = false;
+					bool seedImpliesSingleAllTerm = false;
+					if (evalPlan.pSingleAllTerm != nullptr && uses_semantic_is_matching(*pSeedTerm) &&
+							(uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+							 uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm))) {
+						const auto seedTarget = Entity((EntityId)pSeedTerm->id.gen(), 0, false, false, pSeedTerm->id.kind());
+						if (seedTarget != EntityBad)
+							seedImpliesSingleAllTerm = match_entity_term(world, seedTarget, *evalPlan.pSingleAllTerm);
+					}
 
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
@@ -40040,8 +40079,20 @@ namespace gaia {
 						if (evalPlan.alwaysMatch)
 							return func(entity);
 						if (evalPlan.pSingleAllTerm != nullptr) {
-							if (!match_entity_term(world, entity, *evalPlan.pSingleAllTerm))
+							if (seedImpliesSingleAllTerm)
+								return func(entity);
+							if (uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+									uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm)) {
+								const auto* pArchetype = world_entity_archetype(world, entity);
+								if (pArchetype != pLastSingleAllArchetype) {
+									lastSingleAllMatch = match_entity_term(world, entity, *evalPlan.pSingleAllTerm);
+									pLastSingleAllArchetype = pArchetype;
+								}
+								if (!lastSingleAllMatch)
+									return true;
+							} else if (!match_entity_term(world, entity, *evalPlan.pSingleAllTerm)) {
 								return true;
+							}
 							return func(entity);
 						}
 						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
@@ -40563,6 +40614,37 @@ namespace gaia {
 					it.set_term_ids(pTermIds);
 				}
 
+				template <typename T>
+				static Entity inherited_query_arg_id(World& world) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return EntityBad;
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value) {
+							const auto rel = comp_cache(world).template get<typename FT::rel>().entity;
+							const auto tgt = comp_cache(world).template get<typename FT::tgt>().entity;
+							return (Entity)Pair(rel, tgt);
+						} else
+							return comp_cache(world).template get<FT>().entity;
+					}
+				}
+
+				template <typename T>
+				static decltype(auto) inherited_query_entity_arg_by_id(World& world, Entity entity, Entity termId) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return entity;
+					else
+						return world_query_entity_arg_by_id<T>(world, entity, termId);
+				}
+
+				template <typename... T, typename Func, size_t... I>
+				static void invoke_inherited_query_args_by_id(
+						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
@@ -40610,6 +40692,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					Entity inheritedArgIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
 					bool hasInheritedTerms = false;
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (uses_inherited_id_matching(world, term)) {
@@ -40621,7 +40704,8 @@ namespace gaia {
 					auto exec_entity = [&](Entity entity) {
 						if constexpr (sizeof...(T) > 0) {
 							if (hasInheritedTerms) {
-								func(world_query_entity_arg<T>(world, entity)...);
+								invoke_inherited_query_args_by_id<T...>(
+										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
 								return;
 							}
 						}
@@ -44386,6 +44470,7 @@ namespace gaia {
 				if constexpr (supports_sparse_component<FT>()) {
 					if (is_sparse_dont_fragment_component(item.entity)) {
 						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+						notify_add_single(entity, item.entity);
 						return;
 					}
 				}
@@ -44409,16 +44494,20 @@ namespace gaia {
 					if (can_use_sparse_component<FT>(object)) {
 						auto& data = sparse_component_store_mut<FT>(object).add(entity);
 						data = GAIA_FWD(value);
+						notify_add_single(entity, object);
 						return;
 					}
 				}
 
-				EntityBuilder(*this, entity).add(object);
+				EntityBuilder eb(*this, entity);
+				eb.add_inter_init(object);
+				eb.commit();
 
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
 				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
+				notify_add_single(entity, object);
 			}
 
 			//! Attaches a new component @a T to @a entity. Also sets its value.
@@ -44780,6 +44869,32 @@ namespace gaia {
 #endif
 			}
 
+			void notify_add_single(Entity entity, Entity object) {
+#if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				const auto& ec = fetch(entity);
+
+				lock();
+
+	#if GAIA_ENABLE_ADD_DEL_HOOKS
+				if (object.comp()) {
+					const auto& item = comp_cache().get(object);
+					const auto& hooks = ComponentCache::hooks(item);
+					if (hooks.func_add != nullptr)
+						hooks.func_add(*this, item, entity);
+				}
+	#endif
+
+	#if GAIA_OBSERVERS_ENABLED
+				m_observers.on_add(*this, *ec.pArchetype, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+	#endif
+
+				unlock();
+#else
+				(void)entity;
+				(void)object;
+#endif
+			}
+
 			template <typename Func>
 			void
 			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
@@ -45042,11 +45157,16 @@ namespace gaia {
 								return false;
 
 							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
-							return itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity);
+							if (!itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity))
+								return false;
+							notify_add_single(dstEntity, object);
+							return true;
 						}
 
 						if (pItem->comp.size() != 0U) {
-							add(dstEntity, object);
+							EntityBuilder eb(*this, dstEntity);
+							eb.add_inter_init(object);
+							eb.commit();
 
 							const auto& ecDst = fetch(dstEntity);
 							const auto& ecSrc = fetch(srcEntity);
@@ -45059,6 +45179,7 @@ namespace gaia {
 							void* pDst = ecDst.pChunk->comp_ptr_mut(compIdxDst);
 							const void* pSrc = ecSrc.pChunk->comp_ptr(compIdxSrc);
 							pItem->copy(pDst, pSrc, idxDst, idxSrc, ecDst.pChunk->capacity(), ecSrc.pChunk->capacity());
+							notify_add_single(dstEntity, object);
 							return true;
 						}
 					}
