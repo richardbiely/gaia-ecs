@@ -1644,6 +1644,77 @@ void BM_Query_IsEach(picobench::state& state) {
 	}
 }
 
+ecs::Entity create_prefab_inherit_fixture(ecs::World& w, uint32_t count) {
+	const auto position = w.add<Position>().entity;
+	w.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto prefab = w.prefab();
+	w.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+	w.instantiate_n(prefab, count);
+	return prefab;
+}
+
+void BM_Query_PrefabInherited_Read_Each(picobench::state& state) {
+	const uint32_t count = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto prefab = create_prefab_inherit_fixture(w, count);
+	auto q = w.query().all<Position>().is(prefab);
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_PrefabInherited_Read_Iter(picobench::state& state) {
+	const uint32_t count = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto prefab = create_prefab_inherit_fixture(w, count);
+	auto q = w.query().all<Position>().is(prefab);
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			auto posView = it.view<Position>(1);
+			GAIA_EACH(it) {
+				sum += (uint64_t)(posView[i].x + posView[i].y + posView[i].z);
+			}
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_PrefabInherited_Write_Each(picobench::state& state) {
+	const uint32_t count = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+		ecs::World w;
+		const auto prefab = create_prefab_inherit_fixture(w, count);
+		auto q = w.query().all<Position&>().is(prefab);
+		state.start_timer();
+
+		float sum = 0.0f;
+		q.each([&](Position& p) {
+			p.x += 1.0f;
+			sum += p.x;
+		});
+		dont_optimize(sum);
+
+		state.stop_timer();
+	}
+}
+
 template <uint32_t ChainDepth, bool Direct>
 void BM_Query_IsEachIter(picobench::state& state) {
 	const uint32_t branches = (uint32_t)state.user_data();
@@ -4351,6 +4422,18 @@ int main(int argc, char* argv[]) {
 				.user_data(1024)
 				.label("query is iter semantic d8");
 		PICOBENCH_REG(BM_Query_IsEachIter_Direct_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("query is iter direct d8");
+		PICOBENCH_REG(BM_Query_PrefabInherited_Read_Each)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("query prefab inherit read each 100K");
+		PICOBENCH_REG(BM_Query_PrefabInherited_Read_Iter)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("query prefab inherit read iter 100K");
+		PICOBENCH_REG(BM_Query_PrefabInherited_Write_Each)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesMedium)
+				.label("query prefab inherit write each 100K");
 		PICOBENCH_REG(BM_Query_Variable_Source_Bound)
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)

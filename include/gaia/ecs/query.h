@@ -2243,6 +2243,16 @@ namespace gaia {
 					seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 					seedInfo.seededFromAll = true;
 					const auto evalPlan = direct_all_seed_eval_plan(queryInfo, seedInfo);
+					const Archetype* pLastSingleAllArchetype = nullptr;
+					bool lastSingleAllMatch = false;
+					bool seedImpliesSingleAllTerm = false;
+					if (evalPlan.pSingleAllTerm != nullptr && uses_semantic_is_matching(*pSeedTerm) &&
+							(uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+							 uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm))) {
+						const auto seedTarget = Entity((EntityId)pSeedTerm->id.gen(), 0, false, false, pSeedTerm->id.kind());
+						if (seedTarget != EntityBad)
+							seedImpliesSingleAllTerm = match_entity_term(world, seedTarget, *evalPlan.pSingleAllTerm);
+					}
 
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
@@ -2253,8 +2263,20 @@ namespace gaia {
 						if (evalPlan.alwaysMatch)
 							return func(entity);
 						if (evalPlan.pSingleAllTerm != nullptr) {
-							if (!match_entity_term(world, entity, *evalPlan.pSingleAllTerm))
+							if (seedImpliesSingleAllTerm)
+								return func(entity);
+							if (uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+									uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm)) {
+								const auto* pArchetype = world_entity_archetype(world, entity);
+								if (pArchetype != pLastSingleAllArchetype) {
+									lastSingleAllMatch = match_entity_term(world, entity, *evalPlan.pSingleAllTerm);
+									pLastSingleAllArchetype = pArchetype;
+								}
+								if (!lastSingleAllMatch)
+									return true;
+							} else if (!match_entity_term(world, entity, *evalPlan.pSingleAllTerm)) {
 								return true;
+							}
 							return func(entity);
 						}
 						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
