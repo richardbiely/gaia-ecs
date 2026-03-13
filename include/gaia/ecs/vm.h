@@ -24,8 +24,8 @@
 namespace gaia {
 	namespace ecs {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
-		// Key + (X, id) + (id, X) wildcards
-		using SingleArchetypeLookup = cnt::sarray_ext<EntityLookupKey, ChunkHeader::MAX_COMPONENTS * 3>;
+		// Key + (X, id) + (id, X) + (*, *) wildcard
+		using SingleArchetypeLookup = cnt::sarray_ext<EntityLookupKey, ChunkHeader::MAX_COMPONENTS * 4>;
 
 	} // namespace ecs
 
@@ -110,9 +110,6 @@ namespace gaia {
 					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
-				if (ent == Pair(All, All))
-					return arr;
-
 				const auto it = map.find(key);
 				if (it == map.end() || it->second.empty())
 					return {};
@@ -130,9 +127,6 @@ namespace gaia {
 			inline std::span<const Archetype*> fetch_archetypes_for_select(
 					const SingleArchetypeLookup& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				GAIA_ASSERT(key != EntityBadLookupKey);
-
-				if (ent == Pair(All, All))
-					return arr;
 
 				const auto idx = core::get_index(map, key);
 				if (idx == BadIndex || arr.empty())
