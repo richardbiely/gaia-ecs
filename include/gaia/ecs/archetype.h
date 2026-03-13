@@ -705,7 +705,7 @@ namespace gaia {
 			}
 
 			//! Returns how many pair ids in this archetype match the provided wildcard-capable pair query.
-			//! This is used by variable query planning to avoid rescanning ids_view() for common pair forms.
+			//! This stays archetype-local because variable matching repeatedly probes a single candidate archetype.
 			GAIA_NODISCARD uint32_t pair_matches(Entity pair) const {
 				GAIA_ASSERT(pair.pair());
 

@@ -23,7 +23,7 @@ namespace gaia {
 		class World;
 		uint32_t world_version(const World& world);
 
-		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ArchetypeDArray>;
+		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
 		struct ArchetypeCacheData {
 			GroupId groupId = 0;
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
@@ -912,14 +912,31 @@ namespace gaia {
 					return true;
 				}
 
-				SingleArchetypeLookup entityToArchetypeMap;
-				auto addLookupUnique = [&](Entity key) {
-					if (core::has(entityToArchetypeMap, EntityLookupKey(key)))
+				SingleArchetypeLookup singleArchetypeLookup;
+				auto addLookupUnique = [&](Entity key, uint16_t compIdx, uint16_t matchCount) {
+					const auto keyLookup = EntityLookupKey(key);
+					const auto itLookup =
+							core::find_if(singleArchetypeLookup.begin(), singleArchetypeLookup.end(), [&](const auto& item) {
+								return item.matches(keyLookup);
+							});
+					if (itLookup != singleArchetypeLookup.end()) {
+						auto& entry = itLookup->entry;
+						entry.matchCount = (uint16_t)(entry.matchCount + matchCount);
+						if (compIdx != ComponentIndexBad)
+							entry.compIdx = compIdx;
 						return;
-					entityToArchetypeMap.push_back(EntityLookupKey(key));
+					}
+					singleArchetypeLookup.push_back(
+							SingleArchetypeLookupItem{
+									keyLookup, ComponentIndexEntry{const_cast<Archetype*>(&archetype), compIdx, matchCount}});
 				};
-				for (const auto entity: archetype.ids_view()) {
-					entityToArchetypeMap.push_back(EntityLookupKey(entity));
+				auto archetypeIds = archetype.ids_view();
+				const auto cntIds = (uint32_t)archetypeIds.size();
+				GAIA_FOR(cntIds) {
+					const auto entity = archetypeIds[i];
+					singleArchetypeLookup.push_back(
+							SingleArchetypeLookupItem{
+									EntityLookupKey(entity), ComponentIndexEntry{const_cast<Archetype*>(&archetype), (uint16_t)i, 1}});
 
 					if (!entity.pair())
 						continue;
@@ -929,9 +946,9 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					addLookupUnique(Pair(All, tgt));
-					addLookupUnique(Pair(rel, All));
-					addLookupUnique(Pair(All, All));
+					addLookupUnique(Pair(All, tgt), ComponentIndexBad, 1);
+					addLookupUnique(Pair(rel, All), ComponentIndexBad, 1);
+					addLookupUnique(Pair(All, All), ComponentIndexBad, 1);
 				}
 
 				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);
@@ -942,7 +959,7 @@ namespace gaia {
 				GAIA_ASSERT(ctxData.lastMatchedArchetypeIdx_Not.empty());
 
 				const auto* pArchetype = &archetype;
-				match(entityToArchetypeMap, std::span((const Archetype**)&pArchetype, 1), archetype.id());
+				match(singleArchetypeLookup, std::span((const Archetype**)&pArchetype, 1), archetype.id());
 				ctxData.lastMatchedArchetypeIdx_All = GAIA_MOV(lastMatchedArchetypeIdx_All);
 				ctxData.lastMatchedArchetypeIdx_Or = GAIA_MOV(lastMatchedArchetypeIdx_Or);
 				ctxData.lastMatchedArchetypeIdx_Not = GAIA_MOV(lastMatchedArchetypeIdx_Not);

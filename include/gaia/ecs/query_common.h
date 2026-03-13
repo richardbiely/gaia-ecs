@@ -77,6 +77,31 @@ namespace gaia {
 		using QueryEntityArray = cnt::sarray<Entity, MAX_ITEMS_IN_QUERY>;
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, uint32_t>;
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
+		static constexpr uint16_t ComponentIndexBad = (uint16_t)-1;
+
+		struct ComponentIndexEntry {
+			Archetype* pArchetype = nullptr;
+			uint16_t compIdx = ComponentIndexBad;
+			uint16_t matchCount = 0;
+
+			GAIA_NODISCARD bool matches(const Archetype* pOther) const {
+				return pArchetype == pOther;
+			}
+		};
+
+		using ComponentIndexEntryArray = cnt::darray<ComponentIndexEntry>;
+
+		struct SingleArchetypeLookupItem {
+			EntityLookupKey key = EntityBadLookupKey;
+			ComponentIndexEntry entry{};
+
+			GAIA_NODISCARD bool matches(EntityLookupKey other) const {
+				return key == other;
+			}
+		};
+
+		// Exact id + (X, id) + (id, X) + (*, *) wildcard-derived records for a single archetype.
+		using SingleArchetypeLookup = cnt::sarray_ext<SingleArchetypeLookupItem, ChunkHeader::MAX_COMPONENTS * 4>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;

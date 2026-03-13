@@ -269,7 +269,8 @@ namespace gaia {
 					if (it == world.m_entityToArchetypeMap.end())
 						return;
 
-					for (auto* pArchetype: it->second) {
+					for (const auto& record: it->second) {
+						auto* pArchetype = record.pArchetype;
 						if (observed)
 							pArchetype->observed_terms_inc();
 						else
@@ -4886,8 +4887,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				const auto& archetypes = it->second;
-				for (const auto* pArchetype: archetypes) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -4936,8 +4937,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				const auto& archetypes = it->second;
-				for (const auto* pArchetype: archetypes) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -4959,7 +4960,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return true;
 
-				for (const auto* pArchetype: it->second) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -5038,7 +5040,8 @@ namespace gaia {
 					return 0;
 
 				uint32_t cnt = 0;
-				for (const auto* pArchetype: it->second) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 					for (const auto* pChunk: pArchetype->chunks())
@@ -5113,7 +5116,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				for (const auto* pArchetype: it->second) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -5194,7 +5198,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return true;
 
-				for (const auto* pArchetype: it->second) {
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -6580,32 +6585,60 @@ namespace gaia {
 				return pArchetype;
 			}
 
-			//! Adds the archetype to <entity, archetype> map for quick lookups of archetypes by comp/tag/pair
-			//! \param entity Entity getting added
-			//! \param pArchetype Linked archetype
-			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
+			GAIA_NODISCARD static auto
+			find_component_index_record(ComponentIndexEntryArray& records, const Archetype* pArchetype) {
+				return core::get_index_if(records, [&](const auto& record) {
+					return record.matches(pArchetype);
+				});
+			}
+
+			GAIA_NODISCARD static auto
+			find_component_index_record(const ComponentIndexEntryArray& records, const Archetype* pArchetype) {
+				return core::get_index_if(records, [&](const auto& record) {
+					return record.matches(pArchetype);
+				});
+			}
+
+			//! Adds the archetype to <entity, archetype> map for quick lookups of archetypes by comp/tag/pair.
+			//! Exact ids store the owning column index, wildcard pair ids store an aggregated match count.
+			void add_entity_archetype_pair(
+					Entity entity, Archetype* pArchetype, uint16_t compIdx = ComponentIndexBad, uint16_t matchCount = 1) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				GAIA_ASSERT(matchCount > 0);
+
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToArchetypeMap.find(entityKey);
 				if (it == m_entityToArchetypeMap.end()) {
-					m_entityToArchetypeMap.try_emplace(entityKey, ArchetypeDArray{pArchetype});
+					ComponentIndexEntryArray records;
+					records.push_back(ComponentIndexEntry{pArchetype, compIdx, matchCount});
+					m_entityToArchetypeMap.try_emplace(entityKey, GAIA_MOV(records));
 					return;
 				}
 
-				auto& archetypes = it->second;
-				if (!core::has(archetypes, pArchetype))
-					archetypes.push_back(pArchetype);
+				auto& records = it->second;
+				const auto idx = find_component_index_record(records, pArchetype);
+				if (idx == BadIndex) {
+					records.push_back(ComponentIndexEntry{pArchetype, compIdx, matchCount});
+					return;
+				}
+
+				auto& record = records[idx];
+				record.matchCount = (uint16_t)(record.matchCount + matchCount);
+				if (compIdx != ComponentIndexBad)
+					record.compIdx = compIdx;
 			}
 
-			void add_pair_archetype_query_pairs(Entity pair, Archetype* pArchetype) {
+			void add_pair_archetype_query_pairs(Entity pair, Archetype* pArchetype, uint16_t matchCount = 1) {
 				GAIA_ASSERT(pair.pair());
 				GAIA_ASSERT(pArchetype != nullptr);
+				GAIA_ASSERT(matchCount > 0);
 
 				const auto first = get(pair.id());
 				const auto second = get(pair.gen());
 
-				add_entity_archetype_pair(Pair(All, second), pArchetype);
-				add_entity_archetype_pair(Pair(first, All), pArchetype);
-				add_entity_archetype_pair(Pair(All, All), pArchetype);
+				add_entity_archetype_pair(Pair(All, second), pArchetype, ComponentIndexBad, matchCount);
+				add_entity_archetype_pair(Pair(first, All), pArchetype, ComponentIndexBad, matchCount);
+				add_entity_archetype_pair(Pair(All, All), pArchetype, ComponentIndexBad, matchCount);
 			}
 
 			//! Deletes an archetype from the <pairEntity, archetype> map
@@ -6615,23 +6648,24 @@ namespace gaia {
 				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
 				if (it == m_entityToArchetypeMap.end())
 					return;
-				auto& archetypes = it->second;
+				auto& records = it->second;
 
 				// Remove any reference to the found archetype from the array.
-				// We don't know the archetype so we remove any archetype that contains our entity.
-				for (uint32_t i = archetypes.size() - 1; i != (uint32_t)-1; --i) {
-					const auto* pArchetype = archetypes[i];
+				// We don't know the archetype so we remove/decrement any archetype record that contains our entity.
+				for (uint32_t i = records.size() - 1; i != (uint32_t)-1; --i) {
+					auto& record = records[i];
+					const auto* pArchetype = record.pArchetype;
 					if (!pArchetype->has(entityToRemove))
 						continue;
 
-					core::swap_erase_unsafe(archetypes, i);
+					if ((!is_wildcard(pair.first()) && !is_wildcard(pair.second())) || record.matchCount <= 1)
+						core::swap_erase_unsafe(records, i);
+					else
+						--record.matchCount;
 				}
 
-				// NOTE: No need to delete keys with empty archetype arrays.
-				//       There are only 2 such keys: (*, tgt), (src, *).
-				// If no more items are present in the array, remove the map key.
-				// if (archetypes.empty())
-				// 	m_entityToArchetypeMap.erase(it); DON'T
+				if (records.empty())
+					m_entityToArchetypeMap.erase(it);
 			}
 
 			//! Deletes a known archetype from the <pairEntity, archetype> map.
@@ -6643,12 +6677,12 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				auto& archetypes = it->second;
-				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
+				auto& records = it->second;
+				const auto idx = find_component_index_record(records, pArchetypeToRemove);
 				if (idx != BadIndex)
-					core::swap_erase_unsafe(archetypes, idx);
+					core::swap_erase_unsafe(records, idx);
 
-				if (archetypes.empty())
+				if (records.empty())
 					m_entityToArchetypeMap.erase(it);
 			}
 
@@ -6689,12 +6723,12 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				auto& archetypes = it->second;
-				const auto idx = core::get_index(archetypes, pArchetypeToRemove);
+				auto& records = it->second;
+				const auto idx = find_component_index_record(records, pArchetypeToRemove);
 				if (idx != BadIndex)
-					core::swap_erase_unsafe(archetypes, idx);
+					core::swap_erase_unsafe(records, idx);
 
-				if (archetypes.empty())
+				if (records.empty())
 					m_entityToArchetypeMap.erase(it);
 			}
 
@@ -6740,8 +6774,10 @@ namespace gaia {
 				GAIA_ASSERT(m_nextArchetypeId < (decltype(m_nextArchetypeId))-1);
 				auto* pArchetype = Archetype::create(*this, m_nextArchetypeId++, m_worldVersion, entities);
 
-				for (auto entity: entities) {
-					add_entity_archetype_pair(entity, pArchetype);
+				const auto entityCnt = (uint32_t)entities.size();
+				GAIA_FOR(entityCnt) {
+					auto entity = entities[i];
+					add_entity_archetype_pair(entity, pArchetype, (uint16_t)i);
 
 #if GAIA_OBSERVERS_ENABLED
 					auto& ec = fetch(entity);
@@ -7511,9 +7547,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				const auto& archetypes = it->second;
-				for (auto* pArchetype: archetypes)
-					req_del(*pArchetype);
+				for (const auto& record: it->second)
+					req_del(*record.pArchetype);
 			}
 
 			//! Requests deleting anything that references the \param entity. No questions asked.
@@ -7561,8 +7596,8 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				const auto& archetypes = it->second;
-				for (auto* pArchetype: archetypes) {
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
 					// Evaluate the condition if a valid pair is given
 					if (!archetype_cond_match(*pArchetype, cond, entity))
 						continue;
@@ -7622,8 +7657,8 @@ namespace gaia {
 				}
 
 				// Update archetypes of all affected entities
-				const auto& archetypes = it->second;
-				for (auto* pArchetype: archetypes) {
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -7687,8 +7722,8 @@ namespace gaia {
 					}
 				}
 
-				const auto& archetypes = it->second;
-				for (auto* pArchetype: archetypes) {
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
 						continue;
 
@@ -7887,9 +7922,10 @@ namespace gaia {
 				if (it == m_entityToArchetypeMap.end())
 					return;
 
-				const auto& archetypes = it->second;
-				for (auto* pArchetype: archetypes)
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
 					remove_edge_from_archetype(pArchetype, pArchetype->find_edge_left(entityToRemove), entityToRemove);
+				}
 			}
 
 			void remove_edges_from_pairs(Entity entity) {
