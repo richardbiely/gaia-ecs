@@ -9,6 +9,60 @@
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
+		template <typename T>
+		inline Entity world_query_arg_id(World& world);
+
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
+
+		template <typename T>
+		static Entity observer_inherited_arg_id(World& world) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return EntityBad;
+			else
+				return world_query_arg_id<Arg>(world);
+		}
+
+		template <typename T>
+		static decltype(auto) observer_inherited_entity_arg_by_id(World& world, Entity entity, Entity termId) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			else
+				return world_query_entity_arg_by_id<T>(world, entity, termId);
+		}
+
+		template <typename... T, typename Func, size_t... I>
+		static void observer_invoke_inherited_args_by_id(
+				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+			func(observer_inherited_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+		}
+
+		template <typename Func, typename... T>
+		static void observer_run_typed_on_entity(
+				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>) {
+			bool hasInheritedTerms = false;
+			auto& queryInfo = obs.query.fetch();
+			for (const auto& term: queryInfo.ctx().data.terms_view()) {
+				if (Query::uses_inherited_id_matching(world, term)) {
+					hasInheritedTerms = true;
+					break;
+				}
+			}
+
+			if constexpr (sizeof...(T) > 0) {
+				if (hasInheritedTerms) {
+					Entity inheritedArgIds[sizeof...(T)] = {observer_inherited_arg_id<T>(world)...};
+					observer_invoke_inherited_args_by_id<T...>(
+							world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
+					return;
+				}
+			}
+
+			obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+		}
+
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
 	#if GAIA_PROFILER_CPU
 			const auto& queryInfo = query.fetch();
@@ -355,9 +409,11 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [e = m_entity, func](Iter& it) {
+					ctx.on_each_func = [e = m_entity, func](Iter& it) mutable {
 						auto& obs = it.world()->observers().data(e);
-						obs.query.run_query_on_chunk(it, func, InputArgs{});
+						auto& world = *it.world();
+						const auto entity = it.view<Entity>()[0];
+						observer_run_typed_on_entity(obs, world, entity, it, func, InputArgs{});
 					};
 				}
 

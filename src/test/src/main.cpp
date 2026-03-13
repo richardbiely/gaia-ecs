@@ -16234,6 +16234,44 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 	(void)observer;
 }
 
+TEST_CASE("Observer - inherited prefab removal does not fire when another source still provides the term") {
+	TestWorld twld;
+
+	const auto root = wld.prefab();
+	const auto branchA = wld.prefab();
+	const auto branchB = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	wld.as(branchA, root);
+	wld.as(branchB, root);
+	wld.add<Position>(branchA, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(branchB, {4.0f, 5.0f, 6.0f});
+
+	const auto instance = wld.instantiate(branchA);
+	wld.as(instance, branchB);
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<Position>()
+														.on_each([&](ecs::Iter&) {
+															++hits;
+														})
+														.entity();
+
+	wld.del<Position>(branchA);
+
+	CHECK(hits == 0);
+	CHECK(wld.has<Position>(instance));
+	const auto& pos = wld.get<Position>(instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
+
+	(void)observer;
+}
+
 TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
 	TestWorld twld;
 
@@ -16260,6 +16298,37 @@ TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
 
 	CHECK(hits == 1);
 	CHECK(observed == instance);
+	CHECK_FALSE(wld.has<Position>(instance));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - inherited prefab removal typed OnDel callback sees payload") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<Position>(prefab, {11.0f, 12.0f, 13.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	Position observedPos{};
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<const Position>()
+														.on_each([&](const Position& pos) {
+															++hits;
+															observedPos = pos;
+														})
+														.entity();
+
+	wld.del<Position>(prefab);
+
+	CHECK(hits == 1);
+	CHECK(observedPos.x == doctest::Approx(11.0f));
+	CHECK(observedPos.y == doctest::Approx(12.0f));
+	CHECK(observedPos.z == doctest::Approx(13.0f));
 	CHECK_FALSE(wld.has<Position>(instance));
 
 	(void)observer;
@@ -16337,6 +16406,45 @@ TEST_CASE("Observer - prefab sync child removal stays non-destructive and emits 
 	CHECK(hits == 0);
 	CHECK(observed == ecs::EntityBad);
 	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - del runtime sparse id payload") {
+	TestWorld twld;
+
+	const auto sparseId = wld.add<PositionSparse>().entity;
+
+	uint32_t hits = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	PositionSparse pos{};
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(sparseId)
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															auto posView = it.view<PositionSparse>(0);
+															observedEntity = entityView[0];
+															pos = posView[0];
+														})
+														.entity();
+
+	const auto e = wld.add();
+	wld.add<PositionSparse>(e, {21.0f, 22.0f, 23.0f});
+
+	hits = 0;
+	observedEntity = ecs::EntityBad;
+	pos = {};
+
+	wld.del(e, sparseId);
+
+	CHECK(hits == 1);
+	CHECK(observedEntity == e);
+	CHECK(pos.x == doctest::Approx(21.0f));
+	CHECK(pos.y == doctest::Approx(22.0f));
+	CHECK(pos.z == doctest::Approx(23.0f));
 
 	(void)observer;
 }
@@ -16526,6 +16634,45 @@ TEST_CASE("Observer - fixed pair OnDel fast path runtime") {
 	wld.del(e, pair);
 	CHECK(hits == 1);
 	CHECK(observed == e);
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - deleting prefab entity keeps instances and emits no standalone inherited OnDel") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<Position>(prefab, {31.0f, 32.0f, 33.0f});
+
+	const auto a = wld.instantiate(prefab);
+	const auto b = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	cnt::darray<ecs::Entity> observed;
+	observed.reserve(2);
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															auto entityView = it.view<ecs::Entity>();
+															GAIA_EACH(it) {
+																++hits;
+																observed.push_back(entityView[i]);
+															}
+														})
+														.entity();
+
+	wld.del(prefab);
+	wld.update();
+
+	CHECK(hits == 0);
+	CHECK(observed.empty());
+	CHECK_FALSE(wld.valid(prefab));
+	CHECK(wld.valid(a));
+	CHECK(wld.valid(b));
 
 	(void)observer;
 }
