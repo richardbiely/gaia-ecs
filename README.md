@@ -2197,6 +2197,7 @@ It does not overwrite already owned instance data and it does not remove existin
 When `sync(prefab)` materializes new copied ids or spawns new child instances, normal `OnAdd` observers fire for those additions.
 
 Inherited removals already take effect through normal semantic lookup, because `ecs::Inherit` data is not stored on the instance in the first place. Removing an inherited id from the prefab therefore makes existing instances stop resolving it.
+Normal `OnDel` observers also fire for those inherited removals when an existing instance stops matching because the prefab source data disappeared.
 
 By contrast, `sync(prefab)` is intentionally non-destructive for owned instance state:
 - copied `ecs::Override` data already owned by an instance is kept

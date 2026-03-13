@@ -15541,6 +15541,42 @@ TEST_CASE("Observer - add sparse with value payload") {
 	CHECK(pos.z == doctest::Approx(8.0f));
 }
 
+TEST_CASE("Observer - del sparse with value payload") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	ecs::Entity observedEntity = ecs::EntityBad;
+	PositionSparse pos{};
+
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnDel)
+											 .all<PositionSparse>()
+											 .on_each([&](ecs::Iter& it) {
+												 ++hits;
+												 auto entityView = it.view<ecs::Entity>();
+												 auto posView = it.view<PositionSparse>();
+												 observedEntity = entityView[0];
+												 pos = posView[0];
+											 })
+											 .entity();
+	(void)obs;
+
+	const auto e = wld.add();
+	wld.add<PositionSparse>(e, {6.0f, 7.0f, 8.0f});
+
+	hits = 0;
+	observedEntity = ecs::EntityBad;
+	pos = {};
+
+	wld.del<PositionSparse>(e);
+
+	CHECK(hits == 1);
+	CHECK(observedEntity == e);
+	CHECK(pos.x == doctest::Approx(6.0f));
+	CHECK(pos.y == doctest::Approx(7.0f));
+	CHECK(pos.z == doctest::Approx(8.0f));
+}
+
 TEST_CASE("Observer - copy_ext sparse payload") {
 	TestWorld twld;
 
@@ -16120,6 +16156,72 @@ TEST_CASE("Observer - prefab sync sparse copied data matches existing instances"
 	(void)observer;
 }
 
+TEST_CASE("Observer - inherited prefab data matches on delete from prefab") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<Position>(prefab, {4.0f, 5.0f, 6.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del<Position>(prefab);
+
+	CHECK(hits == 1);
+	CHECK(observed == instance);
+	CHECK_FALSE(wld.has<Position>(instance));
+	CHECK(wld.sync(prefab) == 0);
+	CHECK(hits == 1);
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	const auto positionSparse = wld.add<PositionSparse>().entity;
+	wld.add(positionSparse, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<PositionSparse>(prefab, {2.0f, 3.0f, 4.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del<PositionSparse>(prefab);
+
+	CHECK(hits == 1);
+	CHECK(observed == instance);
+	CHECK_FALSE(wld.has<PositionSparse>(instance));
+	CHECK(wld.sync(prefab) == 0);
+	CHECK(hits == 1);
+
+	(void)observer;
+}
+
 TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
 	TestWorld twld;
 
@@ -16279,6 +16381,35 @@ TEST_CASE("Observer - single negative fast path runtime") {
 	wld.del<Position>(e);
 	CHECK(onAddHits == 0);
 	CHECK(onDelHits == 1);
+}
+
+TEST_CASE("Observer - single positive OnDel fast path runtime") {
+	TestWorld twld;
+
+	uint32_t onDelHits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+
+	const auto observerOnDelPos = wld.observer()
+																		.event(ecs::ObserverEvent::OnDel)
+																		.all<Position>()
+																		.on_each([&](ecs::Iter& it) {
+																			++onDelHits;
+																			auto entityView = it.view<ecs::Entity>();
+																			observed = entityView[0];
+																		})
+																		.entity();
+
+	const auto& dataOnDelPos = wld.observers().data(observerOnDelPos);
+	CHECK(dataOnDelPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {});
+	onDelHits = 0;
+	observed = ecs::EntityBad;
+
+	wld.del<Position>(e);
+	CHECK(onDelHits == 1);
+	CHECK(observed == e);
 }
 
 #endif
