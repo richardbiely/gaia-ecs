@@ -1263,6 +1263,16 @@ namespace gaia {
 					const auto tgt = resolve_raw_pair_match_token(queryTgt, varsIn);
 					const bool sameUnboundVar = rel.needsBind && tgt.needsBind && rel.bindVarIdx == tgt.bindVarIdx;
 
+					// Archetype-local pair cardinalities let us answer the common concrete/wildcard
+					// cases in O(1) without rescanning all pair ids on the archetype.
+					if (!rel.needsBind && !tgt.needsBind && !sameUnboundVar) {
+						const auto matchPair = Pair(
+								rel.concrete ? Entity((EntityId)rel.matchId, 0, true, false, EntityKind::EK_Gen) : All,
+								tgt.concrete ? Entity((EntityId)tgt.matchId, 0, true, false, EntityKind::EK_Gen) : All);
+						const auto count = archetype.pair_matches(matchPair);
+						return count < limit ? count : limit;
+					}
+
 					uint32_t count = 0;
 					auto archetypeIds = archetype.ids_view();
 					const auto cnt = (uint32_t)archetypeIds.size();
@@ -1483,6 +1493,16 @@ namespace gaia {
 
 					const bool relIsConcrete = queryRel.id() != All.id();
 					const bool tgtIsConcrete = queryTgt.id() != All.id();
+
+					if (relIsConcrete || tgtIsConcrete) {
+						const auto count =
+								archetype.pair_matches(Pair(relIsConcrete ? queryRel : All, tgtIsConcrete ? queryTgt : All));
+						if (count != 0)
+							return true;
+
+						if (relIsConcrete && tgtIsConcrete)
+							return false;
+					}
 
 					GAIA_FOR(cnt) {
 						const auto idInArchetype = archetypeIds[i];

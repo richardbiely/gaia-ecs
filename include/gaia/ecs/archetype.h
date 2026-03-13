@@ -130,6 +130,13 @@ namespace gaia {
 			Entity m_ids[ChunkHeader::MAX_COMPONENTS];
 			//! Array of indices to Is relationship pairs in m_ids
 			uint8_t m_pairs_as_index_buffer[ChunkHeader::MAX_COMPONENTS];
+			//! Compact per-relation pair cardinalities used by wildcard pair matching.
+			struct PairCountBucket {
+				EntityId id = IdentifierIdBad;
+				uint8_t count = 0;
+			};
+			PairCountBucket m_pairRelCountBuffer[ChunkHeader::MAX_COMPONENTS];
+			PairCountBucket m_pairTgtCountBuffer[ChunkHeader::MAX_COMPONENTS];
 			//! Array of component ids
 			Component m_comps[ChunkHeader::MAX_COMPONENTS];
 			//! Array of components offset indices
@@ -141,6 +148,10 @@ namespace gaia {
 			uint32_t m_listIdx = BadIndex;
 			//! Number of terms in this archetype that are currently observed.
 			uint8_t m_observedTermCnt = 0;
+			//! Number of occupied buckets in m_pairRelCountBuffer
+			uint8_t m_pairRelCountCnt = 0;
+			//! Number of occupied buckets in m_pairTgtCountBuffer
+			uint8_t m_pairTgtCountCnt = 0;
 
 			//! Delete requested
 			uint32_t m_deleteReq : 1;
@@ -267,6 +278,30 @@ namespace gaia {
 				}
 			}
 
+			static void add_pair_count_bucket(PairCountBucket* pBuckets, uint8_t& bucketCnt, EntityId id) {
+				GAIA_FOR(bucketCnt) {
+					if (pBuckets[i].id != id)
+						continue;
+
+					++pBuckets[i].count;
+					return;
+				}
+
+				GAIA_ASSERT(bucketCnt < ChunkHeader::MAX_COMPONENTS);
+				auto& bucket = pBuckets[bucketCnt++];
+				bucket.id = id;
+				bucket.count = 1;
+			}
+
+			static uint32_t pair_count_from_buckets(const PairCountBucket* pBuckets, uint8_t bucketCnt, EntityId id) {
+				GAIA_FOR(bucketCnt) {
+					if (pBuckets[i].id == id)
+						return pBuckets[i].count;
+				}
+
+				return 0;
+			}
+
 		public:
 			Archetype(Archetype&&) = delete;
 			Archetype(const Archetype&) = delete;
@@ -386,6 +421,8 @@ namespace gaia {
 						continue;
 
 					++newArch->m_pairCnt;
+					add_pair_count_bucket(newArch->m_pairRelCountBuffer, newArch->m_pairRelCountCnt, (EntityId)ids[i].id());
+					add_pair_count_bucket(newArch->m_pairTgtCountBuffer, newArch->m_pairTgtCountCnt, (EntityId)ids[i].gen());
 
 					// If it is an Is relationship, count it separately
 					if (ids[i].id() == Is.id())
@@ -665,6 +702,29 @@ namespace gaia {
 			//! \return Number of Is pairs
 			GAIA_NODISCARD uint32_t pairs_is() const {
 				return m_pairCnt_is;
+			}
+
+			//! Returns how many pair ids in this archetype match the provided wildcard-capable pair query.
+			//! This is used by variable query planning to avoid rescanning ids_view() for common pair forms.
+			GAIA_NODISCARD uint32_t pair_matches(Entity pair) const {
+				GAIA_ASSERT(pair.pair());
+
+				if (pair == Pair(All, All))
+					return m_pairCnt;
+
+				if (pair.id() == All.id())
+					return pair_count_from_buckets(m_pairTgtCountBuffer, m_pairTgtCountCnt, (EntityId)pair.gen());
+
+				if (pair.gen() == All.id())
+					return pair_count_from_buckets(m_pairRelCountBuffer, m_pairRelCountCnt, (EntityId)pair.id());
+
+				return core::has_if(
+									 ids_view(),
+									 [pair](Entity entity) {
+										 return entity == pair;
+									 })
+									 ? 1u
+									 : 0u;
 			}
 
 			GAIA_NODISCARD Entity entity_from_pairs_as_idx(uint32_t idx) const {
