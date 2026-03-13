@@ -43125,6 +43125,9 @@ namespace gaia {
 			//! Lazily built breadth-first descendant closures for unlimited source traversal.
 			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
+			//! Lazily built deduped sources for wildcard source traversal on a target entity.
+			//! Keyed by `target` and cleared whenever a pair edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_sourcesAllCache;
 			//! Lazily built deduped targets for wildcard target traversal on a source entity.
 			//! Keyed by `source` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_targetsAllCache;
@@ -43585,6 +43588,7 @@ namespace gaia {
 				}
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
 
@@ -43608,6 +43612,7 @@ namespace gaia {
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
 
@@ -44281,6 +44286,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
 
@@ -44348,6 +44354,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
 
@@ -45129,6 +45136,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Parent);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
 				auto& ecParent = fetch(parentEntity);
@@ -45662,6 +45670,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
 				const auto instanceKey = EntityLookupKey(instance);
@@ -45754,6 +45763,7 @@ namespace gaia {
 					invalidate_queries_for_rel(Is);
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 
 					auto entities = pDstChunk->entity_view();
@@ -47050,6 +47060,55 @@ namespace gaia {
 				return cache;
 			}
 
+			//! Returns the cached deduped direct sources for wildcard source traversal on @a target.
+			//! The cache is keyed by `target` and cleared whenever a pair edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& sources_all_cache(Entity target) const {
+				const auto key = EntityLookupKey(target);
+				const auto itCache = m_sourcesAllCache.find(key);
+				if (itCache != m_sourcesAllCache.end())
+					return itCache->second;
+
+				auto& cache = m_sourcesAllCache[key];
+				if (!valid(target))
+					return cache;
+
+				const auto visitStamp = next_entity_visit_stamp();
+
+				for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
+					(void)relKey;
+					const auto* pSources = exclusive_adjunct_sources(store, target);
+					if (pSources == nullptr)
+						continue;
+
+					for (auto source: *pSources) {
+						if (valid(source) && try_mark_entity_visited(source, visitStamp))
+							cache.push_back(source);
+					}
+				}
+
+				const auto pair = Pair(All, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return cache;
+
+				for (const auto& record: it->second) {
+					const auto* pArchetype = record.pArchetype;
+					if (pArchetype->is_req_del())
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							const auto source = entities[i];
+							if (try_mark_entity_visited(source, visitStamp))
+								cache.push_back(source);
+						}
+					}
+				}
+
+				return cache;
+			}
+
 			//! Traverses relationship targets upwards starting from @a source.
 			//! Disabled entities act as traversal barriers and are not yielded.
 			template <typename Func>
@@ -47329,26 +47388,10 @@ namespace gaia {
 				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
 
-				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
-				auto emit_source = [&](Entity source) {
-					if (relation == All && !try_mark_entity_visited(source, visitStamp))
-						return;
-
-					func(source);
-				};
-
 				if (relation == All) {
-					for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-						const auto* pSources = exclusive_adjunct_sources(store, target);
-						if (pSources == nullptr)
-							continue;
-
-						for (auto source: *pSources) {
-							if (!valid(source))
-								continue;
-							emit_source(source);
-						}
-					}
+					for (auto source: sources_all_cache(target))
+						func(source);
+					return;
 				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
@@ -47364,7 +47407,7 @@ namespace gaia {
 						if (!valid(source))
 							continue;
 
-						emit_source(source);
+						func(source);
 					}
 					return;
 				}
@@ -47382,7 +47425,7 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							emit_source(entities[i]);
+							func(entities[i]);
 						}
 					}
 				}
@@ -47400,28 +47443,12 @@ namespace gaia {
 				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
 
-				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
-				auto emit_source = [&](Entity source) {
-					if (relation == All && !try_mark_entity_visited(source, visitStamp))
-						return true;
-
-					return func(source);
-				};
-
 				if (relation == All) {
-					for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
-						const auto* pSources = exclusive_adjunct_sources(store, target);
-						if (pSources == nullptr)
-							continue;
-
-						for (auto source: *pSources) {
-							if (!valid(source))
-								continue;
-
-							if (!emit_source(source))
-								return;
-						}
+					for (auto source: sources_all_cache(target)) {
+						if (!func(source))
+							return;
 					}
+					return;
 				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
@@ -47437,7 +47464,7 @@ namespace gaia {
 						if (!valid(source))
 							continue;
 
-						if (!emit_source(source))
+						if (!func(source))
 							return;
 					}
 					return;
@@ -47456,7 +47483,7 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							if (!emit_source(entities[i]))
+							if (!func(entities[i]))
 								return;
 						}
 					}
@@ -48245,6 +48272,7 @@ namespace gaia {
 					m_entityToAsTargetsTravCache = {};
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 					m_tgtToRel = {};
 					m_relToTgt = {};

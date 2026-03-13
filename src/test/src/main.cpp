@@ -7891,6 +7891,42 @@ TEST_CASE("Relationship wildcard source traversal") {
 	CHECK(visited == 1);
 }
 
+TEST_CASE("Relationship wildcard source traversal cache refreshes after change") {
+	TestWorld twld;
+
+	auto rel0 = wld.add();
+	auto rel1 = wld.add();
+
+	auto target = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add(a, {rel0, target});
+	wld.add(b, {rel1, target});
+
+	cnt::darr<ecs::Entity> sources;
+	wld.sources(ecs::All, target, [&sources](ecs::Entity source) {
+		sources.push_back(source);
+	});
+
+	CHECK(sources.size() == 2);
+	CHECK(core::has(sources, a));
+	CHECK(core::has(sources, b));
+
+	wld.add(c, {rel1, target});
+
+	sources.clear();
+	wld.sources(ecs::All, target, [&sources](ecs::Entity source) {
+		sources.push_back(source);
+	});
+
+	CHECK(sources.size() == 3);
+	CHECK(core::has(sources, a));
+	CHECK(core::has(sources, b));
+	CHECK(core::has(sources, c));
+}
+
 TEST_CASE("Relationship wildcard target traversal") {
 	TestWorld twld;
 
