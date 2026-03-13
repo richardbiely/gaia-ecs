@@ -36553,11 +36553,13 @@ namespace gaia {
 				}
 
 				SingleArchetypeLookup entityToArchetypeMap;
-				auto addLookup = [&](Entity key) {
+				auto addLookupUnique = [&](Entity key) {
+					if (core::has(entityToArchetypeMap, EntityLookupKey(key)))
+						return;
 					entityToArchetypeMap.push_back(EntityLookupKey(key));
 				};
 				for (const auto entity: archetype.ids_view()) {
-					addLookup(entity);
+					entityToArchetypeMap.push_back(EntityLookupKey(entity));
 
 					if (!entity.pair())
 						continue;
@@ -36567,9 +36569,9 @@ namespace gaia {
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					addLookup(Pair(All, tgt));
-					addLookup(Pair(rel, All));
-					addLookup(Pair(All, All));
+					addLookupUnique(Pair(All, tgt));
+					addLookupUnique(Pair(rel, All));
+					addLookupUnique(Pair(All, All));
 				}
 
 				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);

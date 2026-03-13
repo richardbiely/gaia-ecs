@@ -12413,6 +12413,28 @@ TEST_CASE("Query - cached grouped query refreshes lazily after archetype creatio
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached relation wildcard query survives repeated pair additions") {
+	TestWorld twld;
+	static constexpr uint32_t PairCount = 30;
+
+	auto rel = wld.add();
+	cnt::darray<ecs::Entity> targets;
+	targets.reserve(PairCount);
+	GAIA_FOR(PairCount) {
+		targets.push_back(wld.add());
+	}
+
+	auto q = wld.query().all(ecs::Pair{rel, ecs::All}).no<ecs::Core_>().no<ecs::System_>();
+	CHECK(q.count() == 0);
+
+	auto e = wld.add();
+	GAIA_FOR(PairCount) {
+		wld.add(e, ecs::Pair(rel, targets[i]));
+	}
+
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - uncached query state is not immediately updated by shared cache propagation") {
 	TestWorld twld;
 

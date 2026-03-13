@@ -2014,6 +2014,38 @@ void BM_World_Delete_Wildcard_Target(picobench::state& state) {
 	}
 }
 
+//! Benchmarks cached wildcard-pair query maintenance while building a pair-heavy archetype.
+//! This exercises incremental query registration against archetypes that repeat the same relation
+//! across many pair ids, which would otherwise create duplicate wildcard lookup keys.
+void BM_QueryCache_RegisterPairHeavy_RelWildcard(picobench::state& state) {
+	const uint32_t pairCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		state.stop_timer();
+		ecs::World w;
+		const auto rel = w.add();
+		cnt::darray<ecs::Entity> targets;
+		targets.reserve(pairCnt);
+		GAIA_FOR(pairCnt) {
+			targets.push_back(w.add());
+		}
+
+		auto q = w.query().all(ecs::Pair(rel, ecs::All));
+		dont_optimize(q.count());
+
+		const auto e = w.add();
+		state.start_timer();
+
+		GAIA_FOR(pairCnt) {
+			w.add(e, ecs::Pair(rel, targets[i]));
+		}
+
+		dont_optimize(e);
+	}
+}
+
 static inline void add_var_match_tags(ecs::World& w, ecs::Entity e, uint32_t bits) {
 	if ((bits & (1u << 0)) != 0u)
 		w.add<VarTag0>(e);
@@ -4590,6 +4622,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1000)
 				.label("delete wildcard target 1K");
+		PICOBENCH_REG(BM_QueryCache_RegisterPairHeavy_RelWildcard)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(30)
+				.label("register pair-heavy rel wildcard 30");
 		PICOBENCH_REG(BM_Hierarchy_DeleteTarget<false>)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
