@@ -929,6 +929,7 @@ namespace gaia {
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
 					addLookup(Pair(All, tgt));
 					addLookup(Pair(rel, All));
+					addLookup(Pair(All, All));
 				}
 
 				auto lastMatchedArchetypeIdx_All = GAIA_MOV(ctxData.lastMatchedArchetypeIdx_All);

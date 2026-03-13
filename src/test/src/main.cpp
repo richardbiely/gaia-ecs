@@ -12312,6 +12312,25 @@ TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
 	CHECK(q.count() == entityCntBefore + 1);
 }
 
+TEST_CASE("Query - cached any-pair query count refreshes after pair removal") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt = wld.add();
+	auto e = wld.add();
+	wld.add(e, ecs::Pair(rel, tgt));
+
+	auto q = wld.query().all(ecs::Pair{ecs::All, ecs::All}).no<ecs::Core_>().no<ecs::System_>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	CHECK(info.cache_archetype_view().size() == 1);
+
+	wld.del(e, ecs::Pair(rel, tgt));
+
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - cached wildcard pair query stays stable for pair-heavy archetypes") {
 	TestWorld twld;
 

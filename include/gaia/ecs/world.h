@@ -6584,8 +6584,6 @@ namespace gaia {
 			//! \param entity Entity getting added
 			//! \param pArchetype Linked archetype
 			void add_entity_archetype_pair(Entity entity, Archetype* pArchetype) {
-				GAIA_ASSERT(entity != Pair(All, All));
-
 				EntityLookupKey entityKey(entity);
 				const auto it = m_entityToArchetypeMap.find(entityKey);
 				if (it == m_entityToArchetypeMap.end()) {
@@ -6598,13 +6596,25 @@ namespace gaia {
 					archetypes.push_back(pArchetype);
 			}
 
+			void add_pair_archetype_query_pairs(Entity pair, Archetype* pArchetype) {
+				GAIA_ASSERT(pair.pair());
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				const auto first = get(pair.id());
+				const auto second = get(pair.gen());
+
+				add_entity_archetype_pair(Pair(All, second), pArchetype);
+				add_entity_archetype_pair(Pair(first, All), pArchetype);
+				add_entity_archetype_pair(Pair(All, All), pArchetype);
+			}
+
 			//! Deletes an archetype from the <pairEntity, archetype> map
 			//! \param pair Pair entity used as a key in the map
 			//! \param entityToRemove Entity used to identify archetypes we are removing from the archetype array
 			void del_entity_query_pair(Pair pair, Entity entityToRemove) {
-				GAIA_ASSERT(pair != Pair(All, All));
-
 				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
+				if (it == m_entityToArchetypeMap.end())
+					return;
 				auto& archetypes = it->second;
 
 				// Remove any reference to the found archetype from the array.
@@ -6627,7 +6637,6 @@ namespace gaia {
 			//! Deletes a known archetype from the <pairEntity, archetype> map.
 			//! Used when deleting pair entities, where the owning archetype is already known.
 			void del_entity_query_pair(Pair pair, Archetype* pArchetypeToRemove) {
-				GAIA_ASSERT(pair != Pair(All, All));
 				GAIA_ASSERT(pArchetypeToRemove != nullptr);
 
 				auto it = m_entityToArchetypeMap.find(EntityLookupKey(pair));
@@ -6641,6 +6650,33 @@ namespace gaia {
 
 				if (archetypes.empty())
 					m_entityToArchetypeMap.erase(it);
+			}
+
+			void del_pair_archetype_query_pairs(Entity pair, Archetype* pArchetypeToRemove) {
+				GAIA_ASSERT(pair.pair());
+				GAIA_ASSERT(pArchetypeToRemove != nullptr);
+
+				GAIA_ASSERT(pair.id() < m_recs.entities.size());
+				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
+				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
+				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+
+				del_entity_query_pair(Pair(All, second), pArchetypeToRemove);
+				del_entity_query_pair(Pair(first, All), pArchetypeToRemove);
+				del_entity_query_pair(Pair(All, All), pArchetypeToRemove);
+			}
+
+			void del_pair_archetype_query_pairs(Entity pair, Entity entityToRemove) {
+				GAIA_ASSERT(pair.pair());
+
+				GAIA_ASSERT(pair.id() < m_recs.entities.size());
+				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
+				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
+				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+
+				del_entity_query_pair(Pair(All, second), entityToRemove);
+				del_entity_query_pair(Pair(first, All), entityToRemove);
+				del_entity_query_pair(Pair(All, All), entityToRemove);
 			}
 
 			//! Deletes a known archetype from the <entity, archetype> map.
@@ -6677,13 +6713,7 @@ namespace gaia {
 					// calling get(), which asserts on invalidated ids.
 					GAIA_ASSERT(entity.id() < m_recs.entities.size());
 					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
-					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
-					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
-
-					// (*, tgt)
-					del_entity_query_pair(Pair(All, second), pArchetype);
-					// (src, *)
-					del_entity_query_pair(Pair(first, All), pArchetype);
+					del_pair_archetype_query_pairs(entity, pArchetype);
 				}
 			}
 
@@ -6695,23 +6725,10 @@ namespace gaia {
 				m_entityToArchetypeMap.erase(EntityLookupKey(entity));
 
 				if (entity.pair()) {
-					// Pair cleanup can run after the relation or target entity was already invalidated.
-					// Rebuild wildcard pair keys from the stored entity records instead of calling get().
-					GAIA_ASSERT(entity.id() < m_recs.entities.size());
-					GAIA_ASSERT(entity.gen() < m_recs.entities.size());
-					const auto first = EntityContainer::handle(m_recs.entities[entity.id()]);
-					const auto second = EntityContainer::handle(m_recs.entities[entity.gen()]);
-
 					if (pArchetype != nullptr) {
-						// (*, tgt)
-						del_entity_query_pair(Pair(All, second), pArchetype);
-						// (src, *)
-						del_entity_query_pair(Pair(first, All), pArchetype);
+						del_pair_archetype_query_pairs(entity, pArchetype);
 					} else {
-						// (*, tgt)
-						del_entity_query_pair(Pair(All, second), entity);
-						// (src, *)
-						del_entity_query_pair(Pair(first, All), entity);
+						del_pair_archetype_query_pairs(entity, entity);
 					}
 				}
 			}
@@ -6737,13 +6754,7 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						const auto first = get(entity.id());
-						const auto second = get(entity.gen());
-
-						// (*, tgt)
-						add_entity_archetype_pair(Pair(All, second), pArchetype);
-						// (src, *)
-						add_entity_archetype_pair(Pair(first, All), pArchetype);
+						add_pair_archetype_query_pairs(entity, pArchetype);
 					}
 				}
 
