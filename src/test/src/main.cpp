@@ -7855,6 +7855,42 @@ TEST_CASE("Relationship source traversal") {
 	}
 }
 
+TEST_CASE("Relationship wildcard source traversal") {
+	TestWorld twld;
+
+	auto rel0 = wld.add();
+	auto rel1 = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+	auto d = wld.add();
+
+	wld.add(a, {rel0, root});
+	wld.add(b, {rel1, root});
+	wld.add(c, {rel0, root});
+	wld.parent(d, root);
+
+	cnt::darr<ecs::Entity> direct;
+	wld.sources(ecs::All, root, [&direct](ecs::Entity source) {
+		direct.push_back(source);
+	});
+
+	CHECK(direct.size() == 4);
+	CHECK(core::has(direct, a));
+	CHECK(core::has(direct, b));
+	CHECK(core::has(direct, c));
+	CHECK(core::has(direct, d));
+
+	uint32_t visited = 0;
+	wld.sources_if(ecs::All, root, [&](ecs::Entity) {
+		++visited;
+		return false;
+	});
+	CHECK(visited == 1);
+}
+
 TEST_CASE("Child hierarchy traversal") {
 	TestWorld twld;
 
@@ -12455,6 +12491,14 @@ TEST_CASE("Query - cached sorted query exact sort term lookup matches chunk colu
 	CHECK(wld.get<Position>(ordered[1]).x == doctest::Approx(1.0f));
 	CHECK(wld.get<Position>(ordered[4]).x == doctest::Approx(4.0f));
 	CHECK(info.cache_archetype_view().size() >= 5);
+
+	wld.del(e2);
+	for (auto entity: {e0, e1, e3, e4}) {
+		const auto& ec = wld.fetch(entity);
+		const auto compIdxIndex = ecs::world_component_index_comp_idx(wld, *ec.pArchetype, wld.get<Position>());
+		const auto compIdxChunk = ec.pChunk->comp_idx(wld.get<Position>());
+		CHECK(compIdxIndex == compIdxChunk);
+	}
 }
 
 TEST_CASE("Query - cached sorted query exact external sort term lookup matches chunk columns across archetypes") {

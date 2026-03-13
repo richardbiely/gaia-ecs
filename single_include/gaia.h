@@ -36935,7 +36935,9 @@ namespace gaia {
 						auto entity = pChunk->entity_view()[cur.row];
 
 						if (m_plan.ctx.data.sortBy != ecs::EntityBad) {
-							const auto compIdx = pChunk->comp_idx(m_plan.ctx.data.sortBy);
+							auto compIdx = world_component_index_comp_idx(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.sortBy);
+							if (compIdx == BadIndex)
+								compIdx = pChunk->comp_idx(m_plan.ctx.data.sortBy);
 							pDataCurr = pChunk->comp_ptr(compIdx, cur.row);
 						} else
 							pDataCurr = &pChunk->entity_view()[cur.row];
@@ -43179,6 +43181,10 @@ namespace gaia {
 			ecs::Query m_systemsQuery;
 			//! Scratch ordered-system list reused by systems_run() to avoid per-frame allocations.
 			cnt::darray<Entity> m_orderedSystemsScratch;
+			//! Scratch entity-visit stamps reused by wildcard source traversal helpers.
+			mutable cnt::darray<uint64_t> m_entityVisitStamps;
+			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
+			mutable uint64_t m_entityVisitStamp = 0;
 
 			//! Local set of entities to delete
 			cnt::set<EntityLookupKey> m_entitiesToDel;
@@ -47242,9 +47248,31 @@ namespace gaia {
 			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources(Entity relation, Entity target, Func func) const {
-				GAIA_ASSERT(valid(relation));
-				if (!valid(relation) || !valid(target))
+				GAIA_ASSERT(relation == All || valid(relation));
+				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
+
+				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
+				auto emit_source = [&](Entity source) {
+					if (relation == All && !try_mark_entity_visited(source, visitStamp))
+						return;
+
+					func(source);
+				};
+
+				if (relation == All) {
+					for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
+						const auto* pSources = exclusive_adjunct_sources(store, target);
+						if (pSources == nullptr)
+							continue;
+
+						for (auto source: *pSources) {
+							if (!valid(source))
+								continue;
+							emit_source(source);
+						}
+					}
+				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto* pStore = exclusive_adjunct_store(relation);
@@ -47259,7 +47287,7 @@ namespace gaia {
 						if (!valid(source))
 							continue;
 
-						func(source);
+						emit_source(source);
 					}
 					return;
 				}
@@ -47277,7 +47305,7 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							func(entities[i]);
+							emit_source(entities[i]);
 						}
 					}
 				}
@@ -47291,9 +47319,33 @@ namespace gaia {
 			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources_if(Entity relation, Entity target, Func func) const {
-				GAIA_ASSERT(valid(relation));
-				if (!valid(relation) || !valid(target))
+				GAIA_ASSERT(relation == All || valid(relation));
+				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
+
+				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
+				auto emit_source = [&](Entity source) {
+					if (relation == All && !try_mark_entity_visited(source, visitStamp))
+						return true;
+
+					return func(source);
+				};
+
+				if (relation == All) {
+					for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
+						const auto* pSources = exclusive_adjunct_sources(store, target);
+						if (pSources == nullptr)
+							continue;
+
+						for (auto source: *pSources) {
+							if (!valid(source))
+								continue;
+
+							if (!emit_source(source))
+								return;
+						}
+					}
+				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto* pStore = exclusive_adjunct_store(relation);
@@ -47308,7 +47360,7 @@ namespace gaia {
 						if (!valid(source))
 							continue;
 
-						if (!func(source))
+						if (!emit_source(source))
 							return;
 					}
 					return;
@@ -47327,7 +47379,7 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							if (!func(entities[i]))
+							if (!emit_source(entities[i]))
 								return;
 						}
 					}
@@ -47335,6 +47387,33 @@ namespace gaia {
 			}
 
 		private:
+			GAIA_NODISCARD uint64_t next_entity_visit_stamp() const {
+				++m_entityVisitStamp;
+				if (m_entityVisitStamp != 0)
+					return m_entityVisitStamp;
+
+				const auto cnt = (uint32_t)m_entityVisitStamps.size();
+				GAIA_FOR(cnt) {
+					m_entityVisitStamps[i] = 0;
+				}
+
+				m_entityVisitStamp = 1;
+				return m_entityVisitStamp;
+			}
+
+			GAIA_NODISCARD bool try_mark_entity_visited(Entity entity, uint64_t stamp) const {
+				GAIA_ASSERT(!entity.pair());
+				if (entity.id() >= m_entityVisitStamps.size())
+					m_entityVisitStamps.resize(m_recs.entities.size());
+
+				auto& slot = m_entityVisitStamps[entity.id()];
+				if (slot == stamp)
+					return false;
+
+				slot = stamp;
+				return true;
+			}
+
 			template <typename Func>
 			GAIA_NODISCARD bool for_each_inherited_term_entity(Entity term, Func&& func) const {
 				cnt::set<EntityLookupKey> seen;

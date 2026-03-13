@@ -3852,6 +3852,36 @@ void BM_Hierarchy_Sources(picobench::state& state) {
 	dont_optimize(visited);
 }
 
+void BM_Relationship_SourcesWildcard(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<false, false, false, false, false>(w, entities, n);
+
+	const auto root = w.add();
+	const auto rel0 = w.add();
+	const auto rel1 = w.add();
+	const auto rel2 = w.add();
+	const ecs::Entity rels[] = {rel0, rel1, rel2};
+
+	const auto cnt = (uint32_t)entities.size();
+	GAIA_FOR(cnt) {
+		w.add(entities[i], ecs::Pair(rels[i % 3U], root));
+	}
+
+	uint64_t visited = 0;
+	for (auto _: state) {
+		(void)_;
+
+		w.sources(ecs::All, root, [&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
 template <bool UseParent>
 void BM_Hierarchy_DeleteTarget(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
@@ -4606,6 +4636,10 @@ int main(int argc, char* argv[]) {
 				.user_data(NEntitiesFew)
 				.label("childof sources 10K");
 		PICOBENCH_REG(BM_Hierarchy_Sources<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent sources 10K");
+		PICOBENCH_REG(BM_Relationship_SourcesWildcard)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("wildcard sources 10K");
 		PICOBENCH_REG(BM_Hierarchy_Bfs<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof bfs 10K");
 		PICOBENCH_REG(BM_Hierarchy_Bfs<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent bfs 10K");
 		PICOBENCH_REG(BM_Hierarchy_Bfs_ChildOf_Disabled)
