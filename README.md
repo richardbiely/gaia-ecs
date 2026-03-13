@@ -2195,6 +2195,12 @@ uint32_t changes = w.sync(prefab);
 This adds missing copied ids to existing instances and spawns missing prefab children under existing instances.
 It does not overwrite already owned instance data and it does not remove existing children.
 
+Inherited removals already take effect through normal semantic lookup, because `ecs::Inherit` data is not stored on the instance in the first place. Removing an inherited id from the prefab therefore makes existing instances stop resolving it.
+
+By contrast, `sync(prefab)` is intentionally non-destructive for owned instance state:
+- copied `ecs::Override` data already owned by an instance is kept
+- existing instantiated child entities are kept even if the source prefab child is later removed from the prefab tree
+
 ### Cleanup rules
 When deleting an entity we might want to define how the deletion is going to happen. Do we simply want to remove the entity or does everything connected to it need to get deleted as well? This behavior can be customized via relationships called cleanup rules.
 
