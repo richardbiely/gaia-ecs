@@ -317,7 +317,8 @@ void create_fragmented_entities(ecs::World& w, uint32_t archetypes, uint32_t ent
 	}
 }
 
-void create_sorted_exact_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t archetypes, uint32_t totalCount) {
+void create_sorted_exact_entities(
+		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t archetypes, uint32_t totalCount) {
 	GAIA_ASSERT(archetypes > 0U);
 
 	entities.clear();
@@ -1535,6 +1536,33 @@ void BM_QueryCache_Sorted_ExactMergeWarmRead(picobench::state& state) {
 
 	auto q = w.query().all<Position>().all<Health>().sort_by<Position>(
 			[]([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks steady-state warm reads for a cached sorted query whose exact sort term is not part of the query terms.
+//! This isolates the cached sortBy column remap path without relying on normal query-term remapping.
+void BM_QueryCache_Sorted_ExactExternalMergeWarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_sorted_exact_entities(w, entities, 32U, n);
+
+	auto q = w.query().all<Health>().sort_by(
+			w.get<Position>(), []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
 				const auto& p0 = *static_cast<const Position*>(pData0);
 				const auto& p1 = *static_cast<const Position*>(pData1);
 				if (p0.x < p1.x)
@@ -4699,6 +4727,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("sorted exact merge warm 10K");
+		PICOBENCH_REG(BM_QueryCache_Sorted_ExactExternalMergeWarmRead)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("sorted exact external merge warm 10K");
 		PICOBENCH_REG(BM_QueryCache_Grouped_WarmRead)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)

@@ -12457,6 +12457,80 @@ TEST_CASE("Query - cached sorted query exact sort term lookup matches chunk colu
 	CHECK(info.cache_archetype_view().size() >= 5);
 }
 
+TEST_CASE("Query - cached sorted query exact external sort term lookup matches chunk columns across archetypes") {
+	TestWorld twld;
+
+	auto e0 = wld.add();
+	auto e1 = wld.add();
+	auto e2 = wld.add();
+	auto e3 = wld.add();
+
+	wld.add<Position>(e0, {4, 0, 0});
+	wld.add<Position>(e1, {2, 0, 0});
+	wld.add<Position>(e2, {3, 0, 0});
+	wld.add<Position>(e3, {1, 0, 0});
+
+	wld.add<Scale>(e0, {1, 1, 1});
+	wld.add<Scale>(e1, {1, 1, 1});
+	wld.add<Scale>(e2, {1, 1, 1});
+	wld.add<Scale>(e3, {1, 1, 1});
+
+	wld.add<Something>(e1, {true});
+	wld.add<Else>(e2, {true});
+	wld.add<Something>(e3, {true});
+	wld.add<Else>(e3, {true});
+
+	for (auto entity: {e0, e1, e2, e3}) {
+		const auto& ec = wld.fetch(entity);
+		const auto compIdxIndex = ecs::world_component_index_comp_idx(wld, *ec.pArchetype, wld.get<Position>());
+		const auto compIdxChunk = ec.pChunk->comp_idx(wld.get<Position>());
+		CHECK(compIdxIndex == compIdxChunk);
+	}
+
+	auto q = wld.query().all<Scale>().sort_by(
+			wld.get<Position>(), []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(!info.cache_archetype_view().empty());
+
+	cnt::darray<ecs::Entity> ordered;
+	q.each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(ents) ordered.push_back(ents[i]);
+	});
+
+	CHECK(ordered.size() == 4);
+	CHECK(wld.get<Position>(ordered[0]).x == doctest::Approx(1.0f));
+	CHECK(wld.get<Position>(ordered[3]).x == doctest::Approx(4.0f));
+	CHECK(info.cache_archetype_view().size() >= 4);
+
+	auto e4 = wld.add();
+	wld.add<Position>(e4, {0, 0, 0});
+	wld.add<Scale>(e4, {1, 1, 1});
+	wld.add<Empty>(e4);
+
+	ordered.clear();
+	q.each([&](ecs::Iter& it) {
+		auto ents = it.view<ecs::Entity>();
+		GAIA_EACH(ents) ordered.push_back(ents[i]);
+	});
+
+	CHECK(ordered.size() == 5);
+	CHECK(wld.get<Position>(ordered[0]).x == doctest::Approx(0.0f));
+	CHECK(wld.get<Position>(ordered[1]).x == doctest::Approx(1.0f));
+	CHECK(wld.get<Position>(ordered[4]).x == doctest::Approx(4.0f));
+	CHECK(info.cache_archetype_view().size() >= 5);
+}
+
 TEST_CASE("Query - cached grouped query refreshes lazily after archetype creation") {
 	TestWorld twld;
 
