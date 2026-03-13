@@ -1910,6 +1910,24 @@ namespace gaia {
 
 				template <typename OpKind, MatchingStyle Style>
 				inline void match_archetype_inter(MatchingCtx& ctx, std::span<const ComponentIndexEntry> records) {
+					if constexpr (Style != MatchingStyle::Complex) {
+						if (ctx.idsToMatch.size() == 1) {
+							for (const auto& entry: records) {
+								const auto* pArchetype = entry.pArchetype;
+								if (is_archetype_marked(ctx, pArchetype))
+									continue;
+#if GAIA_USE_PARTITIONED_BLOOM_FILTER >= 0
+								if constexpr (Style == MatchingStyle::Simple) {
+									if (!OpKind::check_mask(pArchetype->queryMask(), ctx.queryMask))
+										continue;
+								}
+#endif
+								mark_archetype_match(ctx, pArchetype);
+							}
+							return;
+						}
+					}
+
 					if constexpr (Style == MatchingStyle::Complex) {
 						for (const auto& record: records) {
 							const auto* pArchetype = record.pArchetype;
