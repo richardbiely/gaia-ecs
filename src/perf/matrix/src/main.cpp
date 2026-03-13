@@ -1739,6 +1739,38 @@ void BM_QueryMatch_ExactTerm(picobench::state& state) {
 	}
 }
 
+//! Benchmarks immediate cached-query refresh as new exact/wildcard-matching archetypes are created.
+//! This isolates QueryInfo::register_archetype for the direct create-time path backed by the component index.
+void BM_QueryCache_CreateArchetype_ExactWildcard(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		const auto rel = w.add();
+		const auto tgt = w.add();
+
+		cnt::darray<ecs::Entity> tags;
+		tags.resize(archetypeCnt);
+		GAIA_FOR(archetypeCnt) {
+			tags[i] = w.add();
+		}
+
+		auto q = w.query().all<Position>().all(ecs::Pair(rel, ecs::All));
+		dont_optimize(q.count());
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, tags[i]);
+			w.add(e, ecs::Pair(rel, tgt));
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		}
+
+		dont_optimize(q.count());
+	}
+}
+
 template <uint32_t ChainDepth>
 ecs::Entity create_is_fanout_fixture(ecs::World& w, uint32_t branches, bool attachPositionToLeavesOnly) {
 	const auto root = w.add();
@@ -4965,6 +4997,10 @@ int main(int argc, char* argv[]) {
 				.user_data(128)
 				.label("match 1var source-gated (unbound)");
 		PICOBENCH_REG(BM_QueryMatch_ExactTerm).PICO_SETTINGS_HEAVY().user_data(128).label("match exact term 1K arch");
+		PICOBENCH_REG(BM_QueryCache_CreateArchetype_ExactWildcard)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("register cached exact+wildcard 1K arch");
 		PICOBENCH_REG(BM_QueryMatch_Variable_PairAll_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)

@@ -900,7 +900,7 @@ namespace gaia {
 					const bool usesIs = direct_create_archetype_match_uses_is();
 					for (const auto& term: ctxData.terms_view()) {
 						const bool matched = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
-																				: vm::detail::match_single_id_on_archetype_exact(archetype, term.id);
+																				: world_component_index_match_count(*world(), archetype, term.id) != 0;
 						if (!matched)
 							return false;
 					}

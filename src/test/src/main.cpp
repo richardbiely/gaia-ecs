@@ -12448,6 +12448,27 @@ TEST_CASE("Query - cached wildcard pair queries eagerly track matching archetype
 	CHECK(qTgt.count() == 1);
 }
 
+TEST_CASE("Query - cached exact and wildcard pair query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt = wld.add();
+
+	auto q = wld.query().all<Position>().all(ecs::Pair{rel, ecs::All});
+	auto& info = q.fetch();
+	q.match_all(info);
+
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto e = wld.add();
+	wld.add(e, ecs::Pair(rel, tgt));
+	wld.add<Position>(e, {1, 0, 0});
+
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
 	TestWorld twld;
 
