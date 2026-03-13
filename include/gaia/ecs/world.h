@@ -739,6 +739,9 @@ namespace gaia {
 			//! Lazily built breadth-first descendant closures for unlimited source traversal.
 			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
+			//! Lazily built deduped targets for wildcard target traversal on a source entity.
+			//! Keyed by `source` and cleared whenever a pair edge changes.
+			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_targetsAllCache;
 			//! Map of relation -> targets
 			PairMap m_relToTgt;
 			//! Map of target -> relations
@@ -1196,6 +1199,7 @@ namespace gaia {
 				}
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_targetsAllCache = {};
 			}
 
 			void del_exclusive_adjunct_relation(Entity relation) {
@@ -1218,6 +1222,7 @@ namespace gaia {
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_targetsAllCache = {};
 			}
 
 			//! Checks whether any non-fragmenting exclusive relation targeting @a target uses the given OnDeleteTarget rule.
@@ -1890,6 +1895,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_targetsAllCache = {};
 					}
 
 					try_set_flags(entity, true);
@@ -1956,6 +1962,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_targetsAllCache = {};
 					}
 
 					try_set_flags(entity, false);
@@ -2736,6 +2743,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Parent);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_targetsAllCache = {};
 
 				auto& ecParent = fetch(parentEntity);
 				EntityBuilder::set_flag(ecParent.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
@@ -3268,6 +3276,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_targetsAllCache = {};
 
 				const auto instanceKey = EntityLookupKey(instance);
 				const auto prefabKey = EntityLookupKey(prefabEntity);
@@ -3359,6 +3368,7 @@ namespace gaia {
 					invalidate_queries_for_rel(Is);
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_targetsAllCache = {};
 
 					auto entities = pDstChunk->entity_view();
 					auto& asRelations = m_entityToAsRelations[prefabKey];
@@ -4609,6 +4619,51 @@ namespace gaia {
 				return cache;
 			}
 
+			//! Returns the cached deduped direct targets for wildcard target traversal on @a source.
+			//! The cache is keyed by `source` and cleared whenever a pair edge changes.
+			GAIA_NODISCARD const cnt::darray<Entity>& targets_all_cache(Entity source) const {
+				const auto key = EntityLookupKey(source);
+				const auto itCache = m_targetsAllCache.find(key);
+				if (itCache != m_targetsAllCache.end())
+					return itCache->second;
+
+				auto& cache = m_targetsAllCache[key];
+				if (!valid(source))
+					return cache;
+
+				const auto visitStamp = next_entity_visit_stamp();
+
+				const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(key);
+				if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
+					for (auto rel: itAdjunctRels->second) {
+						const auto* pStore = exclusive_adjunct_store(rel);
+						if (pStore == nullptr)
+							continue;
+
+						const auto target = exclusive_adjunct_target(*pStore, source);
+						if (target != EntityBad && try_mark_entity_visited(target, visitStamp))
+							cache.push_back(target);
+					}
+				}
+
+				const auto& ec = fetch(source);
+				const auto* pArchetype = ec.pArchetype;
+				if (pArchetype->pairs() == 0)
+					return cache;
+
+				for (auto id: pArchetype->ids_view()) {
+					if (!id.pair())
+						continue;
+
+					const auto& ecTarget = m_recs.entities[id.gen()];
+					const auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					if (try_mark_entity_visited(target, visitStamp))
+						cache.push_back(target);
+				}
+
+				return cache;
+			}
+
 			//! Traverses relationship targets upwards starting from @a source.
 			//! Disabled entities act as traversal barriers and are not yielded.
 			template <typename Func>
@@ -4751,18 +4806,8 @@ namespace gaia {
 					return EntityBad;
 
 				if (relation == All) {
-					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-						for (auto relKey: itAdjunctRels->second) {
-							const auto* pStore = exclusive_adjunct_store(relKey);
-							if (pStore == nullptr)
-								continue;
-
-							const auto target = exclusive_adjunct_target(*pStore, entity);
-							if (target != EntityBad)
-								return target;
-						}
-					}
+					const auto& targets = targets_all_cache(entity);
+					return targets.empty() ? EntityBad : targets[0];
 				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
@@ -4806,33 +4851,16 @@ namespace gaia {
 				if (relation != All && !valid(relation))
 					return;
 
-				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
-				auto emit_target = [&](Entity target) {
-					if (relation == All && !try_mark_entity_visited(target, visitStamp))
-						return;
-
-					func(target);
-				};
-
 				if (relation == All) {
-					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-						for (auto relKey: itAdjunctRels->second) {
-							const auto* pStore = exclusive_adjunct_store(relKey);
-							if (pStore == nullptr)
-								continue;
-
-							const auto target = exclusive_adjunct_target(*pStore, entity);
-							if (target != EntityBad)
-								emit_target(target);
-						}
-					}
+					for (auto target: targets_all_cache(entity))
+						func(target);
+					return;
 				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
-						emit_target(target);
+						func(target);
 					return;
 				}
 
@@ -4852,7 +4880,7 @@ namespace gaia {
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					emit_target(target);
+					func(target);
 				}
 			}
 
@@ -4868,33 +4896,18 @@ namespace gaia {
 				if (relation != All && !valid(relation))
 					return;
 
-				const auto visitStamp = relation == All ? next_entity_visit_stamp() : 0;
-				auto emit_target = [&](Entity target) {
-					if (relation == All && !try_mark_entity_visited(target, visitStamp))
-						return true;
-
-					return func(target);
-				};
-
 				if (relation == All) {
-					const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-					if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-						for (auto relKey: itAdjunctRels->second) {
-							const auto* pStore = exclusive_adjunct_store(relKey);
-							if (pStore == nullptr)
-								continue;
-
-							const auto target = exclusive_adjunct_target(*pStore, entity);
-							if (target != EntityBad && !emit_target(target))
-								return;
-						}
+					for (auto target: targets_all_cache(entity)) {
+						if (!func(target))
+							return;
 					}
+					return;
 				}
 
 				if (is_exclusive_dont_fragment_relation(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
-						(void)emit_target(target);
+						(void)func(target);
 					return;
 				}
 
@@ -4914,7 +4927,7 @@ namespace gaia {
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
-					if (!emit_target(target))
+					if (!func(target))
 						return;
 				}
 			}
@@ -5846,6 +5859,7 @@ namespace gaia {
 					m_entityToAsTargetsTravCache = {};
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_targetsAllCache = {};
 					m_tgtToRel = {};
 					m_relToTgt = {};
 					m_exclusiveAdjunctByRel = {};

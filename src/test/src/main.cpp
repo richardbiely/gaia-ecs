@@ -7928,6 +7928,42 @@ TEST_CASE("Relationship wildcard target traversal") {
 	CHECK(visited == 1);
 }
 
+TEST_CASE("Relationship wildcard target traversal cache refreshes after change") {
+	TestWorld twld;
+
+	auto rel0 = wld.add();
+	auto rel1 = wld.add();
+
+	auto source = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add(source, {rel0, a});
+	wld.add(source, {rel1, b});
+
+	cnt::darr<ecs::Entity> targets;
+	wld.targets(source, ecs::All, [&targets](ecs::Entity target) {
+		targets.push_back(target);
+	});
+
+	CHECK(targets.size() == 2);
+	CHECK(core::has(targets, a));
+	CHECK(core::has(targets, b));
+
+	wld.add(source, {rel1, c});
+
+	targets.clear();
+	wld.targets(source, ecs::All, [&targets](ecs::Entity target) {
+		targets.push_back(target);
+	});
+
+	CHECK(targets.size() == 3);
+	CHECK(core::has(targets, a));
+	CHECK(core::has(targets, b));
+	CHECK(core::has(targets, c));
+}
+
 TEST_CASE("Child hierarchy traversal") {
 	TestWorld twld;
 
