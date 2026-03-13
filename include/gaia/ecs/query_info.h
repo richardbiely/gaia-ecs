@@ -1138,9 +1138,12 @@ namespace gaia {
 				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_plan.ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
-					// compIdx can be -1. We are fine with it because the user should never ask for something
-					// that is not present on the archetype. If they do, they made a mistake.
-					const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+					auto compIdx = world_component_index_comp_idx(*world(), *pArchetype, queryId);
+					if (compIdx == BadIndex) {
+						// Wildcard/semantic terms are not represented by an exact component index entry.
+						// Fall back to the archetype-local scan in those cases.
+						compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+					}
 					GAIA_ASSERT(compIdx != BadIndex);
 
 					cacheData.indices[i] = (uint8_t)compIdx;

@@ -87,6 +87,7 @@ namespace gaia {
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
+			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -9080,6 +9081,23 @@ namespace gaia {
 
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
+		}
+
+		inline uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term) {
+			if (is_wildcard(term))
+				return BadIndex;
+
+			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
+			if (it == world.m_entityToArchetypeMap.end())
+				return BadIndex;
+
+			const auto idx = core::get_index_if(it->second, [&](const auto& entry) {
+				return entry.matches(&archetype);
+			});
+			if (idx == BadIndex)
+				return BadIndex;
+
+			return it->second[idx].compIdx;
 		}
 
 		template <typename T>

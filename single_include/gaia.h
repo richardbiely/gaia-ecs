@@ -29711,6 +29711,7 @@ namespace gaia {
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
+		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
@@ -37037,9 +37038,12 @@ namespace gaia {
 				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_plan.ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
-					// compIdx can be -1. We are fine with it because the user should never ask for something
-					// that is not present on the archetype. If they do, they made a mistake.
-					const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+					auto compIdx = world_component_index_comp_idx(*world(), *pArchetype, queryId);
+					if (compIdx == BadIndex) {
+						// Wildcard/semantic terms are not represented by an exact component index entry.
+						// Fall back to the archetype-local scan in those cases.
+						compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+					}
 					GAIA_ASSERT(compIdx != BadIndex);
 
 					cacheData.indices[i] = (uint8_t)compIdx;
@@ -42462,6 +42466,7 @@ namespace gaia {
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
+			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -53259,6 +53264,23 @@ namespace gaia {
 
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
+		}
+
+		inline uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term) {
+			if (is_wildcard(term))
+				return BadIndex;
+
+			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
+			if (it == world.m_entityToArchetypeMap.end())
+				return BadIndex;
+
+			const auto idx = core::get_index_if(it->second, [&](const auto& entry) {
+				return entry.matches(&archetype);
+			});
+			if (idx == BadIndex)
+				return BadIndex;
+
+			return it->second[idx].compIdx;
 		}
 
 		template <typename T>
