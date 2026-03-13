@@ -1704,6 +1704,41 @@ void BM_QueryMatch_IsChain_32(picobench::state& state) {
 	BM_QueryMatch_IsChain<32>(state);
 }
 
+//! Benchmarks uncached matching of an exact owned term across many archetypes.
+//! This exercises the component-index exact-term lookup path in the matcher.
+void BM_QueryMatch_ExactTerm(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto tag = w.add();
+
+	cnt::darray<ecs::Entity> tags;
+	tags.resize(archetypeCnt);
+	GAIA_FOR(archetypeCnt) {
+		tags[i] = w.add();
+	}
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		w.add(e, tags[i]);
+		if ((i & 1U) == 0U)
+			w.add(e, tag);
+	}
+
+	auto q = w.query<false>().all<Position>().all(tag);
+	auto& qi = q.fetch();
+	q.match_all(qi);
+	dont_optimize(qi.cache_archetype_view().size());
+
+	for (auto _: state) {
+		(void)_;
+		qi.reset();
+		q.match_all(qi);
+		dont_optimize(qi.cache_archetype_view().size());
+	}
+}
+
 template <uint32_t ChainDepth>
 ecs::Entity create_is_fanout_fixture(ecs::World& w, uint32_t branches, bool attachPositionToLeavesOnly) {
 	const auto root = w.add();
@@ -4929,6 +4964,7 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("match 1var source-gated (unbound)");
+		PICOBENCH_REG(BM_QueryMatch_ExactTerm).PICO_SETTINGS_HEAVY().user_data(128).label("match exact term 1K arch");
 		PICOBENCH_REG(BM_QueryMatch_Variable_PairAll_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)

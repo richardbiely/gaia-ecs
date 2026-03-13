@@ -12694,6 +12694,28 @@ TEST_CASE("Query - cached relation wildcard query survives repeated pair additio
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - exact owned term matcher fast path preserves inherited fallback") {
+	TestWorld twld;
+
+	const auto owned = wld.add();
+	const auto ownedEntity = wld.add();
+	wld.add(ownedEntity, owned);
+
+	const auto prefab = wld.prefab();
+	wld.add(prefab, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.add<Position>(prefab, {1, 2, 3});
+
+	const auto instance = wld.instantiate(prefab);
+
+	auto qOwned = wld.query<false>().all(owned);
+	CHECK(qOwned.count() == 1);
+	expect_exact_entities(qOwned, {ownedEntity});
+
+	auto qInherited = wld.query<false>().all<Position>();
+	CHECK(qInherited.count() == 1);
+	expect_exact_entities(qInherited, {instance});
+}
+
 TEST_CASE("Query - uncached query state is not immediately updated by shared cache propagation") {
 	TestWorld twld;
 
