@@ -908,6 +908,8 @@ namespace gaia {
 							matchedOrTerm |= present;
 							continue;
 						}
+						if (term.op == QueryOpKind::Any)
+							continue;
 
 						const bool matched = term.op == QueryOpKind::Not ? !present : present;
 						if (!matched)
