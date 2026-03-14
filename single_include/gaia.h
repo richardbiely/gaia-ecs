@@ -29193,11 +29193,15 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Given a flat index, return a reference to the value
+			//! Given a flat index, returns an entity at that index.
+			//! E.g., if there are 2 chunks, the first one with 10 entities and the second one with 5,
+			//! flat index of 12 means the second entity inside the second chunk.
+			//! \param flatIdx Flat index of entity inside the archetype
+			//! \return Entity at given flat index
 			template <bool Enabled>
-			Entity getValue(size_t flatIndex) const {
+			Entity get_flat_entity(size_t flatIdx) const {
 				size_t offset = 0;
-				for (Chunk* pChunk: chunks()) {
+				for (const auto* pChunk: chunks()) {
 					if (pChunk->empty())
 						continue;
 
@@ -29208,12 +29212,12 @@ namespace gaia {
 						cnt = pChunk->size_disabled();
 					}
 
-					if (flatIndex < offset + cnt) {
+					if (flatIdx < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
+							const auto idx = (uint32_t)(flatIdx - offset) + pChunk->size_disabled();
 							return pChunk->entity_view()[idx];
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset);
+							const auto idx = (uint32_t)(flatIdx - offset);
 							return pChunk->entity_view()[idx];
 						}
 					}
@@ -29225,11 +29229,17 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Given a flat index, return a reference to the value
+			//! Given a flat index, returns pointer to component data at that index.
+			//! E.g., if there are 2 chunks, the first one with 10 entities and the second one with 5,
+			//! flat index of 12 means component data for the second entity inside the second chunk.
+			//! \param compIdx Component index we are searching for
+			//! \param flatIdx Flat index of entity inside the archetype
+			//! \param outEntity[out] Entity belonging to the flatIdx
+			//! \return Pointer to component data at given flat index
 			template <bool Enabled>
-			const void* getValue(uint32_t compIdx, size_t flatIndex, Entity& outEntity) const {
+			const void* get_flat_comp_ptr(uint32_t compIdx, size_t flatIdx, Entity& outEntity) const {
 				size_t offset = 0;
-				for (Chunk* pChunk: chunks()) {
+				for (const auto* pChunk: chunks()) {
 					if (pChunk->empty())
 						continue;
 
@@ -29240,15 +29250,15 @@ namespace gaia {
 						cnt = pChunk->size_disabled();
 					}
 
-					if (flatIndex < offset + cnt) {
+					if (flatIdx < offset + cnt) {
 						if constexpr (Enabled) {
-							const auto idx = (uint32_t)(flatIndex - offset) + pChunk->size_disabled();
-							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+							const auto idx = (uint32_t)(flatIdx - offset) + pChunk->size_disabled();
+							const auto* pData = pChunk->comp_ptr(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;
 						} else {
-							const auto idx = (uint32_t)(flatIndex - offset);
-							const auto* pData = pChunk->comp_ptr_mut(compIdx, idx);
+							const auto idx = (uint32_t)(flatIdx - offset);
+							const auto* pData = pChunk->comp_ptr(compIdx, idx);
 							outEntity = pChunk->entity_view()[idx];
 							return pData;
 						}
@@ -29267,14 +29277,14 @@ namespace gaia {
 				if (low >= high)
 					return;
 
-				Entity pivotEntity = getValue<Enabled>(high);
+				Entity pivotEntity = get_flat_entity<Enabled>(high);
 
 				size_t i = low;
 				for (size_t j = low; j < high; ++j) {
-					Entity jEntity = getValue<Enabled>(j);
+					Entity jEntity = get_flat_entity<Enabled>(j);
 					if (func(m_world, &jEntity, &pivotEntity) < 0) {
 						if (i != j) {
-							Entity iEntity = getValue<Enabled>(i);
+							Entity iEntity = get_flat_entity<Enabled>(i);
 							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
 						}
 						++i;
@@ -29282,7 +29292,7 @@ namespace gaia {
 				}
 
 				{
-					Entity iEntity = getValue<Enabled>(i);
+					Entity iEntity = get_flat_entity<Enabled>(i);
 					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
 				}
 
@@ -29299,16 +29309,16 @@ namespace gaia {
 					return;
 
 				Entity pivotEntity;
-				const void* pPivotData = getValue<Enabled>(compIdx, high, pivotEntity);
+				const void* pPivotData = get_flat_comp_ptr<Enabled>(compIdx, high, pivotEntity);
 
 				size_t i = low;
 				for (size_t j = low; j < high; ++j) {
 					Entity jEntity;
-					const void* jData = getValue<Enabled>(compIdx, j, jEntity);
+					const void* jData = get_flat_comp_ptr<Enabled>(compIdx, j, jEntity);
 					if (func(m_world, jData, pPivotData) < 0) {
 						if (i != j) {
 							Entity iEntity;
-							(void)getValue<Enabled>(compIdx, i, iEntity);
+							(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
 							Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, jEntity);
 						}
 						++i;
@@ -29317,7 +29327,7 @@ namespace gaia {
 
 				{
 					Entity iEntity;
-					(void)getValue<Enabled>(compIdx, i, iEntity);
+					(void)get_flat_comp_ptr<Enabled>(compIdx, i, iEntity);
 					Chunk::swap_chunk_entities(const_cast<World&>(m_world), iEntity, pivotEntity);
 				}
 
@@ -29334,7 +29344,7 @@ namespace gaia {
 				//       Additionally, to get the right index we need to loop through chunks again because
 				//       the entities are not spread evenly among chunks (we can't just divide the index by
 				//       the number of chunks and module with the same number to get the index inside a chunk).
-				//       This is not optimal, and makes sorting quite expensive.
+				//       This is not optimal, and makes sorting more expensive.
 
 				if (entity == EntityBad) {
 					{
