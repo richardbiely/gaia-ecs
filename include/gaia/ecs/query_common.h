@@ -677,7 +677,8 @@ namespace gaia {
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
-						canDirectCreateArchetypeMatch &= term.op == QueryOpKind::All && term.src == EntityBad;
+						canDirectCreateArchetypeMatch &=
+								(term.op == QueryOpKind::All || term.op == QueryOpKind::Not) && term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =

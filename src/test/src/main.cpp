@@ -12469,6 +12469,40 @@ TEST_CASE("Query - cached exact and wildcard pair query eagerly tracks matching 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached exact and NOT query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position>().no<Scale>();
+	auto& info = q.fetch();
+	q.match_all(info);
+
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached exact and NOT query ignores excluded archetype creation") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position>().no<Scale>();
+	auto& info = q.fetch();
+	q.match_all(info);
+
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto e = wld.add();
+	wld.build(e).add<Scale>().add<Position>();
+
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
 	TestWorld twld;
 
