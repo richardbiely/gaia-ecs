@@ -10502,6 +10502,23 @@ TEST_CASE("Query - cached OR query eagerly tracks secondary selector archetypes"
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached exact and OR query eagerly tracks matching archetypes") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position>().or_<Scale>().or_<Acceleration>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+	wld.add<Acceleration>(e, {0, 1, 0});
+
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") {
 	TestWorld twld;
 

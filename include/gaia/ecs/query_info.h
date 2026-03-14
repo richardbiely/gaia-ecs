@@ -676,7 +676,7 @@ namespace gaia {
 
 			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
 			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
-				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectAllTerms;
+				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectStructuralTerms;
 			}
 
 			//! Returns whether direct create-time matching needs Is-aware id checks.
@@ -898,13 +898,23 @@ namespace gaia {
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				if (can_use_direct_create_archetype_match()) {
 					const bool usesIs = direct_create_archetype_match_uses_is();
+					bool hasOrTerms = false;
+					bool matchedOrTerm = false;
 					for (const auto& term: ctxData.terms_view()) {
 						const bool present = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
 																				: world_component_index_match_count(*world(), archetype, term.id) != 0;
+						if (term.op == QueryOpKind::Or) {
+							hasOrTerms = true;
+							matchedOrTerm |= present;
+							continue;
+						}
+
 						const bool matched = term.op == QueryOpKind::Not ? !present : present;
 						if (!matched)
 							return false;
 					}
+					if (hasOrTerms && !matchedOrTerm)
+						return false;
 					if (hadMatchBefore)
 						return false;
 

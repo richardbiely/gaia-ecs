@@ -30123,8 +30123,8 @@ namespace gaia {
 			enum class CreateArchetypeMatchKind : uint8_t {
 				// Use the normal one-archetype VM path.
 				Vm,
-				// Match a small immediate ALL-term structural query directly on the archetype.
-				DirectAllTerms,
+				// Match a small immediate structural query with ALL/OR/NOT terms directly on the archetype.
+				DirectStructuralTerms,
 			};
 
 			enum DependencyFlags : uint16_t {
@@ -30362,7 +30362,8 @@ namespace gaia {
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &=
-								(term.op == QueryOpKind::All || term.op == QueryOpKind::Not) && term.src == EntityBad;
+								(term.op == QueryOpKind::All || term.op == QueryOpKind::Or || term.op == QueryOpKind::Not) &&
+								term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
@@ -30476,7 +30477,7 @@ namespace gaia {
 						data.cachePolicy = CachePolicy::Lazy;
 
 					data.createArchetypeMatchKind = data.cachePolicy == CachePolicy::Immediate && canDirectCreateArchetypeMatch
-																							? CreateArchetypeMatchKind::DirectAllTerms
+																							? CreateArchetypeMatchKind::DirectStructuralTerms
 																							: CreateArchetypeMatchKind::Vm;
 
 					// Traversed-source snapshot caching is only effective for traversed source terms.
@@ -36589,7 +36590,7 @@ namespace gaia {
 
 			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
 			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
-				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectAllTerms;
+				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectStructuralTerms;
 			}
 
 			//! Returns whether direct create-time matching needs Is-aware id checks.
@@ -36811,13 +36812,23 @@ namespace gaia {
 				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
 				if (can_use_direct_create_archetype_match()) {
 					const bool usesIs = direct_create_archetype_match_uses_is();
+					bool hasOrTerms = false;
+					bool matchedOrTerm = false;
 					for (const auto& term: ctxData.terms_view()) {
 						const bool present = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
 																				: world_component_index_match_count(*world(), archetype, term.id) != 0;
+						if (term.op == QueryOpKind::Or) {
+							hasOrTerms = true;
+							matchedOrTerm |= present;
+							continue;
+						}
+
 						const bool matched = term.op == QueryOpKind::Not ? !present : present;
 						if (!matched)
 							return false;
 					}
+					if (hasOrTerms && !matchedOrTerm)
+						return false;
 					if (hadMatchBefore)
 						return false;
 

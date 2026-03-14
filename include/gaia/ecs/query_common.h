@@ -439,8 +439,8 @@ namespace gaia {
 			enum class CreateArchetypeMatchKind : uint8_t {
 				// Use the normal one-archetype VM path.
 				Vm,
-				// Match a small immediate ALL-term structural query directly on the archetype.
-				DirectAllTerms,
+				// Match a small immediate structural query with ALL/OR/NOT terms directly on the archetype.
+				DirectStructuralTerms,
 			};
 
 			enum DependencyFlags : uint16_t {
@@ -678,7 +678,8 @@ namespace gaia {
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &=
-								(term.op == QueryOpKind::All || term.op == QueryOpKind::Not) && term.src == EntityBad;
+								(term.op == QueryOpKind::All || term.op == QueryOpKind::Or || term.op == QueryOpKind::Not) &&
+								term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.add(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
@@ -792,7 +793,7 @@ namespace gaia {
 						data.cachePolicy = CachePolicy::Lazy;
 
 					data.createArchetypeMatchKind = data.cachePolicy == CachePolicy::Immediate && canDirectCreateArchetypeMatch
-																							? CreateArchetypeMatchKind::DirectAllTerms
+																							? CreateArchetypeMatchKind::DirectStructuralTerms
 																							: CreateArchetypeMatchKind::Vm;
 
 					// Traversed-source snapshot caching is only effective for traversed source terms.

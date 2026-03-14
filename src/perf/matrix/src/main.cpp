@@ -1799,6 +1799,35 @@ void BM_QueryCache_CreateArchetype_ExactNot(picobench::state& state) {
 	}
 }
 
+//! Benchmarks immediate cached-query refresh for mixed exact ALL+OR queries as matching archetypes are created.
+//! This isolates the direct create-time structural matcher on a common positive-selector shape.
+void BM_QueryCache_CreateArchetype_ExactOr(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> tags;
+		tags.resize(archetypeCnt);
+		GAIA_FOR(archetypeCnt) {
+			tags[i] = w.add();
+		}
+
+		auto q = w.query().all<Position>().or_<Acceleration>().or_<Health>();
+		dont_optimize(q.count());
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, tags[i]);
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			w.add<Acceleration>(e, {(float)(i % 13U), 1.0f, 0.0f});
+		}
+
+		dont_optimize(q.count());
+	}
+}
+
 template <uint32_t ChainDepth>
 ecs::Entity create_is_fanout_fixture(ecs::World& w, uint32_t branches, bool attachPositionToLeavesOnly) {
 	const auto root = w.add();
@@ -5033,6 +5062,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("register cached exact+not 1K arch");
+		PICOBENCH_REG(BM_QueryCache_CreateArchetype_ExactOr)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("register cached exact+or 1K arch");
 		PICOBENCH_REG(BM_QueryMatch_Variable_PairAll_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
