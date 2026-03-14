@@ -730,7 +730,6 @@ namespace gaia {
 							if (idInArchetype == idInQuery)
 								return {true};
 
-							auto archetypeIds = archetype.ids_view();
 							const auto eQ = entity_from_id(w, idInQuery.gen());
 							if (eQ == idInArchetype)
 								return {true};
@@ -748,6 +747,7 @@ namespace gaia {
 							}
 
 							// Archetype entity is generic, try matching it with entities inheriting from e.
+							auto archetypeIds = archetype.ids_view();
 							return {as_relations_trav_if(w, eQ, [&archetypeIds](Entity relation) {
 								// Relation does not necessary match the sorted order of components in the archetype
 								// so we need to search through all of its ids.

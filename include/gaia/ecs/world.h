@@ -87,6 +87,7 @@ namespace gaia {
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
 			friend void query_match_scratch_release(World&, bool);
+			friend uint32_t world_component_index_bucket_size(const World&, Entity);
 			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
 			friend uint32_t world_component_index_match_count(const World&, const Archetype&, Entity);
 
@@ -9262,6 +9263,14 @@ namespace gaia {
 
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
+		}
+
+		inline uint32_t world_component_index_bucket_size(const World& world, Entity term) {
+			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
+			if (it == world.m_entityToArchetypeMap.end())
+				return 0;
+
+			return (uint32_t)it->second.size();
 		}
 
 		inline uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term) {

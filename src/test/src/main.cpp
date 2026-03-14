@@ -10616,6 +10616,28 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - broad-first exact query still tracks selective match") {
+	TestWorld twld;
+
+	auto q = wld.query().all<Position>().all<Rotation>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto eBroad = wld.add();
+	wld.add<Position>(eBroad, {1, 2, 3});
+	CHECK(info.cache_archetype_view().empty());
+	CHECK(q.count() == 0);
+
+	auto eMatch = wld.add();
+	wld.add<Position>(eMatch, {4, 5, 6});
+	wld.add<Rotation>(eMatch, {7, 8, 9});
+
+	CHECK(info.cache_archetype_view().size() == 1);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - cached single-term structural query eagerly tracks matching archetypes") {
 	TestWorld twld;
 
@@ -12189,11 +12211,17 @@ TEST_CASE("Query - dependency metadata classification") {
 	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasAnyTerms));
 	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasSourceTerms));
 	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasVariableTerms));
-	CHECK(depsStructural.create_selectors_view().size() == 2);
+	CHECK(depsStructural.create_selectors_view().size() == 1);
 	CHECK(depsStructural.exclusions_view().size() == 1);
 	CHECK(core::has(depsStructural.create_selectors_view(), wld.get<Position>()));
-	CHECK(core::has(depsStructural.create_selectors_view(), wld.get<Scale>()));
 	CHECK(core::has(depsStructural.exclusions_view(), wld.get<Acceleration>()));
+
+	auto qOrOnly = wld.query().or_<Position>().or_<Scale>();
+	const auto& depsOrOnly = qOrOnly.fetch().ctx().data.deps;
+	CHECK(depsOrOnly.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsOrOnly.create_selectors_view().size() == 2);
+	CHECK(core::has(depsOrOnly.create_selectors_view(), wld.get<Position>()));
+	CHECK(core::has(depsOrOnly.create_selectors_view(), wld.get<Scale>()));
 
 	auto qSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
 	const auto& depsSource = qSource.fetch().ctx().data.deps;
@@ -12233,6 +12261,26 @@ TEST_CASE("Query - dependency metadata classification") {
 	auto eats = wld.add();
 	auto qGrouped = wld.query().all<Position>().group_by(eats);
 	CHECK(qGrouped.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasGroup));
+}
+
+TEST_CASE("Query - create selector routing prefers narrowest ALL term") {
+	TestWorld twld;
+
+	GAIA_FOR(8) {
+		auto e = wld.add();
+		wld.add(e, wld.add());
+		wld.add<Position>(e, {(float)i, 0, 0});
+	}
+
+	auto selective = wld.add();
+	wld.add(selective, wld.add());
+	wld.add<Position>(selective, {1, 2, 3});
+	wld.add<Acceleration>(selective, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().all<Acceleration>();
+	const auto& deps = q.fetch().ctx().data.deps;
+	CHECK(deps.create_selectors_view().size() == 1);
+	CHECK(deps.create_selectors_view()[0] == wld.get<Acceleration>());
 }
 
 TEST_CASE("Query - public cache mode and policy classification") {

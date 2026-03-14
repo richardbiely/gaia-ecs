@@ -37,6 +37,7 @@ namespace gaia {
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
 		GAIA_NODISCARD bool world_entity_prefab(const World& world, Entity entity);
 		GAIA_NODISCARD const Archetype* world_entity_archetype(const World& world, Entity entity);
+		GAIA_NODISCARD uint32_t world_component_index_bucket_size(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
 		GAIA_NODISCARD uint32_t
 		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
@@ -634,7 +635,11 @@ namespace gaia {
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasAdjunctTerms = false;
 					QueryEntityArray idsNoSrc;
+					QueryEntityArray createSelectorsAll;
+					QueryEntityArray createSelectorsOr;
 					uint32_t idsNoSrcCnt = 0;
+					uint8_t createSelectorAllCnt = 0;
+					uint8_t createSelectorOrCnt = 0;
 					data.deps.clear();
 					if (data.sortByFunc != nullptr)
 						data.deps.add(DependencyHasSort);
@@ -728,7 +733,10 @@ namespace gaia {
 						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
 							hasCreateSelector = true;
 							data.deps.add(DependencyHasPositiveTerms);
-							data.deps.createSelectors[data.deps.createSelectorCnt++] = id;
+							if (term.op == QueryOpKind::All)
+								createSelectorsAll[createSelectorAllCnt++] = id;
+							else
+								createSelectorsOr[createSelectorOrCnt++] = id;
 						} else if (term.op == QueryOpKind::Not) {
 							data.deps.add(DependencyHasNegativeTerms);
 							data.deps.exclusions[data.deps.exclusionCnt++] = id;
@@ -768,6 +776,23 @@ namespace gaia {
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
 					data.as_mask_1 = as_mask_1;
+					data.deps.createSelectorCnt = 0;
+					if (createSelectorAllCnt != 0) {
+						uint8_t bestIdx = 0;
+						auto bestBucketSize = world_component_index_bucket_size(*w, createSelectorsAll[0]);
+						GAIA_FOR2_(1, createSelectorAllCnt, i) {
+							const auto bucketSize = world_component_index_bucket_size(*w, createSelectorsAll[i]);
+							if (bucketSize < bestBucketSize) {
+								bestBucketSize = bucketSize;
+								bestIdx = (uint8_t)i;
+							}
+						}
+						data.deps.createSelectors[data.deps.createSelectorCnt++] = createSelectorsAll[bestIdx];
+					} else {
+						GAIA_FOR(createSelectorOrCnt) {
+							data.deps.createSelectors[data.deps.createSelectorCnt++] = createSelectorsOr[i];
+						}
+					}
 					if (hasPrefabTerms)
 						data.flags |= QueryCtx::QueryFlags::HasPrefabTerms;
 					else

@@ -921,6 +921,33 @@ void BM_Query_ReadOnly_1Comp(picobench::state& state) {
 	}
 }
 
+void BM_Query_SelectiveAll_BroadFirst(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> tags;
+	tags.resize(archetypeCnt);
+	GAIA_FOR(archetypeCnt) {
+		tags[i] = w.add();
+	}
+
+	GAIA_FOR(archetypeCnt) {
+		auto e = w.add();
+		w.add(e, tags[i]);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		if ((i & 31U) == 0U)
+			w.add<Health>(e, {(int32_t)i});
+	}
+
+	auto q = w.query().all<Position>().all<Health>();
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
 void BM_Query_ReadWrite_2Comp(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
@@ -1887,6 +1914,80 @@ void BM_QueryCache_CreateArchetype_ExactAny(picobench::state& state) {
 		GAIA_FOR(archetypeCnt) {
 			auto e = w.add();
 			w.add(e, tags[i]);
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		}
+
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks immediate cached-query refresh for a broad-first exact ALL query.
+//! The create-selector planner should route this through the required selective term instead of every positive term.
+void BM_QueryCache_CreateArchetype_BroadFirstAll(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> tags;
+		tags.resize(archetypeCnt);
+		GAIA_FOR(archetypeCnt) {
+			tags[i] = w.add();
+		}
+
+		// Pre-seed a broad Position distribution before the query is built so selector planning can
+		// choose the rarer required Health term for future archetype-create routing.
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, tags[i]);
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		}
+
+		auto q = w.query().all<Position>().all<Health>();
+		dont_optimize(q.count());
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, w.add());
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+			w.add<Health>(e, {(int32_t)i, 100});
+		}
+
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks create-time routing for non-matching broad archetypes under a cached broad-first ALL query.
+//! With narrowest-selector routing, Position-only archetype creation should not wake the query at all.
+void BM_QueryCache_CreateArchetype_BroadMissAll(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> seedTags;
+		cnt::darray<ecs::Entity> newTags;
+		seedTags.resize(archetypeCnt);
+		newTags.resize(archetypeCnt);
+		GAIA_FOR(archetypeCnt) {
+			seedTags[i] = w.add();
+			newTags[i] = w.add();
+		}
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, seedTags[i]);
+			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		}
+
+		auto q = w.query().all<Position>().all<Acceleration>();
+		dont_optimize(q.count());
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			w.add(e, newTags[i]);
 			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
 		}
 
@@ -4849,6 +4950,10 @@ int main(int argc, char* argv[]) {
 
 		PICOBENCH_SUITE_REG("Query hot path");
 		PICOBENCH_REG(BM_Query_ReadOnly_1Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("ro 1 comp");
+		PICOBENCH_REG(BM_Query_SelectiveAll_BroadFirst)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(1024)
+				.label("query selective all broad-first 1K arch");
 		PICOBENCH_REG(BM_Query_ReadWrite_2Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 2 comp");
 		PICOBENCH_REG(BM_Query_ReadWrite_4Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 4 comp");
 		PICOBENCH_REG(BM_Query_Filter_NoFrozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw + no<Frozen>");
@@ -5180,6 +5285,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("register cached exact+any 1K arch");
+		PICOBENCH_REG(BM_QueryCache_CreateArchetype_BroadFirstAll)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("register cached broad-first all 1K arch");
+		PICOBENCH_REG(BM_QueryCache_CreateArchetype_BroadMissAll)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("register cached broad-miss all 1K arch");
 		PICOBENCH_REG(BM_QueryCache_CreateArchetype_PairHeavyRelWildcard)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
