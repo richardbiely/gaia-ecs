@@ -860,6 +860,44 @@ void BM_ComponentSetGet_ByEntity(picobench::state& state) {
 	}
 }
 
+void BM_ComponentHasExact_ByEntity(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<false, false, true, false, false>(w, entities, n);
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0ULL;
+
+		for (auto e: entities) {
+			if (w.has<Position>(e))
+				++sum;
+		}
+
+		dont_optimize(sum);
+	}
+}
+
+void BM_ComponentGetExact_ByEntity(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<false, false, true, false, false>(w, entities, n);
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0ULL;
+
+		for (auto e: entities) {
+			const auto& p = w.get<Position>(e);
+			sum += (uint64_t)(uint32_t)(p.x + p.y + p.z);
+		}
+
+		dont_optimize(sum);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Query hot path
 ////////////////////////////////////////////////////////////////////////////////
@@ -1850,6 +1888,42 @@ void BM_QueryCache_CreateArchetype_ExactAny(picobench::state& state) {
 			auto e = w.add();
 			w.add(e, tags[i]);
 			w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+		}
+
+		dont_optimize(q.count());
+	}
+}
+
+//! Benchmarks create-time routing for pair-heavy archetypes under a cached relation-wildcard query.
+//! This isolates duplicate `(rel, All)` lookup suppression in QueryCache::register_archetype_with_queries().
+void BM_QueryCache_CreateArchetype_PairHeavyRelWildcard(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+	static constexpr uint32_t PairCount = 30;
+
+	for (auto _: state) {
+		(void)_;
+
+		ecs::World w;
+		const auto rel = w.add();
+
+		cnt::darray<ecs::Entity> targets;
+		targets.resize(PairCount);
+		GAIA_FOR(PairCount) {
+			targets[i] = w.add();
+		}
+
+		auto q = w.query().all(ecs::Pair(rel, ecs::All));
+		dont_optimize(q.count());
+
+		GAIA_FOR(archetypeCnt) {
+			auto e = w.add();
+			{
+				auto b = w.build(e);
+				b.add(w.add());
+				GAIA_FOR2_(0, PairCount, pairIdx) {
+					b.add(ecs::Pair(rel, targets[pairIdx]));
+				}
+			}
 		}
 
 		dont_optimize(q.count());
@@ -4650,6 +4724,14 @@ int main(int argc, char* argv[]) {
 		PICOBENCH_REG(BM_ComponentRemove_Velocity).PICO_SETTINGS().user_data(NEntitiesMedium).label("remove velocity");
 		PICOBENCH_REG(BM_ComponentToggle_Frozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("toggle frozen");
 		PICOBENCH_REG(BM_ComponentSetGet_ByEntity).PICO_SETTINGS().user_data(NEntitiesMedium).label("set/get by entity");
+		PICOBENCH_REG(BM_ComponentHasExact_ByEntity)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("has exact by entity");
+		PICOBENCH_REG(BM_ComponentGetExact_ByEntity)
+				.PICO_SETTINGS()
+				.user_data(NEntitiesMedium)
+				.label("get exact by entity");
 		PICOBENCH_REG(BM_Hierarchy_Set<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof set 10K");
 		PICOBENCH_REG(BM_Hierarchy_Set<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent set 10K");
 		PICOBENCH_REG(BM_Query_DirectHierarchy_All<false>)
@@ -5098,6 +5180,10 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)
 				.label("register cached exact+any 1K arch");
+		PICOBENCH_REG(BM_QueryCache_CreateArchetype_PairHeavyRelWildcard)
+				.PICO_SETTINGS_HEAVY()
+				.user_data(128)
+				.label("register cached pair-heavy rel wildcard 30");
 		PICOBENCH_REG(BM_QueryMatch_Variable_PairAll_Bound)
 				.PICO_SETTINGS_HEAVY()
 				.user_data(128)

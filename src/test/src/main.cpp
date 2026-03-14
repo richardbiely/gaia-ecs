@@ -3509,6 +3509,54 @@ TEST_CASE("Entity copy") {
 	CHECK(wld.has(e3, e2));
 }
 
+TEST_CASE("Entity - exact has/get survive archetype moves") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto tgt = wld.add();
+	auto e = wld.add();
+
+	wld.add<Position>(e, {1, 2, 3});
+	wld.add(e, ecs::Pair(rel, tgt));
+
+	CHECK(wld.has<Position>(e));
+	CHECK(wld.has(e, ecs::Pair(rel, tgt)));
+	{
+		const auto& p = wld.get<Position>(e);
+		CHECK(p.x == 1);
+		CHECK(p.y == 2);
+		CHECK(p.z == 3);
+	}
+
+	wld.add<Rotation>(e, {4, 5, 6});
+
+	CHECK(wld.has<Position>(e));
+	CHECK(wld.has<Rotation>(e));
+	CHECK(wld.has(e, ecs::Pair(rel, tgt)));
+	{
+		const auto& p = wld.get<Position>(e);
+		const auto& r = wld.get<Rotation>(e);
+		CHECK(p.x == 1);
+		CHECK(p.y == 2);
+		CHECK(p.z == 3);
+		CHECK(r.x == 4);
+		CHECK(r.y == 5);
+		CHECK(r.z == 6);
+	}
+
+	wld.del<Position>(e);
+
+	CHECK_FALSE(wld.has<Position>(e));
+	CHECK(wld.has<Rotation>(e));
+	CHECK(wld.has(e, ecs::Pair(rel, tgt)));
+	{
+		const auto& r = wld.get<Rotation>(e);
+		CHECK(r.x == 4);
+		CHECK(r.y == 5);
+		CHECK(r.z == 6);
+	}
+}
+
 #if GAIA_USE_SAFE_ENTITY
 TEST_CASE("Entity safe") {
 	SUBCASE("safe, no delete") {
