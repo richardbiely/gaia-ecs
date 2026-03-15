@@ -5292,10 +5292,10 @@ void Test_Query_SourceLookup() {
 		}
 	};
 
-	wld.add<Level>();
+	(void)wld.add<Level>();
 	const auto game = wld.add();
 
-	wld.add<Level>(game, {1});
+	(void)wld.add<Level>(game, {1});
 	auto qSrc = wld.query<UseCachedQuery>() //
 									.template all<Position>()
 									.template all<Level>(ecs::QueryTermOptions{}.src(game));
@@ -13077,7 +13077,7 @@ TEST_CASE("Component index tracks exact and wildcard pair match counts") {
 TEST_CASE("Component index exact term entries follow add and delete archetype moves") {
 	TestWorld twld;
 
-	wld.add<Position>();
+	(void)wld.add<Position>();
 	const auto game = wld.add();
 
 	const auto* pRootArchetype = wld.fetch(game).pArchetype;
