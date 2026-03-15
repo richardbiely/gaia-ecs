@@ -325,12 +325,7 @@ namespace gaia {
 
 				uint32_t chunkCnt = 0;
 				s.load(chunkCnt);
-				{
-					const auto chunkCnt0 = (uint32_t)m_chunks.size();
-					m_chunks.resize(chunkCnt, nullptr);
-					// Make sure new chunks are set to nullptr
-					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
-				}
+				m_chunks.resize(chunkCnt, nullptr);
 
 				GAIA_FOR(chunkCnt) {
 					uint32_t chunkIdx = 0;
@@ -1119,8 +1114,7 @@ namespace gaia {
 				if (entity.entity()) {
 					const auto name = entity_name(world, entity);
 					GAIA_LOG_N(
-							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(),
-							name.empty() ? "" : name.data(),
+							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(), name.empty() ? "" : name.data(),
 							EntityKindString[entity.kind()]);
 				} else if (entity.pair()) {
 					const auto rel = entity_name(world, entity.id());

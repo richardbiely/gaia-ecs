@@ -26031,7 +26031,6 @@ namespace gaia {
 					};
 
 					if GAIA_UNLIKELY (compDescId >= m_itemArr.size()) {
-						const auto oldSize = m_itemArr.size();
 						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
@@ -26040,10 +26039,7 @@ namespace gaia {
 						m_itemArr.reserve(newCapacity);
 
 						// Update the size
-						m_itemArr.resize(newSize);
-
-						// Make sure unused memory is initialized to nullptr.
-						GAIA_FOR2(oldSize, newSize - 1) m_itemArr[i] = nullptr;
+						m_itemArr.resize(newSize, nullptr);
 
 						return createDesc();
 					}
@@ -29016,12 +29012,7 @@ namespace gaia {
 
 				uint32_t chunkCnt = 0;
 				s.load(chunkCnt);
-				{
-					const auto chunkCnt0 = (uint32_t)m_chunks.size();
-					m_chunks.resize(chunkCnt);
-					// Make sure new chunks are set to nullptr
-					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
-				}
+				m_chunks.resize(chunkCnt, nullptr);
 
 				GAIA_FOR(chunkCnt) {
 					uint32_t chunkIdx = 0;
@@ -29810,8 +29801,7 @@ namespace gaia {
 				if (entity.entity()) {
 					const auto name = entity_name(world, entity);
 					GAIA_LOG_N(
-							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(),
-							name.empty() ? "" : name.data(),
+							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(), name.empty() ? "" : name.data(),
 							EntityKindString[entity.kind()]);
 				} else if (entity.pair()) {
 					const auto rel = entity_name(world, entity.id());
@@ -32135,14 +32125,8 @@ namespace gaia {
 
 		private:
 			GAIA_NODISCARD uint32_t* ensure_page(uint32_t pid) {
-				if (pid >= pages.size()) {
-					const auto sizeOld = pages.size();
-					pages.resize(pid + 1);
-					//! darray resize on trivial pointer types does not guarantee zero-init.
-					//! Initialize new slots explicitly so page presence checks stay valid.
-					for (uint32_t i = sizeOld; i < pages.size(); ++i)
-						pages[i] = nullptr;
-				}
+				if (pid >= pages.size())
+					pages.resize(pid + 1, nullptr);
 
 				auto*& page = pages[pid];
 				if (page == nullptr) {
@@ -38872,10 +38856,7 @@ namespace gaia {
 					const auto doubledSize = (uint32_t)scratch.counts.size() * 2U;
 					const auto minSize = doubledSize > 64U ? doubledSize : 64U;
 					const auto newSize = (entityId + 1U) > minSize ? (entityId + 1U) : minSize;
-					const auto oldSize = (uint32_t)scratch.counts.size();
-					scratch.counts.resize(newSize);
-					for (uint32_t i = oldSize; i < newSize; ++i)
-						scratch.counts[i] = 0;
+					scratch.counts.resize(newSize, 0);
 				}
 
 				//! Advances the scratch version used to deduplicate direct seeded entities without clearing on every call.
@@ -43803,16 +43784,12 @@ namespace gaia {
 				while (newSize < required)
 					newSize *= 2U;
 
-				store.srcToTgt.resize(newSize);
-				store.srcToTgtIdx.resize(newSize);
-				for (uint32_t i = oldSize; i < newSize; ++i) {
-					store.srcToTgt[i] = EntityBad;
-					store.srcToTgtIdx[i] = BadIndex;
-				}
+				store.srcToTgt.resize(newSize, EntityBad);
+				store.srcToTgtIdx.resize(newSize, BadIndex);
 			}
 
 			static void ensure_exclusive_adjunct_tgt_capacity(ExclusiveAdjunctStore& store, Entity target) {
-				const auto required = (uint32_t)target.id() + 1;
+				const auto required = target.id() + 1;
 				if (store.tgtToSrc.size() >= required)
 					return;
 

@@ -74,14 +74,8 @@ namespace gaia {
 
 		private:
 			GAIA_NODISCARD uint32_t* ensure_page(uint32_t pid) {
-				if (pid >= pages.size()) {
-					const auto sizeOld = pages.size();
-					pages.resize(pid + 1);
-					//! darray resize on trivial pointer types does not guarantee zero-init.
-					//! Initialize new slots explicitly so page presence checks stay valid.
-					for (uint32_t i = sizeOld; i < pages.size(); ++i)
-						pages[i] = nullptr;
-				}
+				if (pid >= pages.size())
+					pages.resize(pid + 1, nullptr);
 
 				auto*& page = pages[pid];
 				if (page == nullptr) {

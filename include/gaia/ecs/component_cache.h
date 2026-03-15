@@ -143,7 +143,6 @@ namespace gaia {
 					};
 
 					if GAIA_UNLIKELY (compDescId >= m_itemArr.size()) {
-						const auto oldSize = m_itemArr.size();
 						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
@@ -152,10 +151,7 @@ namespace gaia {
 						m_itemArr.reserve(newCapacity);
 
 						// Update the size
-						m_itemArr.resize(newSize);
-
-						// Make sure unused memory is initialized to nullptr.
-						GAIA_FOR2(oldSize, newSize - 1) m_itemArr[i] = nullptr;
+						m_itemArr.resize(newSize, nullptr);
 
 						return createDesc();
 					}

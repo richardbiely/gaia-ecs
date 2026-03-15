@@ -445,10 +445,7 @@ namespace gaia {
 					const auto doubledSize = (uint32_t)scratch.counts.size() * 2U;
 					const auto minSize = doubledSize > 64U ? doubledSize : 64U;
 					const auto newSize = (entityId + 1U) > minSize ? (entityId + 1U) : minSize;
-					const auto oldSize = (uint32_t)scratch.counts.size();
-					scratch.counts.resize(newSize);
-					for (uint32_t i = oldSize; i < newSize; ++i)
-						scratch.counts[i] = 0;
+					scratch.counts.resize(newSize, 0);
 				}
 
 				//! Advances the scratch version used to deduplicate direct seeded entities without clearing on every call.

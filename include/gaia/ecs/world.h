@@ -1017,16 +1017,12 @@ namespace gaia {
 				while (newSize < required)
 					newSize *= 2U;
 
-				store.srcToTgt.resize(newSize);
-				store.srcToTgtIdx.resize(newSize);
-				for (uint32_t i = oldSize; i < newSize; ++i) {
-					store.srcToTgt[i] = EntityBad;
-					store.srcToTgtIdx[i] = BadIndex;
-				}
+				store.srcToTgt.resize(newSize, EntityBad);
+				store.srcToTgtIdx.resize(newSize, BadIndex);
 			}
 
 			static void ensure_exclusive_adjunct_tgt_capacity(ExclusiveAdjunctStore& store, Entity target) {
-				const auto required = (uint32_t)target.id() + 1;
+				const auto required = target.id() + 1;
 				if (store.tgtToSrc.size() >= required)
 					return;
 
