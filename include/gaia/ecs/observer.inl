@@ -42,7 +42,9 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>) {
-			if constexpr (sizeof...(T) == 0)
+			constexpr bool needsInheritedArgIds =
+					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+			if constexpr (!needsInheritedArgIds)
 				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
 			else {
 				bool hasInheritedTerms = false;

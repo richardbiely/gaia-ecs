@@ -2927,6 +2927,9 @@ namespace gaia {
 				//! Runs a typed each() callback over directly seeded entities.
 				template <typename TIter, typename Func, typename... T>
 				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
+					constexpr bool needsInheritedArgIds =
+							(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
@@ -2968,7 +2971,7 @@ namespace gaia {
 						});
 					};
 
-					if constexpr (sizeof...(T) == 0)
+					if constexpr (!needsInheritedArgIds)
 						walk_entities(exec_direct_entity);
 					else {
 						Entity inheritedArgIds[] = {inherited_query_arg_id<T>(world)...};
