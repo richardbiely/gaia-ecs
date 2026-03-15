@@ -9559,7 +9559,7 @@ TEST_CASE("Entity name - entity only") {
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
 		const auto ename = wld.name(e);
 
-		const auto l0 = GAIA_STRLEN(tmp, ecs::ComponentCacheItem::MaxNameLength);
+		const auto l0 = (uint32_t)GAIA_STRLEN(tmp, ecs::ComponentCacheItem::MaxNameLength);
 		const auto l1 = ename.size();
 		CHECK(l0 == l1);
 		CHECK(ename == util::str_view(tmp, l0));
