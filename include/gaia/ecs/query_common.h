@@ -778,12 +778,29 @@ namespace gaia {
 					data.as_mask_1 = as_mask_1;
 					data.deps.createSelectorCnt = 0;
 					if (createSelectorAllCnt != 0) {
+						auto selector_rank = [](Entity term) {
+							if (!term.pair())
+								return 2;
+							if (!is_wildcard(term.id()) && !is_wildcard(term.gen()))
+								return 0;
+							if (is_wildcard(term.id()) && is_wildcard(term.gen()))
+								return 3;
+							return 1;
+						};
+
+						// For immediate structural queries, we choose one required ALL selector as the create-time wake-up key.
+						// This choice is ordered by:
+						//   1) smaller component index bucket size first
+						//   2) if equal, more specific selector first
 						uint8_t bestIdx = 0;
 						auto bestBucketSize = world_component_index_bucket_size(*w, createSelectorsAll[0]);
+						auto bestRank = selector_rank(createSelectorsAll[0]);
 						GAIA_FOR2_(1, createSelectorAllCnt, i) {
 							const auto bucketSize = world_component_index_bucket_size(*w, createSelectorsAll[i]);
-							if (bucketSize < bestBucketSize) {
+							const auto rank = selector_rank(createSelectorsAll[i]);
+							if (bucketSize < bestBucketSize || (bucketSize == bestBucketSize && rank < bestRank)) {
 								bestBucketSize = bucketSize;
+								bestRank = rank;
 								bestIdx = (uint8_t)i;
 							}
 						}

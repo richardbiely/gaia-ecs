@@ -12283,6 +12283,16 @@ TEST_CASE("Query - create selector routing prefers narrowest ALL term") {
 	CHECK(deps.create_selectors_view()[0] == wld.get<Acceleration>());
 }
 
+TEST_CASE("Query - create selector routing prefers wildcard pair over broad exact term on empty world") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto q = wld.query().all<Position>().all(ecs::Pair(rel, ecs::All));
+	const auto& deps = q.fetch().ctx().data.deps;
+	CHECK(deps.create_selectors_view().size() == 1);
+	CHECK(deps.create_selectors_view()[0] == ecs::Pair(rel, ecs::All));
+}
+
 TEST_CASE("Query - public cache mode and policy classification") {
 	TestWorld twld;
 
