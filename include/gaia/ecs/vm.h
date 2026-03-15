@@ -106,6 +106,8 @@ namespace gaia {
 
 			inline std::span<const ComponentIndexEntry> fetch_archetypes_for_select(
 					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
+				(void)arr;
+				(void)ent;
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
 				const auto it = map.find(key);
@@ -124,6 +126,7 @@ namespace gaia {
 
 			inline std::span<const ComponentIndexEntry> fetch_archetypes_for_select(
 					const SingleArchetypeLookup& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
+				(void)ent;
 				GAIA_ASSERT(key != EntityBadLookupKey);
 
 				const auto it = core::find_if(map, [&](const auto& item) {

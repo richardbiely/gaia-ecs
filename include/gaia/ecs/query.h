@@ -2930,24 +2930,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
-					Entity inheritedArgIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
-					bool hasInheritedTerms = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (uses_inherited_id_matching(world, term)) {
-							hasInheritedTerms = true;
-							break;
-						}
-					}
-
-					auto exec_entity = [&](Entity entity) {
-						if constexpr (sizeof...(T) > 0) {
-							if (hasInheritedTerms) {
-								invoke_inherited_query_args_by_id<T...>(
-										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
-								return;
-							}
-						}
-
+					auto exec_direct_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
@@ -2955,34 +2938,60 @@ namespace gaia {
 						// Entity filters already ran in the seed walker, so invoke the inner loop directly.
 						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
 					};
-
-					if (hasWriteTerms) {
-						auto& scratch = direct_query_scratch();
-						// Writable callbacks may add local overrides and reshuffle direct-term indices,
-						// so direct-seeded execution must iterate a stable snapshot.
-						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
-						for (const auto entity: scratch.entities) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
-								continue;
-							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
-								continue;
-							exec_entity(entity);
+					auto walk_entities = [&](auto&& exec_entity) {
+						if (hasWriteTerms) {
+							auto& scratch = direct_query_scratch();
+							// Writable callbacks may add local overrides and reshuffle direct-term indices,
+							// so direct-seeded execution must iterate a stable snapshot.
+							const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+							for (const auto entity: scratch.entities) {
+								if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+									continue;
+								if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+									continue;
+								exec_entity(entity);
+							}
+							return;
 						}
-						return;
-					}
 
-					if (plan.preferOrSeed) {
-						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+						if (plan.preferOrSeed) {
+							for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+								exec_entity(entity);
+								return true;
+							});
+							return;
+						}
+
+						(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
 							exec_entity(entity);
 							return true;
 						});
-						return;
-					}
+					};
 
-					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
-						exec_entity(entity);
-						return true;
-					});
+					if constexpr (sizeof...(T) == 0)
+						walk_entities(exec_direct_entity);
+					else {
+						Entity inheritedArgIds[] = {inherited_query_arg_id<T>(world)...};
+						bool hasInheritedTerms = false;
+						for (const auto& term: queryInfo.ctx().data.terms_view()) {
+							if (uses_inherited_id_matching(world, term)) {
+								hasInheritedTerms = true;
+								break;
+							}
+						}
+
+						auto exec_entity = [&](Entity entity) {
+							if (hasInheritedTerms) {
+								invoke_inherited_query_args_by_id<T...>(
+										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
+								return;
+							}
+
+							exec_direct_entity(entity);
+						};
+
+						walk_entities(exec_entity);
+					}
 				}
 
 				template <bool UseFilters, typename TIter, typename ContainerOut>

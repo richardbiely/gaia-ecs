@@ -42,25 +42,27 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>) {
-			bool hasInheritedTerms = false;
-			auto& queryInfo = obs.query.fetch();
-			for (const auto& term: queryInfo.ctx().data.terms_view()) {
-				if (Query::uses_inherited_id_matching(world, term)) {
-					hasInheritedTerms = true;
-					break;
+			if constexpr (sizeof...(T) == 0)
+				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+			else {
+				bool hasInheritedTerms = false;
+				auto& queryInfo = obs.query.fetch();
+				for (const auto& term: queryInfo.ctx().data.terms_view()) {
+					if (Query::uses_inherited_id_matching(world, term)) {
+						hasInheritedTerms = true;
+						break;
+					}
 				}
-			}
 
-			if constexpr (sizeof...(T) > 0) {
 				if (hasInheritedTerms) {
-					Entity inheritedArgIds[sizeof...(T)] = {observer_inherited_arg_id<T>(world)...};
+					Entity inheritedArgIds[] = {observer_inherited_arg_id<T>(world)...};
 					observer_invoke_inherited_args_by_id<T...>(
 							world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
 					return;
 				}
-			}
 
-			obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+			}
 		}
 
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
