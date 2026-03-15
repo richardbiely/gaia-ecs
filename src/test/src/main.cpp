@@ -15283,6 +15283,29 @@ TEST_CASE("System - dependency BFS order") {
 	}
 }
 
+TEST_CASE("System - world teardown drops cached query tracking before chunk destruction") {
+	uint32_t runs = 0;
+
+	{
+		ecs::World world;
+
+		auto entity = world.add();
+		world.add<Position>(entity, {1, 2, 3});
+
+		auto sysA = world.system().all<Position>().on_each([&](const Position&) {
+			++runs;
+		});
+		auto sysB = world.system().all<Position>().on_each([](const Position&) {});
+
+		world.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+		world.update();
+
+		CHECK(runs == 1);
+	}
+
+	CHECK(runs == 1);
+}
+
 TEST_CASE("System - exec mode") {
 	const uint32_t N = 10'000;
 
