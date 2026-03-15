@@ -2334,7 +2334,7 @@ namespace gaia {
 				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
 				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
 
-				if (const auto* pItem = comp_cache().find_exact(name, len); pItem != nullptr)
+				if (const auto* pItem = comp_cache().find_exact_symbol(name, len); pItem != nullptr)
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
@@ -4368,7 +4368,7 @@ namespace gaia {
 					return it->second;
 
 				// Name not found. This might be a component so check the component cache
-				const auto* pItem = m_compCache.find(name, len);
+				const auto* pItem = m_compCache.resolve(name, len);
 				if (pItem != nullptr)
 					return pItem->entity;
 
@@ -8838,7 +8838,7 @@ namespace gaia {
 						return All;
 
 					// Anything else is a component name
-					const auto* pItem = m_compCache.find(idStr.data(), (uint32_t)idStr.size());
+					const auto* pItem = m_compCache.resolve(idStr.data(), (uint32_t)idStr.size());
 					if (pItem == nullptr) {
 						GAIA_ASSERT2(false, "Component not found");
 						GAIA_LOG_W("Component '%.*s' not found", (uint32_t)idStr.size(), idStr.data());

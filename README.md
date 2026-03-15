@@ -280,43 +280,46 @@ wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignor
 
 ### Component names
 
-Components have a registered symbol name in the component cache. For a global type this is usually the simple type name. For nested or local types some compilers may register a qualified name such as `SomeTest::Device`.
+Components have four distinct name concepts. The registered symbol is the identity, such as `SomeTest::Device`. The path name is the scoped lookup name, such as `SomeTest.Device`. The alias is a short user-facing name, such as `Device`. The display name is a convenience string you can use e.g. in JSON or tools.
 
-Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact` uses the full registered component name. `ComponentCache::find_symbol` uses the short unqualified name and succeeds only when that short name is unique. `ComponentCache::find_resolved` tries exact lookup first and then falls back to the short name. `ComponentCache::find` is the same convenience resolved form.
+Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact_symbol` uses the registered symbol name. `ComponentCache::find_path` uses the scoped path name. `ComponentCache::find_alias` uses the alias and succeeds only when that alias is unique. `ComponentCache::resolve` tries symbol lookup first, then path lookup, then alias lookup.
 
-`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to resolved component lookup so `World::get("Device")` can still return the component entity when that is what you meant. String queries such as `w.query().add("Device")` and semantic JSON loading also use resolved component lookup. Runtime component creation by string uses exact lookup so creating `"Device"` will not silently bind to a qualified alias.
+`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to component resolution so `World::get("Device")`, `World::get("SomeTest.Device")`, and `World::get("SomeTest::Device")` can all resolve the component entity when those names are registered. String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
 
-When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::preferred_name`. It returns the unique short name when that is safe and otherwise returns the full registered component name. It is a display helper, not an identity key.
+When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::display_name`. It is a display helper, not an identity key.
 
 ```cpp
-const auto* exact = w.comp_cache().find_exact("SomeTest::Device");
+const auto* exact = w.comp_cache().find_exact_symbol("SomeTest::Device");
 // returns: pointer to the registered component for "SomeTest::Device", or nullptr if it does not exist
 
-const auto* symbol = w.comp_cache().find_symbol("Device");
-// returns: the same pointer as "exact" when "Device" is a unique short name, otherwise nullptr
+const auto* path = w.comp_cache().find_path("SomeTest.Device");
+// returns: the same component pointer when that path name is registered and unique
 
-const auto* resolved = w.comp_cache().find_resolved("Device");
-// returns: the exact-match pointer if it exists, otherwise the same pointer as find_symbol("Device")
+const auto* alias = w.comp_cache().find_alias("Device");
+// returns: the same component pointer when "Device" is a unique alias, otherwise nullptr
+
+const auto* resolved = w.comp_cache().resolve("Device");
+// returns: exact symbol match first, otherwise path match, otherwise alias match
 
 if (resolved != nullptr) {
-  const auto registered = w.name(resolved->entity);
+  const auto symbol = w.comp_cache().symbol_name(*resolved);
   // returns: "SomeTest::Device"
 
-  const auto pretty = w.comp_cache().preferred_name(*resolved);
-  // returns: "Device" when the short name is unique, otherwise "SomeTest::Device"
+  const auto pretty = w.comp_cache().display_name(*resolved);
+  // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
 }
 ```
 
-If two different components would both map to the same short name, short-name lookup does not guess.
+If two different components would both map to the same alias, alias lookup does not guess.
 
 ```cpp
-const auto* a = w.comp_cache().find_exact("Gameplay::Device");
-const auto* b = w.comp_cache().find_exact("Debug::Device");
-const auto* symbol = w.comp_cache().find_symbol("Device");
+const auto* a = w.comp_cache().find_exact_symbol("Gameplay::Device");
+const auto* b = w.comp_cache().find_exact_symbol("Debug::Device");
+const auto* alias = w.comp_cache().find_alias("Device");
 // returns: nullptr
 
-const auto* resolved = w.comp_cache().find_resolved("Device");
-// returns: nullptr unless an exact registered component named "Device" also exists
+const auto* resolved = w.comp_cache().resolve("Device");
+// returns: nullptr unless an exact symbol named "Device" or a unique path named "Device" also exists
 ```
 
 ### Add or remove component

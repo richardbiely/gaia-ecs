@@ -5015,12 +5015,12 @@ void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
 	auto name = cc.get<T>().name;
 	CHECK(name.str() != nullptr);
 	CHECK(name.len() > 1);
-	const auto* res = cc.find(str);
+	const auto* res = cc.find_exact_symbol(str);
 	CHECK(res != nullptr);
 }
 
 void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
-	const auto* item = cc.find(str);
+	const auto* item = cc.find_exact_symbol(str);
 	CHECK(item == nullptr);
 }
 
@@ -17848,9 +17848,10 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(cc.find(item.comp.id()) == &item);
 		CHECK(cc.find(item.entity) == &item);
-		CHECK(cc.find(RuntimeCompName) == &item);
-		CHECK(cc.find(RuntimeCompName, nameLen) == &item);
-		CHECK(cc.find(RuntimeCompName, nameLen - 1) == nullptr);
+		CHECK(cc.find_exact_symbol(RuntimeCompName) == &item);
+		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen - 1) == nullptr);
+		CHECK(cc.resolve(RuntimeCompName) == &item);
 	}
 
 	SUBCASE("duplicate runtime registration is idempotent") {
@@ -17912,8 +17913,48 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(item.func_load == nullptr);
 
 		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
-		CHECK(cc.find(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen) == &item);
 		CHECK(cc.get(item.comp.id()).entity == item.entity);
+	}
+
+	SUBCASE("symbol path alias and display name each have explicit behavior") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		auto entityA = wld.add();
+		(void)cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1);
+		auto& itemA = cc.get(entityA);
+
+		auto entityB = wld.add();
+		(void)cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1);
+		auto& itemB = cc.get(entityB);
+
+		CHECK(cc.symbol_name(itemA) == "Gameplay::Device");
+		CHECK(cc.path_name(itemA) == "Gameplay.Device");
+		CHECK(cc.alias_name(itemA) == "Device");
+		CHECK(cc.find_exact_symbol("Gameplay::Device") == &itemA);
+		CHECK(cc.find_path("Gameplay.Device") == &itemA);
+		CHECK(cc.find_alias("Device") == nullptr);
+		CHECK(cc.resolve("Gameplay::Device") == &itemA);
+		CHECK(cc.resolve("Gameplay.Device") == &itemA);
+		CHECK(cc.resolve("Device") == nullptr);
+		CHECK(cc.display_name(itemA) == "Gameplay.Device");
+		CHECK(cc.display_name(itemB) == "Debug.Device");
+
+		CHECK(cc.set_alias(itemA, "GameplayDevice"));
+		CHECK(cc.find_alias("GameplayDevice") == &itemA);
+		CHECK(cc.resolve("GameplayDevice") == &itemA);
+		CHECK(cc.display_name(itemA) == "GameplayDevice");
+
+		CHECK(cc.set_path(itemA, "gameplay.render.Device"));
+		CHECK(cc.find_path("gameplay.render.Device") == &itemA);
+		CHECK(cc.resolve("gameplay.render.Device") == &itemA);
+
+		CHECK(cc.set_alias(itemA, nullptr));
+		CHECK(cc.display_name(itemA) == "gameplay.render.Device");
+
+		CHECK(cc.set_path(itemA, nullptr));
+		CHECK(cc.display_name(itemA) == "Gameplay::Device");
 	}
 
 	SUBCASE("schema field registration supports add update and clear") {

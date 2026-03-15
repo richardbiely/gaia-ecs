@@ -299,7 +299,7 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										const auto name = comp_cache().preferred_name(item);
+										const auto name = comp_cache().display_name(item);
 										writer.key(name.data(), name.size());
 
 										// Tags have no associated payload.
@@ -600,7 +600,7 @@ namespace gaia {
 						if (!jp.skip_value())
 							return false;
 					} else {
-						const auto* pItem = comp_cache().find(compName.data(), (uint32_t)compName.size());
+						const auto* pItem = comp_cache().resolve(compName.data(), (uint32_t)compName.size());
 						if (pItem == nullptr) {
 							warn(
 									ser::JsonDiagReason::UnknownComponent, compName,

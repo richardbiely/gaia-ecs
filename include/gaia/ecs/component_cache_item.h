@@ -14,6 +14,7 @@
 #include "gaia/mem/mem_utils.h"
 #include "gaia/ser/ser_common.h"
 #include "gaia/ser/ser_rt.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ecs {
@@ -59,6 +60,10 @@ namespace gaia {
 
 			//! Component name
 			SymbolLookupKey name;
+			//! User-facing path name, e.g. "Gameplay.Device"
+			util::str path;
+			//! User-facing alias, e.g. "Device"
+			util::str alias;
 			//! Function to call when the component needs to be constructed
 			FuncCtor* func_ctor{};
 			//! Function to call when the component needs to be move constructed
