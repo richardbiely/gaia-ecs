@@ -257,8 +257,7 @@ namespace gaia {
 
 				GAIA_NODISCARD static bool
 				is_semantic_is_term(Entity term, QueryMatchKind matchKind = QueryMatchKind::Semantic) {
-					return matchKind == QueryMatchKind::Semantic && term.pair() && term.id() == Is.id() &&
-								 !is_wildcard(term.gen());
+					return matchKind != QueryMatchKind::Direct && term.pair() && term.id() == Is.id() && !is_wildcard(term.gen());
 				}
 
 				void mark_term_observed(World& world, Entity term, bool observed) {
@@ -9210,6 +9209,15 @@ namespace gaia {
 			return world.has(entity, term);
 		}
 
+		inline bool world_has_entity_term_in(const World& world, Entity entity, Entity term) {
+			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
+				const auto target = world.get(term.gen());
+				return world.valid(target) && world.in(entity, target);
+			}
+
+			return false;
+		}
+
 		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
 			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
 		}
@@ -9230,12 +9238,34 @@ namespace gaia {
 			return world.count_direct_term_entities(term);
 		}
 
+		inline uint32_t world_count_in_term_entities(const World& world, Entity term) {
+			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+				return 0;
+
+			const auto target = world.get(term.gen());
+			return world.valid(target) ? (uint32_t)world.as_relations_trav_cache(target).size() : 0U;
+		}
+
 		inline uint32_t world_count_direct_term_entities_direct(const World& world, Entity term) {
 			return world.count_direct_term_entities_direct(term);
 		}
 
 		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities(term, out);
+		}
+
+		inline void world_collect_in_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
+			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+				return;
+
+			const auto target = world.get(term.gen());
+			if (!world.valid(target))
+				return;
+
+			const auto& relations = world.as_relations_trav_cache(target);
+			out.reserve(out.size() + (uint32_t)relations.size());
+			for (auto relation: relations)
+				out.push_back(relation);
 		}
 
 		inline void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out) {
@@ -9245,6 +9275,22 @@ namespace gaia {
 		inline bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity(term, ctx, func);
+		}
+
+		inline bool world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
+			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+				return true;
+
+			const auto target = world.get(term.gen());
+			if (!world.valid(target))
+				return true;
+
+			for (auto relation: world.as_relations_trav_cache(target)) {
+				if (!func(ctx, relation))
+					return false;
+			}
+
+			return true;
 		}
 
 		inline bool

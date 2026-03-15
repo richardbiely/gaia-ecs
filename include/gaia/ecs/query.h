@@ -1995,6 +1995,19 @@ namespace gaia {
 								 !is_variable((EntityId)id.gen());
 				}
 
+				//! Returns true when a term uses strict semantic `Is` matching that excludes the base entity itself.
+				GAIA_NODISCARD static bool uses_in_is_matching(const QueryTerm& term) {
+					const auto id = term.id;
+					return term.matchKind == QueryMatchKind::In && term.src == EntityBad && term.entTrav == EntityBad &&
+								 !term_has_variables(term) && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
+								 !is_variable((EntityId)id.gen());
+				}
+
+				//! Returns true when a term uses any semantic `Is` matching rather than direct storage matching.
+				GAIA_NODISCARD static bool uses_non_direct_is_matching(const QueryTerm& term) {
+					return uses_semantic_is_matching(term) || uses_in_is_matching(term);
+				}
+
 				//! Returns true when a term uses semantic inherited-id matching rather than direct storage matching.
 				GAIA_NODISCARD static bool uses_inherited_id_matching(const World& world, const QueryTerm& term) {
 					const auto id = term.id;
@@ -2007,6 +2020,8 @@ namespace gaia {
 				GAIA_NODISCARD static bool match_entity_term(const World& world, Entity entity, const QueryTerm& term) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_has_entity_term(world, entity, term.id);
+					if (uses_in_is_matching(term))
+						return world_has_entity_term_in(world, entity, term.id);
 
 					return world_has_entity_term_direct(world, entity, term.id);
 				}
@@ -2014,6 +2029,8 @@ namespace gaia {
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_count_direct_term_entities(world, term.id);
+					if (uses_in_is_matching(term))
+						return world_count_in_term_entities(world, term.id);
 
 					return world_count_direct_term_entities_direct(world, term.id);
 				}
@@ -2021,6 +2038,10 @@ namespace gaia {
 				static void collect_direct_term_entities(const World& world, const QueryTerm& term, cnt::darray<Entity>& out) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term)) {
 						world_collect_direct_term_entities(world, term.id, out);
+						return;
+					}
+					if (uses_in_is_matching(term)) {
+						world_collect_in_term_entities(world, term.id, out);
 						return;
 					}
 
@@ -2039,6 +2060,8 @@ namespace gaia {
 					Visitor visitor{func};
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
 						return world_for_each_direct_term_entity(world, term.id, &visitor, &Visitor::thunk);
+					if (uses_in_is_matching(term))
+						return world_for_each_in_term_entity(world, term.id, &visitor, &Visitor::thunk);
 
 					return world_for_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
 				}
@@ -2136,8 +2159,8 @@ namespace gaia {
 					if (plan.bestAllTerm == EntityBad)
 						return true;
 
-					const bool candidateIsSemanticIs = uses_semantic_is_matching(candidate);
-					const bool bestIsSemanticIs = plan.bestAllTermMatchKind == QueryMatchKind::Semantic &&
+					const bool candidateIsSemanticIs = uses_non_direct_is_matching(candidate);
+					const bool bestIsSemanticIs = plan.bestAllTermMatchKind != QueryMatchKind::Direct &&
 																				plan.bestAllTerm.pair() && plan.bestAllTerm.id() == Is.id() &&
 																				!is_wildcard(plan.bestAllTerm.gen()) &&
 																				!is_variable((EntityId)plan.bestAllTerm.gen());
@@ -2275,8 +2298,8 @@ namespace gaia {
 					const Archetype* pLastSingleAllArchetype = nullptr;
 					bool lastSingleAllMatch = false;
 					bool seedImpliesSingleAllTerm = false;
-					if (evalPlan.pSingleAllTerm != nullptr && uses_semantic_is_matching(*pSeedTerm) &&
-							(uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+					if (evalPlan.pSingleAllTerm != nullptr && uses_non_direct_is_matching(*pSeedTerm) &&
+							(uses_non_direct_is_matching(*evalPlan.pSingleAllTerm) ||
 							 uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm))) {
 						const auto seedTarget = Entity((EntityId)pSeedTerm->id.gen(), 0, false, false, pSeedTerm->id.kind());
 						if (seedTarget != EntityBad)
@@ -2294,7 +2317,7 @@ namespace gaia {
 						if (evalPlan.pSingleAllTerm != nullptr) {
 							if (seedImpliesSingleAllTerm)
 								return func(entity);
-							if (uses_semantic_is_matching(*evalPlan.pSingleAllTerm) ||
+							if (uses_non_direct_is_matching(*evalPlan.pSingleAllTerm) ||
 									uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm)) {
 								const auto* pArchetype = world_entity_archetype(world, entity);
 								if (pArchetype != pLastSingleAllArchetype) {
@@ -2640,7 +2663,7 @@ namespace gaia {
 							continue;
 
 						const auto id = term.id;
-						const bool isDirectIsTerm = uses_semantic_is_matching(term);
+						const bool isDirectIsTerm = uses_non_direct_is_matching(term);
 						const bool isInheritedTerm = uses_inherited_id_matching(world, term);
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
@@ -3418,6 +3441,13 @@ namespace gaia {
 				//------------------------------------------------
 
 				QueryImpl& is(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
+					return all(Pair(Is, entity), options);
+				}
+
+				//------------------------------------------------
+
+				QueryImpl& in(Entity entity, QueryTermOptions options = QueryTermOptions{}) {
+					options.in();
 					return all(Pair(Is, entity), options);
 				}
 

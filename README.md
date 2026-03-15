@@ -1995,48 +1995,37 @@ ecs::Entity rabbit = w.add();
 ecs::Entity wall = w.add();
 
 // Make rabbit an animal.
-// This is an equivalent of:
-// w.add(rabbit, ecs::Pair(ecs::Is, animal)) <-- forms the relationship
-w.as(rabbit, animal);
+w.as(rabbit, animal); // the same as w.add(rabbit, ecs::Pair(ecs::Is, animal))
 
 // Check if an entity is inheriting from something
-bool animal_is_animal = w.is(animal, animal); // true
+bool animal_is_animal = w.is(animal, animal); // true, the same as w.has(animal, ecs::Pair(ecs::Is, animal))
 bool rabbit_is_animal = w.is(rabbit, animal); // true
 bool wall_is_animal = w.is(wall, animal); // false
-```
 
-The stored `Pair(Is, X)` edge is direct. Higher-level matching APIs interpret it semantically unless you explicitly ask for the direct form. In practice:
+// "in" is the strict variant: it excludes the entity itself.
+bool animal_in_animal = w.in(animal, animal); // false
+bool rabbit_in_animal = w.in(rabbit, animal); // true
 
-- `w.is(entity, animal)` answers inheritance semantics
-- `w.has(entity, ecs::Pair(ecs::Is, animal))` answers inheritance semantics
-- `w.query().is(animal)` matches `animal` itself and all descendants
-- `w.has_direct(entity, ecs::Pair(ecs::Is, animal))` checks only the exact stored edge
-- `w.query().is(animal, ecs::QueryTermOptions{}.direct())` checks only the exact stored edge
-
-```cpp
-// Iterate everything that is animal
+// Iterate everything that is "animal"
 ecs::Query q = w.query().is(animal);
 q.each([](ecs::Entity entity) {
   // entity = animal, rabbit
 });
 
-// Iterate everything that is animal but skip the "animal" itself
-ecs::Query q2 = w.query().is(animal).no(animal);
+// Iterate descendants of animal, but exclude animal itself
+ecs::Query q2 = w.query().in(animal);
 q2.each([](ecs::Entity entity) {
   // entity = rabbit
 });
 ```
 
-`w.query().is(X)` is just a convenience shortcut for `w.query().all(Pair(ecs::Is, X))`.
-
-If you need only the exact stored edge, use the direct form instead of semantic matching.
+`w.query().is(X)` is the query shortcut for "entities considered an `X`", including `X` itself.
+`w.query().in(X)` is the strict variant that excludes `X` itself.
+If you need to know whether that exact relationship was added on the entity, use the direct form instead of semantic matching.
 
 ```cpp
-// Direct membership: only true if rabbit directly stores Pair(Is, animal)
+// Check if rabbit stores Pair(Is, animal) directly (does not evaluate inheritance)
 bool rabbit_has_direct_animal = w.has_direct(rabbit, ecs::Pair(ecs::Is, animal)); // true
-
-// Semantic membership: also true for transitive descendants
-bool rabbit_has_animal = w.has(rabbit, ecs::Pair(ecs::Is, animal)); // true
 
 ecs::QueryTermOptions directOpts;
 directOpts.direct();
@@ -2049,8 +2038,8 @@ q3.each([](ecs::Entity entity) {
 ```
 
 >**NOTE:<br/>**
-Currently inheritance works only for checking if something is something else.
-In the future, all ids that are present on the entity we inherit from will also be present on the inherited entity.
+For ordinary `Pair(Is, X)` inheritance, the effect today is only semantic membership. It does **not** yet make components or ids resolve through the base entity. This behavior is exposed only via [prefabs](#prefabs) at the moment. In the future, ordinary `Pair(Is, X)` inheritance may also make ids present on the base entity
+resolve through the derived entity.
 
 ```cpp
 // NOT YET IMPLEMENTED, BUT THIS IS WHAT WILL HAPPEN IN THE FUTURE RELEASES.

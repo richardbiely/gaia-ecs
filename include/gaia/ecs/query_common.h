@@ -22,16 +22,21 @@ namespace gaia {
 		class Archetype;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
+		GAIA_NODISCARD bool world_has_entity_term_in(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_term_uses_inherit_policy(const World& world, Entity term);
 		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
+		GAIA_NODISCARD uint32_t world_count_in_term_entities(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities_direct(const World& world, Entity term);
 		void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
+		void world_collect_in_term_entities(const World& world, Entity term, cnt::darray<Entity>& out);
 		void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out);
 		GAIA_NODISCARD bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
+		GAIA_NODISCARD bool
+		world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity));
 		GAIA_NODISCARD bool world_entity_enabled(const World& world, Entity entity);
@@ -61,7 +66,7 @@ namespace gaia {
 		//! Access type
 		enum class QueryAccess : uint8_t { None, Read, Write };
 		//! Term match semantics.
-		enum class QueryMatchKind : uint8_t { Semantic, Direct };
+		enum class QueryMatchKind : uint8_t { Semantic, In, Direct };
 		//! Operation flags
 		enum class QueryInputFlags : uint8_t { None, Variable };
 		//! Source traversal filter used for source lookups.
@@ -338,6 +343,11 @@ namespace gaia {
 
 			QueryTermOptions& direct() {
 				matchKind = QueryMatchKind::Direct;
+				return *this;
+			}
+
+			QueryTermOptions& in() {
+				matchKind = QueryMatchKind::In;
 				return *this;
 			}
 		};
@@ -653,7 +663,7 @@ namespace gaia {
 						const auto id = term.id;
 						hasPrefabTerms |= id == Prefab;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
-																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
+																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
 						const bool isInheritedTerm =
@@ -671,7 +681,7 @@ namespace gaia {
 						const auto& term = terms[i];
 						const auto id = term.id;
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
-																				!term_has_variables(term) && term.matchKind == QueryMatchKind::Semantic &&
+																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
 						const bool isInheritedTerm =

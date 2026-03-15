@@ -228,6 +228,13 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			ObserverBuilder& in(Entity entity, QueryTermOptions options = {}) {
+				options.in();
+				return all(Pair(Is, entity), options);
+			}
+
+			//------------------------------------------------
+
 			ObserverBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				auto& data = runtime_data();

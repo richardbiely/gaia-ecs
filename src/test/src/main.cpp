@@ -10731,6 +10731,20 @@ TEST_CASE("Query - is sugar matches semantic and direct Is terms") {
 	expect_exact_entities(qDirect, {mammal});
 }
 
+TEST_CASE("Query - in sugar matches descendants but excludes the base entity") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+
+	auto q = wld.query().in(animal);
+	CHECK(q.count() == 2);
+	expect_exact_entities(q, {mammal, wolf});
+}
+
 TEST_CASE("Query - prefabs are excluded by default and can be matched explicitly") {
 	TestWorld twld;
 
@@ -15261,6 +15275,27 @@ TEST_CASE("System - is sugar matches semantic and direct Is terms") {
 	CHECK(directHits == 1);
 }
 
+TEST_CASE("System - in sugar matches descendants but excludes the base entity") {
+	TestWorld twld;
+
+	auto animal = wld.add();
+	auto mammal = wld.add();
+	auto rabbit = wld.add();
+
+	wld.as(mammal, animal);
+	wld.as(rabbit, mammal);
+
+	uint32_t hits = 0;
+
+	auto sys = wld.system().in(animal).on_each([&](ecs::Iter& it) {
+		hits += it.size();
+	});
+
+	sys.exec();
+
+	CHECK(hits == 2);
+}
+
 TEST_CASE("System - prefabs are excluded by default and can be matched explicitly") {
 	TestWorld twld;
 
@@ -16616,6 +16651,31 @@ TEST_CASE("Observer - is sugar matches semantic and direct Is terms") {
 
 	(void)obsSemantic;
 	(void)obsDirect;
+}
+
+TEST_CASE("Observer - in sugar matches descendants but excludes the base entity") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+
+	int hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.in(animal)
+														.on_each([&](ecs::Iter&) {
+															++hits;
+														})
+														.entity();
+
+	wld.as(mammal, animal);
+	CHECK(hits == 1);
+
+	wld.as(wolf, mammal);
+	CHECK(hits == 2);
+
+	(void)observer;
 }
 
 TEST_CASE("Observer - prefabs are excluded by default and can be matched explicitly") {

@@ -122,6 +122,13 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			SystemBuilder& in(Entity entity, QueryTermOptions options = {}) {
+				options.in();
+				return all(Pair(Is, entity), options);
+			}
+
+			//------------------------------------------------
+
 			SystemBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
