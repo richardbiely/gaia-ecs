@@ -45162,15 +45162,16 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns mutable access to the world component cache.
+			//! \return Component cache owned by this world.
 			GAIA_NODISCARD ComponentCache& comp_cache_mut() {
 				return m_compCache;
 			}
+
+			//! Returns read-only access to the world component cache.
+			//! \return Component cache owned by this world.
 			GAIA_NODISCARD const ComponentCache& comp_cache() const {
 				return m_compCache;
-			}
-
-			GAIA_NODISCARD QuerySerMap& query_ser_map() {
-				return m_querySerMap;
 			}
 
 			//----------------------------------------------------------------------
@@ -47271,7 +47272,7 @@ namespace gaia {
 
 			//! Executes @a func with a temporary component scope and restores the previous scope afterwards.
 			//! Relative component lookup walks up the ChildOf hierarchy of the active scope.
-			//! The scope entity and its ChildOf ancestors are expected to have names sowe can build a path from them.
+			//! The scope entity and its ChildOf ancestors are expected to have names so we can build a path from them.
 			//! \param scope Scope entity. Pass EntityBad to temporarily disable component scope.
 			//! \param func Callable executed while the scope is active.
 			template <typename Func>

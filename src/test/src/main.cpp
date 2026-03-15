@@ -5153,6 +5153,50 @@ TEST_CASE("Component names") {
 		CHECK(wld.scope(ecs::EntityBad) == render);
 		CHECK(wld.get("Position") == gameplayPos);
 	}
+
+	SUBCASE("component scope resolves string queries at construction time") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		const auto gameplayComp = wld.add<Position>().entity;
+		ecs::Entity renderComp = ecs::EntityBad;
+		wld.scope(render, [&] {
+			renderComp = wld.add<dummy::Position>().entity;
+		});
+
+		const auto eGameplay = wld.add();
+		wld.add(eGameplay, gameplayComp);
+
+		const auto eRender = wld.add();
+		wld.add(eRender, renderComp);
+
+		auto qGlobal = wld.query<false>().add("Position");
+		CHECK(qGlobal.count() == 1);
+		qGlobal.each([&](ecs::Entity e) {
+			CHECK(e == eGameplay);
+		});
+
+		auto qScoped = wld.query<false>();
+		wld.scope(render, [&] {
+			qScoped.add("Position");
+		});
+		CHECK(qScoped.count() == 1);
+		qScoped.each([&](ecs::Entity e) {
+			CHECK(e == eRender);
+		});
+
+		auto qPath = wld.query<false>().add("gameplay.render.Position");
+		CHECK(qPath.count() == 1);
+		qPath.each([&](ecs::Entity e) {
+			CHECK(e == eRender);
+		});
+	}
 }
 
 template <typename TQuery>

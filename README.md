@@ -326,34 +326,50 @@ const auto* resolved = w.comp_cache().resolve("Device");
 
 ### Component scope
 
-`World::scope(scope)` sets the current component scope and returns the previous one. `World::scope(scope, func)` does the same thing for the duration of one callable and restores the old scope afterwards. The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS builds the scoped path from that entity hierarchy. New components registered while a scope is active use that scope to build their default path name. For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`. Relative component lookup follows the same scope chain, so a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
+`World::scope(scope)` sets the current component scope and returns the previous one. `World::scope(scope, func)` does the same thing for the duration of one callable and restores the old scope afterwards.
+
+The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS builds the scoped path from that entity hierarchy. New components registered while a scope is active use that scope to build their default path name.
+
+For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`.
+
+Unqualified component lookup checks the active scope first, then walks up parent scopes, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
 
 Scoped component registration looks like this:
 
 ```cpp
+namespace gameplay_types {
+  struct Position {};
+}
+
+namespace render_types {
+  struct Position {};
+}
+
 ecs::World w;
 
-const auto gameplay = w.add();
+const ecs::Entity gameplay = w.add();
 w.name(gameplay, "gameplay");
 
-const auto render = w.add();
+const ecs::Entity render = w.add();
 w.name(render, "render");
 w.child(render, gameplay);
 
 w.scope(gameplay, [&] {
-  const auto& gameplayPos = w.add<Position>();
-  // w.comp_cache().path_name(gameplayPos) returns "gameplay.Position"
+  w.add<gameplay_types::Position>();
+  // the registered symbol is "gameplay_types::Position"
+  // the scoped path is "gameplay.Position"
 
   w.scope(render, [&] {
-    const auto& renderPos = w.add<dummy::Position>();
-    // w.comp_cache().path_name(renderPos) returns "gameplay.render.Position"
+    w.add<render_types::Position>();
+    // the registered symbol is "render_types::Position"
+    // the scoped path is "gameplay.render.Position"
 
     const auto renderLookup = w.get("Position");
-    // returns: renderPos.entity
+    // the component entity registered under "gameplay.render.Position"
   });
 
   const auto gameplayLookup = w.get("Position");
-  // returns: gameplayPos.entity
+  // the component entity registered under "gameplay.Position"
 });
 ```
 
