@@ -2425,7 +2425,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
@@ -2578,7 +2578,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 

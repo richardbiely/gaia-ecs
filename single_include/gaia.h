@@ -40769,7 +40769,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
@@ -40922,7 +40922,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::Or)
 							continue;
 
-						for_each_direct_term_entity(world, term, [&](Entity entity) {
+						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
 							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 								return true;
 
@@ -51823,15 +51823,15 @@ namespace gaia {
 		}
 
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
-	#if GAIA_PROFILER_CPU
 			const auto& queryInfo = query.fetch();
+
+	#if GAIA_PROFILER_CPU
 			const auto name = entity_name(*queryInfo.world(), entity);
 			const char* pScopeName = !name.empty() ? name.data() : sc_observer_query_func_str;
 			GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
 			auto* pWorld = iter.world();
-			auto& queryInfo = query.fetch();
 			const auto queryIds = queryInfo.ctx().data.ids_view();
 			const auto& remapping = queryInfo.ctx().data._remapping;
 			for (auto e: targets) {
