@@ -251,9 +251,9 @@ namespace gaia {
 				writer.begin_array();
 				{
 					for (const auto entity: pArchetype->ids_view()) {
-						const auto* pName = name(entity);
-						if (pName != nullptr)
-							writer.value_string(pName);
+						const auto itemName = name(entity);
+						if (!itemName.empty())
+							writer.value_string(itemName.data(), itemName.size());
 						else
 							writer.value_string("<unnamed>");
 					}
@@ -285,10 +285,10 @@ namespace gaia {
 									writer.value_bool(entity.pair());
 									writer.key("kind");
 									writer.value_string(EntityKindString[entity.kind()]);
-									const auto* pEntityName = name(entity);
-									if (pEntityName != nullptr) {
+									const auto entityName = name(entity);
+									if (!entityName.empty()) {
 										writer.key("name");
-										writer.value_string(pEntityName);
+										writer.value_string(entityName.data(), entityName.size());
 									}
 									writer.end_object();
 								}
@@ -299,7 +299,8 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										writer.key(item.name.str(), item.name.len());
+										const auto name = comp_cache().preferred_name(item);
+										writer.key(name.data(), name.size());
 
 										// Tags have no associated payload.
 										if (rec.comp.size() == 0) {

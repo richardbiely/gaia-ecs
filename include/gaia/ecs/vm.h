@@ -2402,9 +2402,9 @@ namespace gaia {
 						return;
 					}
 
-					const auto* name = entity_name(world, entity);
-					if (name != nullptr) {
-						out.append(name, (uint32_t)GAIA_STRLEN(name, 256));
+					const auto name = entity_name(world, entity);
+					if (!name.empty()) {
+						out.append(name.data(), name.size());
 						return;
 					}
 

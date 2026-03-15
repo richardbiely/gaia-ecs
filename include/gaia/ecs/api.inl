@@ -55,11 +55,11 @@ namespace gaia {
 			return ec.pArchetype;
 		}
 
-		GAIA_NODISCARD inline const char* entity_name(const World& world, Entity entity) {
+		GAIA_NODISCARD inline util::str_view entity_name(const World& world, Entity entity) {
 			return world.name(entity);
 		}
 
-		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
+		GAIA_NODISCARD inline util::str_view entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
 		}
 

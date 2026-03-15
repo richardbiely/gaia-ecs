@@ -223,8 +223,9 @@ w.name(e, "my_unique_name");
 // If you know the length of the string, you can provide it as well
 w.name(e, "my_unique_name", 14);
 
-// Pointer to the string used as entity name for entity "e"
-const char* name = w.name(e);
+// Non-owning util::str_view of the string used as entity name for entity "e"
+auto name = w.name(e);
+// returns: "my_unique_name"
 
 // Entity identified by the string returned.
 // In this case, "e_by_name" and "e" are equal.
@@ -232,9 +233,11 @@ ecs::Entity e_by_name = w.get("my_unique_name");
 
 // The name can be unset by setting it to nullptr
 w.name(e, nullptr);
+auto unnamed = w.name(e);
+// returns: empty util::str_view
 ```
 
-If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use `World::name_raw` to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
+If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use `World::name_raw` to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer, contents, and length must stay stable while the raw name is registered. Otherwise, any time your storage tries to move or rewrite the string you have to unset the name before it happens and set it anew after the change is done.
 
 ```cpp
 const char* pUserManagedString = ...;
@@ -273,6 +276,33 @@ Character '.' (dot) is used as a separator. Therefore, dots can not be used insi
 ```cpp
 auto e = wld.add();
 wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignored
+```
+
+### Component names
+
+Components have a registered symbol name in the component cache. For a global type this is usually the simple type name. For nested or local types some compilers may register a qualified name such as `SomeTest::Device`.
+
+Gaia-ECS now exposes the lookup modes directly. `ComponentCache::find_exact` uses the full registered component name. `ComponentCache::find_symbol` uses the short unqualified name and succeeds only when that short name is unique. `ComponentCache::find_resolved` tries exact lookup first and then falls back to the short name. `ComponentCache::find` is kept as the convenience resolved form.
+
+`World::get("name")` still starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to resolved component lookup so `World::get("Device")` can still return the component entity when that is what you meant. String queries such as `w.query().add("Device")` and semantic JSON loading also use resolved component lookup. Runtime component creation by string uses exact lookup so creating `"Device"` will not silently bind to a qualified alias.
+
+When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::preferred_name`. It returns the unique short name when that is safe and otherwise returns the full registered component name.
+
+```cpp
+const auto* exact = w.comp_cache().find_exact("SomeTest::Device");
+// returns: pointer to the registered component for "SomeTest::Device", or nullptr if it does not exist
+
+const auto* symbol = w.comp_cache().find_symbol("Device");
+// returns: the same pointer as "exact" when "Device" is a unique short name, otherwise nullptr
+
+const auto* resolved = w.comp_cache().find_resolved("Device");
+// returns: the exact-match pointer if it exists, otherwise the same pointer as find_symbol("Device")
+
+const auto registered = w.name(resolved->entity);
+// returns: "SomeTest::Device"
+
+const auto pretty = w.comp_cache().preferred_name(*resolved);
+// returns: "Device" when the short name is unique, otherwise "SomeTest::Device"
 ```
 
 ### Add or remove component

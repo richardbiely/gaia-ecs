@@ -591,6 +591,18 @@ TEST_CASE("util::str") {
 	using util::str;
 	using util::str_view;
 
+	static_assert(str_view("Gaia-ECS").size() == 8);
+	static_assert(!str_view("Gaia-ECS").empty());
+	static_assert(str_view("Gaia-ECS").find("ECS") == 5);
+	static_assert(str_view("Gaia-ECS").find('-') == 4);
+	static_assert(str_view("Gaia-ECS").find_first_of("xyzE") == 5);
+	static_assert(str_view("Gaia-ECS").find_last_of('a') == 3);
+	static_assert(str_view("Gaia-ECS").find_first_not_of("Ga") == 2);
+	static_assert(str_view("Gaia-ECS").find_last_not_of("CS") == 5);
+	static_assert(str_view("Gaia-ECS") == str_view("Gaia-ECS"));
+	static_assert(str_view("Gaia-ECS") != str_view("gaia-ecs"));
+	static_assert(util::trim(str_view(" \tGaia-ECS\n")) == str_view("Gaia-ECS"));
+
 	SUBCASE("basic ownership and empty semantics") {
 		str s;
 		CHECK(s.empty());
@@ -9545,12 +9557,12 @@ TEST_CASE("Entity name - entity only") {
 	auto verify = [&](uint32_t i) {
 		auto e = ents[i];
 		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
-		const auto* ename = wld.name(e);
+		const auto ename = wld.name(e);
 
 		const auto l0 = GAIA_STRLEN(tmp, ecs::ComponentCacheItem::MaxNameLength);
-		const auto l1 = GAIA_STRLEN(ename, ecs::ComponentCacheItem::MaxNameLength);
+		const auto l1 = ename.size();
 		CHECK(l0 == l1);
-		CHECK(strcmp(tmp, ename) == 0);
+		CHECK(ename == util::str_view(tmp, l0));
 	};
 
 	SUBCASE("basic") {
@@ -9559,18 +9571,17 @@ TEST_CASE("Entity name - entity only") {
 		verify(0);
 		auto e = ents[0];
 
-		char original[MaxLen];
-		GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
+		const util::str original(wld.name(e));
 
 		// If we change the original string we still must have a match
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			CHECK(strcmp(wld.name(e), original) == 0);
-			CHECK(wld.get(original) == e);
+			CHECK(wld.name(e) == original.view());
+			CHECK(wld.get(original.data(), original.size()) == e);
 			CHECK(wld.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
-			GAIA_STRCPY(tmp, MaxLen, original);
+			GAIA_STRCPY(tmp, MaxLen, original.data());
 			verify(0);
 		}
 
@@ -9579,19 +9590,19 @@ TEST_CASE("Entity name - entity only") {
 		// because the situation is assert-protected.
 		{
 			auto e1 = wld.add();
-			wld.name(e1, original);
-			CHECK(wld.name(e1) == nullptr);
-			CHECK(wld.get(original) == e);
+			wld.name(e1, original.data());
+			CHECK(wld.name(e1).empty());
+			CHECK(wld.get(original.data(), original.size()) == e);
 		}
 #endif
 
 		wld.name(e, nullptr);
-		CHECK(wld.get(original) == ecs::EntityBad);
-		CHECK(wld.name(e) == nullptr);
+		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
+		CHECK(wld.name(e).empty());
 
-		wld.name(e, original);
+		wld.name(e, original.data());
 		wld.del(e);
-		CHECK(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 	}
 
 	SUBCASE("basic - non-owned") {
@@ -9600,33 +9611,30 @@ TEST_CASE("Entity name - entity only") {
 		verify(0);
 		auto e = ents[0];
 
-		char original[MaxLen];
-		GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
+		const util::str original(wld.name(e));
 
-		// If we change the original string we can't have a match
+		// If we rewrite the original storage without re-registering the name, lookup data becomes stale.
 		{
 			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
-			const auto* str = wld.name(e);
-			CHECK(strcmp(str, "some_random_string") == 0);
-			CHECK(wld.get(original) == ecs::EntityBad);
+			CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 			// Hash was calculated for [original] but we changed the string to "some_random_string".
-			// Hash won't match so we shouldn't be able to find the entity still.
+			// The registered length and hash won't match so we shouldn't be able to find the entity still.
 			CHECK(wld.get("some_random_string") == ecs::EntityBad);
 		}
 
 		{
 			// Change the name back
-			GAIA_STRCPY(tmp, MaxLen, original);
+			GAIA_STRCPY(tmp, MaxLen, original.data());
 			verify(0);
 		}
 
 		wld.name(e, nullptr);
-		CHECK(wld.get(original) == ecs::EntityBad);
-		CHECK(wld.name(e) == nullptr);
+		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
+		CHECK(wld.name(e).empty());
 
-		wld.name_raw(e, original);
+		wld.name_raw(e, original.data());
 		wld.del(e);
-		CHECK(wld.get(original) == ecs::EntityBad);
+		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 	}
 
 	SUBCASE("two") {
@@ -9648,20 +9656,19 @@ TEST_CASE("Entity name - entity only") {
 		{
 			auto e = ents[1000];
 
-			char original[MaxLen];
-			GAIA_STRFMT(original, MaxLen, "%s", wld.name(e));
+			const util::str original(wld.name(e));
 
 			{
 				wld.enable(e, false);
-				const auto* str = wld.name(e);
-				CHECK(strcmp(str, original) == 0);
-				CHECK(e == wld.get(original));
+				const auto str = wld.name(e);
+				CHECK(str == original.view());
+				CHECK(e == wld.get(original.data(), original.size()));
 			}
 			{
 				wld.enable(e, true);
-				const auto* str = wld.name(e);
-				CHECK(strcmp(str, original) == 0);
-				CHECK(e == wld.get(original));
+				const auto str = wld.name(e);
+				CHECK(str == original.view());
+				CHECK(e == wld.get(original.data(), original.size()));
 			}
 		}
 	}
@@ -9678,8 +9685,8 @@ TEST_CASE("Entity name - component") {
 	const auto& pci = wld.add<Position>();
 	{
 		// name must match
-		const char* name = wld.name(pci.entity);
-		CHECK(strcmp(name, "Position") == 0);
+		const auto name = wld.name(pci.entity);
+		CHECK(name == "Position");
 		const auto e = wld.get("Position");
 		CHECK(e == pci.entity);
 	}
@@ -9687,15 +9694,15 @@ TEST_CASE("Entity name - component") {
 	const auto& upci = wld.add<ecs::uni<Position>>();
 	{
 		// name must match
-		const char* name = wld.name(upci.entity);
-		CHECK(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		const auto name = wld.name(upci.entity);
+		CHECK(name == "gaia::ecs::uni<Position>");
 		const auto e = wld.get("gaia::ecs::uni<Position>");
 		CHECK(e == upci.entity);
 	}
 	{
 		// generic component name must still match
-		const char* name = wld.name(pci.entity);
-		CHECK(strcmp(name, "Position") == 0);
+		const auto name = wld.name(pci.entity);
+		CHECK(name == "Position");
 		const auto e = wld.get("Position");
 		CHECK(e == pci.entity);
 	}
@@ -9704,15 +9711,15 @@ TEST_CASE("Entity name - component") {
 	wld.name(pci.entity, "xyz", 3);
 	{
 		// name must match
-		const char* name = wld.name(pci.entity);
-		CHECK(strcmp(name, "xyz") == 0);
+		const auto name = wld.name(pci.entity);
+		CHECK(name == "xyz");
 		const auto e = wld.get("xyz");
 		CHECK(e == pci.entity);
 	}
 	{
 		// unique component name must still match
-		const char* name = wld.name(upci.entity);
-		CHECK(strcmp(name, "gaia::ecs::uni<Position>") == 0);
+		const auto name = wld.name(upci.entity);
+		CHECK(name == "gaia::ecs::uni<Position>");
 		const auto e = wld.get("gaia::ecs::uni<Position>");
 		CHECK(e == upci.entity);
 	}
@@ -9750,10 +9757,10 @@ TEST_CASE("Entity name - copy") {
 		CHECK(p2.y == 2.f);
 		CHECK(p2.z == 3.f);
 
-		const auto* e1name = wld.name(e1);
-		CHECK(e1name == pTestStr);
-		const auto* e2name = wld.name(e2);
-		CHECK(e2name == nullptr);
+		const auto e1name = wld.name(e1);
+		CHECK(e1name == util::str_view(pTestStr, (uint32_t)strlen(pTestStr)));
+		const auto e2name = wld.name(e2);
+		CHECK(e2name.empty());
 	}
 
 	SUBCASE("many entities") {
@@ -9768,16 +9775,16 @@ TEST_CASE("Entity name - copy") {
 
 			auto e = wld.get(pTestStr);
 			CHECK(e == e1);
-			const auto* e1name = wld.name(e1);
-			CHECK(e1name == pTestStr);
+			const auto e1name = wld.name(e1);
+			CHECK(e1name == util::str_view(pTestStr, (uint32_t)strlen(pTestStr)));
 			const auto& p1 = wld.get<PositionNonTrivial>(e1);
 			CHECK(p1.x == 1.f);
 			CHECK(p1.y == 2.f);
 			CHECK(p1.z == 3.f);
 
 			for (auto ent: ents) {
-				const auto* e2name = wld.name(ent);
-				CHECK(e2name == nullptr);
+				const auto e2name = wld.name(ent);
+				CHECK(e2name.empty());
 				const auto& p2 = wld.get<PositionNonTrivial>(ent);
 				CHECK(p2.x == 1.f);
 				CHECK(p2.y == 2.f);
@@ -9807,16 +9814,16 @@ TEST_CASE("Entity name - copy") {
 
 			auto e = wld.get(pTestStr);
 			CHECK(e == e1);
-			const auto* e1name = wld.name(e1);
-			CHECK(e1name == pTestStr);
+			const auto e1name = wld.name(e1);
+			CHECK(e1name == util::str_view(pTestStr, (uint32_t)strlen(pTestStr)));
 			const auto& p1 = wld.get<PositionNonTrivial>(e1);
 			CHECK(p1.x == 1.f);
 			CHECK(p1.y == 2.f);
 			CHECK(p1.z == 3.f);
 
 			for (auto ent: ents) {
-				const auto* e2name = wld.name(ent);
-				CHECK(e2name == nullptr);
+				const auto e2name = wld.name(ent);
+				CHECK(e2name.empty());
 				const auto& p2 = wld.get<PositionNonTrivial>(ent);
 				CHECK(p2.x == 1.f);
 				CHECK(p2.y == 2.f);
@@ -10820,9 +10827,9 @@ TEST_CASE("Prefab - instantiate does not copy the prefab name") {
 
 	const auto instance = wld.instantiate(prefabAnimal);
 
-	CHECK(wld.name(prefabAnimal) != nullptr);
-	CHECK(strcmp(wld.name(prefabAnimal), "prefab_animal") == 0);
-	CHECK(wld.name(instance) == nullptr);
+	CHECK(!wld.name(prefabAnimal).empty());
+	CHECK(wld.name(prefabAnimal) == "prefab_animal");
+	CHECK(wld.name(instance).empty());
 }
 
 TEST_CASE("Prefab - instantiate respects DontInherit policy") {
@@ -11357,7 +11364,7 @@ TEST_CASE("Instantiate - non-prefab parented fallback behaves like copy plus par
 	CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
 	CHECK_FALSE(wld.has_direct(instance, ecs::Prefab));
 	CHECK_FALSE(wld.has_direct(instance, ecs::Pair(ecs::Is, animal)));
-	CHECK(wld.name(instance) == nullptr);
+	CHECK(wld.name(instance).empty());
 	CHECK(wld.get<Position>(instance).x == doctest::Approx(4.0f));
 	CHECK(wld.get<Position>(instance).y == doctest::Approx(5.0f));
 	CHECK(wld.get<Position>(instance).z == doctest::Approx(6.0f));
@@ -11396,10 +11403,10 @@ TEST_CASE("Prefab - instantiate_n does not copy prefab names") {
 	});
 
 	CHECK(roots.size() == 5);
-	CHECK(wld.name(prefabAnimal) != nullptr);
-	CHECK(strcmp(wld.name(prefabAnimal), "prefab_animal_bulk") == 0);
+	CHECK(!wld.name(prefabAnimal).empty());
+	CHECK(wld.name(prefabAnimal) == "prefab_animal_bulk");
 	for (const auto instance: roots)
-		CHECK(wld.name(instance) == nullptr);
+		CHECK(wld.name(instance).empty());
 }
 
 TEST_CASE("Instantiate_n - non-prefab parented fallback supports CopyIter callbacks") {
@@ -16509,10 +16516,10 @@ TEST_CASE("copy_ext_n strips names and preserves sparse data") {
 
 	CHECK(copied.size() == 8);
 	CHECK(wld.get("copy-ext-n-source") == src);
-	CHECK(strcmp(wld.name(src), "copy-ext-n-source") == 0);
+	CHECK(wld.name(src) == "copy-ext-n-source");
 
 	for (const auto entity: copied) {
-		CHECK(wld.name(entity) == nullptr);
+		CHECK(wld.name(entity).empty());
 		CHECK(wld.has<PositionSparse>(entity));
 		const auto& pos = wld.get<PositionSparse>(entity);
 		CHECK(pos.x == doctest::Approx(3.0f));

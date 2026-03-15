@@ -18992,7 +18992,7 @@ namespace gaia {
 			//! \param value Needle string view.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(str_view value, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(str_view value, uint32_t pos = 0) const {
 				return find(value.data(), value.size(), pos);
 			}
 
@@ -19001,7 +19001,7 @@ namespace gaia {
 			//! \param len Number of characters in @a value.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
+			GAIA_NODISCARD constexpr uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
 				if (pos > m_size)
 					return BadIndex;
 				if (len == 0)
@@ -19010,7 +19010,7 @@ namespace gaia {
 					return BadIndex;
 
 				for (uint32_t i = pos; i + len <= m_size; ++i) {
-					if (memcmp(m_data + i, value, len) == 0)
+					if (equal_bytes(m_data + i, value, len))
 						return i;
 				}
 				return BadIndex;
@@ -19022,7 +19022,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(const char (&lit)[N], uint32_t pos = 0) const {
 				static_assert(N > 0);
 				return find(str_view(lit), pos);
 			}
@@ -19031,7 +19031,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(char ch, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -19045,7 +19045,7 @@ namespace gaia {
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_of(str_view chars, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(str_view chars, uint32_t pos = 0) const {
 				if (pos >= m_size || chars.empty())
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -19059,7 +19059,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_of(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(char ch, uint32_t pos = 0) const {
 				return find(ch, pos);
 			}
 
@@ -19069,7 +19069,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_first_of(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(const char (&lit)[N], uint32_t pos = 0) const {
 				return find_first_of(str_view(lit), pos);
 			}
 
@@ -19077,7 +19077,7 @@ namespace gaia {
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_of(str_view chars, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(str_view chars, uint32_t pos = BadIndex) const {
 				if (m_size == 0 || chars.empty())
 					return BadIndex;
 
@@ -19099,7 +19099,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last match or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_of(char ch, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(char ch, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -19123,7 +19123,7 @@ namespace gaia {
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_last_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
 				return find_last_of(str_view(lit), pos);
 			}
 
@@ -19131,7 +19131,7 @@ namespace gaia {
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_not_of(str_view chars, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(str_view chars, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				if (chars.empty())
@@ -19148,7 +19148,7 @@ namespace gaia {
 			//! \param ch Excluded character.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_not_of(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(char ch, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -19164,7 +19164,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_first_not_of(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(const char (&lit)[N], uint32_t pos = 0) const {
 				return find_first_not_of(str_view(lit), pos);
 			}
 
@@ -19172,7 +19172,7 @@ namespace gaia {
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_not_of(str_view chars, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(str_view chars, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -19197,7 +19197,7 @@ namespace gaia {
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_not_of(char ch, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(char ch, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -19221,7 +19221,7 @@ namespace gaia {
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_last_not_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
 				return find_last_not_of(str_view(lit), pos);
 			}
 
@@ -19230,18 +19230,40 @@ namespace gaia {
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
 			template <size_t N>
-			GAIA_NODISCARD bool operator==(const char (&lit)[N]) const {
+			GAIA_NODISCARD constexpr bool operator==(const char (&lit)[N]) const {
 				static_assert(N > 0);
-				return m_size == (uint32_t)(N - 1) && (m_size == 0 || memcmp(m_data, lit, m_size) == 0);
+				return m_size == (uint32_t)(N - 1) && equal_bytes(m_data, lit, m_size);
+			}
+
+			//! Compares this view with view @a other for exact byte equality.
+			//! \param other View to compare with.
+			//! \return True when lengths and contents are equal.
+			GAIA_NODISCARD constexpr bool operator==(str_view other) const {
+				return m_size == other.m_size && equal_bytes(m_data, other.m_data, m_size);
+			}
+
+			//! Compares this view with view @a other for exact byte inequality.
+			//! \param other View to compare with.
+			//! \return True when lengths or contents differ.
+			GAIA_NODISCARD constexpr bool operator!=(str_view other) const {
+				return !operator==(other);
 			}
 
 		private:
-			GAIA_NODISCARD static bool contains(str_view set, char value) {
+			GAIA_NODISCARD static constexpr bool contains(str_view set, char value) {
 				for (uint32_t i = 0; i < set.m_size; ++i) {
 					if (set.m_data[i] == value)
 						return true;
 				}
 				return false;
+			}
+
+			GAIA_NODISCARD static constexpr bool equal_bytes(const char* left, const char* right, uint32_t size) {
+				for (uint32_t i = 0; i < size; ++i) {
+					if (left[i] != right[i])
+						return false;
+				}
+				return true;
 			}
 		};
 
@@ -23425,8 +23447,8 @@ namespace gaia {
 
 		Archetype* archetype_from_entity(const World& world, Entity entity);
 
-		const char* entity_name(const World& world, Entity entity);
-		const char* entity_name(const World& world, EntityId entityId);
+		util::str_view entity_name(const World& world, Entity entity);
+		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
@@ -24437,18 +24459,20 @@ namespace gaia {
 					for (const auto& edge: edges) {
 						const auto entity = edge.first.entity();
 						if (entity.pair()) {
-							const auto* name0 = entity_name(world, entity.id());
-							const auto* name1 = entity_name(world, entity.gen());
+							const auto name0 = entity_name(world, entity.id());
+							const auto name1 = entity_name(world, entity.gen());
 							GAIA_LOG_N(
-									"    pair [%u:%u], %s -> %s, aid:%u",
+									"    pair [%u:%u], %.*s -> %.*s, aid:%u",
 									//
-									entity.id(), entity.gen(), name0, name1, edge.second.id);
+									entity.id(), entity.gen(), (int)name0.size(), name0.empty() ? "" : name0.data(),
+									(int)name1.size(), name1.empty() ? "" : name1.data(), edge.second.id);
 						} else {
-							const auto* name = entity_name(world, entity);
+							const auto name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"    ent [%u:%u], %s [%s], aid:%u",
+									"    ent [%u:%u], %.*s [%s], aid:%u",
 									//
-									entity.id(), entity.gen(), name, EntityKindString[entity.kind()], edge.second.id);
+									entity.id(), entity.gen(), (int)name.size(), name.empty() ? "" : name.data(),
+									EntityKindString[entity.kind()], edge.second.id);
 						}
 					}
 				};
@@ -24468,6 +24492,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+
 /*** End of inlined file: archetype_graph.h ***/
 
 
@@ -25866,6 +25891,16 @@ namespace gaia {
 				if (shortName.str() == nullptr || shortName.len() == 0)
 					return;
 
+				const auto exactIt = m_compByString.find(shortName);
+				if (exactIt != m_compByString.end() && exactIt->second != &item) {
+					const auto aliasIt = m_compByShortString.find(shortName);
+					if (aliasIt == m_compByShortString.end())
+						m_compByShortString.emplace(shortName, nullptr);
+					else
+						aliasIt->second = nullptr;
+					return;
+				}
+
 				const auto it = m_compByShortString.find(shortName);
 				if (it == m_compByShortString.end()) {
 					m_compByShortString.emplace(shortName, &item);
@@ -25878,6 +25913,9 @@ namespace gaia {
 
 			void add_name_mappings(const ComponentCacheItem& item) {
 				m_compByString.emplace(item.name, &item);
+				const auto aliasIt = m_compByShortString.find(item.name);
+				if (aliasIt != m_compByShortString.end() && aliasIt->second != &item)
+					aliasIt->second = nullptr;
 				add_short_name_alias(item);
 			}
 
@@ -26080,22 +26118,86 @@ namespace gaia {
 				return *pItem;
 			}
 
-			//! Searches for the component cache item. The provided string is NOT copied internally.
+			//! Returns the user-facing name Gaia should prefer when serializing or presenting a component.
+			//! If the component has a unique short unqualified name, that short name is returned.
+			//! If the short name would be ambiguous or shadowed by an exact component name, the full registered symbol is returned.
+			//! Internal gaia::ecs components always keep their full name.
+			//! \param item Component cache item to inspect.
+			//! \return Preferred user-facing component name.
+			GAIA_NODISCARD util::str_view preferred_name(const ComponentCacheItem& item) const noexcept {
+				constexpr char InternalPrefix[] = "gaia::ecs::";
+				constexpr uint32_t InternalPrefixLen = (uint32_t)(sizeof(InternalPrefix) - 1);
+				if (item.name.len() >= InternalPrefixLen && memcmp(item.name.str(), InternalPrefix, InternalPrefixLen) == 0) {
+					return {item.name.str(), item.name.len()};
+				}
+
+				const auto shortName = short_name_key(item);
+				if (shortName.str() == nullptr || shortName.len() == 0)
+					return {item.name.str(), item.name.len()};
+
+				const auto exactIt = m_compByString.find(shortName);
+				if (exactIt != m_compByString.end() && exactIt->second != &item)
+					return {item.name.str(), item.name.len()};
+
+				const auto it = m_compByShortString.find(shortName);
+				if (it != m_compByShortString.end() && it->second == &item)
+					return {shortName.str(), shortName.len()};
+
+				return {item.name.str(), item.name.len()};
+			}
+
+			//! Searches for the component cache item by its exact registered symbol name.
+			//! The provided string is NOT copied internally.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
-			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* find_exact(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
 				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
 
 				const auto it = m_compByString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
-				if (it != m_compByString.end())
-					return it->second;
+				return it != m_compByString.end() ? it->second : nullptr;
+			}
+
+			//! Searches for the component cache item by its short unqualified symbol name.
+			//! The short name must be unique and must not be shadowed by an exact registered symbol name.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find_symbol(const char* name, uint32_t len = 0) const noexcept {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
 
 				const auto shortIt = m_compByShortString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
 				return shortIt != m_compByShortString.end() ? shortIt->second : nullptr;
+			}
+
+			//! Searches for the component cache item using exact symbol lookup first and then a unique short-name alias.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find_resolved(const char* name, uint32_t len = 0) const noexcept {
+				const auto* pItem = find_exact(name, len);
+				if (pItem != nullptr)
+					return pItem;
+
+				return find_symbol(name, len);
+			}
+
+			//! Searches for the component cache item using resolved lookup.
+			//! Exact symbol lookup is attempted first, followed by a unique short-name alias.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
+				return find_resolved(name, len);
 			}
 
 			//! Searches for the component cache item. The provided string is NOT copied internally.
@@ -26106,7 +26208,37 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find(name, len));
 			}
 
-			//! Returns the component cache item. The provided string is NOT copied internally.
+			//! Searches for the component cache item by its short unqualified symbol name.
+			//! The short name must be unique and must not be shadowed by an exact registered symbol name.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find_symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_symbol(name, len));
+			}
+
+			//! Searches for the component cache item using exact symbol lookup first and then a unique short-name alias.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find_resolved(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_resolved(name, len));
+			}
+
+			//! Searches for the component cache item by its exact registered symbol name.
+			//! The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD ComponentCacheItem* find_exact(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_exact(name, len));
+			}
+
+			//! Returns the component cache item using resolved lookup.
+			//! Exact registered symbol lookup is attempted first, followed by a unique short-name alias.
+			//! The provided string is NOT copied internally.
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \return Component info.
@@ -26117,13 +26249,37 @@ namespace gaia {
 				return *pItem;
 			}
 
-			//! Returns the component cache item. The provided string is NOT copied internally.
+			//! Returns the component cache item using resolved lookup.
+			//! Exact registered symbol lookup is attempted first, followed by a unique short-name alias.
+			//! The provided string is NOT copied internally.
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \return Component info.
 			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD ComponentCacheItem& get(const char* name, uint32_t len = 0) noexcept {
 				auto* pItem = find(name, len);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item by its short unqualified symbol name.
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \return Component info.
+			//! \warning It is expected a unique short-name component alias exists. Undefined behavior otherwise.
+			GAIA_NODISCARD const ComponentCacheItem& get_symbol(const char* name, uint32_t len = 0) const noexcept {
+				const auto* pItem = find_symbol(name, len);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Returns the component cache item by its short unqualified symbol name.
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \return Component info.
+			//! \warning It is expected a unique short-name component alias exists. Undefined behavior otherwise.
+			GAIA_NODISCARD ComponentCacheItem& get_symbol(const char* name, uint32_t len = 0) noexcept {
+				auto* pItem = find_symbol(name, len);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
@@ -29576,13 +29732,17 @@ namespace gaia {
 
 			static void diag_entity(const World& world, Entity entity) {
 				if (entity.entity()) {
+					const auto name = entity_name(world, entity);
 					GAIA_LOG_N(
-							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(),
+							name.empty() ? "" : name.data(),
 							EntityKindString[entity.kind()]);
 				} else if (entity.pair()) {
+					const auto rel = entity_name(world, entity.id());
+					const auto tgt = entity_name(world, entity.gen());
 					GAIA_LOG_N(
-							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-							entity_name(world, entity.gen()));
+							"    pair [%u:%u] %.*s -> %.*s", entity.id(), entity.gen(), (int)rel.size(),
+							rel.empty() ? "" : rel.data(), (int)tgt.size(), tgt.empty() ? "" : tgt.data());
 				} else {
 					const auto& cc = comp_cache(world);
 					const auto& desc = cc.get(entity);
@@ -34320,9 +34480,9 @@ namespace gaia {
 						return;
 					}
 
-					const auto* name = entity_name(world, entity);
-					if (name != nullptr) {
-						out.append(name, (uint32_t)GAIA_STRLEN(name, 256));
+					const auto name = entity_name(world, entity);
+					if (!name.empty()) {
+						out.append(name.data(), name.size());
 						return;
 					}
 
@@ -42486,7 +42646,7 @@ namespace gaia {
 
 	#if GAIA_PROFILER_CPU
 		inline constexpr const char* sc_observer_query_func_str = "Observer_exec";
-		const char* entity_name(const World& world, Entity entity);
+		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
 		//! Observer event types
@@ -44881,7 +45041,7 @@ namespace gaia {
 				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
 				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
 
-				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
+				if (const auto* pItem = comp_cache().find_exact(name, len); pItem != nullptr)
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
@@ -45087,7 +45247,7 @@ namespace gaia {
 			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
@@ -45128,7 +45288,7 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				copy_n_inter(entity, count, func, EntitySpan{});
@@ -45141,7 +45301,7 @@ namespace gaia {
 			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
@@ -45195,7 +45355,7 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
@@ -46119,7 +46279,7 @@ namespace gaia {
 			//! \warning It is expected @a prefabEntity is valid entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a prefabEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void instantiate_n(Entity prefabEntity, uint32_t count, Func func = func_void_with_entity) {
 				instantiate_n(prefabEntity, EntityBad, count, func);
@@ -46791,20 +46951,20 @@ namespace gaia {
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
 			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
-			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
-			//!          the string to a different place you have to unset the name before it happens and set it anew
-			//!          after the move is done.
+			//!          lifetime. The pointer, contents, and length need to stay stable. Otherwise, any time your
+			//!          storage tries to move or rewrite the string you have to unset the name before it happens
+			//!          and set it anew after the change is done.
 			void name_raw(Entity entity, const char* name, uint32_t len = 0) {
 				EntityBuilder(*this, entity).name_raw(name, len);
 			}
 
 			//! Returns the name assigned to @a entity.
 			//! \param entity Entity
-			//! \return Name assigned to entity.
+			//! \return Name assigned to entity. Empty view when there is no name.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(Entity entity) const {
+			GAIA_NODISCARD util::str_view name(Entity entity) const {
 				if (entity.pair())
-					return nullptr;
+					return {};
 
 				const auto& ec = m_recs.entities[entity.id()];
 				const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
@@ -46813,21 +46973,21 @@ namespace gaia {
 					// the entity. Components always come with a compile-time string associated
 					// with them.
 					if (!entity.entity())
-						return m_compCache.get(entity).name.str();
+						return {m_compCache.get(entity).name.str(), m_compCache.get(entity).name.len()};
 
-					return nullptr;
+					return {};
 				}
 
 				const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 				GAIA_ASSERT(core::check_alignment(pDesc));
-				return pDesc->name;
+				return {pDesc->name, pDesc->len};
 			}
 
 			//! Returns the name assigned to @a entityId.
 			//! \param entityId EntityId
-			//! \return Name assigned to entity.
+			//! \return Name assigned to entity. Empty view when there is no name.
 			//! \warning It is expected @a entityId is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(EntityId entityId) const {
+			GAIA_NODISCARD util::str_view name(EntityId entityId) const {
 				auto entity = get(entityId);
 				return name(entity);
 			}
@@ -49594,11 +49754,17 @@ namespace gaia {
 
 				GAIA_LOG_W("Currently present:");
 				GAIA_EACH(ids) {
-					GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
+					const auto name = entity_name(world, ids[i]);
+					GAIA_LOG_W(
+							"> [%u] %.*s [%s]", i, (int)name.size(), name.empty() ? "" : name.data(),
+							EntityKindString[(uint32_t)ids[i].kind()]);
 				}
 
 				GAIA_LOG_W("Trying to %s:", adding ? "add" : "del");
-				GAIA_LOG_W("> %s [%s]", entity_name(world, entity), EntityKindString[(uint32_t)entity.kind()]);
+				const auto name = entity_name(world, entity);
+				GAIA_LOG_W(
+						"> %.*s [%s]", (int)name.size(), name.empty() ? "" : name.data(),
+						EntityKindString[(uint32_t)entity.kind()]);
 			}
 
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {
@@ -51445,11 +51611,11 @@ namespace gaia {
 			return ec.pArchetype;
 		}
 
-		GAIA_NODISCARD inline const char* entity_name(const World& world, Entity entity) {
+		GAIA_NODISCARD inline util::str_view entity_name(const World& world, Entity entity) {
 			return world.name(entity);
 		}
 
-		GAIA_NODISCARD inline const char* entity_name(const World& world, EntityId entityId) {
+		GAIA_NODISCARD inline util::str_view entity_name(const World& world, EntityId entityId) {
 			return world.name(entityId);
 		}
 
@@ -51659,8 +51825,8 @@ namespace gaia {
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
 	#if GAIA_PROFILER_CPU
 			const auto& queryInfo = query.fetch();
-			const char* pName = entity_name(*queryInfo.world(), entity);
-			const char* pScopeName = pName != nullptr ? pName : sc_observer_query_func_str;
+			const auto name = entity_name(*queryInfo.world(), entity);
+			const char* pScopeName = !name.empty() ? name.data() : sc_observer_query_func_str;
 			GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
@@ -52051,7 +52217,7 @@ namespace gaia {
 
 	#if GAIA_PROFILER_CPU
 		inline constexpr const char* sc_system_query_func_str = "System_exec";
-		const char* entity_name(const World& world, Entity entity);
+		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
 		struct System_ {
@@ -52085,8 +52251,8 @@ namespace gaia {
 				[[maybe_unused]] auto& queryInfo = query.fetch();
 
 	#if GAIA_PROFILER_CPU
-				const char* pName = entity_name(*queryInfo.world(), entity);
-				const char* pScopeName = pName != nullptr ? pName : sc_system_query_func_str;
+				const auto name = entity_name(*queryInfo.world(), entity);
+				const char* pScopeName = !name.empty() ? name.data() : sc_system_query_func_str;
 				GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 
@@ -52929,9 +53095,9 @@ namespace gaia {
 				writer.begin_array();
 				{
 					for (const auto entity: pArchetype->ids_view()) {
-						const auto* pName = name(entity);
-						if (pName != nullptr)
-							writer.value_string(pName);
+						const auto itemName = name(entity);
+						if (!itemName.empty())
+							writer.value_string(itemName.data(), itemName.size());
 						else
 							writer.value_string("<unnamed>");
 					}
@@ -52963,10 +53129,10 @@ namespace gaia {
 									writer.value_bool(entity.pair());
 									writer.key("kind");
 									writer.value_string(EntityKindString[entity.kind()]);
-									const auto* pEntityName = name(entity);
-									if (pEntityName != nullptr) {
+									const auto entityName = name(entity);
+									if (!entityName.empty()) {
 										writer.key("name");
-										writer.value_string(pEntityName);
+										writer.value_string(entityName.data(), entityName.size());
 									}
 									writer.end_object();
 								}
@@ -52977,7 +53143,8 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										writer.key(item.name.str(), item.name.len());
+										const auto name = comp_cache().preferred_name(item);
+										writer.key(name.data(), name.size());
 
 										// Tags have no associated payload.
 										if (rec.comp.size() == 0) {

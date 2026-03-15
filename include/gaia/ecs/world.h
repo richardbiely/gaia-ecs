@@ -2338,7 +2338,7 @@ namespace gaia {
 				const auto len = (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength);
 				GAIA_ASSERT(len > 0 && len < ComponentCacheItem::MaxNameLength);
 
-				if (const auto* pItem = comp_cache().find(name, len); pItem != nullptr)
+				if (const auto* pItem = comp_cache().find_exact(name, len); pItem != nullptr)
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
@@ -2544,7 +2544,7 @@ namespace gaia {
 			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
@@ -2585,7 +2585,7 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				copy_n_inter(entity, count, func, EntitySpan{});
@@ -2598,7 +2598,7 @@ namespace gaia {
 			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
@@ -2652,7 +2652,7 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
@@ -3576,7 +3576,7 @@ namespace gaia {
 			//! \warning It is expected @a prefabEntity is valid entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a prefabEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
-			//!          without EntityDesc and any calls to World::name(copiedEntity) will return nullptr.
+			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void instantiate_n(Entity prefabEntity, uint32_t count, Func func = func_void_with_entity) {
 				instantiate_n(prefabEntity, EntityBad, count, func);
@@ -4248,20 +4248,20 @@ namespace gaia {
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
 			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
-			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
-			//!          the string to a different place you have to unset the name before it happens and set it anew
-			//!          after the move is done.
+			//!          lifetime. The pointer, contents, and length need to stay stable. Otherwise, any time your
+			//!          storage tries to move or rewrite the string you have to unset the name before it happens
+			//!          and set it anew after the change is done.
 			void name_raw(Entity entity, const char* name, uint32_t len = 0) {
 				EntityBuilder(*this, entity).name_raw(name, len);
 			}
 
 			//! Returns the name assigned to @a entity.
 			//! \param entity Entity
-			//! \return Name assigned to entity.
+			//! \return Name assigned to entity. Empty view when there is no name.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(Entity entity) const {
+			GAIA_NODISCARD util::str_view name(Entity entity) const {
 				if (entity.pair())
-					return nullptr;
+					return {};
 
 				const auto& ec = m_recs.entities[entity.id()];
 				const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
@@ -4270,21 +4270,21 @@ namespace gaia {
 					// the entity. Components always come with a compile-time string associated
 					// with them.
 					if (!entity.entity())
-						return m_compCache.get(entity).name.str();
+						return {m_compCache.get(entity).name.str(), m_compCache.get(entity).name.len()};
 
-					return nullptr;
+					return {};
 				}
 
 				const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 				GAIA_ASSERT(core::check_alignment(pDesc));
-				return pDesc->name;
+				return {pDesc->name, pDesc->len};
 			}
 
 			//! Returns the name assigned to @a entityId.
 			//! \param entityId EntityId
-			//! \return Name assigned to entity.
+			//! \return Name assigned to entity. Empty view when there is no name.
 			//! \warning It is expected @a entityId is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD const char* name(EntityId entityId) const {
+			GAIA_NODISCARD util::str_view name(EntityId entityId) const {
 				auto entity = get(entityId);
 				return name(entity);
 			}
@@ -7051,11 +7051,17 @@ namespace gaia {
 
 				GAIA_LOG_W("Currently present:");
 				GAIA_EACH(ids) {
-					GAIA_LOG_W("> [%u] %s [%s]", i, entity_name(world, ids[i]), EntityKindString[(uint32_t)ids[i].kind()]);
+					const auto name = entity_name(world, ids[i]);
+					GAIA_LOG_W(
+							"> [%u] %.*s [%s]", i, (int)name.size(), name.empty() ? "" : name.data(),
+							EntityKindString[(uint32_t)ids[i].kind()]);
 				}
 
 				GAIA_LOG_W("Trying to %s:", adding ? "add" : "del");
-				GAIA_LOG_W("> %s [%s]", entity_name(world, entity), EntityKindString[(uint32_t)entity.kind()]);
+				const auto name = entity_name(world, entity);
+				GAIA_LOG_W(
+						"> %.*s [%s]", (int)name.size(), name.empty() ? "" : name.data(),
+						EntityKindString[(uint32_t)entity.kind()]);
 			}
 
 			static void verify_add(const World& world, Archetype& archetype, Entity entity, Entity addEntity) {

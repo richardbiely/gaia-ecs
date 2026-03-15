@@ -1117,13 +1117,17 @@ namespace gaia {
 
 			static void diag_entity(const World& world, Entity entity) {
 				if (entity.entity()) {
+					const auto name = entity_name(world, entity);
 					GAIA_LOG_N(
-							"    ent [%u:%u] %s [%s]", entity.id(), entity.gen(), entity_name(world, entity),
+							"    ent [%u:%u] %.*s [%s]", entity.id(), entity.gen(), (int)name.size(),
+							name.empty() ? "" : name.data(),
 							EntityKindString[entity.kind()]);
 				} else if (entity.pair()) {
+					const auto rel = entity_name(world, entity.id());
+					const auto tgt = entity_name(world, entity.gen());
 					GAIA_LOG_N(
-							"    pair [%u:%u] %s -> %s", entity.id(), entity.gen(), entity_name(world, entity.id()),
-							entity_name(world, entity.gen()));
+							"    pair [%u:%u] %.*s -> %.*s", entity.id(), entity.gen(), (int)rel.size(),
+							rel.empty() ? "" : rel.data(), (int)tgt.size(), tgt.empty() ? "" : tgt.data());
 				} else {
 					const auto& cc = comp_cache(world);
 					const auto& desc = cc.get(entity);

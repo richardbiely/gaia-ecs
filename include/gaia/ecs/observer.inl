@@ -70,8 +70,8 @@ namespace gaia {
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
 	#if GAIA_PROFILER_CPU
 			const auto& queryInfo = query.fetch();
-			const char* pName = entity_name(*queryInfo.world(), entity);
-			const char* pScopeName = pName != nullptr ? pName : sc_observer_query_func_str;
+			const auto name = entity_name(*queryInfo.world(), entity);
+			const char* pScopeName = !name.empty() ? name.data() : sc_observer_query_func_str;
 			GAIA_PROF_SCOPE2(pScopeName);
 	#endif
 

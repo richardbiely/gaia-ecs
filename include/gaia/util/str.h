@@ -52,7 +52,7 @@ namespace gaia {
 			//! \param value Needle string view.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(str_view value, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(str_view value, uint32_t pos = 0) const {
 				return find(value.data(), value.size(), pos);
 			}
 
@@ -61,7 +61,7 @@ namespace gaia {
 			//! \param len Number of characters in @a value.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
+			GAIA_NODISCARD constexpr uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
 				if (pos > m_size)
 					return BadIndex;
 				if (len == 0)
@@ -70,7 +70,7 @@ namespace gaia {
 					return BadIndex;
 
 				for (uint32_t i = pos; i + len <= m_size; ++i) {
-					if (memcmp(m_data + i, value, len) == 0)
+					if (equal_bytes(m_data + i, value, len))
 						return i;
 				}
 				return BadIndex;
@@ -82,7 +82,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(const char (&lit)[N], uint32_t pos = 0) const {
 				static_assert(N > 0);
 				return find(str_view(lit), pos);
 			}
@@ -91,7 +91,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find(char ch, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -105,7 +105,7 @@ namespace gaia {
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_of(str_view chars, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(str_view chars, uint32_t pos = 0) const {
 				if (pos >= m_size || chars.empty())
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -119,7 +119,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_of(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(char ch, uint32_t pos = 0) const {
 				return find(ch, pos);
 			}
 
@@ -129,7 +129,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_first_of(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_of(const char (&lit)[N], uint32_t pos = 0) const {
 				return find_first_of(str_view(lit), pos);
 			}
 
@@ -137,7 +137,7 @@ namespace gaia {
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_of(str_view chars, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(str_view chars, uint32_t pos = BadIndex) const {
 				if (m_size == 0 || chars.empty())
 					return BadIndex;
 
@@ -159,7 +159,7 @@ namespace gaia {
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last match or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_of(char ch, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(char ch, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -183,7 +183,7 @@ namespace gaia {
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_last_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
 				return find_last_of(str_view(lit), pos);
 			}
 
@@ -191,7 +191,7 @@ namespace gaia {
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_not_of(str_view chars, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(str_view chars, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				if (chars.empty())
@@ -208,7 +208,7 @@ namespace gaia {
 			//! \param ch Excluded character.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_first_not_of(char ch, uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(char ch, uint32_t pos = 0) const {
 				if (pos >= m_size)
 					return BadIndex;
 				for (uint32_t i = pos; i < m_size; ++i) {
@@ -224,7 +224,7 @@ namespace gaia {
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_first_not_of(const char (&lit)[N], uint32_t pos = 0) const {
+			GAIA_NODISCARD constexpr uint32_t find_first_not_of(const char (&lit)[N], uint32_t pos = 0) const {
 				return find_first_not_of(str_view(lit), pos);
 			}
 
@@ -232,7 +232,7 @@ namespace gaia {
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_not_of(str_view chars, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(str_view chars, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -257,7 +257,7 @@ namespace gaia {
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
-			GAIA_NODISCARD uint32_t find_last_not_of(char ch, uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(char ch, uint32_t pos = BadIndex) const {
 				if (m_size == 0)
 					return BadIndex;
 
@@ -281,7 +281,7 @@ namespace gaia {
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
 			template <size_t N>
-			GAIA_NODISCARD uint32_t find_last_not_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
+			GAIA_NODISCARD constexpr uint32_t find_last_not_of(const char (&lit)[N], uint32_t pos = BadIndex) const {
 				return find_last_not_of(str_view(lit), pos);
 			}
 
@@ -290,18 +290,40 @@ namespace gaia {
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
 			template <size_t N>
-			GAIA_NODISCARD bool operator==(const char (&lit)[N]) const {
+			GAIA_NODISCARD constexpr bool operator==(const char (&lit)[N]) const {
 				static_assert(N > 0);
-				return m_size == (uint32_t)(N - 1) && (m_size == 0 || memcmp(m_data, lit, m_size) == 0);
+				return m_size == (uint32_t)(N - 1) && equal_bytes(m_data, lit, m_size);
+			}
+
+			//! Compares this view with view @a other for exact byte equality.
+			//! \param other View to compare with.
+			//! \return True when lengths and contents are equal.
+			GAIA_NODISCARD constexpr bool operator==(str_view other) const {
+				return m_size == other.m_size && equal_bytes(m_data, other.m_data, m_size);
+			}
+
+			//! Compares this view with view @a other for exact byte inequality.
+			//! \param other View to compare with.
+			//! \return True when lengths or contents differ.
+			GAIA_NODISCARD constexpr bool operator!=(str_view other) const {
+				return !operator==(other);
 			}
 
 		private:
-			GAIA_NODISCARD static bool contains(str_view set, char value) {
+			GAIA_NODISCARD static constexpr bool contains(str_view set, char value) {
 				for (uint32_t i = 0; i < set.m_size; ++i) {
 					if (set.m_data[i] == value)
 						return true;
 				}
 				return false;
+			}
+
+			GAIA_NODISCARD static constexpr bool equal_bytes(const char* left, const char* right, uint32_t size) {
+				for (uint32_t i = 0; i < size; ++i) {
+					if (left[i] != right[i])
+						return false;
+				}
+				return true;
 			}
 		};
 

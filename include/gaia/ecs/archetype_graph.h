@@ -114,18 +114,20 @@ namespace gaia {
 					for (const auto& edge: edges) {
 						const auto entity = edge.first.entity();
 						if (entity.pair()) {
-							const auto* name0 = entity_name(world, entity.id());
-							const auto* name1 = entity_name(world, entity.gen());
+							const auto name0 = entity_name(world, entity.id());
+							const auto name1 = entity_name(world, entity.gen());
 							GAIA_LOG_N(
-									"    pair [%u:%u], %s -> %s, aid:%u",
+									"    pair [%u:%u], %.*s -> %.*s, aid:%u",
 									//
-									entity.id(), entity.gen(), name0, name1, edge.second.id);
+									entity.id(), entity.gen(), (int)name0.size(), name0.empty() ? "" : name0.data(),
+									(int)name1.size(), name1.empty() ? "" : name1.data(), edge.second.id);
 						} else {
-							const auto* name = entity_name(world, entity);
+							const auto name = entity_name(world, entity);
 							GAIA_LOG_N(
-									"    ent [%u:%u], %s [%s], aid:%u",
+									"    ent [%u:%u], %.*s [%s], aid:%u",
 									//
-									entity.id(), entity.gen(), name, EntityKindString[entity.kind()], edge.second.id);
+									entity.id(), entity.gen(), (int)name.size(), name.empty() ? "" : name.data(),
+									EntityKindString[entity.kind()], edge.second.id);
 						}
 					}
 				};

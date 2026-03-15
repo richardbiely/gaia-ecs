@@ -17,7 +17,7 @@ namespace gaia {
 
 	#if GAIA_PROFILER_CPU
 		inline constexpr const char* sc_observer_query_func_str = "Observer_exec";
-		const char* entity_name(const World& world, Entity entity);
+		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
 		//! Observer event types
