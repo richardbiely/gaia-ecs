@@ -10931,6 +10931,43 @@ TEST_CASE("Prefab - explicit override supports inherited tags") {
 	CHECK_FALSE(wld.override(instance, tag));
 }
 
+TEST_CASE("Is inheritance - explicit override materializes inherited ownership") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	CHECK_FALSE(wld.has_direct(rabbit, position));
+	CHECK(wld.has<Position>(rabbit));
+	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(5.0f));
+	CHECK(wld.override<Position>(rabbit));
+	CHECK(wld.has_direct(rabbit, position));
+	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(5.0f));
+	CHECK_FALSE(wld.override<Position>(rabbit));
+	CHECK(wld.get<Position>(animal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE("Is inheritance - explicit override supports inherited tags") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto tag = wld.add();
+	wld.add(animal, tag);
+	wld.add(tag, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	CHECK_FALSE(wld.has_direct(rabbit, tag));
+	CHECK(wld.has(rabbit, tag));
+	CHECK(wld.override(rabbit, tag));
+	CHECK(wld.has_direct(rabbit, tag));
+	CHECK_FALSE(wld.override(rabbit, tag));
+}
+
 TEST_CASE("Prefab - inherited component queries see instances and materialize local overrides on write") {
 	TestWorld twld;
 
@@ -10959,6 +10996,37 @@ TEST_CASE("Prefab - inherited component queries see instances and materialize lo
 	CHECK(wld.has_direct(instance, position));
 	CHECK(wld.get<Position>(instance).x == doctest::Approx(8.0f));
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
+}
+
+TEST_CASE(
+		"Is inheritance - inherited component queries see derived entities and materialize local overrides on write") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	auto qRead = wld.query().all<Position>();
+	CHECK(qRead.count() == 2);
+	expect_exact_entities(qRead, {animal, rabbit});
+
+	float xRead = 0.0f;
+	qRead.each([&](const Position& pos) {
+		xRead += pos.x;
+	});
+	CHECK(xRead == doctest::Approx(10.0f));
+
+	auto qWrite = wld.query().all<Position&>();
+	qWrite.each([&](Position& pos) {
+		pos.x += 3.0f;
+	});
+
+	CHECK(wld.has_direct(rabbit, position));
+	CHECK(wld.get<Position>(animal).x == doctest::Approx(8.0f));
+	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(11.0f));
 }
 
 TEST_CASE("Prefab - inherited sparse component queries see instances and materialize local overrides on write") {
@@ -15346,6 +15414,30 @@ TEST_CASE("System - inherited prefab component query sees instances and writes o
 	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
 }
 
+TEST_CASE("System - inherited Is component query sees derived entities and writes override locally") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	uint32_t hits = 0;
+	auto sys = wld.system().all<Position&>().on_each([&](Position& pos) {
+		++hits;
+		pos.x += 2.0f;
+	});
+
+	sys.exec();
+
+	CHECK(hits == 2);
+	CHECK(wld.has_direct(rabbit, position));
+	CHECK(wld.get<Position>(animal).x == doctest::Approx(6.0f));
+	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(8.0f));
+}
+
 TEST_CASE("System - inherited prefab sparse component query sees instances and writes override locally") {
 	TestWorld twld;
 
@@ -16735,6 +16827,33 @@ TEST_CASE("Observer - inherited prefab data matches on instantiate") {
 	CHECK(hits == 1);
 	CHECK(wld.has(instance, position));
 	CHECK_FALSE(wld.has_direct(instance, position));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - inherited Is data matches when derived entity is linked to a base") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	wld.as(rabbit, animal);
+
+	CHECK(hits == 1);
+	CHECK(wld.has(rabbit, position));
+	CHECK_FALSE(wld.has_direct(rabbit, position));
 
 	(void)observer;
 }

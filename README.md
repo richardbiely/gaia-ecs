@@ -2038,22 +2038,25 @@ q3.each([](ecs::Entity entity) {
 ```
 
 >**NOTE:<br/>**
-For ordinary `Pair(Is, X)` inheritance, the effect today is only semantic membership. It does **not** yet make components or ids resolve through the base entity. This behavior is exposed only via [prefabs](#prefabs) at the moment. In the future, ordinary `Pair(Is, X)` inheritance may also make ids present on the base entity
-resolve through the derived entity.
+`Pair(Is, X)` can also drive inherited id/data lookup when the id itself is marked with
+`Pair(ecs::OnInstantiate, ecs::Inherit)`.
 
 ```cpp
-// NOT YET IMPLEMENTED, BUT THIS IS WHAT WILL HAPPEN IN THE FUTURE RELEASES.
-struct Age { int value; };
-...
-w.add<Age>(animal, {10});
-// We did not add the Age component to hare but we added it to the entity it inherits from.
-// Therefore, we can ask its age.
-Age age_hare = w.get<Age>(hare);
-// We can decide to override the value with a custom one.
-// This will only affect the hare entity (and any entity inheriting from it).
-w.set<Age>(hare, {20});
-Age age_animal = w.get<Age>(animal); // age_animal.value is still equal to 10
+ecs::Entity position = w.add<Position>().entity;
+w.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+w.add<Position>(animal, {10, 0, 0});
+
+bool rabbit_has_position = w.has<Position>(rabbit); // true
+Position rabbit_pos = w.get<Position>(rabbit); // resolves through animal
+
+// Materialize a local override explicitly.
+bool createdOverride = w.override<Position>(rabbit); // true
 ```
+
+Mutable query/system access does the same override step automatically before writing.
+
+[Prefabs](#prefabs) use this same inherited-id mechanism. The prefab section below focuses on instantiation
+and prefab-specific rules, but the inheritance rule itself is not prefab-only.
 
 ### Prefabs
 Prefabs are entities tagged with `ecs::Prefab`. They are excluded from queries by default unless the query mentions `Prefab` explicitly or opts in with `match_prefab()`.
@@ -2141,7 +2144,8 @@ requested `ecs::Parent` relationship in that fallback path.
 
 Only children that are themselves tagged with `ecs::Prefab` are instantiated recursively. Plain `Parent` children under a prefab are ignored.
 
-Prefab instantiation policies are configured on the copied id itself with `Pair(ecs::OnInstantiate, policy)`:
+Inherited-id behavior for `Is`-based relationships is configured on the id itself with
+`Pair(ecs::OnInstantiate, policy)`. Prefab instantiation uses the same policy:
 
 ```cpp
 ecs::Entity position = w.add<Position>().entity;
