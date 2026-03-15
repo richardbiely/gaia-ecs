@@ -45175,6 +45175,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+		private:
 			//! Builds a dotted scope path for @a scope by walking its ChildOf chain.
 			//! \param scope Scope entity to inspect.
 			//! \param out Receives the dotted path when successful.
@@ -45281,6 +45282,7 @@ namespace gaia {
 				return m_compCache.find_alias(name, l);
 			}
 
+		public:
 			//----------------------------------------------------------------------
 
 			//! Checks if @a entity is valid.
@@ -47256,7 +47258,7 @@ namespace gaia {
 			}
 
 			//! Sets the current component scope used for component registration and relative component lookup.
-			//! The scope entity and its ChildOf ancestors are expected to have names so Gaia-ECS can build a path from them.
+			//! The scope entity and its ChildOf ancestors are expected to have names so we can build a path from them.
 			//! \param scope Scope entity. Pass EntityBad to clear the current component scope.
 			//! \return Previous component scope.
 			Entity scope(Entity scope) {
@@ -47268,9 +47270,8 @@ namespace gaia {
 			}
 
 			//! Executes @a func with a temporary component scope and restores the previous scope afterwards.
-			//! Relative component lookup walks up the ChildOf hierarchy of the active scope, matching Flecs-style
-			//! recursive scope lookup behavior.
-			//! The scope entity and its ChildOf ancestors are expected to have names so Gaia-ECS can build a path from them.
+			//! Relative component lookup walks up the ChildOf hierarchy of the active scope.
+			//! The scope entity and its ChildOf ancestors are expected to have names sowe can build a path from them.
 			//! \param scope Scope entity. Pass EntityBad to temporarily disable component scope.
 			//! \param func Callable executed while the scope is active.
 			template <typename Func>
