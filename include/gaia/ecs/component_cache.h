@@ -123,8 +123,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static ComponentCacheItem::SymbolLookupKey lookup_key(util::str_view value) noexcept {
-				return value.empty() ? ComponentCacheItem::SymbolLookupKey() :
-							 ComponentCacheItem::SymbolLookupKey(value.data(), value.size(), 0);
+				return value.empty() ? ComponentCacheItem::SymbolLookupKey()
+														 : ComponentCacheItem::SymbolLookupKey(value.data(), value.size(), 0);
 			}
 
 			static bool build_default_path(util::str& out, util::str_view symbol) {
@@ -148,7 +148,27 @@ namespace gaia {
 				return changed;
 			}
 
-			static void initialize_names(ComponentCacheItem& item) {
+			//! Builds a scoped component path from a scope prefix and a leaf component name.
+			//! \param out Receives the combined dotted path when successful.
+			//! \param scopePath Dotted scope prefix.
+			//! \param leaf Final component name segment.
+			//! \return True when a scoped path was produced, false otherwise.
+			static bool build_scoped_path(util::str& out, util::str_view scopePath, util::str_view leaf) {
+				out.clear();
+				if (scopePath.empty() || leaf.empty())
+					return false;
+
+				out.reserve(scopePath.size() + 1 + leaf.size());
+				out.append(scopePath);
+				out.append('.');
+				out.append(leaf);
+				return true;
+			}
+
+			//! Initializes alias and path metadata for a component item.
+			//! \param item Component cache item to update.
+			//! \param scopePath Optional world-provided scope prefix used for default path generation.
+			static void initialize_names(ComponentCacheItem& item, util::str_view scopePath = {}) {
 				item.path.clear();
 				item.alias.clear();
 
@@ -157,10 +177,15 @@ namespace gaia {
 					return;
 
 				const auto shortName = short_name_key(item);
-				if (shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len())
-					item.alias.assign(shortName.str(), shortName.len());
+				const bool hasShortName =
+						shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len();
+				const auto leaf = hasShortName ? util::str_view{shortName.str(), shortName.len()} : symbol;
 
-				(void)build_default_path(item.path, symbol);
+				if (hasShortName || !scopePath.empty())
+					item.alias.assign(leaf);
+
+				if (!build_scoped_path(item.path, scopePath, leaf))
+					(void)build_default_path(item.path, symbol);
 			}
 
 			template <typename ViewFunc>
@@ -193,9 +218,12 @@ namespace gaia {
 				});
 			}
 
-			void add_name_mappings(ComponentCacheItem& item) {
+			//! Adds all name-based lookup mappings for a component item.
+			//! \param item Component cache item to register.
+			//! \param scopePath Optional world-provided scope prefix used for default path generation.
+			void add_name_mappings(ComponentCacheItem& item, util::str_view scopePath) {
 				m_compBySymbol.emplace(item.name, &item);
-				initialize_names(item);
+				initialize_names(item, scopePath);
 				rebuild_resolved_name_maps();
 			}
 
@@ -217,7 +245,7 @@ namespace gaia {
 			//! Registers the component item for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity, util::str_view scopePath = {}) {
 				static_assert(!is_pair<T>::value);
 				GAIA_ASSERT(!entity.pair());
 
@@ -229,7 +257,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemArr[compDescId] = pItem;
-						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -261,7 +289,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemByDescId.emplace(compDescId, pItem);
-						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -284,10 +312,12 @@ namespace gaia {
 			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \param scopePath Optional world-provided scoped path prefix used when assigning the default path/alias.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
 			add(Entity entity, const char* name, uint32_t len, uint32_t size, DataStorageType storageType, uint32_t alig = 1,
-					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {},
+					util::str_view scopePath = {}) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
@@ -316,7 +346,7 @@ namespace gaia {
 					m_itemByDescId.emplace(compDescId, pItem);
 				}
 
-				add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+				add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 				m_compByEntity.emplace(pItem->entity, pItem);
 				return *pItem;
 			}

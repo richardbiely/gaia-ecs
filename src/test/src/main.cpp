@@ -5096,6 +5096,63 @@ TEST_CASE("Component names") {
 		verify_name_has(Position);
 		verify_name_has(dummy::Position);
 	}
+
+	SUBCASE("component scope controls default paths and relative lookup") {
+		TestWorld twld;
+		const auto& cc = wld.comp_cache();
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		const auto tools = wld.add();
+		wld.name(tools, "tools");
+		wld.child(tools, gameplay);
+
+		ecs::Entity gameplayPos = ecs::EntityBad;
+		ecs::Entity renderPos = ecs::EntityBad;
+		ecs::Entity renderDevice = ecs::EntityBad;
+
+		wld.scope(gameplay, [&] {
+			gameplayPos = wld.add<Position>().entity;
+			CHECK(cc.path_name(cc.get(gameplayPos)) == "gameplay.Position");
+			CHECK(cc.alias_name(cc.get(gameplayPos)) == "Position");
+			CHECK(wld.get("Position") == gameplayPos);
+
+			wld.scope(render, [&] {
+				renderPos = wld.add<dummy::Position>().entity;
+				CHECK(cc.path_name(cc.get(renderPos)) == "gameplay.render.Position");
+				CHECK(cc.alias_name(cc.get(renderPos)) == "Position");
+				CHECK(wld.get("Position") == renderPos);
+
+				renderDevice = wld.add("Device", 0, ecs::DataStorageType::Table, 1).entity;
+				CHECK(cc.path_name(cc.get(renderDevice)) == "gameplay.render.Device");
+				CHECK(cc.alias_name(cc.get(renderDevice)) == "Device");
+				CHECK(wld.get("Device") == renderDevice);
+				CHECK(wld.get("gameplay.render.Device") == renderDevice);
+			});
+
+			CHECK(wld.get("Position") == gameplayPos);
+		});
+
+		CHECK(wld.scope() == ecs::EntityBad);
+		CHECK(cc.find_alias("Position") == nullptr);
+		CHECK(wld.get("Position") == gameplayPos);
+
+		CHECK(wld.scope(tools) == ecs::EntityBad);
+		CHECK(wld.get("Position") == gameplayPos);
+		CHECK(wld.get("gameplay.render.Device") == renderDevice);
+
+		CHECK(wld.scope(render) == tools);
+		CHECK(wld.get("Position") == renderPos);
+		CHECK(wld.get("Device") == renderDevice);
+
+		CHECK(wld.scope(ecs::EntityBad) == render);
+		CHECK(wld.get("Position") == gameplayPos);
+	}
 }
 
 template <typename TQuery>

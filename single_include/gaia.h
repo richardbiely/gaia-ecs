@@ -26015,8 +26015,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static ComponentCacheItem::SymbolLookupKey lookup_key(util::str_view value) noexcept {
-				return value.empty() ? ComponentCacheItem::SymbolLookupKey() :
-							 ComponentCacheItem::SymbolLookupKey(value.data(), value.size(), 0);
+				return value.empty() ? ComponentCacheItem::SymbolLookupKey()
+														 : ComponentCacheItem::SymbolLookupKey(value.data(), value.size(), 0);
 			}
 
 			static bool build_default_path(util::str& out, util::str_view symbol) {
@@ -26040,7 +26040,27 @@ namespace gaia {
 				return changed;
 			}
 
-			static void initialize_names(ComponentCacheItem& item) {
+			//! Builds a scoped component path from a scope prefix and a leaf component name.
+			//! \param out Receives the combined dotted path when successful.
+			//! \param scopePath Dotted scope prefix.
+			//! \param leaf Final component name segment.
+			//! \return True when a scoped path was produced, false otherwise.
+			static bool build_scoped_path(util::str& out, util::str_view scopePath, util::str_view leaf) {
+				out.clear();
+				if (scopePath.empty() || leaf.empty())
+					return false;
+
+				out.reserve(scopePath.size() + 1 + leaf.size());
+				out.append(scopePath);
+				out.append('.');
+				out.append(leaf);
+				return true;
+			}
+
+			//! Initializes alias and path metadata for a component item.
+			//! \param item Component cache item to update.
+			//! \param scopePath Optional world-provided scope prefix used for default path generation.
+			static void initialize_names(ComponentCacheItem& item, util::str_view scopePath = {}) {
 				item.path.clear();
 				item.alias.clear();
 
@@ -26049,10 +26069,15 @@ namespace gaia {
 					return;
 
 				const auto shortName = short_name_key(item);
-				if (shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len())
-					item.alias.assign(shortName.str(), shortName.len());
+				const bool hasShortName =
+						shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len();
+				const auto leaf = hasShortName ? util::str_view{shortName.str(), shortName.len()} : symbol;
 
-				(void)build_default_path(item.path, symbol);
+				if (hasShortName || !scopePath.empty())
+					item.alias.assign(leaf);
+
+				if (!build_scoped_path(item.path, scopePath, leaf))
+					(void)build_default_path(item.path, symbol);
 			}
 
 			template <typename ViewFunc>
@@ -26085,9 +26110,12 @@ namespace gaia {
 				});
 			}
 
-			void add_name_mappings(ComponentCacheItem& item) {
+			//! Adds all name-based lookup mappings for a component item.
+			//! \param item Component cache item to register.
+			//! \param scopePath Optional world-provided scope prefix used for default path generation.
+			void add_name_mappings(ComponentCacheItem& item, util::str_view scopePath) {
 				m_compBySymbol.emplace(item.name, &item);
-				initialize_names(item);
+				initialize_names(item, scopePath);
 				rebuild_resolved_name_maps();
 			}
 
@@ -26109,7 +26137,7 @@ namespace gaia {
 			//! Registers the component item for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity, util::str_view scopePath = {}) {
 				static_assert(!is_pair<T>::value);
 				GAIA_ASSERT(!entity.pair());
 
@@ -26121,7 +26149,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemArr[compDescId] = pItem;
-						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -26153,7 +26181,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemByDescId.emplace(compDescId, pItem);
-						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+						add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -26176,10 +26204,12 @@ namespace gaia {
 			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
+			//! \param scopePath Optional world-provided scoped path prefix used when assigning the default path/alias.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
 			add(Entity entity, const char* name, uint32_t len, uint32_t size, DataStorageType storageType, uint32_t alig = 1,
-					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {}) {
+					uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ComponentLookupHash hashLookup = {},
+					util::str_view scopePath = {}) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(name != nullptr);
 
@@ -26208,7 +26238,7 @@ namespace gaia {
 					m_itemByDescId.emplace(compDescId, pItem);
 				}
 
-				add_name_mappings(*const_cast<ComponentCacheItem*>(pItem));
+				add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
 				m_compByEntity.emplace(pItem->entity, pItem);
 				return *pItem;
 			}
@@ -43725,6 +43755,8 @@ namespace gaia {
 
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
+			//! Current scope used for component registration and relative component lookup.
+			Entity m_componentScope = EntityBad;
 
 			//! Archetypes requested to be deleted
 			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
@@ -45143,6 +45175,114 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Builds a dotted scope path for @a scope by walking its ChildOf chain.
+			//! \param scope Scope entity to inspect.
+			//! \param out Receives the dotted path when successful.
+			//! \return True when a full named scope path could be built, false otherwise.
+			GAIA_NODISCARD bool build_scope_path(Entity scope, util::str& out) const {
+				out.clear();
+				if (!valid(scope) || scope.pair())
+					return false;
+
+				cnt::darray_ext<util::str_view, 16> segments;
+				auto curr = scope;
+				while (curr != EntityBad) {
+					const auto currName = name(curr);
+					if (currName.empty()) {
+						out.clear();
+						return false;
+					}
+
+					segments.push_back(currName);
+					curr = target(curr, ChildOf);
+				}
+
+				if (segments.empty())
+					return false;
+
+				uint32_t totalLen = 0;
+				for (auto segment: segments)
+					totalLen += segment.size();
+				totalLen += (uint32_t)segments.size() - 1;
+
+				out.reserve(totalLen);
+				for (uint32_t i = (uint32_t)segments.size(); i > 0; --i) {
+					if (!out.empty())
+						out.append('.');
+					out.append(segments[i - 1]);
+				}
+
+				return true;
+			}
+
+			//! Builds a dotted scope path for the currently active component scope.
+			//! \param out Receives the dotted path when successful.
+			//! \return True when the current component scope is active and fully named, false otherwise.
+			GAIA_NODISCARD bool current_scope_path(util::str& out) const {
+				if (m_componentScope == EntityBad) {
+					out.clear();
+					return false;
+				}
+
+				return build_scope_path(m_componentScope, out);
+			}
+
+			//! Resolves a component name using world-aware scope rules.
+			//! Exact path lookup is used for dotted names. Unqualified names first search the current
+			//! component scope and its parents, then fall back to exact symbol, path and alias lookup.
+			//! \param name Component name to resolve.
+			//! \param len Name length. If zero, the length is calculated.
+			//! \return Matching component cache item, or nullptr when no match exists.
+			GAIA_NODISCARD const ComponentCacheItem* resolve_component_name_inter(const char* name, uint32_t len = 0) const {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+				const bool isPath = memchr(name, '.', l) != nullptr;
+				const bool isSymbol = memchr(name, ':', l) != nullptr;
+
+				if (isPath) {
+					if (const auto* pItem = m_compCache.find_path(name, l); pItem != nullptr)
+						return pItem;
+				}
+
+				if (!isPath && !isSymbol && m_componentScope != EntityBad) {
+					util::str scopePath;
+					if (current_scope_path(scopePath)) {
+						util::str scopedName;
+						scopedName.reserve(scopePath.size() + 1 + l);
+
+						while (!scopePath.empty()) {
+							scopedName.clear();
+							scopedName.append(scopePath.view());
+							scopedName.append('.');
+							scopedName.append(name, l);
+
+							if (const auto* pItem = m_compCache.find_path(scopedName.data(), scopedName.size()); pItem != nullptr)
+								return pItem;
+
+							const auto parentSepIdx = scopePath.view().find_last_of('.');
+							if (parentSepIdx == BadIndex)
+								break;
+
+							scopePath.assign(util::str_view(scopePath.data(), parentSepIdx));
+						}
+					}
+				}
+
+				if (const auto* pItem = m_compCache.find_exact_symbol(name, l); pItem != nullptr)
+					return pItem;
+
+				if (!isPath) {
+					if (const auto* pItem = m_compCache.find_path(name, l); pItem != nullptr)
+						return pItem;
+				}
+
+				return m_compCache.find_alias(name, l);
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Checks if @a entity is valid.
 			//! \param entity Checked entity.
 			//! \return True if the entity is valid. False otherwise.
@@ -45240,8 +45380,10 @@ namespace gaia {
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				util::str scopePath;
+				(void)current_scope_path(scopePath);
 
-				const auto& item = comp_cache_mut().add<FT>(entity);
+				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
 				sset<Component>(item.entity) = item.comp;
 
 				// Make sure the default component entity name points to the cache item name.
@@ -45277,7 +45419,10 @@ namespace gaia {
 					return *pItem;
 
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
-				const auto& item = comp_cache_mut().add(entity, name, len, size, storageType, alig, soa, pSoaSizes, hashLookup);
+				util::str scopePath;
+				(void)current_scope_path(scopePath);
+				const auto& item = comp_cache_mut().add(
+						entity, name, len, size, storageType, alig, soa, pSoaSizes, hashLookup, scopePath.view());
 				{
 					auto& ec = m_recs.entities[item.entity.id()];
 					const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
@@ -47104,6 +47249,44 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the current component scope used for component registration and relative component lookup.
+			//! \return Scoped entity or EntityBad when component scope is disabled.
+			GAIA_NODISCARD Entity scope() const {
+				return m_componentScope;
+			}
+
+			//! Sets the current component scope used for component registration and relative component lookup.
+			//! The scope entity and its ChildOf ancestors are expected to have names so Gaia-ECS can build a path from them.
+			//! \param scope Scope entity. Pass EntityBad to clear the current component scope.
+			//! \return Previous component scope.
+			Entity scope(Entity scope) {
+				GAIA_ASSERT(scope == EntityBad || (valid(scope) && !scope.pair()));
+				const auto prev = m_componentScope;
+				if (scope == EntityBad || (valid(scope) && !scope.pair()))
+					m_componentScope = scope;
+				return prev;
+			}
+
+			//! Executes @a func with a temporary component scope and restores the previous scope afterwards.
+			//! Relative component lookup walks up the ChildOf hierarchy of the active scope, matching Flecs-style
+			//! recursive scope lookup behavior.
+			//! The scope entity and its ChildOf ancestors are expected to have names so Gaia-ECS can build a path from them.
+			//! \param scope Scope entity. Pass EntityBad to temporarily disable component scope.
+			//! \param func Callable executed while the scope is active.
+			template <typename Func>
+			void scope(Entity scopeEntity, Func&& func) {
+				struct ComponentScopeRestore final {
+					World& world;
+					Entity prevScope;
+					~ComponentScopeRestore() {
+						world.scope(prevScope);
+					}
+				};
+
+				ComponentScopeRestore restore{*this, scope(scopeEntity)};
+				func();
+			}
+
 			//! Checks if @a entity contains @a pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
@@ -47224,6 +47407,8 @@ namespace gaia {
 				return name(entity);
 			}
 
+			//----------------------------------------------------------------------
+
 			//! Returns the entity that is assigned a name @a name.
 			//! If the name contains the character '.' hierarchical lookup is use.
 			//! E.g. "parent.child.subchild" will return the entity for subchild is the entire
@@ -47257,7 +47442,7 @@ namespace gaia {
 
 					parent = name_to_entity(str.subspan(0, posDot));
 					if (parent == EntityBad)
-						return EntityBad;
+						return get_inter(name, len);
 				}
 
 				str = str.subspan(posDot + 1);
@@ -47271,7 +47456,7 @@ namespace gaia {
 						// If the entity is not found, there is nothing for us to do anymore.
 						// If the parent-child relationship does not exist there is nothing for us to do anymore.
 						if (child == EntityBad || !this->child(child, parent))
-							return EntityBad;
+							return get_inter(name, len);
 
 						return child;
 					}
@@ -47285,7 +47470,7 @@ namespace gaia {
 					// If the entity is not found, there is nothing for us to do anymore.
 					// If the parent-child relationship does not exist there is nothing for us to do anymore.
 					if (child == EntityBad || !this->child(child, parent))
-						return EntityBad;
+						return get_inter(name, len);
 
 					// Current child becomes the parent for the next step
 					parent = child;
@@ -47296,18 +47481,32 @@ namespace gaia {
 				return parent;
 			}
 
+		private:
 			GAIA_NODISCARD Entity get_inter(const char* name, uint32_t len = 0) const {
 				if (name == nullptr || name[0] == 0)
 					return EntityBad;
 
 				auto key = EntityNameLookupKey(name, len, 0);
+				const auto l = key.len();
+
+				if (m_componentScope != EntityBad && memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
+					const auto* pScopedItem = resolve_component_name_inter(name, l);
+					if (pScopedItem != nullptr) {
+						const auto it = m_nameToEntity.find(key);
+						if (it == m_nameToEntity.end())
+							return pScopedItem->entity;
+
+						if (m_compCache.find(it->second) != nullptr)
+							return pScopedItem->entity;
+					}
+				}
 
 				const auto it = m_nameToEntity.find(key);
 				if (it != m_nameToEntity.end())
 					return it->second;
 
 				// Name not found. This might be a component so check the component cache
-				const auto* pItem = m_compCache.resolve(name, len);
+				const auto* pItem = resolve_component_name_inter(name, l);
 				if (pItem != nullptr)
 					return pItem->entity;
 
@@ -47315,6 +47514,7 @@ namespace gaia {
 				return EntityBad;
 			}
 
+		public:
 			//----------------------------------------------------------------------
 
 			//! Returns relations for @a target.
@@ -51777,7 +51977,7 @@ namespace gaia {
 						return All;
 
 					// Anything else is a component name
-					const auto* pItem = m_compCache.resolve(idStr.data(), (uint32_t)idStr.size());
+					const auto* pItem = resolve_component_name_inter(idStr.data(), (uint32_t)idStr.size());
 					if (pItem == nullptr) {
 						GAIA_ASSERT2(false, "Component not found");
 						GAIA_LOG_W("Component '%.*s' not found", (uint32_t)idStr.size(), idStr.data());

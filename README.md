@@ -49,9 +49,11 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
     * [Create or delete entity](#create-or-delete-entity)
-    * [Name entity](#name-entity)
     * [Add or remove component](#add-or-remove-component)
     * [Component presence](#component-presence)
+    * [Component scope](#component-scope)
+    * [Non-fragmenting and sparse components](#non-fragmenting-and-sparse-components)
+    * [Name entity](#name-entity)
     * [Component hooks](#component-hooks)
     * [Bulk editing](#bulk-editing)
     * [Set or get component value](#set-or-get-component-value)
@@ -78,12 +80,12 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Parallel execution](#parallel-execution)
   * [Relationships](#relationships)
     * [Relationship basics](#relationship-basics)
+    * [Relations](#relations)
+    * [Targets](#targets)
     * [Entity dependencies](#entity-dependencies)
     * [Combination constraints](#combination-constraints)
     * [Exclusivity](#exclusivity)
     * [Entity inheritance](#entity-inheritance)
-    * [Targets](#targets)
-    * [Relations](#relations)
     * [Prefabs](#prefabs)
     * [Cleanup rules](#cleanup-rules)
     * [Hierarchies](#hierarchies)
@@ -284,7 +286,7 @@ Components have four distinct name concepts. The registered symbol is the identi
 
 Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact_symbol` uses the registered symbol name. `ComponentCache::find_path` uses the scoped path name. `ComponentCache::find_alias` uses the alias and succeeds only when that alias is unique. `ComponentCache::resolve` tries symbol lookup first, then path lookup, then alias lookup.
 
-`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to component resolution so `World::get("Device")`, `World::get("SomeTest.Device")`, and `World::get("SomeTest::Device")` can all resolve the component entity when those names are registered. String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
+`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to component resolution. Exact component symbols still win first. After that Gaia-ECS checks the current component scope, if there is one, and walks up its `ChildOf` chain looking for a matching component path before it falls back to alias lookup. That means `World::get("Device")`, `World::get("SomeTest.Device")`, and `World::get("SomeTest::Device")` can all resolve the component entity when those names are registered. String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
 
 When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::display_name`. It is a display helper, not an identity key.
 
@@ -305,7 +307,7 @@ if (resolved != nullptr) {
   const auto symbol = w.comp_cache().symbol_name(*resolved);
   // returns: "SomeTest::Device"
 
-  const auto pretty = w.comp_cache().display_name(*resolved);
+  const auto display = w.comp_cache().display_name(*resolved);
   // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
 }
 ```
@@ -322,62 +324,40 @@ const auto* resolved = w.comp_cache().resolve("Device");
 // returns: nullptr unless an exact symbol named "Device" or a unique path named "Device" also exists
 ```
 
-### Add or remove component
+### Component scope
 
-Components can be created using `World::add<T>` This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
+`World::scope(scope)` sets the current component scope and returns the previous one. `World::scope(scope, func)` does the same thing for the duration of one callable and restores the old scope afterwards. The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS builds the scoped path from that entity hierarchy. New components registered while a scope is active use that scope to build their default path name. For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`. Relative component lookup follows the same scope chain, so a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
 
-```cpp
-struct Position {
-  float x, y, z;
-};
-const ecs::ComponentCacheItem& cci = w.add<Position>();
-ecs::Entity position_entity = cci.entity;
-```
-
-Because components are entities as well, adding them is very similar to what we have seen previously.
+Scoped component registration looks like this:
 
 ```cpp
-struct Position {
-  float x, y, z;
-};
-struct Velocity {
-  float x, y, z;
-};
-
 ecs::World w;
 
-// Create an entity with Position and Velocity.
-ecs::Entity e = w.add();
-w.add<Position>(e, {0, 100, 0});
-w.add<Velocity>(e, {0, 0, 1});
+const auto gameplay = w.add();
+w.name(gameplay, "gameplay");
 
-// Remove Velocity from the entity.
-w.del<Velocity>(e);
+const auto render = w.add();
+w.name(render, "render");
+w.child(render, gameplay);
+
+w.scope(gameplay, [&] {
+  const auto& gameplayPos = w.add<Position>();
+  // w.comp_cache().path_name(gameplayPos) returns "gameplay.Position"
+
+  w.scope(render, [&] {
+    const auto& renderPos = w.add<dummy::Position>();
+    // w.comp_cache().path_name(renderPos) returns "gameplay.render.Position"
+
+    const auto renderLookup = w.get("Position");
+    // returns: renderPos.entity
+  });
+
+  const auto gameplayLookup = w.get("Position");
+  // returns: gameplayPos.entity
+});
 ```
 
-This also means the code above could be rewritten as following:
-
-```cpp
-// Create Position and Velocity entities
-ecs::Entity position = w.add<Position>().entity;
-ecs::Entity velocity = w.add<Velocity>().entity;
-
-// Create an entity with Position and Velocity.
-ecs::Entity e = w.add();
-w.add(e, position, Position{0, 100, 0});
-w.add(e, velocity, Velocity{0, 0, 1});
-
-// Remove Velocity from the entity.
-w.del(e, velocity);
-```
-
-When adding components following restrictions apply:
-* There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
-* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storage types are introduced this restriction won't apply to them.
-* [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
-* Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
-
-#### Non-fragmenting and sparse components
+### Non-fragmenting and sparse components
 By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
 
 Gaia-ECS also supports non-fragmenting storage for sparse components and selected relationships.
@@ -484,6 +464,62 @@ q.each([&](ecs::Iter& it) {
   ...
 });
 ```
+
+### Add or remove component
+
+Components can be created using `World::add<T>` This function returns a descriptor of the object which is created and stored in the component cache. Each component is assigned one entity to uniquely identify it. You do not have to do this yourself, the framework performs this operation automatically behind the scenes any time you call some compile-time API where you interact with your structure. However, you can use this API to quickly fetch the component's entity if necessary.
+
+```cpp
+struct Position {
+  float x, y, z;
+};
+const ecs::ComponentCacheItem& cci = w.add<Position>();
+ecs::Entity position_entity = cci.entity;
+```
+
+Because components are entities as well, adding them is very similar to what we have seen previously.
+
+```cpp
+struct Position {
+  float x, y, z;
+};
+struct Velocity {
+  float x, y, z;
+};
+
+ecs::World w;
+
+// Create an entity with Position and Velocity.
+ecs::Entity e = w.add();
+w.add<Position>(e, {0, 100, 0});
+w.add<Velocity>(e, {0, 0, 1});
+
+// Remove Velocity from the entity.
+w.del<Velocity>(e);
+```
+
+This also means the code above could be rewritten as following:
+
+```cpp
+// Create Position and Velocity entities
+ecs::Entity position = w.add<Position>().entity;
+ecs::Entity velocity = w.add<Velocity>().entity;
+
+// Create an entity with Position and Velocity.
+ecs::Entity e = w.add();
+w.add(e, position, Position{0, 100, 0});
+w.add(e, velocity, Velocity{0, 0, 1});
+
+// Remove Velocity from the entity.
+w.del(e, velocity);
+```
+
+When adding components following restrictions apply:
+* There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
+* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storage types are introduced this restriction won't apply to them.
+* [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
+* Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
+
 
 ### Component hooks
 
