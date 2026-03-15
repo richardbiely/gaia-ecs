@@ -303,11 +303,12 @@ namespace gaia {
 			}
 
 			//! Returns the user-facing name Gaia should prefer when serializing or presenting a component.
+			//! This is a display/serialization helper, not an identity lookup key.
 			//! If the component has a unique short unqualified name, that short name is returned.
-			//! If the short name would be ambiguous or shadowed by an exact component name, the full registered symbol is returned.
-			//! Internal gaia::ecs components always keep their full name.
+			//! If the short name would be ambiguous or shadowed by an exact component name, the full registered symbol is
+			//! returned. Internal gaia::ecs components always keep their full name.
 			//! \param item Component cache item to inspect.
-			//! \return Preferred user-facing component name.
+			//! \return Preferred user-facing component name as a non-owning string view.
 			GAIA_NODISCARD util::str_view preferred_name(const ComponentCacheItem& item) const noexcept {
 				constexpr char InternalPrefix[] = "gaia::ecs::";
 				constexpr uint32_t InternalPrefixLen = (uint32_t)(sizeof(InternalPrefix) - 1);
@@ -366,6 +367,8 @@ namespace gaia {
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
+			//! \warning This is the convenience form for user-facing name resolution. For identity-sensitive code prefer
+			//! find_exact().
 			GAIA_NODISCARD const ComponentCacheItem* find_resolved(const char* name, uint32_t len = 0) const noexcept {
 				const auto* pItem = find_exact(name, len);
 				if (pItem != nullptr)
@@ -380,6 +383,8 @@ namespace gaia {
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
+			//! \warning This is the convenience form for user-facing name resolution. For identity-sensitive code prefer
+			//! find_exact().
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
 				return find_resolved(name, len);
 			}

@@ -282,11 +282,11 @@ wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignor
 
 Components have a registered symbol name in the component cache. For a global type this is usually the simple type name. For nested or local types some compilers may register a qualified name such as `SomeTest::Device`.
 
-Gaia-ECS now exposes the lookup modes directly. `ComponentCache::find_exact` uses the full registered component name. `ComponentCache::find_symbol` uses the short unqualified name and succeeds only when that short name is unique. `ComponentCache::find_resolved` tries exact lookup first and then falls back to the short name. `ComponentCache::find` is kept as the convenience resolved form.
+Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact` uses the full registered component name. `ComponentCache::find_symbol` uses the short unqualified name and succeeds only when that short name is unique. `ComponentCache::find_resolved` tries exact lookup first and then falls back to the short name. `ComponentCache::find` is the same convenience resolved form.
 
-`World::get("name")` still starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to resolved component lookup so `World::get("Device")` can still return the component entity when that is what you meant. String queries such as `w.query().add("Device")` and semantic JSON loading also use resolved component lookup. Runtime component creation by string uses exact lookup so creating `"Device"` will not silently bind to a qualified alias.
+`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to resolved component lookup so `World::get("Device")` can still return the component entity when that is what you meant. String queries such as `w.query().add("Device")` and semantic JSON loading also use resolved component lookup. Runtime component creation by string uses exact lookup so creating `"Device"` will not silently bind to a qualified alias.
 
-When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::preferred_name`. It returns the unique short name when that is safe and otherwise returns the full registered component name.
+When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::preferred_name`. It returns the unique short name when that is safe and otherwise returns the full registered component name. It is a display helper, not an identity key.
 
 ```cpp
 const auto* exact = w.comp_cache().find_exact("SomeTest::Device");
@@ -298,11 +298,25 @@ const auto* symbol = w.comp_cache().find_symbol("Device");
 const auto* resolved = w.comp_cache().find_resolved("Device");
 // returns: the exact-match pointer if it exists, otherwise the same pointer as find_symbol("Device")
 
-const auto registered = w.name(resolved->entity);
-// returns: "SomeTest::Device"
+if (resolved != nullptr) {
+  const auto registered = w.name(resolved->entity);
+  // returns: "SomeTest::Device"
 
-const auto pretty = w.comp_cache().preferred_name(*resolved);
-// returns: "Device" when the short name is unique, otherwise "SomeTest::Device"
+  const auto pretty = w.comp_cache().preferred_name(*resolved);
+  // returns: "Device" when the short name is unique, otherwise "SomeTest::Device"
+}
+```
+
+If two different components would both map to the same short name, short-name lookup does not guess.
+
+```cpp
+const auto* a = w.comp_cache().find_exact("Gameplay::Device");
+const auto* b = w.comp_cache().find_exact("Debug::Device");
+const auto* symbol = w.comp_cache().find_symbol("Device");
+// returns: nullptr
+
+const auto* resolved = w.comp_cache().find_resolved("Device");
+// returns: nullptr unless an exact registered component named "Device" also exists
 ```
 
 ### Add or remove component
