@@ -5871,19 +5871,11 @@ namespace gaia {
 			void cleanup_inter() {
 				GAIA_PROF_SCOPE(World::cleanup_inter);
 
-				// Shutdown bypasses the regular GC path, so clear all raw-pointer tracking first.
+				// Shutdown bypasses the regular GC path, so clear raw-pointer tracking first.
 				// Chunk/component dtors that run while archetypes are freed can still drop cached queries,
-				// but after this point those calls must not touch stale archetype/chunk reverse indices.
+				// but after this point they must not touch stale archetype/chunk reverse indices.
 				{
-					m_queryCache.clear();
-					for (auto* pScratch: m_queryMatchScratchStack)
-						delete pScratch;
-					m_queryMatchScratchStack = {};
-					m_queryMatchScratchDepth = 0;
-
-					m_querySerMap = {};
-					m_nextQuerySerId = 0;
-
+					m_queryCache.clear_archetype_tracking();
 					m_reqArchetypesToDel = {};
 					m_reqEntitiesToDel = {};
 					m_entitiesToDel = {};
@@ -5930,6 +5922,13 @@ namespace gaia {
 				// Clear caches
 				{
 					m_entityToArchetypeMap = {};
+					m_queryCache.clear();
+					for (auto* pScratch: m_queryMatchScratchStack)
+						delete pScratch;
+					m_queryMatchScratchStack = {};
+					m_queryMatchScratchDepth = 0;
+					m_querySerMap = {};
+					m_nextQuerySerId = 0;
 				}
 
 				// Clear entity names

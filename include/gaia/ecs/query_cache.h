@@ -128,6 +128,13 @@ namespace gaia {
 				m_createQueryHandleStamp = 1;
 			}
 
+			//! Clears only the reverse indices that keep raw archetype pointers alive.
+			//! Used during world shutdown before archetypes begin running chunk/component dtors.
+			void clear_archetype_tracking() {
+				m_archetypeToQuery.clear();
+				m_queryToArchetype.clear();
+			}
+
 			//! Returns a QueryInfo object associated with @a handle.
 			//! \param handle Query handle
 			//! \return Query info
