@@ -91,10 +91,8 @@ namespace gaia {
 			darr_ext() noexcept = default;
 			darr_ext(core::zero_t) noexcept {}
 
-			darr_ext(size_type count, const T& value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+			darr_ext(size_type count, const_reference value) {
+				resize(count, value);
 			}
 
 			darr_ext(size_type count) {
@@ -265,9 +263,10 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
+				auto* pDataNew = reinterpret_cast<pointer>(m_pDataHeap);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
-					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
+					core::call_ctor_n(&pDataNew[m_cnt], count - m_cnt);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
@@ -277,6 +276,20 @@ namespace gaia {
 				m_cap = count;
 				m_cnt = count;
 				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {

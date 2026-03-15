@@ -278,10 +278,8 @@ namespace gaia {
 			darr_ext_soa() noexcept = default;
 			darr_ext_soa(core::zero_t) noexcept {}
 
-			darr_ext_soa(size_type count, const T& value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+			darr_ext_soa(size_type count, const_reference value) {
+				resize(count, value);
 			}
 
 			darr_ext_soa(size_type count) {
@@ -396,12 +394,12 @@ namespace gaia {
 
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::set({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -413,12 +411,12 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
-				if (m_pDataHeap) {
+				if (pDataOld != nullptr) {
 					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					view_policy::mem_del_block(m_data, extent, m_cnt);
 				}
 
 				m_cap = cap;
@@ -459,6 +457,20 @@ namespace gaia {
 				m_cap = count;
 				m_cnt = count;
 				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {

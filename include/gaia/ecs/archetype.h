@@ -327,7 +327,7 @@ namespace gaia {
 				s.load(chunkCnt);
 				{
 					const auto chunkCnt0 = (uint32_t)m_chunks.size();
-					m_chunks.resize(chunkCnt);
+					m_chunks.resize(chunkCnt, nullptr);
 					// Make sure new chunks are set to nullptr
 					GAIA_FOR2(chunkCnt0, chunkCnt) m_chunks[i] = nullptr;
 				}

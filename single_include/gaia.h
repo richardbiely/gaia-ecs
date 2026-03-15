@@ -6316,9 +6316,7 @@ namespace gaia {
 			darr(core::zero_t) noexcept {}
 
 			darr(size_type count, const_reference value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			darr(size_type count) {
@@ -6476,6 +6474,20 @@ namespace gaia {
 
 				m_cap = count;
 				m_cnt = count;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {
@@ -6758,6 +6770,7 @@ namespace gaia {
 	} // namespace cnt
 
 } // namespace gaia
+
 /*** End of inlined file: darray_impl.h ***/
 
 namespace gaia {
@@ -6860,10 +6873,8 @@ namespace gaia {
 			darr_ext() noexcept = default;
 			darr_ext(core::zero_t) noexcept {}
 
-			darr_ext(size_type count, const T& value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+			darr_ext(size_type count, const_reference value) {
+				resize(count, value);
 			}
 
 			darr_ext(size_type count) {
@@ -7034,9 +7045,10 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(count);
 				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
+				auto* pDataNew = reinterpret_cast<pointer>(m_pDataHeap);
 				if (pDataOld != nullptr) {
 					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
-					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
+					core::call_ctor_n(&pDataNew[m_cnt], count - m_cnt);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
 					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
@@ -7046,6 +7058,20 @@ namespace gaia {
 				m_cap = count;
 				m_cnt = count;
 				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {
@@ -7643,10 +7669,8 @@ namespace gaia {
 			darr_ext_soa() noexcept = default;
 			darr_ext_soa(core::zero_t) noexcept {}
 
-			darr_ext_soa(size_type count, const T& value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+			darr_ext_soa(size_type count, const_reference value) {
+				resize(count, value);
 			}
 
 			darr_ext_soa(size_type count) {
@@ -7761,12 +7785,12 @@ namespace gaia {
 
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::set({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -7778,12 +7802,12 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 				view_policy::mem_add_block(m_pDataHeap, cap, m_cnt);
-				if (m_pDataHeap) {
+				if (pDataOld != nullptr) {
 					mem::move_elements<T, true>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
 					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
 				} else {
-					m_pDataHeap = view_policy::template alloc<Allocator>(cap);
 					mem::move_elements<T, true>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					view_policy::mem_del_block(m_data, extent, m_cnt);
 				}
 
 				m_cap = cap;
@@ -7824,6 +7848,20 @@ namespace gaia {
 				m_cap = count;
 				m_cnt = count;
 				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {
@@ -8402,9 +8440,7 @@ namespace gaia {
 			darr_soa(core::zero_t) noexcept {}
 
 			darr_soa(size_type count, const_reference value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			darr_soa(size_type count) {
@@ -8564,6 +8600,20 @@ namespace gaia {
 
 				m_cap = count;
 				m_cnt = count;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {
@@ -8844,6 +8894,7 @@ namespace gaia {
 	} // namespace cnt
 
 } // namespace gaia
+
 /*** End of inlined file: darray_soa_impl.h ***/
 
 namespace gaia {
@@ -14795,9 +14846,7 @@ namespace gaia {
 			}
 
 			constexpr sarr_ext(size_type count, const_reference value) noexcept {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			constexpr sarr_ext(size_type count) noexcept {
@@ -15045,6 +15094,20 @@ namespace gaia {
 				}
 
 				m_cnt = count;
+			}
+
+			constexpr void resize(size_type count, const_reference value) noexcept {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			//! Removes all elements that fail the predicate.
@@ -15458,9 +15521,7 @@ namespace gaia {
 			~sarr_ext_soa() = default;
 
 			constexpr sarr_ext_soa(size_type count, const_reference value) noexcept {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			constexpr sarr_ext_soa(size_type count) noexcept {
@@ -15681,6 +15742,20 @@ namespace gaia {
 				m_cnt = count;
 			}
 
+			constexpr void resize(size_type count, const_reference value) noexcept {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
+			}
+
 			//! Removes all elements that fail the predicate.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
@@ -15848,6 +15923,7 @@ namespace std {
 		using type = T;
 	};
 } // namespace std
+
 /*** End of inlined file: sarray_ext_soa_impl.h ***/
 
 namespace gaia {
@@ -47833,7 +47909,7 @@ namespace gaia {
 			GAIA_NODISCARD bool try_mark_entity_visited(Entity entity, uint64_t stamp) const {
 				GAIA_ASSERT(!entity.pair());
 				if (entity.id() >= m_entityVisitStamps.size())
-					m_entityVisitStamps.resize(m_recs.entities.size());
+					m_entityVisitStamps.resize(m_recs.entities.size(), 0);
 
 				auto& slot = m_entityVisitStamps[entity.id()];
 				if (slot == stamp)

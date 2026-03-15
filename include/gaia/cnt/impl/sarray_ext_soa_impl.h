@@ -243,9 +243,7 @@ namespace gaia {
 			~sarr_ext_soa() = default;
 
 			constexpr sarr_ext_soa(size_type count, const_reference value) noexcept {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			constexpr sarr_ext_soa(size_type count) noexcept {
@@ -464,6 +462,20 @@ namespace gaia {
 				GAIA_ASSERT(count <= max_size());
 
 				m_cnt = count;
+			}
+
+			constexpr void resize(size_type count, const_reference value) noexcept {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			//! Removes all elements that fail the predicate.

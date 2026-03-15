@@ -74,9 +74,7 @@ namespace gaia {
 			darr(core::zero_t) noexcept {}
 
 			darr(size_type count, const_reference value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
+				resize(count, value);
 			}
 
 			darr(size_type count) {
@@ -234,6 +232,20 @@ namespace gaia {
 
 				m_cap = count;
 				m_cnt = count;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
 			}
 
 			void push_back(const T& arg) {

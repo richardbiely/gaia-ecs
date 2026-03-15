@@ -5123,7 +5123,7 @@ namespace gaia {
 			GAIA_NODISCARD bool try_mark_entity_visited(Entity entity, uint64_t stamp) const {
 				GAIA_ASSERT(!entity.pair());
 				if (entity.id() >= m_entityVisitStamps.size())
-					m_entityVisitStamps.resize(m_recs.entities.size());
+					m_entityVisitStamps.resize(m_recs.entities.size(), 0);
 
 				auto& slot = m_entityVisitStamps[entity.id()];
 				if (slot == stamp)

@@ -909,6 +909,27 @@ void resizable_arr_test(uint32_t N) {
 		CHECK(arr[i] == i);
 	}
 
+	arr = {};
+	arr.resize(2, cont_item(7));
+	CHECK(arr.size() == 2);
+	CHECK(arr[0] == cont_item(7));
+	CHECK(arr[1] == cont_item(7));
+
+	arr[0] = cont_item(0);
+	arr[1] = cont_item(1);
+	arr.resize(N, cont_item(9));
+	CHECK(arr.size() == N);
+	CHECK(arr[0] == cont_item(0));
+	CHECK(arr[1] == cont_item(1));
+	GAIA_FOR2(2, N) CHECK(arr[i] == cont_item(9));
+
+	arr = {};
+	arr.resize(N);
+	GAIA_FOR(N) {
+		arr[i] = i;
+		CHECK(arr[i] == i);
+	}
+
 	// Verify the values remain the same even after the internal buffer is reallocated
 	GAIA_FOR(N) CHECK(arr[i] == i);
 
@@ -1063,6 +1084,31 @@ void resizable_arr_test(uint32_t N) {
 }
 
 template <typename Container>
+void resizable_arr_soa_resize_fill_test(uint32_t count) {
+	using cont_item = typename Container::value_type;
+	GAIA_ASSERT(count > 2);
+
+	const cont_item first{1, 2, 3};
+	const cont_item second{4, 5, 6};
+	const cont_item third{7, 8, 9};
+
+	Container arr;
+	arr.resize(2, first);
+	CHECK(arr.size() == 2);
+	CHECK(arr[0] == first);
+	CHECK(arr[1] == first);
+
+	arr[0] = second;
+	arr[1] = third;
+	arr.resize(count, first);
+
+	CHECK(arr.size() == count);
+	CHECK(arr[0] == second);
+	CHECK(arr[1] == third);
+	GAIA_FOR2(2, count) CHECK(arr[i] == first);
+}
+
+template <typename Container>
 void retainable_arr_test() {
 	using cont_item = typename Container::value_type;
 
@@ -1166,6 +1212,12 @@ TEST_CASE("Containers - darr_ext") {
 	SUBCASE("retain") {
 		retainable_arr_test<TrivialT1>();
 	}
+}
+
+TEST_CASE("Containers - SoA resize fill") {
+	resizable_arr_soa_resize_fill_test<cnt::darr_soa<PositionSoA>>(16);
+	resizable_arr_soa_resize_fill_test<cnt::darr_ext_soa<PositionSoA, 8>>(16);
+	resizable_arr_soa_resize_fill_test<cnt::sarr_ext_soa<PositionSoA, 16>>(16);
 }
 
 //------------------------------------------------------------------------------
