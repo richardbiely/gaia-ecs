@@ -33,6 +33,9 @@ namespace gaia {
 
 			//! Lookup of component items by their symbol name. Strings are owned by m_itemArr/m_itemByDescId
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
+			//! Lookup of component items by their unique unqualified symbol name.
+			//! Ambiguous short names are stored with nullptr and treated as lookup misses.
+			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByShortString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 			//! Runtime component descriptor id generator.
@@ -53,7 +56,41 @@ namespace gaia {
 				m_itemArr.clear();
 				m_itemByDescId.clear();
 				m_compByString.clear();
+				m_compByShortString.clear();
 				m_compByEntity.clear();
+			}
+
+			static ComponentCacheItem::SymbolLookupKey short_name_key(const ComponentCacheItem& item) noexcept {
+				const auto* pName = item.name.str();
+				const auto len = item.name.len();
+				for (uint32_t i = len; i > 1; --i) {
+					const auto idx = i - 1;
+					if (pName[idx] != ':' || pName[idx - 1] != ':')
+						continue;
+					return ComponentCacheItem::SymbolLookupKey(pName + idx + 1, len - idx - 1, 0);
+				}
+
+				return ComponentCacheItem::SymbolLookupKey();
+			}
+
+			void add_short_name_alias(const ComponentCacheItem& item) {
+				const auto shortName = short_name_key(item);
+				if (shortName.str() == nullptr || shortName.len() == 0)
+					return;
+
+				const auto it = m_compByShortString.find(shortName);
+				if (it == m_compByShortString.end()) {
+					m_compByShortString.emplace(shortName, &item);
+					return;
+				}
+
+				if (it->second != &item)
+					it->second = nullptr;
+			}
+
+			void add_name_mappings(const ComponentCacheItem& item) {
+				m_compByString.emplace(item.name, &item);
+				add_short_name_alias(item);
 			}
 
 		public:
@@ -86,7 +123,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemArr[compDescId] = pItem;
-						m_compByString.emplace(pItem->name, pItem);
+						add_name_mappings(*pItem);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -122,7 +159,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemByDescId.emplace(compDescId, pItem);
-						m_compByString.emplace(pItem->name, pItem);
+						add_name_mappings(*pItem);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -177,7 +214,7 @@ namespace gaia {
 					m_itemByDescId.emplace(compDescId, pItem);
 				}
 
-				m_compByString.emplace(pItem->name, pItem);
+				add_name_mappings(*pItem);
 				m_compByEntity.emplace(pItem->entity, pItem);
 				return *pItem;
 			}
@@ -269,7 +306,8 @@ namespace gaia {
 				if (it != m_compByString.end())
 					return it->second;
 
-				return nullptr;
+				const auto shortIt = m_compByShortString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
+				return shortIt != m_compByShortString.end() ? shortIt->second : nullptr;
 			}
 
 			//! Searches for the component cache item. The provided string is NOT copied internally.

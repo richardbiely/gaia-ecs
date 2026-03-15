@@ -25821,6 +25821,9 @@ namespace gaia {
 
 			//! Lookup of component items by their symbol name. Strings are owned by m_itemArr/m_itemByDescId
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
+			//! Lookup of component items by their unique unqualified symbol name.
+			//! Ambiguous short names are stored with nullptr and treated as lookup misses.
+			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByShortString;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 			//! Runtime component descriptor id generator.
@@ -25841,7 +25844,41 @@ namespace gaia {
 				m_itemArr.clear();
 				m_itemByDescId.clear();
 				m_compByString.clear();
+				m_compByShortString.clear();
 				m_compByEntity.clear();
+			}
+
+			static ComponentCacheItem::SymbolLookupKey short_name_key(const ComponentCacheItem& item) noexcept {
+				const auto* pName = item.name.str();
+				const auto len = item.name.len();
+				for (uint32_t i = len; i > 1; --i) {
+					const auto idx = i - 1;
+					if (pName[idx] != ':' || pName[idx - 1] != ':')
+						continue;
+					return ComponentCacheItem::SymbolLookupKey(pName + idx + 1, len - idx - 1, 0);
+				}
+
+				return ComponentCacheItem::SymbolLookupKey();
+			}
+
+			void add_short_name_alias(const ComponentCacheItem& item) {
+				const auto shortName = short_name_key(item);
+				if (shortName.str() == nullptr || shortName.len() == 0)
+					return;
+
+				const auto it = m_compByShortString.find(shortName);
+				if (it == m_compByShortString.end()) {
+					m_compByShortString.emplace(shortName, &item);
+					return;
+				}
+
+				if (it->second != &item)
+					it->second = nullptr;
+			}
+
+			void add_name_mappings(const ComponentCacheItem& item) {
+				m_compByString.emplace(item.name, &item);
+				add_short_name_alias(item);
 			}
 
 		public:
@@ -25874,7 +25911,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemArr[compDescId] = pItem;
-						m_compByString.emplace(pItem->name, pItem);
+						add_name_mappings(*pItem);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -25910,7 +25947,7 @@ namespace gaia {
 						const auto* pItem = ComponentCacheItem::create<T>(entity);
 						GAIA_ASSERT(compDescId == pItem->comp.id());
 						m_itemByDescId.emplace(compDescId, pItem);
-						m_compByString.emplace(pItem->name, pItem);
+						add_name_mappings(*pItem);
 						m_compByEntity.emplace(pItem->entity, pItem);
 						return *pItem;
 					};
@@ -25965,7 +26002,7 @@ namespace gaia {
 					m_itemByDescId.emplace(compDescId, pItem);
 				}
 
-				m_compByString.emplace(pItem->name, pItem);
+				add_name_mappings(*pItem);
 				m_compByEntity.emplace(pItem->entity, pItem);
 				return *pItem;
 			}
@@ -26057,7 +26094,8 @@ namespace gaia {
 				if (it != m_compByString.end())
 					return it->second;
 
-				return nullptr;
+				const auto shortIt = m_compByShortString.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
+				return shortIt != m_compByShortString.end() ? shortIt->second : nullptr;
 			}
 
 			//! Searches for the component cache item. The provided string is NOT copied internally.
@@ -41073,6 +41111,9 @@ namespace gaia {
 				//! Runs a typed each() callback over directly seeded entities.
 				template <typename TIter, typename Func, typename... T>
 				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>) {
+					constexpr bool needsInheritedArgIds =
+							(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
@@ -41114,7 +41155,7 @@ namespace gaia {
 						});
 					};
 
-					if constexpr (sizeof...(T) == 0)
+					if constexpr (!needsInheritedArgIds)
 						walk_entities(exec_direct_entity);
 					else {
 						Entity inheritedArgIds[] = {inherited_query_arg_id<T>(world)...};
@@ -51590,7 +51631,9 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>) {
-			if constexpr (sizeof...(T) == 0)
+			constexpr bool needsInheritedArgIds =
+					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+			if constexpr (!needsInheritedArgIds)
 				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
 			else {
 				bool hasInheritedTerms = false;
