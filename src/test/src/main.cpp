@@ -11029,6 +11029,25 @@ TEST_CASE(
 	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(11.0f));
 }
 
+TEST_CASE("Is inheritance - explicit override preserves query membership") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {5, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	auto q = wld.query().all<Position>();
+	CHECK(q.count() == 2);
+	expect_exact_entities(q, {animal, rabbit});
+
+	CHECK(wld.override<Position>(rabbit));
+	CHECK(q.count() == 2);
+	expect_exact_entities(q, {animal, rabbit});
+}
+
 TEST_CASE("Prefab - inherited sparse component queries see instances and materialize local overrides on write") {
 	TestWorld twld;
 
@@ -16854,6 +16873,31 @@ TEST_CASE("Observer - inherited Is data matches when derived entity is linked to
 	CHECK(hits == 1);
 	CHECK(wld.has(rabbit, position));
 	CHECK_FALSE(wld.has_direct(rabbit, position));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - inherited Is override refires OnAdd when local ownership is materialized") {
+	TestWorld twld;
+
+	const auto animal = wld.add();
+	const auto rabbit = wld.add();
+	const auto position = wld.add<Position>().entity;
+	wld.add<Position>(animal, {4, 0, 0});
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	wld.as(rabbit, animal);
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
+
+	CHECK(wld.override<Position>(rabbit));
+	CHECK(hits == 1);
 
 	(void)observer;
 }
