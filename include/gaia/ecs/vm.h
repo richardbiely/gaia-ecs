@@ -87,7 +87,7 @@ namespace gaia {
 				//! Flags copied over from QueryCtx::Data
 				uint8_t flags;
 				//! Runtime variable bindings (Var0..Var7) provided by the query.
-				cnt::sarray<Entity, 8> varBindings;
+				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				//! Bitmask of bindings set in varBindings.
 				uint8_t varBindingMask = 0;
 				//! OR group was already satisfied by source terms.
@@ -236,11 +236,13 @@ namespace gaia {
 						EOpcode opcode = EOpcode::Src_Never;
 						QueryTerm term{};
 					};
+					
 					struct VarTermOp {
 						EOpcode sourceOpcode = EOpcode::Src_Never;
 						QueryTerm term{};
 						uint8_t varMask = 0;
 					};
+
 					struct VarProgram {
 						uint16_t begin = 0;
 						uint16_t count = 0;
@@ -254,6 +256,7 @@ namespace gaia {
 							return count == 0;
 						}
 					};
+
 					struct VarSearchMeta {
 						uint16_t selectAllPc = (uint16_t)-1;
 						uint16_t selectOrPc = (uint16_t)-1;
@@ -278,6 +281,7 @@ namespace gaia {
 						uint16_t notCount = 0;
 						uint8_t orVarMask = 0;
 					};
+
 					struct VarProgramStep {
 						VarProgram program{};
 						VarSearchMeta search{};
@@ -305,12 +309,13 @@ namespace gaia {
 					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_not_var;
 					//! Variable terms for ANY
 					cnt::sarray_ext<VarTermOp, MAX_ITEMS_IN_QUERY> terms_any_var;
+					//! Variable programs
+					cnt::sarray_ext<VarProgramStep, MaxVarCnt> var_programs;
 					//! Variable masks (Var0..Var7) used by variable terms.
 					uint8_t varMaskAll = 0;
 					uint8_t varMaskOr = 0;
 					uint8_t varMaskNot = 0;
 					uint8_t varMaskAny = 0;
-					cnt::sarray_ext<VarProgramStep, 8> varPrograms;
 
 					GAIA_NODISCARD bool has_src_terms() const {
 						return !terms_all_src.empty() || !terms_or_src.empty() || !terms_not_src.empty();
@@ -2553,14 +2558,14 @@ namespace gaia {
 				}
 
 				static void add_var_program_exec_section(util::str& out, const detail::QueryCompileCtx& comp) {
-					if (comp.varPrograms.empty())
+					if (comp.var_programs.empty())
 						return;
 
 					out.append("var_exec: ");
-					add_uint(out, (uint32_t)comp.varPrograms.size());
+					add_uint(out, (uint32_t)comp.var_programs.size());
 					out.append('\n');
 
-					const auto cnt = (uint32_t)comp.varPrograms.size();
+					const auto cnt = (uint32_t)comp.var_programs.size();
 					GAIA_FOR(cnt) {
 						out.append("  [");
 						add_uint(out, i);
@@ -2570,9 +2575,9 @@ namespace gaia {
 				}
 
 				static void add_var_program_sections(util::str& out, const detail::QueryCompileCtx& comp, const World& world) {
-					const auto cnt = (uint32_t)comp.varPrograms.size();
+					const auto cnt = (uint32_t)comp.var_programs.size();
 					GAIA_FOR(cnt) {
-						const auto& step = comp.varPrograms[i];
+						const auto& step = comp.var_programs[i];
 						char title[32];
 						[[maybe_unused]] const auto len = GAIA_STRFMT(title, sizeof(title), "varp%u", i);
 						GAIA_ASSERT(len > 0);
@@ -2620,8 +2625,8 @@ namespace gaia {
 
 				GAIA_NODISCARD bool eval_variable_terms_program_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype, bool orAlreadySatisfied) const {
-					GAIA_ASSERT(m_compCtx.varPrograms.size() == 1);
-					const auto& programStep = m_compCtx.varPrograms[0];
+					GAIA_ASSERT(m_compCtx.var_programs.size() == 1);
+					const auto& programStep = m_compCtx.var_programs[0];
 					return match_search_program_on_archetype(ctx, archetype, programStep, orAlreadySatisfied);
 				}
 
@@ -3494,7 +3499,7 @@ namespace gaia {
 
 				GAIA_NODISCARD bool op_var_filter(MatchingCtx& ctx) const {
 					GAIA_PROF_SCOPE(vm::op_var_filter);
-					GAIA_ASSERT(!m_compCtx.varPrograms.empty());
+					GAIA_ASSERT(!m_compCtx.var_programs.empty());
 					filter_variable_terms(ctx, &VirtualMachine::eval_variable_terms_program_on_archetype);
 					return true;
 				}
@@ -3623,7 +3628,7 @@ namespace gaia {
 					m_compCtx.varMaskOr = 0;
 					m_compCtx.varMaskNot = 0;
 					m_compCtx.varMaskAny = 0;
-					m_compCtx.varPrograms.clear();
+					m_compCtx.var_programs.clear();
 					m_compCtx.mainOpsCount = 0;
 					m_compCtx.ops.clear();
 
@@ -3955,12 +3960,12 @@ namespace gaia {
 						return program;
 					};
 
-					m_compCtx.varPrograms.clear();
+					m_compCtx.var_programs.clear();
 					if (m_compCtx.has_variable_terms()) {
 						const auto program = emit_flat_program(
 								std::span<const detail::CompiledOp>{varSearchProgramOps.data(), varSearchProgramOps.size()});
 						if (!program.empty())
-							m_compCtx.varPrograms.push_back({program, varSearchMeta});
+							m_compCtx.var_programs.push_back({program, varSearchMeta});
 					}
 				}
 
@@ -3969,18 +3974,18 @@ namespace gaia {
 					const bool isAs = (queryCtx.data.as_mask_0 + queryCtx.data.as_mask_1) != 0U;
 					cnt::darray_ext<detail::CompiledOp, 32> preservedVarOps;
 					uint16_t preservedProgramBase = 0;
-					cnt::sarray_ext<uint16_t, 8> preservedProgramOffsets;
+					cnt::sarray_ext<uint16_t, MaxVarCnt> preservedProgramOffsets;
 					preservedProgramOffsets.clear();
 
-					if (!m_compCtx.varPrograms.empty()) {
-						preservedProgramBase = m_compCtx.varPrograms[0].program.begin;
+					if (!m_compCtx.var_programs.empty()) {
+						preservedProgramBase = m_compCtx.var_programs[0].program.begin;
 						GAIA_ASSERT(preservedProgramBase <= m_compCtx.ops.size());
 						const auto preservedCnt = (uint32_t)m_compCtx.ops.size() - (uint32_t)preservedProgramBase;
 						preservedVarOps.reserve(preservedCnt);
 						for (uint32_t i = 0; i < preservedCnt; ++i)
 							preservedVarOps.push_back(m_compCtx.ops[(uint32_t)preservedProgramBase + i]);
 
-						for (const auto& step: m_compCtx.varPrograms) {
+						for (const auto& step: m_compCtx.var_programs) {
 							GAIA_ASSERT(step.program.begin >= preservedProgramBase);
 							preservedProgramOffsets.push_back((uint16_t)(step.program.begin - preservedProgramBase));
 						}
@@ -4045,10 +4050,10 @@ namespace gaia {
 						for (const auto& op: preservedVarOps)
 							m_compCtx.ops.push_back(op);
 
-						GAIA_ASSERT(preservedProgramOffsets.size() == m_compCtx.varPrograms.size());
-						const auto programCnt = (uint32_t)m_compCtx.varPrograms.size();
+						GAIA_ASSERT(preservedProgramOffsets.size() == m_compCtx.var_programs.size());
+						const auto programCnt = (uint32_t)m_compCtx.var_programs.size();
 						GAIA_FOR(programCnt)
-						m_compCtx.varPrograms[i].program.begin = (uint16_t)(newProgramBase + preservedProgramOffsets[i]);
+						m_compCtx.var_programs[i].program.begin = (uint16_t)(newProgramBase + preservedProgramOffsets[i]);
 					}
 
 					// Mark as compiled
