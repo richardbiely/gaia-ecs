@@ -56,11 +56,21 @@ namespace gaia {
 		}
 
 		GAIA_NODISCARD inline util::str_view entity_name(const World& world, Entity entity) {
-			return world.name(entity);
+			const auto name = world.name(entity);
+			if (!name.empty())
+				return name;
+
+			if (!entity.pair()) {
+				const auto display = world.display_name(entity);
+				if (!display.empty())
+					return display;
+			}
+
+			return {};
 		}
 
 		GAIA_NODISCARD inline util::str_view entity_name(const World& world, EntityId entityId) {
-			return world.name(entityId);
+			return entity_name(world, world.get(entityId));
 		}
 
 		GAIA_NODISCARD inline Entity target(const World& world, Entity entity, Entity relation) {

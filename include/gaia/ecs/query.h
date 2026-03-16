@@ -3164,8 +3164,9 @@ namespace gaia {
 				//!      .all(Player);
 				//!
 				//! Adds one or more query terms described by a string expression.
-				//! Component names are resolved immediately while the expression is parsed, using the world's
-				//! current scope state at construction time rather than later at iteration time.
+				//! Component names are resolved immediately while the expression is parsed and the resulting
+				//! component ids are baked into the query terms. Later scope, path or alias changes do not
+				//! rewrite an already parsed query.
 				//! \param str Null-terminated string with the query expression.
 				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
 				//! \return Reference to this query.

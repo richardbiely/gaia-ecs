@@ -91,10 +91,6 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD static util::str_view symbol_name_view(const ComponentCacheItem& item) noexcept {
-				return {item.name.str(), item.name.len()};
-			}
-
 			GAIA_NODISCARD static bool is_internal_symbol(util::str_view symbol) noexcept {
 				constexpr char InternalPrefix[] = "gaia::ecs::";
 				constexpr uint32_t InternalPrefixLen = (uint32_t)(sizeof(InternalPrefix) - 1);
@@ -112,14 +108,6 @@ namespace gaia {
 				}
 
 				return ComponentCacheItem::SymbolLookupKey();
-			}
-
-			GAIA_NODISCARD static util::str_view path_name_view(const ComponentCacheItem& item) noexcept {
-				return item.path.view();
-			}
-
-			GAIA_NODISCARD static util::str_view alias_name_view(const ComponentCacheItem& item) noexcept {
-				return item.alias.view();
 			}
 
 			GAIA_NODISCARD static ComponentCacheItem::SymbolLookupKey lookup_key(util::str_view value) noexcept {
@@ -172,7 +160,7 @@ namespace gaia {
 				item.path.clear();
 				item.alias.clear();
 
-				const auto symbol = symbol_name_view(item);
+				const auto symbol = util::str_view{item.name.str(), item.name.len()};
 				if (is_internal_symbol(symbol))
 					return;
 
@@ -211,10 +199,10 @@ namespace gaia {
 
 			void rebuild_resolved_name_maps() {
 				rebuild_lookup_map(m_compByPath, [](const ComponentCacheItem& item) {
-					return path_name_view(item);
+					return item.path.view();
 				});
 				rebuild_lookup_map(m_compByAlias, [](const ComponentCacheItem& item) {
-					return alias_name_view(item);
+					return item.alias.view();
 				});
 			}
 
@@ -325,7 +313,7 @@ namespace gaia {
 				GAIA_ASSERT(l > 0 && l < ComponentCacheItem::MaxNameLength);
 
 				{
-					const auto* pExisting = find_exact_symbol(name, l);
+					const auto* pExisting = symbol(name, l);
 					if (pExisting != nullptr)
 						return *pExisting;
 				}
@@ -428,35 +416,36 @@ namespace gaia {
 			//! \param item Component cache item to inspect.
 			//! \return Registered symbol name as a non-owning string view.
 			GAIA_NODISCARD util::str_view symbol_name(const ComponentCacheItem& item) const noexcept {
-				return symbol_name_view(item);
+				return {item.name.str(), item.name.len()};
 			}
 
 			//! Returns the path name used for scoped lookup.
 			//! \param item Component cache item to inspect.
 			//! \return Path name as a non-owning string view. Empty view when no path is registered.
 			GAIA_NODISCARD util::str_view path_name(const ComponentCacheItem& item) const noexcept {
-				return path_name_view(item);
+				return item.path.view();
 			}
 
 			//! Returns the alias used for short-name lookup.
 			//! \param item Component cache item to inspect.
 			//! \return Alias as a non-owning string view. Empty view when no alias is registered.
 			GAIA_NODISCARD util::str_view alias_name(const ComponentCacheItem& item) const noexcept {
-				return alias_name_view(item);
+				return item.alias.view();
 			}
 
-			//! Returns the user-facing component name Gaia-ECS should display or serialize.
+			//! Returns the preferred user-facing component name for diagnostics, logs and other pretty output.
 			//! Alias is preferred when unique and not shadowed by a registered symbol.
 			//! Path name is preferred next when unique and not shadowed by a registered symbol.
 			//! Otherwise the registered symbol name is returned.
 			//! \param item Component cache item to inspect.
 			//! \return Display name as a non-owning string view.
+			//! \warning This is not a stable identity key.
 			GAIA_NODISCARD util::str_view display_name(const ComponentCacheItem& item) const noexcept {
-				const auto symbol = symbol_name_view(item);
+				const auto symbol = symbol_name(item);
 				if (is_internal_symbol(symbol))
 					return symbol;
 
-				const auto alias = alias_name_view(item);
+				const auto alias = alias_name(item);
 				if (!alias.empty()) {
 					const auto aliasIt = m_compByAlias.find(lookup_key(alias));
 					const auto symbolIt = m_compBySymbol.find(lookup_key(alias));
@@ -466,7 +455,7 @@ namespace gaia {
 						return alias;
 				}
 
-				const auto path = path_name_view(item);
+				const auto path = path_name(item);
 				if (!path.empty()) {
 					const auto pathIt = m_compByPath.find(lookup_key(path));
 					const auto symbolIt = m_compBySymbol.find(lookup_key(path));
@@ -485,10 +474,10 @@ namespace gaia {
 			//! \param name Alias name.
 			//! \param len Alias length. If zero, the length is calculated.
 			//! \return True when the alias metadata was updated, false if validation failed.
-			bool set_alias(Entity entity, const char* name, uint32_t len = 0) noexcept {
+			bool alias(Entity entity, const char* name, uint32_t len = 0) noexcept {
 				auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
-				return set_alias(*pItem, name, len);
+				return alias(*pItem, name, len);
 			}
 
 			//! Assigns a component alias used by alias lookup and display_name().
@@ -497,7 +486,7 @@ namespace gaia {
 			//! \param name Alias name.
 			//! \param len Alias length. If zero, the length is calculated.
 			//! \return True when the alias metadata was updated, false if validation failed.
-			bool set_alias(ComponentCacheItem& item, const char* name, uint32_t len = 0) noexcept {
+			bool alias(ComponentCacheItem& item, const char* name, uint32_t len = 0) noexcept {
 				if (name == nullptr || name[0] == 0) {
 					item.alias.clear();
 					rebuild_resolved_name_maps();
@@ -521,10 +510,10 @@ namespace gaia {
 			//! \param name Path name.
 			//! \param len Path length. If zero, the length is calculated.
 			//! \return True when the path metadata was updated, false if validation failed.
-			bool set_path(Entity entity, const char* name, uint32_t len = 0) noexcept {
+			bool path(Entity entity, const char* name, uint32_t len = 0) noexcept {
 				auto* pItem = find(entity);
 				GAIA_ASSERT(pItem != nullptr);
-				return set_path(*pItem, name, len);
+				return path(*pItem, name, len);
 			}
 
 			//! Assigns a component path name used by path lookup and display_name().
@@ -533,7 +522,7 @@ namespace gaia {
 			//! \param name Path name.
 			//! \param len Path length. If zero, the length is calculated.
 			//! \return True when the path metadata was updated, false if validation failed.
-			bool set_path(ComponentCacheItem& item, const char* name, uint32_t len = 0) noexcept {
+			bool path(ComponentCacheItem& item, const char* name, uint32_t len = 0) noexcept {
 				if (name == nullptr || name[0] == 0) {
 					item.path.clear();
 					rebuild_resolved_name_maps();
@@ -553,7 +542,7 @@ namespace gaia {
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
-			GAIA_NODISCARD const ComponentCacheItem* find_exact_symbol(const char* name, uint32_t len = 0) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* symbol(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
@@ -567,7 +556,7 @@ namespace gaia {
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
-			GAIA_NODISCARD const ComponentCacheItem* find_path(const char* name, uint32_t len = 0) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* path(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
@@ -581,7 +570,7 @@ namespace gaia {
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
-			GAIA_NODISCARD const ComponentCacheItem* find_alias(const char* name, uint32_t len = 0) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* alias(const char* name, uint32_t len = 0) const noexcept {
 				GAIA_ASSERT(name != nullptr);
 
 				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
@@ -591,24 +580,27 @@ namespace gaia {
 				return it != m_compByAlias.end() ? it->second : nullptr;
 			}
 
-			//! Resolves a user-facing component name.
+			//! Resolves a component name within component metadata lookup only.
 			//! Exact registered symbol lookup is attempted first, then exact path lookup, then alias lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
+			//! \warning World entity-name lookup and active world scope rules are not considered here.
+
 			GAIA_NODISCARD const ComponentCacheItem* resolve(const char* name, uint32_t len = 0) const noexcept {
-				if (const auto* pItem = find_exact_symbol(name, len); pItem != nullptr)
+				if (const auto* pItem = symbol(name, len); pItem != nullptr)
 					return pItem;
-				if (const auto* pItem = find_path(name, len); pItem != nullptr)
+				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
-				return find_alias(name, len);
+				return alias(name, len);
 			}
 
 			//! Collects all component items that match @a name as an exact symbol, exact path, or alias.
-			//! This is primarily useful for diagnostics when a short name is ambiguous.
+			//! This is primarily useful for low-level component metadata diagnostics when a short name is ambiguous.
 			//! \param name Lookup string.
 			//! \param[out] out Output array cleared and then filled with unique matching component items.
 			//! \param len String length. If zero, the length is calculated.
+			//! \warning World entity-name lookup and active world scope rules are not considered here.
 			void resolve(cnt::darray<const ComponentCacheItem*>& out, const char* name, uint32_t len = 0) const {
 				GAIA_ASSERT(name != nullptr);
 				out.clear();
@@ -627,37 +619,37 @@ namespace gaia {
 					out.push_back(pItem);
 				};
 
-				push_unique(find_exact_symbol(name, l));
+				push_unique(symbol(name, l));
 
-				if (const auto* pItem = find_path(name, l); pItem != nullptr) {
+				if (const auto* pItem = path(name, l); pItem != nullptr) {
 					push_unique(pItem);
 				} else {
 					for_each_item([&](const ComponentCacheItem& item) {
-						if (path_name_view(item) == needle)
+						if (item.path.view() == needle)
 							push_unique(&item);
 					});
 				}
 
-				if (const auto* pItem = find_alias(name, l); pItem != nullptr) {
+				if (const auto* pItem = alias(name, l); pItem != nullptr) {
 					push_unique(pItem);
 				} else {
 					for_each_item([&](const ComponentCacheItem& item) {
-						if (alias_name_view(item) == needle)
+						if (item.alias.view() == needle)
 							push_unique(&item);
 					});
 				}
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* find_exact_symbol(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_exact_symbol(name, len));
+			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* find_path(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_path(name, len));
+			GAIA_NODISCARD ComponentCacheItem* path(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* find_alias(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_alias(name, len));
+			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
 			}
 
 			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
@@ -688,27 +680,6 @@ namespace gaia {
 				return *pItem;
 			}
 
-			//! Returns the component cache item by its alias.
-			//! \param name A null-terminated string
-			//! \param len String length. If zero, the length is calculated
-			//! \return Component info.
-			//! \warning It is expected a unique component alias exists. Undefined behavior otherwise.
-			GAIA_NODISCARD const ComponentCacheItem& get_alias(const char* name, uint32_t len = 0) const noexcept {
-				const auto* pItem = find_alias(name, len);
-				GAIA_ASSERT(pItem != nullptr);
-				return *pItem;
-			}
-
-			//! Returns the component cache item by its alias.
-			//! \param name A null-terminated string
-			//! \param len String length. If zero, the length is calculated
-			//! \return Component info.
-			//! \warning It is expected a unique component alias exists. Undefined behavior otherwise.
-			GAIA_NODISCARD ComponentCacheItem& get_alias(const char* name, uint32_t len = 0) noexcept {
-				auto* pItem = find_alias(name, len);
-				GAIA_ASSERT(pItem != nullptr);
-				return *pItem;
-			}
 
 			//! Searches for the component item for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.

@@ -5015,12 +5015,12 @@ void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
 	auto name = cc.get<T>().name;
 	CHECK(name.str() != nullptr);
 	CHECK(name.len() > 1);
-	const auto* res = cc.find_exact_symbol(str);
+	const auto* res = cc.symbol(str);
 	CHECK(res != nullptr);
 }
 
 void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
-	const auto* item = cc.find_exact_symbol(str);
+	const auto* item = cc.symbol(str);
 	CHECK(item == nullptr);
 }
 
@@ -5139,7 +5139,7 @@ TEST_CASE("Component names") {
 		});
 
 		CHECK(wld.scope() == ecs::EntityBad);
-		CHECK(cc.find_alias("Position") == nullptr);
+		CHECK(cc.alias("Position") == nullptr);
 		CHECK(wld.get("Position") == gameplayPos);
 
 		CHECK(wld.scope(tools) == ecs::EntityBad);
@@ -5218,6 +5218,57 @@ TEST_CASE("Component names") {
 		});
 
 		CHECK(wld.scope() == ecs::EntityBad);
+	}
+
+	SUBCASE("world exposes unified lookup and component naming metadata") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		ecs::Entity gameplayPos = ecs::EntityBad;
+		ecs::Entity renderPos = ecs::EntityBad;
+		wld.scope(gameplay, [&] {
+			gameplayPos = wld.add<Position>().entity;
+
+			wld.scope(render, [&] {
+				renderPos = wld.add<dummy::Position>().entity;
+			});
+		});
+
+		CHECK(wld.get("gameplay") == gameplay);
+		CHECK(wld.get("gameplay.render") == render);
+		CHECK(wld.get("gameplay.Position") == gameplayPos);
+		CHECK(wld.get("gameplay.render.Position") == renderPos);
+		CHECK(wld.get("Position") == gameplayPos);
+
+		CHECK(wld.symbol(renderPos) == "dummy::Position");
+		CHECK(wld.path(renderPos) == "gameplay.render.Position");
+		CHECK(wld.alias(renderPos) == "Position");
+		CHECK(wld.display_name(renderPos) == "gameplay.render.Position");
+
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "Position");
+		CHECK(out.size() == 2);
+		CHECK((out[0] == gameplayPos || out[1] == gameplayPos));
+		CHECK((out[0] == renderPos || out[1] == renderPos));
+
+		CHECK(wld.alias(renderPos, "RenderPosition"));
+		CHECK(wld.alias(renderPos) == "RenderPosition");
+		CHECK(wld.display_name(renderPos) == "RenderPosition");
+		CHECK(wld.get("RenderPosition") == renderPos);
+
+		CHECK(wld.path(renderPos, "gameplay.render.RenderPosition"));
+		CHECK(wld.path(renderPos) == "gameplay.render.RenderPosition");
+		CHECK(wld.get("gameplay.render.RenderPosition") == renderPos);
+
+		wld.resolve(out, "gameplay.render");
+		CHECK(out.size() == 1);
+		CHECK(out[0] == render);
 	}
 }
 
@@ -9859,42 +9910,47 @@ TEST_CASE("Entity name - component") {
 	// Add component
 	const auto& pci = wld.add<Position>();
 	{
-		// name must match
+		// component entities participate in the normal entity naming path
 		const auto name = wld.name(pci.entity);
 		CHECK(name == "Position");
+		CHECK(wld.symbol(pci.entity) == "Position");
 		const auto e = wld.get("Position");
 		CHECK(e == pci.entity);
 	}
 	// Add unique component
 	const auto& upci = wld.add<ecs::uni<Position>>();
 	{
-		// name must match
+		// component entities participate in the normal entity naming path
 		const auto name = wld.name(upci.entity);
 		CHECK(name == "gaia::ecs::uni<Position>");
+		CHECK(wld.symbol(upci.entity) == "gaia::ecs::uni<Position>");
 		const auto e = wld.get("gaia::ecs::uni<Position>");
 		CHECK(e == upci.entity);
 	}
 	{
-		// generic component name must still match
+		// generic component symbol must still match
 		const auto name = wld.name(pci.entity);
 		CHECK(name == "Position");
+		CHECK(wld.symbol(pci.entity) == "Position");
 		const auto e = wld.get("Position");
 		CHECK(e == pci.entity);
 	}
 
-	// Change the component name
+	// Assign an entity name to the component entity
 	wld.name(pci.entity, "xyz", 3);
 	{
-		// name must match
+		// entity name must match
 		const auto name = wld.name(pci.entity);
 		CHECK(name == "xyz");
+		CHECK(wld.symbol(pci.entity) == "Position");
 		const auto e = wld.get("xyz");
 		CHECK(e == pci.entity);
 	}
 	{
-		// unique component name must still match
+		// unique component symbol must still match
 		const auto name = wld.name(upci.entity);
 		CHECK(name == "gaia::ecs::uni<Position>");
+		CHECK(wld.symbol(upci.entity) == "gaia::ecs::uni<Position>");
 		const auto e = wld.get("gaia::ecs::uni<Position>");
 		CHECK(e == upci.entity);
 	}
@@ -17971,9 +18027,9 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(cc.find(item.comp.id()) == &item);
 		CHECK(cc.find(item.entity) == &item);
-		CHECK(cc.find_exact_symbol(RuntimeCompName) == &item);
-		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen) == &item);
-		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen - 1) == nullptr);
+		CHECK(cc.symbol(RuntimeCompName) == &item);
+		CHECK(cc.symbol(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.symbol(RuntimeCompName, nameLen - 1) == nullptr);
 		CHECK(cc.resolve(RuntimeCompName) == &item);
 	}
 
@@ -18036,7 +18092,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(item.func_load == nullptr);
 
 		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
-		CHECK(cc.find_exact_symbol(RuntimeCompName, nameLen) == &item);
+		CHECK(cc.symbol(RuntimeCompName, nameLen) == &item);
 		CHECK(cc.get(item.comp.id()).entity == item.entity);
 	}
 
@@ -18055,28 +18111,28 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(cc.symbol_name(itemA) == "Gameplay::Device");
 		CHECK(cc.path_name(itemA) == "Gameplay.Device");
 		CHECK(cc.alias_name(itemA) == "Device");
-		CHECK(cc.find_exact_symbol("Gameplay::Device") == &itemA);
-		CHECK(cc.find_path("Gameplay.Device") == &itemA);
-		CHECK(cc.find_alias("Device") == nullptr);
+		CHECK(cc.symbol("Gameplay::Device") == &itemA);
+		CHECK(cc.path("Gameplay.Device") == &itemA);
+		CHECK(cc.alias("Device") == nullptr);
 		CHECK(cc.resolve("Gameplay::Device") == &itemA);
 		CHECK(cc.resolve("Gameplay.Device") == &itemA);
 		CHECK(cc.resolve("Device") == nullptr);
 		CHECK(cc.display_name(itemA) == "Gameplay.Device");
 		CHECK(cc.display_name(itemB) == "Debug.Device");
 
-		CHECK(cc.set_alias(itemA, "GameplayDevice"));
-		CHECK(cc.find_alias("GameplayDevice") == &itemA);
+		CHECK(cc.alias(itemA, "GameplayDevice"));
+		CHECK(cc.alias("GameplayDevice") == &itemA);
 		CHECK(cc.resolve("GameplayDevice") == &itemA);
 		CHECK(cc.display_name(itemA) == "GameplayDevice");
 
-		CHECK(cc.set_path(itemA, "gameplay.render.Device"));
-		CHECK(cc.find_path("gameplay.render.Device") == &itemA);
+		CHECK(cc.path(itemA, "gameplay.render.Device"));
+		CHECK(cc.path("gameplay.render.Device") == &itemA);
 		CHECK(cc.resolve("gameplay.render.Device") == &itemA);
 
-		CHECK(cc.set_alias(itemA, nullptr));
+		CHECK(cc.alias(itemA, nullptr));
 		CHECK(cc.display_name(itemA) == "gameplay.render.Device");
 
-		CHECK(cc.set_path(itemA, nullptr));
+		CHECK(cc.path(itemA, nullptr));
 		CHECK(cc.display_name(itemA) == "Gameplay::Device");
 	}
 
@@ -19865,7 +19921,12 @@ TEST_CASE("Serialization - world json schema nested arrays") {
 	ser::ser_json writer;
 	CHECK(wld.save_json(writer));
 	const auto& json = writer.str();
-	CHECK(json.find("\"JsonComplexComp\":{\"transform[0].x\":1.25") != BadIndex);
+	const auto compSymbol = wld.symbol(wld.comp_cache().get<JsonComplexComp>().entity);
+	util::str jsonCompPrefix;
+	jsonCompPrefix.append('"');
+	jsonCompPrefix.append(compSymbol);
+	jsonCompPrefix.append("\":{\"transform[0].x\":1.25");
+	CHECK(json.find(jsonCompPrefix.view()) != BadIndex);
 	CHECK(json.find("\"transform[1].z\":6.5") != BadIndex);
 	CHECK(json.find("\"itemCounts[2]\":33") != BadIndex);
 	CHECK(json.find("\"active[0]\":true") != BadIndex);

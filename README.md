@@ -282,36 +282,52 @@ wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignor
 
 ### Component names
 
+Components are entities too, so their default symbol is registered through the same entity naming path. Component symbol, path, alias and display names are still available through the component naming APIs when you need those specific naming layers.
+
 Components have four distinct name concepts. The registered symbol is the identity, such as `SomeTest::Device`. The path name is the scoped lookup name, such as `SomeTest.Device`. The alias is a short user-facing name, such as `Device`. The display name is a convenience string you can use e.g. in JSON or tools.
 
-Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact_symbol` uses the registered symbol name. `ComponentCache::find_path` uses the scoped path name. `ComponentCache::find_alias` uses the alias and succeeds only when that alias is unique. `ComponentCache::resolve` tries symbol lookup first, then path lookup, then alias lookup.
+Gaia-ECS exposes the lookup modes directly. `ComponentCache::symbol` uses the registered symbol name. `ComponentCache::path` uses the scoped path name. `ComponentCache::alias` uses the alias and succeeds only when that alias is unique. `ComponentCache::resolve` is the low-level component-metadata lookup path. It does not include the world name table or the active world scope.
 
-`World::get("name")` starts with entity name lookup, including hierarchical lookup with `.`. If no entity name matches, it falls back to component resolution. Exact component symbols still win first. After that Gaia-ECS checks the current component scope, if there is one, and walks up its `ChildOf` chain looking for a matching component path before it falls back to alias lookup. That means `World::get("Device")`, `World::get("SomeTest.Device")`, and `World::get("SomeTest::Device")` can all resolve the component entity when those names are registered. String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
+At the world level, `World::get("name")` is the normal lookup entry point. It resolves named entities first, including hierarchical lookup with `.`, and if that does not match it falls back to component resolution using the active component scope, then global symbol, path and alias lookup.
 
-When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::display_name`. It is a display helper, not an identity key.
+String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
 
-When a short name does not resolve the way you expect, `ComponentCache::resolve` can collect every exact symbol, path, and alias match for that string. This is useful for debugging collisions such as two scoped components that both expose to the same alias.
+`World::name(entity)` returns the entity name registered in the world name table. For component-specific naming layers, use `World::symbol`, `World::path`, `World::alias`, or `World::display_name`.
+
+When you need a stable component identity, use the registered symbol name via `World::symbol` or `ComponentCache::symbol_name`. Semantic JSON uses the symbol for that reason. When you need a prettier label for logs, diagnostics or tools, use `World::display_name`. `display_name` is not an identity key and can change when alias or path metadata changes.
+
+When a short name does not resolve the way you expect, `World::resolve(out, name)` is the unified diagnostic path. It collects every entity and component match that the world naming rules can see. `ComponentCache::resolve(out, name)` is still available when you specifically want to inspect raw component symbol/path/alias metadata without involving the world name table.
 
 ```cpp
-const auto* exact = w.comp_cache().find_exact_symbol("SomeTest::Device");
+const auto* exact = w.comp_cache().symbol("SomeTest::Device");
 // returns: pointer to the registered component for "SomeTest::Device", or nullptr if it does not exist
 
-const auto* path = w.comp_cache().find_path("SomeTest.Device");
+const auto* path = w.comp_cache().path("SomeTest.Device");
 // returns: the same component pointer when that path name is registered and unique
 
-const auto* alias = w.comp_cache().find_alias("Device");
+const auto* alias = w.comp_cache().alias("Device");
 // returns: the same component pointer when "Device" is a unique alias, otherwise nullptr
 
 const auto* resolved = w.comp_cache().resolve("Device");
 // returns: exact symbol match first, otherwise path match, otherwise alias match
 
 if (resolved != nullptr) {
-  const auto symbol = w.comp_cache().symbol_name(*resolved);
+  const auto symbol = w.symbol(resolved->entity);
   // returns: "SomeTest::Device"
 
-  const auto display = w.comp_cache().display_name(*resolved);
+  const auto display = w.display_name(resolved->entity);
   // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
 }
+
+const auto component = w.get("Device");
+// returns: the component entity resolved from the world naming rules
+
+const auto entity = w.get("gameplay.render");
+// returns: the entity registered at that hierarchy path
+
+w.alias(component, "RenderPosition");
+w.path(component, "gameplay.render.RenderPosition");
+// updates component alias/path metadata directly through World
 ```
 
 If two different components would both map to the same alias, alias lookup does not guess.
@@ -320,15 +336,15 @@ If two different components would both map to the same alias, alias lookup does 
 ecs::Entity componentA = cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 ecs::Entity componentB = cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 
-const auto* alias = w.comp_cache().find_alias("Device");
+const auto* alias = w.alias("Device");
 // returns: nullptr
 
-const auto* resolved = w.comp_cache().resolve("Device");
+const auto* resolved = w.resolve("Device");
 // returns: nullptr unless an exact symbol named "Device" or a unique path named "Device" also exists
 
 cnt::darray<ecs::Entity> out;
-w.comp_cache().resolve(out, "Device");
-// out will be filed with entities componentA, componentB
+w.resolve(out, "Device");
+// out will be filled with entities componentA, componentB
 ```
 
 ### Component scope
@@ -341,7 +357,7 @@ For example, registering `Position` while the current component scope is the ent
 
 Unqualified component lookup checks the active scope first, then walks up parent scopes, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
 
-String queries follow the same rules, but they capture the active scope when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` resolves `Position` while `add(...)` runs, not later when the query executes.
+String queries follow the same rules, but they capture the active scope when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` resolves `Position` while `add(...)` runs, stores the resulting component id in the query, and will not be rewritten later if the scope or component naming metadata changes.
 
 Scoped component registration looks like this:
 
