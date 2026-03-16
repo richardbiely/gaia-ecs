@@ -788,6 +788,12 @@ namespace gaia {
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 			//! Current scope used for component registration and relative component lookup.
 			Entity m_componentScope = EntityBad;
+			//! Cached dotted path for the current component scope.
+			mutable util::str m_componentScopePathCache;
+			//! Scope entity associated with the cached dotted path.
+			mutable Entity m_componentScopePathCacheEntity = EntityBad;
+			//! Whether the cached dotted path is up-to-date.
+			mutable bool m_componentScopePathCacheValid = false;
 
 			//! Archetypes requested to be deleted
 			cnt::set<ArchetypeLookupKey> m_reqArchetypesToDel;
@@ -1441,6 +1447,7 @@ namespace gaia {
 					//  No need to update version, commit() will do it
 					auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc));
 					del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
+					m_world.invalidate_scope_path_cache();
 
 					del_inter(GAIA_ID(EntityDesc));
 					m_targetNameKey = {};
@@ -1637,6 +1644,8 @@ namespace gaia {
 					cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> targets;
 
 					const auto& ecMain = m_world.fetch(entity);
+					if (entity.pair())
+						m_world.invalidate_scope_path_cache();
 
 					// Handle entity combinations that can't be together
 					if ((ecMain.flags & EntityContainerFlags::HasCantCombine) != 0) {
@@ -1952,6 +1961,9 @@ namespace gaia {
 				void handle_del(Entity entity) {
 					const bool isDontFragmentPair =
 							entity.pair() && m_world.is_exclusive_dont_fragment_relation(m_world.get(entity.id()));
+					if (entity.pair())
+						m_world.invalidate_scope_path_cache();
+
 #if GAIA_ASSERT_ENABLED
 					if (!isDontFragmentPair)
 						World::verify_del(m_world, *m_pArchetype, m_entity, entity);
@@ -2188,6 +2200,8 @@ namespace gaia {
 						auto p = robin_hood::pair(std::make_pair(key, m_entity));
 						it->swap(p);
 					}
+
+					m_world.invalidate_scope_path_cache();
 				}
 			};
 
@@ -2208,6 +2222,12 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 		private:
+			void invalidate_scope_path_cache() const {
+				m_componentScopePathCache.clear();
+				m_componentScopePathCacheEntity = EntityBad;
+				m_componentScopePathCacheValid = false;
+			}
+
 			//! Builds a dotted scope path for @a scope by walking its ChildOf chain.
 			//! \param scope Scope entity to inspect.
 			//! \param out Receives the dotted path when successful.
@@ -2253,11 +2273,25 @@ namespace gaia {
 			//! \return True when the current component scope is active and fully named, false otherwise.
 			GAIA_NODISCARD bool current_scope_path(util::str& out) const {
 				if (m_componentScope == EntityBad) {
+					invalidate_scope_path_cache();
 					out.clear();
 					return false;
 				}
 
-				return build_scope_path(m_componentScope, out);
+				if (m_componentScopePathCacheValid && m_componentScopePathCacheEntity == m_componentScope) {
+					out.assign(m_componentScopePathCache.view());
+					return true;
+				}
+
+				if (!build_scope_path(m_componentScope, out)) {
+					invalidate_scope_path_cache();
+					return false;
+				}
+
+				m_componentScopePathCache.assign(out.view());
+				m_componentScopePathCacheEntity = m_componentScope;
+				m_componentScopePathCacheValid = true;
+				return true;
 			}
 
 			//! Resolves a component name using world-aware scope rules.
@@ -4296,8 +4330,10 @@ namespace gaia {
 			Entity scope(Entity scope) {
 				GAIA_ASSERT(scope == EntityBad || (valid(scope) && !scope.pair()));
 				const auto prev = m_componentScope;
-				if (scope == EntityBad || (valid(scope) && !scope.pair()))
+				if (scope == EntityBad || (valid(scope) && !scope.pair())) {
 					m_componentScope = scope;
+					invalidate_scope_path_cache();
+				}
 				return prev;
 			}
 
@@ -4318,6 +4354,55 @@ namespace gaia {
 
 				ComponentScopeRestore restore{*this, scope(scopeEntity)};
 				func();
+			}
+
+			//! Finds or creates a named module hierarchy and returns the deepest scope entity.
+			//! Each path segment is mapped to an entity name and connected with ChildOf relationships.
+			//! \param path Dotted module path such as "gameplay.render".
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Deepest module entity, or EntityBad when the path is invalid.
+			Entity module(const char* path, uint32_t len = 0) {
+				if (path == nullptr || path[0] == 0)
+					return EntityBad;
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(path, ComponentCacheItem::MaxNameLength) : len;
+				if (l == 0 || l >= ComponentCacheItem::MaxNameLength)
+					return EntityBad;
+				if (path[l - 1] == '.')
+					return EntityBad;
+
+				Entity parent = EntityBad;
+				uint32_t partBeg = 0;
+				while (partBeg < l) {
+					uint32_t partEnd = partBeg;
+					while (partEnd < l && path[partEnd] != '.')
+						++partEnd;
+					if (partEnd == partBeg)
+						return EntityBad;
+
+					const auto partLen = partEnd - partBeg;
+					const auto key = EntityNameLookupKey(path + partBeg, partLen, 0);
+					const auto it = m_nameToEntity.find(key);
+					Entity curr = EntityBad;
+
+					if (it != m_nameToEntity.end()) {
+						curr = it->second;
+						if (parent != EntityBad && !static_cast<const World&>(*this).child(curr, parent)) {
+							GAIA_ASSERT2(false, "Module path collides with an existing entity name outside the requested scope");
+							return EntityBad;
+						}
+					} else {
+						curr = add();
+						name(curr, path + partBeg, partLen);
+						if (parent != EntityBad)
+							child(curr, parent);
+					}
+
+					parent = curr;
+					partBeg = partEnd + 1;
+				}
+
+				return parent;
 			}
 
 			//! Checks if @a entity contains @a pair.

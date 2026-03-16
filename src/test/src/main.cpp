@@ -5197,6 +5197,28 @@ TEST_CASE("Component names") {
 			CHECK(e == eRender);
 		});
 	}
+
+	SUBCASE("module creates named scope hierarchies and scopes registration") {
+		TestWorld twld;
+
+		const auto moduleEntity = wld.module("gameplay.render");
+		CHECK(moduleEntity != ecs::EntityBad);
+		CHECK(wld.name(moduleEntity) == "render");
+		CHECK(wld.get("gameplay.render") == moduleEntity);
+
+		const auto gameplay = wld.get("gameplay");
+		CHECK(gameplay != ecs::EntityBad);
+		CHECK(wld.has(moduleEntity, ecs::Pair(ecs::ChildOf, gameplay)));
+
+		const auto physicsModule = wld.module("gameplay.render.physics");
+		CHECK(physicsModule != ecs::EntityBad);
+		wld.scope(physicsModule, [&] {
+			const auto& comp = wld.add<dummy::Position>();
+			CHECK(wld.comp_cache().path_name(comp) == "gameplay.render.physics.Position");
+		});
+
+		CHECK(wld.scope() == ecs::EntityBad);
+	}
 }
 
 template <typename TQuery>
@@ -18056,6 +18078,31 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(cc.set_path(itemA, nullptr));
 		CHECK(cc.display_name(itemA) == "Gameplay::Device");
+	}
+
+	SUBCASE("resolve collects ambiguous matches for diagnostics") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		const auto entityA = wld.add();
+		(void)cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1);
+
+		const auto entityB = wld.add();
+		(void)cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1);
+
+		cnt::darray<const ecs::ComponentCacheItem*> out;
+		cc.resolve(out, "Device");
+		CHECK(out.size() == 2);
+		CHECK((out[0]->entity == entityA || out[1]->entity == entityA));
+		CHECK((out[0]->entity == entityB || out[1]->entity == entityB));
+
+		cc.resolve(out, "Gameplay.Device");
+		CHECK(out.size() == 1);
+		CHECK(out[0]->entity == entityA);
+
+		cc.resolve(out, "Gameplay::Device");
+		CHECK(out.size() == 1);
+		CHECK(out[0]->entity == entityA);
 	}
 
 	SUBCASE("schema field registration supports add update and clear") {

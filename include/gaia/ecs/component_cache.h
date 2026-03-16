@@ -604,6 +604,50 @@ namespace gaia {
 				return find_alias(name, len);
 			}
 
+			//! Collects all component items that match @a name as an exact symbol, exact path, or alias.
+			//! This is primarily useful for diagnostics when a short name is ambiguous.
+			//! \param name Lookup string.
+			//! \param[out] out Output array cleared and then filled with unique matching component items.
+			//! \param len String length. If zero, the length is calculated.
+			void resolve(cnt::darray<const ComponentCacheItem*>& out, const char* name, uint32_t len = 0) const {
+				GAIA_ASSERT(name != nullptr);
+				out.clear();
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+				const auto needle = util::str_view(name, l);
+
+				auto push_unique = [&](const ComponentCacheItem* pItem) {
+					if (pItem == nullptr)
+						return;
+					for (const auto* pExisting: out) {
+						if (pExisting == pItem)
+							return;
+					}
+					out.push_back(pItem);
+				};
+
+				push_unique(find_exact_symbol(name, l));
+
+				if (const auto* pItem = find_path(name, l); pItem != nullptr) {
+					push_unique(pItem);
+				} else {
+					for_each_item([&](const ComponentCacheItem& item) {
+						if (path_name_view(item) == needle)
+							push_unique(&item);
+					});
+				}
+
+				if (const auto* pItem = find_alias(name, l); pItem != nullptr) {
+					push_unique(pItem);
+				} else {
+					for_each_item([&](const ComponentCacheItem& item) {
+						if (alias_name_view(item) == needle)
+							push_unique(&item);
+					});
+				}
+			}
+
 			GAIA_NODISCARD ComponentCacheItem* find_exact_symbol(const char* name, uint32_t len = 0) noexcept {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->find_exact_symbol(name, len));
 			}

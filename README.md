@@ -290,6 +290,8 @@ Gaia-ECS exposes the lookup modes directly. `ComponentCache::find_exact_symbol` 
 
 When you need the name Gaia-ECS should write to semantic JSON or other user-facing output, use `ComponentCache::display_name`. It is a display helper, not an identity key.
 
+When a short name does not resolve the way you expect, `ComponentCache::resolve` can collect every exact symbol, path, and alias match for that string. This is useful for debugging collisions such as two scoped components that both expose to the same alias.
+
 ```cpp
 const auto* exact = w.comp_cache().find_exact_symbol("SomeTest::Device");
 // returns: pointer to the registered component for "SomeTest::Device", or nullptr if it does not exist
@@ -315,13 +317,18 @@ if (resolved != nullptr) {
 If two different components would both map to the same alias, alias lookup does not guess.
 
 ```cpp
-const auto* a = w.comp_cache().find_exact_symbol("Gameplay::Device");
-const auto* b = w.comp_cache().find_exact_symbol("Debug::Device");
+ecs::Entity componentA = cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
+ecs::Entity componentB = cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
+
 const auto* alias = w.comp_cache().find_alias("Device");
 // returns: nullptr
 
 const auto* resolved = w.comp_cache().resolve("Device");
 // returns: nullptr unless an exact symbol named "Device" or a unique path named "Device" also exists
+
+cnt::darray<ecs::Entity> out;
+w.comp_cache().resolve(out, "Device");
+// out will be filed with entities componentA, componentB
 ```
 
 ### Component scope
@@ -333,6 +340,8 @@ The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS
 For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`.
 
 Unqualified component lookup checks the active scope first, then walks up parent scopes, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
+
+String queries follow the same rules, but they capture the active scope when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` resolves `Position` while `add(...)` runs, not later when the query executes.
 
 Scoped component registration looks like this:
 
@@ -372,6 +381,32 @@ w.scope(gameplay, [&] {
   // the component entity registered under "gameplay.Position"
 });
 ```
+
+If you prefer creating named scopes directly from strings, `World::module(module_path)` creates or reuses the named `ChildOf` chain and returns the deepest scope entity. You can then pass that entity to `World::scope(...)` explicitly when you want to activate it.
+
+```cpp
+namespace gameplay_render {
+  struct Position {};
+  struct Velocity {};
+}
+
+ecs::World w;
+
+const ecs::Entity renderModule = w.module("gameplay.render");
+
+w.scope(renderModule, [&] {
+  w.add<gameplay_render::Position>();
+  w.add<gameplay_render::Velocity>();
+});
+
+const auto positionComp = w.get("Position");
+// returns: the component entity registered under "gameplay.render.Position"
+
+const auto velocityComp = w.get("gameplay.render.Velocity");
+// returns: the component entity registered under "gameplay.render.Velocity"
+```
+
+`World::module(...)` only creates or finds the scope hierarchy. `World::scope(...)` is the step that makes registration and relative lookup happen inside that scope.
 
 ### Non-fragmenting and sparse components
 By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
