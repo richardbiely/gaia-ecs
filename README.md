@@ -333,14 +333,15 @@ w.path(component, "gameplay.render.RenderPosition");
 If two different components would both map to the same alias, alias lookup does not guess.
 
 ```cpp
+auto& cc = w.comp_cache();
 ecs::Entity componentA = cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 ecs::Entity componentB = cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 
-const auto* alias = w.alias("Device");
-// returns: nullptr
+const auto* alias = w.comp_cache().alias("Device");
+// returns: nullptr because the alias is ambiguous
 
-const auto* resolved = w.resolve("Device");
-// returns: nullptr unless an exact symbol named "Device" or a unique path named "Device" also exists
+const auto resolved = w.resolve("Device");
+// returns: EntityBad unless an exact entity name, exact symbol name, or unique path/alias match exists
 
 cnt::darray<ecs::Entity> out;
 w.resolve(out, "Device");

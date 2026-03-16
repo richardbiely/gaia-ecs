@@ -26362,18 +26362,6 @@ namespace gaia {
 
 			//! Assigns a component alias used by alias lookup and display_name().
 			//! Passing nullptr or an empty string clears the alias.
-			//! \param entity Component entity.
-			//! \param name Alias name.
-			//! \param len Alias length. If zero, the length is calculated.
-			//! \return True when the alias metadata was updated, false if validation failed.
-			bool alias(Entity entity, const char* name, uint32_t len = 0) noexcept {
-				auto* pItem = find(entity);
-				GAIA_ASSERT(pItem != nullptr);
-				return alias(*pItem, name, len);
-			}
-
-			//! Assigns a component alias used by alias lookup and display_name().
-			//! Passing nullptr or an empty string clears the alias.
 			//! \param item Component cache item to modify.
 			//! \param name Alias name.
 			//! \param len Alias length. If zero, the length is calculated.
@@ -26394,18 +26382,6 @@ namespace gaia {
 				item.alias.assign(name, l);
 				rebuild_resolved_name_maps();
 				return true;
-			}
-
-			//! Assigns a component path name used by path lookup and display_name().
-			//! Passing nullptr or an empty string clears the path.
-			//! \param entity Component entity.
-			//! \param name Path name.
-			//! \param len Path length. If zero, the length is calculated.
-			//! \return True when the path metadata was updated, false if validation failed.
-			bool path(Entity entity, const char* name, uint32_t len = 0) noexcept {
-				auto* pItem = find(entity);
-				GAIA_ASSERT(pItem != nullptr);
-				return path(*pItem, name, len);
 			}
 
 			//! Assigns a component path name used by path lookup and display_name().
@@ -54128,8 +54104,7 @@ namespace gaia {
 							return false;
 					} else {
 						const auto componentEntity = get(compName.data(), (uint32_t)compName.size());
-						const auto* pItem =
-								componentEntity != EntityBad ? comp_cache().find(componentEntity) : nullptr;
+						const auto* pItem = componentEntity != EntityBad ? comp_cache().find(componentEntity) : nullptr;
 						if (pItem == nullptr) {
 							warn(
 									ser::JsonDiagReason::UnknownComponent, compName,
