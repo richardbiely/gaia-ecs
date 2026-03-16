@@ -5269,6 +5269,79 @@ TEST_CASE("Component names") {
 		CHECK(out.size() == 1);
 		CHECK(out[0] == render);
 	}
+
+	SUBCASE("world lookup prefers ordinary entity names over scoped component matches") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		const auto namedEntity = wld.add();
+		wld.name(namedEntity, "Device");
+
+		ecs::Entity scopedDevice = ecs::EntityBad;
+		wld.scope(render, [&] {
+			scopedDevice = wld.add("Render::Device", 0, ecs::DataStorageType::Table, 1).entity;
+		});
+
+		CHECK(wld.alias("Device") == scopedDevice);
+
+		wld.scope(render, [&] {
+			CHECK(wld.get("Device") == namedEntity);
+		});
+
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "Device");
+		CHECK(out.size() == 2);
+		CHECK((out[0] == namedEntity || out[1] == namedEntity));
+		CHECK((out[0] == scopedDevice || out[1] == scopedDevice));
+	}
+
+	SUBCASE("world lookup prefers entity paths over component path collisions") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		ecs::Entity renderComp = ecs::EntityBad;
+		wld.scope(gameplay, [&] {
+			renderComp = wld.add("Gameplay::render", 0, ecs::DataStorageType::Table, 1).entity;
+		});
+
+		CHECK(wld.path("gameplay.render") == renderComp);
+		CHECK(wld.get("gameplay.render") == render);
+
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "gameplay.render");
+		CHECK(out.size() == 2);
+		CHECK((out[0] == render || out[1] == render));
+		CHECK((out[0] == renderComp || out[1] == renderComp));
+	}
+
+	SUBCASE("world lookup prefers exact component symbols over alias collisions") {
+		TestWorld twld;
+
+		const auto exactSymbolComp = wld.add("Gameplay::Device", 0, ecs::DataStorageType::Table, 1).entity;
+		const auto aliasComp = wld.add("OtherDevice", 0, ecs::DataStorageType::Table, 1).entity;
+		CHECK(wld.alias(aliasComp, "Gameplay::Device"));
+
+		CHECK(wld.alias("Gameplay::Device") == aliasComp);
+		CHECK(wld.get("Gameplay::Device") == exactSymbolComp);
+
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "Gameplay::Device");
+		CHECK(out.size() == 2);
+		CHECK((out[0] == exactSymbolComp || out[1] == exactSymbolComp));
+		CHECK((out[0] == aliasComp || out[1] == aliasComp));
+	}
 }
 
 template <typename TQuery>
