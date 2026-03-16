@@ -412,6 +412,7 @@ namespace gaia {
 				return *pItem;
 			}
 
+		private:
 			//! Returns the registered symbol name used as the component identity.
 			//! \param item Component cache item to inspect.
 			//! \return Registered symbol name as a non-owning string view.
@@ -556,19 +557,34 @@ namespace gaia {
 				return it != m_compByAlias.end() ? it->second : nullptr;
 			}
 
+			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* path(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
+			}
+
 			//! Resolves a component name within component metadata lookup only.
 			//! Exact registered symbol lookup is attempted first, then exact path lookup, then alias lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			//! \warning World entity-name lookup and active world scope rules are not considered here.
-
 			GAIA_NODISCARD const ComponentCacheItem* resolve(const char* name, uint32_t len = 0) const noexcept {
 				if (const auto* pItem = symbol(name, len); pItem != nullptr)
 					return pItem;
 				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
 				return alias(name, len);
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
 			}
 
 			//! Collects all component items that match @a name as an exact symbol, exact path, or alias.
@@ -616,22 +632,6 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* path(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
-			}
-
 			//! Returns the component cache item using resolved lookup.
 			//! Exact registered symbol lookup is attempted first, followed by path lookup and alias lookup.
 			//! \param name A null-terminated string
@@ -656,7 +656,7 @@ namespace gaia {
 				return *pItem;
 			}
 
-
+		public:
 			//! Searches for the component item for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr if not found.

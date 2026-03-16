@@ -286,7 +286,7 @@ Components are entities too, so their default symbol is registered through the s
 
 Components have four distinct name concepts. The registered symbol is the identity, such as `SomeTest::Device`. The path name is the scoped lookup name, such as `SomeTest.Device`. The alias is a short user-facing name, such as `Device`. The display name is a convenience string you can use e.g. in JSON or tools.
 
-Gaia-ECS exposes the lookup modes directly. `ComponentCache::symbol` uses the registered symbol name. `ComponentCache::path` uses the scoped path name. `ComponentCache::alias` uses the alias and succeeds only when that alias is unique. `ComponentCache::resolve` is the low-level component-metadata lookup path. It does not include the world name table or the active world scope.
+Gaia-ECS exposes the lookup modes directly through `World`. `World::symbol("SomeTest::Device")` uses the registered symbol name. `World::path("SomeTest.Device")` uses the scoped path name. `World::alias("Device")` uses the alias and succeeds only when that alias is unique.
 
 At the world level, `World::get("name")` is the normal lookup entry point. It resolves named entities first, including hierarchical lookup with `.`, and if that does not match it falls back to component resolution using the active component scope, then global symbol, path and alias lookup.
 
@@ -294,33 +294,30 @@ String queries and semantic JSON loading use the same component resolution order
 
 `World::name(entity)` returns the entity name registered in the world name table. For component-specific naming layers, use `World::symbol`, `World::path`, `World::alias`, or `World::display_name`.
 
-When you need a stable component identity, use the registered symbol name via `World::symbol` or `ComponentCache::symbol_name`. Semantic JSON uses the symbol for that reason. When you need a prettier label for logs, diagnostics or tools, use `World::display_name`. `display_name` is not an identity key and can change when alias or path metadata changes.
+When you need a stable component identity, use the registered symbol name via `World::symbol(component)`. Semantic JSON uses the symbol for that reason. When you need a prettier label for logs, diagnostics or tools, use `World::display_name`. `display_name` is not an identity key and can change when alias or path metadata changes.
 
-When a short name does not resolve the way you expect, `World::resolve(out, name)` is the unified diagnostic path. It collects every entity and component match that the world naming rules can see. `ComponentCache::resolve(out, name)` is still available when you specifically want to inspect raw component symbol/path/alias metadata without involving the world name table.
+When a short name does not resolve the way you expect, `World::resolve(out, name)` is the unified diagnostic path. It collects every entity and component match that the world naming rules can see.
 
 ```cpp
-const auto* exact = w.comp_cache().symbol("SomeTest::Device");
-// returns: pointer to the registered component for "SomeTest::Device", or nullptr if it does not exist
+const auto exact = w.symbol("SomeTest::Device");
+// returns: the component entity for the exact symbol match, or ecs::EntityBad if it does not exist
 
-const auto* path = w.comp_cache().path("SomeTest.Device");
-// returns: the same component pointer when that path name is registered and unique
+const auto path = w.path("SomeTest.Device");
+// returns: the same component entity when that path name is registered and unique
 
-const auto* alias = w.comp_cache().alias("Device");
-// returns: the same component pointer when "Device" is a unique alias, otherwise nullptr
-
-const auto* resolved = w.comp_cache().resolve("Device");
-// returns: exact symbol match first, otherwise path match, otherwise alias match
-
-if (resolved != nullptr) {
-  const auto symbol = w.symbol(resolved->entity);
-  // returns: "SomeTest::Device"
-
-  const auto display = w.display_name(resolved->entity);
-  // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
-}
+const auto alias = w.alias("Device");
+// returns: the same component entity when "Device" is a unique alias, otherwise ecs::EntityBad
 
 const auto component = w.get("Device");
 // returns: the component entity resolved from the world naming rules
+
+if (component != ecs::EntityBad) {
+  const auto symbol = w.symbol(component);
+  // returns: "SomeTest::Device"
+
+  const auto display = w.display_name(component);
+  // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
+}
 
 const auto entity = w.get("gameplay.render");
 // returns: the entity registered at that hierarchy path
@@ -333,14 +330,14 @@ w.path(component, "gameplay.render.RenderPosition");
 If two different components would both map to the same alias, alias lookup does not guess.
 
 ```cpp
-auto& cc = w.comp_cache();
+auto& cc = w.comp_cache_mut();
 ecs::Entity componentA = cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 ecs::Entity componentB = cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
 
-const auto* alias = w.comp_cache().alias("Device");
-// returns: nullptr because the alias is ambiguous
+const auto alias = w.alias("Device");
+// returns: ecs::EntityBad because the alias is ambiguous
 
-const auto resolved = w.resolve("Device");
+const auto resolved = w.get("Device");
 // returns: EntityBad unless an exact entity name, exact symbol name, or unique path/alias match exists
 
 cnt::darray<ecs::Entity> out;

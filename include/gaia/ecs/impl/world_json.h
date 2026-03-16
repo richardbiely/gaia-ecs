@@ -299,7 +299,7 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										const auto name = comp_cache().symbol_name(item);
+										const auto name = symbol(item.entity);
 										writer.key(name.data(), name.size());
 
 										// Tags have no associated payload.

@@ -5011,17 +5011,16 @@ void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
 }
 
 template <typename T>
-void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
-	auto name = cc.get<T>().name;
+void verify_name_has(const ecs::World& world, const ecs::ComponentCache& cc, const char* str) {
+	const auto& item = cc.get<T>();
+	auto name = item.name;
 	CHECK(name.str() != nullptr);
 	CHECK(name.len() > 1);
-	const auto* res = cc.symbol(str);
-	CHECK(res != nullptr);
+	CHECK(world.symbol(str) == item.entity);
 }
 
-void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
-	const auto* item = cc.symbol(str);
-	CHECK(item == nullptr);
+void verify_name_has_not(const ecs::World& world, const char* str) {
+	CHECK(world.symbol(str) == ecs::EntityBad);
 }
 
 template <typename T>
@@ -5030,11 +5029,11 @@ void verify_name_has_not(const ecs::ComponentCache& cc) {
 	CHECK(item == nullptr);
 }
 
-#define verify_name_has(name) verify_name_has<name>(cc, #name);
+#define verify_name_has(name) verify_name_has<name>(wld, cc, #name);
 #define verify_name_has_not(name)                                                                                      \
 	{                                                                                                                    \
 		verify_name_has_not<name>(cc);                                                                                     \
-		verify_name_has_not(cc, #name);                                                                                    \
+		verify_name_has_not(wld, #name);                                                                                   \
 	}
 
 TEST_CASE("Component names") {
@@ -5118,19 +5117,19 @@ TEST_CASE("Component names") {
 
 		wld.scope(gameplay, [&] {
 			gameplayPos = wld.add<Position>().entity;
-			CHECK(cc.path_name(cc.get(gameplayPos)) == "gameplay.Position");
-			CHECK(cc.alias_name(cc.get(gameplayPos)) == "Position");
+			CHECK(wld.path(gameplayPos) == "gameplay.Position");
+			CHECK(wld.alias(gameplayPos) == "Position");
 			CHECK(wld.get("Position") == gameplayPos);
 
 			wld.scope(render, [&] {
 				renderPos = wld.add<dummy::Position>().entity;
-				CHECK(cc.path_name(cc.get(renderPos)) == "gameplay.render.Position");
-				CHECK(cc.alias_name(cc.get(renderPos)) == "Position");
+				CHECK(wld.path(renderPos) == "gameplay.render.Position");
+				CHECK(wld.alias(renderPos) == "Position");
 				CHECK(wld.get("Position") == renderPos);
 
 				renderDevice = wld.add("Device", 0, ecs::DataStorageType::Table, 1).entity;
-				CHECK(cc.path_name(cc.get(renderDevice)) == "gameplay.render.Device");
-				CHECK(cc.alias_name(cc.get(renderDevice)) == "Device");
+				CHECK(wld.path(renderDevice) == "gameplay.render.Device");
+				CHECK(wld.alias(renderDevice) == "Device");
 				CHECK(wld.get("Device") == renderDevice);
 				CHECK(wld.get("gameplay.render.Device") == renderDevice);
 			});
@@ -5139,7 +5138,7 @@ TEST_CASE("Component names") {
 		});
 
 		CHECK(wld.scope() == ecs::EntityBad);
-		CHECK(cc.alias("Position") == nullptr);
+		CHECK(wld.alias("Position") == ecs::EntityBad);
 		CHECK(wld.get("Position") == gameplayPos);
 
 		CHECK(wld.scope(tools) == ecs::EntityBad);
@@ -5214,7 +5213,7 @@ TEST_CASE("Component names") {
 		CHECK(physicsModule != ecs::EntityBad);
 		wld.scope(physicsModule, [&] {
 			const auto& comp = wld.add<dummy::Position>();
-			CHECK(wld.comp_cache().path_name(comp) == "gameplay.render.physics.Position");
+			CHECK(wld.path(comp.entity) == "gameplay.render.physics.Position");
 		});
 
 		CHECK(wld.scope() == ecs::EntityBad);
@@ -18027,10 +18026,10 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(cc.find(item.comp.id()) == &item);
 		CHECK(cc.find(item.entity) == &item);
-		CHECK(cc.symbol(RuntimeCompName) == &item);
-		CHECK(cc.symbol(RuntimeCompName, nameLen) == &item);
-		CHECK(cc.symbol(RuntimeCompName, nameLen - 1) == nullptr);
-		CHECK(cc.resolve(RuntimeCompName) == &item);
+		CHECK(wld.symbol(RuntimeCompName) == item.entity);
+		CHECK(wld.symbol(RuntimeCompName, nameLen) == item.entity);
+		CHECK(wld.symbol(RuntimeCompName, nameLen - 1) == ecs::EntityBad);
+		CHECK(wld.get(RuntimeCompName) == item.entity);
 	}
 
 	SUBCASE("duplicate runtime registration is idempotent") {
@@ -18092,7 +18091,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(item.func_load == nullptr);
 
 		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
-		CHECK(cc.symbol(RuntimeCompName, nameLen) == &item);
+		CHECK(wld.symbol(RuntimeCompName, nameLen) == item.entity);
 		CHECK(cc.get(item.comp.id()).entity == item.entity);
 	}
 
@@ -18108,35 +18107,35 @@ TEST_CASE("Component cache - runtime registration") {
 		(void)cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1);
 		auto& itemB = cc.get(entityB);
 
-		CHECK(cc.symbol_name(itemA) == "Gameplay::Device");
-		CHECK(cc.path_name(itemA) == "Gameplay.Device");
-		CHECK(cc.alias_name(itemA) == "Device");
-		CHECK(cc.symbol("Gameplay::Device") == &itemA);
-		CHECK(cc.path("Gameplay.Device") == &itemA);
-		CHECK(cc.alias("Device") == nullptr);
-		CHECK(cc.resolve("Gameplay::Device") == &itemA);
-		CHECK(cc.resolve("Gameplay.Device") == &itemA);
-		CHECK(cc.resolve("Device") == nullptr);
-		CHECK(cc.display_name(itemA) == "Gameplay.Device");
-		CHECK(cc.display_name(itemB) == "Debug.Device");
+		CHECK(wld.symbol(itemA.entity) == "Gameplay::Device");
+		CHECK(wld.path(itemA.entity) == "Gameplay.Device");
+		CHECK(wld.alias(itemA.entity) == "Device");
+		CHECK(wld.symbol("Gameplay::Device") == itemA.entity);
+		CHECK(wld.path("Gameplay.Device") == itemA.entity);
+		CHECK(wld.alias("Device") == ecs::EntityBad);
+		CHECK(wld.get("Gameplay::Device") == itemA.entity);
+		CHECK(wld.get("Gameplay.Device") == itemA.entity);
+		CHECK(wld.get("Device") == ecs::EntityBad);
+		CHECK(wld.display_name(itemA.entity) == "Gameplay.Device");
+		CHECK(wld.display_name(itemB.entity) == "Debug.Device");
 
-		CHECK(cc.alias(itemA, "GameplayDevice"));
-		CHECK(cc.alias("GameplayDevice") == &itemA);
-		CHECK(cc.resolve("GameplayDevice") == &itemA);
-		CHECK(cc.display_name(itemA) == "GameplayDevice");
+		CHECK(wld.alias(itemA.entity, "GameplayDevice"));
+		CHECK(wld.alias("GameplayDevice") == itemA.entity);
+		CHECK(wld.get("GameplayDevice") == itemA.entity);
+		CHECK(wld.display_name(itemA.entity) == "GameplayDevice");
 
-		CHECK(cc.path(itemA, "gameplay.render.Device"));
-		CHECK(cc.path("gameplay.render.Device") == &itemA);
-		CHECK(cc.resolve("gameplay.render.Device") == &itemA);
+		CHECK(wld.path(itemA.entity, "gameplay.render.Device"));
+		CHECK(wld.path("gameplay.render.Device") == itemA.entity);
+		CHECK(wld.get("gameplay.render.Device") == itemA.entity);
 
-		CHECK(cc.alias(itemA, nullptr));
-		CHECK(cc.display_name(itemA) == "gameplay.render.Device");
+		CHECK(wld.alias(itemA.entity, nullptr));
+		CHECK(wld.display_name(itemA.entity) == "gameplay.render.Device");
 
-		CHECK(cc.path(itemA, nullptr));
-		CHECK(cc.display_name(itemA) == "Gameplay::Device");
+		CHECK(wld.path(itemA.entity, nullptr));
+		CHECK(wld.display_name(itemA.entity) == "Gameplay::Device");
 	}
 
-	SUBCASE("resolve collects ambiguous matches for diagnostics") {
+	SUBCASE("world resolve collects ambiguous matches for diagnostics") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
@@ -18146,19 +18145,19 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto entityB = wld.add();
 		(void)cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1);
 
-		cnt::darray<const ecs::ComponentCacheItem*> out;
-		cc.resolve(out, "Device");
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "Device");
 		CHECK(out.size() == 2);
-		CHECK((out[0]->entity == entityA || out[1]->entity == entityA));
-		CHECK((out[0]->entity == entityB || out[1]->entity == entityB));
+		CHECK((out[0] == entityA || out[1] == entityA));
+		CHECK((out[0] == entityB || out[1] == entityB));
 
-		cc.resolve(out, "Gameplay.Device");
+		wld.resolve(out, "Gameplay.Device");
 		CHECK(out.size() == 1);
-		CHECK(out[0]->entity == entityA);
+		CHECK(out[0] == entityA);
 
-		cc.resolve(out, "Gameplay::Device");
+		wld.resolve(out, "Gameplay::Device");
 		CHECK(out.size() == 1);
-		CHECK(out[0]->entity == entityA);
+		CHECK(out[0] == entityA);
 	}
 
 	SUBCASE("schema field registration supports add update and clear") {

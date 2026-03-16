@@ -26304,6 +26304,7 @@ namespace gaia {
 				return *pItem;
 			}
 
+		private:
 			//! Returns the registered symbol name used as the component identity.
 			//! \param item Component cache item to inspect.
 			//! \return Registered symbol name as a non-owning string view.
@@ -26448,19 +26449,34 @@ namespace gaia {
 				return it != m_compByAlias.end() ? it->second : nullptr;
 			}
 
+			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* path(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
+			}
+
 			//! Resolves a component name within component metadata lookup only.
 			//! Exact registered symbol lookup is attempted first, then exact path lookup, then alias lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
 			//! \warning World entity-name lookup and active world scope rules are not considered here.
-
 			GAIA_NODISCARD const ComponentCacheItem* resolve(const char* name, uint32_t len = 0) const noexcept {
 				if (const auto* pItem = symbol(name, len); pItem != nullptr)
 					return pItem;
 				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
 				return alias(name, len);
+			}
+
+			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
 			}
 
 			//! Collects all component items that match @a name as an exact symbol, exact path, or alias.
@@ -26508,22 +26524,6 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* path(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
-			}
-
-			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
-			}
-
 			//! Returns the component cache item using resolved lookup.
 			//! Exact registered symbol lookup is attempted first, followed by path lookup and alias lookup.
 			//! \param name A null-terminated string
@@ -26548,6 +26548,7 @@ namespace gaia {
 				return *pItem;
 			}
 
+		public:
 			//! Searches for the component item for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr if not found.
@@ -43049,8 +43050,6 @@ namespace gaia {
 		};
 
 		class GAIA_API World final {
-			friend class ECSSystem;
-			friend class ECSSystemManager;
 			friend CommandBufferST;
 			friend CommandBufferMT;
 			friend void lock(World&);
@@ -45191,12 +45190,36 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Finds a component entity by its exact registered symbol.
+			//! \param symbol Registered component symbol.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Matching component entity. EntityBad when no exact symbol match exists.
+			GAIA_NODISCARD Entity symbol(const char* symbol, uint32_t len = 0) const {
+				if (symbol == nullptr || symbol[0] == 0)
+					return EntityBad;
+
+				const auto* pItem = comp_cache().symbol(symbol, len);
+				return pItem != nullptr ? pItem->entity : EntityBad;
+			}
+
 			//! Returns the registered symbol name for a component entity.
 			//! \param component Component entity.
 			//! \return Registered component symbol. Empty view when @a component is not a cached component.
 			GAIA_NODISCARD util::str_view symbol(Entity component) const {
 				const auto* pItem = comp_cache().find(component);
 				return pItem != nullptr ? comp_cache().symbol_name(*pItem) : util::str_view{};
+			}
+
+			//! Finds a component entity by its exact scoped path.
+			//! \param path Exact component path.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Matching component entity. EntityBad when no exact path match exists.
+			GAIA_NODISCARD Entity path(const char* path, uint32_t len = 0) const {
+				if (path == nullptr || path[0] == 0)
+					return EntityBad;
+
+				const auto* pItem = comp_cache().path(path, len);
+				return pItem != nullptr ? pItem->entity : EntityBad;
 			}
 
 			//! Returns the scoped path name for a component entity.
@@ -45215,6 +45238,18 @@ namespace gaia {
 			bool path(Entity component, const char* path, uint32_t len = 0) {
 				auto* pItem = comp_cache_mut().find(component);
 				return pItem != nullptr ? comp_cache_mut().path(*pItem, path, len) : false;
+			}
+
+			//! Finds a component entity by its exact alias.
+			//! \param alias Exact component alias.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Matching component entity. EntityBad when no exact alias match exists or the alias is ambiguous.
+			GAIA_NODISCARD Entity alias(const char* alias, uint32_t len = 0) const {
+				if (alias == nullptr || alias[0] == 0)
+					return EntityBad;
+
+				const auto* pItem = comp_cache().alias(alias, len);
+				return pItem != nullptr ? pItem->entity : EntityBad;
 			}
 
 			//! Returns the alias name for a component entity.
@@ -53802,7 +53837,7 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										const auto name = comp_cache().symbol_name(item);
+										const auto name = symbol(item.entity);
 										writer.key(name.data(), name.size());
 
 										// Tags have no associated payload.
