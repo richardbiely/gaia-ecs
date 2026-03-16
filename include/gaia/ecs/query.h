@@ -511,11 +511,11 @@ namespace gaia {
 				//! All world archetypes
 				const ArchetypeDArray* m_allArchetypes{};
 				//! Optional user-defined names for Var0..Var7.
-				cnt::sarray<util::str, 8> m_varNames;
+				cnt::sarray<util::str, MaxVarCnt> m_varNames;
 				//! Bitmask of variable names set in m_varNames.
 				uint8_t m_varNamesMask = 0;
 				//! Runtime variable bindings for Var0..Var7.
-				cnt::sarray<Entity, 8> m_varBindings;
+				cnt::sarray<Entity, MaxVarCnt> m_varBindings;
 				//! Bitmask of variable bindings set in m_varBindings.
 				uint8_t m_varBindingsMask = 0;
 				//! Batches used for parallel query processing
@@ -3163,7 +3163,12 @@ namespace gaia {
 				//!      .all(Pair(w.add<Fuel>().entity, All)>()
 				//!      .all(Player);
 				//!
-				//! \param str Null-terminated string with the query expression
+				//! Adds one or more query terms described by a string expression.
+				//! Component names are resolved immediately while the expression is parsed, using the world's
+				//! current scope state at construction time rather than later at iteration time.
+				//! \param str Null-terminated string with the query expression.
+				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
+				//! \return Reference to this query.
 				QueryImpl& add(const char* str, ...) {
 					GAIA_ASSERT(str != nullptr);
 					if (str == nullptr)
@@ -3176,7 +3181,7 @@ namespace gaia {
 					uint32_t exp0 = 0;
 					uint32_t parentDepth = 0;
 
-					cnt::sarray<util::str_view, 8> varNames{};
+					cnt::sarray<util::str_view, MaxVarCnt> varNames{};
 					uint32_t varNamesCnt = 0;
 					auto is_this_expr = [](std::span<const char> exprRaw) {
 						auto expr = util::trim(exprRaw);
