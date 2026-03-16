@@ -288,7 +288,7 @@ Components have four distinct name concepts. The registered symbol is the identi
 
 Gaia-ECS exposes the lookup modes directly through `World`. `World::symbol("SomeTest::Device")` uses the registered symbol name. `World::path("SomeTest.Device")` uses the scoped path name. `World::alias("Device")` uses the alias and succeeds only when that alias is unique.
 
-At the world level, `World::get("name")` is the normal lookup entry point. It resolves named entities first, including hierarchical lookup with `.`, and if that does not match it falls back to component resolution using the active component scope, then global symbol, path and alias lookup.
+At the world level, `World::get("name")` is the normal lookup entry point. It resolves named entities first, including hierarchical lookup with `.`, and if that does not match it falls back to component resolution using the active component scope, then the configured lookup path, and finally global symbol, path and alias lookup.
 
 String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
 
@@ -349,13 +349,15 @@ w.resolve(out, "Device");
 
 `World::scope(scope)` sets the current component scope and returns the previous one. `World::scope(scope, func)` does the same thing for the duration of one callable and restores the old scope afterwards.
 
+`World::lookup_path(scopes)` sets an ordered list of lookup scopes used for unqualified component lookup. Each scope is searched like a temporary component scope: the scope first, then its parents. `World::lookup_path()` returns the current list.
+
 The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS builds the scoped path from that entity hierarchy. New components registered while a scope is active use that scope to build their default path name.
 
 For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`.
 
-Unqualified component lookup checks the active scope first, then walks up parent scopes, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`.
+Unqualified component lookup checks the active scope first, then walks up parent scopes, then searches each lookup-path scope in order while also walking up its parents, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`, and a lookup path such as `{tools, render}` can prefer `gameplay.tools.Device` before falling back to `gameplay.Device`.
 
-String queries follow the same rules, but they capture the active scope when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` resolves `Position` while `add(...)` runs, stores the resulting component id in the query, and will not be rewritten later if the scope or component naming metadata changes.
+String queries follow the same rules, but they capture the active scope and lookup path when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` or `w.lookup_path(scopes); q.add("Position");` resolve `Position` while `add(...)` runs, store the resulting component id in the query, and will not be rewritten later if the scope or component naming metadata changes.
 
 Scoped component registration looks like this:
 

@@ -3167,6 +3167,9 @@ namespace gaia {
 				//! Component names are resolved immediately while the expression is parsed and the resulting
 				//! component ids are baked into the query terms. Later scope, path or alias changes do not
 				//! rewrite an already parsed query.
+				//! Names in @a str are resolved while add(...) parses the expression and the resulting ids
+				//! are baked into the query. Active component scope and lookup-path state affect parsing
+				//! only at that moment and do not rewrite the query later.
 				//! \param str Null-terminated string with the query expression.
 				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
 				//! \return Reference to this query.

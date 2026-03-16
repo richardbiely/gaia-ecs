@@ -5197,6 +5197,93 @@ TEST_CASE("Component names") {
 		});
 	}
 
+	SUBCASE("lookup path resolves unqualified component names in configured order") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		const auto tools = wld.add();
+		wld.name(tools, "tools");
+		wld.child(tools, gameplay);
+
+		ecs::Entity gameplayDevice = ecs::EntityBad;
+		ecs::Entity toolsDevice = ecs::EntityBad;
+
+		wld.scope(gameplay, [&] {
+			gameplayDevice = wld.add("Gameplay::Device", 0, ecs::DataStorageType::Table, 1).entity;
+		});
+		wld.scope(tools, [&] {
+			toolsDevice = wld.add("Tools::Device", 0, ecs::DataStorageType::Table, 1).entity;
+		});
+
+		CHECK(wld.get("Device") == ecs::EntityBad);
+
+		const ecs::Entity lookupRender[] = {render};
+		wld.lookup_path(lookupRender);
+		CHECK(wld.get("Device") == gameplayDevice);
+
+		const ecs::Entity lookupToolsRender[] = {tools, render};
+		wld.lookup_path(lookupToolsRender);
+		CHECK(wld.get("Device") == toolsDevice);
+
+		const ecs::Entity lookupRenderTools[] = {render, tools};
+		wld.lookup_path(lookupRenderTools);
+		CHECK(wld.get("Device") == gameplayDevice);
+
+		wld.lookup_path(std::span<const ecs::Entity>{});
+		CHECK(wld.lookup_path().empty());
+		CHECK(wld.get("Device") == ecs::EntityBad);
+	}
+
+	SUBCASE("lookup path resolves string queries at construction time") {
+		TestWorld twld;
+
+		const auto gameplay = wld.add();
+		wld.name(gameplay, "gameplay");
+
+		const auto render = wld.add();
+		wld.name(render, "render");
+		wld.child(render, gameplay);
+
+		const auto gameplayComp = wld.add<Position>().entity;
+		ecs::Entity renderComp = ecs::EntityBad;
+		wld.scope(render, [&] {
+			renderComp = wld.add<dummy::Position>().entity;
+		});
+
+		const auto eGameplay = wld.add();
+		wld.add(eGameplay, gameplayComp);
+
+		const auto eRender = wld.add();
+		wld.add(eRender, renderComp);
+
+		auto qDefault = wld.query<false>().add("Position");
+		CHECK(qDefault.count() == 1);
+		qDefault.each([&](ecs::Entity e) {
+			CHECK(e == eGameplay);
+		});
+
+		const ecs::Entity lookupRender[] = {render};
+		wld.lookup_path(lookupRender);
+
+		auto qLookup = wld.query<false>().add("Position");
+		CHECK(qLookup.count() == 1);
+		qLookup.each([&](ecs::Entity e) {
+			CHECK(e == eRender);
+		});
+
+		wld.lookup_path(std::span<const ecs::Entity>{});
+		CHECK(qLookup.count() == 1);
+		qLookup.each([&](ecs::Entity e) {
+			CHECK(e == eRender);
+		});
+	}
+
 	SUBCASE("module creates named scope hierarchies and scopes registration") {
 		TestWorld twld;
 

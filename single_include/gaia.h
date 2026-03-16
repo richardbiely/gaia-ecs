@@ -41776,6 +41776,9 @@ namespace gaia {
 				//! Component names are resolved immediately while the expression is parsed and the resulting
 				//! component ids are baked into the query terms. Later scope, path or alias changes do not
 				//! rewrite an already parsed query.
+				//! Names in @a str are resolved while add(...) parses the expression and the resulting ids
+				//! are baked into the query. Active component scope and lookup-path state affect parsing
+				//! only at that moment and do not rewrite the query later.
 				//! \param str Null-terminated string with the query expression.
 				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
 				//! \return Reference to this query.
@@ -43757,6 +43760,8 @@ namespace gaia {
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 			//! Current scope used for component registration and relative component lookup.
 			Entity m_componentScope = EntityBad;
+			//! Ordered lookup scopes used for unqualified component lookup when component scope is not enough.
+			cnt::darray<Entity> m_componentLookupPath;
 			//! Cached dotted path for the current component scope.
 			mutable util::str m_componentScopePathCache;
 			//! Scope entity associated with the cached dotted path.
@@ -45354,9 +45359,43 @@ namespace gaia {
 				return true;
 			}
 
+			template <typename Func>
+			bool find_component_in_scope_chain_inter(Entity scopeEntity, const char* name, uint32_t len, Func&& func) const {
+				if (scopeEntity == EntityBad)
+					return false;
+
+				util::str scopePath;
+				if (!build_scope_path(scopeEntity, scopePath))
+					return false;
+
+				util::str scopedName;
+				scopedName.reserve(scopePath.size() + 1 + len);
+
+				while (!scopePath.empty()) {
+					scopedName.clear();
+					scopedName.append(scopePath.view());
+					scopedName.append('.');
+					scopedName.append(name, len);
+
+					if (const auto* pItem = m_compCache.path(scopedName.data(), (uint32_t)scopedName.size()); pItem != nullptr) {
+						if (func(*pItem))
+							return true;
+					}
+
+					const auto parentSepIdx = scopePath.view().find_last_of('.');
+					if (parentSepIdx == BadIndex)
+						break;
+
+					scopePath.assign(util::str_view(scopePath.data(), parentSepIdx));
+				}
+
+				return false;
+			}
+
 			//! Resolves a component name using world-aware scope rules.
 			//! Exact path lookup is used for dotted names. Unqualified names first search the current
-			//! component scope and its parents, then fall back to exact symbol, path and alias lookup.
+			//! component scope and its parents, then each configured lookup path scope in order, and
+			//! finally fall back to exact symbol, path and alias lookup.
 			//! \param name Component name to resolve.
 			//! \param len Name length. If zero, the length is calculated.
 			//! \return Matching component cache item, or nullptr when no match exists.
@@ -45373,27 +45412,20 @@ namespace gaia {
 						return pItem;
 				}
 
-				if (!isPath && !isSymbol && m_componentScope != EntityBad) {
-					util::str scopePath;
-					if (current_scope_path(scopePath)) {
-						util::str scopedName;
-						scopedName.reserve(scopePath.size() + 1 + l);
+				if (!isPath && !isSymbol) {
+					const auto* pFound = (const ComponentCacheItem*)nullptr;
+					const auto findAndStore = [&](const ComponentCacheItem& item) {
+						pFound = &item;
+						return true;
+					};
+					if (find_component_in_scope_chain_inter(m_componentScope, name, l, findAndStore))
+						return pFound;
 
-						while (!scopePath.empty()) {
-							scopedName.clear();
-							scopedName.append(scopePath.view());
-							scopedName.append('.');
-							scopedName.append(name, l);
-
-							if (const auto* pItem = m_compCache.path(scopedName.data(), scopedName.size()); pItem != nullptr)
-								return pItem;
-
-							const auto parentSepIdx = scopePath.view().find_last_of('.');
-							if (parentSepIdx == BadIndex)
-								break;
-
-							scopePath.assign(util::str_view(scopePath.data(), parentSepIdx));
-						}
+					for (const auto scopeEntity: m_componentLookupPath) {
+						if (scopeEntity == m_componentScope)
+							continue;
+						if (find_component_in_scope_chain_inter(scopeEntity, name, l, findAndStore))
+							return pFound;
 					}
 				}
 
@@ -47376,6 +47408,28 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the ordered component lookup path used for unqualified component lookup.
+			//! Each scope is searched like a temporary component scope: the scope first, then its parents.
+			//! \return View of the configured lookup scopes.
+			GAIA_NODISCARD std::span<const Entity> lookup_path() const {
+				return {m_componentLookupPath.data(), m_componentLookupPath.size()};
+			}
+
+			//! Replaces the ordered component lookup path used for unqualified component lookup.
+			//! Each scope is searched in the order provided, and each scope walk includes its parents.
+			//! \param scopes Ordered lookup scopes. Pass an empty span to clear the lookup path.
+			void lookup_path(std::span<const Entity> scopes) {
+				m_componentLookupPath.clear();
+				m_componentLookupPath.reserve((uint32_t)scopes.size());
+				for (const auto scopeEntity: scopes) {
+					GAIA_ASSERT(scopeEntity != EntityBad && valid(scopeEntity) && !scopeEntity.pair());
+					if (scopeEntity == EntityBad || !valid(scopeEntity) || scopeEntity.pair())
+						continue;
+
+					m_componentLookupPath.push_back(scopeEntity);
+				}
+			}
+
 			//! Returns the current component scope used for component registration and relative component lookup.
 			//! \return Scoped entity or EntityBad when component scope is disabled.
 			GAIA_NODISCARD Entity scope() const {
@@ -47582,7 +47636,8 @@ namespace gaia {
 
 			//! Resolves @a name in the world naming system.
 			//! Entity names and hierarchical entity paths are attempted first. If they do not match,
-			//! component lookup uses the current scope, then global component symbol, path and alias lookup.
+			//! component lookup uses the current scope, then the lookup path, then global component
+			//! symbol, path and alias lookup.
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \return Matching entity. EntityBad when no entity or component matches.
@@ -47627,27 +47682,18 @@ namespace gaia {
 
 				push_unique(get_entity_inter(name, l));
 
-				if (m_componentScope != EntityBad && memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
-					util::str scopePath;
-					if (current_scope_path(scopePath)) {
-						util::str scopedName;
-						scopedName.reserve(scopePath.size() + 1 + l);
+				if (memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
+					const auto pushLookupHit = [&](const ComponentCacheItem& item) {
+						push_unique(item.entity);
+						return false;
+					};
 
-						while (!scopePath.empty()) {
-							scopedName.clear();
-							scopedName.append(scopePath.view());
-							scopedName.append('.');
-							scopedName.append(name, l);
+					(void)find_component_in_scope_chain_inter(m_componentScope, name, l, pushLookupHit);
+					for (const auto scopeEntity: m_componentLookupPath) {
+						if (scopeEntity == m_componentScope)
+							continue;
 
-							if (const auto* pItem = m_compCache.path(scopedName.data(), scopedName.size()); pItem != nullptr)
-								push_unique(pItem->entity);
-
-							const auto parentSepIdx = scopePath.view().find_last_of('.');
-							if (parentSepIdx == BadIndex)
-								break;
-
-							scopePath.assign(util::str_view(scopePath.data(), parentSepIdx));
-						}
+						(void)find_component_in_scope_chain_inter(scopeEntity, name, l, pushLookupHit);
 					}
 				}
 
@@ -47734,7 +47780,8 @@ namespace gaia {
 				auto key = EntityNameLookupKey(name, len, 0);
 				const auto l = key.len();
 
-				if (m_componentScope != EntityBad && memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
+				if ((m_componentScope != EntityBad || !m_componentLookupPath.empty()) && memchr(name, '.', l) == nullptr &&
+						memchr(name, ':', l) == nullptr) {
 					const auto* pScopedItem = resolve_component_name_inter(name, l);
 					if (pScopedItem != nullptr) {
 						const auto it = m_nameToEntity.find(key);
