@@ -77,6 +77,16 @@ struct TestWorld {
 	}
 };
 
+struct NonUniqueNameOpsGuard {
+	bool prev;
+	NonUniqueNameOpsGuard(): prev(ecs::World::s_enableUniqueNameDuplicateAssert) {
+		ecs::World::s_enableUniqueNameDuplicateAssert = false;
+	}
+	~NonUniqueNameOpsGuard() {
+		ecs::World::s_enableUniqueNameDuplicateAssert = true;
+	}
+};
+
 struct Int3 {
 	uint32_t x, y, z;
 };
@@ -5426,6 +5436,7 @@ TEST_CASE("Component names") {
 	}
 
 	SUBCASE("duplicate aliases are rejected") {
+		NonUniqueNameOpsGuard guard;
 		TestWorld twld;
 
 		const auto entityA = wld.add();
@@ -9933,6 +9944,7 @@ TEST_CASE("Del - cleanup rules") {
 
 TEST_CASE("Entity name - entity only") {
 	constexpr uint32_t N = 1'500;
+	NonUniqueNameOpsGuard guard;
 
 	TestWorld twld;
 	cnt::darr<ecs::Entity> ents;
@@ -9984,16 +9996,13 @@ TEST_CASE("Entity name - entity only") {
 			verify(0);
 		}
 
-#if !GAIA_ASSERT_ENABLED
-		// Renaming has to fail. Can be tested only with asserts disabled
-		// because the situation is assert-protected.
 		{
+			NonUniqueNameOpsGuard guard;
 			auto e1 = wld.add();
 			wld.name(e1, original.data());
 			CHECK(wld.name(e1).empty());
 			CHECK(wld.get(original.data(), original.size()) == e);
 		}
-#endif
 
 		wld.name(e, nullptr);
 		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
@@ -10101,6 +10110,19 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(wld.alias(e).empty());
 		CHECK(wld.alias("entity_alias_2") == ecs::EntityBad);
 		CHECK(wld.get("entity_alias_2") == ecs::EntityBad);
+	}
+
+	SUBCASE("duplicate names are rejected") {
+		NonUniqueNameOpsGuard guard;
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+
+		wld.name(entityA, "entity_name");
+		wld.name(entityB, "entity_name");
+		CHECK(wld.name(entityA) == "entity_name");
+		CHECK(wld.name(entityB).empty());
+		CHECK(wld.get("entity_name") == entityA);
 	}
 }
 

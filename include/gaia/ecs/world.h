@@ -79,6 +79,11 @@ namespace gaia {
 		};
 
 		class GAIA_API World final {
+		public:
+			//! Allows asserts on duplicate name/alias assignment
+			inline static bool s_enableUniqueNameDuplicateAssert = true;
+
+		private:
 			friend CommandBufferST;
 			friend CommandBufferMT;
 			friend void lock(World&);
@@ -2263,7 +2268,7 @@ namespace gaia {
 						it = m_world.m_nameToEntity.emplace(key, m_entity).first;
 					} else {
 #if GAIA_ASSERT_ENABLED
-						if (it->second != m_entity)
+						if (it->second != m_entity && World::s_enableUniqueNameDuplicateAssert)
 							GAIA_ASSERT(false && "Trying to set non-unique name for an entity");
 #endif
 
@@ -2345,7 +2350,7 @@ namespace gaia {
 						it = m_world.m_aliasToEntity.emplace(key, m_entity).first;
 					} else {
 #if GAIA_ASSERT_ENABLED
-						if (it->second != m_entity)
+						if (it->second != m_entity && World::s_enableUniqueNameDuplicateAssert)
 							GAIA_ASSERT(false && "Trying to set non-unique alias for an entity");
 #endif
 
