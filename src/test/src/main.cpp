@@ -5118,18 +5118,15 @@ TEST_CASE("Component names") {
 		wld.scope(gameplay, [&] {
 			gameplayPos = wld.add<Position>().entity;
 			CHECK(wld.path(gameplayPos) == "gameplay.Position");
-			CHECK(wld.alias(gameplayPos) == "Position");
 			CHECK(wld.get("Position") == gameplayPos);
 
 			wld.scope(render, [&] {
 				renderPos = wld.add<dummy::Position>().entity;
 				CHECK(wld.path(renderPos) == "gameplay.render.Position");
-				CHECK(wld.alias(renderPos) == "Position");
 				CHECK(wld.get("Position") == renderPos);
 
 				renderDevice = wld.add("Device", 0, ecs::DataStorageType::Table, 1).entity;
 				CHECK(wld.path(renderDevice) == "gameplay.render.Device");
-				CHECK(wld.alias(renderDevice) == "Device");
 				CHECK(wld.get("Device") == renderDevice);
 				CHECK(wld.get("gameplay.render.Device") == renderDevice);
 			});
@@ -5334,14 +5331,13 @@ TEST_CASE("Component names") {
 
 		CHECK(wld.symbol(renderPos) == "dummy::Position");
 		CHECK(wld.path(renderPos) == "gameplay.render.Position");
-		CHECK(wld.alias(renderPos) == "Position");
+		CHECK(wld.alias(renderPos).empty());
 		CHECK(wld.display_name(renderPos) == "gameplay.render.Position");
 
 		cnt::darray<ecs::Entity> out;
 		wld.resolve(out, "Position");
-		CHECK(out.size() == 2);
-		CHECK((out[0] == gameplayPos || out[1] == gameplayPos));
-		CHECK((out[0] == renderPos || out[1] == renderPos));
+		CHECK(out.size() == 1);
+		CHECK(out[0] == gameplayPos);
 
 		CHECK(wld.alias(renderPos, "RenderPosition"));
 		CHECK(wld.alias(renderPos) == "RenderPosition");
@@ -5375,7 +5371,7 @@ TEST_CASE("Component names") {
 			scopedDevice = wld.add("Render::Device", 0, ecs::DataStorageType::Table, 1).entity;
 		});
 
-		CHECK(wld.alias("Device") == scopedDevice);
+		CHECK(wld.alias("Device") == ecs::EntityBad);
 
 		wld.scope(render, [&] {
 			CHECK(wld.get("Device") == namedEntity);
@@ -5383,9 +5379,8 @@ TEST_CASE("Component names") {
 
 		cnt::darray<ecs::Entity> out;
 		wld.resolve(out, "Device");
-		CHECK(out.size() == 2);
-		CHECK((out[0] == namedEntity || out[1] == namedEntity));
-		CHECK((out[0] == scopedDevice || out[1] == scopedDevice));
+		CHECK(out.size() == 1);
+		CHECK(out[0] == namedEntity);
 	}
 
 	SUBCASE("world lookup prefers entity paths over component path collisions") {
@@ -5413,7 +5408,7 @@ TEST_CASE("Component names") {
 		CHECK((out[0] == renderComp || out[1] == renderComp));
 	}
 
-	SUBCASE("world lookup prefers exact component symbols over alias collisions") {
+	SUBCASE("world lookup prefers exact component symbols over aliases") {
 		TestWorld twld;
 
 		const auto exactSymbolComp = wld.add("Gameplay::Device", 0, ecs::DataStorageType::Table, 1).entity;
@@ -5428,6 +5423,25 @@ TEST_CASE("Component names") {
 		CHECK(out.size() == 2);
 		CHECK((out[0] == exactSymbolComp || out[1] == exactSymbolComp));
 		CHECK((out[0] == aliasComp || out[1] == aliasComp));
+	}
+
+	SUBCASE("duplicate aliases are rejected") {
+		TestWorld twld;
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+
+		CHECK(wld.alias(entityA, "Device"));
+		CHECK_FALSE(wld.alias(entityB, "Device"));
+		CHECK(wld.alias(entityA) == "Device");
+		CHECK(wld.alias(entityB).empty());
+		CHECK(wld.alias("Device") == entityA);
+		CHECK(wld.get("Device") == entityA);
+
+		cnt::darray<ecs::Entity> out;
+		wld.resolve(out, "Device");
+		CHECK(out.size() == 1);
+		CHECK(out[0] == entityA);
 	}
 }
 
@@ -10056,6 +10070,37 @@ TEST_CASE("Entity name - entity only") {
 				CHECK(e == wld.get(original.data(), original.size()));
 			}
 		}
+	}
+
+	SUBCASE("alias set replace and clear preserve entity name") {
+		auto e = wld.add();
+		wld.name(e, "entity_name");
+
+		CHECK(wld.name(e) == "entity_name");
+		CHECK(wld.get("entity_name") == e);
+
+		CHECK(wld.alias(e, "entity_alias"));
+		CHECK(wld.name(e) == "entity_name");
+		CHECK(wld.get("entity_name") == e);
+		CHECK(wld.alias(e) == "entity_alias");
+		CHECK(wld.alias("entity_alias") == e);
+		CHECK(wld.get("entity_alias") == e);
+
+		CHECK(wld.alias(e, "entity_alias_2"));
+		CHECK(wld.name(e) == "entity_name");
+		CHECK(wld.get("entity_name") == e);
+		CHECK(wld.alias(e) == "entity_alias_2");
+		CHECK(wld.alias("entity_alias") == ecs::EntityBad);
+		CHECK(wld.get("entity_alias") == ecs::EntityBad);
+		CHECK(wld.alias("entity_alias_2") == e);
+		CHECK(wld.get("entity_alias_2") == e);
+
+		CHECK(wld.alias(e, nullptr));
+		CHECK(wld.name(e) == "entity_name");
+		CHECK(wld.get("entity_name") == e);
+		CHECK(wld.alias(e).empty());
+		CHECK(wld.alias("entity_alias_2") == ecs::EntityBad);
+		CHECK(wld.get("entity_alias_2") == ecs::EntityBad);
 	}
 }
 
@@ -18269,7 +18314,7 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(wld.symbol(itemA.entity) == "Gameplay::Device");
 		CHECK(wld.path(itemA.entity) == "Gameplay.Device");
-		CHECK(wld.alias(itemA.entity) == "Device");
+		CHECK(wld.alias(itemA.entity).empty());
 		CHECK(wld.symbol("Gameplay::Device") == itemA.entity);
 		CHECK(wld.path("Gameplay.Device") == itemA.entity);
 		CHECK(wld.alias("Device") == ecs::EntityBad);
@@ -18307,9 +18352,7 @@ TEST_CASE("Component cache - runtime registration") {
 
 		cnt::darray<ecs::Entity> out;
 		wld.resolve(out, "Device");
-		CHECK(out.size() == 2);
-		CHECK((out[0] == entityA || out[1] == entityA));
-		CHECK((out[0] == entityB || out[1] == entityB));
+		CHECK(out.empty());
 
 		wld.resolve(out, "Gameplay.Device");
 		CHECK(out.size() == 1);

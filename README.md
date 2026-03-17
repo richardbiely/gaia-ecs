@@ -280,69 +280,64 @@ auto e = wld.add();
 wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignored
 ```
 
-### Component names
+### Names and lookup
 
-Components are entities too, so their default symbol is registered through the same entity naming path. Component symbol, path, alias and display names are still available through the component naming APIs when you need those specific naming layers.
+`World::name` gives an entity its normal world [name](#name-entity). `World::alias` gives an entity an optional extra lookup name. `World::get` is the normal lookup entry point. It first tries ordinary entity names, including hierarchical paths such as `gameplay.render`, and then falls back to component lookup rules when the string does not name an entity directly.
 
-Components have four distinct name concepts. The registered symbol is the identity, such as `SomeTest::Device`. The path name is the scoped lookup name, such as `SomeTest.Device`. The alias is a short user-facing name, such as `Device`. The display name is a convenience string you can use e.g. in JSON or tools.
+Components add a few extra naming helpers because they need more than one identity. A component symbol is the stable C++ identity, such as `gameplay_render::Position`. A component path is the scoped lookup name, such as `gameplay.render.Position`. A display name is the prettier label you would prefer to show in logs and tools.
 
-Gaia-ECS exposes the lookup modes directly through `World`. `World::symbol("SomeTest::Device")` uses the registered symbol name. `World::path("SomeTest.Device")` uses the scoped path name. `World::alias("Device")` uses the alias and succeeds only when that alias is unique.
+Most code should just use `World::get`. Reach for `World::symbol` or `World::path` only when you need to be explicit about which component naming layer you want.
 
-At the world level, `World::get("name")` is the normal lookup entry point. It resolves named entities first, including hierarchical lookup with `.`, and if that does not match it falls back to component resolution using the active component scope, then the configured lookup path, and finally global symbol, path and alias lookup.
+Use a name when the entity should live in the normal world hierarchy. Use an alias when you want one extra flat lookup key without changing that hierarchy. Use a symbol when you need a stable component identity, for example in semantic JSON. Use a path when you want to refer to a component by its place in the ECS scope hierarchy.
 
-String queries and semantic JSON loading use the same component resolution order. Runtime component creation by string uses exact symbol lookup so creating `"Device"` will not silently bind to a path or alias.
-
-`World::name(entity)` returns the entity name registered in the world name table. For component-specific naming layers, use `World::symbol`, `World::path`, `World::alias`, or `World::display_name`.
-
-When you need a stable component identity, use the registered symbol name via `World::symbol(component)`. Semantic JSON uses the symbol for that reason. When you need a prettier label for logs, diagnostics or tools, use `World::display_name`. `display_name` is not an identity key and can change when alias or path metadata changes.
-
-When a short name does not resolve the way you expect, `World::resolve(out, name)` is the unified diagnostic path. It collects every entity and component match that the world naming rules can see.
+Names and aliases are both unique lookup keys. A name is the entity’s canonical world name and participates in hierarchy. An alias is an extra flat lookup key that does not change the entity’s place in that hierarchy.
+If a name does not resolve the way you expect, `World::resolve(out, name)` collects every entity the world naming rules can see for that string.
 
 ```cpp
-const auto exact = w.symbol("SomeTest::Device");
-// returns: the component entity for the exact symbol match, or ecs::EntityBad if it does not exist
-
-const auto path = w.path("SomeTest.Device");
-// returns: the same component entity when that path name is registered and unique
-
-const auto alias = w.alias("Device");
-// returns: the same component entity when "Device" is a unique alias, otherwise ecs::EntityBad
-
-const auto component = w.get("Device");
-// returns: the component entity resolved from the world naming rules
-
-if (component != ecs::EntityBad) {
-  const auto symbol = w.symbol(component);
-  // returns: "SomeTest::Device"
-
-  const auto display = w.display_name(component);
-  // returns: "Device" when the alias is unique, otherwise "SomeTest.Device" or "SomeTest::Device"
+namespace gameplay_render {
+  struct Position {};
 }
 
-const auto entity = w.get("gameplay.render");
-// returns: the entity registered at that hierarchy path
+ecs::World w;
 
-w.alias(component, "RenderPosition");
-w.path(component, "gameplay.render.RenderPosition");
-// updates component alias/path metadata directly through World
-```
+const ecs::Entity gameplay = w.add();
+w.name(gameplay, "gameplay");
 
-If two different components would both map to the same alias, alias lookup does not guess.
+const ecs::Entity render = w.add();
+w.name(render, "render");
+w.child(render, gameplay);
 
-```cpp
-auto& cc = w.comp_cache_mut();
-ecs::Entity componentA = cc.add(entityA, "Gameplay::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
-ecs::Entity componentB = cc.add(entityB, "Debug::Device", 0, 0, ecs::DataStorageType::Table, 1).entity;
+const ecs::Entity player = w.add();
+w.name(player, "player");
+w.child(player, gameplay);
+w.alias(player, "MainPlayer");
 
-const auto alias = w.alias("Device");
-// returns: ecs::EntityBad because the alias is ambiguous
+w.get("gameplay.player");
+// player
 
-const auto resolved = w.get("Device");
-// returns: EntityBad unless an exact entity name, exact symbol name, or unique path/alias match exists
+w.get("MainPlayer");
+// player
 
-cnt::darray<ecs::Entity> out;
-w.resolve(out, "Device");
-// out will be filled with entities componentA, componentB
+ecs::Entity positionComp = ecs::EntityBad;
+w.scope(render, [&] {
+  positionComp = w.add<gameplay_render::Position>().entity;
+});
+
+w.symbol(positionComp);
+// "gameplay_render::Position"
+
+w.path(positionComp);
+// "gameplay.render.Position"
+
+w.get("gameplay.render.Position");
+// positionComp
+
+w.get("Position");
+// ecs::EntityBad unless lookup happens from the right scope
+
+w.alias(positionComp, "RenderPosition");
+w.get("RenderPosition");
+// positionComp
 ```
 
 ### Component scope

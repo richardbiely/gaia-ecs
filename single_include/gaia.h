@@ -24066,7 +24066,9 @@ namespace gaia {
 		//! Component used to describe the entity name
 		struct GAIA_API EntityDesc {
 			const char* name{};
-			uint32_t len{};
+			uint32_t name_len{};
+			const char* alias{};
+			uint32_t alias_len{};
 		};
 
 		//----------------------------------------------------------------------
@@ -25521,8 +25523,6 @@ namespace gaia {
 			SymbolLookupKey name;
 			//! User-facing path name, e.g. "Gameplay.Device"
 			util::str path;
-			//! User-facing alias, e.g. "Device"
-			util::str alias;
 			//! Function to call when the component needs to be constructed
 			FuncCtor* func_ctor{};
 			//! Function to call when the component needs to be move constructed
@@ -25929,9 +25929,6 @@ namespace gaia {
 			//! Lookup of component items by their exact path name.
 			//! Ambiguous paths are stored with nullptr and treated as lookup misses.
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByPath;
-			//! Lookup of component items by their alias.
-			//! Ambiguous aliases are stored with nullptr and treated as lookup misses.
-			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByAlias;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 			//! Runtime component descriptor id generator.
@@ -25953,7 +25950,6 @@ namespace gaia {
 				m_itemByDescId.clear();
 				m_compBySymbol.clear();
 				m_compByPath.clear();
-				m_compByAlias.clear();
 				m_compByEntity.clear();
 			}
 
@@ -26050,8 +26046,6 @@ namespace gaia {
 			//! \param scopePath Optional world-provided scope prefix used for default path generation.
 			static void initialize_names(ComponentCacheItem& item, util::str_view scopePath = {}) {
 				item.path.clear();
-				item.alias.clear();
-
 				const auto symbol = util::str_view{item.name.str(), item.name.len()};
 				if (is_internal_symbol(symbol))
 					return;
@@ -26060,9 +26054,6 @@ namespace gaia {
 				const bool hasShortName =
 						shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len();
 				const auto leaf = hasShortName ? util::str_view{shortName.str(), shortName.len()} : symbol;
-
-				if (hasShortName || !scopePath.empty())
-					item.alias.assign(leaf);
 
 				if (!build_scoped_path(item.path, scopePath, leaf))
 					(void)build_default_path(item.path, symbol);
@@ -26092,9 +26083,6 @@ namespace gaia {
 			void rebuild_resolved_name_maps() {
 				rebuild_lookup_map(m_compByPath, [](const ComponentCacheItem& item) {
 					return item.path.view();
-				});
-				rebuild_lookup_map(m_compByAlias, [](const ComponentCacheItem& item) {
-					return item.alias.view();
 				});
 			}
 
@@ -26319,16 +26307,8 @@ namespace gaia {
 				return item.path.view();
 			}
 
-			//! Returns the alias used for short-name lookup.
-			//! \param item Component cache item to inspect.
-			//! \return Alias as a non-owning string view. Empty view when no alias is registered.
-			GAIA_NODISCARD util::str_view alias_name(const ComponentCacheItem& item) const noexcept {
-				return item.alias.view();
-			}
-
 			//! Returns the preferred user-facing component name for diagnostics, logs and other pretty output.
-			//! Alias is preferred when unique and not shadowed by a registered symbol.
-			//! Path name is preferred next when unique and not shadowed by a registered symbol.
+			//! Path name is preferred when unique and not shadowed by a registered symbol.
 			//! Otherwise the registered symbol name is returned.
 			//! \param item Component cache item to inspect.
 			//! \return Display name as a non-owning string view.
@@ -26337,16 +26317,6 @@ namespace gaia {
 				const auto symbol = symbol_name(item);
 				if (is_internal_symbol(symbol))
 					return symbol;
-
-				const auto alias = alias_name(item);
-				if (!alias.empty()) {
-					const auto aliasIt = m_compByAlias.find(lookup_key(alias));
-					const auto symbolIt = m_compBySymbol.find(lookup_key(alias));
-					const bool aliasIsUnique = aliasIt != m_compByAlias.end() && aliasIt->second == &item;
-					const bool aliasShadowed = symbolIt != m_compBySymbol.end() && symbolIt->second != &item;
-					if (aliasIsUnique && !aliasShadowed)
-						return alias;
-				}
 
 				const auto path = path_name(item);
 				if (!path.empty()) {
@@ -26359,30 +26329,6 @@ namespace gaia {
 				}
 
 				return symbol;
-			}
-
-			//! Assigns a component alias used by alias lookup and display_name().
-			//! Passing nullptr or an empty string clears the alias.
-			//! \param item Component cache item to modify.
-			//! \param name Alias name.
-			//! \param len Alias length. If zero, the length is calculated.
-			//! \return True when the alias metadata was updated, false if validation failed.
-			bool alias(ComponentCacheItem& item, const char* name, uint32_t len = 0) noexcept {
-				if (name == nullptr || name[0] == 0) {
-					item.alias.clear();
-					rebuild_resolved_name_maps();
-					return true;
-				}
-
-				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
-				if (l == 0 || l >= ComponentCacheItem::MaxNameLength)
-					return false;
-				if (memchr(name, '.', l) != nullptr)
-					return false;
-
-				item.alias.assign(name, l);
-				rebuild_resolved_name_maps();
-				return true;
 			}
 
 			//! Assigns a component path name used by path lookup and display_name().
@@ -26435,20 +26381,6 @@ namespace gaia {
 				return it != m_compByPath.end() ? it->second : nullptr;
 			}
 
-			//! Searches for the component cache item by its alias.
-			//! \param name A null-terminated string.
-			//! \param len String length. If zero, the length is calculated.
-			//! \return Component cache item if found, nullptr otherwise.
-			GAIA_NODISCARD const ComponentCacheItem* alias(const char* name, uint32_t len = 0) const noexcept {
-				GAIA_ASSERT(name != nullptr);
-
-				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
-				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
-
-				const auto it = m_compByAlias.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
-				return it != m_compByAlias.end() ? it->second : nullptr;
-			}
-
 			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
 			}
@@ -26457,12 +26389,8 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
 			}
 
-			GAIA_NODISCARD ComponentCacheItem* alias(const char* name, uint32_t len = 0) noexcept {
-				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->alias(name, len));
-			}
-
 			//! Resolves a component name within component metadata lookup only.
-			//! Exact registered symbol lookup is attempted first, then exact path lookup, then alias lookup.
+			//! Exact registered symbol lookup is attempted first, then exact path lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
@@ -26472,15 +26400,15 @@ namespace gaia {
 					return pItem;
 				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
-				return alias(name, len);
+				return nullptr;
 			}
 
 			GAIA_NODISCARD ComponentCacheItem* resolve(const char* name, uint32_t len = 0) noexcept {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
 			}
 
-			//! Collects all component items that match @a name as an exact symbol, exact path, or alias.
-			//! This is primarily useful for low-level component metadata diagnostics when a short name is ambiguous.
+			//! Collects all component items that match @a name as an exact symbol or exact path.
+			//! This is primarily useful for low-level component metadata diagnostics.
 			//! \param name Lookup string.
 			//! \param[out] out Output array cleared and then filled with unique matching component items.
 			//! \param len String length. If zero, the length is calculated.
@@ -26510,15 +26438,6 @@ namespace gaia {
 				} else {
 					for_each_item([&](const ComponentCacheItem& item) {
 						if (item.path.view() == needle)
-							push_unique(&item);
-					});
-				}
-
-				if (const auto* pItem = alias(name, l); pItem != nullptr) {
-					push_unique(pItem);
-				} else {
-					for_each_item([&](const ComponentCacheItem& item) {
-						if (item.alias.view() == needle)
 							push_unique(&item);
 					});
 				}
@@ -43758,6 +43677,8 @@ namespace gaia {
 
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
+			//! Alias to entity mapping. Ambiguous aliases are stored with EntityBad and treated as lookup misses.
+			cnt::map<EntityNameLookupKey, Entity> m_aliasToEntity;
 			//! Current scope used for component registration and relative component lookup.
 			Entity m_componentScope = EntityBad;
 			//! Ordered lookup scopes used for unqualified component lookup when component scope is not enough.
@@ -44254,15 +44175,17 @@ namespace gaia {
 
 				World& m_world;
 				//! Original archetype m_entity belongs to
-				Archetype* m_pArchetypeSrc;
+				Archetype* m_pArchetypeSrc = nullptr;
 				//! Original chunk m_entity belonged to
-				Chunk* m_pChunkSrc;
+				Chunk* m_pChunkSrc = nullptr;
 				//! Original row
-				uint32_t m_rowSrc;
+				uint32_t m_rowSrc = 0;
 				//! Target archetype we want to move to
-				Archetype* m_pArchetype;
+				Archetype* m_pArchetype = nullptr;
 				//! Target name
 				EntityNameLookupKey m_targetNameKey;
+				//! Target alias string pointer.
+				EntityNameLookupKey m_targetAliasKey;
 				//! Source entity
 				Entity m_entity;
 				//! Entity describing a single-step graph transition recorded during builder use.
@@ -44334,13 +44257,23 @@ namespace gaia {
 								rebuild_graph_edge(m_pArchetype, m_pArchetypeSrc, m_graphEdgeEntity);
 						}
 
-						// Update the entity string pointer if necessary
-						if (m_targetNameKey.str() != nullptr) {
+						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
 							const auto compIdx = ec.pChunk->comp_idx(GAIA_ID(EntityDesc));
 							// No need to update version, entity move did it already.
 							auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut_gen<false>(compIdx, ec.row));
 							GAIA_ASSERT(core::check_alignment(pDesc));
-							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
+
+							// Update the entity name string pointers if necessary
+							if (m_targetNameKey.str() != nullptr) {
+								pDesc->name = m_targetNameKey.str();
+								pDesc->name_len = m_targetNameKey.len();
+							}
+
+							// Update the entity alias string pointers if necessary
+							if (m_targetAliasKey.str() != nullptr) {
+								pDesc->alias = m_targetAliasKey.str();
+								pDesc->alias_len = m_targetAliasKey.len();
+							}
 						}
 
 						// Trigger add hooks if there are any
@@ -44357,18 +44290,29 @@ namespace gaia {
 						GAIA_ASSERT(ec.pChunk == m_pChunkSrc);
 #endif
 
-						// Update the entity string pointer if necessary
-						if (m_targetNameKey.str() != nullptr) {
+						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
 							const auto compIdx = m_pChunkSrc->comp_idx(GAIA_ID(EntityDesc));
 							auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc));
 							GAIA_ASSERT(core::check_alignment(pDesc));
-							*pDesc = {m_targetNameKey.str(), m_targetNameKey.len()};
+
+							// Update the entity name string pointers if necessary
+							if (m_targetNameKey.str() != nullptr) {
+								pDesc->name = m_targetNameKey.str();
+								pDesc->name_len = m_targetNameKey.len();
+							}
+
+							// Update the entity alias string pointers if necessary
+							if (m_targetAliasKey.str() != nullptr) {
+								pDesc->alias = m_targetAliasKey.str();
+								pDesc->alias_len = m_targetAliasKey.len();
+							}
 						}
 					}
 
 					// Finalize the builder by reseting the archetype pointer
 					m_pArchetype = nullptr;
 					m_targetNameKey = {};
+					m_targetAliasKey = {};
 					reset_graph_edge_tracking();
 				}
 
@@ -44398,6 +44342,22 @@ namespace gaia {
 					name_inter<false>(name, len);
 				}
 
+				//! Assigns an alias to entity. Ignored if used with pair.
+				//! The string is copied and kept internally.
+				//! \param alias A null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
+				void alias(const char* alias, uint32_t len = 0) {
+					alias_inter<true>(alias, len);
+				}
+
+				//! Assigns an alias to entity. Ignored if used with pair.
+				//! The string is NOT copied. You are responsible for its lifetime.
+				//! \param alias Pointer to a stable null-terminated string.
+				//! \param len String length. If zero, the length is calculated.
+				void alias_raw(const char* alias, uint32_t len = 0) {
+					alias_inter<false>(alias, len);
+				}
+
 				//! Removes any name associated with the entity
 				void del_name() {
 					if (m_entity.pair())
@@ -44420,11 +44380,47 @@ namespace gaia {
 					//       The second one could be replaced with const cast + emit.
 					//  No need to update version, commit() will do it
 					auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc));
-					del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
+					del_name_inter(EntityNameLookupKey(pDesc->name, pDesc->name_len, 0));
 					m_world.invalidate_scope_path_cache();
 
-					del_inter(GAIA_ID(EntityDesc));
+					pDesc->name = nullptr;
+					pDesc->name_len = 0;
+					if (pDesc->alias == nullptr)
+						del_inter(GAIA_ID(EntityDesc));
+
 					m_targetNameKey = {};
+				}
+
+				//! Removes any alias associated with the entity
+				void del_alias() {
+					if (m_entity.pair())
+						return;
+
+					// The following block is essentially the same as this but without the archetype pointer access:
+					// const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
+					const auto compIdx = core::get_index(m_pChunkSrc->ids_view(), GAIA_ID(EntityDesc));
+					if (compIdx == BadIndex)
+						return;
+
+					{
+						const auto* pDesc = reinterpret_cast<const EntityDesc*>(m_pChunkSrc->comp_ptr(compIdx, m_rowSrc));
+						GAIA_ASSERT(core::check_alignment(pDesc));
+						if (pDesc->alias == nullptr)
+							return;
+					}
+
+					// TODO: Trigger the hooks/observers manually here? I do not like essentially calling comp_ptr twice here.
+					//       The second one could be replaced with const cast + emit.
+					//  No need to update version, commit() will do it
+					auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<false>(compIdx, m_rowSrc));
+					del_alias_inter(EntityNameLookupKey(pDesc->alias, pDesc->alias_len, 0));
+
+					pDesc->alias = nullptr;
+					pDesc->alias_len = 0;
+					if (pDesc->name == nullptr)
+						del_inter(GAIA_ID(EntityDesc));
+
+					m_targetAliasKey = {};
 				}
 
 				//! Prepares an archetype movement by following the "add" edge of the current archetype.
@@ -45076,7 +45072,7 @@ namespace gaia {
 					return true;
 				}
 
-				void del_inter(EntityNameLookupKey key) {
+				void del_name_inter(EntityNameLookupKey key) {
 					const auto it = m_world.m_nameToEntity.find(key);
 					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
 					// That should not be possible for strings managed internally so the only other option is user-managed
@@ -45091,6 +45087,21 @@ namespace gaia {
 					}
 				}
 
+				void del_alias_inter(EntityNameLookupKey key) {
+					const auto it = m_world.m_aliasToEntity.find(key);
+					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
+					// That should not be possible for strings managed internally so the only other option is user-managed
+					// strings are broken.
+					GAIA_ASSERT(it != m_world.m_aliasToEntity.end());
+					if (it != m_world.m_aliasToEntity.end()) {
+						// Release memory allocated for the string if we own it
+						if (it->first.owned())
+							mem::mem_free((void*)key.str());
+
+						m_world.m_aliasToEntity.erase(it);
+					}
+				}
+
 				template <bool IsOwned>
 				void name_inter(const char* name, uint32_t len) {
 					//! We can't name pairs
@@ -45098,7 +45109,7 @@ namespace gaia {
 					if (m_entity.pair())
 						return;
 
-					// When nullptr is passed for the name it means the user wants to delete the current name
+					// When nullptr is passed for the name it means the user wants to delete the current one
 					if (name == nullptr) {
 						GAIA_ASSERT(len == 0);
 						del_name();
@@ -45109,14 +45120,12 @@ namespace gaia {
 
 					// Make sure the name does not contain a dot because this character is reserved for
 					// hierarchical lookups, e.g. "parent.child.subchild".
-#if GAIA_ASSERT_ENABLED
 					GAIA_FOR(len) {
 						const bool hasInvalidCharacter = name[i] == '.';
 						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity names");
 						if (hasInvalidCharacter)
 							return;
 					}
-#endif
 
 					EntityNameLookupKey key(
 							name, len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len, IsOwned);
@@ -45127,14 +45136,14 @@ namespace gaia {
 					if (it == m_world.m_nameToEntity.end()) {
 						// If we already had some name, remove the pair from the map first.
 						if (m_targetNameKey.str() != nullptr) {
-							del_inter(m_targetNameKey);
+							del_name_inter(m_targetNameKey);
 						} else {
 							const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
 							if (compIdx != BadIndex) {
 								auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut(compIdx, m_rowSrc));
 								GAIA_ASSERT(core::check_alignment(pDesc));
 								if (pDesc->name != nullptr) {
-									del_inter(EntityNameLookupKey(pDesc->name, pDesc->len, 0));
+									del_name_inter(EntityNameLookupKey(pDesc->name, pDesc->name_len, 0));
 									pDesc->name = nullptr;
 								}
 							} else {
@@ -45176,6 +45185,86 @@ namespace gaia {
 					}
 
 					m_world.invalidate_scope_path_cache();
+				}
+
+				template <bool IsOwned>
+				void alias_inter(const char* alias, uint32_t len) {
+					//! We can't create an alias for pairs
+					GAIA_ASSERT(!m_entity.pair());
+					if (m_entity.pair())
+						return;
+
+					// When nullptr is passed for the alias it means the user wants to delete the current one
+					if (alias == nullptr) {
+						GAIA_ASSERT(len == 0);
+						del_alias();
+						return;
+					}
+
+					GAIA_ASSERT(len < ComponentCacheItem::MaxNameLength);
+
+					// Make sure the name does not contain a dot because this character is reserved for
+					// hierarchical lookups, e.g. "parent.child.subchild".
+					GAIA_FOR(len) {
+						const bool hasInvalidCharacter = alias[i] == '.';
+						GAIA_ASSERT(!hasInvalidCharacter && "Character '.' can't be used in entity aliases");
+						if (hasInvalidCharacter)
+							return;
+					}
+
+					EntityNameLookupKey key(
+							alias, len == 0 ? (uint32_t)GAIA_STRLEN(alias, ComponentCacheItem::MaxNameLength) : len, IsOwned);
+
+					auto it = m_world.m_aliasToEntity.find(key);
+					if (it == m_world.m_aliasToEntity.end()) {
+						// If we already had some alias, remove the pair from the map first.
+						if (m_targetAliasKey.str() != nullptr) {
+							del_alias_inter(m_targetAliasKey);
+						} else {
+							const auto compIdx = core::get_index(m_pArchetypeSrc->ids_view(), GAIA_ID(EntityDesc));
+							if (compIdx != BadIndex) {
+								auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut(compIdx, m_rowSrc));
+								GAIA_ASSERT(core::check_alignment(pDesc));
+								if (pDesc->alias != nullptr) {
+									del_alias_inter(EntityNameLookupKey(pDesc->alias, pDesc->alias_len, 0));
+									pDesc->alias = nullptr;
+								}
+							} else {
+								// Make sure EntityDesc is added to the entity.
+								add_inter(GAIA_ID(EntityDesc));
+							}
+						}
+
+						it = m_world.m_aliasToEntity.emplace(key, m_entity).first;
+					} else {
+#if GAIA_ASSERT_ENABLED
+						if (it->second != m_entity)
+							GAIA_ASSERT(false && "Trying to set non-unique alias for an entity");
+#endif
+
+						// Attempts to set the same alias again, or not a unique alias, will be dropped.
+						return;
+					}
+
+					if constexpr (IsOwned) {
+						// Allocate enough storage for the alias
+						char* aliasStr = (char*)mem::mem_alloc(key.len() + 1);
+						memcpy((void*)aliasStr, (const void*)alias, key.len());
+						aliasStr[key.len()] = 0;
+
+						m_targetAliasKey = EntityNameLookupKey(aliasStr, key.len(), 1, {key.hash()});
+
+						// Update the map so it points to the newly allocated string.
+						// We replace the pointer we provided in try_emplace with an internally allocated string.
+						auto p = robin_hood::pair(std::make_pair(m_targetAliasKey, m_entity));
+						it->swap(p);
+					} else {
+						m_targetAliasKey = key;
+
+						// We tell the map the string is non-owned.
+						auto p = robin_hood::pair(std::make_pair(key, m_entity));
+						it->swap(p);
+					}
 				}
 			};
 
@@ -45245,43 +45334,96 @@ namespace gaia {
 				return pItem != nullptr ? comp_cache_mut().path(*pItem, path, len) : false;
 			}
 
-			//! Finds a component entity by its exact alias.
-			//! \param alias Exact component alias.
+			//! Finds an entity by its exact alias.
+			//! \param alias Exact entity alias.
 			//! \param len String length. If zero, the length is calculated.
-			//! \return Matching component entity. EntityBad when no exact alias match exists or the alias is ambiguous.
+			//! \return Matching entity. EntityBad when no exact alias match exists.
 			GAIA_NODISCARD Entity alias(const char* alias, uint32_t len = 0) const {
 				if (alias == nullptr || alias[0] == 0)
 					return EntityBad;
 
-				const auto* pItem = comp_cache().alias(alias, len);
-				return pItem != nullptr ? pItem->entity : EntityBad;
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(alias, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+				const auto it = m_aliasToEntity.find(EntityNameLookupKey(alias, l, 0));
+				return it != m_aliasToEntity.end() ? it->second : EntityBad;
 			}
 
-			//! Returns the alias name for a component entity.
-			//! \param component Component entity.
-			//! \return Component alias. Empty view when no alias is assigned or @a component is not cached.
-			GAIA_NODISCARD util::str_view alias(Entity component) const {
-				const auto* pItem = comp_cache().find(component);
-				return pItem != nullptr ? comp_cache().alias_name(*pItem) : util::str_view{};
+			//! Returns the alias assigned to an entity.
+			//! \param entity Entity.
+			//! \return Alias. Empty view when no alias is assigned.
+			GAIA_NODISCARD util::str_view alias(Entity entity) const {
+				if (entity.pair())
+					return {};
+
+				const auto& ec = m_recs.entities[entity.id()];
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+				if (compIdx == BadIndex)
+					return {};
+
+				const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+				GAIA_ASSERT(core::check_alignment(pDesc));
+				return {pDesc->alias, pDesc->alias_len};
 			}
 
-			//! Assigns an alias name to a component entity.
-			//! \param component Component entity.
+			//! Assigns an alias name to an entity.
+			//! \param entity Entity.
 			//! \param alias Alias to assign. Pass nullptr to clear the current alias.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return True when the alias metadata changed, false otherwise.
-			bool alias(Entity component, const char* alias, uint32_t len = 0) {
-				auto* pItem = comp_cache_mut().find(component);
-				return pItem != nullptr ? comp_cache_mut().alias(*pItem, alias, len) : false;
+			bool alias(Entity entity, const char* alias, uint32_t len = 0) {
+				if (!valid(entity) || entity.pair())
+					return false;
+
+				const auto before = this->alias(entity);
+				EntityBuilder(*this, entity).alias(alias, len);
+				const auto after = this->alias(entity);
+				if (alias == nullptr)
+					return !before.empty() && after.empty();
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(alias, ComponentCacheItem::MaxNameLength) : len;
+				return after == util::str_view(alias, l);
 			}
 
-			//! Returns the preferred display name for a component entity.
+			//! Assigns an alias name to an entity without copying the string.
+			//! \param entity Entity.
+			//! \param alias Alias to assign. Pass nullptr to clear the current alias.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return True when the alias metadata changed, false otherwise.
+			bool alias_raw(Entity entity, const char* alias, uint32_t len = 0) {
+				if (!valid(entity) || entity.pair())
+					return false;
+
+				const auto before = this->alias(entity);
+				EntityBuilder(*this, entity).alias_raw(alias, len);
+				const auto after = this->alias(entity);
+				if (alias == nullptr)
+					return !before.empty() && after.empty();
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(alias, ComponentCacheItem::MaxNameLength) : len;
+				return after == util::str_view(alias, l);
+			}
+
+			//! Returns the preferred display name for a entity.
 			//! This is intended for diagnostics and other pretty output, not as a stable identity key.
-			//! \param component Component entity.
-			//! \return Display name used for user-facing output. Empty view when @a component is not cached.
-			GAIA_NODISCARD util::str_view display_name(Entity component) const {
-				const auto* pItem = comp_cache().find(component);
-				return pItem != nullptr ? comp_cache().display_name(*pItem) : util::str_view{};
+			//! \param entity Entity.
+			//! \return Display name used for user-facing output. Empty view when @a entity is not cached.
+			GAIA_NODISCARD util::str_view display_name(Entity entity) const {
+				const auto* pItem = comp_cache().find(entity);
+				if (pItem == nullptr)
+					return {};
+
+				const auto aliasValue = alias(entity);
+				if (!aliasValue.empty())
+					return aliasValue;
+
+				const auto pathValue = path(entity);
+				if (!pathValue.empty()) {
+					const auto symbolEntity = symbol(pathValue.data(), pathValue.size());
+					if (symbolEntity == EntityBad || symbolEntity == entity)
+						return pathValue;
+				}
+
+				return symbol(entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -45437,7 +45579,8 @@ namespace gaia {
 						return pItem;
 				}
 
-				return m_compCache.alias(name, l);
+				const auto aliasEntity = alias(name, l);
+				return aliasEntity != EntityBad ? m_compCache.find(aliasEntity) : nullptr;
 			}
 
 		public:
@@ -47620,7 +47763,7 @@ namespace gaia {
 
 				const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
 				GAIA_ASSERT(core::check_alignment(pDesc));
-				return {pDesc->name, pDesc->len};
+				return {pDesc->name, pDesc->name_len};
 			}
 
 			//! Returns the entity name assigned to @a entityId.
@@ -47701,6 +47844,8 @@ namespace gaia {
 				m_compCache.resolve(items, name, l);
 				for (const auto* pItem: items)
 					push_unique(pItem->entity);
+
+				push_unique(alias(name, l));
 			}
 
 			//! Returns the entity assigned a name @a name.
@@ -47801,6 +47946,10 @@ namespace gaia {
 				const auto* pItem = resolve_component_name_inter(name, l);
 				if (pItem != nullptr)
 					return pItem->entity;
+
+				const auto aliasEntity = alias(name, l);
+				if (aliasEntity != EntityBad)
+					return aliasEntity;
 
 				// No entity with the given name exists. Return a bad entity
 				return EntityBad;
@@ -49358,6 +49507,17 @@ namespace gaia {
 					m_nextQuerySerId = 0;
 				}
 
+				// Clear entity aliases
+				{
+					for (auto& pair: m_aliasToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_aliasToEntity = {};
+				}
+
 				// Clear entity names
 				{
 					for (auto& pair: m_nameToEntity) {
@@ -49583,6 +49743,45 @@ namespace gaia {
 						}
 					}
 				}
+
+				// Entity aliases
+				{
+					uint32_t aliasCnt = 0;
+					GAIA_FOR((uint32_t)m_recs.entities.size()) {
+						const auto entity = get((EntityId)i);
+						if (!valid(entity) || entity.pair())
+							continue;
+
+						const auto& ec = m_recs.entities[i];
+						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+						if (compIdx == BadIndex)
+							continue;
+
+						const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+						if (pDesc->alias != nullptr)
+							++aliasCnt;
+					}
+
+					s.save(aliasCnt);
+					GAIA_FOR((uint32_t)m_recs.entities.size()) {
+						const auto entity = get((EntityId)i);
+						if (!valid(entity) || entity.pair())
+							continue;
+
+						const auto& ec = m_recs.entities[i];
+						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+						if (compIdx == BadIndex)
+							continue;
+
+						const auto* pDesc = reinterpret_cast<const EntityDesc*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+						if (pDesc->alias == nullptr)
+							continue;
+
+						s.save(entity);
+						s.save(pDesc->alias_len);
+						s.save_raw(pDesc->alias, pDesc->alias_len, ser::serialization_type_id::c8);
+					}
+				}
 			}
 
 		public:
@@ -49761,6 +49960,7 @@ namespace gaia {
 
 				// Entity names
 				{
+					m_nameToEntity = {};
 					uint32_t cnt = 0;
 					s.load(cnt);
 					GAIA_FOR(cnt) {
@@ -49782,8 +49982,8 @@ namespace gaia {
 								const auto& ci = comp_cache().get(entity);
 								pDesc->name = ci.name.str();
 								// Length should still be the same. Only the pointer has changed.
-								GAIA_ASSERT(pDesc->len == ci.name.len());
-								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len, 0), entity);
+								GAIA_ASSERT(pDesc->name_len == ci.name.len());
+								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->name_len, 0), entity);
 							} else {
 								uint32_t len = 0;
 								s.load(len);
@@ -49792,8 +49992,8 @@ namespace gaia {
 
 								// Simply point to whereever the original pointer pointed to
 								pDesc->name = (const char*)ptr_val;
-								pDesc->len = len;
-								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->len, 0), entity);
+								pDesc->name_len = len;
+								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->name_len, 0), entity);
 							}
 
 							continue;
@@ -49809,11 +50009,54 @@ namespace gaia {
 						// Make sure EntityDesc does not point anywhere right now.
 						{
 							pDesc->name = nullptr;
-							pDesc->len = 0;
+							pDesc->name_len = 0;
 						}
 
 						// Name the entity using an owned string
 						name(entity, entityStr, len);
+					}
+				}
+
+				// Entity aliases
+				{
+					m_aliasToEntity = {};
+					GAIA_FOR((uint32_t)m_recs.entities.size()) {
+						const auto entity = get((EntityId)i);
+						if (!valid(entity) || entity.pair())
+							continue;
+
+						const auto& ec = m_recs.entities[i];
+						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+						if (compIdx == BadIndex)
+							continue;
+
+						auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+						GAIA_ASSERT(core::check_alignment(pDesc));
+						pDesc->alias = nullptr;
+						pDesc->alias_len = 0;
+					}
+
+					uint32_t cnt = 0;
+					s.load(cnt);
+					GAIA_FOR(cnt) {
+						Entity entity;
+						s.load(entity);
+
+						const auto& ec = fetch(entity);
+						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
+						auto* pDesc = reinterpret_cast<EntityDesc*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+						GAIA_ASSERT(core::check_alignment(pDesc));
+
+						uint32_t len = 0;
+						s.load(len);
+
+						// Get a pointer to where the string begins and seek to the end of the string
+						const char* aliasStr = (const char*)(s.data() + s.tell());
+						s.seek(s.tell() + len);
+
+						pDesc->alias = nullptr;
+						pDesc->alias_len = 0;
+						alias(entity, aliasStr, len);
 					}
 				}
 
@@ -53335,7 +53578,7 @@ namespace gaia {
 					const auto id = GAIA_ID(EntityDesc);
 					const auto& ci = reg_core_entity<EntityDesc>(id);
 					EntityBuilder(*this, id).add_inter_init(ci.entity);
-					sset<EntityDesc>(id) = {ci.name.str(), ci.name.len()};
+					sset<EntityDesc>(id) = {ci.name.str(), ci.name.len(), nullptr, 0};
 					pCompArchetype = m_recs.entities[id.id()].pArchetype;
 				}
 				{
@@ -53344,7 +53587,7 @@ namespace gaia {
 					EntityBuilder(*this, id).add_inter_init(ci.entity);
 					acc_mut(id)
 							// Entity descriptor
-							.sset<EntityDesc>({ci.name.str(), ci.name.len()})
+							.sset<EntityDesc>({ci.name.str(), ci.name.len(), nullptr, 0})
 							// Component
 							.sset<Component>(ci.comp);
 					m_pCompArchetype = m_recs.entities[id.id()].pArchetype;

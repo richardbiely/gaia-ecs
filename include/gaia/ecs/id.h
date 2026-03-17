@@ -399,7 +399,9 @@ namespace gaia {
 		//! Component used to describe the entity name
 		struct GAIA_API EntityDesc {
 			const char* name{};
-			uint32_t len{};
+			uint32_t name_len{};
+			const char* alias{};
+			uint32_t alias_len{};
 		};
 
 		//----------------------------------------------------------------------
