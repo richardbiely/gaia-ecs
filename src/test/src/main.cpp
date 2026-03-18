@@ -4399,6 +4399,66 @@ TEST_CASE("Add - many components, bulk 2") {
 	checkInt3();
 }
 
+TEST_CASE("Accessor - repeated component access") {
+	TestWorld twld;
+	auto e = wld.add();
+	const auto& runtimeInt3 = wld.add<Int3>();
+
+	wld.add<Position>(e, {1.f, 2.f, 3.f});
+	wld.add<Rotation>(e, {4.f, 5.f, 6.f, 7.f});
+	wld.add(e, runtimeInt3.entity, Int3{8, 9, 10});
+
+	{
+		auto getter = wld.acc(e);
+		auto pos = getter.get<Position>();
+		CHECK(pos.x == 1.f);
+		CHECK(pos.y == 2.f);
+		CHECK(pos.z == 3.f);
+
+		auto rot = getter.get<Rotation>();
+		CHECK(rot.x == 4.f);
+		CHECK(rot.y == 5.f);
+		CHECK(rot.z == 6.f);
+		CHECK(rot.w == 7.f);
+
+		pos = getter.get<Position>();
+		CHECK(pos.x == 1.f);
+		CHECK(pos.y == 2.f);
+		CHECK(pos.z == 3.f);
+
+		auto i3 = getter.get<Int3>(runtimeInt3.entity);
+		CHECK(i3.x == 8);
+		CHECK(i3.y == 9);
+		CHECK(i3.z == 10);
+	}
+
+	{
+		auto setter = wld.acc_mut(e);
+		setter.set<Position>({10.f, 20.f, 30.f});
+		setter.sset<Rotation>({40.f, 50.f, 60.f, 70.f});
+		setter.set<Int3>(runtimeInt3.entity, Int3{80, 90, 100});
+	}
+
+	{
+		auto getter = wld.acc(e);
+		auto pos = getter.get<Position>();
+		CHECK(pos.x == 10.f);
+		CHECK(pos.y == 20.f);
+		CHECK(pos.z == 30.f);
+
+		auto rot = getter.get<Rotation>();
+		CHECK(rot.x == 40.f);
+		CHECK(rot.y == 50.f);
+		CHECK(rot.z == 60.f);
+		CHECK(rot.w == 70.f);
+
+		auto i3 = getter.get<Int3>(runtimeInt3.entity);
+		CHECK(i3.x == 80);
+		CHECK(i3.y == 90);
+		CHECK(i3.z == 100);
+	}
+}
+
 TEST_CASE("Add-del") {
 	// This is a do-not-crash unit test.
 	// This is done to properly test cases of [] -> [A] -> [A,B] -> [A,B,C].
@@ -21413,6 +21473,40 @@ TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity
 	wld.update();
 
 	CHECK_FALSE(wld.has(e));
+}
+
+TEST_CASE("EntityContainer cached entity slot stays valid across row swap and archetype move") {
+	TestWorld twld;
+
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+
+	wld.child(sourceA, targetA);
+	wld.child(sourceB, targetB);
+
+	const auto* pTargetBBefore = wld.fetch(targetB).pEntity;
+	CHECK(pTargetBBefore != nullptr);
+	if (pTargetBBefore != nullptr)
+		CHECK(*pTargetBBefore == targetB);
+	CHECK(wld.target(sourceB, ecs::ChildOf) == targetB);
+
+	wld.del(targetA);
+
+	const auto& targetBAfterDelete = wld.fetch(targetB);
+	CHECK(targetBAfterDelete.pEntity != nullptr);
+	if (targetBAfterDelete.pEntity != nullptr)
+		CHECK(*targetBAfterDelete.pEntity == targetB);
+	CHECK(wld.target(sourceB, ecs::ChildOf) == targetB);
+
+	wld.add<Position>(targetB, {1.0f, 2.0f, 3.0f});
+
+	const auto& targetBAfterMove = wld.fetch(targetB);
+	CHECK(targetBAfterMove.pEntity != nullptr);
+	if (targetBAfterMove.pEntity != nullptr)
+		CHECK(*targetBAfterMove.pEntity == targetB);
+	CHECK(wld.target(sourceB, ecs::ChildOf) == targetB);
 }
 
 int main(int argc, char** argv) {

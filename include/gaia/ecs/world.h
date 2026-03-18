@@ -5119,7 +5119,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					auto relation = *ecRel.pEntity;
 					return relation;
 				}
 
@@ -5165,7 +5165,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					auto relation = *ecRel.pEntity;
 					func(relation);
 				}
 			}
@@ -5212,7 +5212,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = ecRel.pChunk->entity_view()[ecRel.row];
+					auto relation = *ecRel.pEntity;
 					if (!func(relation))
 						return;
 				}
@@ -5355,7 +5355,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecTarget = m_recs.entities[id.gen()];
-					const auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					const auto target = *ecTarget.pEntity;
 					if (try_mark_entity_visited(target, visitStamp))
 						cache.push_back(target);
 				}
@@ -5581,7 +5581,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					auto target = *ecTarget.pEntity;
 					return target;
 				}
 
@@ -5627,7 +5627,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					auto target = *ecTarget.pEntity;
 					func(target);
 				}
 			}
@@ -5674,7 +5674,7 @@ namespace gaia {
 						continue;
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					auto target = *ecTarget.pEntity;
 					if (!func(target))
 						return;
 				}
@@ -7055,6 +7055,7 @@ namespace gaia {
 						ec.pArchetype = m_archetypes[archetypeIdx];
 						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
 						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
 					}
 					for (auto& pair: m_recs.pairs) {
 						auto& ec = pair.second;
@@ -7067,6 +7068,7 @@ namespace gaia {
 						ec.pArchetype = m_archetypes[archetypeIdx];
 						const uint32_t chunkIdx = (uint32_t)((uintptr_t)ec.pChunk); // Decode the chunk idx
 						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
+						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
 					}
 				}
 
@@ -7505,6 +7507,7 @@ namespace gaia {
 						// Bring the entity container record up-to-date
 						ec.pChunk = pDstChunk;
 						ec.row = (uint16_t)dstRow;
+						ec.pEntity = &pDstChunk->entity_view()[dstRow];
 
 						// Transfer the original enabled state to the new chunk
 						archetype.enable_entity(pDstChunk, dstRow, wasEnabled, m_recs);
@@ -8993,6 +8996,7 @@ namespace gaia {
 
 					ec.pArchetype = nullptr;
 					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
 					EntityBuilder::set_flag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
@@ -9026,6 +9030,7 @@ namespace gaia {
 				ec.pArchetype = pArchetype;
 				ec.pChunk = pChunk;
 				ec.row = pChunk->add_entity(entity);
+				ec.pEntity = &pChunk->entity_view()[ec.row];
 				GAIA_ASSERT(entity.pair() || ec.data.gen == entity.gen());
 				ec.data.dis = 0;
 			}
@@ -9075,6 +9080,7 @@ namespace gaia {
 				ec.pArchetype = &dstArchetype;
 				ec.pChunk = pDstChunk;
 				ec.row = (uint16_t)dstRow;
+				ec.pEntity = &pDstChunk->entity_view()[dstRow];
 				if (archetypeChanged)
 					update_src_entity_version(entity);
 
@@ -9264,7 +9270,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < pArchetype->pairs_is(); ++i) {
 					auto e = pArchetype->entity_from_pairs_as_idx(i);
 					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = ecTarget.pChunk->entity_view()[ecTarget.row];
+					auto target = *ecTarget.pEntity;
 					func(target);
 
 					as_up_trav<CheckIn>(target, func);
