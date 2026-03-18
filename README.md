@@ -282,16 +282,13 @@ wld.name(e, "eur.ope"); // invalid name, the naming request is going to be ignor
 
 ### Names and lookup
 
-`World::name` gives an entity its normal world [name](#name-entity). `World::alias` gives an entity an optional extra lookup name. `World::get` is the normal lookup entry point. It first tries ordinary entity names, including hierarchical paths such as `gameplay.render`, and then falls back to component lookup rules when the string does not name an entity directly.
+`World::name` gives an entity its normal world [name](#name-entity). `World::alias` gives an entity one extra lookup name. `World::get` is the normal lookup entry point. It first tries ordinary entity names, including hierarchical paths such as `gameplay.render`, and then falls back to component lookup rules when the string does not name an entity directly.
+
+Names and aliases are both unique lookup keys. A name is the entity’s canonical world name and participates in hierarchy. An alias is an extra flat lookup key that does not change the entity’s place in that hierarchy.
 
 Components add a few extra naming helpers because they need more than one identity. A component symbol is the stable C++ identity, such as `gameplay_render::Position`. A component path is the scoped lookup name, such as `gameplay.render.Position`. A display name is the prettier label you would prefer to show in logs and tools.
 
-Most code should just use `World::get`. Reach for `World::symbol` or `World::path` only when you need to be explicit about which component naming layer you want.
-
-Use a name when the entity should live in the normal world hierarchy. Use an alias when you want one extra flat lookup key without changing that hierarchy. Use a symbol when you need a stable component identity, for example in semantic JSON. Use a path when you want to refer to a component by its place in the ECS scope hierarchy.
-
-Names and aliases are both unique lookup keys. A name is the entity’s canonical world name and participates in hierarchy. An alias is an extra flat lookup key that does not change the entity’s place in that hierarchy.
-If a name does not resolve the way you expect, `World::resolve(out, name)` collects every entity the world naming rules can see for that string.
+Most code should just use `World::get`. Use a name when the entity should live in the normal world hierarchy. Use an alias when you want one extra flat lookup key without changing that hierarchy. Use a symbol when you need a stable component identity, for example in semantic JSON. Use a path when you want to refer to a component by its place in the ECS scope hierarchy. If a name does not resolve the way you expect, `World::resolve(out, name)` collects every entity the world naming rules can see for that string.
 
 ```cpp
 namespace gameplay_render {
