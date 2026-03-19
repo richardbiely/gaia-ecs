@@ -128,13 +128,18 @@ namespace gaia {
 			ChunkDataOffsets m_dataOffsets;
 			//! Array of entities used to identify the archetype
 			Entity m_ids[ChunkHeader::MAX_COMPONENTS];
+			//! Array of indices to all relationship pairs in m_ids, preserving archetype id order.
+			uint8_t m_pair_index_buffer[ChunkHeader::MAX_COMPONENTS];
 			//! Array of indices to Is relationship pairs in m_ids
 			uint8_t m_pairs_as_index_buffer[ChunkHeader::MAX_COMPONENTS];
 			//! Compact per-relation pair cardinalities used by wildcard pair matching.
 			struct PairCountBucket {
 				EntityId id = IdentifierIdBad;
+				uint8_t start = 0;
 				uint8_t count = 0;
 			};
+			uint8_t m_pairRelIndexBuffer[ChunkHeader::MAX_COMPONENTS];
+			uint8_t m_pairTgtIndexBuffer[ChunkHeader::MAX_COMPONENTS];
 			PairCountBucket m_pairRelCountBuffer[ChunkHeader::MAX_COMPONENTS];
 			PairCountBucket m_pairTgtCountBuffer[ChunkHeader::MAX_COMPONENTS];
 			//! Array of component ids
@@ -278,19 +283,26 @@ namespace gaia {
 				}
 			}
 
-			static void add_pair_count_bucket(PairCountBucket* pBuckets, uint8_t& bucketCnt, EntityId id) {
+			static PairCountBucket& ensure_pair_index_bucket(PairCountBucket* pBuckets, uint8_t& bucketCnt, EntityId id, uint8_t start) {
 				GAIA_FOR(bucketCnt) {
-					if (pBuckets[i].id != id)
-						continue;
-
-					++pBuckets[i].count;
-					return;
+					if (pBuckets[i].id == id)
+						return pBuckets[i];
 				}
 
 				GAIA_ASSERT(bucketCnt < ChunkHeader::MAX_COMPONENTS);
 				auto& bucket = pBuckets[bucketCnt++];
 				bucket.id = id;
-				bucket.count = 1;
+				bucket.start = start;
+				bucket.count = 0;
+				return bucket;
+			}
+
+			static void add_pair_index_bucket(
+					PairCountBucket* pBuckets, uint8_t& bucketCnt, uint8_t* pIndexBuffer, uint8_t& indexCnt, EntityId id, uint8_t idsIdx) {
+				auto& bucket = ensure_pair_index_bucket(pBuckets, bucketCnt, id, indexCnt);
+				GAIA_ASSERT(indexCnt < ChunkHeader::MAX_COMPONENTS);
+				pIndexBuffer[indexCnt++] = idsIdx;
+				++bucket.count;
 			}
 
 			static uint32_t pair_count_from_buckets(const PairCountBucket* pBuckets, uint8_t bucketCnt, EntityId id) {
@@ -300,6 +312,18 @@ namespace gaia {
 				}
 
 				return 0;
+			}
+
+			static GAIA_NODISCARD std::span<const uint8_t> pair_indices_from_buckets(
+					const PairCountBucket* pBuckets, uint8_t bucketCnt, const uint8_t* pIndexBuffer, EntityId id) {
+				GAIA_FOR(bucketCnt) {
+					if (pBuckets[i].id != id)
+						continue;
+
+					return {pIndexBuffer + pBuckets[i].start, pBuckets[i].count};
+				}
+
+				return {};
 			}
 
 		public:
@@ -410,14 +434,22 @@ namespace gaia {
 						ChunkDataAreaOffset);
 				const auto& offs = newArch->m_dataOffsets;
 
+				uint8_t pairRelIndexCnt = 0;
+				uint8_t pairTgtIndexCnt = 0;
+
 				// Calculate the number of pairs
 				GAIA_FOR(cnt) {
 					if (!ids[i].pair())
 						continue;
 
+					newArch->m_pair_index_buffer[newArch->m_pairCnt] = (uint8_t)i;
 					++newArch->m_pairCnt;
-					add_pair_count_bucket(newArch->m_pairRelCountBuffer, newArch->m_pairRelCountCnt, (EntityId)ids[i].id());
-					add_pair_count_bucket(newArch->m_pairTgtCountBuffer, newArch->m_pairTgtCountCnt, (EntityId)ids[i].gen());
+					add_pair_index_bucket(
+							newArch->m_pairRelCountBuffer, newArch->m_pairRelCountCnt, newArch->m_pairRelIndexBuffer, pairRelIndexCnt,
+							(EntityId)ids[i].id(), (uint8_t)i);
+					add_pair_index_bucket(
+							newArch->m_pairTgtCountBuffer, newArch->m_pairTgtCountCnt, newArch->m_pairTgtIndexBuffer, pairTgtIndexCnt,
+							(EntityId)ids[i].gen(), (uint8_t)i);
 
 					// If it is an Is relationship, count it separately
 					if (ids[i].id() == Is.id())
@@ -725,6 +757,18 @@ namespace gaia {
 			GAIA_NODISCARD Entity entity_from_pairs_as_idx(uint32_t idx) const {
 				const auto ids_idx = m_pairs_as_index_buffer[idx];
 				return m_ids[ids_idx];
+			}
+
+			GAIA_NODISCARD std::span<const uint8_t> pair_indices() const {
+				return {&m_pair_index_buffer[0], m_pairCnt};
+			}
+
+			GAIA_NODISCARD std::span<const uint8_t> pair_rel_indices(Entity relation) const {
+				return pair_indices_from_buckets(m_pairRelCountBuffer, m_pairRelCountCnt, m_pairRelIndexBuffer, (EntityId)relation.id());
+			}
+
+			GAIA_NODISCARD std::span<const uint8_t> pair_tgt_indices(Entity target) const {
+				return pair_indices_from_buckets(m_pairTgtCountBuffer, m_pairTgtCountCnt, m_pairTgtIndexBuffer, (EntityId)target.id());
 			}
 
 			//! Checks if an entity is a part of the archetype.

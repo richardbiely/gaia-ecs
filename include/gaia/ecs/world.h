@@ -5111,12 +5111,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return EntityBad;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.gen() != target.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_tgt_indices(target)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = *ecRel.pEntity;
@@ -5157,12 +5154,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.gen() != target.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_tgt_indices(target)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = *ecRel.pEntity;
@@ -5204,12 +5198,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (e.gen() != target.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_tgt_indices(target)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecRel = m_recs.entities[e.id()];
 					auto relation = *ecRel.pEntity;
@@ -5350,9 +5341,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return cache;
 
-				for (auto id: pArchetype->ids_view()) {
-					if (!id.pair())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_indices()) {
+					const auto id = ids[idsIdx];
 
 					const auto& ecTarget = m_recs.entities[id.gen()];
 					const auto target = *ecTarget.pEntity;
@@ -5573,12 +5564,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return EntityBad;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (relation != All && e.id() != relation.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = *ecTarget.pEntity;
@@ -5619,12 +5607,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (relation != All && e.id() != relation.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = *ecTarget.pEntity;
@@ -5666,12 +5651,9 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return;
 
-				auto ids = pArchetype->ids_view();
-				for (auto e: ids) {
-					if (!e.pair())
-						continue;
-					if (relation != All && e.id() != relation.id())
-						continue;
+				const auto ids = pArchetype->ids_view();
+				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
+					const auto e = ids[idsIdx];
 
 					const auto& ecTarget = m_recs.entities[e.gen()];
 					auto target = *ecTarget.pEntity;
