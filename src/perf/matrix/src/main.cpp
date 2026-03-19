@@ -4295,17 +4295,19 @@ void BM_Relationship_TargetsWildcard(picobench::state& state) {
 
 	ecs::World w;
 	const auto source = w.add();
-	const auto rel0 = w.add();
-	const auto rel1 = w.add();
-	const auto rel2 = w.add();
-	const ecs::Entity rels[] = {rel0, rel1, rel2};
 
 	cnt::darray<ecs::Entity> targets;
 	targets.reserve(n);
 	GAIA_FOR(n) {
+		// A single entity can't legally fragment into 10K pair ids because archetypes cap the
+		// number of stored terms. Use Exclusive+DontFragment relations so the wildcard helper still
+		// traverses 10K direct targets without inflating the source archetype.
+		const auto rel = w.add();
+		w.add(rel, ecs::Exclusive);
+		w.add(rel, ecs::DontFragment);
 		const auto target = w.add();
 		targets.push_back(target);
-		w.add(source, ecs::Pair(rels[i % 3U], target));
+		w.add(source, ecs::Pair(rel, target));
 	}
 
 	uint64_t visited = 0;

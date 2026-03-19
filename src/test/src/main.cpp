@@ -8530,6 +8530,36 @@ TEST_CASE("Relationship wildcard target traversal cache refreshes after change")
 	CHECK(core::has(targets, c));
 }
 
+TEST_CASE("Relationship wildcard target traversal supports many exclusive dontfragment relations") {
+	TestWorld twld;
+
+	constexpr uint32_t N = 128;
+	auto source = wld.add();
+
+	cnt::darr<ecs::Entity> expected;
+	expected.reserve(N);
+
+	GAIA_FOR(N) {
+		auto rel = wld.add();
+		wld.add(rel, ecs::Exclusive);
+		wld.add(rel, ecs::DontFragment);
+
+		auto target = wld.add();
+		expected.push_back(target);
+		wld.add(source, {rel, target});
+	}
+
+	cnt::darr<ecs::Entity> targets;
+	wld.targets(source, ecs::All, [&targets](ecs::Entity target) {
+		targets.push_back(target);
+	});
+
+	CHECK(targets.size() == N);
+	for (auto target: expected)
+		CHECK(core::has(targets, target));
+	CHECK(wld.target(source, ecs::All) != ecs::EntityBad);
+}
+
 TEST_CASE("Child hierarchy traversal") {
 	TestWorld twld;
 
