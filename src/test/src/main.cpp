@@ -17190,6 +17190,164 @@ TEST_CASE("Observer - fast path") {
 	(void)observerPairRuntime;
 }
 
+TEST_CASE("Observer - traversed source propagation on ancestor term changes") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	int addHits = 0;
+	int delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+		return wld.observer()
+				.event(event)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter& it) {
+					auto entities = it.view<ecs::Entity>();
+					GAIA_EACH(it) {
+						++hits;
+						out.push_back(entities[i]);
+					}
+				})
+				.entity();
+	};
+
+	(void)makeObserver(ecs::ObserverEvent::OnAdd, addHits, added);
+	(void)makeObserver(ecs::ObserverEvent::OnDel, delHits, removed);
+
+	wld.add<Acceleration>(root);
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	CHECK(added[0] == cable);
+
+	wld.del<Acceleration>(root);
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	CHECK(removed[0] == cable);
+}
+
+TEST_CASE("Observer - traversed source propagation on source binding pair changes") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+
+	int addHits = 0;
+	int delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+		return wld.observer()
+				.event(event)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter& it) {
+					auto entities = it.view<ecs::Entity>();
+					GAIA_EACH(it) {
+						++hits;
+						out.push_back(entities[i]);
+					}
+				})
+				.entity();
+	};
+
+	(void)makeObserver(ecs::ObserverEvent::OnAdd, addHits, added);
+	(void)makeObserver(ecs::ObserverEvent::OnDel, delHits, removed);
+
+	wld.add(cable, ecs::Pair(connectedTo, child));
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	CHECK(added[0] == cable);
+
+	wld.del(cable, ecs::Pair(connectedTo, child));
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	CHECK(removed[0] == cable);
+}
+
+TEST_CASE("Observer - traversed source propagation on relation edge changes") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+	auto q = wld.query()
+							 .template all<Position>()
+							 .all(ecs::Pair(connectedTo, ecs::Var0))
+							 .template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+	CHECK(q.count() == 0);
+
+	int addHits = 0;
+	int delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+		return wld.observer()
+				.event(event)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter& it) {
+					auto entities = it.view<ecs::Entity>();
+					GAIA_EACH(it) {
+						++hits;
+						out.push_back(entities[i]);
+					}
+				})
+				.entity();
+	};
+	const auto buildQuery = [&] {
+		return wld.query<false>()
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+	};
+
+	(void)makeObserver(ecs::ObserverEvent::OnAdd, addHits, added);
+	(void)makeObserver(ecs::ObserverEvent::OnDel, delHits, removed);
+
+	wld.child(child, root);
+	CHECK(wld.target(child, ecs::ChildOf) == root);
+	CHECK(buildQuery().count() == 1);
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	if (!added.empty())
+		CHECK(added[0] == cable);
+
+	wld.del(child, ecs::Pair(ecs::ChildOf, root));
+	CHECK(wld.target(child, ecs::ChildOf) == ecs::EntityBad);
+	CHECK(buildQuery().count() == 0);
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	if (!removed.empty())
+		CHECK(removed[0] == cable);
+}
+
 TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
 	TestWorld twld;
 
