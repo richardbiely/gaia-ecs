@@ -43409,13 +43409,20 @@ namespace gaia {
 			class ObserverRegistry {
 				struct DiffObserverSnapshot {
 					ObserverRuntimeData* pObs = nullptr;
-					cnt::darray<Entity> matchesBefore;
+					uint32_t matchesBeforeIdx = UINT32_MAX;
+				};
+
+				struct DiffMatchCacheEntry {
+					ObserverRuntimeData* pObsRepresentative = nullptr;
+					uint64_t queryHash = 0;
+					cnt::darray<Entity> matches;
 				};
 
 			public:
 				struct DiffDispatchCtx {
 					ObserverEvent event = ObserverEvent::OnAdd;
 					cnt::darray<DiffObserverSnapshot> observers;
+					cnt::darray<DiffMatchCacheEntry> matchesBeforeCache;
 					cnt::darray<Entity> targets;
 					bool active = false;
 					bool targeted = false;
@@ -43771,6 +43778,55 @@ namespace gaia {
 					it.set_group_id(0);
 					it.set_remapping_indices(0);
 					obs.exec(it, targets);
+				}
+
+				static uint64_t observer_query_hash(ObserverRuntimeData& obs) {
+					auto& queryInfo = obs.query.fetch();
+					return queryInfo.ctx().hashLookup.hash;
+				}
+
+				static bool same_observer_query_ctx(const QueryCtx& left, const QueryCtx& right) {
+					if (left.hashLookup != right.hashLookup)
+						return false;
+
+					const auto& leftData = left.data;
+					const auto& rightData = right.data;
+					if (leftData.idsCnt != rightData.idsCnt || leftData.changedCnt != rightData.changedCnt ||
+							leftData.readWriteMask != rightData.readWriteMask || leftData.cacheSrcTrav != rightData.cacheSrcTrav ||
+							leftData.sortBy != rightData.sortBy || leftData.sortByFunc != rightData.sortByFunc ||
+							leftData.groupBy != rightData.groupBy || leftData.groupByFunc != rightData.groupByFunc)
+						return false;
+
+					GAIA_FOR(leftData.idsCnt) {
+						if (leftData._terms[i] != rightData._terms[i])
+							return false;
+					}
+
+					GAIA_FOR(leftData.changedCnt) {
+						if (leftData._changed[i] != rightData._changed[i])
+							return false;
+					}
+
+					return true;
+				}
+
+				static int32_t find_diff_match_cache_entry(
+						cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+					auto& queryInfo = obs.query.fetch();
+					auto& queryCtx = queryInfo.ctx();
+					const auto queryHash = queryCtx.hashLookup.hash;
+
+					GAIA_FOR((uint32_t)cache.size()) {
+						auto& entry = cache[i];
+						if (entry.queryHash != queryHash || entry.pObsRepresentative == nullptr)
+							continue;
+
+						auto& repQueryInfo = entry.pObsRepresentative->query.fetch();
+						if (same_observer_query_ctx(queryCtx, repQueryInfo.ctx()))
+							return (int32_t)i;
+					}
+
+					return -1;
 				}
 
 				template <typename TObserverMap>
@@ -44168,11 +44224,22 @@ namespace gaia {
 						ctx.observers.push_back({});
 						auto& snapshot = ctx.observers.back();
 						snapshot.pObs = pObs;
-						if (ctx.targeted)
-							collect_query_target_matches(
-									world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, snapshot.matchesBefore);
-						else
-							collect_query_matches(world, *pObs, snapshot.matchesBefore);
+
+						auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
+						if (cacheIdx == -1) {
+							ctx.matchesBeforeCache.push_back({});
+							auto& entry = ctx.matchesBeforeCache.back();
+							entry.pObsRepresentative = pObs;
+							entry.queryHash = observer_query_hash(*pObs);
+							if (ctx.targeted)
+								collect_query_target_matches(
+										world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
+							else
+								collect_query_matches(world, *pObs, entry.matches);
+							cacheIdx = (int32_t)ctx.matchesBeforeCache.size() - 1;
+						}
+
+						snapshot.matchesBeforeIdx = (uint32_t)cacheIdx;
 					}
 
 					return ctx;
@@ -44251,7 +44318,7 @@ namespace gaia {
 					if (ctx.targeted)
 						normalize_diff_targets(ctx.targets);
 
-					cnt::darray<Entity> matchesAfter;
+					cnt::darray<DiffMatchCacheEntry> matchesAfterCache;
 					cnt::darray<Entity> delta;
 
 					for (auto& snapshot: ctx.observers) {
@@ -44259,32 +44326,42 @@ namespace gaia {
 						if (pObs == nullptr || !world.valid(pObs->entity))
 							continue;
 
-						if (ctx.targeted)
-							collect_query_target_matches(
-									world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, matchesAfter);
-						else
-							collect_query_matches(world, *pObs, matchesAfter);
+						auto afterCacheIdx = find_diff_match_cache_entry(matchesAfterCache, *pObs);
+						if (afterCacheIdx == -1) {
+							matchesAfterCache.push_back({});
+							auto& entry = matchesAfterCache.back();
+							entry.pObsRepresentative = pObs;
+							entry.queryHash = observer_query_hash(*pObs);
+							if (ctx.targeted)
+								collect_query_target_matches(
+										world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
+							else
+								collect_query_matches(world, *pObs, entry.matches);
+							afterCacheIdx = (int32_t)matchesAfterCache.size() - 1;
+						}
+
+						const auto& matchesAfter = matchesAfterCache[(uint32_t)afterCacheIdx].matches;
 
 						if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
 							execute_observer_targets(world, *pObs, EntitySpan{matchesAfter});
 							continue;
 						}
 
-						delta.clear();
+						GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
+						const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
 
-						const auto& before = snapshot.matchesBefore;
-						const auto& after = matchesAfter;
+						delta.clear();
 						uint32_t beforeIdx = 0;
-						uint32_t afterIdx = 0;
-						while (beforeIdx < before.size() || afterIdx < after.size()) {
+						uint32_t afterMatchIdx = 0;
+						while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
 							if (beforeIdx == before.size()) {
 								if (ctx.event == ObserverEvent::OnAdd)
-									delta.push_back(after[afterIdx]);
-								++afterIdx;
+									delta.push_back(matchesAfter[afterMatchIdx]);
+								++afterMatchIdx;
 								continue;
 							}
 
-							if (afterIdx == after.size()) {
+							if (afterMatchIdx == matchesAfter.size()) {
 								if (ctx.event == ObserverEvent::OnDel)
 									delta.push_back(before[beforeIdx]);
 								++beforeIdx;
@@ -44292,10 +44369,10 @@ namespace gaia {
 							}
 
 							const auto beforeEntity = before[beforeIdx];
-							const auto afterEntity = after[afterIdx];
+							const auto afterEntity = matchesAfter[afterMatchIdx];
 							if (beforeEntity == afterEntity) {
 								++beforeIdx;
-								++afterIdx;
+								++afterMatchIdx;
 								continue;
 							}
 
@@ -44306,7 +44383,7 @@ namespace gaia {
 							} else {
 								if (ctx.event == ObserverEvent::OnAdd)
 									delta.push_back(afterEntity);
-								++afterIdx;
+								++afterMatchIdx;
 							}
 						}
 
@@ -44500,8 +44577,7 @@ namespace gaia {
 						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
 							matches = false;
 						else {
-							// Entity still matches at this point, but won't after removal completes.
-							// Trigger the event for each matching observer.
+							// Entity matches after the add completed. Trigger the event for each matching observer.
 							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
 							matches = obs.query.matches_any(queryInfo, archetype, targets);
 						}
