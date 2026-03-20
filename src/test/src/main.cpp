@@ -17326,6 +17326,66 @@ TEST_CASE("Observer - traversed source propagation on source binding pair change
 	CHECK(removed[0] == cable);
 }
 
+TEST_CASE("Observer - traversed source local pair change only diffs touched entity") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cableExisting = wld.add();
+	wld.add<Position>(cableExisting);
+	wld.add(cableExisting, ecs::Pair(connectedTo, child));
+
+	const auto cableAdded = wld.add();
+	wld.add<Position>(cableAdded);
+
+	int addHits = 0;
+	cnt::darr<ecs::Entity> added;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++addHits;
+					added.push_back(entities[i]);
+				}
+			})
+			.entity();
+
+	wld.add(cableAdded, ecs::Pair(connectedTo, child));
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	CHECK(added[0] == cableAdded);
+
+	int delHits = 0;
+	cnt::darr<ecs::Entity> removed;
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++delHits;
+					removed.push_back(entities[i]);
+				}
+			})
+			.entity();
+
+	wld.del(cableAdded, ecs::Pair(connectedTo, child));
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	CHECK(removed[0] == cableAdded);
+}
+
 TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 	TestWorld twld;
 
