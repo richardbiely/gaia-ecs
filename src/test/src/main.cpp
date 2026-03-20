@@ -17279,6 +17279,50 @@ TEST_CASE("Observer - traversed source propagation on ancestor term changes") {
 	CHECK(removed[0] == cable);
 }
 
+TEST_CASE("Observer - traversed source propagation on ancestor term changes ignores unrelated existing matches") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootHot = wld.add();
+	const auto childHot = wld.add();
+	wld.child(childHot, rootHot);
+
+	const auto rootCold = wld.add();
+	const auto childCold = wld.add();
+	wld.child(childCold, rootCold);
+	wld.add<Acceleration>(rootCold);
+
+	const auto cableCold = wld.add();
+	wld.add<Position>(cableCold);
+	wld.add(cableCold, ecs::Pair(connectedTo, childCold));
+
+	const auto cableHot = wld.add();
+	wld.add<Position>(cableHot);
+	wld.add(cableHot, ecs::Pair(connectedTo, childHot));
+
+	int addHits = 0;
+	cnt::darr<ecs::Entity> added;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++addHits;
+					added.push_back(entities[i]);
+				}
+			})
+			.entity();
+
+	wld.add<Acceleration>(rootHot);
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	CHECK(added[0] == cableHot);
+}
+
 TEST_CASE("Observer - traversed source propagation on source binding pair changes") {
 	TestWorld twld;
 
