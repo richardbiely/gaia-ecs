@@ -44174,17 +44174,17 @@ namespace gaia {
 							return;
 
 						for (auto observer: it->second) {
-							if (!world.valid(observer))
-								continue;
-							const auto& ec = world.fetch(observer);
-							if (!world.enabled(ec))
-								continue;
-
 							auto* pObs = registry.data_try(observer);
+							GAIA_ASSERT(pObs != nullptr);
 							if (pObs == nullptr)
 								continue;
 							if (pObs->lastMatchStamp == matchStamp)
 								continue;
+
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
 							if constexpr (DiffOnly) {
 								if (!pObs->plan.uses_diff_dispatch())
 									continue;
@@ -44198,16 +44198,15 @@ namespace gaia {
 					static void collect_diff_from_list(
 							ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp) {
 						for (auto observer: observers) {
-							if (!world.valid(observer))
-								continue;
-							const auto& ec = world.fetch(observer);
-							if (!world.enabled(ec))
-								continue;
-
 							auto* pObs = registry.data_try(observer);
+							GAIA_ASSERT(pObs != nullptr);
 							if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
 								continue;
 							if (pObs->lastMatchStamp == matchStamp)
+								continue;
+
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
 								continue;
 
 							pObs->lastMatchStamp = matchStamp;
