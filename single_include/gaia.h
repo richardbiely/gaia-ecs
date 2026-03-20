@@ -37541,7 +37541,7 @@ namespace gaia {
 				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			bool register_archetype(const Archetype& archetype) {
+			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad) {
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary.
@@ -37557,6 +37557,12 @@ namespace gaia {
 					bool hasOrTerms = false;
 					bool matchedOrTerm = false;
 					for (const auto& term: ctxData.terms_view()) {
+						if (term.id == matchedSelector) {
+							if (term.op == QueryOpKind::Or)
+								matchedOrTerm = true;
+							continue;
+						}
+
 						const bool present = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
 																				: world_component_index_match_count(*world(), archetype, term.id) != 0;
 						if (term.op == QueryOpKind::Or) {
@@ -38258,6 +38264,24 @@ namespace gaia {
 			};
 
 		private:
+			//! Create-time query candidate together with the selector id that woke it.
+			//! Direct structural registration can use that selector to skip one redundant term check.
+			struct CreateQueryCandidate {
+				QueryHandle handle;
+				Entity matchedSelector = EntityBad;
+			};
+
+			//! Pair-selector categories used by create-time routing to skip wildcard buckets that
+			//! no cached query currently depends on.
+			enum class CreateSelectorKind : uint8_t {
+				Other,
+				ExactPair,
+				RelWildcardPair,
+				TgtWildcardPair,
+				AnyPairWildcard,
+				Count
+			};
+
 			struct TrackedArchetypes {
 				cnt::darray<const Archetype*> archetypes;
 				uint32_t syncedRevision = 0;
@@ -38286,10 +38310,12 @@ namespace gaia {
 			//! Cached query -> tracked result archetypes currently registered in m_archetypeToQuery
 			cnt::map<QueryHandleLookupKey, TrackedArchetypes> m_queryToArchetype;
 			//! Scratch candidate list reused while routing a newly created archetype to cached queries.
-			cnt::darray<QueryHandle> m_createQueryHandleScratch;
+			cnt::darray<CreateQueryCandidate> m_createQueryHandleScratch;
 			//! Handle-id stamp table used to deduplicate create candidates in O(1) per hit.
 			cnt::darray<uint32_t> m_createQueryHandleStampById;
 			uint32_t m_createQueryHandleStamp = 1;
+			//! Counts of cached create selectors by pair shape so archetype registration can skip miss-only buckets.
+			uint32_t m_createQuerySelectorCnt[(size_t)CreateSelectorKind::Count] = {};
 
 		public:
 			QueryCache() {
@@ -38328,6 +38354,8 @@ namespace gaia {
 				m_createQueryHandleScratch.clear();
 				m_createQueryHandleStampById.clear();
 				m_createQueryHandleStamp = 1;
+				for (auto& cnt: m_createQuerySelectorCnt)
+					cnt = 0;
 			}
 
 			//! Clears only the reverse indices that keep raw archetype pointers alive.
@@ -38558,43 +38586,84 @@ namespace gaia {
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
 				auto& handles = prepare_create_query_handles();
+				const bool needsExactPairSelectors = has_create_selector_kind(CreateSelectorKind::ExactPair);
+				const bool needsRelWildcardSelectors = has_create_selector_kind(CreateSelectorKind::RelWildcardPair);
+				const bool needsTgtWildcardSelectors = has_create_selector_kind(CreateSelectorKind::TgtWildcardPair);
+				const bool needsAnyPairWildcardSelectors = has_create_selector_kind(CreateSelectorKind::AnyPairWildcard);
 				bool hasAnyPair = false;
 				cnt::darray_ext<Entity, 16> pairWildcardRelations;
 				for (const auto entity: pArchetype->ids_view()) {
-					add_create_query_handles(EntityLookupKey(entity), handles);
-					if (!entity.pair())
+					if (!entity.pair()) {
+						add_create_query_handles(entity, handles);
 						continue;
+					}
 
 					hasAnyPair = true;
+					if (needsExactPairSelectors)
+						add_create_query_handles(entity, handles);
 
 					// Pair ids retain the relation/target ids plus their kind bits. That is enough to
 					// rebuild wildcard pair lookup keys without touching the world record storage.
 					const auto relKind = entity.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
-					add_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
-					if (!core::has(pairWildcardRelations, rel)) {
+					if (needsTgtWildcardSelectors)
+						add_create_query_handles(Pair(All, tgt), handles);
+					if (needsRelWildcardSelectors && !core::has(pairWildcardRelations, rel)) {
 						pairWildcardRelations.push_back(rel);
-						add_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+						add_create_query_handles(Pair(rel, All), handles);
 					}
 				}
 
-				if (hasAnyPair)
-					add_create_query_handles(EntityLookupKey(Pair(All, All)), handles);
+				if (hasAnyPair && needsAnyPairWildcardSelectors)
+					add_create_query_handles(Pair(All, All), handles);
 
-				for (const auto handle: handles) {
-					auto* pInfo = try_get(handle);
+				for (const auto& candidate: handles) {
+					auto* pInfo = try_get(candidate.handle);
 					if (pInfo == nullptr || pInfo->refs() == 0)
 						continue;
 
-					if (!pInfo->register_archetype(*pArchetype))
+					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector))
 						continue;
 
-					register_query_archetype(handle, pArchetype, pInfo->reverse_index_revision());
+					register_query_archetype(candidate.handle, pArchetype, pInfo->reverse_index_revision());
 				}
 			}
 
 		private:
+			//! Classifies only the pair selector shapes that matter to create-time wildcard routing.
+			static CreateSelectorKind classify_create_selector(Entity entity) {
+				if (!entity.pair())
+					return CreateSelectorKind::Other;
+				if (is_wildcard(entity.id()))
+					return is_wildcard(entity.gen()) ? CreateSelectorKind::AnyPairWildcard : CreateSelectorKind::TgtWildcardPair;
+				if (is_wildcard(entity.gen()))
+					return CreateSelectorKind::RelWildcardPair;
+				return CreateSelectorKind::ExactPair;
+			}
+
+			GAIA_NODISCARD static constexpr uint32_t selector_kind_idx(CreateSelectorKind kind) {
+				return (uint32_t)kind;
+			}
+
+			GAIA_NODISCARD bool has_create_selector_kind(CreateSelectorKind kind) const {
+				return m_createQuerySelectorCnt[selector_kind_idx(kind)] != 0;
+			}
+
+			//! Tracks how many cached create selectors are registered for each selector category.
+			void track_create_selector(Entity entity) {
+				const auto kind = classify_create_selector(entity);
+				++m_createQuerySelectorCnt[selector_kind_idx(kind)];
+			}
+
+			//! Mirrors track_create_selector() when a cached query is removed.
+			void untrack_create_selector(Entity entity) {
+				const auto kind = classify_create_selector(entity);
+				auto& cnt = m_createQuerySelectorCnt[selector_kind_idx(kind)];
+				GAIA_ASSERT(cnt != 0);
+				--cnt;
+			}
+
 			static QueryInfo::InvalidationKind select_invalidation_kind(const QueryInfo& info, ChangeKind changeKind) {
 				switch (changeKind) {
 					case ChangeKind::DynamicResult:
@@ -38669,12 +38738,15 @@ namespace gaia {
 				const auto it = m_entityToCreateQuery.find(entityKey);
 				if (it == m_entityToCreateQuery.end()) {
 					m_entityToCreateQuery.try_emplace(entityKey, cnt::darray<QueryHandle>{handle});
+					track_create_selector(entity);
 					return;
 				}
 
 				auto& handles = it->second;
-				if (!core::has(handles, handle))
+				if (!core::has(handles, handle)) {
 					handles.push_back(handle);
+					track_create_selector(entity);
+				}
 			}
 
 			void add_sort_to_query_pair(Entity entity, QueryHandle handle) {
@@ -38738,6 +38810,7 @@ namespace gaia {
 
 				auto& handles = it->second;
 				core::swap_erase(handles, core::get_index(handles, handle));
+				untrack_create_selector(entity);
 				if (handles.empty())
 					m_entityToCreateQuery.erase(it);
 			}
@@ -38761,18 +38834,18 @@ namespace gaia {
 					del_create_to_query_pair(entity, handle);
 			}
 
-			void add_create_query_handles(EntityLookupKey entityKey, cnt::darray<QueryHandle>& handles) {
-				const auto it = m_entityToCreateQuery.find(entityKey);
+			void add_create_query_handles(Entity selector, cnt::darray<CreateQueryCandidate>& handles) {
+				const auto it = m_entityToCreateQuery.find(EntityLookupKey(selector));
 				if (it == m_entityToCreateQuery.end())
 					return;
 
 				for (const auto handle: it->second) {
 					if (mark_create_query_handle(handle))
-						handles.push_back(handle);
+						handles.push_back(CreateQueryCandidate{handle, selector});
 				}
 			}
 
-			cnt::darray<QueryHandle>& prepare_create_query_handles() {
+			cnt::darray<CreateQueryCandidate>& prepare_create_query_handles() {
 				m_createQueryHandleScratch.clear();
 
 				// Archetype creation can fan out through many positive selector ids. Use a monotonic stamp table

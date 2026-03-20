@@ -3585,7 +3585,7 @@ TEST_CASE("Entity copy") {
 	CHECK(wld.has(e3, e2));
 }
 
-TEST_CASE("Entity - exact has/get survive archetype moves") {
+TEST_CASE("Entity - exact has/get across archetype moves") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -8458,7 +8458,7 @@ TEST_CASE("Relationship wildcard source traversal") {
 	CHECK(visited == 1);
 }
 
-TEST_CASE("Relationship wildcard source traversal cache refreshes after change") {
+TEST_CASE("Relationship wildcard source traversal after change") {
 	TestWorld twld;
 
 	auto rel0 = wld.add();
@@ -8531,7 +8531,7 @@ TEST_CASE("Relationship wildcard target traversal") {
 	CHECK(visited == 1);
 }
 
-TEST_CASE("Relationship wildcard target traversal cache refreshes after change") {
+TEST_CASE("Relationship wildcard target traversal after change") {
 	TestWorld twld;
 
 	auto rel0 = wld.add();
@@ -8567,7 +8567,7 @@ TEST_CASE("Relationship wildcard target traversal cache refreshes after change")
 	CHECK(core::has(targets, c));
 }
 
-TEST_CASE("Relationship wildcard target traversal supports many exclusive dontfragment relations") {
+TEST_CASE("Relationship wildcard target traversal with many exclusive dontfragment relations") {
 	TestWorld twld;
 
 	constexpr uint32_t N = 128;
@@ -8649,7 +8649,7 @@ TEST_CASE("Child hierarchy traversal") {
 	}
 }
 
-TEST_CASE("Upward traversal stops at disabled ancestors") {
+TEST_CASE("Upward traversal with disabled ancestors") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -8742,7 +8742,7 @@ TEST_CASE("Query entity each bfs") {
 	CHECK(ents[3] == b);
 }
 
-TEST_CASE("Query entity each bfs prunes disabled ancestor barriers") {
+TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -10417,7 +10417,7 @@ TEST_CASE("Entity name - copy") {
 	}
 }
 
-TEST_CASE("Copy preserves sparse component data") {
+TEST_CASE("Copy sparse component data") {
 	TestWorld twld;
 
 	const auto src = wld.add();
@@ -11068,7 +11068,7 @@ TEST_CASE("Query - all/any eval after new archetypes are created") {
 	expect_exact_entities(qOr, {e1, e2, e3, e4});
 }
 
-TEST_CASE("Query - cached component query sees entities added after creation") {
+TEST_CASE("Query - cached component query after entity creation") {
 	TestWorld twld;
 
 	auto qCached = wld.query().all<Position&>().all<Acceleration&>();
@@ -11106,7 +11106,7 @@ TEST_CASE("Query - cached component query sees entities added after creation") {
 	}
 }
 
-TEST_CASE("Query - cached OR query sees matches added after creation") {
+TEST_CASE("Query - cached OR query after entity creation") {
 	TestWorld twld;
 
 	auto tagA = wld.add();
@@ -11125,7 +11125,7 @@ TEST_CASE("Query - cached OR query sees matches added after creation") {
 	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 1);
 }
 
-TEST_CASE("Query - cached OR query eagerly tracks secondary selector archetypes") {
+TEST_CASE("Query - cached OR query with secondary selector archetypes") {
 	TestWorld twld;
 
 	auto tagA = wld.add();
@@ -11141,7 +11141,7 @@ TEST_CASE("Query - cached OR query eagerly tracks secondary selector archetypes"
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and OR query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached exact and OR query after matching archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().or_<Scale>().or_<Acceleration>();
@@ -11158,7 +11158,7 @@ TEST_CASE("Query - cached exact and OR query eagerly tracks matching archetypes"
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and ANY query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached exact and ANY query after matching archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().any<Rotation>();
@@ -11174,7 +11174,7 @@ TEST_CASE("Query - cached exact and ANY query eagerly tracks matching archetypes
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and ANY query ignores archetypes without positive selectors") {
+TEST_CASE("Query - cached exact and ANY query without positive selectors") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().any<Rotation>();
@@ -11190,7 +11190,7 @@ TEST_CASE("Query - cached exact and ANY query ignores archetypes without positiv
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached structural query after matching archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position&>().all<Acceleration&>();
@@ -11207,7 +11207,7 @@ TEST_CASE("Query - cached structural query eagerly tracks matching archetypes") 
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - broad-first exact query still tracks selective match") {
+TEST_CASE("Query - broad-first exact query with selective match") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().all<Rotation>();
@@ -11229,7 +11229,7 @@ TEST_CASE("Query - broad-first exact query still tracks selective match") {
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached single-term structural query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached single-term structural query after matching archetype creation") {
 	TestWorld twld;
 
 	const auto tag = wld.add();
@@ -11244,7 +11244,7 @@ TEST_CASE("Query - cached single-term structural query eagerly tracks matching a
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached four-term structural query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached four-term structural query after matching archetype creation") {
 	TestWorld twld;
 
 	const auto tagA = wld.add();
@@ -11268,7 +11268,7 @@ TEST_CASE("Query - cached four-term structural query eagerly tracks matching arc
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached Is query sees inherited archetypes after refresh") {
+TEST_CASE("Query - cached Is query after inherited archetype creation") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -11287,7 +11287,7 @@ TEST_CASE("Query - cached Is query sees inherited archetypes after refresh") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
-TEST_CASE("Query - direct Is query matches only direct stored edges") {
+TEST_CASE("Query - direct Is query with direct stored edges") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -11464,7 +11464,7 @@ TEST_CASE("Prefab - explicit Override policy copies sparse data") {
 	CHECK(prefabPos.z == doctest::Approx(2.0f));
 }
 
-TEST_CASE("Prefab - Inherit policy resolves through the prefab until overridden locally") {
+TEST_CASE("Prefab - Inherit policy before local override") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11483,7 +11483,7 @@ TEST_CASE("Prefab - Inherit policy resolves through the prefab until overridden 
 	CHECK(wld.get<Position>(instance).x == 8.0f);
 }
 
-TEST_CASE("Prefab - explicit override materializes inherited ownership") {
+TEST_CASE("Prefab - explicit override and inherited ownership") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11501,7 +11501,7 @@ TEST_CASE("Prefab - explicit override materializes inherited ownership") {
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE("Prefab - explicit override supports inherited tags") {
+TEST_CASE("Prefab - explicit override and inherited tags") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11518,7 +11518,7 @@ TEST_CASE("Prefab - explicit override supports inherited tags") {
 	CHECK_FALSE(wld.override(instance, tag));
 }
 
-TEST_CASE("Is inheritance - explicit override materializes inherited ownership") {
+TEST_CASE("Is inheritance - explicit override and inherited ownership") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -11538,7 +11538,7 @@ TEST_CASE("Is inheritance - explicit override materializes inherited ownership")
 	CHECK(wld.get<Position>(animal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE("Is inheritance - explicit override supports inherited tags") {
+TEST_CASE("Is inheritance - explicit override and inherited tags") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -11555,7 +11555,7 @@ TEST_CASE("Is inheritance - explicit override supports inherited tags") {
 	CHECK_FALSE(wld.override(rabbit, tag));
 }
 
-TEST_CASE("Prefab - inherited component queries see instances and materialize local overrides on write") {
+TEST_CASE("Prefab - inherited component query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11616,7 +11616,7 @@ TEST_CASE(
 	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(11.0f));
 }
 
-TEST_CASE("Is inheritance - explicit override preserves query membership") {
+TEST_CASE("Is inheritance - explicit override and query membership") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -11635,7 +11635,7 @@ TEST_CASE("Is inheritance - explicit override preserves query membership") {
 	expect_exact_entities(q, {animal, rabbit});
 }
 
-TEST_CASE("Prefab - inherited sparse component queries see instances and materialize local overrides on write") {
+TEST_CASE("Prefab - inherited sparse component query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11665,7 +11665,7 @@ TEST_CASE("Prefab - inherited sparse component queries see instances and materia
 	CHECK(wld.get<PositionSparse>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE("Prefab - inherited writable query updates multiple instances from a stable snapshot") {
+TEST_CASE("Prefab - inherited writable query over a stable snapshot") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11691,7 +11691,7 @@ TEST_CASE("Prefab - inherited writable query updates multiple instances from a s
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE("Prefab - inherited Iter query term access resolves and writes overrides locally") {
+TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11724,7 +11724,7 @@ TEST_CASE("Prefab - inherited Iter query term access resolves and writes overrid
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE("Prefab - inherited Iter SoA query term access resolves and writes overrides locally") {
+TEST_CASE("Prefab - inherited Iter SoA query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11772,7 +11772,7 @@ TEST_CASE("Prefab - inherited Iter SoA query term access resolves and writes ove
 	CHECK(prefabPos.z == doctest::Approx(7.0f));
 }
 
-TEST_CASE("Prefab - explicit override supports inherited SoA components") {
+TEST_CASE("Prefab - explicit override and inherited SoA components") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11793,7 +11793,7 @@ TEST_CASE("Prefab - explicit override supports inherited SoA components") {
 	CHECK_FALSE(wld.override<PositionSoA>(instance));
 }
 
-TEST_CASE("Prefab - explicit override supports inherited sparse components") {
+TEST_CASE("Prefab - explicit override and inherited sparse components") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11814,7 +11814,7 @@ TEST_CASE("Prefab - explicit override supports inherited sparse components") {
 	CHECK_FALSE(wld.override<PositionSparse>(instance));
 }
 
-TEST_CASE("Prefab - explicit override by id supports inherited runtime sparse components") {
+TEST_CASE("Prefab - explicit override by id and inherited runtime sparse components") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -11930,7 +11930,7 @@ TEST_CASE("Prefab - instantiate can parent the spawned subtree under an existing
 	CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
 }
 
-TEST_CASE("Instantiate - non-prefab parented fallback behaves like copy plus parent") {
+TEST_CASE("Instantiate - non-prefab parented fallback as copy plus parent") {
 	TestWorld twld;
 
 	const auto scene = wld.add();
@@ -11989,7 +11989,7 @@ TEST_CASE("Prefab - instantiate_n does not copy prefab names") {
 		CHECK(wld.name(instance).empty());
 }
 
-TEST_CASE("Instantiate_n - non-prefab parented fallback supports CopyIter callbacks") {
+TEST_CASE("Instantiate_n - non-prefab parented fallback with CopyIter callbacks") {
 	TestWorld twld;
 
 	const auto scene = wld.add();
@@ -12025,7 +12025,7 @@ TEST_CASE("Instantiate_n - non-prefab parented fallback supports CopyIter callba
 	}
 }
 
-TEST_CASE("Instantiate_n - non-prefab parented fallback uses entity callbacks after parenting") {
+TEST_CASE("Instantiate_n - non-prefab parented fallback with entity callbacks after parenting") {
 	TestWorld twld;
 
 	const auto scene = wld.add();
@@ -12051,7 +12051,7 @@ TEST_CASE("Instantiate_n - non-prefab parented fallback uses entity callbacks af
 		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
 }
 
-TEST_CASE("Observer - instantiate_n non-prefab parented fallback matches Parent pair") {
+TEST_CASE("Observer - instantiate_n non-prefab parented fallback and Parent pair") {
 	TestWorld twld;
 
 	const auto scene = wld.add();
@@ -12109,7 +12109,7 @@ TEST_CASE("Observer - parented prefab instantiate matches Parent pair") {
 	CHECK(seen == 1);
 }
 
-TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots") {
+TEST_CASE("Prefab - instantiate_n CopyIter callbacks for spawned roots") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -12142,7 +12142,7 @@ TEST_CASE("Prefab - instantiate_n supports CopyIter callbacks for spawned roots"
 	}
 }
 
-TEST_CASE("Prefab - instantiate_n inherited component queries materialize independent local overrides") {
+TEST_CASE("Prefab - instantiate_n inherited component queries and local overrides") {
 	TestWorld twld;
 
 	const auto prefabAnimal = wld.prefab();
@@ -12397,7 +12397,7 @@ TEST_CASE("Prefab - sync recurses into existing child instances") {
 	CHECK(wld.get<Scale>(childInstance).z == doctest::Approx(0.25f));
 }
 
-TEST_CASE("Prefab - removing inherited prefab data stops resolving on existing instances") {
+TEST_CASE("Prefab - removing inherited prefab data on existing instances") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -12464,7 +12464,7 @@ TEST_CASE("Prefab - sync does not delete existing child instances when prefab ch
 	CHECK(wld.get<Position>(childInstance).x == doctest::Approx(2.0f));
 }
 
-TEST_CASE("Prefab - instantiate ignores non-prefab Parent children") {
+TEST_CASE("Prefab - instantiate with non-prefab Parent children excluded") {
 	TestWorld twld;
 
 	const auto rootPrefab = wld.prefab();
@@ -12509,7 +12509,7 @@ TEST_CASE("Prefab - child instantiation respects DontInherit policy") {
 	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
 }
 
-TEST_CASE("Query - Iter is query preserves component access") {
+TEST_CASE("Query - Iter is query component access") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -12546,7 +12546,7 @@ TEST_CASE("Query - Iter is query preserves component access") {
 	CHECK(directX == doctest::Approx(1.0f));
 }
 
-TEST_CASE("Query - cached direct Is query ignores transitive descendants") {
+TEST_CASE("Query - cached direct Is query without transitive descendants") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -12604,7 +12604,7 @@ TEST_CASE("Query - mixed semantic and direct Is terms") {
 	expect_exact_entities(qExcludeDirectHerbivoreChildren, {animal, herbivore, carnivore, wolf});
 }
 
-TEST_CASE("Query - direct Is QueryInput item matches only direct stored edges") {
+TEST_CASE("Query - direct Is QueryInput item with direct stored edges") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -12648,7 +12648,7 @@ TEST_CASE("Query - cached query reverse-index revision changes only on membershi
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
-TEST_CASE("Query - cached dynamic query keeps warm reads stable until inputs change") {
+TEST_CASE("Query - cached dynamic query after input changes") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -12688,7 +12688,7 @@ TEST_CASE("Query - cached dynamic query keeps warm reads stable until inputs cha
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached direct-source query keeps warm reads stable until source changes") {
+TEST_CASE("Query - cached direct-source query after source changes") {
 	TestWorld twld;
 
 	auto source = wld.add();
@@ -12719,7 +12719,7 @@ TEST_CASE("Query - cached direct-source query keeps warm reads stable until sour
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached direct-source query ignores unrelated archetype changes") {
+TEST_CASE("Query - cached direct-source query with unrelated archetype changes") {
 	TestWorld twld;
 
 	auto source = wld.add();
@@ -12744,7 +12744,7 @@ TEST_CASE("Query - cached direct-source query ignores unrelated archetype change
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached direct-source query sees deleted source entities") {
+TEST_CASE("Query - cached direct-source query with deleted source entities") {
 	TestWorld twld;
 
 	auto source = wld.add();
@@ -12767,7 +12767,7 @@ TEST_CASE("Query - cached direct-source query sees deleted source entities") {
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached traversed-source query keeps warm reads stable until traversal state changes") {
+TEST_CASE("Query - cached traversed-source query after traversal changes") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -12810,7 +12810,7 @@ TEST_CASE("Query - cached traversed-source query keeps warm reads stable until t
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached traversed-source query ignores unrelated archetype changes") {
+TEST_CASE("Query - cached traversed-source query with unrelated archetype changes") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -12886,7 +12886,7 @@ TEST_CASE("Query - capped traversed-source snapshots fall back to lazy rebuild")
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - dependency metadata classification") {
+TEST_CASE("Query - dependency metadata") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -12951,7 +12951,7 @@ TEST_CASE("Query - dependency metadata classification") {
 	CHECK(qGrouped.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasGroup));
 }
 
-TEST_CASE("Query - create selector routing prefers narrowest ALL term") {
+TEST_CASE("Query - create selectors with narrowest ALL term") {
 	TestWorld twld;
 
 	GAIA_FOR(8) {
@@ -12971,7 +12971,7 @@ TEST_CASE("Query - create selector routing prefers narrowest ALL term") {
 	CHECK(deps.create_selectors_view()[0] == wld.get<Acceleration>());
 }
 
-TEST_CASE("Query - create selector routing prefers wildcard pair over broad exact term on empty world") {
+TEST_CASE("Query - create selectors with wildcard pair over broad exact term on empty world") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -12981,7 +12981,7 @@ TEST_CASE("Query - create selector routing prefers wildcard pair over broad exac
 	CHECK(deps.create_selectors_view()[0] == ecs::Pair(rel, ecs::All));
 }
 
-TEST_CASE("Query - public cache mode and policy classification") {
+TEST_CASE("Query - cache mode and policy") {
 	TestWorld twld;
 
 	auto source = wld.add();
@@ -13016,7 +13016,7 @@ TEST_CASE("Query - public cache mode and policy classification") {
 	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 }
 
-TEST_CASE("Query - public cache kind construction") {
+TEST_CASE("Query - cache kind") {
 	TestWorld twld;
 
 	ecs::Query::SilenceInvalidCacheKindAssertions = true;
@@ -13100,7 +13100,7 @@ TEST_CASE("Query - public cache kind construction") {
 	ecs::Query::SilenceInvalidCacheKindAssertions = false;
 }
 
-TEST_CASE("Query - cache_src_trav affects cache lookup hash only for traversed source queries") {
+TEST_CASE("Query - cache_src_trav and traversed source cache keys") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -13130,7 +13130,7 @@ TEST_CASE("Query - cache_src_trav affects cache lookup hash only for traversed s
 	CHECK(ctxTraversedSourceSrcTrav.data.cacheSrcTrav == ecs::MaxCacheSrcTrav);
 }
 
-TEST_CASE("Query - shared cache deduplicates identical persistent traversed queries") {
+TEST_CASE("Query - shared cache for identical traversed queries") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -13167,7 +13167,7 @@ TEST_CASE("Query - shared cache deduplicates identical persistent traversed quer
 	CHECK(queries.size() == 200);
 }
 
-TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
+TEST_CASE("Query - cached broad NOT query after archetype creation") {
 	TestWorld twld;
 
 	auto excluded = wld.add();
@@ -13186,7 +13186,7 @@ TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creat
 	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
 }
 
-TEST_CASE("Query - cached broad NOT query ignores non-matching archetypes") {
+TEST_CASE("Query - cached broad NOT query with non-matching archetypes") {
 	TestWorld twld;
 
 	auto excluded = wld.add();
@@ -13205,7 +13205,7 @@ TEST_CASE("Query - cached broad NOT query ignores non-matching archetypes") {
 	CHECK(q.count() == qUncached.count());
 }
 
-TEST_CASE("Query - cached broad NOT wildcard pair query refreshes lazily after archetype creation") {
+TEST_CASE("Query - cached broad NOT wildcard pair query after archetype creation") {
 	TestWorld twld;
 
 	auto relExcluded = wld.add();
@@ -13225,7 +13225,7 @@ TEST_CASE("Query - cached broad NOT wildcard pair query refreshes lazily after a
 	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
 }
 
-TEST_CASE("Query - cached broad NOT wildcard pair query ignores excluded archetypes") {
+TEST_CASE("Query - cached broad NOT wildcard pair query with excluded archetypes") {
 	TestWorld twld;
 
 	auto relExcluded = wld.add();
@@ -13243,7 +13243,7 @@ TEST_CASE("Query - cached broad NOT wildcard pair query ignores excluded archety
 	CHECK(q.count() == qUncached.count());
 }
 
-TEST_CASE("Query - cached multi-NOT query refreshes lazily after archetype creation") {
+TEST_CASE("Query - cached multi-NOT query after archetype creation") {
 	TestWorld twld;
 
 	auto excludedA = wld.add();
@@ -13263,7 +13263,7 @@ TEST_CASE("Query - cached multi-NOT query refreshes lazily after archetype creat
 	CHECK(info.cache_archetype_view().size() == archetypeCntBefore + 1);
 }
 
-TEST_CASE("Query - cached multi-NOT query ignores archetypes with excluded ids") {
+TEST_CASE("Query - cached multi-NOT query with excluded ids") {
 	TestWorld twld;
 
 	auto excludedA = wld.add();
@@ -13281,7 +13281,7 @@ TEST_CASE("Query - cached multi-NOT query ignores archetypes with excluded ids")
 	CHECK(q.count() == qUncached.count());
 }
 
-TEST_CASE("Query - cached structural query picks up new matching archetype after warm match") {
+TEST_CASE("Query - cached structural query after warm match and new archetype") {
 	TestWorld twld;
 
 	auto e0 = wld.add();
@@ -13302,7 +13302,7 @@ TEST_CASE("Query - cached structural query picks up new matching archetype after
 	CHECK(q.count() == 2);
 }
 
-TEST_CASE("Query - cached wildcard pair queries eagerly track matching archetypes") {
+TEST_CASE("Query - cached wildcard pair query after matching archetype creation") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -13328,7 +13328,7 @@ TEST_CASE("Query - cached wildcard pair queries eagerly track matching archetype
 	CHECK(qTgt.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and wildcard pair query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached exact and wildcard pair query after matching archetype creation") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -13349,7 +13349,7 @@ TEST_CASE("Query - cached exact and wildcard pair query eagerly tracks matching 
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and NOT query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached exact and NOT query after matching archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().no<Scale>();
@@ -13366,7 +13366,7 @@ TEST_CASE("Query - cached exact and NOT query eagerly tracks matching archetypes
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached exact and NOT query ignores excluded archetype creation") {
+TEST_CASE("Query - cached exact and NOT query with excluded archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().no<Scale>();
@@ -13383,7 +13383,7 @@ TEST_CASE("Query - cached exact and NOT query ignores excluded archetype creatio
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
+TEST_CASE("Query - cached any-pair query after matching archetype creation") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -13402,7 +13402,7 @@ TEST_CASE("Query - cached any-pair query eagerly tracks matching archetypes") {
 	CHECK(q.count() == entityCntBefore + 1);
 }
 
-TEST_CASE("Query - cached any-pair query count refreshes after pair removal") {
+TEST_CASE("Query - cached any-pair query after pair removal") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -13421,7 +13421,7 @@ TEST_CASE("Query - cached any-pair query count refreshes after pair removal") {
 	CHECK(q.count() == 0);
 }
 
-TEST_CASE("Query - cached wildcard pair query stays stable for pair-heavy archetypes") {
+TEST_CASE("Query - cached wildcard pair query on pair-heavy archetypes") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -13442,7 +13442,7 @@ TEST_CASE("Query - cached wildcard pair query stays stable for pair-heavy archet
 	CHECK(info.cache_archetype_view().size() == archetypeCntAfterBuild);
 }
 
-TEST_CASE("Query - cached sorted query refreshes lazily after archetype creation") {
+TEST_CASE("Query - cached sorted query after archetype creation") {
 	TestWorld twld;
 
 	auto q = wld.query().all<Position>().sort_by(
@@ -13469,7 +13469,7 @@ TEST_CASE("Query - cached sorted query refreshes lazily after archetype creation
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
-TEST_CASE("Query - cached sorted query exact sort term lookup matches chunk columns across archetypes") {
+TEST_CASE("Query - cached sorted query exact sort term lookup across archetypes") {
 	TestWorld twld;
 
 	auto e0 = wld.add();
@@ -13545,7 +13545,7 @@ TEST_CASE("Query - cached sorted query exact sort term lookup matches chunk colu
 	}
 }
 
-TEST_CASE("Query - cached sorted query exact external sort term lookup matches chunk columns across archetypes") {
+TEST_CASE("Query - cached sorted query external exact sort term lookup across archetypes") {
 	TestWorld twld;
 
 	auto e0 = wld.add();
@@ -13619,7 +13619,7 @@ TEST_CASE("Query - cached sorted query exact external sort term lookup matches c
 	CHECK(info.cache_archetype_view().size() >= 5);
 }
 
-TEST_CASE("Query - cached grouped query refreshes lazily after archetype creation") {
+TEST_CASE("Query - cached grouped query after archetype creation") {
 	TestWorld twld;
 
 	auto eats = wld.add();
@@ -13643,7 +13643,7 @@ TEST_CASE("Query - cached grouped query refreshes lazily after archetype creatio
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Query - cached grouped queries keep instance-local group filters") {
+TEST_CASE("Query - cached grouped queries with instance-local group filters") {
 	TestWorld twld;
 
 	auto eats = wld.add();
@@ -13680,7 +13680,7 @@ TEST_CASE("Query - cached grouped queries keep instance-local group filters") {
 	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
 }
 
-TEST_CASE("Query - cached relation wildcard query survives repeated pair additions") {
+TEST_CASE("Query - cached relation wildcard query after repeated pair additions") {
 	TestWorld twld;
 	static constexpr uint32_t PairCount = 30;
 
@@ -13702,7 +13702,7 @@ TEST_CASE("Query - cached relation wildcard query survives repeated pair additio
 	CHECK(q.count() == 1);
 }
 
-TEST_CASE("Component index tracks exact and wildcard pair match counts") {
+TEST_CASE("Component index exact and wildcard pair match counts") {
 	TestWorld twld;
 
 	const auto rel0 = wld.add();
@@ -13728,7 +13728,7 @@ TEST_CASE("Component index tracks exact and wildcard pair match counts") {
 	CHECK(ecs::world_component_index_match_count(wld, *pArchetype, ecs::Pair(ecs::All, ecs::All)) == 3);
 }
 
-TEST_CASE("Component index exact term entries follow add and delete archetype moves") {
+TEST_CASE("Component index exact term entries across add and delete archetype moves") {
 	TestWorld twld;
 
 	(void)wld.add<Position>();
@@ -13758,7 +13758,7 @@ TEST_CASE("Component index exact term entries follow add and delete archetype mo
 	CHECK(ecs::world_component_index_match_count(wld, *pRootAgain, wld.get<Position>()) == 0);
 }
 
-TEST_CASE("Query - exact owned term matcher fast path preserves inherited fallback") {
+TEST_CASE("Query - exact owned term matcher with inherited fallback") {
 	TestWorld twld;
 
 	const auto owned = wld.add();
@@ -13853,7 +13853,7 @@ TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
-TEST_CASE("Query - cached structural query stays stable across eager add and gc") {
+TEST_CASE("Query - cached structural query across eager add and gc") {
 	TestWorld twld;
 
 	auto e0 = wld.add();
@@ -13901,7 +13901,7 @@ TEST_CASE("Query - cached query destruction unregisters archetype reverse index"
 	CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 0);
 }
 
-TEST_CASE("Query - cached reverse index stays stable across repeated eager add gc and destruction") {
+TEST_CASE("Query - cached reverse index across repeated eager add gc and destruction") {
 	TestWorld twld;
 	for (int i = 0; i < 256; ++i) {
 		auto e0 = wld.add();
@@ -15368,7 +15368,7 @@ TEST_CASE("Query Filter - changed OR terms") {
 	}
 }
 
-TEST_CASE("Query Filter - changed order cache key canonicalization") {
+TEST_CASE("Query Filter - changed order cache keys") {
 	TestWorld twld;
 	struct Marker {};
 	struct A {
@@ -15402,7 +15402,7 @@ TEST_CASE("Query Filter - changed order cache key canonicalization") {
 	CHECK(qAB.gen() == qBA.gen());
 }
 
-TEST_CASE("Query Filter - cached changed queries keep instance-local reporting state") {
+TEST_CASE("Query Filter - cached changed queries with instance-local reporting state") {
 	TestWorld twld;
 	struct Marker {};
 	struct A {
@@ -15484,7 +15484,7 @@ TEST_CASE("Query Filter - cached changed query empty is non-consuming and instan
 	expect_changed_consume_exact(q1, {e});
 }
 
-TEST_CASE("Query Filter - cached changed queries keep instance-local var bindings") {
+TEST_CASE("Query Filter - cached changed queries with instance-local var bindings") {
 	TestWorld twld;
 	struct Ship {};
 	struct Planet {};
@@ -15546,7 +15546,7 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local var binding
 	expect_changed_consume_exact(qMars, {shipMars});
 }
 
-TEST_CASE("Query Filter - cached changed queries keep instance-local group filters") {
+TEST_CASE("Query Filter - cached changed queries with instance-local group filters") {
 	TestWorld twld;
 	struct Position {
 		float x, y, z;
@@ -15601,7 +15601,7 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local group filte
 	expect_changed_consume_exact(qSalad, {eSaladA, eSaladB});
 }
 
-TEST_CASE("Query Filter - cached changed traversed source queries keep instance-local var bindings") {
+TEST_CASE("Query Filter - cached changed traversed source queries with instance-local var bindings") {
 	TestWorld twld;
 	struct Status {
 		int value;
@@ -16352,7 +16352,7 @@ TEST_CASE("System - prefabs are excluded by default and can be matched explicitl
 	CHECK(prefabHits == 2);
 }
 
-TEST_CASE("System - inherited prefab component query sees instances and writes override locally") {
+TEST_CASE("System - inherited prefab component query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -16376,7 +16376,7 @@ TEST_CASE("System - inherited prefab component query sees instances and writes o
 	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
 }
 
-TEST_CASE("System - inherited Is component query sees derived entities and writes override locally") {
+TEST_CASE("System - inherited Is component query writes local overrides") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -16400,7 +16400,7 @@ TEST_CASE("System - inherited Is component query sees derived entities and write
 	CHECK(wld.get<Position>(rabbit).x == doctest::Approx(8.0f));
 }
 
-TEST_CASE("System - inherited prefab sparse component query sees instances and writes override locally") {
+TEST_CASE("System - inherited prefab sparse component query writes local overrides") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -16424,7 +16424,7 @@ TEST_CASE("System - inherited prefab sparse component query sees instances and w
 	CHECK(wld.get<PositionSparse>(prefab).x == doctest::Approx(4.0f));
 }
 
-TEST_CASE("System - inherited prefab Iter query preserves term-indexed access") {
+TEST_CASE("System - inherited prefab Iter query term-indexed access") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -16457,7 +16457,7 @@ TEST_CASE("System - inherited prefab Iter query preserves term-indexed access") 
 	CHECK(wld.get<Position>(prefab).x == doctest::Approx(4.0f));
 }
 
-TEST_CASE("System - inherited prefab Iter SoA query preserves term-indexed access") {
+TEST_CASE("System - inherited prefab Iter SoA query term-indexed access") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -16506,7 +16506,7 @@ TEST_CASE("System - inherited prefab Iter SoA query preserves term-indexed acces
 	CHECK(prefabPos.z == doctest::Approx(6.0f));
 }
 
-TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
+TEST_CASE("System - typed is query") {
 	TestWorld twld;
 
 	auto animal = wld.add();
@@ -16545,7 +16545,7 @@ TEST_CASE("System - typed is query uses semantic direct-seeded execution") {
 	CHECK(directX == doctest::Approx(1.0f));
 }
 
-TEST_CASE("System - Iter is query preserves term-indexed component access") {
+TEST_CASE("System - Iter is query term-indexed component access") {
 	TestWorld twld;
 
 	auto animal = wld.add();
@@ -16584,7 +16584,7 @@ TEST_CASE("System - Iter is query preserves term-indexed component access") {
 	CHECK(directX == doctest::Approx(1.0f));
 }
 
-TEST_CASE("System - DependsOn is respected for semantic Is queries") {
+TEST_CASE("System - DependsOn and semantic Is queries") {
 	TestWorld twld;
 
 	auto animal = wld.add();
@@ -16622,7 +16622,7 @@ TEST_CASE("System - DependsOn is respected for semantic Is queries") {
 	CHECK(directObservedX == doctest::Approx(11.0f));
 }
 
-TEST_CASE("System - nested same-world Is query does not corrupt matcher scratch") {
+TEST_CASE("System - nested same-world Is query matcher scratch") {
 	TestWorld twld;
 
 	auto animal = wld.add();
@@ -16686,7 +16686,7 @@ TEST_CASE("System - deep semantic Is direct exec") {
 	CHECK(sum == 8437760ULL);
 }
 
-TEST_CASE("System - deep semantic Is direct exec survives prior systems query each") {
+TEST_CASE("System - deep semantic Is after prior systems query each") {
 	TestWorld twld;
 
 	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
@@ -16716,7 +16716,7 @@ TEST_CASE("System - deep semantic Is direct exec survives prior systems query ea
 	CHECK(sum == 8437760ULL);
 }
 
-TEST_CASE("Query - deep semantic Is survives prior systems query each") {
+TEST_CASE("Query - deep semantic Is after prior systems query each") {
 	TestWorld twld;
 
 	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
@@ -16749,7 +16749,7 @@ TEST_CASE("Query - deep semantic Is survives prior systems query each") {
 	CHECK(sum == 8437760ULL);
 }
 
-TEST_CASE("System - deep semantic Is survives prior direct Is rematch in another world") {
+TEST_CASE("System - deep semantic Is after prior direct Is rematch in another world") {
 	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth) {
 		auto root = world.add();
 		for (uint32_t i = 0; i < branches; ++i) {
@@ -16788,7 +16788,7 @@ TEST_CASE("System - deep semantic Is survives prior direct Is rematch in another
 	}
 }
 
-TEST_CASE("Observer - deep semantic Is matches_any survives prior systems query each") {
+TEST_CASE("Observer - deep semantic Is matches_any after prior systems query each") {
 	TestWorld twld;
 
 	auto make_is_fanout = [](ecs::World& world, uint32_t branches, uint32_t depth, cnt::darr<ecs::Entity>& leaves) {
@@ -17128,7 +17128,7 @@ TEST_CASE("EntityBuilder single-step graph rebuild tolerates stale del edges") {
 	}
 }
 
-TEST_CASE("EntityBuilder batching keeps later single-step archetype moves valid") {
+TEST_CASE("EntityBuilder batching and later single-step archetype moves") {
 	TestWorld twld;
 
 	const auto tagA = wld.add();
@@ -17438,7 +17438,7 @@ TEST_CASE("Observer - copy_ext_n sparse payload") {
 	CHECK(observedEntities.size() == N);
 }
 
-TEST_CASE("Observer - copy_ext ignores unrelated traversed source observers") {
+TEST_CASE("Observer - copy_ext with unrelated traversed source observers") {
 	TestWorld twld;
 
 	const auto connectedToA = wld.add();
@@ -17478,7 +17478,7 @@ TEST_CASE("Observer - copy_ext ignores unrelated traversed source observers") {
 	CHECK(hitsB == 0);
 }
 
-TEST_CASE("copy_ext_n strips names and preserves sparse data") {
+TEST_CASE("copy_ext_n without names and with sparse data") {
 	TestWorld twld;
 
 	const auto src = wld.add();
@@ -17718,7 +17718,7 @@ namespace {
 	}
 
 	template <typename MutateFunc>
-	void expect_traversed_observer_matches_query_truth(
+	void expect_traversed_observer_changes(
 			ecs::World& world, ecs::Entity bindingRelation, ecs::QueryTermOptions traversalOptions, MutateFunc&& mutate,
 			ecs::ObserverPlan::ExecKind expectedExecKind = ecs::ObserverPlan::ExecKind::DiffPropagated) {
 		auto termOptions = traversalOptions;
@@ -17843,7 +17843,7 @@ TEST_CASE("Observer - traversed source propagation on ancestor term changes") {
 	CHECK(removed[0] == cable);
 }
 
-TEST_CASE("Observer - traversed source propagation on ancestor term changes ignores unrelated existing matches") {
+TEST_CASE("Observer - traversed source propagation on ancestor term changes and unrelated existing matches") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18093,7 +18093,7 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 		CHECK(removed[0] == cable);
 }
 
-TEST_CASE("Observer - traversed source propagation ignores unrelated pair relation changes") {
+TEST_CASE("Observer - traversed source propagation and unrelated pair relation changes") {
 	TestWorld twld;
 
 	const auto connectedToA = wld.add();
@@ -18132,7 +18132,7 @@ TEST_CASE("Observer - traversed source propagation ignores unrelated pair relati
 	CHECK(hitsB == 0);
 }
 
-TEST_CASE("Observer - propagated traversal oracle matches ancestor component diffs with many descendants") {
+TEST_CASE("Observer - ancestor component diffs with many descendants") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18154,15 +18154,15 @@ TEST_CASE("Observer - propagated traversal oracle matches ancestor component dif
 	wld.add(cableB, ecs::Pair(connectedTo, childB));
 	wld.add(cableC, ecs::Pair(connectedTo, grandChild));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.add<Acceleration>(root);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.del<Acceleration>(root);
 	});
 }
 
-TEST_CASE("Observer - propagated traversal oracle matches self-up closer-match transitions") {
+TEST_CASE("Observer - self-up closer-match transitions") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18175,18 +18175,18 @@ TEST_CASE("Observer - propagated traversal oracle matches self-up closer-match t
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, child));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.add<Acceleration>(child);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.del<Acceleration>(root);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.del<Acceleration>(child);
 	});
 }
 
-TEST_CASE("Observer - propagated traversal oracle matches bounded parent traversal") {
+TEST_CASE("Observer - bounded parent traversal") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18200,18 +18200,18 @@ TEST_CASE("Observer - propagated traversal oracle matches bounded parent travers
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, leaf));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
 		wld.add<Acceleration>(root);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
 		wld.add<Acceleration>(parent);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
 		wld.del<Acceleration>(parent);
 	});
 }
 
-TEST_CASE("Observer - propagated traversal oracle matches bounded self-parent transitions") {
+TEST_CASE("Observer - bounded self-parent transitions") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18226,18 +18226,18 @@ TEST_CASE("Observer - propagated traversal oracle matches bounded self-parent tr
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, leaf));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
 		wld.add<Acceleration>(parent);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
 		wld.del<Acceleration>(leaf);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
 		wld.del<Acceleration>(parent);
 	});
 }
 
-TEST_CASE("Observer - propagated traversal oracle deduplicates repeated reachability paths") {
+TEST_CASE("Observer - repeated reachability paths") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18256,15 +18256,15 @@ TEST_CASE("Observer - propagated traversal oracle deduplicates repeated reachabi
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, leaf));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
 		wld.add<Acceleration>(root);
 	});
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
 		wld.del<Acceleration>(root);
 	});
 }
 
-TEST_CASE("Observer - propagated traversal oracle ignores duplicate-path relation edge additions") {
+TEST_CASE("Observer - duplicate-path relation edge additions") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18283,12 +18283,93 @@ TEST_CASE("Observer - propagated traversal oracle ignores duplicate-path relatio
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, leaf));
 
-	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
 		wld.add(leaf, ecs::Pair(linkedTo, midB));
 	});
 }
 
-TEST_CASE("Observer - unsupported traversal diff shape falls back and matches query truth") {
+TEST_CASE("Observer - duplicate-path relation edge removals with remaining path") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto linkedTo = wld.add();
+	const auto root = wld.add();
+	const auto midA = wld.add();
+	const auto midB = wld.add();
+	const auto leaf = wld.add();
+
+	wld.add<Acceleration>(root);
+	wld.add(midA, ecs::Pair(linkedTo, root));
+	wld.add(midB, ecs::Pair(linkedTo, root));
+	wld.add(leaf, ecs::Pair(linkedTo, midA));
+	wld.add(leaf, ecs::Pair(linkedTo, midB));
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.del(leaf, ecs::Pair(linkedTo, midB));
+	});
+}
+
+TEST_CASE("Observer - removing one of multiple matching binding pairs") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.child(childA, root);
+	wld.child(childB, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, childA));
+	wld.add(cable, ecs::Pair(connectedTo, childB));
+
+	expect_traversed_observer_changes(
+			wld, connectedTo, ecs::QueryTermOptions{}.trav(),
+			[&] {
+				wld.del(cable, ecs::Pair(connectedTo, childB));
+			},
+			ecs::ObserverPlan::ExecKind::DiffPropagated);
+
+	expect_traversed_observer_changes(
+			wld, connectedTo, ecs::QueryTermOptions{}.trav(),
+			[&] {
+				wld.del(cable, ecs::Pair(connectedTo, childA));
+			},
+			ecs::ObserverPlan::ExecKind::DiffPropagated);
+}
+
+TEST_CASE("Observer - another bound source still matches") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.child(childA, rootA);
+	wld.child(childB, rootB);
+	wld.add<Acceleration>(rootA);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, childA));
+	wld.add(cable, ecs::Pair(connectedTo, childB));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.add<Acceleration>(rootB);
+	});
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del<Acceleration>(rootA);
+	});
+}
+
+TEST_CASE("Observer - unsupported traversal diff shape") {
 	TestWorld twld;
 
 	struct Shield {};
@@ -18381,7 +18462,7 @@ TEST_CASE("Observer - unsupported traversal diff shape falls back and matches qu
 	CHECK(removed.empty());
 }
 
-TEST_CASE("Observer - traversed source copy_ext_n matches query truth for all new entities") {
+TEST_CASE("Observer - traversed source copy_ext_n fires for all new entities") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18438,7 +18519,7 @@ TEST_CASE("Observer - traversed source copy_ext_n matches query truth for all ne
 	CHECK(added == copied);
 }
 
-TEST_CASE("Observer - traversed source add_n matches query truth for all new entities") {
+TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -18495,7 +18576,7 @@ TEST_CASE("Observer - traversed source add_n matches query truth for all new ent
 	CHECK(added == created);
 }
 
-TEST_CASE("Observer - parented instantiate_n traversed source matches query truth for all new roots") {
+TEST_CASE("Observer - parented instantiate_n traversed source fires for all new roots") {
 	TestWorld twld;
 
 	const auto scene = wld.add();
@@ -18600,7 +18681,7 @@ TEST_CASE("Observer - many identical traversed observers each fire once for batc
 	}
 }
 
-TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
+TEST_CASE("Observer - Is pair semantic inheritance") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -18639,7 +18720,7 @@ TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
 		CHECK(observed[1] == wolf);
 }
 
-TEST_CASE("Observer - direct Is pair matches only direct stored edges") {
+TEST_CASE("Observer - direct Is pair with direct stored edges") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -18675,7 +18756,7 @@ TEST_CASE("Observer - direct Is pair matches only direct stored edges") {
 	CHECK(observed.size() == 1);
 }
 
-TEST_CASE("Observer - direct Is pair via QueryInput matches only direct stored edges") {
+TEST_CASE("Observer - direct Is pair via QueryInput with direct stored edges") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -18864,7 +18945,7 @@ TEST_CASE("Observer - inherited Is data matches when derived entity is linked to
 	(void)observer;
 }
 
-TEST_CASE("Observer - inherited Is override refires OnAdd when local ownership is materialized") {
+TEST_CASE("Observer - inherited Is override and local ownership") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -19147,7 +19228,7 @@ TEST_CASE("Observer - inherited prefab removal triggers no<T> OnDel") {
 	(void)observer;
 }
 
-TEST_CASE("Observer - inherited prefab removal typed OnDel callback sees payload") {
+TEST_CASE("Observer - inherited prefab removal typed OnDel payload") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -19214,7 +19295,7 @@ TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
 	(void)observer;
 }
 
-TEST_CASE("Observer - prefab sync child removal stays non-destructive and emits no OnDel") {
+TEST_CASE("Observer - prefab sync child removal emits no OnDel") {
 	TestWorld twld;
 
 	const auto rootPrefab = wld.prefab();
@@ -19482,7 +19563,7 @@ TEST_CASE("Observer - fixed pair OnDel fast path runtime") {
 	(void)observer;
 }
 
-TEST_CASE("Observer - deleting prefab entity keeps instances and emits no standalone inherited OnDel") {
+TEST_CASE("Observer - deleting prefab entity leaves instances and emits no standalone inherited OnDel") {
 	TestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -22676,7 +22757,7 @@ TEST_CASE("Multithreading - Handle reuse mixed delete modes") {
 	CHECK(manualCnt.load(std::memory_order_relaxed) == Iters);
 }
 
-TEST_CASE("Parent - non-fragmenting relation keeps structural archetype cache stable") {
+TEST_CASE("Parent - non-fragmenting relation and structural archetype cache") {
 	TestWorld twld;
 
 	const auto rootA = wld.add();
@@ -22743,7 +22824,7 @@ TEST_CASE("Parent - deleting target deletes children through adjunct relation") 
 	CHECK(!wld.has(child));
 }
 
-TEST_CASE("Parent - breadth-first traversal uses adjunct relation") {
+TEST_CASE("Parent - breadth-first traversal on adjunct relation") {
 	TestWorld twld;
 
 	const auto root = wld.add();
@@ -22794,7 +22875,7 @@ TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
 	expect_exact_entities(qOr, {eA, eC});
 }
 
-TEST_CASE("Sparse DontFragment component uses adjunct storage") {
+TEST_CASE("Sparse DontFragment component and adjunct storage") {
 	TestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -22822,7 +22903,7 @@ TEST_CASE("Sparse DontFragment component uses adjunct storage") {
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("Sparse DontFragment component supports runtime object add with value") {
+TEST_CASE("Sparse DontFragment component runtime object add with value") {
 	TestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -22870,7 +22951,7 @@ TEST_CASE("Sparse DontFragment component direct query terms are evaluated as ent
 	expect_exact_entities(qOr, {eA, eC});
 }
 
-TEST_CASE("Sparse DontFragment runtime-registered component supports typed object access") {
+TEST_CASE("Sparse DontFragment runtime-registered component typed object access") {
 	TestWorld twld;
 
 	const auto& runtimeComp = wld.add(
@@ -22915,7 +22996,7 @@ TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity
 	CHECK_FALSE(wld.has(e));
 }
 
-TEST_CASE("EntityContainer cached entity slot stays valid across row swap and archetype move") {
+TEST_CASE("EntityContainer cached entity slot across row swap and archetype move") {
 	TestWorld twld;
 
 	const auto targetA = wld.add();

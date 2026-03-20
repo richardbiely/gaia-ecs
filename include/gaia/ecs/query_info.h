@@ -885,7 +885,7 @@ namespace gaia {
 				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			bool register_archetype(const Archetype& archetype) {
+			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad) {
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary.
@@ -901,6 +901,12 @@ namespace gaia {
 					bool hasOrTerms = false;
 					bool matchedOrTerm = false;
 					for (const auto& term: ctxData.terms_view()) {
+						if (term.id == matchedSelector) {
+							if (term.op == QueryOpKind::Or)
+								matchedOrTerm = true;
+							continue;
+						}
+
 						const bool present = usesIs ? vm::detail::match_single_id_on_archetype(*world(), archetype, term.id)
 																				: world_component_index_match_count(*world(), archetype, term.id) != 0;
 						if (term.op == QueryOpKind::Or) {
